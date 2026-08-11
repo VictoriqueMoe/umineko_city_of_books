@@ -26,6 +26,9 @@ import type {
     ChangePasswordPayload,
     CharacterListResponse,
     Chatbot,
+    ChatbotBasePrompt,
+    ChatbotBasePromptListResponse,
+    ChatbotBasePromptPayload,
     ChatbotModels,
     ChatbotListResponse,
     ChatbotPayload,
@@ -2405,6 +2408,22 @@ export async function updateChatbot(id: string, data: ChatbotPayload): Promise<v
 
 export async function deleteChatbot(id: string): Promise<void> {
     await apiDelete(`/admin/chatbots/${id}`);
+}
+
+export async function getChatbotBasePrompts(): Promise<ChatbotBasePromptListResponse> {
+    return apiFetch<ChatbotBasePromptListResponse>("/admin/chatbots/base-prompts");
+}
+
+export async function createChatbotBasePrompt(data: ChatbotBasePromptPayload): Promise<ChatbotBasePrompt> {
+    return apiPost<ChatbotBasePrompt, ChatbotBasePromptPayload>("/admin/chatbots/base-prompts", data);
+}
+
+export async function updateChatbotBasePrompt(id: string, data: ChatbotBasePromptPayload): Promise<ChatbotBasePrompt> {
+    return apiPut<ChatbotBasePrompt, ChatbotBasePromptPayload>(`/admin/chatbots/base-prompts/${id}`, data);
+}
+
+export async function deleteChatbotBasePrompt(id: string): Promise<void> {
+    await apiDelete(`/admin/chatbots/base-prompts/${id}`);
 }
 
 export async function getChatbotUsage(days: number): Promise<ChatbotUsage> {

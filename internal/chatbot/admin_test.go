@@ -164,7 +164,7 @@ func TestCreate_RejectsUnknownModelBeforeTouchingTheDatabase(t *testing.T) {
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Models(mock.Anything).Return([]string{"gpt-5.6-luna"}, nil).Once()
 
-	svc := NewAdminService(botRepo, vanityRepo, userSvc, openaiSvc, new(stubReloader))
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
 
 	// when
 	bot, err := svc.Create(context.Background(), validRequest("gpt-5.6-mirage"))
@@ -197,7 +197,7 @@ func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Models(mock.Anything).Return(nil, errors.New("provider unreachable")).Once()
 
-	svc := NewAdminService(botRepo, vanityRepo, userSvc, openaiSvc, reloader)
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, reloader)
 
 	// when
 	bot, err := svc.Create(context.Background(), validRequest("gpt-9-unreleased"))
@@ -216,7 +216,7 @@ func TestDelete_MissingBotIsReportedAsNotFound(t *testing.T) {
 	botRepo := repository.NewMockChatbotRepository(t)
 	botRepo.EXPECT().DeleteBot(mock.Anything, mock.Anything).Return(repository.ErrBotNotFound).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockVanityRoleRepository(t), user.NewMockService(t), openai.NewMockService(t), reloader)
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockVanityRoleRepository(t), user.NewMockService(t), openai.NewMockService(t), reloader)
 
 	// when
 	err := svc.Delete(context.Background(), uuid.New())
@@ -285,7 +285,7 @@ func TestTest_ProviderFailureIsReportedNotPropagated(t *testing.T) {
 				})).Return(tc.result, tc.completeErr).Once()
 			}
 
-			svc := NewAdminService(botRepo, vanityRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
 
 			// when
 			ok, message, err := svc.Test(context.Background(), tc.model)
@@ -349,7 +349,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 				userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, "beatrice").Return(nil).Once()
 			}
 
-			svc := NewAdminService(botRepo, vanityRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
 
 			req := validRequest("gpt-5.6-luna")
 			req.DisplayName = tc.given
@@ -390,7 +390,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 				botRepo.EXPECT().GetBotByUserID(mock.Anything, botUserID).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
 			}
 
-			svc := NewAdminService(botRepo, vanityRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
 
 			req := validRequest("gpt-5.6-luna")
 			req.DisplayName = tc.given
@@ -429,7 +429,7 @@ func TestUsage_ReportsFailureCounts(t *testing.T) {
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Costs(mock.Anything, mock.Anything).Return(nil, errors.New("no admin key")).Once()
 
-	svc := NewAdminService(botRepo, vanityRepo, userSvc, openaiSvc, new(stubReloader))
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
 
 	// when
 	usage, err := svc.Usage(context.Background(), time.Unix(1_700_000_000, 0))

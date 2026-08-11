@@ -1,6 +1,19 @@
 import { useId, useState } from "react";
-import { useAdminSettings, useChatbotModels, useChatbotUsage, useChatbots } from "../../api/queries/admin";
-import { useCreateChatbot, useDeleteChatbot, useUpdateChatbot } from "../../api/mutations/admin";
+import {
+    useAdminSettings,
+    useChatbotBasePrompts,
+    useChatbotModels,
+    useChatbotUsage,
+    useChatbots,
+} from "../../api/queries/admin";
+import {
+    useCreateChatbot,
+    useCreateChatbotBasePrompt,
+    useDeleteChatbot,
+    useDeleteChatbotBasePrompt,
+    useUpdateChatbot,
+    useUpdateChatbotBasePrompt,
+} from "../../api/mutations/admin";
 import { checkUsernameAvailable } from "../../api/endpoints";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
@@ -9,7 +22,7 @@ import { Modal } from "../../components/Modal/Modal";
 import { Select } from "../../components/Select/Select";
 import { TextArea } from "../../components/TextArea/TextArea";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import type { Chatbot, ChatbotChannelUsage, ChatbotPayload, ChatbotUsage } from "../../types/api";
+import type { Chatbot, ChatbotBasePrompt, ChatbotChannelUsage, ChatbotPayload, ChatbotUsage } from "../../types/api";
 import { ChatbotKeyGate } from "./ChatbotKeyGate";
 import styles from "./AdminChatbots.module.css";
 
@@ -18,6 +31,7 @@ interface ChatbotFields {
     displayName: string;
     avatarURL: string;
     prompt: string;
+    basePromptID: string;
     model: string;
     effort: string;
     verbosity: string;
@@ -45,6 +59,7 @@ const EMPTY_FIELDS: ChatbotFields = {
     displayName: "",
     avatarURL: "",
     prompt: "",
+    basePromptID: "",
     model: "",
     effort: "",
     verbosity: "",
@@ -57,6 +72,7 @@ function fieldsFromBot(bot: Chatbot): ChatbotFields {
         displayName: bot.display_name,
         avatarURL: bot.avatar_url,
         prompt: bot.system_prompt,
+        basePromptID: bot.base_prompt_id ?? "",
         model: bot.model,
         effort: bot.reasoning_effort,
         verbosity: bot.verbosity,
@@ -72,6 +88,7 @@ function buildPayload(fields: ChatbotFields, enabled: boolean): ChatbotPayload {
         display_name: fields.displayName.trim(),
         avatar_url: fields.avatarURL.trim(),
         system_prompt: fields.prompt,
+        base_prompt_id: fields.basePromptID === "" ? null : fields.basePromptID,
         model: fields.model.trim(),
         reasoning_effort: fields.effort,
         verbosity: fields.verbosity,
@@ -146,6 +163,7 @@ export function AdminChatbots() {
     usePageTitle("Admin - Chatbots");
     const baseID = useId();
     const { bots, loading } = useChatbots();
+    const { basePrompts } = useChatbotBasePrompts();
     const { settings } = useAdminSettings();
     const { models, modelsError, loading: modelsLoading, refresh: refreshModels } = useChatbotModels();
     const dayUsage = useChatbotUsage(1);
@@ -162,6 +180,17 @@ export function AdminChatbots() {
     const [fields, setFields] = useState<ChatbotFields>(EMPTY_FIELDS);
     const [togglingID, setTogglingID] = useState<string | null>(null);
     const [usernameCheck, setUsernameCheck] = useState<UsernameCheck>({ state: "idle" });
+
+    const createBaseMutation = useCreateChatbotBasePrompt();
+    const updateBaseMutation = useUpdateChatbotBasePrompt();
+    const deleteBaseMutation = useDeleteChatbotBasePrompt();
+    const [showBaseForm, setShowBaseForm] = useState(false);
+    const [editingBase, setEditingBase] = useState<ChatbotBasePrompt | null>(null);
+    const [baseName, setBaseName] = useState("");
+    const [basePrompt, setBasePrompt] = useState("");
+    const [baseError, setBaseError] = useState("");
+
+    const savingBase = createBaseMutation.isPending || updateBaseMutation.isPending;
 
     const saving = createBotMutation.isPending || updateBotMutation.isPending;
     const promptTokenEstimate = Math.ceil(fields.prompt.length / CHARS_PER_TOKEN);
@@ -182,6 +211,69 @@ export function AdminChatbots() {
 
     function setField<K extends keyof ChatbotFields>(key: K, value: ChatbotFields[K]) {
         setFields(current => ({ ...current, [key]: value }));
+    }
+
+    function openCreateBase() {
+        setEditingBase(null);
+        setBaseName("");
+        setBasePrompt("");
+        setBaseError("");
+        setShowBaseForm(true);
+    }
+
+    function openEditBase(base: ChatbotBasePrompt) {
+        setEditingBase(base);
+        setBaseName(base.name);
+        setBasePrompt(base.prompt);
+        setBaseError("");
+        setShowBaseForm(true);
+    }
+
+    function closeBaseForm() {
+        setShowBaseForm(false);
+        setEditingBase(null);
+        setBaseError("");
+    }
+
+    async function submitBase() {
+        if (baseName.trim() === "" || basePrompt.trim() === "") {
+            setBaseError("A base prompt needs a name and some text.");
+
+            return;
+        }
+
+        const payload = { name: baseName.trim(), prompt: basePrompt };
+
+        try {
+            if (editingBase) {
+                await updateBaseMutation.mutateAsync({ id: editingBase.id, data: payload });
+            } else {
+                await createBaseMutation.mutateAsync(payload);
+            }
+
+            closeBaseForm();
+        } catch (e) {
+            setBaseError(failureDetail(e));
+        }
+    }
+
+    async function removeBase(base: ChatbotBasePrompt) {
+        if (base.bot_count > 0) {
+            setBaseError(`${base.name} is still used by ${base.bot_count} bot(s). Unassign them first.`);
+
+            return;
+        }
+
+        if (!confirm(`Delete the base prompt "${base.name}"?`)) {
+            return;
+        }
+
+        try {
+            await deleteBaseMutation.mutateAsync(base.id);
+            setBaseError("");
+        } catch (e) {
+            setBaseError(failureDetail(e));
+        }
     }
 
     function openCreate() {
@@ -295,6 +387,59 @@ export function AdminChatbots() {
             </p>
 
             {error && <div className={styles.error}>{error}</div>}
+
+            <div className={styles.header}>
+                <h2 className={styles.overridesTitle}>Base Prompts</h2>
+                <Button variant="secondary" onClick={openCreateBase}>
+                    Create Base Prompt
+                </Button>
+            </div>
+
+            <p className={styles.intro}>
+                A base prompt is shared text that every bot extending it receives before its own personality, for the
+                rules they all obey rather than anything one character does. Edit it once and every bot using it picks
+                the change up immediately.
+            </p>
+
+            {baseError && <div className={styles.error}>{baseError}</div>}
+
+            {basePrompts.length === 0 ? (
+                <div className={styles.empty}>No base prompts yet.</div>
+            ) : (
+                <div className={styles.list}>
+                    {basePrompts.map(base => (
+                        <div key={base.id} className={styles.botRow}>
+                            <span className={styles.botIdentity}>
+                                <span className={styles.botName}>{base.name}</span>
+                                <span className={styles.botMeta}>
+                                    {base.bot_count === 1 ? "1 bot" : `${base.bot_count} bots`} ·{" "}
+                                    {base.prompt.length.toLocaleString()} characters
+                                </span>
+                            </span>
+                            <span className={styles.actions}>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    aria-label={`Edit ${base.name}`}
+                                    onClick={() => openEditBase(base)}
+                                >
+                                    Edit
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    size="small"
+                                    aria-label={`Delete ${base.name}`}
+                                    onClick={() => {
+                                        removeBase(base).catch(() => undefined);
+                                    }}
+                                >
+                                    Delete
+                                </Button>
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             <div className={styles.usageRow}>
                 {usageRanges.map(range => (
@@ -422,6 +567,29 @@ export function AdminChatbots() {
                         <span id={fieldID("avatar-url-hint")} className={styles.fieldHint}>
                             Leave it empty and the bot falls back to an initial, the same as any member without a
                             picture.
+                        </span>
+                    </div>
+                    <div className={styles.fieldLabel}>
+                        <label htmlFor={fieldID("base-prompt")}>Base Prompt</label>
+                        <Select
+                            id={fieldID("base-prompt")}
+                            value={fields.basePromptID}
+                            onChange={e => setField("basePromptID", e.target.value)}
+                            aria-describedby={fieldID("base-prompt-hint")}
+                            disabled={formLocked}
+                        >
+                            <option value="">None</option>
+                            {basePrompts.map(base => (
+                                <option key={base.id} value={base.id}>
+                                    {base.name}
+                                </option>
+                            ))}
+                        </Select>
+                        <span id={fieldID("base-prompt-hint")} className={styles.fieldHint}>
+                            Shared text that every bot extending it receives before its own personality, for the rules
+                            they all obey rather than anything one character does. Edit it once and every bot using it
+                            picks the change up immediately. Because it sits in front of the persona it is identical
+                            across those bots, which is exactly what prompt caching keys on.
                         </span>
                     </div>
                     <div className={styles.fieldLabel}>
@@ -562,6 +730,62 @@ export function AdminChatbots() {
                             }
                         >
                             {saving ? "Saving..." : "Save"}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal
+                isOpen={showBaseForm}
+                onClose={closeBaseForm}
+                title={editingBase ? "Edit Base Prompt" : "Create Base Prompt"}
+            >
+                <div className={styles.form}>
+                    {baseError && <div className={styles.error}>{baseError}</div>}
+                    <div className={styles.fieldLabel}>
+                        <label htmlFor={fieldID("base-name")}>Name</label>
+                        <Input
+                            id={fieldID("base-name")}
+                            value={baseName}
+                            onChange={e => setBaseName(e.target.value)}
+                            placeholder="game witch"
+                            aria-describedby={fieldID("base-name-hint")}
+                        />
+                        <span id={fieldID("base-name-hint")} className={styles.fieldHint}>
+                            How it appears in the dropdown on each bot. Names must be unique.
+                        </span>
+                    </div>
+                    <div className={styles.fieldLabel}>
+                        <label htmlFor={fieldID("base-prompt-text")}>Prompt</label>
+                        <TextArea
+                            id={fieldID("base-prompt-text")}
+                            rows={18}
+                            value={basePrompt}
+                            onChange={e => setBasePrompt(e.target.value)}
+                            placeholder="You are a witch of the game boards, and this is the first half of your instructions..."
+                            aria-describedby={fieldID("base-prompt-text-hint")}
+                        />
+                        <span id={fieldID("base-prompt-text-hint")} className={styles.fieldHint}>
+                            This text is sent before the persona of every bot that extends it, so write only what they
+                            all share: the hierarchy they obey, how the site works, and the rules none of them may
+                            break. Anything that belongs to one character belongs in that bot's own prompt instead.
+                            Roughly {Math.ceil(basePrompt.length / CHARS_PER_TOKEN).toLocaleString()} tokens, charged on
+                            every reply from every bot using it.
+                        </span>
+                    </div>
+                    <div className={styles.formActions}>
+                        <Button variant="ghost" size="small" onClick={closeBaseForm}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="small"
+                            onClick={() => {
+                                submitBase().catch(() => undefined);
+                            }}
+                            disabled={savingBase || baseName.trim() === "" || basePrompt.trim() === ""}
+                        >
+                            {savingBase ? "Saving..." : "Save"}
                         </Button>
                     </div>
                 </div>

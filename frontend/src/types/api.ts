@@ -1665,6 +1665,7 @@ export interface Chatbot {
     display_name: string;
     avatar_url: string;
     system_prompt: string;
+    base_prompt_id: string | null;
     model: string;
     reasoning_effort: string;
     verbosity: string;
@@ -1677,11 +1678,30 @@ export interface ChatbotPayload {
     display_name: string;
     avatar_url: string;
     system_prompt: string;
+    base_prompt_id: string | null;
     model: string;
     reasoning_effort: string;
     verbosity: string;
     max_output_tokens: number;
     enabled: boolean;
+}
+
+export interface ChatbotBasePrompt {
+    id: string;
+    name: string;
+    prompt: string;
+    bot_count: number;
+    created_at: string;
+    updated_at: string;
+}
+
+export interface ChatbotBasePromptPayload {
+    name: string;
+    prompt: string;
+}
+
+export interface ChatbotBasePromptListResponse {
+    base_prompts: ChatbotBasePrompt[];
 }
 
 export interface ChatbotChannelUsage {

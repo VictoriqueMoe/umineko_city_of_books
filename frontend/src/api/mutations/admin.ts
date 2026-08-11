@@ -7,6 +7,9 @@ import {
     banUser,
     createAnnouncement,
     createChatbot,
+    createChatbotBasePrompt,
+    deleteChatbotBasePrompt,
+    updateChatbotBasePrompt,
     createGlobalBannedWord,
     createInvite,
     createVanityRole,
@@ -44,7 +47,7 @@ import {
     uploadOGDefaultImage,
     verifyUserEmail,
 } from "../endpoints";
-import type { ChatbotPayload, CreateBannedWordRequest, SiteSettings } from "../../types/api";
+import type { ChatbotBasePromptPayload, ChatbotPayload, CreateBannedWordRequest, SiteSettings } from "../../types/api";
 import { queryKeys } from "../queryKeys";
 
 export function useSetUserRole() {
@@ -364,8 +367,37 @@ export function useUpdateVanityRolePermissions() {
 async function invalidateChatbotViews(qc: QueryClient) {
     await Promise.all([
         qc.invalidateQueries({ queryKey: queryKeys.admin.chatbots() }),
+        qc.invalidateQueries({ queryKey: queryKeys.admin.chatbotBasePrompts() }),
         qc.invalidateQueries({ queryKey: queryKeys.chatbots.all }),
     ]);
+}
+
+async function invalidateBasePromptViews(qc: QueryClient) {
+    await qc.invalidateQueries({ queryKey: queryKeys.admin.chatbotBasePrompts() });
+}
+
+export function useCreateChatbotBasePrompt() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (data: ChatbotBasePromptPayload) => createChatbotBasePrompt(data),
+        onSuccess: () => invalidateBasePromptViews(qc),
+    });
+}
+
+export function useUpdateChatbotBasePrompt() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, data }: { id: string; data: ChatbotBasePromptPayload }) => updateChatbotBasePrompt(id, data),
+        onSuccess: () => invalidateBasePromptViews(qc),
+    });
+}
+
+export function useDeleteChatbotBasePrompt() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => deleteChatbotBasePrompt(id),
+        onSuccess: () => invalidateBasePromptViews(qc),
+    });
 }
 
 export function useCreateChatbot() {

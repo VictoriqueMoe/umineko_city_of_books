@@ -34,24 +34,31 @@ type (
 		Usage(ctx context.Context, since time.Time) (*dto.ChatbotUsageResponse, error)
 		Models(ctx context.Context) ([]string, error)
 		Test(ctx context.Context, model string) (bool, string, error)
+
+		ListBasePrompts(ctx context.Context) ([]dto.ChatbotBasePromptResponse, error)
+		CreateBasePrompt(ctx context.Context, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
+		UpdateBasePrompt(ctx context.Context, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
+		DeleteBasePrompt(ctx context.Context, id uuid.UUID) error
 	}
 
 	adminService struct {
-		botRepo    repository.ChatbotRepository
-		vanityRepo repository.VanityRoleRepository
-		userSvc    user.Service
-		openaiSvc  openai.Service
-		reloader   Service
+		botRepo        repository.ChatbotRepository
+		basePromptRepo repository.ChatbotBasePromptRepository
+		vanityRepo     repository.VanityRoleRepository
+		userSvc        user.Service
+		openaiSvc      openai.Service
+		reloader       Service
 	}
 )
 
-func NewAdminService(botRepo repository.ChatbotRepository, vanityRepo repository.VanityRoleRepository, userSvc user.Service, openaiSvc openai.Service, reloader Service) AdminService {
+func NewAdminService(botRepo repository.ChatbotRepository, basePromptRepo repository.ChatbotBasePromptRepository, vanityRepo repository.VanityRoleRepository, userSvc user.Service, openaiSvc openai.Service, reloader Service) AdminService {
 	return &adminService{
-		botRepo:    botRepo,
-		vanityRepo: vanityRepo,
-		userSvc:    userSvc,
-		openaiSvc:  openaiSvc,
-		reloader:   reloader,
+		botRepo:        botRepo,
+		basePromptRepo: basePromptRepo,
+		vanityRepo:     vanityRepo,
+		userSvc:        userSvc,
+		openaiSvc:      openaiSvc,
+		reloader:       reloader,
 	}
 }
 
@@ -100,6 +107,7 @@ func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest)
 		ID:              uuid.New(),
 		UserID:          userID,
 		SystemPrompt:    req.SystemPrompt,
+		BasePromptID:    req.BasePromptID,
 		Model:           req.Model,
 		ReasoningEffort: req.ReasoningEffort,
 		Verbosity:       req.Verbosity,
@@ -145,6 +153,7 @@ func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.Chatbot
 
 	updated := *current
 	updated.SystemPrompt = req.SystemPrompt
+	updated.BasePromptID = req.BasePromptID
 	updated.Model = req.Model
 	updated.ReasoningEffort = req.ReasoningEffort
 	updated.Verbosity = req.Verbosity
@@ -278,6 +287,7 @@ func toResponse(bot repository.Chatbot) dto.ChatbotResponse {
 		DisplayName:     bot.DisplayName,
 		AvatarURL:       bot.AvatarURL,
 		SystemPrompt:    bot.SystemPrompt,
+		BasePromptID:    bot.BasePromptID,
 		Model:           bot.Model,
 		ReasoningEffort: bot.ReasoningEffort,
 		Verbosity:       bot.Verbosity,

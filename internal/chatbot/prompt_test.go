@@ -469,20 +469,24 @@ func TestSanitiseLabel_StripsWhatWouldForgeALabel(t *testing.T) {
 func TestSystemPrompt_PrependsThePreambleOnlyWhenThereIsAPersona(t *testing.T) {
 	cases := []struct {
 		name    string
+		base    string
 		persona string
 		want    string
 	}{
-		{"a persona is prefixed with the transcript rules", "You are Beatrice.", promptPreamble + "\n\nYou are Beatrice."},
-		{"an empty persona stays empty so no system turn is sent", "", ""},
-		{"a whitespace persona stays empty", "   \n  ", ""},
+		{"a persona is prefixed with the transcript rules", "", "You are Beatrice.", promptPreamble + "\n\nYou are Beatrice."},
+		{"an empty persona stays empty so no system turn is sent", "", "", ""},
+		{"a whitespace persona stays empty", "", "   \n  ", ""},
+		{"a base prompt sits between the preamble and the persona", "You are a game witch.", "You are Beatrice.", promptPreamble + "\n\nYou are a game witch.\n\nYou are Beatrice."},
+		{"a whitespace base is skipped entirely", "  \n ", "You are Beatrice.", promptPreamble + "\n\nYou are Beatrice."},
+		{"a base without a persona still sends nothing", "You are a game witch.", "", ""},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			// given the persona from the table
+			// given the base and persona from the table
 
 			// when
-			got := systemPrompt(tc.persona)
+			got := systemPrompt(tc.base, tc.persona)
 
 			// then
 			assert.Equal(t, tc.want, got)

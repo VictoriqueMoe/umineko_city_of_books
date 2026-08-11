@@ -25,6 +25,8 @@ type (
 		DisplayName     string
 		AvatarURL       string
 		SystemPrompt    string
+		BasePromptID    *uuid.UUID
+		BasePrompt      string
 		Model           string
 		ReasoningEffort string
 		Verbosity       string
@@ -90,12 +92,13 @@ const (
 )
 
 type chatbotRepository struct {
-	dao   ChatbotRepository
-	cache *cache.Manager
+	dao         ChatbotRepository
+	basePrompts BasePromptInvalidator
+	cache       *cache.Manager
 }
 
-func NewChatbotRepo(dao ChatbotRepository, c *cache.Manager) ChatbotRepository {
-	return &chatbotRepository{dao: dao, cache: c}
+func NewChatbotRepo(dao ChatbotRepository, basePrompts BasePromptInvalidator, c *cache.Manager) ChatbotRepository {
+	return &chatbotRepository{dao: dao, basePrompts: basePrompts, cache: c}
 }
 
 func (r *chatbotRepository) ListBots(ctx context.Context) ([]Chatbot, error) {
@@ -107,11 +110,23 @@ func (r *chatbotRepository) GetBotByUserID(ctx context.Context, userID uuid.UUID
 }
 
 func (r *chatbotRepository) CreateBot(ctx context.Context, bot Chatbot) error {
-	return r.dao.CreateBot(ctx, bot)
+	if err := r.dao.CreateBot(ctx, bot); err != nil {
+		return err
+	}
+
+	r.basePrompts.InvalidateList(ctx)
+
+	return nil
 }
 
 func (r *chatbotRepository) UpdateBot(ctx context.Context, bot Chatbot) error {
-	return r.dao.UpdateBot(ctx, bot)
+	if err := r.dao.UpdateBot(ctx, bot); err != nil {
+		return err
+	}
+
+	r.basePrompts.InvalidateList(ctx)
+
+	return nil
 }
 
 func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID) error {
@@ -120,6 +135,8 @@ func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID) error {
 	if err := r.dao.DeleteBot(ctx, id); err != nil {
 		return err
 	}
+
+	r.basePrompts.InvalidateList(ctx)
 
 	keys := []string{cache.VanityAssignments.Key()}
 	if botUserID != uuid.Nil {

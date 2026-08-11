@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -25,7 +26,27 @@ func (s *Service) getAllAdminChatbotRoutes() []FSetupRoute {
 		s.setupAdminChatbotUsage,
 		s.setupAdminChatbotModels,
 		s.setupAdminChatbotTest,
+		s.setupAdminListBasePrompts,
+		s.setupAdminCreateBasePrompt,
+		s.setupAdminUpdateBasePrompt,
+		s.setupAdminDeleteBasePrompt,
 	}
+}
+
+func (s *Service) setupAdminListBasePrompts(r fiber.Router) {
+	r.Get("/admin/chatbots/base-prompts", s.requirePerm(authz.PermManageSettings), s.adminListBasePrompts)
+}
+
+func (s *Service) setupAdminCreateBasePrompt(r fiber.Router) {
+	r.Post("/admin/chatbots/base-prompts", s.requirePerm(authz.PermManageSettings), s.adminCreateBasePrompt)
+}
+
+func (s *Service) setupAdminUpdateBasePrompt(r fiber.Router) {
+	r.Put("/admin/chatbots/base-prompts/:id", s.requirePerm(authz.PermManageSettings), s.adminUpdateBasePrompt)
+}
+
+func (s *Service) setupAdminDeleteBasePrompt(r fiber.Router) {
+	r.Delete("/admin/chatbots/base-prompts/:id", s.requirePerm(authz.PermManageSettings), s.adminDeleteBasePrompt)
 }
 
 func (s *Service) setupAdminListChatbots(r fiber.Router) {
@@ -170,6 +191,61 @@ func (s *Service) adminChatbotTest(ctx fiber.Ctx) error {
 	return ctx.JSON(dto.ChatbotTestResponse{OK: ok, Error: message})
 }
 
+func (s *Service) adminListBasePrompts(ctx fiber.Ctx) error {
+	prompts, err := s.ChatbotAdminService.ListBasePrompts(ctx.Context())
+	if err != nil {
+		return utils.InternalError(ctx, err.Error())
+	}
+
+	return ctx.JSON(dto.ChatbotBasePromptListResponse{BasePrompts: prompts})
+}
+
+func (s *Service) adminCreateBasePrompt(ctx fiber.Ctx) error {
+	var req dto.ChatbotBasePromptUpsertRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return utils.BadRequest(ctx, "invalid request body")
+	}
+
+	prompt, err := s.ChatbotAdminService.CreateBasePrompt(ctx.Context(), req)
+	if err != nil {
+		return handleChatbotError(ctx, err)
+	}
+
+	return ctx.Status(fiber.StatusCreated).JSON(prompt)
+}
+
+func (s *Service) adminUpdateBasePrompt(ctx fiber.Ctx) error {
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid base prompt id")
+	}
+
+	var req dto.ChatbotBasePromptUpsertRequest
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return utils.BadRequest(ctx, "invalid request body")
+	}
+
+	prompt, updateErr := s.ChatbotAdminService.UpdateBasePrompt(ctx.Context(), id, req)
+	if updateErr != nil {
+		return handleChatbotError(ctx, updateErr)
+	}
+
+	return ctx.JSON(prompt)
+}
+
+func (s *Service) adminDeleteBasePrompt(ctx fiber.Ctx) error {
+	id, err := uuid.Parse(ctx.Params("id"))
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid base prompt id")
+	}
+
+	if err := s.ChatbotAdminService.DeleteBasePrompt(ctx.Context(), id); err != nil {
+		return handleChatbotError(ctx, err)
+	}
+
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
 func handleChatbotError(ctx fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, chatbot.ErrBotNotFound):
@@ -178,6 +254,12 @@ func handleChatbotError(ctx fiber.Ctx, err error) error {
 		return utils.BadRequest(ctx, "that username is already taken")
 	case errors.Is(err, chatbot.ErrBotInvalid), errors.Is(err, chatbot.ErrBotUnknownModel):
 		return utils.BadRequest(ctx, err.Error())
+	case errors.Is(err, repository.ErrBasePromptNotFound):
+		return utils.NotFound(ctx, "base prompt not found")
+	case errors.Is(err, repository.ErrBasePromptNameUsed):
+		return utils.BadRequest(ctx, "that base prompt name is already taken")
+	case errors.Is(err, repository.ErrBasePromptInUse):
+		return utils.BadRequest(ctx, "unassign that base prompt from every chatbot before deleting it")
 	default:
 		return utils.InternalError(ctx, err.Error())
 	}

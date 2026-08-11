@@ -1,32 +1,56 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type (
 	ChatbotResponse struct {
-		ID              uuid.UUID `json:"id"`
-		UserID          uuid.UUID `json:"user_id"`
-		Username        string    `json:"username"`
-		DisplayName     string    `json:"display_name"`
-		AvatarURL       string    `json:"avatar_url"`
-		SystemPrompt    string    `json:"system_prompt"`
-		Model           string    `json:"model"`
-		ReasoningEffort string    `json:"reasoning_effort"`
-		Verbosity       string    `json:"verbosity"`
-		MaxOutputTokens int       `json:"max_output_tokens"`
-		Enabled         bool      `json:"enabled"`
+		ID              uuid.UUID  `json:"id"`
+		UserID          uuid.UUID  `json:"user_id"`
+		Username        string     `json:"username"`
+		DisplayName     string     `json:"display_name"`
+		AvatarURL       string     `json:"avatar_url"`
+		SystemPrompt    string     `json:"system_prompt"`
+		BasePromptID    *uuid.UUID `json:"base_prompt_id"`
+		Model           string     `json:"model"`
+		ReasoningEffort string     `json:"reasoning_effort"`
+		Verbosity       string     `json:"verbosity"`
+		MaxOutputTokens int        `json:"max_output_tokens"`
+		Enabled         bool       `json:"enabled"`
 	}
 
 	ChatbotUpsertRequest struct {
-		Username        string `json:"username"`
-		DisplayName     string `json:"display_name"`
-		AvatarURL       string `json:"avatar_url"`
-		SystemPrompt    string `json:"system_prompt"`
-		Model           string `json:"model"`
-		ReasoningEffort string `json:"reasoning_effort"`
-		Verbosity       string `json:"verbosity"`
-		MaxOutputTokens int    `json:"max_output_tokens"`
-		Enabled         bool   `json:"enabled"`
+		Username        string     `json:"username"`
+		DisplayName     string     `json:"display_name"`
+		AvatarURL       string     `json:"avatar_url"`
+		SystemPrompt    string     `json:"system_prompt"`
+		BasePromptID    *uuid.UUID `json:"base_prompt_id"`
+		Model           string     `json:"model"`
+		ReasoningEffort string     `json:"reasoning_effort"`
+		Verbosity       string     `json:"verbosity"`
+		MaxOutputTokens int        `json:"max_output_tokens"`
+		Enabled         bool       `json:"enabled"`
+	}
+
+	ChatbotBasePromptResponse struct {
+		ID        uuid.UUID `json:"id"`
+		Name      string    `json:"name"`
+		Prompt    string    `json:"prompt"`
+		BotCount  int       `json:"bot_count"`
+		CreatedAt time.Time `json:"created_at"`
+		UpdatedAt time.Time `json:"updated_at"`
+	}
+
+	ChatbotBasePromptUpsertRequest struct {
+		Name   string `json:"name"`
+		Prompt string `json:"prompt"`
+	}
+
+	ChatbotBasePromptListResponse struct {
+		BasePrompts []ChatbotBasePromptResponse `json:"base_prompts"`
 	}
 
 	ChatbotChannelUsage struct {

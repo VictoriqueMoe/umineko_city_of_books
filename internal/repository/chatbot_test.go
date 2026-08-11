@@ -20,8 +20,10 @@ func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *MockChatbotReposito
 
 	client := valkeymock.NewClient(gomock.NewController(t))
 	dao := NewMockChatbotRepository(t)
+	basePrompts := NewMockBasePromptInvalidator(t)
+	basePrompts.EXPECT().InvalidateList(mock.Anything).Return().Maybe()
 
-	return NewChatbotRepo(dao, cache.NewManagerWithClient(client)), dao, client
+	return NewChatbotRepo(dao, basePrompts, cache.NewManagerWithClient(client)), dao, client
 }
 
 func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
