@@ -3,6 +3,7 @@ package dao_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
 
@@ -142,8 +143,13 @@ func TestReportDAO_List_OrderedByCreatedAtDesc(t *testing.T) {
 	assert.Contains(t, gotIDs, int(ids[0]))
 	assert.Contains(t, gotIDs, int(ids[1]))
 	assert.Contains(t, gotIDs, int(ids[2]))
-	for i := 0; i < len(rows)-1; i++ {
-		assert.GreaterOrEqual(t, rows[i].CreatedAt, rows[i+1].CreatedAt)
+	for i := range len(rows) - 1 {
+		cur, curErr := time.Parse(time.RFC3339Nano, rows[i].CreatedAt)
+		require.NoError(t, curErr)
+		next, nextErr := time.Parse(time.RFC3339Nano, rows[i+1].CreatedAt)
+		require.NoError(t, nextErr)
+
+		assert.False(t, cur.Before(next))
 	}
 }
 

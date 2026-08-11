@@ -1,7 +1,9 @@
 package dao_test
 
 import (
+	"bytes"
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -186,14 +188,20 @@ func TestFollowDAO_GetFollowers_Ordering(t *testing.T) {
 	first := daotest.CreateUser(t, repos)
 	second := daotest.CreateUser(t, repos)
 	third := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), first.ID, target.ID))
-	time.Sleep(1100 * time.Millisecond)
-	require.NoError(t, repos.Follow.Follow(context.Background(), second.ID, target.ID))
-	time.Sleep(1100 * time.Millisecond)
-	require.NoError(t, repos.Follow.Follow(context.Background(), third.ID, target.ID))
+	ctx := context.Background()
+	base := time.Now().UTC()
+
+	for i, followerID := range []uuid.UUID{first.ID, second.ID, third.ID} {
+		require.NoError(t, repos.Follow.Follow(ctx, followerID, target.ID))
+		_, err := repos.DB().ExecContext(ctx,
+			`UPDATE follows SET created_at = $1 WHERE follower_id = $2 AND following_id = $3`,
+			base.Add(time.Duration(i)*time.Minute), followerID, target.ID,
+		)
+		require.NoError(t, err)
+	}
 
 	// when
-	users, total, err := repos.Follow.GetFollowers(context.Background(), target.ID, 10, 0)
+	users, total, err := repos.Follow.GetFollowers(ctx, target.ID, 10, 0)
 
 	// then
 	require.NoError(t, err)
@@ -202,6 +210,42 @@ func TestFollowDAO_GetFollowers_Ordering(t *testing.T) {
 	assert.Equal(t, third.ID, users[0].ID)
 	assert.Equal(t, second.ID, users[1].ID)
 	assert.Equal(t, first.ID, users[2].ID)
+}
+
+func TestFollowDAO_GetFollowers_PaginatesDeterministicallyWhenCreatedAtTies(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	target := daotest.CreateUser(t, repos)
+	ctx := context.Background()
+	tied := time.Now().UTC()
+
+	followerIDs := make([]uuid.UUID, 3)
+	for i := range followerIDs {
+		follower := daotest.CreateUser(t, repos)
+		followerIDs[i] = follower.ID
+		require.NoError(t, repos.Follow.Follow(ctx, follower.ID, target.ID))
+		_, err := repos.DB().ExecContext(ctx,
+			`UPDATE follows SET created_at = $1 WHERE follower_id = $2 AND following_id = $3`,
+			tied, follower.ID, target.ID,
+		)
+		require.NoError(t, err)
+	}
+	slices.SortFunc(followerIDs, func(a, b uuid.UUID) int {
+		return bytes.Compare(b[:], a[:])
+	})
+
+	// when
+	firstPage, _, firstErr := repos.Follow.GetFollowers(ctx, target.ID, 2, 0)
+	secondPage, _, secondErr := repos.Follow.GetFollowers(ctx, target.ID, 2, 2)
+
+	// then
+	require.NoError(t, firstErr)
+	require.NoError(t, secondErr)
+	require.Len(t, firstPage, 2)
+	require.Len(t, secondPage, 1)
+	assert.Equal(t, followerIDs[0], firstPage[0].ID)
+	assert.Equal(t, followerIDs[1], firstPage[1].ID)
+	assert.Equal(t, followerIDs[2], secondPage[0].ID)
 }
 
 func TestFollowDAO_GetFollowers_Pagination(t *testing.T) {
@@ -269,12 +313,20 @@ func TestFollowDAO_GetFollowing_Ordering(t *testing.T) {
 	follower := daotest.CreateUser(t, repos)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, a.ID))
-	time.Sleep(1100 * time.Millisecond)
-	require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, b.ID))
+	ctx := context.Background()
+	base := time.Now().UTC()
+
+	for i, followingID := range []uuid.UUID{a.ID, b.ID} {
+		require.NoError(t, repos.Follow.Follow(ctx, follower.ID, followingID))
+		_, err := repos.DB().ExecContext(ctx,
+			`UPDATE follows SET created_at = $1 WHERE follower_id = $2 AND following_id = $3`,
+			base.Add(time.Duration(i)*time.Minute), follower.ID, followingID,
+		)
+		require.NoError(t, err)
+	}
 
 	// when
-	users, total, err := repos.Follow.GetFollowing(context.Background(), follower.ID, 10, 0)
+	users, total, err := repos.Follow.GetFollowing(ctx, follower.ID, 10, 0)
 
 	// then
 	require.NoError(t, err)
