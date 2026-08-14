@@ -243,18 +243,17 @@ func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, g
 		return nil, fmt.Errorf("inviter not found")
 	}
 
-	roomID := uuid.New()
-	if err := s.repo.CreateRoom(ctx, roomID, string(gameType), "{}", inviterID); err != nil {
-		return nil, err
-	}
-	if err := s.repo.AddPlayer(ctx, roomID, inviterID, 0, true); err != nil {
-		return nil, err
-	}
-	if err := s.repo.AddPlayer(ctx, roomID, opponentID, 1, false); err != nil {
+	created, err := s.repo.CreateInvite(ctx, repository.NewGameRoomInvite{
+		GameType:         string(gameType),
+		InitialStateJSON: "{}",
+		InviterID:        inviterID,
+		OpponentID:       opponentID,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	room, err := s.loadRoom(ctx, roomID)
+	room, err := s.hydrateRoom(ctx, created)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +262,7 @@ func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, g
 		_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
 			RecipientID:   opponentID,
 			Type:          dto.NotifGameInvite,
-			ReferenceID:   roomID,
+			ReferenceID:   created.ID,
 			ReferenceType: string(gameType),
 			ActorID:       inviterID,
 			Message:       inviter.DisplayName + " invited you to a " + string(gameType) + " game",
@@ -311,10 +310,6 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 		return nil, ErrUnknownGameType
 	}
 
-	if err := s.repo.SetPlayerJoined(ctx, roomID, userID); err != nil {
-		return nil, err
-	}
-
 	stateJSON, firstTurnSlot, err := handler.InitialState(roomID, players)
 	if err != nil {
 		return nil, err
@@ -328,10 +323,13 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 		}
 	}
 
-	if err := s.repo.SetState(ctx, roomID, stateJSON, firstTurnUser); err != nil {
-		return nil, err
-	}
-	if err := s.repo.SetStatus(ctx, roomID, string(dto.GameStatusActive)); err != nil {
+	if err := s.repo.Start(ctx, repository.GameRoomStart{
+		RoomID:     roomID,
+		UserID:     userID,
+		StateJSON:  stateJSON,
+		TurnUserID: firstTurnUser,
+		Status:     string(dto.GameStatusActive),
+	}); err != nil {
 		return nil, err
 	}
 

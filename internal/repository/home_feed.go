@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -64,12 +65,12 @@ type (
 	}
 
 	HomeFeedRepository interface {
-		ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error)
-		ListEchoes(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error)
-		ListRecentMembers(ctx context.Context, limit int) ([]HomeMemberRow, error)
-		ListPublicRooms(ctx context.Context, limit int) ([]HomePublicRoomRow, error)
-		ListCornerActivity24h(ctx context.Context) ([]HomeCornerActivityRow, error)
-		ListSidebarActivity(ctx context.Context) ([]SidebarActivityEntry, error)
+		ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeActivityRow, error)
+		ListEchoes(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]HomeEchoRow, error)
+		ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeMemberRow, error)
+		ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomePublicRoomRow, error)
+		ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]HomeCornerActivityRow, error)
+		ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]SidebarActivityEntry, error)
 	}
 )
 
@@ -81,26 +82,26 @@ func NewHomeFeedRepo(dao HomeFeedRepository) HomeFeedRepository {
 	return &homeFeedRepository{dao: dao}
 }
 
-func (r *homeFeedRepository) ListEchoes(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error) {
-	return r.dao.ListEchoes(ctx, ago, limit)
+func (r *homeFeedRepository) ListEchoes(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]HomeEchoRow, error) {
+	return r.dao.ListEchoes(ctx, ago, limit, tx...)
 }
 
-func (r *homeFeedRepository) ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error) {
-	return r.dao.ListRecentActivity(ctx, limit)
+func (r *homeFeedRepository) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeActivityRow, error) {
+	return r.dao.ListRecentActivity(ctx, limit, tx...)
 }
 
-func (r *homeFeedRepository) ListRecentMembers(ctx context.Context, limit int) ([]HomeMemberRow, error) {
-	return r.dao.ListRecentMembers(ctx, limit)
+func (r *homeFeedRepository) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeMemberRow, error) {
+	return r.dao.ListRecentMembers(ctx, limit, tx...)
 }
 
-func (r *homeFeedRepository) ListPublicRooms(ctx context.Context, limit int) ([]HomePublicRoomRow, error) {
-	return r.dao.ListPublicRooms(ctx, limit)
+func (r *homeFeedRepository) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomePublicRoomRow, error) {
+	return r.dao.ListPublicRooms(ctx, limit, tx...)
 }
 
-func (r *homeFeedRepository) ListCornerActivity24h(ctx context.Context) ([]HomeCornerActivityRow, error) {
-	return r.dao.ListCornerActivity24h(ctx)
+func (r *homeFeedRepository) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]HomeCornerActivityRow, error) {
+	return r.dao.ListCornerActivity24h(ctx, tx...)
 }
 
-func (r *homeFeedRepository) ListSidebarActivity(ctx context.Context) ([]SidebarActivityEntry, error) {
-	return r.dao.ListSidebarActivity(ctx)
+func (r *homeFeedRepository) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]SidebarActivityEntry, error) {
+	return r.dao.ListSidebarActivity(ctx, tx...)
 }

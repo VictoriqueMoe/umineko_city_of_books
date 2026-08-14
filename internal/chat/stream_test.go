@@ -16,8 +16,12 @@ func TestCreateStreamRoom_CreatesRoomAndHost(t *testing.T) {
 	svc, m := newTestService(t)
 	streamID := uuid.New()
 	streamerID := uuid.New()
-	m.chatRepo.EXPECT().CreateSystemRoom(mock.Anything, streamID, "My stream", "", SystemKindLiveStream, streamerID).Return(nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, streamID, streamerID, "host", false).Return(nil)
+	m.chatRepo.EXPECT().CreateSystemRoomWithHost(mock.Anything, repository.NewChatSystemRoom{
+		ID:         streamID,
+		Name:       "My stream",
+		SystemKind: SystemKindLiveStream,
+		CreatedBy:  streamerID,
+	}).Return(&repository.ChatRoomRow{ID: uuid.New()}, nil)
 
 	// when
 	err := svc.CreateStreamRoom(context.Background(), streamID, streamerID, "My stream")
@@ -26,15 +30,13 @@ func TestCreateStreamRoom_CreatesRoomAndHost(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDeleteStreamRoom_DeletesMediaFilesThenRoom(t *testing.T) {
+func TestDeleteStreamRoom_DeletesRoomThenMediaFiles(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	streamID := uuid.New()
-	m.chatRepo.EXPECT().ListRoomMediaURLs(mock.Anything, streamID).Return([]string{"/uploads/a.webp", "/uploads/b.jpg"}, nil)
-	m.uploadSvc.EXPECT().Delete("/uploads/a.webp").Return(nil)
-	m.uploadSvc.EXPECT().Delete("/uploads/b.jpg").Return(nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/a.webp", "/uploads/b.jpg"}).Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, streamID).Return(nil, nil)
-	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, streamID).Return(nil)
+	m.chatRepo.EXPECT().DeleteRoomWithMessages(mock.Anything, streamID).Return([]string{"/uploads/a.webp", "/uploads/b.jpg"}, nil)
 
 	// when
 	err := svc.DeleteStreamRoom(context.Background(), streamID)

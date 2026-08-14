@@ -222,21 +222,28 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		}
 	}
 
-	msgID := uuid.New()
-	if err := m.chatRepo.InsertMessage(ctx, msgID, roomID, senderID, req.Body, replyToID); err != nil {
-		return nil, fmt.Errorf("insert message: %w", err)
-	}
-
-	mediaResponses, err := m.saveMessageMedia(ctx, msgID, files)
+	created, err := m.chatRepo.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{
+		RoomID:    roomID,
+		SenderID:  senderID,
+		Body:      req.Body,
+		ReplyToID: replyToID,
+	})
 	if err != nil {
-		if delErr := m.chatRepo.DeleteMessage(ctx, msgID); delErr != nil {
-			logger.Log.Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
-		}
 		return nil, err
 	}
 
-	if err := m.chatRepo.MarkRoomRead(ctx, roomID, senderID); err != nil {
-		return nil, fmt.Errorf("mark sender read: %w", err)
+	msgID := created.ID
+
+	mediaResponses, err := m.saveMessageMedia(ctx, msgID, files)
+	if err != nil {
+		paths, delErr := m.chatRepo.DeleteMessageWithMedia(ctx, msgID)
+		if delErr != nil {
+			logger.Log.Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
+		}
+
+		m.uploadSvc.Delete(paths...)
+
+		return nil, err
 	}
 
 	displayName := sender.DisplayName
@@ -649,7 +656,15 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		}
 		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Size, r,
 			func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-				return m.chatRepo.AddMessageMedia(ctx, messageID, mediaURL, mediaType, thumbURL, sortOrder)
+				return m.chatRepo.AddMessageMedia(ctx, repository.NewChatMessageMedia{
+					MessageID:    messageID,
+					MediaURL:     mediaURL,
+					MediaType:    mediaType,
+					ThumbnailURL: thumbURL,
+					SortOrder:    sortOrder,
+					Width:        width,
+					Height:       height,
+				})
 			},
 			m.chatRepo.UpdateMessageMediaURL,
 			m.chatRepo.UpdateMessageMediaThumbnail,
@@ -659,14 +674,8 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 			return nil, saveErr
 		}
 
-		if width > 0 && height > 0 {
-			if err := m.chatRepo.UpdateMessageMediaDimensions(ctx, int64(saved.ID), width, height); err != nil {
-				logger.Log.Warn().Err(err).Msg("store chat media dimensions failed")
-			} else {
-				saved.Width = width
-				saved.Height = height
-			}
-		}
+		saved.Width = width
+		saved.Height = height
 
 		results = append(results, *saved)
 	}
@@ -756,9 +765,12 @@ func (m *messagesService) DeleteMessage(ctx context.Context, messageID, actorID 
 		}
 	}
 
-	if err := m.chatRepo.DeleteMessage(ctx, messageID); err != nil {
+	paths, err := m.chatRepo.DeleteMessageWithMedia(ctx, messageID)
+	if err != nil {
 		return fmt.Errorf("delete message: %w", err)
 	}
+
+	m.uploadSvc.Delete(paths...)
 
 	m.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_message_deleted",

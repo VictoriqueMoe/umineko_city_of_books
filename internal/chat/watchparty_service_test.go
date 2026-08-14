@@ -100,24 +100,22 @@ func TestStartWatchParty_OK(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.MatchedBy(func(opts hyperbeam.CreateVMOptions) bool {
 		return opts.Timeout != nil && opts.Timeout.Offline == defaultOfflineTimeout && opts.Timeout.Absolute == defaultSessionTimeout
 	})).Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed", AdminToken: "admin"}, nil)
-	m.watchPartyRepo.EXPECT().CreateSession(mock.Anything, mock.MatchedBy(func(r repository.ChatWatchPartySessionRow) bool {
-		return r.RoomID == roomID && r.ControllerID == userID && r.HyperbeamSessionID == "hb_sess_1" && r.Title == "Movie night" && r.VMBaseURL == "https://hb/embed"
-	})).Return(sessionID, nil)
-	m.chatRepo.EXPECT().CreateSystemRoom(mock.Anything, sessionID, "Movie night", "", SystemKindWatchParty, userID).Return(nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, sessionID, userID, "host", false).Return(nil)
-	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, sessionID, userID, true, "").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, userID, "watch_party.start", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.MatchedBy(func(spec repository.NewWatchPartySession) bool {
+		r := spec.Session
 
-	stored := &repository.ChatWatchPartySessionRow{
+		return r.RoomID == roomID && r.ControllerID == userID && r.HyperbeamSessionID == "hb_sess_1" && r.Title == "Movie night" && r.VMBaseURL == "https://hb/embed" &&
+			spec.RoomName == "Movie night" && spec.RoomSystemKind == SystemKindWatchParty
+	})).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: userID, ControllerID: userID,
 		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active", Title: "Movie night",
-	}
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(stored, nil)
+	}, nil)
+
 	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(nil)
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, userID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
 	// when
 	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "Movie night", "", false)
@@ -237,24 +235,19 @@ func TestStartWatchParty_FallsBackToAnotherRegionWhenTheFirstIsFull(t *testing.T
 		Run(func(_ context.Context, opts hyperbeam.CreateVMOptions) { tried = append(tried, opts.Region) }).
 		Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed", AdminToken: "admin"}, nil).Once()
 
-	m.watchPartyRepo.EXPECT().CreateSession(mock.Anything, mock.MatchedBy(func(r repository.ChatWatchPartySessionRow) bool {
-		return r.Region.Valid && r.Region.String == "EU"
-	})).Return(sessionID, nil)
-	m.chatRepo.EXPECT().CreateSystemRoom(mock.Anything, sessionID, "Watch party", "", SystemKindWatchParty, userID).Return(nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, sessionID, userID, "host", false).Return(nil)
-	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, sessionID, userID, true, "").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, userID, "watch_party.start", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
-
-	stored := &repository.ChatWatchPartySessionRow{
+	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.MatchedBy(func(spec repository.NewWatchPartySession) bool {
+		return spec.Session.Region.Valid && spec.Session.Region.String == "EU" && spec.RoomName == "Watch party"
+	})).Return(&repository.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: userID, ControllerID: userID,
 		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active",
-	}
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(stored, nil)
+	}, nil)
+
 	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(nil)
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, userID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
 	// when
 	resp, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "AS", "", "", false)
@@ -399,15 +392,15 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 		{SessionID: sessionID, UserID: controllerID, HasControl: true, HyperbeamIdentifier: "id-controller"},
 		{SessionID: sessionID, UserID: targetID, HasControl: false, HyperbeamIdentifier: "id-target"},
 	}, nil)
+	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{controllerID}, targetID).Return(nil)
 	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "vm_admin_token", "id-controller", false).Return(nil)
-	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, controllerID, false).Return(nil)
 	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "vm_admin_token", "id-target", true).Return(nil)
-	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, targetID, true).Return(nil)
-	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, targetID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, controllerID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, controllerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
+		return entry.ActorID == controllerID && entry.Action == "watch_party.grant_control" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == targetID
+	})).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, controllerID, targetID)
@@ -438,12 +431,12 @@ func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
 		{SessionID: sessionID, UserID: modID, HasControl: true},
 		{SessionID: sessionID, UserID: adminID, HasControl: false},
 	}, nil)
-	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, modID, false).Return(nil)
-	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, adminID, true).Return(nil)
-	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, adminID).Return(nil)
+	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{modID}, adminID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, adminID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
+		return entry.ActorID == adminID && entry.Action == "watch_party.grant_control" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == adminID
+	})).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, adminID, adminID)
@@ -523,12 +516,12 @@ func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
 		{SessionID: sessionID, UserID: memberID, HasControl: true},
 		{SessionID: sessionID, UserID: ownerID, HasControl: false},
 	}, nil)
-	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, memberID, false).Return(nil)
-	m.watchPartyRepo.EXPECT().SetParticipantControl(mock.Anything, sessionID, ownerID, true).Return(nil)
-	m.watchPartyRepo.EXPECT().SetControllerID(mock.Anything, sessionID, ownerID).Return(nil)
+	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{memberID}, ownerID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, ownerID, "watch_party.grant_control", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
+		return entry.ActorID == ownerID && entry.Action == "watch_party.grant_control" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == ownerID
+	})).Return(nil)
 
 	// when
 	err := svc.GrantWatchPartyControl(context.Background(), roomID, sessionID, ownerID, ownerID)
@@ -591,12 +584,13 @@ func TestKickWatchPartyParticipant_OK(t *testing.T) {
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
-	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, memberID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, sessionID, mock.Anything, mock.Anything).Return(errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, adminID, "watch_party.kick", "chat_watch_party_session", sessionID.String(), mock.Anything, mock.Anything).Return(nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
+		return entry.ActorID == adminID && entry.Action == "watch_party.kick" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == memberID
+	})).Return(nil)
 
 	// when
 	err := svc.KickWatchPartyParticipant(context.Background(), roomID, sessionID, adminID, memberID)
@@ -621,14 +615,17 @@ func TestLeaveWatchParty_OwnerLeavesEndsSession(t *testing.T) {
 	m.hyperbeamSvc.EXPECT().TerminateVM(mock.Anything, "hb_sess").Return(nil)
 	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
 	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "owner_left").Return(nil)
-	m.chatRepo.EXPECT().ListRoomMediaURLs(mock.Anything, sessionID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
-	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, sessionID).Return(nil)
+	m.chatRepo.EXPECT().DeleteRoomWithMessages(mock.Anything, sessionID).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, ownerID, "watch_party.end", "chat_watch_party_session", sessionID.String(), mock.Anything).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == ownerID && entry.Action == "watch_party.end" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String()
+	})).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, ownerID, mock.Anything).Return(nil)
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, ownerID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, ownerID).Return(nil, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
 	// when
 	err := svc.LeaveWatchParty(context.Background(), roomID, sessionID, ownerID)
@@ -649,8 +646,7 @@ func TestLeaveWatchParty_NonControllerJustLeaves(t *testing.T) {
 		ID: sessionID, RoomID: roomID, ControllerID: controllerID, Status: "active",
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
-	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, memberID).Return(nil)
 
 	// when
 	err := svc.LeaveWatchParty(context.Background(), roomID, sessionID, memberID)
@@ -696,28 +692,23 @@ func TestStartWatchParty_ChatRoomFailureRollsBackSession(t *testing.T) {
 	svc, m := newTestService(t)
 	roomID := uuid.New()
 	userID := uuid.New()
-	sessionID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
 		Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed"}, nil)
-	m.watchPartyRepo.EXPECT().CreateSession(mock.Anything, mock.Anything).Return(sessionID, nil)
-	m.chatRepo.EXPECT().CreateSystemRoom(mock.Anything, sessionID, "Watch party", "", SystemKindWatchParty, userID).
-		Return(errors.New("room name taken"))
+	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.Anything).Return(nil, errors.New("room name taken"))
 	m.hyperbeamSvc.EXPECT().TerminateVM(mock.Anything, "hb_sess_1").Return(nil)
-	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
-	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "chat_room_setup_failed").Return(nil)
 
 	// when
 	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
 
-	// then the VM and the session row are both released rather than stranded
+	// then the VM is released and the session rows never survive the rolled back transaction
 	require.Error(t, err)
 }
 
-func TestCleanupDeadSession_DeletesMediaThenRoom(t *testing.T) {
+func TestCleanupDeadSession_DeletesRoomThenMedia(t *testing.T) {
 	// given an ending party whose chat carries uploaded media
 	svc, m := newTestService(t)
 	roomID := uuid.New()
@@ -726,19 +717,19 @@ func TestCleanupDeadSession_DeletesMediaThenRoom(t *testing.T) {
 
 	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
 	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "vm_gone").Return(nil)
-	m.chatRepo.EXPECT().ListRoomMediaURLs(mock.Anything, sessionID).Return([]string{"/uploads/party.webp"}, nil)
-	m.uploadSvc.EXPECT().Delete("/uploads/party.webp").
-		Run(func(url string) { order = append(order, "delete-media") }).Return(nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/party.webp"}).
+		Run(func(urlPaths ...string) { order = append(order, "delete-media") }).Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
-	m.chatRepo.EXPECT().DeleteRoom(mock.Anything, sessionID).
-		Run(func(ctx context.Context, id uuid.UUID) { order = append(order, "delete-room") }).Return(nil)
+	m.chatRepo.EXPECT().DeleteRoomWithMessages(mock.Anything, sessionID).
+		Run(func(ctx context.Context, id uuid.UUID, _ ...*sql.Tx) { order = append(order, "delete-room") }).
+		Return([]string{"/uploads/party.webp"}, nil)
 	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
 
 	// when
 	svc.cleanupDeadSession(&repository.ChatWatchPartySessionRow{ID: sessionID, RoomID: roomID}, "vm_gone")
 
-	// then the files are unlinked before the rows that name them disappear
-	require.Equal(t, []string{"delete-media", "delete-room"}, order)
+	// then the rows go first and the files are unlinked only once that delete has committed
+	require.Equal(t, []string{"delete-room", "delete-media"}, order)
 }
 
 func TestJoinWatchParty_KeepsTheHostsRoomRole(t *testing.T) {

@@ -110,8 +110,7 @@ func TestLeaveWatchParty_NonMemberStillLeaves(t *testing.T) {
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, Status: "active",
 	}, nil)
 	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(participantRow(sessionID, memberID, participantActive), nil)
-	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, memberID).Return(nil)
 
 	// when they leave the party
 	err := svc.LeaveWatchParty(context.Background(), roomID, sessionID, memberID)
@@ -193,11 +192,10 @@ func TestClearWatchPartyParticipation(t *testing.T) {
 			}, nil)
 			watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(participantRow(sessionID, userID, tc.participant), nil)
 			if tc.wantMarkedLeft {
-				watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, userID).
-					Run(func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID) { markedLeft = true }).
+				watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, userID).
+					Run(func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, _ ...*sql.Tx) { markedLeft = true }).
 					Return(nil)
 				lk.EXPECT().RemoveParticipant(mock.Anything, voiceSessionRoomPrefix+sessionID.String(), userID.String()).Return(nil)
-				chatRepo.EXPECT().RemoveMember(mock.Anything, sessionID, userID).Return(nil)
 			}
 
 			// when the eviction clears their watch party participation

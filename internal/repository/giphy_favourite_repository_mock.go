@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockGiphyFavouriteRepository) EXPECT() *MockGiphyFavouriteRepository_E
 }
 
 // Add provides a mock function for the type MockGiphyFavouriteRepository
-func (_mock *MockGiphyFavouriteRepository) Add(ctx context.Context, userID uuid.UUID, fav GiphyFavourite) error {
-	ret := _mock.Called(ctx, userID, fav)
+func (_mock *MockGiphyFavouriteRepository) Add(ctx context.Context, userID uuid.UUID, fav GiphyFavourite, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, fav, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, fav)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Add")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, GiphyFavourite) error); ok {
-		r0 = returnFunc(ctx, userID, fav)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, GiphyFavourite, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, fav, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -64,11 +71,13 @@ type MockGiphyFavouriteRepository_Add_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - fav GiphyFavourite
-func (_e *MockGiphyFavouriteRepository_Expecter) Add(ctx any, userID any, fav any) *MockGiphyFavouriteRepository_Add_Call {
-	return &MockGiphyFavouriteRepository_Add_Call{Call: _e.mock.On("Add", ctx, userID, fav)}
+//   - tx ...*sql.Tx
+func (_e *MockGiphyFavouriteRepository_Expecter) Add(ctx any, userID any, fav any, tx ...any) *MockGiphyFavouriteRepository_Add_Call {
+	return &MockGiphyFavouriteRepository_Add_Call{Call: _e.mock.On("Add",
+		append([]any{ctx, userID, fav}, tx...)...)}
 }
 
-func (_c *MockGiphyFavouriteRepository_Add_Call) Run(run func(ctx context.Context, userID uuid.UUID, fav GiphyFavourite)) *MockGiphyFavouriteRepository_Add_Call {
+func (_c *MockGiphyFavouriteRepository_Add_Call) Run(run func(ctx context.Context, userID uuid.UUID, fav GiphyFavourite, tx ...*sql.Tx)) *MockGiphyFavouriteRepository_Add_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -82,10 +91,17 @@ func (_c *MockGiphyFavouriteRepository_Add_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(GiphyFavourite)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -96,14 +112,20 @@ func (_c *MockGiphyFavouriteRepository_Add_Call) Return(err error) *MockGiphyFav
 	return _c
 }
 
-func (_c *MockGiphyFavouriteRepository_Add_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, fav GiphyFavourite) error) *MockGiphyFavouriteRepository_Add_Call {
+func (_c *MockGiphyFavouriteRepository_Add_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, fav GiphyFavourite, tx ...*sql.Tx) error) *MockGiphyFavouriteRepository_Add_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockGiphyFavouriteRepository
-func (_mock *MockGiphyFavouriteRepository) List(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]GiphyFavourite, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockGiphyFavouriteRepository) List(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]GiphyFavourite, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -112,23 +134,23 @@ func (_mock *MockGiphyFavouriteRepository) List(ctx context.Context, userID uuid
 	var r0 []GiphyFavourite
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]GiphyFavourite, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]GiphyFavourite, int, error)); ok {
+		return returnFunc(ctx, userID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []GiphyFavourite); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []GiphyFavourite); ok {
+		r0 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GiphyFavourite)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -145,11 +167,13 @@ type MockGiphyFavouriteRepository_List_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockGiphyFavouriteRepository_Expecter) List(ctx any, userID any, limit any, offset any) *MockGiphyFavouriteRepository_List_Call {
-	return &MockGiphyFavouriteRepository_List_Call{Call: _e.mock.On("List", ctx, userID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockGiphyFavouriteRepository_Expecter) List(ctx any, userID any, limit any, offset any, tx ...any) *MockGiphyFavouriteRepository_List_Call {
+	return &MockGiphyFavouriteRepository_List_Call{Call: _e.mock.On("List",
+		append([]any{ctx, userID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockGiphyFavouriteRepository_List_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockGiphyFavouriteRepository_List_Call {
+func (_c *MockGiphyFavouriteRepository_List_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockGiphyFavouriteRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -167,11 +191,18 @@ func (_c *MockGiphyFavouriteRepository_List_Call) Run(run func(ctx context.Conte
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -182,14 +213,20 @@ func (_c *MockGiphyFavouriteRepository_List_Call) Return(giphyFavourites []Giphy
 	return _c
 }
 
-func (_c *MockGiphyFavouriteRepository_List_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]GiphyFavourite, int, error)) *MockGiphyFavouriteRepository_List_Call {
+func (_c *MockGiphyFavouriteRepository_List_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]GiphyFavourite, int, error)) *MockGiphyFavouriteRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListIDs provides a mock function for the type MockGiphyFavouriteRepository
-func (_mock *MockGiphyFavouriteRepository) ListIDs(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockGiphyFavouriteRepository) ListIDs(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListIDs")
@@ -197,18 +234,18 @@ func (_mock *MockGiphyFavouriteRepository) ListIDs(ctx context.Context, userID u
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]string, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []string); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -223,11 +260,13 @@ type MockGiphyFavouriteRepository_ListIDs_Call struct {
 // ListIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockGiphyFavouriteRepository_Expecter) ListIDs(ctx any, userID any) *MockGiphyFavouriteRepository_ListIDs_Call {
-	return &MockGiphyFavouriteRepository_ListIDs_Call{Call: _e.mock.On("ListIDs", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockGiphyFavouriteRepository_Expecter) ListIDs(ctx any, userID any, tx ...any) *MockGiphyFavouriteRepository_ListIDs_Call {
+	return &MockGiphyFavouriteRepository_ListIDs_Call{Call: _e.mock.On("ListIDs",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockGiphyFavouriteRepository_ListIDs_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockGiphyFavouriteRepository_ListIDs_Call {
+func (_c *MockGiphyFavouriteRepository_ListIDs_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockGiphyFavouriteRepository_ListIDs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -237,9 +276,16 @@ func (_c *MockGiphyFavouriteRepository_ListIDs_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -250,22 +296,28 @@ func (_c *MockGiphyFavouriteRepository_ListIDs_Call) Return(strings []string, er
 	return _c
 }
 
-func (_c *MockGiphyFavouriteRepository_ListIDs_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]string, error)) *MockGiphyFavouriteRepository_ListIDs_Call {
+func (_c *MockGiphyFavouriteRepository_ListIDs_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockGiphyFavouriteRepository_ListIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Remove provides a mock function for the type MockGiphyFavouriteRepository
-func (_mock *MockGiphyFavouriteRepository) Remove(ctx context.Context, userID uuid.UUID, giphyID string) error {
-	ret := _mock.Called(ctx, userID, giphyID)
+func (_mock *MockGiphyFavouriteRepository) Remove(ctx context.Context, userID uuid.UUID, giphyID string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, giphyID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, giphyID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Remove")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, userID, giphyID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, giphyID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -281,11 +333,13 @@ type MockGiphyFavouriteRepository_Remove_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - giphyID string
-func (_e *MockGiphyFavouriteRepository_Expecter) Remove(ctx any, userID any, giphyID any) *MockGiphyFavouriteRepository_Remove_Call {
-	return &MockGiphyFavouriteRepository_Remove_Call{Call: _e.mock.On("Remove", ctx, userID, giphyID)}
+//   - tx ...*sql.Tx
+func (_e *MockGiphyFavouriteRepository_Expecter) Remove(ctx any, userID any, giphyID any, tx ...any) *MockGiphyFavouriteRepository_Remove_Call {
+	return &MockGiphyFavouriteRepository_Remove_Call{Call: _e.mock.On("Remove",
+		append([]any{ctx, userID, giphyID}, tx...)...)}
 }
 
-func (_c *MockGiphyFavouriteRepository_Remove_Call) Run(run func(ctx context.Context, userID uuid.UUID, giphyID string)) *MockGiphyFavouriteRepository_Remove_Call {
+func (_c *MockGiphyFavouriteRepository_Remove_Call) Run(run func(ctx context.Context, userID uuid.UUID, giphyID string, tx ...*sql.Tx)) *MockGiphyFavouriteRepository_Remove_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -299,10 +353,17 @@ func (_c *MockGiphyFavouriteRepository_Remove_Call) Run(run func(ctx context.Con
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -313,7 +374,7 @@ func (_c *MockGiphyFavouriteRepository_Remove_Call) Return(err error) *MockGiphy
 	return _c
 }
 
-func (_c *MockGiphyFavouriteRepository_Remove_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, giphyID string) error) *MockGiphyFavouriteRepository_Remove_Call {
+func (_c *MockGiphyFavouriteRepository_Remove_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, giphyID string, tx ...*sql.Tx) error) *MockGiphyFavouriteRepository_Remove_Call {
 	_c.Call.Return(run)
 	return _c
 }

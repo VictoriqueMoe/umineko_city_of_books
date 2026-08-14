@@ -17,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
 
@@ -46,37 +47,37 @@ type (
 	service struct {
 		repo         repository.AnnouncementRepository
 		userRepo     repository.UserRepository
-		auditRepo    repository.AuditLogRepository
 		blockSvc     block.Service
 		notifService notification.Service
 		settingsSvc  settings.Service
 		authzSvc     authz.Service
 		hub          *ws.Hub
 		uploader     *media.Uploader
+		uploadSvc    upload.Service
 	}
 )
 
 func NewService(
 	repo repository.AnnouncementRepository,
 	userRepo repository.UserRepository,
-	auditRepo repository.AuditLogRepository,
 	blockSvc block.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
 	authzSvc authz.Service,
 	hub *ws.Hub,
 	uploader *media.Uploader,
+	uploadSvc upload.Service,
 ) Service {
 	return &service{
 		repo:         repo,
 		userRepo:     userRepo,
-		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
 		authzSvc:     authzSvc,
 		hub:          hub,
 		uploader:     uploader,
+		uploadSvc:    uploadSvc,
 	}
 }
 
@@ -190,19 +191,21 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, title, body stri
 	if title == "" || body == "" {
 		return uuid.Nil, ErrEmptyTitleOrBody
 	}
-	id := uuid.New()
-	if err := s.repo.Create(ctx, id, userID, title, body); err != nil {
+	created, err := s.repo.Create(ctx, userID, title, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
 	s.hub.Broadcast(ws.Message{
 		Type: "new_announcement",
 		Data: map[string]interface{}{
-			"id":        id,
+			"id":        created.ID,
 			"title":     title,
 			"author_id": userID,
 		},
 	})
-	return id, nil
+
+	return created.ID, nil
 }
 
 func (s *service) Update(ctx context.Context, id uuid.UUID, title, body string) error {
@@ -213,7 +216,14 @@ func (s *service) Update(ctx context.Context, id uuid.UUID, title, body string) 
 }
 
 func (s *service) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Delete(ctx, id)
+	paths, err := s.repo.DeleteWithMedia(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) SetPinned(ctx context.Context, id uuid.UUID, pinned bool) error {
@@ -233,8 +243,8 @@ func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid
 		return uuid.Nil, ErrBlocked
 	}
 
-	id := uuid.New()
-	if err := s.repo.CreateComment(ctx, id, announcementID, parentID, userID, body); err != nil {
+	created, err := s.repo.CreateComment(ctx, announcementID, parentID, userID, body)
+	if err != nil {
 		logger.Log.Error().Err(err).
 			Str("announcement_id", announcementID.String()).
 			Str("user_id", userID.String()).
@@ -242,9 +252,9 @@ func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid
 		return uuid.Nil, err
 	}
 
-	go s.notifyCommentCreated(ann, announcementID, id, userID, parentID)
+	go s.notifyCommentCreated(ann, announcementID, created.ID, userID, parentID)
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) notifyCommentCreated(ann *repository.AnnouncementRow, announcementID, commentID, actorID uuid.UUID, parentID *uuid.UUID) {
@@ -291,31 +301,47 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, body 
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if s.authzSvc.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.repo.UpdateCommentAsAdmin(ctx, id, body)
+
+	asAdmin := s.authzSvc.Can(ctx, userID, authz.PermEditAnyComment)
+
+	spec := repository.AnnouncementCommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
 	}
-	if err := s.repo.UpdateComment(ctx, id, userID, body); err != nil {
+
+	if err := s.repo.UpdateCommentBody(ctx, spec); err != nil {
+		if asAdmin {
+			return err
+		}
+
 		return ErrForbidden
 	}
+
 	return nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	isAdmin := s.authzSvc.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "announcement_comment_delete"
-	if isAdmin {
-		if err := s.repo.DeleteCommentAsAdmin(ctx, id); err != nil {
+	asAdmin := s.authzSvc.Can(ctx, userID, authz.PermDeleteAnyComment)
+
+	spec := repository.AnnouncementCommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
+	}
+
+	paths, err := s.repo.DeleteCommentWithAudit(ctx, spec)
+	if err != nil {
+		if asAdmin {
 			return err
 		}
-		action = "announcement_comment_delete_admin"
-	} else {
-		if err := s.repo.DeleteComment(ctx, id, userID); err != nil {
-			return ErrForbidden
-		}
+
+		return ErrForbidden
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "announcement_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
-	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -376,7 +402,13 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid
 
 	return s.uploader.SaveAndRecord(ctx, "announcements", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.repo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+			return s.repo.AddCommentMedia(ctx, repository.NewAnnouncementCommentMedia{
+				CommentID:    commentID,
+				MediaURL:     mediaURL,
+				MediaType:    mediaType,
+				ThumbnailURL: thumbURL,
+				SortOrder:    sortOrder,
+			})
 		},
 		s.repo.UpdateCommentMediaURL,
 		s.repo.UpdateCommentMediaThumbnail,

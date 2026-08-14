@@ -14,9 +14,10 @@ import (
 
 func createFinishedRoom(t *testing.T, repos *repository.Repositories, gameType string, p1, p2 uuid.UUID, winner *uuid.UUID, status string) uuid.UUID {
 	t.Helper()
-	roomID := uuid.New()
 	ctx := context.Background()
-	require.NoError(t, repos.GameRoom.CreateRoom(ctx, roomID, gameType, "{}", p1))
+	room, err := repos.GameRoom.CreateRoom(ctx, gameType, "{}", p1)
+	require.NoError(t, err)
+	roomID := room.ID
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, p1, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, p2, 1, true))
 	require.NoError(t, repos.GameRoom.SetStatus(ctx, roomID, "active"))
@@ -103,19 +104,22 @@ func TestGameRoomDAO_Scoreboard_OnlyFinishedAndAbandoned(t *testing.T) {
 	bob := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	pendingID := uuid.New()
-	require.NoError(t, repos.GameRoom.CreateRoom(ctx, pendingID, "chess", "{}", alice.ID))
+	pending, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	require.NoError(t, err)
+	pendingID := pending.ID
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, pendingID, alice.ID, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, pendingID, bob.ID, 1, true))
 
-	activeID := uuid.New()
-	require.NoError(t, repos.GameRoom.CreateRoom(ctx, activeID, "chess", "{}", alice.ID))
+	active, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	require.NoError(t, err)
+	activeID := active.ID
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, activeID, alice.ID, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, activeID, bob.ID, 1, true))
 	require.NoError(t, repos.GameRoom.SetStatus(ctx, activeID, "active"))
 
-	declinedID := uuid.New()
-	require.NoError(t, repos.GameRoom.CreateRoom(ctx, declinedID, "chess", "{}", alice.ID))
+	declined, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	require.NoError(t, err)
+	declinedID := declined.ID
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, declinedID, alice.ID, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, declinedID, bob.ID, 1, false))
 	require.NoError(t, repos.GameRoom.SetStatus(ctx, declinedID, "declined"))
@@ -172,8 +176,9 @@ func TestGameRoomDAO_Scoreboard_ExcludesUnjoinedPlayers(t *testing.T) {
 	bob := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	roomID := uuid.New()
-	require.NoError(t, repos.GameRoom.CreateRoom(ctx, roomID, "chess", "{}", alice.ID))
+	room, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	require.NoError(t, err)
+	roomID := room.ID
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, alice.ID, 0, true))
 	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, bob.ID, 1, false))
 	require.NoError(t, repos.GameRoom.SetStatus(ctx, roomID, "active"))

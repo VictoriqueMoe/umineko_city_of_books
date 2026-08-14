@@ -159,12 +159,11 @@ func TestModelValidator_MatchesUpsertValidation(t *testing.T) {
 func TestCreate_RejectsUnknownModelBeforeTouchingTheDatabase(t *testing.T) {
 	// given
 	botRepo := repository.NewMockChatbotRepository(t)
-	vanityRepo := repository.NewMockVanityRoleRepository(t)
 	userSvc := user.NewMockService(t)
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Models(mock.Anything).Return([]string{"gpt-5.6-luna"}, nil).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), userSvc, openaiSvc, new(stubReloader))
 
 	// when
 	bot, err := svc.Create(context.Background(), validRequest("gpt-5.6-mirage"))
@@ -173,7 +172,7 @@ func TestCreate_RejectsUnknownModelBeforeTouchingTheDatabase(t *testing.T) {
 	require.ErrorIs(t, err, ErrBotUnknownModel)
 	assert.Nil(t, bot)
 	userSvc.AssertNotCalled(t, "CheckUsernameAvailable", mock.Anything, mock.Anything)
-	botRepo.AssertNotCalled(t, "CreateBot", mock.Anything, mock.Anything)
+	botRepo.AssertNotCalled(t, "CreateBotWithAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
@@ -181,15 +180,10 @@ func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	reloader := new(stubReloader)
 
 	botRepo := repository.NewMockChatbotRepository(t)
-	botRepo.EXPECT().CreateBotAccount(mock.Anything, mock.Anything, "beatrice", "Beatrice", "").Return(nil).Once()
-	botRepo.EXPECT().CreateBot(mock.Anything, mock.Anything).Return(nil).Once()
-	botRepo.EXPECT().GetBotByUserID(mock.Anything, mock.Anything).Return(&repository.Chatbot{
+	botRepo.EXPECT().CreateBotWithAccount(mock.Anything, mock.Anything, mock.Anything, botVanityRoleID).Return(&repository.Chatbot{
 		Username: "beatrice",
 		Model:    "gpt-9-unreleased",
 	}, nil).Once()
-
-	vanityRepo := repository.NewMockVanityRoleRepository(t)
-	vanityRepo.EXPECT().AssignToUser(mock.Anything, mock.Anything, botVanityRoleID).Return(nil).Once()
 
 	userSvc := user.NewMockService(t)
 	userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, "beatrice").Return(nil).Once()
@@ -197,7 +191,7 @@ func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Models(mock.Anything).Return(nil, errors.New("provider unreachable")).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, reloader)
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), userSvc, openaiSvc, reloader)
 
 	// when
 	bot, err := svc.Create(context.Background(), validRequest("gpt-9-unreleased"))
@@ -216,7 +210,7 @@ func TestDelete_MissingBotIsReportedAsNotFound(t *testing.T) {
 	botRepo := repository.NewMockChatbotRepository(t)
 	botRepo.EXPECT().DeleteBot(mock.Anything, mock.Anything).Return(repository.ErrBotNotFound).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockVanityRoleRepository(t), user.NewMockService(t), openai.NewMockService(t), reloader)
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), user.NewMockService(t), openai.NewMockService(t), reloader)
 
 	// when
 	err := svc.Delete(context.Background(), uuid.New())
@@ -275,7 +269,6 @@ func TestTest_ProviderFailureIsReportedNotPropagated(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			botRepo := repository.NewMockChatbotRepository(t)
-			vanityRepo := repository.NewMockVanityRoleRepository(t)
 			userSvc := user.NewMockService(t)
 			openaiSvc := openai.NewMockService(t)
 
@@ -285,7 +278,7 @@ func TestTest_ProviderFailureIsReportedNotPropagated(t *testing.T) {
 				})).Return(tc.result, tc.completeErr).Once()
 			}
 
-			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), userSvc, openaiSvc, new(stubReloader))
 
 			// when
 			ok, message, err := svc.Test(context.Background(), tc.model)
@@ -336,20 +329,18 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 	for _, tc := range cases {
 		t.Run("create/"+tc.name, func(t *testing.T) {
 			botRepo := repository.NewMockChatbotRepository(t)
-			vanityRepo := repository.NewMockVanityRoleRepository(t)
 			userSvc := user.NewMockService(t)
 			openaiSvc := openai.NewMockService(t)
 			openaiSvc.EXPECT().Models(mock.Anything).Return([]string{"gpt-5.6-luna"}, nil).Maybe()
 
 			if tc.wantErr == nil {
-				botRepo.EXPECT().CreateBotAccount(mock.Anything, mock.Anything, "beatrice", tc.want, "").Return(nil).Once()
-				botRepo.EXPECT().CreateBot(mock.Anything, mock.Anything).Return(nil).Once()
-				botRepo.EXPECT().GetBotByUserID(mock.Anything, mock.Anything).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
-				vanityRepo.EXPECT().AssignToUser(mock.Anything, mock.Anything, botVanityRoleID).Return(nil).Once()
+				botRepo.EXPECT().CreateBotWithAccount(mock.Anything, mock.MatchedBy(func(account repository.NewUser) bool {
+					return account.DisplayName == tc.want
+				}), mock.Anything, botVanityRoleID).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
 				userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, "beatrice").Return(nil).Once()
 			}
 
-			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), userSvc, openaiSvc, new(stubReloader))
 
 			req := validRequest("gpt-5.6-luna")
 			req.DisplayName = tc.given
@@ -361,7 +352,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Nil(t, bot)
-				botRepo.AssertNotCalled(t, "CreateBotAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				botRepo.AssertNotCalled(t, "CreateBotWithAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 				return
 			}
@@ -378,19 +369,18 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			botUserID := uuid.New()
 
 			botRepo := repository.NewMockChatbotRepository(t)
-			vanityRepo := repository.NewMockVanityRoleRepository(t)
 			userSvc := user.NewMockService(t)
 			openaiSvc := openai.NewMockService(t)
 			openaiSvc.EXPECT().Models(mock.Anything).Return([]string{"gpt-5.6-luna"}, nil).Maybe()
 
 			if tc.wantErr == nil {
 				botRepo.EXPECT().ListBots(mock.Anything).Return([]repository.Chatbot{{ID: botID, UserID: botUserID}}, nil).Once()
-				botRepo.EXPECT().UpdateBot(mock.Anything, mock.Anything).Return(nil).Once()
-				botRepo.EXPECT().UpdateBotAccount(mock.Anything, botUserID, tc.want, "").Return(nil).Once()
-				botRepo.EXPECT().GetBotByUserID(mock.Anything, botUserID).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
+				botRepo.EXPECT().UpdateBotWithAccount(mock.Anything, mock.MatchedBy(func(bot repository.Chatbot) bool {
+					return bot.UserID == botUserID
+				}), tc.want, mock.Anything).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
 			}
 
-			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), userSvc, openaiSvc, new(stubReloader))
 
 			req := validRequest("gpt-5.6-luna")
 			req.DisplayName = tc.given
@@ -402,7 +392,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Nil(t, bot)
-				botRepo.AssertNotCalled(t, "UpdateBotAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				botRepo.AssertNotCalled(t, "UpdateBotWithAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 
 				return
 			}
@@ -423,13 +413,12 @@ func TestUsage_ReportsFailureCounts(t *testing.T) {
 		Quota:       2,
 	}, nil).Once()
 
-	vanityRepo := repository.NewMockVanityRoleRepository(t)
 	userSvc := user.NewMockService(t)
 
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Costs(mock.Anything, mock.Anything).Return(nil, errors.New("no admin key")).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), vanityRepo, userSvc, openaiSvc, new(stubReloader))
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), userSvc, openaiSvc, new(stubReloader))
 
 	// when
 	usage, err := svc.Usage(context.Background(), time.Unix(1_700_000_000, 0))

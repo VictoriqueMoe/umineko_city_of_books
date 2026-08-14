@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,16 +41,22 @@ func (_m *MockEmailVerificationRepository) EXPECT() *MockEmailVerificationReposi
 }
 
 // Create provides a mock function for the type MockEmailVerificationRepository
-func (_mock *MockEmailVerificationRepository) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time) error {
-	ret := _mock.Called(ctx, tokenHash, userID, expiresAt)
+func (_mock *MockEmailVerificationRepository) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tokenHash, userID, expiresAt, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, tokenHash, userID, expiresAt)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, time.Time) error); ok {
-		r0 = returnFunc(ctx, tokenHash, userID, expiresAt)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, time.Time, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, tokenHash, userID, expiresAt, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,11 +73,13 @@ type MockEmailVerificationRepository_Create_Call struct {
 //   - tokenHash string
 //   - userID uuid.UUID
 //   - expiresAt time.Time
-func (_e *MockEmailVerificationRepository_Expecter) Create(ctx any, tokenHash any, userID any, expiresAt any) *MockEmailVerificationRepository_Create_Call {
-	return &MockEmailVerificationRepository_Create_Call{Call: _e.mock.On("Create", ctx, tokenHash, userID, expiresAt)}
+//   - tx ...*sql.Tx
+func (_e *MockEmailVerificationRepository_Expecter) Create(ctx any, tokenHash any, userID any, expiresAt any, tx ...any) *MockEmailVerificationRepository_Create_Call {
+	return &MockEmailVerificationRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, tokenHash, userID, expiresAt}, tx...)...)}
 }
 
-func (_c *MockEmailVerificationRepository_Create_Call) Run(run func(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time)) *MockEmailVerificationRepository_Create_Call {
+func (_c *MockEmailVerificationRepository_Create_Call) Run(run func(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx)) *MockEmailVerificationRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -88,11 +97,18 @@ func (_c *MockEmailVerificationRepository_Create_Call) Run(run func(ctx context.
 		if args[3] != nil {
 			arg3 = args[3].(time.Time)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -103,22 +119,28 @@ func (_c *MockEmailVerificationRepository_Create_Call) Return(err error) *MockEm
 	return _c
 }
 
-func (_c *MockEmailVerificationRepository_Create_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time) error) *MockEmailVerificationRepository_Create_Call {
+func (_c *MockEmailVerificationRepository_Create_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error) *MockEmailVerificationRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteUnusedForUser provides a mock function for the type MockEmailVerificationRepository
-func (_mock *MockEmailVerificationRepository) DeleteUnusedForUser(ctx context.Context, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockEmailVerificationRepository) DeleteUnusedForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteUnusedForUser")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -133,11 +155,13 @@ type MockEmailVerificationRepository_DeleteUnusedForUser_Call struct {
 // DeleteUnusedForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockEmailVerificationRepository_Expecter) DeleteUnusedForUser(ctx any, userID any) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
-	return &MockEmailVerificationRepository_DeleteUnusedForUser_Call{Call: _e.mock.On("DeleteUnusedForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockEmailVerificationRepository_Expecter) DeleteUnusedForUser(ctx any, userID any, tx ...any) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
+	return &MockEmailVerificationRepository_DeleteUnusedForUser_Call{Call: _e.mock.On("DeleteUnusedForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockEmailVerificationRepository_DeleteUnusedForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
+func (_c *MockEmailVerificationRepository_DeleteUnusedForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -147,9 +171,16 @@ func (_c *MockEmailVerificationRepository_DeleteUnusedForUser_Call) Run(run func
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -160,14 +191,20 @@ func (_c *MockEmailVerificationRepository_DeleteUnusedForUser_Call) Return(err e
 	return _c
 }
 
-func (_c *MockEmailVerificationRepository_DeleteUnusedForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
+func (_c *MockEmailVerificationRepository_DeleteUnusedForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error) *MockEmailVerificationRepository_DeleteUnusedForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByTokenHash provides a mock function for the type MockEmailVerificationRepository
-func (_mock *MockEmailVerificationRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*EmailVerificationToken, error) {
-	ret := _mock.Called(ctx, tokenHash)
+func (_mock *MockEmailVerificationRepository) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*EmailVerificationToken, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tokenHash, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, tokenHash)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByTokenHash")
@@ -175,18 +212,18 @@ func (_mock *MockEmailVerificationRepository) GetByTokenHash(ctx context.Context
 
 	var r0 *EmailVerificationToken
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*EmailVerificationToken, error)); ok {
-		return returnFunc(ctx, tokenHash)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*EmailVerificationToken, error)); ok {
+		return returnFunc(ctx, tokenHash, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *EmailVerificationToken); ok {
-		r0 = returnFunc(ctx, tokenHash)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *EmailVerificationToken); ok {
+		r0 = returnFunc(ctx, tokenHash, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*EmailVerificationToken)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, tokenHash)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tokenHash, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -201,11 +238,13 @@ type MockEmailVerificationRepository_GetByTokenHash_Call struct {
 // GetByTokenHash is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokenHash string
-func (_e *MockEmailVerificationRepository_Expecter) GetByTokenHash(ctx any, tokenHash any) *MockEmailVerificationRepository_GetByTokenHash_Call {
-	return &MockEmailVerificationRepository_GetByTokenHash_Call{Call: _e.mock.On("GetByTokenHash", ctx, tokenHash)}
+//   - tx ...*sql.Tx
+func (_e *MockEmailVerificationRepository_Expecter) GetByTokenHash(ctx any, tokenHash any, tx ...any) *MockEmailVerificationRepository_GetByTokenHash_Call {
+	return &MockEmailVerificationRepository_GetByTokenHash_Call{Call: _e.mock.On("GetByTokenHash",
+		append([]any{ctx, tokenHash}, tx...)...)}
 }
 
-func (_c *MockEmailVerificationRepository_GetByTokenHash_Call) Run(run func(ctx context.Context, tokenHash string)) *MockEmailVerificationRepository_GetByTokenHash_Call {
+func (_c *MockEmailVerificationRepository_GetByTokenHash_Call) Run(run func(ctx context.Context, tokenHash string, tx ...*sql.Tx)) *MockEmailVerificationRepository_GetByTokenHash_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -215,9 +254,16 @@ func (_c *MockEmailVerificationRepository_GetByTokenHash_Call) Run(run func(ctx 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -228,22 +274,100 @@ func (_c *MockEmailVerificationRepository_GetByTokenHash_Call) Return(emailVerif
 	return _c
 }
 
-func (_c *MockEmailVerificationRepository_GetByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string) (*EmailVerificationToken, error)) *MockEmailVerificationRepository_GetByTokenHash_Call {
+func (_c *MockEmailVerificationRepository_GetByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*EmailVerificationToken, error)) *MockEmailVerificationRepository_GetByTokenHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Issue provides a mock function for the type MockEmailVerificationRepository
+func (_mock *MockEmailVerificationRepository) Issue(ctx context.Context, spec NewEmailVerification, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Issue")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewEmailVerification, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockEmailVerificationRepository_Issue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Issue'
+type MockEmailVerificationRepository_Issue_Call struct {
+	*mock.Call
+}
+
+// Issue is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewEmailVerification
+//   - tx ...*sql.Tx
+func (_e *MockEmailVerificationRepository_Expecter) Issue(ctx any, spec any, tx ...any) *MockEmailVerificationRepository_Issue_Call {
+	return &MockEmailVerificationRepository_Issue_Call{Call: _e.mock.On("Issue",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockEmailVerificationRepository_Issue_Call) Run(run func(ctx context.Context, spec NewEmailVerification, tx ...*sql.Tx)) *MockEmailVerificationRepository_Issue_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewEmailVerification
+		if args[1] != nil {
+			arg1 = args[1].(NewEmailVerification)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockEmailVerificationRepository_Issue_Call) Return(err error) *MockEmailVerificationRepository_Issue_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockEmailVerificationRepository_Issue_Call) RunAndReturn(run func(ctx context.Context, spec NewEmailVerification, tx ...*sql.Tx) error) *MockEmailVerificationRepository_Issue_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkUsed provides a mock function for the type MockEmailVerificationRepository
-func (_mock *MockEmailVerificationRepository) MarkUsed(ctx context.Context, tokenHash string) error {
-	ret := _mock.Called(ctx, tokenHash)
+func (_mock *MockEmailVerificationRepository) MarkUsed(ctx context.Context, tokenHash string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tokenHash, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, tokenHash)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkUsed")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, tokenHash)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, tokenHash, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -258,11 +382,13 @@ type MockEmailVerificationRepository_MarkUsed_Call struct {
 // MarkUsed is a helper method to define mock.On call
 //   - ctx context.Context
 //   - tokenHash string
-func (_e *MockEmailVerificationRepository_Expecter) MarkUsed(ctx any, tokenHash any) *MockEmailVerificationRepository_MarkUsed_Call {
-	return &MockEmailVerificationRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed", ctx, tokenHash)}
+//   - tx ...*sql.Tx
+func (_e *MockEmailVerificationRepository_Expecter) MarkUsed(ctx any, tokenHash any, tx ...any) *MockEmailVerificationRepository_MarkUsed_Call {
+	return &MockEmailVerificationRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed",
+		append([]any{ctx, tokenHash}, tx...)...)}
 }
 
-func (_c *MockEmailVerificationRepository_MarkUsed_Call) Run(run func(ctx context.Context, tokenHash string)) *MockEmailVerificationRepository_MarkUsed_Call {
+func (_c *MockEmailVerificationRepository_MarkUsed_Call) Run(run func(ctx context.Context, tokenHash string, tx ...*sql.Tx)) *MockEmailVerificationRepository_MarkUsed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -272,9 +398,16 @@ func (_c *MockEmailVerificationRepository_MarkUsed_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -285,7 +418,7 @@ func (_c *MockEmailVerificationRepository_MarkUsed_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockEmailVerificationRepository_MarkUsed_Call) RunAndReturn(run func(ctx context.Context, tokenHash string) error) *MockEmailVerificationRepository_MarkUsed_Call {
+func (_c *MockEmailVerificationRepository_MarkUsed_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, tx ...*sql.Tx) error) *MockEmailVerificationRepository_MarkUsed_Call {
 	_c.Call.Return(run)
 	return _c
 }

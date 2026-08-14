@@ -25,7 +25,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
+
+func hashFor(t *testing.T, password string) string {
+	t.Helper()
+	h, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	require.NoError(t, err)
+	return string(h)
+}
+
+func matchesPassword(password string) any {
+	return mock.MatchedBy(func(hash string) bool {
+		return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+	})
+}
 
 func newTestService(t *testing.T) (
 	*service,
@@ -514,7 +528,8 @@ func TestChangePassword_MinLenZeroSkipsValidation(t *testing.T) {
 	svc, userRepo, _, _, _, settingsSvc := newTestService(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(0)
-	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "old", "x").Return(nil)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "old")}, nil)
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("x")).Return(nil)
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "x"})
@@ -528,7 +543,8 @@ func TestChangePassword_OK(t *testing.T) {
 	svc, userRepo, _, _, _, settingsSvc := newTestService(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
-	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(nil)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(nil)
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
@@ -544,7 +560,8 @@ func TestChangePassword_RevokesOtherSessionsKeepingCurrent(t *testing.T) {
 	svc.session = session.NewManager(sessionRepo, settingsSvc)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
-	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(nil)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(nil)
 	sessionRepo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "current-token").Return(nil)
 
 	// when
@@ -562,7 +579,8 @@ func TestChangePassword_DoesNotRevokeWhenChangeFails(t *testing.T) {
 	svc.session = session.NewManager(sessionRepo, settingsSvc)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
-	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(errors.New("wrong old"))
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(errors.New("write failed"))
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "current-token", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
@@ -577,7 +595,8 @@ func TestChangePassword_RepoError(t *testing.T) {
 	svc, userRepo, _, _, _, settingsSvc := newTestService(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
-	userRepo.EXPECT().ChangePassword(mock.Anything, userID, "oldpass", "newpass").Return(errors.New("wrong old"))
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(errors.New("write failed"))
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
@@ -590,11 +609,11 @@ func TestDeleteAccount_OK_CleansUpUploads(t *testing.T) {
 	// given
 	svc, userRepo, _, _, uploadSvc, _ := newTestService(t)
 	userID := uuid.New()
-	user := &model.User{ID: userID, AvatarURL: "/avatars/a.png", BannerURL: "/banners/b.jpg"}
+	user := &model.User{ID: userID, AvatarURL: "/avatars/a.png", BannerURL: "/banners/b.jpg", PasswordHash: hashFor(t, "pw")}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	userRepo.EXPECT().DeleteAccount(mock.Anything, userID, "pw").Return(nil)
-	uploadSvc.EXPECT().Delete("/avatars/a.png").Return(nil)
-	uploadSvc.EXPECT().Delete("/banners/b.jpg").Return(nil)
+	userRepo.EXPECT().DeleteAccount(mock.Anything, userID).Return(nil)
+	uploadSvc.EXPECT().Delete([]string{"/avatars/a.png"}).Return()
+	uploadSvc.EXPECT().Delete([]string{"/banners/b.jpg"}).Return()
 
 	// when
 	err := svc.DeleteAccount(context.Background(), userID, dto.DeleteAccountRequest{Password: "pw"})
@@ -603,35 +622,32 @@ func TestDeleteAccount_OK_CleansUpUploads(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDeleteAccount_UploadDeleteErrorsSwallowed(t *testing.T) {
-	// given
-	svc, userRepo, _, _, uploadSvc, _ := newTestService(t)
-	userID := uuid.New()
-	user := &model.User{ID: userID, AvatarURL: "/avatars/a.png", BannerURL: "/banners/b.jpg"}
-	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	userRepo.EXPECT().DeleteAccount(mock.Anything, userID, "pw").Return(nil)
-	uploadSvc.EXPECT().Delete("/avatars/a.png").Return(errors.New("gone"))
-	uploadSvc.EXPECT().Delete("/banners/b.jpg").Return(errors.New("gone"))
-
-	// when
-	err := svc.DeleteAccount(context.Background(), userID, dto.DeleteAccountRequest{Password: "pw"})
-
-	// then
-	require.NoError(t, err)
-}
-
-func TestDeleteAccount_NilUserSkipsCleanup(t *testing.T) {
+func TestDeleteAccount_UnknownUserIsRejected(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
-	userRepo.EXPECT().DeleteAccount(mock.Anything, userID, "pw").Return(nil)
 
 	// when
 	err := svc.DeleteAccount(context.Background(), userID, dto.DeleteAccountRequest{Password: "pw"})
 
 	// then
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrUserNotFound)
+	userRepo.AssertNotCalled(t, "DeleteAccount", mock.Anything, mock.Anything)
+}
+
+func TestDeleteAccount_WrongPasswordIsRejected(t *testing.T) {
+	// given
+	svc, userRepo, _, _, _, _ := newTestService(t)
+	userID := uuid.New()
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "pw")}, nil)
+
+	// when
+	err := svc.DeleteAccount(context.Background(), userID, dto.DeleteAccountRequest{Password: "wrong"})
+
+	// then
+	require.ErrorIs(t, err, ErrIncorrectPassword)
+	userRepo.AssertNotCalled(t, "DeleteAccount", mock.Anything, mock.Anything)
 }
 
 func TestDeleteAccount_GetByIDError(t *testing.T) {
@@ -652,16 +668,16 @@ func TestDeleteAccount_DeleteRepoError(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	user := &model.User{ID: userID}
+	user := &model.User{ID: userID, PasswordHash: hashFor(t, "pw")}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	userRepo.EXPECT().DeleteAccount(mock.Anything, userID, "pw").Return(errors.New("wrong password"))
+	userRepo.EXPECT().DeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
 
 	// when
 	err := svc.DeleteAccount(context.Background(), userID, dto.DeleteAccountRequest{Password: "pw"})
 
 	// then
 	require.Error(t, err)
-	assert.EqualError(t, err, "wrong password")
+	assert.EqualError(t, err, "db down")
 }
 
 func TestGetActivity_OK(t *testing.T) {

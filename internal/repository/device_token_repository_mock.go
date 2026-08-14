@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockDeviceTokenRepository) EXPECT() *MockDeviceTokenRepository_Expecte
 }
 
 // Delete provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) Delete(ctx context.Context, userID uuid.UUID, token string) error {
-	ret := _mock.Called(ctx, userID, token)
+func (_mock *MockDeviceTokenRepository) Delete(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, token, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, token)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, userID, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, token, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -64,11 +71,13 @@ type MockDeviceTokenRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - token string
-func (_e *MockDeviceTokenRepository_Expecter) Delete(ctx any, userID any, token any) *MockDeviceTokenRepository_Delete_Call {
-	return &MockDeviceTokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, userID, token)}
+//   - tx ...*sql.Tx
+func (_e *MockDeviceTokenRepository_Expecter) Delete(ctx any, userID any, token any, tx ...any) *MockDeviceTokenRepository_Delete_Call {
+	return &MockDeviceTokenRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, userID, token}, tx...)...)}
 }
 
-func (_c *MockDeviceTokenRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string)) *MockDeviceTokenRepository_Delete_Call {
+func (_c *MockDeviceTokenRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx)) *MockDeviceTokenRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -82,10 +91,17 @@ func (_c *MockDeviceTokenRepository_Delete_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -96,22 +112,28 @@ func (_c *MockDeviceTokenRepository_Delete_Call) Return(err error) *MockDeviceTo
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string) error) *MockDeviceTokenRepository_Delete_Call {
+func (_c *MockDeviceTokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error) *MockDeviceTokenRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteMany provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string) error {
-	ret := _mock.Called(ctx, userID, tokens)
+func (_mock *MockDeviceTokenRepository) DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tokens, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, tokens)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteMany")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string) error); ok {
-		r0 = returnFunc(ctx, userID, tokens)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tokens, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -127,11 +149,13 @@ type MockDeviceTokenRepository_DeleteMany_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - tokens []string
-func (_e *MockDeviceTokenRepository_Expecter) DeleteMany(ctx any, userID any, tokens any) *MockDeviceTokenRepository_DeleteMany_Call {
-	return &MockDeviceTokenRepository_DeleteMany_Call{Call: _e.mock.On("DeleteMany", ctx, userID, tokens)}
+//   - tx ...*sql.Tx
+func (_e *MockDeviceTokenRepository_Expecter) DeleteMany(ctx any, userID any, tokens any, tx ...any) *MockDeviceTokenRepository_DeleteMany_Call {
+	return &MockDeviceTokenRepository_DeleteMany_Call{Call: _e.mock.On("DeleteMany",
+		append([]any{ctx, userID, tokens}, tx...)...)}
 }
 
-func (_c *MockDeviceTokenRepository_DeleteMany_Call) Run(run func(ctx context.Context, userID uuid.UUID, tokens []string)) *MockDeviceTokenRepository_DeleteMany_Call {
+func (_c *MockDeviceTokenRepository_DeleteMany_Call) Run(run func(ctx context.Context, userID uuid.UUID, tokens []string, tx ...*sql.Tx)) *MockDeviceTokenRepository_DeleteMany_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -145,10 +169,17 @@ func (_c *MockDeviceTokenRepository_DeleteMany_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].([]string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -159,14 +190,20 @@ func (_c *MockDeviceTokenRepository_DeleteMany_Call) Return(err error) *MockDevi
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_DeleteMany_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tokens []string) error) *MockDeviceTokenRepository_DeleteMany_Call {
+func (_c *MockDeviceTokenRepository_DeleteMany_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tokens []string, tx ...*sql.Tx) error) *MockDeviceTokenRepository_DeleteMany_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // TokensForUser provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) TokensForUser(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockDeviceTokenRepository) TokensForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for TokensForUser")
@@ -174,18 +211,18 @@ func (_mock *MockDeviceTokenRepository) TokensForUser(ctx context.Context, userI
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]string, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []string); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -200,11 +237,13 @@ type MockDeviceTokenRepository_TokensForUser_Call struct {
 // TokensForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockDeviceTokenRepository_Expecter) TokensForUser(ctx any, userID any) *MockDeviceTokenRepository_TokensForUser_Call {
-	return &MockDeviceTokenRepository_TokensForUser_Call{Call: _e.mock.On("TokensForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockDeviceTokenRepository_Expecter) TokensForUser(ctx any, userID any, tx ...any) *MockDeviceTokenRepository_TokensForUser_Call {
+	return &MockDeviceTokenRepository_TokensForUser_Call{Call: _e.mock.On("TokensForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockDeviceTokenRepository_TokensForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockDeviceTokenRepository_TokensForUser_Call {
+func (_c *MockDeviceTokenRepository_TokensForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockDeviceTokenRepository_TokensForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -214,9 +253,16 @@ func (_c *MockDeviceTokenRepository_TokensForUser_Call) Run(run func(ctx context
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -227,22 +273,28 @@ func (_c *MockDeviceTokenRepository_TokensForUser_Call) Return(strings []string,
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_TokensForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]string, error)) *MockDeviceTokenRepository_TokensForUser_Call {
+func (_c *MockDeviceTokenRepository_TokensForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockDeviceTokenRepository_TokensForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Upsert provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) Upsert(ctx context.Context, userID uuid.UUID, token string, platform string) error {
-	ret := _mock.Called(ctx, userID, token, platform)
+func (_mock *MockDeviceTokenRepository) Upsert(ctx context.Context, userID uuid.UUID, token string, platform string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, token, platform, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, token, platform)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Upsert")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, userID, token, platform)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, token, platform, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -259,11 +311,13 @@ type MockDeviceTokenRepository_Upsert_Call struct {
 //   - userID uuid.UUID
 //   - token string
 //   - platform string
-func (_e *MockDeviceTokenRepository_Expecter) Upsert(ctx any, userID any, token any, platform any) *MockDeviceTokenRepository_Upsert_Call {
-	return &MockDeviceTokenRepository_Upsert_Call{Call: _e.mock.On("Upsert", ctx, userID, token, platform)}
+//   - tx ...*sql.Tx
+func (_e *MockDeviceTokenRepository_Expecter) Upsert(ctx any, userID any, token any, platform any, tx ...any) *MockDeviceTokenRepository_Upsert_Call {
+	return &MockDeviceTokenRepository_Upsert_Call{Call: _e.mock.On("Upsert",
+		append([]any{ctx, userID, token, platform}, tx...)...)}
 }
 
-func (_c *MockDeviceTokenRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string, platform string)) *MockDeviceTokenRepository_Upsert_Call {
+func (_c *MockDeviceTokenRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string, platform string, tx ...*sql.Tx)) *MockDeviceTokenRepository_Upsert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -281,11 +335,18 @@ func (_c *MockDeviceTokenRepository_Upsert_Call) Run(run func(ctx context.Contex
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -296,7 +357,7 @@ func (_c *MockDeviceTokenRepository_Upsert_Call) Return(err error) *MockDeviceTo
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string, platform string) error) *MockDeviceTokenRepository_Upsert_Call {
+func (_c *MockDeviceTokenRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string, platform string, tx ...*sql.Tx) error) *MockDeviceTokenRepository_Upsert_Call {
 	_c.Call.Return(run)
 	return _c
 }

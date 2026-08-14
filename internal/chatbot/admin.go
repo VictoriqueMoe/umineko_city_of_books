@@ -19,6 +19,8 @@ import (
 
 const (
 	botVanityRoleID = "bot"
+	botPasswordHash = "!"
+	botHomePage     = "landing"
 
 	testSystemPrompt    = "You are a connectivity probe. Reply with a single word."
 	testUserMessage     = "ping"
@@ -44,18 +46,22 @@ type (
 	adminService struct {
 		botRepo        repository.ChatbotRepository
 		basePromptRepo repository.ChatbotBasePromptRepository
-		vanityRepo     repository.VanityRoleRepository
 		userSvc        user.Service
 		openaiSvc      openai.Service
 		reloader       Service
 	}
 )
 
-func NewAdminService(botRepo repository.ChatbotRepository, basePromptRepo repository.ChatbotBasePromptRepository, vanityRepo repository.VanityRoleRepository, userSvc user.Service, openaiSvc openai.Service, reloader Service) AdminService {
+func NewAdminService(
+	botRepo repository.ChatbotRepository,
+	basePromptRepo repository.ChatbotBasePromptRepository,
+	userSvc user.Service,
+	openaiSvc openai.Service,
+	reloader Service,
+) AdminService {
 	return &adminService{
 		botRepo:        botRepo,
 		basePromptRepo: basePromptRepo,
-		vanityRepo:     vanityRepo,
 		userSvc:        userSvc,
 		openaiSvc:      openaiSvc,
 		reloader:       reloader,
@@ -94,18 +100,18 @@ func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest)
 		return nil, fmt.Errorf("check username: %w", err)
 	}
 
-	userID := uuid.New()
-	if err := a.botRepo.CreateBotAccount(ctx, userID, req.Username, displayName, req.AvatarURL); err != nil {
-		return nil, fmt.Errorf("create bot account: %w", err)
-	}
-
-	if err := a.vanityRepo.AssignToUser(ctx, userID, botVanityRoleID); err != nil {
-		return nil, fmt.Errorf("assign bot badge: %w", err)
+	account := repository.NewUser{
+		Username:      strings.TrimSpace(req.Username),
+		PasswordHash:  botPasswordHash,
+		DisplayName:   displayName,
+		AvatarURL:     req.AvatarURL,
+		HomePage:      botHomePage,
+		IsBot:         true,
+		DMsEnabled:    true,
+		EmailVerified: true,
 	}
 
 	bot := repository.Chatbot{
-		ID:              uuid.New(),
-		UserID:          userID,
 		SystemPrompt:    req.SystemPrompt,
 		BasePromptID:    req.BasePromptID,
 		Model:           req.Model,
@@ -115,13 +121,16 @@ func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest)
 		Enabled:         req.Enabled,
 	}
 
-	if err := a.botRepo.CreateBot(ctx, bot); err != nil {
+	created, err := a.botRepo.CreateBotWithAccount(ctx, account, bot, botVanityRoleID)
+	if err != nil {
 		return nil, fmt.Errorf("create chatbot: %w", err)
 	}
 
 	a.reloader.Reload()
 
-	return a.byUser(ctx, userID)
+	response := toResponse(*created)
+
+	return &response, nil
 }
 
 func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
@@ -151,26 +160,25 @@ func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.Chatbot
 		return nil, ErrBotNotFound
 	}
 
-	updated := *current
-	updated.SystemPrompt = req.SystemPrompt
-	updated.BasePromptID = req.BasePromptID
-	updated.Model = req.Model
-	updated.ReasoningEffort = req.ReasoningEffort
-	updated.Verbosity = req.Verbosity
-	updated.MaxOutputTokens = req.MaxOutputTokens
-	updated.Enabled = req.Enabled
+	spec := *current
+	spec.SystemPrompt = req.SystemPrompt
+	spec.BasePromptID = req.BasePromptID
+	spec.Model = req.Model
+	spec.ReasoningEffort = req.ReasoningEffort
+	spec.Verbosity = req.Verbosity
+	spec.MaxOutputTokens = req.MaxOutputTokens
+	spec.Enabled = req.Enabled
 
-	if err := a.botRepo.UpdateBot(ctx, updated); err != nil {
+	updated, err := a.botRepo.UpdateBotWithAccount(ctx, spec, displayName, req.AvatarURL)
+	if err != nil {
 		return nil, fmt.Errorf("update chatbot: %w", err)
-	}
-
-	if err := a.botRepo.UpdateBotAccount(ctx, current.UserID, displayName, req.AvatarURL); err != nil {
-		return nil, fmt.Errorf("update bot profile: %w", err)
 	}
 
 	a.reloader.Reload()
 
-	return a.byUser(ctx, current.UserID)
+	response := toResponse(*updated)
+
+	return &response, nil
 }
 
 func (a *adminService) Delete(ctx context.Context, id uuid.UUID) error {
@@ -263,20 +271,6 @@ func providerMessage(err error) string {
 	}
 
 	return err.Error()
-}
-
-func (a *adminService) byUser(ctx context.Context, userID uuid.UUID) (*dto.ChatbotResponse, error) {
-	bot, err := a.botRepo.GetBotByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("get chatbot: %w", err)
-	}
-	if bot == nil {
-		return nil, ErrBotNotFound
-	}
-
-	resp := toResponse(*bot)
-
-	return &resp, nil
 }
 
 func toResponse(bot repository.Chatbot) dto.ChatbotResponse {

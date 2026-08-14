@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -140,37 +139,69 @@ func postOrderClause(sort string, hasFollowBoost bool) string {
 	}
 }
 
-func (r *postDAO) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, corner string, body string, sharedContentID *string, sharedContentType *string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO posts (id, user_id, corner, body, shared_content_id, shared_content_type) VALUES ($1, $2, $3, $4, $5, $6)`,
-		id, userID, corner, body, sharedContentID, sharedContentType,
+func (r *postDAO) Create(ctx context.Context, spec repository.NewPost, tx ...*sql.Tx) (*model.PostRow, error) {
+	var (
+		created           model.PostRow
+		sharedContentID   *string
+		sharedContentType *string
 	)
-	if err != nil {
-		return fmt.Errorf("create post: %w", err)
+
+	if spec.SharedContent != nil {
+		sharedContentID = &spec.SharedContent.ID
+		sharedContentType = &spec.SharedContent.Type
 	}
-	return nil
+
+	err := scanPostRow(getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH p AS (
+		     INSERT INTO posts (user_id, corner, body, shared_content_id, shared_content_type)
+		     VALUES ($1, $2, $3, $4, $5)
+		     RETURNING id, user_id, corner, body, created_at, updated_at, view_count, shared_content_id, shared_content_type
+		 )
+		 SELECT p.id, p.user_id, p.corner, p.body, p.created_at, p.updated_at,
+		        u.username, u.display_name, u.avatar_url,
+		        COALESCE(r.role, ''),
+		        0, 0, FALSE, p.view_count, ''::text,
+		        p.shared_content_id, p.shared_content_type
+		 FROM p
+		 JOIN users u ON u.id = p.user_id
+		 LEFT JOIN user_roles r ON r.user_id = p.user_id`,
+		spec.UserID, spec.Corner, spec.Body, sharedContentID, sharedContentType,
+	), &created)
+	if err != nil {
+		return nil, fmt.Errorf("create post: %w", err)
+	}
+
+	return &created, nil
 }
 
-func (r *postDAO) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	return r.updatePost(ctx, id, &userID, body)
+func (r *postDAO) AddMedia(ctx context.Context, spec repository.NewPostMedia, tx ...*sql.Tx) (int64, error) {
+	return r.mediaDAO.AddMedia(ctx, spec.PostID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
 }
 
-func (r *postDAO) UpdatePostAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	return r.updatePost(ctx, id, nil, body)
+func (r *postDAO) AddCommentMedia(ctx context.Context, spec repository.NewPostCommentMedia, tx ...*sql.Tx) (int64, error) {
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
 }
 
-func (r *postDAO) updatePost(ctx context.Context, id uuid.UUID, userID *uuid.UUID, body string) error {
+func (r *postDAO) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+	return r.updatePost(ctx, id, &userID, body, tx...)
+}
+
+func (r *postDAO) UpdatePostAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
+	return r.updatePost(ctx, id, nil, body, tx...)
+}
+
+func (r *postDAO) updatePost(ctx context.Context, id uuid.UUID, userID *uuid.UUID, body string, tx ...*sql.Tx) error {
 	var (
 		res sql.Result
 		err error
 	)
 	if userID != nil {
-		res, err = r.db.ExecContext(ctx,
+		res, err = getDb(r.db, tx).ExecContext(ctx,
 			`UPDATE posts SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
 			body, id, *userID,
 		)
 	} else {
-		res, err = r.db.ExecContext(ctx,
+		res, err = getDb(r.db, tx).ExecContext(ctx,
 			`UPDATE posts SET body = $1, updated_at = NOW() WHERE id = $2`,
 			body, id,
 		)
@@ -185,9 +216,9 @@ func (r *postDAO) updatePost(ctx context.Context, id uuid.UUID, userID *uuid.UUI
 	return nil
 }
 
-func (r *postDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.PostRow, error) {
+func (r *postDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.PostRow, error) {
 	var p model.PostRow
-	err := scanPostRow(r.db.QueryRowContext(ctx, rebind(postSelectBase+` WHERE p.id = ?`), viewerID, id), &p)
+	err := scanPostRow(getDb(r.db, tx).QueryRowContext(ctx, rebind(postSelectBase+` WHERE p.id = ?`), viewerID, id), &p)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -197,8 +228,8 @@ func (r *postDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 	return &p, nil
 }
 
-func (r *postDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM posts WHERE id = $1 AND user_id = $2`, id, userID)
+func (r *postDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM posts WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete post: %w", err)
 	}
@@ -209,15 +240,15 @@ func (r *postDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	return nil
 }
 
-func (r *postDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM posts WHERE id = $1`, id)
+func (r *postDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM posts WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete post: %w", err)
 	}
 	return nil
 }
 
-func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, resolvedFilter string) ([]model.PostRow, int, error) {
+func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, resolvedFilter string, tx ...*sql.Tx) ([]model.PostRow, int, error) {
 	var total int
 	whereParts := []string{"p.corner = ?"}
 	args := []any{corner}
@@ -242,7 +273,7 @@ func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string
 	whereClause += exclSQL
 	countArgs := append(args, exclArgs...)
 
-	if err := r.db.QueryRowContext(ctx,
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
 		rebind(`SELECT COUNT(*) FROM posts p JOIN users u ON p.user_id = u.id`+whereClause), countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count posts: %w", err)
@@ -257,7 +288,7 @@ func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string
 		queryArgs = append(queryArgs, viewerID, seed)
 	}
 	queryArgs = append(queryArgs, limit, offset)
-	rows, err := r.db.QueryContext(ctx, rebind(query), queryArgs...)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, rebind(query), queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list posts: %w", err)
 	}
@@ -274,13 +305,13 @@ func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string
 	return posts, total, rows.Err()
 }
 
-func (r *postDAO) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID) ([]model.PostRow, int, error) {
+func (r *postDAO) ListByFollowing(ctx context.Context, userID uuid.UUID, corner string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.PostRow, int, error) {
 	var total int
 	exclSQL, exclArgs := excludeClauseQ("user_id", excludeUserIDs)
 	countQuery := `SELECT COUNT(*) FROM posts WHERE corner = ? AND (user_id = ? OR user_id IN (SELECT following_id FROM follows WHERE follower_id = ?))` + exclSQL
 	countArgs := []any{corner, userID, userID}
 	countArgs = append(countArgs, exclArgs...)
-	if err := r.db.QueryRowContext(ctx, rebind(countQuery), countArgs...).Scan(&total); err != nil {
+	if err := getDb(r.db, tx).QueryRowContext(ctx, rebind(countQuery), countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following posts: %w", err)
 	}
 
@@ -295,7 +326,7 @@ func (r *postDAO) ListByFollowing(ctx context.Context, userID uuid.UUID, corner 
 		queryArgs = append(queryArgs, seed)
 	}
 	queryArgs = append(queryArgs, limit, offset)
-	rows, err := r.db.QueryContext(ctx, rebind(query), queryArgs...)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, rebind(query), queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list following posts: %w", err)
 	}
@@ -312,14 +343,14 @@ func (r *postDAO) ListByFollowing(ctx context.Context, userID uuid.UUID, corner 
 	return posts, total, rows.Err()
 }
 
-func (r *postDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.PostRow, int, error) {
+func (r *postDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.PostRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE user_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user posts: %w", err)
 	}
 
 	query := rebind(postSelectBase + ` WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT ? OFFSET ?`)
-	rows, err := r.db.QueryContext(ctx, query, viewerID, userID, limit, offset)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user posts: %w", err)
 	}
@@ -336,30 +367,30 @@ func (r *postDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uui
 	return posts, total, rows.Err()
 }
 
-func (r *postDAO) GetPostAuthorID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error) {
+func (r *postDAO) GetPostAuthorID(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM posts WHERE id = $1`, postID).Scan(&userID)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM posts WHERE id = $1`, postID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get post author: %w", err)
 	}
 	return userID, nil
 }
 
-func (r *postDAO) GetSharedContentAuthor(ctx context.Context, contentID string, contentType string) (uuid.UUID, error) {
+func (r *postDAO) GetSharedContentAuthor(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) (uuid.UUID, error) {
 	table, ok := sharedContentTables[contentType]
 	if !ok {
 		return uuid.Nil, fmt.Errorf("unknown shared content type: %s", contentType)
 	}
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM `+table+` WHERE id = $1`, contentID).Scan(&userID)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM `+table+` WHERE id = $1`, contentID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get shared content author: %w", err)
 	}
 	return userID, nil
 }
 
-func (r *postDAO) ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID, status string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *postDAO) ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID, status string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO suggestion_resolved (post_id, resolved_by, status) VALUES ($1, $2, $3)
 		 ON CONFLICT (post_id) DO UPDATE SET status = $4, resolved_by = $5, resolved_at = NOW()`,
 		postID, resolvedBy, status, status, resolvedBy,
@@ -370,17 +401,17 @@ func (r *postDAO) ResolveSuggestion(ctx context.Context, postID uuid.UUID, resol
 	return nil
 }
 
-func (r *postDAO) UnresolveSuggestion(ctx context.Context, postID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM suggestion_resolved WHERE post_id = $1`, postID)
+func (r *postDAO) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM suggestion_resolved WHERE post_id = $1`, postID)
 	if err != nil {
 		return fmt.Errorf("unresolve suggestion: %w", err)
 	}
 	return nil
 }
 
-func (r *postDAO) CountUserPostsToday(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *postDAO) CountUserPostsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM posts WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
 		userID,
 	).Scan(&count)
@@ -390,8 +421,8 @@ func (r *postDAO) CountUserPostsToday(ctx context.Context, userID uuid.UUID) (in
 	return count, nil
 }
 
-func (r *postDAO) GetCornerCounts(ctx context.Context) (map[string]int, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
+func (r *postDAO) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
 	if err != nil {
 		return nil, fmt.Errorf("corner counts: %w", err)
 	}
@@ -411,9 +442,9 @@ func (r *postDAO) GetCornerCounts(ctx context.Context) (map[string]int, error) {
 	return result, rows.Err()
 }
 
-func (r *postDAO) GetShareCount(ctx context.Context, contentID string, contentType string) (int, error) {
+func (r *postDAO) GetShareCount(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(share_count, 0) FROM share_counts WHERE content_id = $1 AND content_type = $2`,
 		contentID, contentType,
 	).Scan(&count)
@@ -426,7 +457,7 @@ func (r *postDAO) GetShareCount(ctx context.Context, contentID string, contentTy
 	return count, nil
 }
 
-func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, contentType string) (map[string]int, error) {
+func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, contentType string, tx ...*sql.Tx) (map[string]int, error) {
 	if len(contentIDs) == 0 {
 		return nil, nil
 	}
@@ -440,7 +471,7 @@ func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, 
 	}
 	args = append(args, contentType)
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT content_id, share_count FROM share_counts WHERE content_id IN (`+placeholders.String()+`) AND content_type = ?`),
 		args...,
 	)
@@ -463,8 +494,8 @@ func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, 
 	return result, rows.Err()
 }
 
-func (r *postDAO) IncrementShareCount(ctx context.Context, contentID string, contentType string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *postDAO) IncrementShareCount(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO share_counts (content_id, content_type, share_count) VALUES ($1, $2, 1) ON CONFLICT (content_id, content_type) DO UPDATE SET share_count = share_counts.share_count + 1`,
 		contentID, contentType,
 	)
@@ -474,8 +505,8 @@ func (r *postDAO) IncrementShareCount(ctx context.Context, contentID string, con
 	return nil
 }
 
-func (r *postDAO) DecrementShareCount(ctx context.Context, contentID string, contentType string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *postDAO) DecrementShareCount(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE share_counts SET share_count = GREATEST(share_count - 1, 0) WHERE content_id = $1 AND content_type = $2`,
 		contentID, contentType,
 	)
@@ -485,9 +516,9 @@ func (r *postDAO) DecrementShareCount(ctx context.Context, contentID string, con
 	return nil
 }
 
-func (r *postDAO) GetSharedContentFields(ctx context.Context, postID uuid.UUID) (*string, *string, error) {
+func (r *postDAO) GetSharedContentFields(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) (*string, *string, error) {
 	var contentID, contentType *string
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT shared_content_id, shared_content_type FROM posts WHERE id = $1`, postID,
 	).Scan(&contentID, &contentType)
 	if err != nil {
@@ -499,11 +530,13 @@ func (r *postDAO) GetSharedContentFields(ctx context.Context, postID uuid.UUID) 
 	return contentID, contentType, nil
 }
 
-func (r *postDAO) GetSharedContentPreviews(refs []repository.SharedContentRef) map[string]*dto.SharedContentPreview {
+func (r *postDAO) GetSharedContentPreviews(refs []repository.SharedContentRef, tx ...*sql.Tx) map[string]*dto.SharedContentPreview {
 	result := make(map[string]*dto.SharedContentPreview)
 	if len(refs) == 0 {
 		return result
 	}
+
+	ctx := context.Background()
 
 	grouped := make(map[string][]string)
 	for _, ref := range refs {
@@ -513,17 +546,17 @@ func (r *postDAO) GetSharedContentPreviews(refs []repository.SharedContentRef) m
 	for contentType, ids := range grouped {
 		switch contentType {
 		case "post":
-			r.fetchPostPreviews(ids, result)
+			r.fetchPostPreviews(ctx, ids, result, tx...)
 		case "art":
-			r.fetchArtPreviews(ids, result)
+			r.fetchArtPreviews(ctx, ids, result, tx...)
 		case "ship":
-			r.fetchShipPreviews(ids, result)
+			r.fetchShipPreviews(ctx, ids, result, tx...)
 		case "mystery":
-			r.fetchMysteryPreviews(ids, result)
+			r.fetchMysteryPreviews(ctx, ids, result, tx...)
 		case "theory":
-			r.fetchTheoryPreviews(ids, result)
+			r.fetchTheoryPreviews(ctx, ids, result, tx...)
 		case "fanfic":
-			r.fetchFanficPreviews(ids, result)
+			r.fetchFanficPreviews(ctx, ids, result, tx...)
 		}
 	}
 
@@ -579,9 +612,9 @@ func truncateBody(body string, maxLen int) string {
 	return body[:maxLen] + "..."
 }
 
-func (r *postDAO) fetchPostPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := r.db.Query(
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT p.id, p.body, p.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as like_count,
 			(SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) as comment_count,
@@ -623,7 +656,7 @@ func (r *postDAO) fetchPostPreviews(ids []string, result map[string]*dto.SharedC
 		}
 	}
 
-	mediaRows, err := r.db.Query(
+	mediaRows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT post_id, media_url, media_type, thumbnail_url, sort_order
 		FROM post_media WHERE post_id IN (`+placeholders+`) ORDER BY sort_order LIMIT 4`), args...,
 	)
@@ -654,9 +687,9 @@ func (r *postDAO) fetchPostPreviews(ids []string, result map[string]*dto.SharedC
 	}
 }
 
-func (r *postDAO) fetchArtPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postDAO) fetchArtPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := r.db.Query(
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT a.id, a.title, a.description, a.image_url, a.thumbnail_url, a.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), a.corner
 		FROM art a
 		JOIN users u ON a.user_id = u.id
@@ -697,9 +730,9 @@ func (r *postDAO) fetchArtPreviews(ids []string, result map[string]*dto.SharedCo
 	}
 }
 
-func (r *postDAO) fetchShipPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postDAO) fetchShipPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := r.db.Query(
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT s.id, s.title, s.description, s.image_url, s.thumbnail_url, s.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0)
 		FROM ships s
@@ -744,9 +777,9 @@ func (r *postDAO) fetchShipPreviews(ids []string, result map[string]*dto.SharedC
 	}
 }
 
-func (r *postDAO) fetchMysteryPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postDAO) fetchMysteryPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := r.db.Query(
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT m.id, m.title, m.body, m.difficulty, m.solved, m.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM mysteries m
 		JOIN users u ON m.user_id = u.id
@@ -786,9 +819,9 @@ func (r *postDAO) fetchMysteryPreviews(ids []string, result map[string]*dto.Shar
 	}
 }
 
-func (r *postDAO) fetchTheoryPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postDAO) fetchTheoryPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := r.db.Query(
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT t.id, t.title, t.body, t.series, t.credibility_score, t.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM theories t
 		JOIN users u ON t.user_id = u.id
@@ -828,9 +861,9 @@ func (r *postDAO) fetchTheoryPreviews(ids []string, result map[string]*dto.Share
 	}
 }
 
-func (r *postDAO) fetchFanficPreviews(ids []string, result map[string]*dto.SharedContentPreview) {
+func (r *postDAO) fetchFanficPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {
 	placeholders, args := buildPlaceholders(ids)
-	rows, err := r.db.Query(
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT f.id, f.title, f.summary, f.series, f.rating, f.cover_image_url, f.cover_thumbnail_url, f.word_count,
 			(SELECT COUNT(*) FROM fanfic_chapters WHERE fanfic_id = f.id),
 			f.user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
@@ -879,10 +912,10 @@ func (r *postDAO) fetchFanficPreviews(ids []string, result map[string]*dto.Share
 	}
 }
 
-func (r *postDAO) AddEmbed(ctx context.Context, ownerID string, ownerType string, url string, embedType string, title string, description string, image string, siteName string, videoID string, sortOrder int) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *postDAO) AddEmbed(ctx context.Context, spec repository.NewEmbed, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO embeds (owner_id, owner_type, url, embed_type, title, description, image, site_name, video_id, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		ownerID, ownerType, url, embedType, title, description, image, siteName, videoID, sortOrder,
+		spec.OwnerID, spec.OwnerType, spec.URL, spec.EmbedType, spec.Title, spec.Description, spec.Image, spec.SiteName, spec.VideoID, spec.SortOrder,
 	)
 	if err != nil {
 		return fmt.Errorf("add embed: %w", err)
@@ -890,18 +923,18 @@ func (r *postDAO) AddEmbed(ctx context.Context, ownerID string, ownerType string
 	return nil
 }
 
-func (r *postDAO) DeleteEmbeds(ctx context.Context, ownerID string, ownerType string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM embeds WHERE owner_id = $1 AND owner_type = $2`, ownerID, ownerType)
+func (r *postDAO) DeleteEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM embeds WHERE owner_id = $1 AND owner_type = $2`, ownerID, ownerType)
 	if err != nil {
 		return fmt.Errorf("delete embeds: %w", err)
 	}
 	return nil
 }
 
-func (r *postDAO) UpdateEmbed(ctx context.Context, id int, title string, description string, image string, siteName string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *postDAO) UpdateEmbed(ctx context.Context, spec repository.EmbedUpdate, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE embeds SET title = $1, description = $2, image = $3, site_name = $4, fetched_at = NOW() WHERE id = $5`,
-		title, description, image, siteName, id,
+		spec.Title, spec.Description, spec.Image, spec.SiteName, spec.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update embed: %w", err)
@@ -909,8 +942,8 @@ func (r *postDAO) UpdateEmbed(ctx context.Context, id int, title string, descrip
 	return nil
 }
 
-func (r *postDAO) GetStaleEmbeds(ctx context.Context, olderThan string, limit int) ([]model.EmbedRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *postDAO) GetStaleEmbeds(ctx context.Context, olderThan string, limit int, tx ...*sql.Tx) ([]model.EmbedRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE embed_type = 'link' AND fetched_at < NOW() + CAST($1 AS INTERVAL) LIMIT $2`,
 		olderThan, limit,
 	)
@@ -930,8 +963,8 @@ func (r *postDAO) GetStaleEmbeds(ctx context.Context, olderThan string, limit in
 	return embeds, rows.Err()
 }
 
-func (r *postDAO) GetEmbeds(ctx context.Context, ownerID string, ownerType string) ([]model.EmbedRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *postDAO) GetEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) ([]model.EmbedRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id = $1 AND owner_type = $2 ORDER BY sort_order`,
 		ownerID, ownerType,
 	)
@@ -951,7 +984,7 @@ func (r *postDAO) GetEmbeds(ctx context.Context, ownerID string, ownerType strin
 	return embeds, rows.Err()
 }
 
-func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string) (map[string][]model.EmbedRow, error) {
+func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string, tx ...*sql.Tx) (map[string][]model.EmbedRow, error) {
 	if len(ownerIDs) == 0 {
 		return nil, nil
 	}
@@ -965,7 +998,7 @@ func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerTy
 	}
 	args = append(args, ownerType)
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders.String()+`) AND owner_type = ? ORDER BY sort_order`),
 		args...,
 	)
@@ -985,32 +1018,42 @@ func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerTy
 	return result, rows.Err()
 }
 
-func (r *postDAO) CreatePollWithOptions(ctx context.Context, pollID uuid.UUID, postID uuid.UUID, durationSeconds int, expiresAt string, options []string) error {
-	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO post_polls (id, post_id, duration_seconds, expires_at) VALUES ($1, $2, $3, $4)`,
-			pollID, postID, durationSeconds, expiresAt,
-		); err != nil {
-			return fmt.Errorf("create poll: %w", err)
-		}
-		for i := range options {
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO post_poll_options (poll_id, label, sort_order) VALUES ($1, $2, $3)`,
-				pollID, options[i], i,
-			); err != nil {
-				return fmt.Errorf("add poll option: %w", err)
-			}
-		}
-		return nil
-	})
+func (r *postDAO) CreatePoll(ctx context.Context, postID uuid.UUID, durationSeconds int, expiresAt string, tx ...*sql.Tx) (*model.PollRow, error) {
+	var (
+		created model.PollRow
+		expires time.Time
+	)
+
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO post_polls (post_id, duration_seconds, expires_at) VALUES ($1, $2, $3)
+		 RETURNING id, post_id, duration_seconds, expires_at`,
+		postID, durationSeconds, expiresAt,
+	).Scan(&created.ID, &created.PostID, &created.DurationSeconds, &expires); err != nil {
+		return nil, fmt.Errorf("create poll: %w", err)
+	}
+
+	created.ExpiresAt = expires.UTC().Format(time.RFC3339)
+
+	return &created, nil
 }
 
-func (r *postDAO) GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID) (*model.PollRow, []model.PollOptionRow, *int, error) {
+func (r *postDAO) AddPollOption(ctx context.Context, pollID string, label string, sortOrder int, tx ...*sql.Tx) error {
+	if _, err := getDb(r.db, tx).ExecContext(ctx,
+		`INSERT INTO post_poll_options (poll_id, label, sort_order) VALUES ($1, $2, $3)`,
+		pollID, label, sortOrder,
+	); err != nil {
+		return fmt.Errorf("add poll option: %w", err)
+	}
+
+	return nil
+}
+
+func (r *postDAO) GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.PollRow, []model.PollOptionRow, *int, error) {
 	var (
 		poll      model.PollRow
 		expiresAt time.Time
 	)
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id = $1`, postID,
 	).Scan(&poll.ID, &poll.PostID, &poll.DurationSeconds, &expiresAt)
 	if err != nil {
@@ -1021,7 +1064,7 @@ func (r *postDAO) GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerI
 	}
 	poll.ExpiresAt = expiresAt.UTC().Format(time.RFC3339)
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT o.id, o.poll_id, o.label, o.sort_order,
 			(SELECT COUNT(*) FROM post_poll_votes WHERE option_id = o.id)
 		FROM post_poll_options o
@@ -1048,7 +1091,7 @@ func (r *postDAO) GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerI
 	var votedOption *int
 	if viewerID != uuid.Nil {
 		var optID int
-		err := r.db.QueryRowContext(ctx,
+		err := getDb(r.db, tx).QueryRowContext(ctx,
 			`SELECT option_id FROM post_poll_votes WHERE poll_id = $1 AND user_id = $2`, poll.ID, viewerID,
 		).Scan(&optID)
 		if err == nil {
@@ -1059,7 +1102,7 @@ func (r *postDAO) GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerI
 	return &poll, options, votedOption, nil
 }
 
-func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID]*model.PollRow, map[uuid.UUID][]model.PollOptionRow, map[uuid.UUID]*int, error) {
+func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]*model.PollRow, map[uuid.UUID][]model.PollOptionRow, map[uuid.UUID]*int, error) {
 	if len(postIDs) == 0 {
 		return nil, nil, nil, nil
 	}
@@ -1072,7 +1115,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		args = append(args, postIDs[i])
 	}
 
-	pollRows, err := r.db.QueryContext(ctx,
+	pollRows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id IN (`+placeholders.String()+`)`), args...,
 	)
 	if err != nil {
@@ -1110,7 +1153,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		pArgs = append(pArgs, pollIDs[i])
 	}
 
-	optRows, err := r.db.QueryContext(ctx,
+	optRows, err := getDb(r.db, tx).QueryContext(ctx,
 		rebind(`SELECT o.id, o.poll_id, o.label, o.sort_order,
 			(SELECT COUNT(*) FROM post_poll_votes WHERE option_id = o.id)
 		FROM post_poll_options o
@@ -1141,7 +1184,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 
 	votes := make(map[uuid.UUID]*int)
 	if viewerID != uuid.Nil {
-		vRows, err := r.db.QueryContext(ctx,
+		vRows, err := getDb(r.db, tx).QueryContext(ctx,
 			rebind(`SELECT v.poll_id, v.option_id FROM post_poll_votes v
 			WHERE v.poll_id IN (`+pPlaceholders.String()+`) AND v.user_id = ?`),
 			append(pArgs, viewerID)...,
@@ -1166,8 +1209,8 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 	return polls, optionsByPost, votes, nil
 }
 
-func (r *postDAO) VotePoll(ctx context.Context, pollID uuid.UUID, userID uuid.UUID, optionID int) error {
-	res, err := r.db.ExecContext(ctx,
+func (r *postDAO) VotePoll(ctx context.Context, pollID uuid.UUID, userID uuid.UUID, optionID int, tx ...*sql.Tx) error {
+	res, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO post_poll_votes (poll_id, user_id, option_id) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
 		pollID, userID, optionID,
 	)

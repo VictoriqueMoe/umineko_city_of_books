@@ -7,6 +7,7 @@ package user
 import (
 	"context"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -92,92 +93,6 @@ func (_c *MockService_CheckUsernameAvailable_Call) Return(err error) *MockServic
 }
 
 func (_c *MockService_CheckUsernameAvailable_Call) RunAndReturn(run func(ctx context.Context, username string) error) *MockService_CheckUsernameAvailable_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Create provides a mock function for the type MockService
-func (_mock *MockService) Create(ctx context.Context, username string, email string, password string, displayName string) (*dto.UserResponse, error) {
-	ret := _mock.Called(ctx, username, email, password, displayName)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Create")
-	}
-
-	var r0 *dto.UserResponse
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*dto.UserResponse, error)); ok {
-		return returnFunc(ctx, username, email, password, displayName)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *dto.UserResponse); ok {
-		r0 = returnFunc(ctx, username, email, password, displayName)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*dto.UserResponse)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
-		r1 = returnFunc(ctx, username, email, password, displayName)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockService_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
-type MockService_Create_Call struct {
-	*mock.Call
-}
-
-// Create is a helper method to define mock.On call
-//   - ctx context.Context
-//   - username string
-//   - email string
-//   - password string
-//   - displayName string
-func (_e *MockService_Expecter) Create(ctx any, username any, email any, password any, displayName any) *MockService_Create_Call {
-	return &MockService_Create_Call{Call: _e.mock.On("Create", ctx, username, email, password, displayName)}
-}
-
-func (_c *MockService_Create_Call) Run(run func(ctx context.Context, username string, email string, password string, displayName string)) *MockService_Create_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_Create_Call) Return(userResponse *dto.UserResponse, err error) *MockService_Create_Call {
-	_c.Call.Return(userResponse, err)
-	return _c
-}
-
-func (_c *MockService_Create_Call) RunAndReturn(run func(ctx context.Context, username string, email string, password string, displayName string) (*dto.UserResponse, error)) *MockService_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -506,6 +421,90 @@ func (_c *MockService_ListStaff_Call) Return(userResponses []*dto.UserResponse, 
 }
 
 func (_c *MockService_ListStaff_Call) RunAndReturn(run func(ctx context.Context) ([]*dto.UserResponse, error)) *MockService_ListStaff_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewAccountSpec provides a mock function for the type MockService
+func (_mock *MockService) NewAccountSpec(ctx context.Context, username string, email string, password string, displayName string) (repository.NewAccount, error) {
+	ret := _mock.Called(ctx, username, email, password, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewAccountSpec")
+	}
+
+	var r0 repository.NewAccount
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (repository.NewAccount, error)); ok {
+		return returnFunc(ctx, username, email, password, displayName)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) repository.NewAccount); ok {
+		r0 = returnFunc(ctx, username, email, password, displayName)
+	} else {
+		r0 = ret.Get(0).(repository.NewAccount)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = returnFunc(ctx, username, email, password, displayName)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_NewAccountSpec_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewAccountSpec'
+type MockService_NewAccountSpec_Call struct {
+	*mock.Call
+}
+
+// NewAccountSpec is a helper method to define mock.On call
+//   - ctx context.Context
+//   - username string
+//   - email string
+//   - password string
+//   - displayName string
+func (_e *MockService_Expecter) NewAccountSpec(ctx any, username any, email any, password any, displayName any) *MockService_NewAccountSpec_Call {
+	return &MockService_NewAccountSpec_Call{Call: _e.mock.On("NewAccountSpec", ctx, username, email, password, displayName)}
+}
+
+func (_c *MockService_NewAccountSpec_Call) Run(run func(ctx context.Context, username string, email string, password string, displayName string)) *MockService_NewAccountSpec_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_NewAccountSpec_Call) Return(newAccount repository.NewAccount, err error) *MockService_NewAccountSpec_Call {
+	_c.Call.Return(newAccount, err)
+	return _c
+}
+
+func (_c *MockService_NewAccountSpec_Call) RunAndReturn(run func(ctx context.Context, username string, email string, password string, displayName string) (repository.NewAccount, error)) *MockService_NewAccountSpec_Call {
 	_c.Call.Return(run)
 	return _c
 }

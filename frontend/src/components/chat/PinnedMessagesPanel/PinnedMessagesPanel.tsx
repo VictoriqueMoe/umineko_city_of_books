@@ -5,6 +5,7 @@ import { useChatRoomPinnedMessages } from "../../../api/queries/chat";
 import { useUnpinChatMessage } from "../../../api/mutations/chat";
 import { queryKeys } from "../../../api/queryKeys";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
+import { renderRich } from "../../../utils/richText";
 import styles from "./PinnedMessagesPanel.module.css";
 
 interface PinnedMessagesPanelProps {
@@ -123,7 +124,7 @@ export function PinnedMessagesPanel({
                                             />
                                         </div>
                                     </div>
-                                    {m.body && <div className={styles.pinBody}>{m.body}</div>}
+                                    {m.body && <div className={styles.pinBody}>{renderRich(m.body)}</div>}
                                     {m.media && m.media.length > 0 && (
                                         <div className={styles.pinMedia}>
                                             {m.media.map(media =>

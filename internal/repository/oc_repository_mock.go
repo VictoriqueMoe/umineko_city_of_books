@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -40,8 +41,14 @@ func (_m *MockOCRepository) EXPECT() *MockOCRepository_Expecter {
 }
 
 // AddCommentMedia provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	ret := _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+func (_mock *MockOCRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddCommentMedia")
@@ -49,16 +56,16 @@ func (_mock *MockOCRepository) AddCommentMedia(ctx context.Context, commentID uu
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) (int64, error)); ok {
-		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) int64); ok {
-		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int) error); ok {
-		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -77,11 +84,13 @@ type MockOCRepository_AddCommentMedia_Call struct {
 //   - mediaType string
 //   - thumbnailURL string
 //   - sortOrder int
-func (_e *MockOCRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockOCRepository_AddCommentMedia_Call {
-	return &MockOCRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any, tx ...any) *MockOCRepository_AddCommentMedia_Call {
+	return &MockOCRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
+		append([]any{ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder}, tx...)...)}
 }
 
-func (_c *MockOCRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int)) *MockOCRepository_AddCommentMedia_Call {
+func (_c *MockOCRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx)) *MockOCRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -107,6 +116,12 @@ func (_c *MockOCRepository_AddCommentMedia_Call) Run(run func(ctx context.Contex
 		if args[5] != nil {
 			arg5 = args[5].(int)
 		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -114,6 +129,7 @@ func (_c *MockOCRepository_AddCommentMedia_Call) Run(run func(ctx context.Contex
 			arg3,
 			arg4,
 			arg5,
+			arg6...,
 		)
 	})
 	return _c
@@ -124,14 +140,20 @@ func (_c *MockOCRepository_AddCommentMedia_Call) Return(n int64, err error) *Moc
 	return _c
 }
 
-func (_c *MockOCRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)) *MockOCRepository_AddCommentMedia_Call {
+func (_c *MockOCRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error)) *MockOCRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddGalleryImage provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) AddGalleryImage(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int) (int64, error) {
-	ret := _mock.Called(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)
+func (_mock *MockOCRepository) AddGalleryImage(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddGalleryImage")
@@ -139,16 +161,16 @@ func (_mock *MockOCRepository) AddGalleryImage(ctx context.Context, ocID uuid.UU
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) (int64, error)); ok {
-		return returnFunc(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) int64); ok {
-		r0 = returnFunc(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int) error); ok {
-		r1 = returnFunc(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocID, imageURL, thumbnailURL, caption, sortOrder, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -167,11 +189,13 @@ type MockOCRepository_AddGalleryImage_Call struct {
 //   - thumbnailURL string
 //   - caption string
 //   - sortOrder int
-func (_e *MockOCRepository_Expecter) AddGalleryImage(ctx any, ocID any, imageURL any, thumbnailURL any, caption any, sortOrder any) *MockOCRepository_AddGalleryImage_Call {
-	return &MockOCRepository_AddGalleryImage_Call{Call: _e.mock.On("AddGalleryImage", ctx, ocID, imageURL, thumbnailURL, caption, sortOrder)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) AddGalleryImage(ctx any, ocID any, imageURL any, thumbnailURL any, caption any, sortOrder any, tx ...any) *MockOCRepository_AddGalleryImage_Call {
+	return &MockOCRepository_AddGalleryImage_Call{Call: _e.mock.On("AddGalleryImage",
+		append([]any{ctx, ocID, imageURL, thumbnailURL, caption, sortOrder}, tx...)...)}
 }
 
-func (_c *MockOCRepository_AddGalleryImage_Call) Run(run func(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int)) *MockOCRepository_AddGalleryImage_Call {
+func (_c *MockOCRepository_AddGalleryImage_Call) Run(run func(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int, tx ...*sql.Tx)) *MockOCRepository_AddGalleryImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -197,6 +221,12 @@ func (_c *MockOCRepository_AddGalleryImage_Call) Run(run func(ctx context.Contex
 		if args[5] != nil {
 			arg5 = args[5].(int)
 		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -204,6 +234,7 @@ func (_c *MockOCRepository_AddGalleryImage_Call) Run(run func(ctx context.Contex
 			arg3,
 			arg4,
 			arg5,
+			arg6...,
 		)
 	})
 	return _c
@@ -214,26 +245,209 @@ func (_c *MockOCRepository_AddGalleryImage_Call) Return(n int64, err error) *Moc
 	return _c
 }
 
-func (_c *MockOCRepository_AddGalleryImage_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int) (int64, error)) *MockOCRepository_AddGalleryImage_Call {
+func (_c *MockOCRepository_AddGalleryImage_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int, tx ...*sql.Tx) (int64, error)) *MockOCRepository_AddGalleryImage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CollectCommentMediaPaths provides a mock function for the type MockOCRepository
+func (_mock *MockOCRepository) CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, entityID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, entityID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CollectCommentMediaPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, entityID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, entityID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, entityID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOCRepository_CollectCommentMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectCommentMediaPaths'
+type MockOCRepository_CollectCommentMediaPaths_Call struct {
+	*mock.Call
+}
+
+// CollectCommentMediaPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entityID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) CollectCommentMediaPaths(ctx any, entityID any, tx ...any) *MockOCRepository_CollectCommentMediaPaths_Call {
+	return &MockOCRepository_CollectCommentMediaPaths_Call{Call: _e.mock.On("CollectCommentMediaPaths",
+		append([]any{ctx, entityID}, tx...)...)}
+}
+
+func (_c *MockOCRepository_CollectCommentMediaPaths_Call) Run(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_CollectCommentMediaPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOCRepository_CollectCommentMediaPaths_Call) Return(strings []string, err error) *MockOCRepository_CollectCommentMediaPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockOCRepository_CollectCommentMediaPaths_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockOCRepository_CollectCommentMediaPaths_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CollectSingleCommentMediaPaths provides a mock function for the type MockOCRepository
+func (_mock *MockOCRepository) CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CollectSingleCommentMediaPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOCRepository_CollectSingleCommentMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectSingleCommentMediaPaths'
+type MockOCRepository_CollectSingleCommentMediaPaths_Call struct {
+	*mock.Call
+}
+
+// CollectSingleCommentMediaPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) CollectSingleCommentMediaPaths(ctx any, commentID any, tx ...any) *MockOCRepository_CollectSingleCommentMediaPaths_Call {
+	return &MockOCRepository_CollectSingleCommentMediaPaths_Call{Call: _e.mock.On("CollectSingleCommentMediaPaths",
+		append([]any{ctx, commentID}, tx...)...)}
+}
+
+func (_c *MockOCRepository_CollectSingleCommentMediaPaths_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_CollectSingleCommentMediaPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOCRepository_CollectSingleCommentMediaPaths_Call) Return(strings []string, err error) *MockOCRepository_CollectSingleCommentMediaPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockOCRepository_CollectSingleCommentMediaPaths_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockOCRepository_CollectSingleCommentMediaPaths_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Create provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, series string, customSeriesName string) error {
-	ret := _mock.Called(ctx, id, userID, name, description, series, customSeriesName)
+func (_mock *MockOCRepository) Create(ctx context.Context, spec NewOC, tx ...*sql.Tx) (*model.OCRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string) error); ok {
-		r0 = returnFunc(ctx, id, userID, name, description, series, customSeriesName)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *model.OCRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewOC, ...*sql.Tx) (*model.OCRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewOC, ...*sql.Tx) *model.OCRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.OCRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewOC, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockOCRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
@@ -243,84 +457,80 @@ type MockOCRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - name string
-//   - description string
-//   - series string
-//   - customSeriesName string
-func (_e *MockOCRepository_Expecter) Create(ctx any, id any, userID any, name any, description any, series any, customSeriesName any) *MockOCRepository_Create_Call {
-	return &MockOCRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, name, description, series, customSeriesName)}
+//   - spec NewOC
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) Create(ctx any, spec any, tx ...any) *MockOCRepository_Create_Call {
+	return &MockOCRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockOCRepository_Create_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, series string, customSeriesName string)) *MockOCRepository_Create_Call {
+func (_c *MockOCRepository_Create_Call) Run(run func(ctx context.Context, spec NewOC, tx ...*sql.Tx)) *MockOCRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewOC
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewOC)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 string
-		if args[6] != nil {
-			arg6 = args[6].(string)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockOCRepository_Create_Call) Return(err error) *MockOCRepository_Create_Call {
-	_c.Call.Return(err)
+func (_c *MockOCRepository_Create_Call) Return(oCRow *model.OCRow, err error) *MockOCRepository_Create_Call {
+	_c.Call.Return(oCRow, err)
 	return _c
 }
 
-func (_c *MockOCRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, series string, customSeriesName string) error) *MockOCRepository_Create_Call {
+func (_c *MockOCRepository_Create_Call) RunAndReturn(run func(ctx context.Context, spec NewOC, tx ...*sql.Tx) (*model.OCRow, error)) *MockOCRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateComment provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) CreateComment(ctx context.Context, id uuid.UUID, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, ocID, parentID, userID, body)
+func (_mock *MockOCRepository) CreateComment(ctx context.Context, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, parentID, userID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID, parentID, userID, body)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateComment")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, ocID, parentID, userID, body)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *CommentRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *uuid.UUID, uuid.UUID, string, ...*sql.Tx) (*CommentRow, error)); ok {
+		return returnFunc(ctx, ocID, parentID, userID, body, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *uuid.UUID, uuid.UUID, string, ...*sql.Tx) *CommentRow); ok {
+		r0 = returnFunc(ctx, ocID, parentID, userID, body, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CommentRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocID, parentID, userID, body, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockOCRepository_CreateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateComment'
@@ -330,16 +540,17 @@ type MockOCRepository_CreateComment_Call struct {
 
 // CreateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
 //   - ocID uuid.UUID
 //   - parentID *uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockOCRepository_Expecter) CreateComment(ctx any, id any, ocID any, parentID any, userID any, body any) *MockOCRepository_CreateComment_Call {
-	return &MockOCRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, ocID, parentID, userID, body)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) CreateComment(ctx any, ocID any, parentID any, userID any, body any, tx ...any) *MockOCRepository_CreateComment_Call {
+	return &MockOCRepository_CreateComment_Call{Call: _e.mock.On("CreateComment",
+		append([]any{ctx, ocID, parentID, userID, body}, tx...)...)}
 }
 
-func (_c *MockOCRepository_CreateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string)) *MockOCRepository_CreateComment_Call {
+func (_c *MockOCRepository_CreateComment_Call) Run(run func(ctx context.Context, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockOCRepository_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -349,55 +560,63 @@ func (_c *MockOCRepository_CreateComment_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 uuid.UUID
+		var arg2 *uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+			arg2 = args[2].(*uuid.UUID)
 		}
-		var arg3 *uuid.UUID
+		var arg3 uuid.UUID
 		if args[3] != nil {
-			arg3 = args[3].(*uuid.UUID)
+			arg3 = args[3].(uuid.UUID)
 		}
-		var arg4 uuid.UUID
+		var arg4 string
 		if args[4] != nil {
-			arg4 = args[4].(uuid.UUID)
+			arg4 = args[4].(string)
 		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
 		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
-			arg5,
+			arg5...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockOCRepository_CreateComment_Call) Return(err error) *MockOCRepository_CreateComment_Call {
-	_c.Call.Return(err)
+func (_c *MockOCRepository_CreateComment_Call) Return(commentRow *CommentRow, err error) *MockOCRepository_CreateComment_Call {
+	_c.Call.Return(commentRow, err)
 	return _c
 }
 
-func (_c *MockOCRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error) *MockOCRepository_CreateComment_Call {
+func (_c *MockOCRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)) *MockOCRepository_CreateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockOCRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -413,11 +632,13 @@ type MockOCRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockOCRepository_Expecter) Delete(ctx any, id any, userID any) *MockOCRepository_Delete_Call {
-	return &MockOCRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) Delete(ctx any, id any, userID any, tx ...any) *MockOCRepository_Delete_Call {
+	return &MockOCRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockOCRepository_Delete_Call {
+func (_c *MockOCRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -431,10 +652,17 @@ func (_c *MockOCRepository_Delete_Call) Run(run func(ctx context.Context, id uui
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -445,22 +673,28 @@ func (_c *MockOCRepository_Delete_Call) Return(err error) *MockOCRepository_Dele
 	return _c
 }
 
-func (_c *MockOCRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockOCRepository_Delete_Call {
+func (_c *MockOCRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteAsAdmin provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockOCRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -475,11 +709,13 @@ type MockOCRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockOCRepository_DeleteAsAdmin_Call {
-	return &MockOCRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) DeleteAsAdmin(ctx any, id any, tx ...any) *MockOCRepository_DeleteAsAdmin_Call {
+	return &MockOCRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockOCRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockOCRepository_DeleteAsAdmin_Call {
+func (_c *MockOCRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_DeleteAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -489,9 +725,16 @@ func (_c *MockOCRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -502,22 +745,28 @@ func (_c *MockOCRepository_DeleteAsAdmin_Call) Return(err error) *MockOCReposito
 	return _c
 }
 
-func (_c *MockOCRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockOCRepository_DeleteAsAdmin_Call {
+func (_c *MockOCRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_DeleteAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteComment provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockOCRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteComment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -533,11 +782,13 @@ type MockOCRepository_DeleteComment_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockOCRepository_DeleteComment_Call {
-	return &MockOCRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *MockOCRepository_DeleteComment_Call {
+	return &MockOCRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockOCRepository_DeleteComment_Call {
+func (_c *MockOCRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -551,10 +802,17 @@ func (_c *MockOCRepository_DeleteComment_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -565,22 +823,28 @@ func (_c *MockOCRepository_DeleteComment_Call) Return(err error) *MockOCReposito
 	return _c
 }
 
-func (_c *MockOCRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockOCRepository_DeleteComment_Call {
+func (_c *MockOCRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteCommentAsAdmin provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockOCRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteCommentAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -595,11 +859,13 @@ type MockOCRepository_DeleteCommentAsAdmin_Call struct {
 // DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockOCRepository_DeleteCommentAsAdmin_Call {
-	return &MockOCRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *MockOCRepository_DeleteCommentAsAdmin_Call {
+	return &MockOCRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockOCRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockOCRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockOCRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_DeleteCommentAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -609,9 +875,16 @@ func (_c *MockOCRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -622,22 +895,111 @@ func (_c *MockOCRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockOCR
 	return _c
 }
 
-func (_c *MockOCRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockOCRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockOCRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_DeleteCommentAsAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteCommentWithMedia provides a mock function for the type MockOCRepository
+func (_mock *MockOCRepository) DeleteCommentWithMedia(ctx context.Context, spec OCCommentDeletion, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteCommentWithMedia")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, OCCommentDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, OCCommentDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, OCCommentDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOCRepository_DeleteCommentWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentWithMedia'
+type MockOCRepository_DeleteCommentWithMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteCommentWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec OCCommentDeletion
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) DeleteCommentWithMedia(ctx any, spec any, tx ...any) *MockOCRepository_DeleteCommentWithMedia_Call {
+	return &MockOCRepository_DeleteCommentWithMedia_Call{Call: _e.mock.On("DeleteCommentWithMedia",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockOCRepository_DeleteCommentWithMedia_Call) Run(run func(ctx context.Context, spec OCCommentDeletion, tx ...*sql.Tx)) *MockOCRepository_DeleteCommentWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 OCCommentDeletion
+		if args[1] != nil {
+			arg1 = args[1].(OCCommentDeletion)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOCRepository_DeleteCommentWithMedia_Call) Return(strings []string, err error) *MockOCRepository_DeleteCommentWithMedia_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockOCRepository_DeleteCommentWithMedia_Call) RunAndReturn(run func(ctx context.Context, spec OCCommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockOCRepository_DeleteCommentWithMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteGalleryImage provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) DeleteGalleryImage(ctx context.Context, id int64, ocID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, ocID)
+func (_mock *MockOCRepository) DeleteGalleryImage(ctx context.Context, id int64, ocID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, ocID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteGalleryImage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, ocID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -653,11 +1015,13 @@ type MockOCRepository_DeleteGalleryImage_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) DeleteGalleryImage(ctx any, id any, ocID any) *MockOCRepository_DeleteGalleryImage_Call {
-	return &MockOCRepository_DeleteGalleryImage_Call{Call: _e.mock.On("DeleteGalleryImage", ctx, id, ocID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) DeleteGalleryImage(ctx any, id any, ocID any, tx ...any) *MockOCRepository_DeleteGalleryImage_Call {
+	return &MockOCRepository_DeleteGalleryImage_Call{Call: _e.mock.On("DeleteGalleryImage",
+		append([]any{ctx, id, ocID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_DeleteGalleryImage_Call) Run(run func(ctx context.Context, id int64, ocID uuid.UUID)) *MockOCRepository_DeleteGalleryImage_Call {
+func (_c *MockOCRepository_DeleteGalleryImage_Call) Run(run func(ctx context.Context, id int64, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_DeleteGalleryImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -671,10 +1035,17 @@ func (_c *MockOCRepository_DeleteGalleryImage_Call) Run(run func(ctx context.Con
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -685,22 +1056,111 @@ func (_c *MockOCRepository_DeleteGalleryImage_Call) Return(err error) *MockOCRep
 	return _c
 }
 
-func (_c *MockOCRepository_DeleteGalleryImage_Call) RunAndReturn(run func(ctx context.Context, id int64, ocID uuid.UUID) error) *MockOCRepository_DeleteGalleryImage_Call {
+func (_c *MockOCRepository_DeleteGalleryImage_Call) RunAndReturn(run func(ctx context.Context, id int64, ocID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_DeleteGalleryImage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteOC provides a mock function for the type MockOCRepository
+func (_mock *MockOCRepository) DeleteOC(ctx context.Context, spec OCDeletion, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteOC")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, OCDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, OCDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, OCDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOCRepository_DeleteOC_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteOC'
+type MockOCRepository_DeleteOC_Call struct {
+	*mock.Call
+}
+
+// DeleteOC is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec OCDeletion
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) DeleteOC(ctx any, spec any, tx ...any) *MockOCRepository_DeleteOC_Call {
+	return &MockOCRepository_DeleteOC_Call{Call: _e.mock.On("DeleteOC",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockOCRepository_DeleteOC_Call) Run(run func(ctx context.Context, spec OCDeletion, tx ...*sql.Tx)) *MockOCRepository_DeleteOC_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 OCDeletion
+		if args[1] != nil {
+			arg1 = args[1].(OCDeletion)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOCRepository_DeleteOC_Call) Return(strings []string, err error) *MockOCRepository_DeleteOC_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockOCRepository_DeleteOC_Call) RunAndReturn(run func(ctx context.Context, spec OCDeletion, tx ...*sql.Tx) ([]string, error)) *MockOCRepository_DeleteOC_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Favourite provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) Favourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, ocID)
+func (_mock *MockOCRepository) Favourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, ocID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Favourite")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, ocID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -716,11 +1176,13 @@ type MockOCRepository_Favourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) Favourite(ctx any, userID any, ocID any) *MockOCRepository_Favourite_Call {
-	return &MockOCRepository_Favourite_Call{Call: _e.mock.On("Favourite", ctx, userID, ocID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) Favourite(ctx any, userID any, ocID any, tx ...any) *MockOCRepository_Favourite_Call {
+	return &MockOCRepository_Favourite_Call{Call: _e.mock.On("Favourite",
+		append([]any{ctx, userID, ocID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_Favourite_Call) Run(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID)) *MockOCRepository_Favourite_Call {
+func (_c *MockOCRepository_Favourite_Call) Run(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_Favourite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -734,10 +1196,17 @@ func (_c *MockOCRepository_Favourite_Call) Run(run func(ctx context.Context, use
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -748,14 +1217,20 @@ func (_c *MockOCRepository_Favourite_Call) Return(err error) *MockOCRepository_F
 	return _c
 }
 
-func (_c *MockOCRepository_Favourite_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID) error) *MockOCRepository_Favourite_Call {
+func (_c *MockOCRepository_Favourite_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_Favourite_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetAuthorID provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetAuthorID(ctx context.Context, ocID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, ocID)
+func (_mock *MockOCRepository) GetAuthorID(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAuthorID")
@@ -763,18 +1238,18 @@ func (_mock *MockOCRepository) GetAuthorID(ctx context.Context, ocID uuid.UUID) 
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, ocID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, ocID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, ocID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -789,11 +1264,13 @@ type MockOCRepository_GetAuthorID_Call struct {
 // GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetAuthorID(ctx any, ocID any) *MockOCRepository_GetAuthorID_Call {
-	return &MockOCRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, ocID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetAuthorID(ctx any, ocID any, tx ...any) *MockOCRepository_GetAuthorID_Call {
+	return &MockOCRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID",
+		append([]any{ctx, ocID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetAuthorID_Call) Run(run func(ctx context.Context, ocID uuid.UUID)) *MockOCRepository_GetAuthorID_Call {
+func (_c *MockOCRepository_GetAuthorID_Call) Run(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetAuthorID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -803,9 +1280,16 @@ func (_c *MockOCRepository_GetAuthorID_Call) Run(run func(ctx context.Context, o
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -816,14 +1300,20 @@ func (_c *MockOCRepository_GetAuthorID_Call) Return(uUID uuid.UUID, err error) *
 	return _c
 }
 
-func (_c *MockOCRepository_GetAuthorID_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID) (uuid.UUID, error)) *MockOCRepository_GetAuthorID_Call {
+func (_c *MockOCRepository_GetAuthorID_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockOCRepository_GetAuthorID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.OCRow, error) {
-	ret := _mock.Called(ctx, id, viewerID)
+func (_mock *MockOCRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.OCRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, viewerID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, viewerID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -831,18 +1321,18 @@ func (_mock *MockOCRepository) GetByID(ctx context.Context, id uuid.UUID, viewer
 
 	var r0 *model.OCRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*model.OCRow, error)); ok {
-		return returnFunc(ctx, id, viewerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*model.OCRow, error)); ok {
+		return returnFunc(ctx, id, viewerID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *model.OCRow); ok {
-		r0 = returnFunc(ctx, id, viewerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *model.OCRow); ok {
+		r0 = returnFunc(ctx, id, viewerID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.OCRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id, viewerID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, viewerID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -858,11 +1348,13 @@ type MockOCRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetByID(ctx any, id any, viewerID any) *MockOCRepository_GetByID_Call {
-	return &MockOCRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, viewerID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetByID(ctx any, id any, viewerID any, tx ...any) *MockOCRepository_GetByID_Call {
+	return &MockOCRepository_GetByID_Call{Call: _e.mock.On("GetByID",
+		append([]any{ctx, id, viewerID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)) *MockOCRepository_GetByID_Call {
+func (_c *MockOCRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -876,10 +1368,17 @@ func (_c *MockOCRepository_GetByID_Call) Run(run func(ctx context.Context, id uu
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -890,14 +1389,20 @@ func (_c *MockOCRepository_GetByID_Call) Return(oCRow *model.OCRow, err error) *
 	return _c
 }
 
-func (_c *MockOCRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.OCRow, error)) *MockOCRepository_GetByID_Call {
+func (_c *MockOCRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.OCRow, error)) *MockOCRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetCommentAuthorID provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
+func (_mock *MockOCRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentAuthorID")
@@ -905,18 +1410,18 @@ func (_mock *MockOCRepository) GetCommentAuthorID(ctx context.Context, commentID
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -931,11 +1436,13 @@ type MockOCRepository_GetCommentAuthorID_Call struct {
 // GetCommentAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockOCRepository_GetCommentAuthorID_Call {
-	return &MockOCRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetCommentAuthorID(ctx any, commentID any, tx ...any) *MockOCRepository_GetCommentAuthorID_Call {
+	return &MockOCRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID",
+		append([]any{ctx, commentID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetCommentAuthorID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockOCRepository_GetCommentAuthorID_Call {
+func (_c *MockOCRepository_GetCommentAuthorID_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetCommentAuthorID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -945,9 +1452,16 @@ func (_c *MockOCRepository_GetCommentAuthorID_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -958,14 +1472,20 @@ func (_c *MockOCRepository_GetCommentAuthorID_Call) Return(uUID uuid.UUID, err e
 	return _c
 }
 
-func (_c *MockOCRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockOCRepository_GetCommentAuthorID_Call {
+func (_c *MockOCRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockOCRepository_GetCommentAuthorID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetCommentEntityID provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
+func (_mock *MockOCRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentEntityID")
@@ -973,18 +1493,18 @@ func (_mock *MockOCRepository) GetCommentEntityID(ctx context.Context, commentID
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -999,11 +1519,13 @@ type MockOCRepository_GetCommentEntityID_Call struct {
 // GetCommentEntityID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentEntityID(ctx any, commentID any) *MockOCRepository_GetCommentEntityID_Call {
-	return &MockOCRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID", ctx, commentID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetCommentEntityID(ctx any, commentID any, tx ...any) *MockOCRepository_GetCommentEntityID_Call {
+	return &MockOCRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID",
+		append([]any{ctx, commentID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockOCRepository_GetCommentEntityID_Call {
+func (_c *MockOCRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetCommentEntityID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1013,9 +1535,16 @@ func (_c *MockOCRepository_GetCommentEntityID_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1026,14 +1555,20 @@ func (_c *MockOCRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err e
 	return _c
 }
 
-func (_c *MockOCRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockOCRepository_GetCommentEntityID_Call {
+func (_c *MockOCRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockOCRepository_GetCommentEntityID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetCommentMedia provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error) {
-	ret := _mock.Called(ctx, commentID)
+func (_mock *MockOCRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentMedia")
@@ -1041,18 +1576,18 @@ func (_mock *MockOCRepository) GetCommentMedia(ctx context.Context, commentID uu
 
 	var r0 []model.PostMediaRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.PostMediaRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1067,11 +1602,13 @@ type MockOCRepository_GetCommentMedia_Call struct {
 // GetCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockOCRepository_GetCommentMedia_Call {
-	return &MockOCRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetCommentMedia(ctx any, commentID any, tx ...any) *MockOCRepository_GetCommentMedia_Call {
+	return &MockOCRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia",
+		append([]any{ctx, commentID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockOCRepository_GetCommentMedia_Call {
+func (_c *MockOCRepository_GetCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1081,9 +1618,16 @@ func (_c *MockOCRepository_GetCommentMedia_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1094,14 +1638,20 @@ func (_c *MockOCRepository_GetCommentMedia_Call) Return(postMediaRows []model.Po
 	return _c
 }
 
-func (_c *MockOCRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error)) *MockOCRepository_GetCommentMedia_Call {
+func (_c *MockOCRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)) *MockOCRepository_GetCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetCommentMediaBatch provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
-	ret := _mock.Called(ctx, commentIDs)
+func (_mock *MockOCRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetCommentMediaBatch")
@@ -1109,18 +1659,18 @@ func (_mock *MockOCRepository) GetCommentMediaBatch(ctx context.Context, comment
 
 	var r0 map[uuid.UUID][]model.PostMediaRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, commentIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, commentIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, commentIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, commentIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentIDs, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1135,11 +1685,13 @@ type MockOCRepository_GetCommentMediaBatch_Call struct {
 // GetCommentMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - commentIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockOCRepository_GetCommentMediaBatch_Call {
-	return &MockOCRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any, tx ...any) *MockOCRepository_GetCommentMediaBatch_Call {
+	return &MockOCRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch",
+		append([]any{ctx, commentIDs}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetCommentMediaBatch_Call) Run(run func(ctx context.Context, commentIDs []uuid.UUID)) *MockOCRepository_GetCommentMediaBatch_Call {
+func (_c *MockOCRepository_GetCommentMediaBatch_Call) Run(run func(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetCommentMediaBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1149,9 +1701,16 @@ func (_c *MockOCRepository_GetCommentMediaBatch_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].([]uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1162,14 +1721,20 @@ func (_c *MockOCRepository_GetCommentMediaBatch_Call) Return(uUIDToPostMediaRows
 	return _c
 }
 
-func (_c *MockOCRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)) *MockOCRepository_GetCommentMediaBatch_Call {
+func (_c *MockOCRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)) *MockOCRepository_GetCommentMediaBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetComments provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetComments(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
-	ret := _mock.Called(ctx, ocID, viewerID, limit, offset, excludeUserIDs)
+func (_mock *MockOCRepository) GetComments(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, viewerID, limit, offset, excludeUserIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID, viewerID, limit, offset, excludeUserIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetComments")
@@ -1178,23 +1743,23 @@ func (_mock *MockOCRepository) GetComments(ctx context.Context, ocID uuid.UUID, 
 	var r0 []CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
+		return returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
-		r0 = returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
+		r0 = returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
-		r1 = returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, ocID, viewerID, limit, offset, excludeUserIDs, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1213,11 +1778,13 @@ type MockOCRepository_GetComments_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) GetComments(ctx any, ocID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockOCRepository_GetComments_Call {
-	return &MockOCRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, ocID, viewerID, limit, offset, excludeUserIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetComments(ctx any, ocID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockOCRepository_GetComments_Call {
+	return &MockOCRepository_GetComments_Call{Call: _e.mock.On("GetComments",
+		append([]any{ctx, ocID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetComments_Call) Run(run func(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID)) *MockOCRepository_GetComments_Call {
+func (_c *MockOCRepository_GetComments_Call) Run(run func(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1243,6 +1810,12 @@ func (_c *MockOCRepository_GetComments_Call) Run(run func(ctx context.Context, o
 		if args[5] != nil {
 			arg5 = args[5].([]uuid.UUID)
 		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -1250,6 +1823,7 @@ func (_c *MockOCRepository_GetComments_Call) Run(run func(ctx context.Context, o
 			arg3,
 			arg4,
 			arg5,
+			arg6...,
 		)
 	})
 	return _c
@@ -1260,14 +1834,20 @@ func (_c *MockOCRepository_GetComments_Call) Return(commentRows []CommentRow, n 
 	return _c
 }
 
-func (_c *MockOCRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockOCRepository_GetComments_Call {
+func (_c *MockOCRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockOCRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetGallery provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetGallery(ctx context.Context, ocID uuid.UUID) ([]model.OCImageRow, error) {
-	ret := _mock.Called(ctx, ocID)
+func (_mock *MockOCRepository) GetGallery(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]model.OCImageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGallery")
@@ -1275,18 +1855,18 @@ func (_mock *MockOCRepository) GetGallery(ctx context.Context, ocID uuid.UUID) (
 
 	var r0 []model.OCImageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.OCImageRow, error)); ok {
-		return returnFunc(ctx, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.OCImageRow, error)); ok {
+		return returnFunc(ctx, ocID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.OCImageRow); ok {
-		r0 = returnFunc(ctx, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.OCImageRow); ok {
+		r0 = returnFunc(ctx, ocID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.OCImageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, ocID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1301,11 +1881,13 @@ type MockOCRepository_GetGallery_Call struct {
 // GetGallery is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) GetGallery(ctx any, ocID any) *MockOCRepository_GetGallery_Call {
-	return &MockOCRepository_GetGallery_Call{Call: _e.mock.On("GetGallery", ctx, ocID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetGallery(ctx any, ocID any, tx ...any) *MockOCRepository_GetGallery_Call {
+	return &MockOCRepository_GetGallery_Call{Call: _e.mock.On("GetGallery",
+		append([]any{ctx, ocID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetGallery_Call) Run(run func(ctx context.Context, ocID uuid.UUID)) *MockOCRepository_GetGallery_Call {
+func (_c *MockOCRepository_GetGallery_Call) Run(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1315,9 +1897,16 @@ func (_c *MockOCRepository_GetGallery_Call) Run(run func(ctx context.Context, oc
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1328,14 +1917,20 @@ func (_c *MockOCRepository_GetGallery_Call) Return(oCImageRows []model.OCImageRo
 	return _c
 }
 
-func (_c *MockOCRepository_GetGallery_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID) ([]model.OCImageRow, error)) *MockOCRepository_GetGallery_Call {
+func (_c *MockOCRepository_GetGallery_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]model.OCImageRow, error)) *MockOCRepository_GetGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetGalleryBatch provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID) (map[uuid.UUID][]model.OCImageRow, error) {
-	ret := _mock.Called(ctx, ocIDs)
+func (_mock *MockOCRepository) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.OCImageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetGalleryBatch")
@@ -1343,18 +1938,18 @@ func (_mock *MockOCRepository) GetGalleryBatch(ctx context.Context, ocIDs []uuid
 
 	var r0 map[uuid.UUID][]model.OCImageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.OCImageRow, error)); ok {
-		return returnFunc(ctx, ocIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]model.OCImageRow, error)); ok {
+		return returnFunc(ctx, ocIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.OCImageRow); ok {
-		r0 = returnFunc(ctx, ocIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]model.OCImageRow); ok {
+		r0 = returnFunc(ctx, ocIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[uuid.UUID][]model.OCImageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, ocIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocIDs, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1369,11 +1964,13 @@ type MockOCRepository_GetGalleryBatch_Call struct {
 // GetGalleryBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - ocIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) GetGalleryBatch(ctx any, ocIDs any) *MockOCRepository_GetGalleryBatch_Call {
-	return &MockOCRepository_GetGalleryBatch_Call{Call: _e.mock.On("GetGalleryBatch", ctx, ocIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetGalleryBatch(ctx any, ocIDs any, tx ...any) *MockOCRepository_GetGalleryBatch_Call {
+	return &MockOCRepository_GetGalleryBatch_Call{Call: _e.mock.On("GetGalleryBatch",
+		append([]any{ctx, ocIDs}, tx...)...)}
 }
 
-func (_c *MockOCRepository_GetGalleryBatch_Call) Run(run func(ctx context.Context, ocIDs []uuid.UUID)) *MockOCRepository_GetGalleryBatch_Call {
+func (_c *MockOCRepository_GetGalleryBatch_Call) Run(run func(ctx context.Context, ocIDs []uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetGalleryBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1383,9 +1980,16 @@ func (_c *MockOCRepository_GetGalleryBatch_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].([]uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1396,14 +2000,186 @@ func (_c *MockOCRepository_GetGalleryBatch_Call) Return(uUIDToOCImageRows map[uu
 	return _c
 }
 
-func (_c *MockOCRepository_GetGalleryBatch_Call) RunAndReturn(run func(ctx context.Context, ocIDs []uuid.UUID) (map[uuid.UUID][]model.OCImageRow, error)) *MockOCRepository_GetGalleryBatch_Call {
+func (_c *MockOCRepository_GetGalleryBatch_Call) RunAndReturn(run func(ctx context.Context, ocIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.OCImageRow, error)) *MockOCRepository_GetGalleryBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGalleryPaths provides a mock function for the type MockOCRepository
+func (_mock *MockOCRepository) GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGalleryPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, ocID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, ocID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOCRepository_GetGalleryPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGalleryPaths'
+type MockOCRepository_GetGalleryPaths_Call struct {
+	*mock.Call
+}
+
+// GetGalleryPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ocID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetGalleryPaths(ctx any, ocID any, tx ...any) *MockOCRepository_GetGalleryPaths_Call {
+	return &MockOCRepository_GetGalleryPaths_Call{Call: _e.mock.On("GetGalleryPaths",
+		append([]any{ctx, ocID}, tx...)...)}
+}
+
+func (_c *MockOCRepository_GetGalleryPaths_Call) Run(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetGalleryPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOCRepository_GetGalleryPaths_Call) Return(strings []string, err error) *MockOCRepository_GetGalleryPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockOCRepository_GetGalleryPaths_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockOCRepository_GetGalleryPaths_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetImagePaths provides a mock function for the type MockOCRepository
+func (_mock *MockOCRepository) GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ocID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetImagePaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, ocID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, ocID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ocID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockOCRepository_GetImagePaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetImagePaths'
+type MockOCRepository_GetImagePaths_Call struct {
+	*mock.Call
+}
+
+// GetImagePaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - ocID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) GetImagePaths(ctx any, ocID any, tx ...any) *MockOCRepository_GetImagePaths_Call {
+	return &MockOCRepository_GetImagePaths_Call{Call: _e.mock.On("GetImagePaths",
+		append([]any{ctx, ocID}, tx...)...)}
+}
+
+func (_c *MockOCRepository_GetImagePaths_Call) Run(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_GetImagePaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockOCRepository_GetImagePaths_Call) Return(strings []string, err error) *MockOCRepository_GetImagePaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockOCRepository_GetImagePaths_Call) RunAndReturn(run func(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockOCRepository_GetImagePaths_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HasOC provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) HasOC(ctx context.Context, userID uuid.UUID, name string) (bool, error) {
-	ret := _mock.Called(ctx, userID, name)
+func (_mock *MockOCRepository) HasOC(ctx context.Context, userID uuid.UUID, name string, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, name, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, name)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasOC")
@@ -1411,16 +2187,16 @@ func (_mock *MockOCRepository) HasOC(ctx context.Context, userID uuid.UUID, name
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (bool, error)); ok {
-		return returnFunc(ctx, userID, name)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, userID, name, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) bool); ok {
-		r0 = returnFunc(ctx, userID, name)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, userID, name, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, userID, name)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, name, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1436,11 +2212,13 @@ type MockOCRepository_HasOC_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - name string
-func (_e *MockOCRepository_Expecter) HasOC(ctx any, userID any, name any) *MockOCRepository_HasOC_Call {
-	return &MockOCRepository_HasOC_Call{Call: _e.mock.On("HasOC", ctx, userID, name)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) HasOC(ctx any, userID any, name any, tx ...any) *MockOCRepository_HasOC_Call {
+	return &MockOCRepository_HasOC_Call{Call: _e.mock.On("HasOC",
+		append([]any{ctx, userID, name}, tx...)...)}
 }
 
-func (_c *MockOCRepository_HasOC_Call) Run(run func(ctx context.Context, userID uuid.UUID, name string)) *MockOCRepository_HasOC_Call {
+func (_c *MockOCRepository_HasOC_Call) Run(run func(ctx context.Context, userID uuid.UUID, name string, tx ...*sql.Tx)) *MockOCRepository_HasOC_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1454,10 +2232,17 @@ func (_c *MockOCRepository_HasOC_Call) Run(run func(ctx context.Context, userID 
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1468,22 +2253,28 @@ func (_c *MockOCRepository_HasOC_Call) Return(b bool, err error) *MockOCReposito
 	return _c
 }
 
-func (_c *MockOCRepository_HasOC_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, name string) (bool, error)) *MockOCRepository_HasOC_Call {
+func (_c *MockOCRepository_HasOC_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, name string, tx ...*sql.Tx) (bool, error)) *MockOCRepository_HasOC_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LikeComment provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, commentID)
+func (_mock *MockOCRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, commentID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for LikeComment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, commentID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1499,11 +2290,13 @@ type MockOCRepository_LikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockOCRepository_LikeComment_Call {
-	return &MockOCRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockOCRepository_LikeComment_Call {
+	return &MockOCRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
+		append([]any{ctx, userID, commentID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID)) *MockOCRepository_LikeComment_Call {
+func (_c *MockOCRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_LikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1517,10 +2310,17 @@ func (_c *MockOCRepository_LikeComment_Call) Run(run func(ctx context.Context, u
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1531,14 +2331,20 @@ func (_c *MockOCRepository_LikeComment_Call) Return(err error) *MockOCRepository
 	return _c
 }
 
-func (_c *MockOCRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error) *MockOCRepository_LikeComment_Call {
+func (_c *MockOCRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) List(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.OCRow, int, error) {
-	ret := _mock.Called(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)
+func (_mock *MockOCRepository) List(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.OCRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -1547,23 +2353,23 @@ func (_mock *MockOCRepository) List(ctx context.Context, viewerID uuid.UUID, sor
 	var r0 []model.OCRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID) ([]model.OCRow, int, error)); ok {
-		return returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]model.OCRow, int, error)); ok {
+		return returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID) []model.OCRow); ok {
-		r0 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []model.OCRow); ok {
+		r0 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.OCRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID) int); ok {
-		r1 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, bool, string, string, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1586,11 +2392,13 @@ type MockOCRepository_List_Call struct {
 //   - limit int
 //   - offset int
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockOCRepository_Expecter) List(ctx any, viewerID any, sort any, crackOCsOnly any, series any, customSeriesName any, ownerID any, limit any, offset any, excludeUserIDs any) *MockOCRepository_List_Call {
-	return &MockOCRepository_List_Call{Call: _e.mock.On("List", ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) List(ctx any, viewerID any, sort any, crackOCsOnly any, series any, customSeriesName any, ownerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockOCRepository_List_Call {
+	return &MockOCRepository_List_Call{Call: _e.mock.On("List",
+		append([]any{ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, limit, offset, excludeUserIDs}, tx...)...)}
 }
 
-func (_c *MockOCRepository_List_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID)) *MockOCRepository_List_Call {
+func (_c *MockOCRepository_List_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1632,6 +2440,12 @@ func (_c *MockOCRepository_List_Call) Run(run func(ctx context.Context, viewerID
 		if args[9] != nil {
 			arg9 = args[9].([]uuid.UUID)
 		}
+		var arg10 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 10 {
+			variadicArgs = args[10].([]*sql.Tx)
+		}
+		arg10 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -1643,6 +2457,7 @@ func (_c *MockOCRepository_List_Call) Run(run func(ctx context.Context, viewerID
 			arg7,
 			arg8,
 			arg9,
+			arg10...,
 		)
 	})
 	return _c
@@ -1653,14 +2468,20 @@ func (_c *MockOCRepository_List_Call) Return(oCRows []model.OCRow, n int, err er
 	return _c
 }
 
-func (_c *MockOCRepository_List_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]model.OCRow, int, error)) *MockOCRepository_List_Call {
+func (_c *MockOCRepository_List_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.OCRow, int, error)) *MockOCRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListByUser provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]model.OCRow, int, error) {
-	ret := _mock.Called(ctx, userID, viewerID, limit, offset)
+func (_mock *MockOCRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.OCRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListByUser")
@@ -1669,23 +2490,23 @@ func (_mock *MockOCRepository) ListByUser(ctx context.Context, userID uuid.UUID,
 	var r0 []model.OCRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) ([]model.OCRow, int, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]model.OCRow, int, error)); ok {
+		return returnFunc(ctx, userID, viewerID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) []model.OCRow); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []model.OCRow); ok {
+		r0 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.OCRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1703,11 +2524,13 @@ type MockOCRepository_ListByUser_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockOCRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any) *MockOCRepository_ListByUser_Call {
-	return &MockOCRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, viewerID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any, tx ...any) *MockOCRepository_ListByUser_Call {
+	return &MockOCRepository_ListByUser_Call{Call: _e.mock.On("ListByUser",
+		append([]any{ctx, userID, viewerID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockOCRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockOCRepository_ListByUser_Call {
+func (_c *MockOCRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockOCRepository_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1729,12 +2552,19 @@ func (_c *MockOCRepository_ListByUser_Call) Run(run func(ctx context.Context, us
 		if args[4] != nil {
 			arg4 = args[4].(int)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -1745,14 +2575,20 @@ func (_c *MockOCRepository_ListByUser_Call) Return(oCRows []model.OCRow, n int, 
 	return _c
 }
 
-func (_c *MockOCRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]model.OCRow, int, error)) *MockOCRepository_ListByUser_Call {
+func (_c *MockOCRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.OCRow, int, error)) *MockOCRepository_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListSummariesByUser provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) ListSummariesByUser(ctx context.Context, userID uuid.UUID) ([]model.OCSummaryRow, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockOCRepository) ListSummariesByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.OCSummaryRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSummariesByUser")
@@ -1760,18 +2596,18 @@ func (_mock *MockOCRepository) ListSummariesByUser(ctx context.Context, userID u
 
 	var r0 []model.OCSummaryRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.OCSummaryRow, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.OCSummaryRow, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.OCSummaryRow); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.OCSummaryRow); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.OCSummaryRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1786,11 +2622,13 @@ type MockOCRepository_ListSummariesByUser_Call struct {
 // ListSummariesByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockOCRepository_Expecter) ListSummariesByUser(ctx any, userID any) *MockOCRepository_ListSummariesByUser_Call {
-	return &MockOCRepository_ListSummariesByUser_Call{Call: _e.mock.On("ListSummariesByUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) ListSummariesByUser(ctx any, userID any, tx ...any) *MockOCRepository_ListSummariesByUser_Call {
+	return &MockOCRepository_ListSummariesByUser_Call{Call: _e.mock.On("ListSummariesByUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_ListSummariesByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockOCRepository_ListSummariesByUser_Call {
+func (_c *MockOCRepository_ListSummariesByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_ListSummariesByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1800,9 +2638,16 @@ func (_c *MockOCRepository_ListSummariesByUser_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1813,22 +2658,28 @@ func (_c *MockOCRepository_ListSummariesByUser_Call) Return(oCSummaryRows []mode
 	return _c
 }
 
-func (_c *MockOCRepository_ListSummariesByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]model.OCSummaryRow, error)) *MockOCRepository_ListSummariesByUser_Call {
+func (_c *MockOCRepository_ListSummariesByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.OCSummaryRow, error)) *MockOCRepository_ListSummariesByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unfavourite provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) Unfavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, ocID)
+func (_mock *MockOCRepository) Unfavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, ocID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, ocID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Unfavourite")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, ocID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, ocID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1844,11 +2695,13 @@ type MockOCRepository_Unfavourite_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - ocID uuid.UUID
-func (_e *MockOCRepository_Expecter) Unfavourite(ctx any, userID any, ocID any) *MockOCRepository_Unfavourite_Call {
-	return &MockOCRepository_Unfavourite_Call{Call: _e.mock.On("Unfavourite", ctx, userID, ocID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) Unfavourite(ctx any, userID any, ocID any, tx ...any) *MockOCRepository_Unfavourite_Call {
+	return &MockOCRepository_Unfavourite_Call{Call: _e.mock.On("Unfavourite",
+		append([]any{ctx, userID, ocID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_Unfavourite_Call) Run(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID)) *MockOCRepository_Unfavourite_Call {
+func (_c *MockOCRepository_Unfavourite_Call) Run(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_Unfavourite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1862,10 +2715,17 @@ func (_c *MockOCRepository_Unfavourite_Call) Run(run func(ctx context.Context, u
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1876,22 +2736,28 @@ func (_c *MockOCRepository_Unfavourite_Call) Return(err error) *MockOCRepository
 	return _c
 }
 
-func (_c *MockOCRepository_Unfavourite_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID) error) *MockOCRepository_Unfavourite_Call {
+func (_c *MockOCRepository_Unfavourite_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_Unfavourite_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnlikeComment provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, commentID)
+func (_mock *MockOCRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, commentID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UnlikeComment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, commentID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, commentID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1907,11 +2773,13 @@ type MockOCRepository_UnlikeComment_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - commentID uuid.UUID
-func (_e *MockOCRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockOCRepository_UnlikeComment_Call {
-	return &MockOCRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockOCRepository_UnlikeComment_Call {
+	return &MockOCRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
+		append([]any{ctx, userID, commentID}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID)) *MockOCRepository_UnlikeComment_Call {
+func (_c *MockOCRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockOCRepository_UnlikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1925,10 +2793,17 @@ func (_c *MockOCRepository_UnlikeComment_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1939,22 +2814,28 @@ func (_c *MockOCRepository_UnlikeComment_Call) Return(err error) *MockOCReposito
 	return _c
 }
 
-func (_c *MockOCRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error) *MockOCRepository_UnlikeComment_Call {
+func (_c *MockOCRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockOCRepository_UnlikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, series string, customSeriesName string, asAdmin bool) error {
-	ret := _mock.Called(ctx, id, userID, name, description, series, customSeriesName, asAdmin)
+func (_mock *MockOCRepository) Update(ctx context.Context, spec OCUpdate, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string, bool) error); ok {
-		r0 = returnFunc(ctx, id, userID, name, description, series, customSeriesName, asAdmin)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, OCUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1968,60 +2849,33 @@ type MockOCRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - name string
-//   - description string
-//   - series string
-//   - customSeriesName string
-//   - asAdmin bool
-func (_e *MockOCRepository_Expecter) Update(ctx any, id any, userID any, name any, description any, series any, customSeriesName any, asAdmin any) *MockOCRepository_Update_Call {
-	return &MockOCRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, name, description, series, customSeriesName, asAdmin)}
+//   - spec OCUpdate
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) Update(ctx any, spec any, tx ...any) *MockOCRepository_Update_Call {
+	return &MockOCRepository_Update_Call{Call: _e.mock.On("Update",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockOCRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, series string, customSeriesName string, asAdmin bool)) *MockOCRepository_Update_Call {
+func (_c *MockOCRepository_Update_Call) Run(run func(ctx context.Context, spec OCUpdate, tx ...*sql.Tx)) *MockOCRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 OCUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(OCUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 string
-		if args[6] != nil {
-			arg6 = args[6].(string)
-		}
-		var arg7 bool
-		if args[7] != nil {
-			arg7 = args[7].(bool)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
+			arg2...,
 		)
 	})
 	return _c
@@ -2032,22 +2886,28 @@ func (_c *MockOCRepository_Update_Call) Return(err error) *MockOCRepository_Upda
 	return _c
 }
 
-func (_c *MockOCRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, series string, customSeriesName string, asAdmin bool) error) *MockOCRepository_Update_Call {
+func (_c *MockOCRepository_Update_Call) RunAndReturn(run func(ctx context.Context, spec OCUpdate, tx ...*sql.Tx) error) *MockOCRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateComment provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, userID, body)
+func (_mock *MockOCRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID, body)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateComment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, userID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, body, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2064,11 +2924,13 @@ type MockOCRepository_UpdateComment_Call struct {
 //   - id uuid.UUID
 //   - userID uuid.UUID
 //   - body string
-func (_e *MockOCRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockOCRepository_UpdateComment_Call {
-	return &MockOCRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any, tx ...any) *MockOCRepository_UpdateComment_Call {
+	return &MockOCRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
+		append([]any{ctx, id, userID, body}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string)) *MockOCRepository_UpdateComment_Call {
+func (_c *MockOCRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockOCRepository_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2086,11 +2948,18 @@ func (_c *MockOCRepository_UpdateComment_Call) Run(run func(ctx context.Context,
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -2101,22 +2970,28 @@ func (_c *MockOCRepository_UpdateComment_Call) Return(err error) *MockOCReposito
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error) *MockOCRepository_UpdateComment_Call {
+func (_c *MockOCRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error) *MockOCRepository_UpdateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentAsAdmin provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, body)
+func (_mock *MockOCRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, body)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCommentAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, body, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2132,11 +3007,13 @@ type MockOCRepository_UpdateCommentAsAdmin_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - body string
-func (_e *MockOCRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockOCRepository_UpdateCommentAsAdmin_Call {
-	return &MockOCRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any, tx ...any) *MockOCRepository_UpdateCommentAsAdmin_Call {
+	return &MockOCRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin",
+		append([]any{ctx, id, body}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string)) *MockOCRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockOCRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx)) *MockOCRepository_UpdateCommentAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2150,10 +3027,17 @@ func (_c *MockOCRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.C
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2164,22 +3048,28 @@ func (_c *MockOCRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockOCR
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string) error) *MockOCRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockOCRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error) *MockOCRepository_UpdateCommentAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaThumbnail provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, thumbnailURL)
+func (_mock *MockOCRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCommentMediaThumbnail")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2195,11 +3085,13 @@ type MockOCRepository_UpdateCommentMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockOCRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
-	return &MockOCRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
+	return &MockOCRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
+		append([]any{ctx, id, thumbnailURL}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockOCRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2213,10 +3105,17 @@ func (_c *MockOCRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx co
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2227,22 +3126,28 @@ func (_c *MockOCRepository_UpdateCommentMediaThumbnail_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockOCRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockOCRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaURL provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	ret := _mock.Called(ctx, id, mediaURL)
+func (_mock *MockOCRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mediaURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCommentMediaURL")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, mediaURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2258,11 +3163,13 @@ type MockOCRepository_UpdateCommentMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockOCRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockOCRepository_UpdateCommentMediaURL_Call {
-	return &MockOCRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockOCRepository_UpdateCommentMediaURL_Call {
+	return &MockOCRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
+		append([]any{ctx, id, mediaURL}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string)) *MockOCRepository_UpdateCommentMediaURL_Call {
+func (_c *MockOCRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockOCRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2276,10 +3183,17 @@ func (_c *MockOCRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2290,22 +3204,28 @@ func (_c *MockOCRepository_UpdateCommentMediaURL_Call) Return(err error) *MockOC
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockOCRepository_UpdateCommentMediaURL_Call {
+func (_c *MockOCRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockOCRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateGalleryImage provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateGalleryImage(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int) error {
-	ret := _mock.Called(ctx, id, ocID, caption, sortOrder)
+func (_mock *MockOCRepository) UpdateGalleryImage(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, ocID, caption, sortOrder, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, ocID, caption, sortOrder)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGalleryImage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, *string, *int) error); ok {
-		r0 = returnFunc(ctx, id, ocID, caption, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, *string, *int, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, ocID, caption, sortOrder, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2323,11 +3243,13 @@ type MockOCRepository_UpdateGalleryImage_Call struct {
 //   - ocID uuid.UUID
 //   - caption *string
 //   - sortOrder *int
-func (_e *MockOCRepository_Expecter) UpdateGalleryImage(ctx any, id any, ocID any, caption any, sortOrder any) *MockOCRepository_UpdateGalleryImage_Call {
-	return &MockOCRepository_UpdateGalleryImage_Call{Call: _e.mock.On("UpdateGalleryImage", ctx, id, ocID, caption, sortOrder)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateGalleryImage(ctx any, id any, ocID any, caption any, sortOrder any, tx ...any) *MockOCRepository_UpdateGalleryImage_Call {
+	return &MockOCRepository_UpdateGalleryImage_Call{Call: _e.mock.On("UpdateGalleryImage",
+		append([]any{ctx, id, ocID, caption, sortOrder}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateGalleryImage_Call) Run(run func(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int)) *MockOCRepository_UpdateGalleryImage_Call {
+func (_c *MockOCRepository_UpdateGalleryImage_Call) Run(run func(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int, tx ...*sql.Tx)) *MockOCRepository_UpdateGalleryImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2349,12 +3271,19 @@ func (_c *MockOCRepository_UpdateGalleryImage_Call) Run(run func(ctx context.Con
 		if args[4] != nil {
 			arg4 = args[4].(*int)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -2365,22 +3294,28 @@ func (_c *MockOCRepository_UpdateGalleryImage_Call) Return(err error) *MockOCRep
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateGalleryImage_Call) RunAndReturn(run func(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int) error) *MockOCRepository_UpdateGalleryImage_Call {
+func (_c *MockOCRepository_UpdateGalleryImage_Call) RunAndReturn(run func(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int, tx ...*sql.Tx) error) *MockOCRepository_UpdateGalleryImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateGalleryImageThumbnail provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateGalleryImageThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, thumbnailURL)
+func (_mock *MockOCRepository) UpdateGalleryImageThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGalleryImageThumbnail")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2396,11 +3331,13 @@ type MockOCRepository_UpdateGalleryImageThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockOCRepository_Expecter) UpdateGalleryImageThumbnail(ctx any, id any, thumbnailURL any) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
-	return &MockOCRepository_UpdateGalleryImageThumbnail_Call{Call: _e.mock.On("UpdateGalleryImageThumbnail", ctx, id, thumbnailURL)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateGalleryImageThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
+	return &MockOCRepository_UpdateGalleryImageThumbnail_Call{Call: _e.mock.On("UpdateGalleryImageThumbnail",
+		append([]any{ctx, id, thumbnailURL}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateGalleryImageThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
+func (_c *MockOCRepository_UpdateGalleryImageThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2414,10 +3351,17 @@ func (_c *MockOCRepository_UpdateGalleryImageThumbnail_Call) Run(run func(ctx co
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2428,22 +3372,28 @@ func (_c *MockOCRepository_UpdateGalleryImageThumbnail_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateGalleryImageThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
+func (_c *MockOCRepository_UpdateGalleryImageThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockOCRepository_UpdateGalleryImageThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateGalleryImageURL provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateGalleryImageURL(ctx context.Context, id int64, imageURL string) error {
-	ret := _mock.Called(ctx, id, imageURL)
+func (_mock *MockOCRepository) UpdateGalleryImageURL(ctx context.Context, id int64, imageURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, imageURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, imageURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGalleryImageURL")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, imageURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, imageURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2459,11 +3409,13 @@ type MockOCRepository_UpdateGalleryImageURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - imageURL string
-func (_e *MockOCRepository_Expecter) UpdateGalleryImageURL(ctx any, id any, imageURL any) *MockOCRepository_UpdateGalleryImageURL_Call {
-	return &MockOCRepository_UpdateGalleryImageURL_Call{Call: _e.mock.On("UpdateGalleryImageURL", ctx, id, imageURL)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateGalleryImageURL(ctx any, id any, imageURL any, tx ...any) *MockOCRepository_UpdateGalleryImageURL_Call {
+	return &MockOCRepository_UpdateGalleryImageURL_Call{Call: _e.mock.On("UpdateGalleryImageURL",
+		append([]any{ctx, id, imageURL}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateGalleryImageURL_Call) Run(run func(ctx context.Context, id int64, imageURL string)) *MockOCRepository_UpdateGalleryImageURL_Call {
+func (_c *MockOCRepository_UpdateGalleryImageURL_Call) Run(run func(ctx context.Context, id int64, imageURL string, tx ...*sql.Tx)) *MockOCRepository_UpdateGalleryImageURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2477,10 +3429,17 @@ func (_c *MockOCRepository_UpdateGalleryImageURL_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2491,22 +3450,28 @@ func (_c *MockOCRepository_UpdateGalleryImageURL_Call) Return(err error) *MockOC
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateGalleryImageURL_Call) RunAndReturn(run func(ctx context.Context, id int64, imageURL string) error) *MockOCRepository_UpdateGalleryImageURL_Call {
+func (_c *MockOCRepository_UpdateGalleryImageURL_Call) RunAndReturn(run func(ctx context.Context, id int64, imageURL string, tx ...*sql.Tx) error) *MockOCRepository_UpdateGalleryImageURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateImage provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, imageURL, thumbnailURL)
+func (_mock *MockOCRepository) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, imageURL, thumbnailURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, imageURL, thumbnailURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateImage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, id, imageURL, thumbnailURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, imageURL, thumbnailURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2523,11 +3488,13 @@ type MockOCRepository_UpdateImage_Call struct {
 //   - id uuid.UUID
 //   - imageURL string
 //   - thumbnailURL string
-func (_e *MockOCRepository_Expecter) UpdateImage(ctx any, id any, imageURL any, thumbnailURL any) *MockOCRepository_UpdateImage_Call {
-	return &MockOCRepository_UpdateImage_Call{Call: _e.mock.On("UpdateImage", ctx, id, imageURL, thumbnailURL)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) UpdateImage(ctx any, id any, imageURL any, thumbnailURL any, tx ...any) *MockOCRepository_UpdateImage_Call {
+	return &MockOCRepository_UpdateImage_Call{Call: _e.mock.On("UpdateImage",
+		append([]any{ctx, id, imageURL, thumbnailURL}, tx...)...)}
 }
 
-func (_c *MockOCRepository_UpdateImage_Call) Run(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string)) *MockOCRepository_UpdateImage_Call {
+func (_c *MockOCRepository_UpdateImage_Call) Run(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx)) *MockOCRepository_UpdateImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2545,11 +3512,18 @@ func (_c *MockOCRepository_UpdateImage_Call) Run(run func(ctx context.Context, i
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -2560,22 +3534,28 @@ func (_c *MockOCRepository_UpdateImage_Call) Return(err error) *MockOCRepository
 	return _c
 }
 
-func (_c *MockOCRepository_UpdateImage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error) *MockOCRepository_UpdateImage_Call {
+func (_c *MockOCRepository_UpdateImage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error) *MockOCRepository_UpdateImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Vote provides a mock function for the type MockOCRepository
-func (_mock *MockOCRepository) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int) error {
-	ret := _mock.Called(ctx, userID, ocID, value)
+func (_mock *MockOCRepository) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, ocID, value, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, ocID, value)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Vote")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, userID, ocID, value)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, ocID, value, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2592,11 +3572,13 @@ type MockOCRepository_Vote_Call struct {
 //   - userID uuid.UUID
 //   - ocID uuid.UUID
 //   - value int
-func (_e *MockOCRepository_Expecter) Vote(ctx any, userID any, ocID any, value any) *MockOCRepository_Vote_Call {
-	return &MockOCRepository_Vote_Call{Call: _e.mock.On("Vote", ctx, userID, ocID, value)}
+//   - tx ...*sql.Tx
+func (_e *MockOCRepository_Expecter) Vote(ctx any, userID any, ocID any, value any, tx ...any) *MockOCRepository_Vote_Call {
+	return &MockOCRepository_Vote_Call{Call: _e.mock.On("Vote",
+		append([]any{ctx, userID, ocID, value}, tx...)...)}
 }
 
-func (_c *MockOCRepository_Vote_Call) Run(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int)) *MockOCRepository_Vote_Call {
+func (_c *MockOCRepository_Vote_Call) Run(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int, tx ...*sql.Tx)) *MockOCRepository_Vote_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2614,11 +3596,18 @@ func (_c *MockOCRepository_Vote_Call) Run(run func(ctx context.Context, userID u
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -2629,7 +3618,7 @@ func (_c *MockOCRepository_Vote_Call) Return(err error) *MockOCRepository_Vote_C
 	return _c
 }
 
-func (_c *MockOCRepository_Vote_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int) error) *MockOCRepository_Vote_Call {
+func (_c *MockOCRepository_Vote_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int, tx ...*sql.Tx) error) *MockOCRepository_Vote_Call {
 	_c.Call.Return(run)
 	return _c
 }

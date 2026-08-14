@@ -18,13 +18,16 @@ type (
 	}
 )
 
-const chatbotSelectBase = `
-	SELECT c.id, c.user_id, u.username, u.display_name, u.avatar_url,
-		c.system_prompt, c.base_prompt_id, COALESCE(b.prompt, ''),
-		c.model, c.reasoning_effort, c.verbosity, c.max_output_tokens, c.enabled
-	FROM chatbots c
+const chatbotColumns = `
+	c.id, c.user_id, u.username, u.display_name, u.avatar_url,
+	c.system_prompt, c.base_prompt_id, COALESCE(b.prompt, ''),
+	c.model, c.reasoning_effort, c.verbosity, c.max_output_tokens, c.enabled`
+
+const chatbotJoins = `
 	JOIN users u ON u.id = c.user_id
 	LEFT JOIN chatbot_base_prompts b ON b.id = c.base_prompt_id`
+
+const chatbotSelectBase = `SELECT ` + chatbotColumns + ` FROM chatbots c` + chatbotJoins
 
 func scanChatbot(row interface{ Scan(...any) error }, bot *repository.Chatbot) error {
 	return row.Scan(
@@ -34,8 +37,8 @@ func scanChatbot(row interface{ Scan(...any) error }, bot *repository.Chatbot) e
 	)
 }
 
-func (r *chatbotDAO) ListBots(ctx context.Context) ([]repository.Chatbot, error) {
-	rows, err := r.db.QueryContext(ctx, chatbotSelectBase+` ORDER BY u.username`)
+func (r *chatbotDAO) ListBots(ctx context.Context, tx ...*sql.Tx) ([]repository.Chatbot, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, chatbotSelectBase+` ORDER BY u.username`)
 	if err != nil {
 		return nil, fmt.Errorf("list chatbots: %w", err)
 	}
@@ -57,9 +60,9 @@ func (r *chatbotDAO) ListBots(ctx context.Context) ([]repository.Chatbot, error)
 	return bots, nil
 }
 
-func (r *chatbotDAO) GetBotByUserID(ctx context.Context, userID uuid.UUID) (*repository.Chatbot, error) {
+func (r *chatbotDAO) GetBotByUserID(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*repository.Chatbot, error) {
 	var bot repository.Chatbot
-	err := scanChatbot(r.db.QueryRowContext(ctx, chatbotSelectBase+` WHERE c.user_id = $1`, userID), &bot)
+	err := scanChatbot(getDb(r.db, tx).QueryRowContext(ctx, chatbotSelectBase+` WHERE c.user_id = $1`, userID), &bot)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -70,42 +73,55 @@ func (r *chatbotDAO) GetBotByUserID(ctx context.Context, userID uuid.UUID) (*rep
 	return &bot, nil
 }
 
-func (r *chatbotDAO) CreateBot(ctx context.Context, bot repository.Chatbot) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chatbots (id, user_id, system_prompt, base_prompt_id, model, reasoning_effort, verbosity, max_output_tokens, enabled)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		bot.ID, bot.UserID, bot.SystemPrompt, bot.BasePromptID, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
-	)
+func (r *chatbotDAO) CreateBot(ctx context.Context, bot repository.Chatbot, tx ...*sql.Tx) (*repository.Chatbot, error) {
+	var created repository.Chatbot
+	err := scanChatbot(getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH c AS (
+		     INSERT INTO chatbots (user_id, system_prompt, base_prompt_id, model, reasoning_effort, verbosity, max_output_tokens, enabled)
+		     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		     RETURNING id, user_id, system_prompt, base_prompt_id, model, reasoning_effort, verbosity, max_output_tokens, enabled
+		 )
+		 SELECT `+chatbotColumns+` FROM c`+chatbotJoins,
+		bot.UserID, bot.SystemPrompt, bot.BasePromptID, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
+	), &created)
 	if err != nil {
-		return fmt.Errorf("create chatbot: %w", err)
+		return nil, fmt.Errorf("create chatbot: %w", err)
 	}
 
-	return nil
+	return &created, nil
 }
 
-func (r *chatbotDAO) UpdateBot(ctx context.Context, bot repository.Chatbot) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE chatbots
-		    SET system_prompt = $2,
-		        base_prompt_id = $3,
-		        model = $4,
-		        reasoning_effort = $5,
-		        verbosity = $6,
-		        max_output_tokens = $7,
-		        enabled = $8,
-		        updated_at = NOW()
-		  WHERE id = $1`,
+func (r *chatbotDAO) UpdateBot(ctx context.Context, bot repository.Chatbot, tx ...*sql.Tx) (*repository.Chatbot, error) {
+	var updated repository.Chatbot
+	err := scanChatbot(getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH c AS (
+		     UPDATE chatbots
+		        SET system_prompt = $2,
+		            base_prompt_id = $3,
+		            model = $4,
+		            reasoning_effort = $5,
+		            verbosity = $6,
+		            max_output_tokens = $7,
+		            enabled = $8,
+		            updated_at = NOW()
+		      WHERE id = $1
+		      RETURNING id, user_id, system_prompt, base_prompt_id, model, reasoning_effort, verbosity, max_output_tokens, enabled
+		 )
+		 SELECT `+chatbotColumns+` FROM c`+chatbotJoins,
 		bot.ID, bot.SystemPrompt, bot.BasePromptID, bot.Model, bot.ReasoningEffort, bot.Verbosity, bot.MaxOutputTokens, bot.Enabled,
-	)
+	), &updated)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, repository.ErrBotNotFound
+	}
 	if err != nil {
-		return fmt.Errorf("update chatbot: %w", err)
+		return nil, fmt.Errorf("update chatbot: %w", err)
 	}
 
-	return nil
+	return &updated, nil
 }
 
-func (r *chatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx,
+func (r *chatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	res, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM users WHERE is_bot AND id = (SELECT user_id FROM chatbots WHERE id = $1)`, id)
 	if err != nil {
 		return fmt.Errorf("delete chatbot: %w", err)
@@ -123,21 +139,23 @@ func (r *chatbotDAO) DeleteBot(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *chatbotDAO) CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel, model string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chatbot_invocations (id, bot_user_id, user_id, room_id, message_id, channel, model, status)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-		id, botUserID, userID, roomID, messageID, channel, model,
-	)
+func (r *chatbotDAO) CreateInvocation(ctx context.Context, spec repository.NewInvocation, tx ...*sql.Tx) (*repository.ChatbotInvocation, error) {
+	var inv repository.ChatbotInvocation
+	err := getDb(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO chatbot_invocations (bot_user_id, user_id, room_id, message_id, channel, model, status)
+		 VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+		 RETURNING id, bot_user_id, user_id, room_id, message_id, channel, model, status`,
+		spec.BotUserID, spec.UserID, spec.RoomID, spec.MessageID, spec.Channel, spec.Model,
+	).Scan(&inv.ID, &inv.BotUserID, &inv.UserID, &inv.RoomID, &inv.MessageID, &inv.Channel, &inv.Model, &inv.Status)
 	if err != nil {
-		return fmt.Errorf("create chatbot invocation: %w", err)
+		return nil, fmt.Errorf("create chatbot invocation: %w", err)
 	}
 
-	return nil
+	return &inv, nil
 }
 
-func (r *chatbotDAO) CompleteInvocation(ctx context.Context, id uuid.UUID, usage repository.InvocationUsage, status repository.InvocationStatus) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatbotDAO) CompleteInvocation(ctx context.Context, id uuid.UUID, usage repository.InvocationUsage, status repository.InvocationStatus, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chatbot_invocations
 		    SET prompt_tokens = $2,
 		        cached_prompt_tokens = $3,
@@ -155,9 +173,9 @@ func (r *chatbotDAO) CompleteInvocation(ctx context.Context, id uuid.UUID, usage
 	return nil
 }
 
-func (r *chatbotDAO) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *chatbotDAO) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM chatbot_invocations WHERE user_id = $1 AND status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 		userID,
 	).Scan(&count)
@@ -168,9 +186,9 @@ func (r *chatbotDAO) CountUserInvocationsToday(ctx context.Context, userID uuid.
 	return count, nil
 }
 
-func (r *chatbotDAO) CountInvocationsToday(ctx context.Context) (int, error) {
+func (r *chatbotDAO) CountInvocationsToday(ctx context.Context, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM chatbot_invocations WHERE status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 	).Scan(&count)
 	if err != nil {
@@ -180,9 +198,9 @@ func (r *chatbotDAO) CountInvocationsToday(ctx context.Context) (int, error) {
 	return count, nil
 }
 
-func (r *chatbotDAO) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
+func (r *chatbotDAO) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (time.Time, error) {
 	var oldest sql.NullTime
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT MIN(created_at) FROM chatbot_invocations WHERE user_id = $1 AND status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 		userID,
 	).Scan(&oldest)
@@ -193,9 +211,9 @@ func (r *chatbotDAO) OldestUserInvocationToday(ctx context.Context, userID uuid.
 	return oldest.Time, nil
 }
 
-func (r *chatbotDAO) OldestInvocationToday(ctx context.Context) (time.Time, error) {
+func (r *chatbotDAO) OldestInvocationToday(ctx context.Context, tx ...*sql.Tx) (time.Time, error) {
 	var oldest sql.NullTime
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT MIN(created_at) FROM chatbot_invocations WHERE status <> 'failed' AND created_at > NOW() - INTERVAL '1 day'`,
 	).Scan(&oldest)
 	if err != nil {
@@ -205,8 +223,8 @@ func (r *chatbotDAO) OldestInvocationToday(ctx context.Context) (time.Time, erro
 	return oldest.Time, nil
 }
 
-func (r *chatbotDAO) StatsSince(ctx context.Context, since time.Time) (*repository.ChatbotStats, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *chatbotDAO) StatsSince(ctx context.Context, since time.Time, tx ...*sql.Tx) (*repository.ChatbotStats, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT channel,
 		        COUNT(*),
 		        COALESCE(SUM(prompt_tokens), 0),
@@ -252,29 +270,4 @@ func (r *chatbotDAO) StatsSince(ctx context.Context, since time.Time) (*reposito
 	}
 
 	return &stats, nil
-}
-
-func (r *chatbotDAO) CreateBotAccount(ctx context.Context, userID uuid.UUID, username, displayName, avatarURL string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (id, username, password_hash, display_name, avatar_url, is_bot, dms_enabled, email_verified)
-		 VALUES ($1, $2, '!', $3, $4, TRUE, TRUE, TRUE)`,
-		userID, username, displayName, avatarURL,
-	)
-	if err != nil {
-		return fmt.Errorf("insert bot account: %w", err)
-	}
-
-	return nil
-}
-
-func (r *chatbotDAO) UpdateBotAccount(ctx context.Context, userID uuid.UUID, displayName, avatarURL string) error {
-	_, err := r.db.ExecContext(ctx,
-		`UPDATE users SET display_name = $2, avatar_url = $3 WHERE id = $1 AND is_bot`,
-		userID, displayName, avatarURL,
-	)
-	if err != nil {
-		return fmt.Errorf("update bot account: %w", err)
-	}
-
-	return nil
 }

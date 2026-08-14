@@ -144,7 +144,17 @@ func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *
 		opt(&o)
 	}
 	if o.password != TestUserPassword {
-		u, err := repos.User.Create(context.Background(), o.username, o.email, o.password, o.displayName)
+		hash, err := bcrypt.GenerateFromPassword([]byte(o.password), bcrypt.MinCost)
+		require.NoError(t, err)
+
+		u, err := repos.User.Create(context.Background(), repository.NewUser{
+			Username:     o.username,
+			Email:        o.email,
+			PasswordHash: string(hash),
+			DisplayName:  o.displayName,
+			HomePage:     "landing",
+			DMsEnabled:   true,
+		})
 		require.NoError(t, err)
 		return u
 	}

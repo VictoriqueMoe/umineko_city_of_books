@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -38,8 +39,14 @@ func (_m *MockHomeFeedRepository) EXPECT() *MockHomeFeedRepository_Expecter {
 }
 
 // ListCornerActivity24h provides a mock function for the type MockHomeFeedRepository
-func (_mock *MockHomeFeedRepository) ListCornerActivity24h(ctx context.Context) ([]HomeCornerActivityRow, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockHomeFeedRepository) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]HomeCornerActivityRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListCornerActivity24h")
@@ -47,18 +54,18 @@ func (_mock *MockHomeFeedRepository) ListCornerActivity24h(ctx context.Context) 
 
 	var r0 []HomeCornerActivityRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]HomeCornerActivityRow, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]HomeCornerActivityRow, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []HomeCornerActivityRow); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []HomeCornerActivityRow); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]HomeCornerActivityRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,18 +79,27 @@ type MockHomeFeedRepository_ListCornerActivity24h_Call struct {
 
 // ListCornerActivity24h is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockHomeFeedRepository_Expecter) ListCornerActivity24h(ctx any) *MockHomeFeedRepository_ListCornerActivity24h_Call {
-	return &MockHomeFeedRepository_ListCornerActivity24h_Call{Call: _e.mock.On("ListCornerActivity24h", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockHomeFeedRepository_Expecter) ListCornerActivity24h(ctx any, tx ...any) *MockHomeFeedRepository_ListCornerActivity24h_Call {
+	return &MockHomeFeedRepository_ListCornerActivity24h_Call{Call: _e.mock.On("ListCornerActivity24h",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockHomeFeedRepository_ListCornerActivity24h_Call) Run(run func(ctx context.Context)) *MockHomeFeedRepository_ListCornerActivity24h_Call {
+func (_c *MockHomeFeedRepository_ListCornerActivity24h_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockHomeFeedRepository_ListCornerActivity24h_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -94,14 +110,20 @@ func (_c *MockHomeFeedRepository_ListCornerActivity24h_Call) Return(homeCornerAc
 	return _c
 }
 
-func (_c *MockHomeFeedRepository_ListCornerActivity24h_Call) RunAndReturn(run func(ctx context.Context) ([]HomeCornerActivityRow, error)) *MockHomeFeedRepository_ListCornerActivity24h_Call {
+func (_c *MockHomeFeedRepository_ListCornerActivity24h_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]HomeCornerActivityRow, error)) *MockHomeFeedRepository_ListCornerActivity24h_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListEchoes provides a mock function for the type MockHomeFeedRepository
-func (_mock *MockHomeFeedRepository) ListEchoes(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error) {
-	ret := _mock.Called(ctx, ago, limit)
+func (_mock *MockHomeFeedRepository) ListEchoes(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]HomeEchoRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, ago, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, ago, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListEchoes")
@@ -109,18 +131,18 @@ func (_mock *MockHomeFeedRepository) ListEchoes(ctx context.Context, ago string,
 
 	var r0 []HomeEchoRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]HomeEchoRow, error)); ok {
-		return returnFunc(ctx, ago, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) ([]HomeEchoRow, error)); ok {
+		return returnFunc(ctx, ago, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []HomeEchoRow); ok {
-		r0 = returnFunc(ctx, ago, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) []HomeEchoRow); ok {
+		r0 = returnFunc(ctx, ago, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]HomeEchoRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = returnFunc(ctx, ago, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, ago, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -136,11 +158,13 @@ type MockHomeFeedRepository_ListEchoes_Call struct {
 //   - ctx context.Context
 //   - ago string
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListEchoes(ctx any, ago any, limit any) *MockHomeFeedRepository_ListEchoes_Call {
-	return &MockHomeFeedRepository_ListEchoes_Call{Call: _e.mock.On("ListEchoes", ctx, ago, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockHomeFeedRepository_Expecter) ListEchoes(ctx any, ago any, limit any, tx ...any) *MockHomeFeedRepository_ListEchoes_Call {
+	return &MockHomeFeedRepository_ListEchoes_Call{Call: _e.mock.On("ListEchoes",
+		append([]any{ctx, ago, limit}, tx...)...)}
 }
 
-func (_c *MockHomeFeedRepository_ListEchoes_Call) Run(run func(ctx context.Context, ago string, limit int)) *MockHomeFeedRepository_ListEchoes_Call {
+func (_c *MockHomeFeedRepository_ListEchoes_Call) Run(run func(ctx context.Context, ago string, limit int, tx ...*sql.Tx)) *MockHomeFeedRepository_ListEchoes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -154,10 +178,17 @@ func (_c *MockHomeFeedRepository_ListEchoes_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(int)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -168,14 +199,20 @@ func (_c *MockHomeFeedRepository_ListEchoes_Call) Return(homeEchoRows []HomeEcho
 	return _c
 }
 
-func (_c *MockHomeFeedRepository_ListEchoes_Call) RunAndReturn(run func(ctx context.Context, ago string, limit int) ([]HomeEchoRow, error)) *MockHomeFeedRepository_ListEchoes_Call {
+func (_c *MockHomeFeedRepository_ListEchoes_Call) RunAndReturn(run func(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]HomeEchoRow, error)) *MockHomeFeedRepository_ListEchoes_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListPublicRooms provides a mock function for the type MockHomeFeedRepository
-func (_mock *MockHomeFeedRepository) ListPublicRooms(ctx context.Context, limit int) ([]HomePublicRoomRow, error) {
-	ret := _mock.Called(ctx, limit)
+func (_mock *MockHomeFeedRepository) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomePublicRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPublicRooms")
@@ -183,18 +220,18 @@ func (_mock *MockHomeFeedRepository) ListPublicRooms(ctx context.Context, limit 
 
 	var r0 []HomePublicRoomRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]HomePublicRoomRow, error)); ok {
-		return returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]HomePublicRoomRow, error)); ok {
+		return returnFunc(ctx, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []HomePublicRoomRow); ok {
-		r0 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []HomePublicRoomRow); ok {
+		r0 = returnFunc(ctx, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]HomePublicRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -209,11 +246,13 @@ type MockHomeFeedRepository_ListPublicRooms_Call struct {
 // ListPublicRooms is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListPublicRooms(ctx any, limit any) *MockHomeFeedRepository_ListPublicRooms_Call {
-	return &MockHomeFeedRepository_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockHomeFeedRepository_Expecter) ListPublicRooms(ctx any, limit any, tx ...any) *MockHomeFeedRepository_ListPublicRooms_Call {
+	return &MockHomeFeedRepository_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms",
+		append([]any{ctx, limit}, tx...)...)}
 }
 
-func (_c *MockHomeFeedRepository_ListPublicRooms_Call) Run(run func(ctx context.Context, limit int)) *MockHomeFeedRepository_ListPublicRooms_Call {
+func (_c *MockHomeFeedRepository_ListPublicRooms_Call) Run(run func(ctx context.Context, limit int, tx ...*sql.Tx)) *MockHomeFeedRepository_ListPublicRooms_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -223,9 +262,16 @@ func (_c *MockHomeFeedRepository_ListPublicRooms_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -236,14 +282,20 @@ func (_c *MockHomeFeedRepository_ListPublicRooms_Call) Return(homePublicRoomRows
 	return _c
 }
 
-func (_c *MockHomeFeedRepository_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, limit int) ([]HomePublicRoomRow, error)) *MockHomeFeedRepository_ListPublicRooms_Call {
+func (_c *MockHomeFeedRepository_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomePublicRoomRow, error)) *MockHomeFeedRepository_ListPublicRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListRecentActivity provides a mock function for the type MockHomeFeedRepository
-func (_mock *MockHomeFeedRepository) ListRecentActivity(ctx context.Context, limit int) ([]HomeActivityRow, error) {
-	ret := _mock.Called(ctx, limit)
+func (_mock *MockHomeFeedRepository) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeActivityRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListRecentActivity")
@@ -251,18 +303,18 @@ func (_mock *MockHomeFeedRepository) ListRecentActivity(ctx context.Context, lim
 
 	var r0 []HomeActivityRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]HomeActivityRow, error)); ok {
-		return returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]HomeActivityRow, error)); ok {
+		return returnFunc(ctx, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []HomeActivityRow); ok {
-		r0 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []HomeActivityRow); ok {
+		r0 = returnFunc(ctx, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]HomeActivityRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -277,11 +329,13 @@ type MockHomeFeedRepository_ListRecentActivity_Call struct {
 // ListRecentActivity is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListRecentActivity(ctx any, limit any) *MockHomeFeedRepository_ListRecentActivity_Call {
-	return &MockHomeFeedRepository_ListRecentActivity_Call{Call: _e.mock.On("ListRecentActivity", ctx, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockHomeFeedRepository_Expecter) ListRecentActivity(ctx any, limit any, tx ...any) *MockHomeFeedRepository_ListRecentActivity_Call {
+	return &MockHomeFeedRepository_ListRecentActivity_Call{Call: _e.mock.On("ListRecentActivity",
+		append([]any{ctx, limit}, tx...)...)}
 }
 
-func (_c *MockHomeFeedRepository_ListRecentActivity_Call) Run(run func(ctx context.Context, limit int)) *MockHomeFeedRepository_ListRecentActivity_Call {
+func (_c *MockHomeFeedRepository_ListRecentActivity_Call) Run(run func(ctx context.Context, limit int, tx ...*sql.Tx)) *MockHomeFeedRepository_ListRecentActivity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -291,9 +345,16 @@ func (_c *MockHomeFeedRepository_ListRecentActivity_Call) Run(run func(ctx conte
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -304,14 +365,20 @@ func (_c *MockHomeFeedRepository_ListRecentActivity_Call) Return(homeActivityRow
 	return _c
 }
 
-func (_c *MockHomeFeedRepository_ListRecentActivity_Call) RunAndReturn(run func(ctx context.Context, limit int) ([]HomeActivityRow, error)) *MockHomeFeedRepository_ListRecentActivity_Call {
+func (_c *MockHomeFeedRepository_ListRecentActivity_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeActivityRow, error)) *MockHomeFeedRepository_ListRecentActivity_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListRecentMembers provides a mock function for the type MockHomeFeedRepository
-func (_mock *MockHomeFeedRepository) ListRecentMembers(ctx context.Context, limit int) ([]HomeMemberRow, error) {
-	ret := _mock.Called(ctx, limit)
+func (_mock *MockHomeFeedRepository) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeMemberRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListRecentMembers")
@@ -319,18 +386,18 @@ func (_mock *MockHomeFeedRepository) ListRecentMembers(ctx context.Context, limi
 
 	var r0 []HomeMemberRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]HomeMemberRow, error)); ok {
-		return returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]HomeMemberRow, error)); ok {
+		return returnFunc(ctx, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []HomeMemberRow); ok {
-		r0 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []HomeMemberRow); ok {
+		r0 = returnFunc(ctx, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]HomeMemberRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -345,11 +412,13 @@ type MockHomeFeedRepository_ListRecentMembers_Call struct {
 // ListRecentMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockHomeFeedRepository_Expecter) ListRecentMembers(ctx any, limit any) *MockHomeFeedRepository_ListRecentMembers_Call {
-	return &MockHomeFeedRepository_ListRecentMembers_Call{Call: _e.mock.On("ListRecentMembers", ctx, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockHomeFeedRepository_Expecter) ListRecentMembers(ctx any, limit any, tx ...any) *MockHomeFeedRepository_ListRecentMembers_Call {
+	return &MockHomeFeedRepository_ListRecentMembers_Call{Call: _e.mock.On("ListRecentMembers",
+		append([]any{ctx, limit}, tx...)...)}
 }
 
-func (_c *MockHomeFeedRepository_ListRecentMembers_Call) Run(run func(ctx context.Context, limit int)) *MockHomeFeedRepository_ListRecentMembers_Call {
+func (_c *MockHomeFeedRepository_ListRecentMembers_Call) Run(run func(ctx context.Context, limit int, tx ...*sql.Tx)) *MockHomeFeedRepository_ListRecentMembers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -359,9 +428,16 @@ func (_c *MockHomeFeedRepository_ListRecentMembers_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -372,14 +448,20 @@ func (_c *MockHomeFeedRepository_ListRecentMembers_Call) Return(homeMemberRows [
 	return _c
 }
 
-func (_c *MockHomeFeedRepository_ListRecentMembers_Call) RunAndReturn(run func(ctx context.Context, limit int) ([]HomeMemberRow, error)) *MockHomeFeedRepository_ListRecentMembers_Call {
+func (_c *MockHomeFeedRepository_ListRecentMembers_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]HomeMemberRow, error)) *MockHomeFeedRepository_ListRecentMembers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListSidebarActivity provides a mock function for the type MockHomeFeedRepository
-func (_mock *MockHomeFeedRepository) ListSidebarActivity(ctx context.Context) ([]SidebarActivityEntry, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockHomeFeedRepository) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]SidebarActivityEntry, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListSidebarActivity")
@@ -387,18 +469,18 @@ func (_mock *MockHomeFeedRepository) ListSidebarActivity(ctx context.Context) ([
 
 	var r0 []SidebarActivityEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]SidebarActivityEntry, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SidebarActivityEntry, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []SidebarActivityEntry); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SidebarActivityEntry); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]SidebarActivityEntry)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -412,18 +494,27 @@ type MockHomeFeedRepository_ListSidebarActivity_Call struct {
 
 // ListSidebarActivity is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockHomeFeedRepository_Expecter) ListSidebarActivity(ctx any) *MockHomeFeedRepository_ListSidebarActivity_Call {
-	return &MockHomeFeedRepository_ListSidebarActivity_Call{Call: _e.mock.On("ListSidebarActivity", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockHomeFeedRepository_Expecter) ListSidebarActivity(ctx any, tx ...any) *MockHomeFeedRepository_ListSidebarActivity_Call {
+	return &MockHomeFeedRepository_ListSidebarActivity_Call{Call: _e.mock.On("ListSidebarActivity",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockHomeFeedRepository_ListSidebarActivity_Call) Run(run func(ctx context.Context)) *MockHomeFeedRepository_ListSidebarActivity_Call {
+func (_c *MockHomeFeedRepository_ListSidebarActivity_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockHomeFeedRepository_ListSidebarActivity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -434,7 +525,7 @@ func (_c *MockHomeFeedRepository_ListSidebarActivity_Call) Return(sidebarActivit
 	return _c
 }
 
-func (_c *MockHomeFeedRepository_ListSidebarActivity_Call) RunAndReturn(run func(ctx context.Context) ([]SidebarActivityEntry, error)) *MockHomeFeedRepository_ListSidebarActivity_Call {
+func (_c *MockHomeFeedRepository_ListSidebarActivity_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SidebarActivityEntry, error)) *MockHomeFeedRepository_ListSidebarActivity_Call {
 	_c.Call.Return(run)
 	return _c
 }

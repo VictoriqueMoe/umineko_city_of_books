@@ -190,12 +190,12 @@ func (s *service) SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID,
 	}
 
 	if err := s.repo.SetThumbnail(ctx, streamID, url); err != nil {
-		_ = s.uploadSvc.Delete(url)
+		s.uploadSvc.Delete(url)
 		return err
 	}
 
 	if stream.ThumbnailURL != "" && stream.ThumbnailURL != url {
-		_ = s.uploadSvc.Delete(stream.ThumbnailURL)
+		s.uploadSvc.Delete(stream.ThumbnailURL)
 	}
 
 	return nil
@@ -389,7 +389,7 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, ErrAtCapacity
 	}
 
-	streamID, err := s.repo.Create(ctx, userID, title, s.maxConcurrent())
+	stream, err := s.repo.Create(ctx, userID, title, s.maxConcurrent())
 	if err != nil {
 		switch {
 		case errors.Is(err, repository.ErrLiveStreamActiveExists):
@@ -404,17 +404,14 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, err
 	}
 
-	stream, err := s.repo.GetByID(ctx, streamID)
-	if err != nil || stream == nil {
-		return nil, fmt.Errorf("reload created stream: %w", err)
-	}
+	streamID := stream.ID
 
 	room := roomPrefix + streamID.String()
 	identity := broadcasterPrefix + userID.String()
 
 	creds, err := s.ensureCredentials(ctx, userID, stream.DisplayName)
 	if err != nil {
-		_, _ = s.repo.MarkOffline(ctx, streamID)
+		s.abandonStart(ctx, streamID)
 		return nil, fmt.Errorf("ensure stream credentials: %w", err)
 	}
 
@@ -426,18 +423,26 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		}
 	}
 	if err != nil {
-		_, _ = s.repo.MarkOffline(ctx, streamID)
+		s.abandonStart(ctx, streamID)
 		return nil, fmt.Errorf("point ingress at stream room: %w", err)
 	}
 
-	if err := s.repo.SetIngress(ctx, streamID, creds.IngressID, room, creds.WhipURL, creds.StreamKey); err != nil {
-		_, _ = s.repo.MarkOffline(ctx, streamID)
-		return nil, err
+	mode := dto.NormalizeStreamDefaultMode(defaultMode)
+
+	activation := repository.LiveStreamActivation{
+		Ingress: repository.LiveStreamIngressUpdate{
+			ID:        streamID,
+			IngressID: creds.IngressID,
+			Room:      room,
+			WhipURL:   creds.WhipURL,
+			StreamKey: creds.StreamKey,
+		},
+		DefaultMode: string(mode),
 	}
 
-	mode := dto.NormalizeStreamDefaultMode(defaultMode)
-	if err := s.repo.SetDefaultMode(ctx, streamID, string(mode)); err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("set stream default mode failed")
+	if err := s.repo.Activate(ctx, activation); err != nil {
+		s.abandonStart(ctx, streamID)
+		return nil, err
 	}
 
 	s.setBitrate(streamID, bitrateKbps)
@@ -451,6 +456,12 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 	stream.DefaultMode = string(mode)
 
 	return toOwner(stream), nil
+}
+
+func (s *service) abandonStart(ctx context.Context, streamID uuid.UUID) {
+	if _, err := s.repo.MarkOffline(ctx, streamID); err != nil {
+		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("mark stream offline after a failed start failed")
+	}
 }
 
 func userRoom(userID uuid.UUID) string {
@@ -485,17 +496,25 @@ func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displ
 		return nil, fmt.Errorf("create ingress: %w", err)
 	}
 
-	if err := s.creds.Upsert(ctx, userID, ingressID, whipURL, streamKey, room); err != nil {
-		_ = s.livekitSvc.DeleteIngress(ctx, ingressID)
-		return nil, err
-	}
-
-	return &repository.StreamCredentialsRow{
+	spec := repository.NewStreamCredentials{
 		UserID:    userID,
 		IngressID: ingressID,
 		WhipURL:   whipURL,
 		StreamKey: streamKey,
 		Room:      room,
+	}
+
+	if err := s.creds.Upsert(ctx, spec); err != nil {
+		_ = s.livekitSvc.DeleteIngress(ctx, ingressID)
+		return nil, err
+	}
+
+	return &repository.StreamCredentialsRow{
+		UserID:    spec.UserID,
+		IngressID: spec.IngressID,
+		WhipURL:   spec.WhipURL,
+		StreamKey: spec.StreamKey,
+		Room:      spec.Room,
 	}, nil
 }
 
@@ -786,9 +805,7 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 	s.deleteChatRoom(ctx, stream.ID)
 
 	if stream.ThumbnailURL != "" {
-		if err := s.uploadSvc.Delete(stream.ThumbnailURL); err != nil {
-			logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("delete stream thumbnail failed")
-		}
+		s.uploadSvc.Delete(stream.ThumbnailURL)
 	}
 	s.clearThumbnailSlot(stream.ID)
 

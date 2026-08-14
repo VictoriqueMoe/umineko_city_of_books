@@ -120,16 +120,11 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 	failed := 0
 
 	for _, userID := range holders {
-		if err := m.vanityRepo.AssignToUser(ctx, userID, to); err != nil {
-			failed++
-			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("to", to).Msg("chatbot opt-in role migration could not grant the new role")
+		spec := repository.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
 
-			continue
-		}
-
-		if err := m.vanityRepo.UnassignFromUser(ctx, userID, from); err != nil {
+		if err := m.vanityRepo.MoveUserRole(ctx, spec); err != nil {
 			failed++
-			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("from", from).Msg("chatbot opt-in role migration could not revoke the old role")
+			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not move the member")
 
 			continue
 		}

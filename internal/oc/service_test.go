@@ -112,8 +112,8 @@ func TestCreateOC_OK(t *testing.T) {
 	req := dto.CreateOCRequest{Name: "  Linda  ", Description: "  bio ", Series: "umineko"}
 	m.ocRepo.EXPECT().HasOC(mock.Anything, userID, "Linda").Return(false, nil)
 	m.ocRepo.EXPECT().
-		Create(mock.Anything, mock.Anything, userID, "Linda", "bio", "umineko", "").
-		Return(nil)
+		Create(mock.Anything, repository.NewOC{UserID: userID, Name: "Linda", Description: "bio", Series: "umineko"}).
+		Return(&model.OCRow{ID: uuid.New()}, nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, mock.Anything, userID).Return(nil, nil).Maybe()
 
 	// when
@@ -131,8 +131,8 @@ func TestCreateOC_CustomSeriesOK(t *testing.T) {
 	req := dto.CreateOCRequest{Name: "Linda", Description: "bio", Series: "custom", CustomSeriesName: " Higanbana "}
 	m.ocRepo.EXPECT().HasOC(mock.Anything, userID, "Linda").Return(false, nil)
 	m.ocRepo.EXPECT().
-		Create(mock.Anything, mock.Anything, userID, "Linda", "bio", "custom", "Higanbana").
-		Return(nil)
+		Create(mock.Anything, repository.NewOC{UserID: userID, Name: "Linda", Description: "bio", Series: "custom", CustomSeriesName: "Higanbana"}).
+		Return(&model.OCRow{ID: uuid.New()}, nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, mock.Anything, userID).Return(nil, nil).Maybe()
 
 	// when
@@ -149,8 +149,8 @@ func TestCreateOC_RepoErrorBubbles(t *testing.T) {
 	req := dto.CreateOCRequest{Name: "Linda", Series: "umineko"}
 	m.ocRepo.EXPECT().HasOC(mock.Anything, userID, "Linda").Return(false, nil)
 	m.ocRepo.EXPECT().
-		Create(mock.Anything, mock.Anything, userID, "Linda", "", "umineko", "").
-		Return(errors.New("db down"))
+		Create(mock.Anything, repository.NewOC{UserID: userID, Name: "Linda", Series: "umineko"}).
+		Return(nil, errors.New("db down"))
 
 	// when
 	_, err := svc.CreateOC(context.Background(), userID, req)
@@ -224,7 +224,7 @@ func TestUpdateOC_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	req := dto.UpdateOCRequest{Name: "Linda", Description: "bio", Series: "umineko"}
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
-	m.ocRepo.EXPECT().Update(mock.Anything, id, userID, "Linda", "bio", "umineko", "", false).Return(nil)
+	m.ocRepo.EXPECT().Update(mock.Anything, repository.OCUpdate{ID: id, UserID: userID, Name: "Linda", Description: "bio", Series: "umineko"}).Return(nil)
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, id, userID).Return(nil, nil).Maybe()
 
@@ -242,7 +242,7 @@ func TestUpdateOC_AsAdmin(t *testing.T) {
 	adminID := uuid.New()
 	req := dto.UpdateOCRequest{Name: "Linda", Series: "umineko"}
 	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermEditAnyPost).Return(true)
-	m.ocRepo.EXPECT().Update(mock.Anything, id, adminID, "Linda", "", "umineko", "", true).Return(nil)
+	m.ocRepo.EXPECT().Update(mock.Anything, repository.OCUpdate{ID: id, UserID: adminID, Name: "Linda", Series: "umineko", AsAdmin: true}).Return(nil)
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.ocRepo.EXPECT().GetByID(mock.Anything, id, mock.Anything).Return(nil, nil).Maybe()
 
@@ -260,7 +260,10 @@ func TestDeleteOC_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.ocRepo.EXPECT().Delete(mock.Anything, id, userID).Return(nil)
+	m.ocRepo.EXPECT().
+		DeleteOC(mock.Anything, repository.OCDeletion{ID: id, UserID: userID}).
+		Return([]string{"/uploads/ocs/portrait.png", "/uploads/ocs/portrait_thumb.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/portrait.png", "/uploads/ocs/portrait_thumb.png"}).Return()
 
 	// when
 	err := svc.DeleteOC(context.Background(), id, userID)
@@ -276,10 +279,49 @@ func TestDeleteOC_AsAdmin(t *testing.T) {
 	adminID := uuid.New()
 	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermDeleteAnyPost).Return(true)
-	m.ocRepo.EXPECT().DeleteAsAdmin(mock.Anything, id).Return(nil)
+	m.ocRepo.EXPECT().
+		DeleteOC(mock.Anything, repository.OCDeletion{ID: id, UserID: adminID, AsAdmin: true}).
+		Return([]string{"/uploads/ocs/gallery.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/gallery.png"}).Return()
 
 	// when
 	err := svc.DeleteOC(context.Background(), id, adminID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteOC_RepoErrorSkipsUnlink(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.ocRepo.EXPECT().
+		DeleteOC(mock.Anything, repository.OCDeletion{ID: id, UserID: userID}).
+		Return(nil, errors.New("boom"))
+
+	// when
+	err := svc.DeleteOC(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+}
+
+func TestDeleteComment_UnlinksCommentMedia(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
+	m.ocRepo.EXPECT().
+		DeleteCommentWithMedia(mock.Anything, repository.OCCommentDeletion{CommentID: commentID, UserID: userID}).
+		Return([]string{"/uploads/ocs/c.png", "/uploads/ocs/c-thumb.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/c.png", "/uploads/ocs/c-thumb.png"}).Return()
+
+	// when
+	err := svc.DeleteComment(context.Background(), commentID, userID)
 
 	// then
 	require.NoError(t, err)

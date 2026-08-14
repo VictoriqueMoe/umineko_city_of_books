@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/settings"
 
@@ -21,6 +22,8 @@ import (
 )
 
 var (
+	deleteRetryDelays = []time.Duration{2 * time.Second, 5 * time.Second, 10 * time.Second, 15 * time.Second, 30 * time.Second}
+
 	AllowedImageTypes = map[string]string{
 		"image/png":  ".png",
 		"image/jpeg": ".jpg",
@@ -52,7 +55,7 @@ type (
 		SaveFile(subDir string, filename string, reader io.Reader) (string, error)
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
-		Delete(urlPath string) error
+		Delete(urlPaths ...string)
 		DeleteByPrefix(subDir string, prefix string) error
 		GetUploadDir() string
 		FullDiskPath(urlPath string) string
@@ -138,7 +141,7 @@ func (s *service) SaveImage(ctx context.Context, subDir string, id uuid.UUID, fi
 
 	maxPixels := s.settingsSvc.GetInt(ctx, config.SettingMaxImagePixels)
 	if err := media.CheckImageFileBounds(s.FullDiskPath(urlPath), maxPixels); err != nil {
-		_ = s.Delete(urlPath)
+		s.Delete(urlPath)
 		return "", err
 	}
 
@@ -187,7 +190,31 @@ func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, file
 	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedVideoTypes, ErrInvalidVideoType, reader)
 }
 
-func (s *service) Delete(urlPath string) error {
+func (s *service) Delete(urlPaths ...string) {
+	for i := range urlPaths {
+		if err := s.delete(urlPaths[i]); err != nil {
+			s.retryDelete(urlPaths[i], err)
+		}
+	}
+}
+
+func (s *service) retryDelete(urlPath string, first error) {
+	go func() {
+		for _, delay := range deleteRetryDelays {
+			time.Sleep(delay)
+
+			if err := s.delete(urlPath); err == nil {
+				logger.Log.Debug().Str("path", urlPath).Msg("deleted upload on retry")
+
+				return
+			}
+		}
+
+		logger.Log.Error().Err(first).Str("path", urlPath).Msg("failed to delete upload after retries")
+	}()
+}
+
+func (s *service) delete(urlPath string) error {
 	if urlPath == "" {
 		return nil
 	}
@@ -220,13 +247,15 @@ func (s *service) DeleteByPrefix(subDir string, prefix string) error {
 		return fmt.Errorf("read directory: %w", err)
 	}
 
+	var urlPaths []string
 	for _, entry := range entries {
 		if strings.HasPrefix(entry.Name(), prefix) {
-			if err := os.Remove(filepath.Join(dir, entry.Name())); err != nil {
-				return fmt.Errorf("remove file: %w", err)
-			}
+			urlPaths = append(urlPaths, "/uploads/"+subDir+"/"+entry.Name())
 		}
 	}
+
+	s.Delete(urlPaths...)
+
 	return nil
 }
 

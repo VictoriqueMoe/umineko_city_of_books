@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -238,8 +239,8 @@ func TestHomeFeedDAO_ListSidebarActivity_AggregatesByKey(t *testing.T) {
 	unlockSecretFor(t, repos, user.ID, testSecretID)
 	createSecretComment(t, repos, testSecretID, nil, user.ID, "s")
 
-	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "d", "group", true, false, user.ID))
+	_, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "d", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, err)
 
 	rows, err := repos.HomeFeed.ListSidebarActivity(ctx)
 	require.NoError(t, err)
@@ -273,10 +274,11 @@ func TestHomeFeedDAO_ListPublicRooms_ReturnsPublicGroupsOnly(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 
-	publicID := uuid.New()
-	privateID := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, publicID, "Public", "", "group", true, false, user.ID))
-	require.NoError(t, repos.Chat.CreateRoom(ctx, privateID, "Private", "", "group", false, false, user.ID))
+	public, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Public", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, err)
+	publicID := public.ID
+	_, err = repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Private", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, err)
 
 	rows, err := repos.HomeFeed.ListPublicRooms(ctx, 10)
 	require.NoError(t, err)
@@ -290,12 +292,14 @@ func TestHomeFeedDAO_ListPublicRooms_OrderedByLastMessage(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 
-	older := uuid.New()
-	newer := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, older, "Older", "", "group", true, false, user.ID))
-	require.NoError(t, repos.Chat.CreateRoom(ctx, newer, "Newer", "", "group", true, false, user.ID))
+	olderRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Older", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, err)
+	older := olderRow.ID
+	newerRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Newer", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, err)
+	newer := newerRow.ID
 
-	_, err := repos.DB().ExecContext(ctx,
+	_, err = repos.DB().ExecContext(ctx,
 		`UPDATE chat_rooms SET last_message_at = NOW() - INTERVAL '2 hours' WHERE id = $1`, older)
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx,
@@ -315,7 +319,8 @@ func TestHomeFeedDAO_ListPublicRooms_LimitApplies(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	for range 4 {
-		require.NoError(t, repos.Chat.CreateRoom(ctx, uuid.New(), "R", "", "group", true, false, user.ID))
+		_, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+		require.NoError(t, err)
 	}
 
 	rows, err := repos.HomeFeed.ListPublicRooms(ctx, 2)
@@ -329,8 +334,9 @@ func TestHomeFeedDAO_ListPublicRooms_IncludesMemberCount(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
 
-	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", true, false, owner.ID))
+	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomID := room.ID
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, owner.ID))
 	require.NoError(t, repos.Chat.AddMember(ctx, roomID, joiner.ID))
 

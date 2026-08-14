@@ -129,6 +129,28 @@ func clueBodies(clues []dto.CreateClueRequest) []string {
 	return out
 }
 
+func newClues(clues []dto.CreateClueRequest) []repository.NewClue {
+	out := make([]repository.NewClue, 0, len(clues))
+	for i, clue := range clues {
+		if strings.TrimSpace(clue.Body) == "" {
+			continue
+		}
+
+		truthType := clue.TruthType
+		if truthType == "" {
+			truthType = "red"
+		}
+
+		out = append(out, repository.NewClue{
+			Body:      clue.Body,
+			TruthType: truthType,
+			SortOrder: i,
+		})
+	}
+
+	return out
+}
+
 func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 	rows, total, err := s.mysteryRepo.List(ctx, sort, solved, page.Limit(), page.Offset(), blockedIDs)
@@ -323,34 +345,30 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		contract = *req.KnoxContract
 	}
 
-	id := uuid.New()
-	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve, contract); err != nil {
+	created, err := s.mysteryRepo.CreateWithClues(ctx, repository.NewMystery{
+		UserID:             userID,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
+	})
+	if err != nil {
 		return uuid.Nil, err
-	}
-
-	for i, clue := range req.Clues {
-		if strings.TrimSpace(clue.Body) == "" {
-			continue
-		}
-		truthType := clue.TruthType
-		if truthType == "" {
-			truthType = "red"
-		}
-		if err := s.mysteryRepo.AddClue(ctx, id, clue.Body, truthType, i, nil); err != nil {
-			return uuid.Nil, err
-		}
 	}
 
 	go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifService, notification.FollowerNotifyParams{
 		ActorID:       userID,
 		Type:          dto.NotifMysteryCreated,
-		ReferenceID:   id,
+		ReferenceID:   created.ID,
 		ReferenceType: "mystery",
 		Action:        "posted a new mystery",
 		Title:         req.Title,
 	})
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error {
@@ -375,20 +393,17 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrContractLocked
 	}
 
-	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve, contract); err != nil {
+	if err := s.mysteryRepo.UpdateWithClues(ctx, repository.MysteryUpdate{
+		ID:                 id,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
+	}); err != nil {
 		return err
-	}
-
-	_ = s.mysteryRepo.DeleteClues(ctx, id)
-	for i, clue := range req.Clues {
-		if strings.TrimSpace(clue.Body) == "" {
-			continue
-		}
-		truthType := clue.TruthType
-		if truthType == "" {
-			truthType = "red"
-		}
-		_ = s.mysteryRepo.AddClue(ctx, id, clue.Body, truthType, i, nil)
 	}
 
 	if old.UserID != userID {
@@ -449,10 +464,16 @@ func cluesChanged(old []dto.MysteryClue, new []dto.CreateClueRequest) bool {
 }
 
 func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory) {
-		return s.mysteryRepo.DeleteAsAdmin(ctx, id)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory)
+
+	paths, err := s.mysteryRepo.DeleteWithFiles(ctx, repository.MysteryDelete{ID: id, UserID: userID, AsAdmin: asAdmin})
+	if err != nil {
+		return err
 	}
-	return s.mysteryRepo.Delete(ctx, id, userID)
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateAttemptRequest) (uuid.UUID, error) {
@@ -496,22 +517,19 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		}
 	}
 
-	id := uuid.New()
-	if err := s.mysteryRepo.CreateAttempt(ctx, id, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body)); err != nil {
+	created, err := s.mysteryRepo.CreateAttempt(ctx, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body))
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	actor, _ := s.userRepo.GetByID(ctx, userID)
 	wsData := map[string]any{
-		"mystery_id": mysteryID,
-		"attempt_id": id,
-		"parent_id":  req.ParentID,
-		"author_id":  userID,
-	}
-	if actor != nil {
-		wsData["author_username"] = actor.Username
-		wsData["author_display_name"] = actor.DisplayName
-		wsData["author_avatar_url"] = actor.AvatarURL
+		"mystery_id":          mysteryID,
+		"attempt_id":          created.ID,
+		"parent_id":           req.ParentID,
+		"author_id":           userID,
+		"author_username":     created.AuthorUsername,
+		"author_display_name": created.AuthorDisplayName,
+		"author_avatar_url":   created.AuthorAvatarURL,
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_attempt_created",
@@ -520,8 +538,8 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 
 	go func() {
 		bgCtx := context.Background()
-		linkPath := fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, id)
-		attemptRef := fmt.Sprintf("mystery_attempt:%s", id)
+		linkPath := fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, created.ID)
+		attemptRef := fmt.Sprintf("mystery_attempt:%s", created.ID)
 
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
@@ -550,7 +568,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		}
 	}()
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -808,7 +826,12 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 	}
 
 	count, _ := s.mysteryRepo.CountClues(ctx, mysteryID)
-	if err := s.mysteryRepo.AddClue(ctx, mysteryID, req.Body, req.TruthType, count, req.PlayerID); err != nil {
+	if _, err := s.mysteryRepo.AddClue(ctx, mysteryID, repository.NewClue{
+		Body:      req.Body,
+		TruthType: req.TruthType,
+		SortOrder: count,
+		PlayerID:  req.PlayerID,
+	}); err != nil {
 		return err
 	}
 
@@ -952,10 +975,12 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	id := uuid.New()
-	if err := s.mysteryRepo.CreateComment(ctx, id, mysteryID, req.ParentID, userID, body); err != nil {
+	created, err := s.mysteryRepo.CreateComment(ctx, mysteryID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()
@@ -1013,20 +1038,18 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "mystery_comment_delete"
-	if isAdmin {
-		if err := s.mysteryRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
-			return err
-		}
-		action = "mystery_comment_delete_admin"
-	} else {
-		if err := s.mysteryRepo.DeleteComment(ctx, id, userID); err != nil {
-			return err
-		}
+
+	paths, err := s.mysteryRepo.DeleteCommentWithAudit(ctx, repository.MysteryCommentDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: isAdmin,
+	})
+	if err != nil {
+		return err
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "mystery_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
-	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -1066,7 +1089,12 @@ func (s *service) UploadCommentMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
 		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
-			return s.mysteryRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, "", sortOrder)
+			return s.mysteryRepo.AddCommentMedia(ctx, repository.NewMysteryCommentMedia{
+				CommentID: commentID,
+				MediaURL:  mediaURL,
+				MediaType: mediaType,
+				SortOrder: sortOrder,
+			})
 		},
 		s.mysteryRepo.UpdateCommentMediaURL,
 		s.mysteryRepo.UpdateCommentMediaThumbnail,
@@ -1149,7 +1177,12 @@ func (s *service) UploadMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
 		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
-			return s.mysteryRepo.AddMedia(ctx, mysteryID, mediaURL, mediaType, "", sortOrder)
+			return s.mysteryRepo.AddMedia(ctx, repository.NewMysteryMedia{
+				MysteryID: mysteryID,
+				MediaURL:  mediaURL,
+				MediaType: mediaType,
+				SortOrder: sortOrder,
+			})
 		},
 		s.mysteryRepo.UpdateMediaURL,
 		s.mysteryRepo.UpdateMediaThumbnail,
@@ -1175,7 +1208,7 @@ func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid
 		return err
 	}
 
-	_ = s.uploadSvc.Delete(mediaURL)
+	s.uploadSvc.Delete(mediaURL)
 	return nil
 }
 

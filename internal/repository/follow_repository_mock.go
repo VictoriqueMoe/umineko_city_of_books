@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockFollowRepository) EXPECT() *MockFollowRepository_Expecter {
 }
 
 // Follow provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
-	ret := _mock.Called(ctx, followerID, followingID)
+func (_mock *MockFollowRepository) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, followerID, followingID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, followerID, followingID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Follow")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, followerID, followingID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, followerID, followingID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -64,11 +71,13 @@ type MockFollowRepository_Follow_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockFollowRepository_Expecter) Follow(ctx any, followerID any, followingID any) *MockFollowRepository_Follow_Call {
-	return &MockFollowRepository_Follow_Call{Call: _e.mock.On("Follow", ctx, followerID, followingID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) Follow(ctx any, followerID any, followingID any, tx ...any) *MockFollowRepository_Follow_Call {
+	return &MockFollowRepository_Follow_Call{Call: _e.mock.On("Follow",
+		append([]any{ctx, followerID, followingID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_Follow_Call) Run(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID)) *MockFollowRepository_Follow_Call {
+func (_c *MockFollowRepository_Follow_Call) Run(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_Follow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -82,10 +91,17 @@ func (_c *MockFollowRepository_Follow_Call) Run(run func(ctx context.Context, fo
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -96,14 +112,20 @@ func (_c *MockFollowRepository_Follow_Call) Return(err error) *MockFollowReposit
 	return _c
 }
 
-func (_c *MockFollowRepository_Follow_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error) *MockFollowRepository_Follow_Call {
+func (_c *MockFollowRepository_Follow_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error) *MockFollowRepository_Follow_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFollowerCount provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) GetFollowerCount(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockFollowRepository) GetFollowerCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowerCount")
@@ -111,16 +133,16 @@ func (_mock *MockFollowRepository) GetFollowerCount(ctx context.Context, userID 
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -135,11 +157,13 @@ type MockFollowRepository_GetFollowerCount_Call struct {
 // GetFollowerCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetFollowerCount(ctx any, userID any) *MockFollowRepository_GetFollowerCount_Call {
-	return &MockFollowRepository_GetFollowerCount_Call{Call: _e.mock.On("GetFollowerCount", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) GetFollowerCount(ctx any, userID any, tx ...any) *MockFollowRepository_GetFollowerCount_Call {
+	return &MockFollowRepository_GetFollowerCount_Call{Call: _e.mock.On("GetFollowerCount",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_GetFollowerCount_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockFollowRepository_GetFollowerCount_Call {
+func (_c *MockFollowRepository_GetFollowerCount_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_GetFollowerCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -149,9 +173,16 @@ func (_c *MockFollowRepository_GetFollowerCount_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -162,14 +193,20 @@ func (_c *MockFollowRepository_GetFollowerCount_Call) Return(n int, err error) *
 	return _c
 }
 
-func (_c *MockFollowRepository_GetFollowerCount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockFollowRepository_GetFollowerCount_Call {
+func (_c *MockFollowRepository_GetFollowerCount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockFollowRepository_GetFollowerCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFollowerIDsToNotify provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockFollowRepository) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowerIDsToNotify")
@@ -177,18 +214,18 @@ func (_mock *MockFollowRepository) GetFollowerIDsToNotify(ctx context.Context, u
 
 	var r0 []uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -203,11 +240,13 @@ type MockFollowRepository_GetFollowerIDsToNotify_Call struct {
 // GetFollowerIDsToNotify is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetFollowerIDsToNotify(ctx any, userID any) *MockFollowRepository_GetFollowerIDsToNotify_Call {
-	return &MockFollowRepository_GetFollowerIDsToNotify_Call{Call: _e.mock.On("GetFollowerIDsToNotify", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) GetFollowerIDsToNotify(ctx any, userID any, tx ...any) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+	return &MockFollowRepository_GetFollowerIDsToNotify_Call{Call: _e.mock.On("GetFollowerIDsToNotify",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_GetFollowerIDsToNotify_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -217,9 +256,16 @@ func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) Run(run func(ctx con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -230,14 +276,20 @@ func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) Return(uUIDs []uuid.
 	return _c
 }
 
-func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)) *MockFollowRepository_GetFollowerIDsToNotify_Call {
+func (_c *MockFollowRepository_GetFollowerIDsToNotify_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockFollowRepository_GetFollowerIDsToNotify_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFollowers provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) GetFollowers(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]FollowUser, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockFollowRepository) GetFollowers(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]FollowUser, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowers")
@@ -246,23 +298,23 @@ func (_mock *MockFollowRepository) GetFollowers(ctx context.Context, userID uuid
 	var r0 []FollowUser
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]FollowUser, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]FollowUser, int, error)); ok {
+		return returnFunc(ctx, userID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []FollowUser); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []FollowUser); ok {
+		r0 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]FollowUser)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -279,11 +331,13 @@ type MockFollowRepository_GetFollowers_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockFollowRepository_Expecter) GetFollowers(ctx any, userID any, limit any, offset any) *MockFollowRepository_GetFollowers_Call {
-	return &MockFollowRepository_GetFollowers_Call{Call: _e.mock.On("GetFollowers", ctx, userID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) GetFollowers(ctx any, userID any, limit any, offset any, tx ...any) *MockFollowRepository_GetFollowers_Call {
+	return &MockFollowRepository_GetFollowers_Call{Call: _e.mock.On("GetFollowers",
+		append([]any{ctx, userID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_GetFollowers_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockFollowRepository_GetFollowers_Call {
+func (_c *MockFollowRepository_GetFollowers_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockFollowRepository_GetFollowers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -301,11 +355,18 @@ func (_c *MockFollowRepository_GetFollowers_Call) Run(run func(ctx context.Conte
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -316,14 +377,20 @@ func (_c *MockFollowRepository_GetFollowers_Call) Return(followUsers []FollowUse
 	return _c
 }
 
-func (_c *MockFollowRepository_GetFollowers_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]FollowUser, int, error)) *MockFollowRepository_GetFollowers_Call {
+func (_c *MockFollowRepository_GetFollowers_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]FollowUser, int, error)) *MockFollowRepository_GetFollowers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFollowing provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) GetFollowing(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]FollowUser, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockFollowRepository) GetFollowing(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]FollowUser, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowing")
@@ -332,23 +399,23 @@ func (_mock *MockFollowRepository) GetFollowing(ctx context.Context, userID uuid
 	var r0 []FollowUser
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]FollowUser, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]FollowUser, int, error)); ok {
+		return returnFunc(ctx, userID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []FollowUser); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []FollowUser); ok {
+		r0 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]FollowUser)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -365,11 +432,13 @@ type MockFollowRepository_GetFollowing_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockFollowRepository_Expecter) GetFollowing(ctx any, userID any, limit any, offset any) *MockFollowRepository_GetFollowing_Call {
-	return &MockFollowRepository_GetFollowing_Call{Call: _e.mock.On("GetFollowing", ctx, userID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) GetFollowing(ctx any, userID any, limit any, offset any, tx ...any) *MockFollowRepository_GetFollowing_Call {
+	return &MockFollowRepository_GetFollowing_Call{Call: _e.mock.On("GetFollowing",
+		append([]any{ctx, userID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_GetFollowing_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockFollowRepository_GetFollowing_Call {
+func (_c *MockFollowRepository_GetFollowing_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockFollowRepository_GetFollowing_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -387,11 +456,18 @@ func (_c *MockFollowRepository_GetFollowing_Call) Run(run func(ctx context.Conte
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -402,14 +478,20 @@ func (_c *MockFollowRepository_GetFollowing_Call) Return(followUsers []FollowUse
 	return _c
 }
 
-func (_c *MockFollowRepository_GetFollowing_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]FollowUser, int, error)) *MockFollowRepository_GetFollowing_Call {
+func (_c *MockFollowRepository_GetFollowing_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]FollowUser, int, error)) *MockFollowRepository_GetFollowing_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetFollowingCount provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) GetFollowingCount(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockFollowRepository) GetFollowingCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetFollowingCount")
@@ -417,16 +499,16 @@ func (_mock *MockFollowRepository) GetFollowingCount(ctx context.Context, userID
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -441,11 +523,13 @@ type MockFollowRepository_GetFollowingCount_Call struct {
 // GetFollowingCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetFollowingCount(ctx any, userID any) *MockFollowRepository_GetFollowingCount_Call {
-	return &MockFollowRepository_GetFollowingCount_Call{Call: _e.mock.On("GetFollowingCount", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) GetFollowingCount(ctx any, userID any, tx ...any) *MockFollowRepository_GetFollowingCount_Call {
+	return &MockFollowRepository_GetFollowingCount_Call{Call: _e.mock.On("GetFollowingCount",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_GetFollowingCount_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockFollowRepository_GetFollowingCount_Call {
+func (_c *MockFollowRepository_GetFollowingCount_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_GetFollowingCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -455,9 +539,16 @@ func (_c *MockFollowRepository_GetFollowingCount_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -468,14 +559,20 @@ func (_c *MockFollowRepository_GetFollowingCount_Call) Return(n int, err error) 
 	return _c
 }
 
-func (_c *MockFollowRepository_GetFollowingCount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockFollowRepository_GetFollowingCount_Call {
+func (_c *MockFollowRepository_GetFollowingCount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockFollowRepository_GetFollowingCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMutualFollowers provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) GetMutualFollowers(ctx context.Context, userID uuid.UUID) ([]FollowUser, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockFollowRepository) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]FollowUser, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMutualFollowers")
@@ -483,18 +580,18 @@ func (_mock *MockFollowRepository) GetMutualFollowers(ctx context.Context, userI
 
 	var r0 []FollowUser
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]FollowUser, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]FollowUser, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []FollowUser); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []FollowUser); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]FollowUser)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -509,11 +606,13 @@ type MockFollowRepository_GetMutualFollowers_Call struct {
 // GetMutualFollowers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockFollowRepository_Expecter) GetMutualFollowers(ctx any, userID any) *MockFollowRepository_GetMutualFollowers_Call {
-	return &MockFollowRepository_GetMutualFollowers_Call{Call: _e.mock.On("GetMutualFollowers", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) GetMutualFollowers(ctx any, userID any, tx ...any) *MockFollowRepository_GetMutualFollowers_Call {
+	return &MockFollowRepository_GetMutualFollowers_Call{Call: _e.mock.On("GetMutualFollowers",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_GetMutualFollowers_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockFollowRepository_GetMutualFollowers_Call {
+func (_c *MockFollowRepository_GetMutualFollowers_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_GetMutualFollowers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -523,9 +622,16 @@ func (_c *MockFollowRepository_GetMutualFollowers_Call) Run(run func(ctx context
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -536,14 +642,20 @@ func (_c *MockFollowRepository_GetMutualFollowers_Call) Return(followUsers []Fol
 	return _c
 }
 
-func (_c *MockFollowRepository_GetMutualFollowers_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]FollowUser, error)) *MockFollowRepository_GetMutualFollowers_Call {
+func (_c *MockFollowRepository_GetMutualFollowers_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]FollowUser, error)) *MockFollowRepository_GetMutualFollowers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsFollowing provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, followerID, followingID)
+func (_mock *MockFollowRepository) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, followerID, followingID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, followerID, followingID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsFollowing")
@@ -551,16 +663,16 @@ func (_mock *MockFollowRepository) IsFollowing(ctx context.Context, followerID u
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, followerID, followingID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, followerID, followingID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, followerID, followingID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, followerID, followingID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, followerID, followingID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, followerID, followingID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -576,11 +688,13 @@ type MockFollowRepository_IsFollowing_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockFollowRepository_Expecter) IsFollowing(ctx any, followerID any, followingID any) *MockFollowRepository_IsFollowing_Call {
-	return &MockFollowRepository_IsFollowing_Call{Call: _e.mock.On("IsFollowing", ctx, followerID, followingID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) IsFollowing(ctx any, followerID any, followingID any, tx ...any) *MockFollowRepository_IsFollowing_Call {
+	return &MockFollowRepository_IsFollowing_Call{Call: _e.mock.On("IsFollowing",
+		append([]any{ctx, followerID, followingID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_IsFollowing_Call) Run(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID)) *MockFollowRepository_IsFollowing_Call {
+func (_c *MockFollowRepository_IsFollowing_Call) Run(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_IsFollowing_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -594,10 +708,17 @@ func (_c *MockFollowRepository_IsFollowing_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -608,22 +729,28 @@ func (_c *MockFollowRepository_IsFollowing_Call) Return(b bool, err error) *Mock
 	return _c
 }
 
-func (_c *MockFollowRepository_IsFollowing_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) (bool, error)) *MockFollowRepository_IsFollowing_Call {
+func (_c *MockFollowRepository_IsFollowing_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockFollowRepository_IsFollowing_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unfollow provides a mock function for the type MockFollowRepository
-func (_mock *MockFollowRepository) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
-	ret := _mock.Called(ctx, followerID, followingID)
+func (_mock *MockFollowRepository) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, followerID, followingID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, followerID, followingID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Unfollow")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, followerID, followingID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, followerID, followingID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -639,11 +766,13 @@ type MockFollowRepository_Unfollow_Call struct {
 //   - ctx context.Context
 //   - followerID uuid.UUID
 //   - followingID uuid.UUID
-func (_e *MockFollowRepository_Expecter) Unfollow(ctx any, followerID any, followingID any) *MockFollowRepository_Unfollow_Call {
-	return &MockFollowRepository_Unfollow_Call{Call: _e.mock.On("Unfollow", ctx, followerID, followingID)}
+//   - tx ...*sql.Tx
+func (_e *MockFollowRepository_Expecter) Unfollow(ctx any, followerID any, followingID any, tx ...any) *MockFollowRepository_Unfollow_Call {
+	return &MockFollowRepository_Unfollow_Call{Call: _e.mock.On("Unfollow",
+		append([]any{ctx, followerID, followingID}, tx...)...)}
 }
 
-func (_c *MockFollowRepository_Unfollow_Call) Run(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID)) *MockFollowRepository_Unfollow_Call {
+func (_c *MockFollowRepository_Unfollow_Call) Run(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx)) *MockFollowRepository_Unfollow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -657,10 +786,17 @@ func (_c *MockFollowRepository_Unfollow_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -671,7 +807,7 @@ func (_c *MockFollowRepository_Unfollow_Call) Return(err error) *MockFollowRepos
 	return _c
 }
 
-func (_c *MockFollowRepository_Unfollow_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error) *MockFollowRepository_Unfollow_Call {
+func (_c *MockFollowRepository_Unfollow_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error) *MockFollowRepository_Unfollow_Call {
 	_c.Call.Return(run)
 	return _c
 }

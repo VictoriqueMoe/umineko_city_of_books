@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
@@ -63,15 +64,28 @@ func (s *systemService) EnsureSystemRooms(ctx context.Context) error {
 	}
 	creator := supers[0]
 
+	rooms := make([]repository.NewChatSystemRoom, 0, 2)
 	if modsID == uuid.Nil {
-		if err := s.chatRepo.CreateSystemRoom(ctx, uuid.New(), systemModsName, systemModsDesc, SystemKindMods, creator); err != nil {
-			return err
-		}
+		rooms = append(rooms, repository.NewChatSystemRoom{
+			ID:          uuid.New(),
+			Name:        systemModsName,
+			Description: systemModsDesc,
+			SystemKind:  SystemKindMods,
+			CreatedBy:   creator,
+		})
 	}
 	if adminsID == uuid.Nil {
-		if err := s.chatRepo.CreateSystemRoom(ctx, uuid.New(), systemAdminsName, systemAdminsDesc, SystemKindAdmins, creator); err != nil {
-			return err
-		}
+		rooms = append(rooms, repository.NewChatSystemRoom{
+			ID:          uuid.New(),
+			Name:        systemAdminsName,
+			Description: systemAdminsDesc,
+			SystemKind:  SystemKindAdmins,
+			CreatedBy:   creator,
+		})
+	}
+
+	if err := s.chatRepo.CreateSystemRooms(ctx, rooms); err != nil {
+		return err
 	}
 
 	staff, err := s.roleRepo.GetUsersByRoles(ctx, []role.Role{authz.RoleModerator, authz.RoleAdmin, authz.RoleSuperAdmin})
@@ -102,48 +116,32 @@ func (s *systemService) SyncSystemRoomMembership(ctx context.Context, userID uui
 	}
 
 	desired := memberRoleForSystem(newRole)
-	if err := s.syncOneSystemRoom(ctx, modsID, userID, eligibleForMods(newRole), desired); err != nil {
-		return err
-	}
-	if err := s.syncOneSystemRoom(ctx, adminsID, userID, eligibleForAdmins(newRole), desired); err != nil {
-		return err
-	}
-	return nil
-}
 
-func (s *systemService) syncOneSystemRoom(ctx context.Context, roomID, userID uuid.UUID, shouldBeMember bool, desiredRole string) error {
-	if roomID == uuid.Nil {
-		return nil
-	}
-	currentRole, err := s.chatRepo.GetMemberRole(ctx, roomID, userID)
+	changes, err := s.chatRepo.SyncSystemRoomMembership(ctx, []repository.SystemRoomMembership{
+		{RoomID: modsID, UserID: userID, ShouldBeMember: eligibleForMods(newRole), DesiredRole: desired},
+		{RoomID: adminsID, UserID: userID, ShouldBeMember: eligibleForAdmins(newRole), DesiredRole: desired},
+	})
 	if err != nil {
-		return fmt.Errorf("get current role: %w", err)
+		return err
 	}
-	wasMember := currentRole != ""
 
-	switch {
-	case shouldBeMember && !wasMember:
-		if err := s.chatRepo.AddMemberWithRole(ctx, roomID, userID, desiredRole, false); err != nil {
-			return err
+	for i := range changes {
+		if changes[i].Joined {
+			s.hub.JoinRoom(changes[i].RoomID, userID)
+			s.hub.SendToUser(userID, ws.Message{
+				Type: "chat_room_invited",
+				Data: map[string]any{"room_id": changes[i].RoomID},
+			})
+
+			continue
 		}
-		s.hub.JoinRoom(roomID, userID)
-		s.hub.SendToUser(userID, ws.Message{
-			Type: "chat_room_invited",
-			Data: map[string]any{"room_id": roomID},
-		})
-	case !shouldBeMember && wasMember:
-		if err := s.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
-			return err
-		}
-		s.hub.LeaveRoom(roomID, userID)
+
+		s.hub.LeaveRoom(changes[i].RoomID, userID)
 		s.hub.SendToUser(userID, ws.Message{
 			Type: "chat_kicked",
-			Data: map[string]any{"room_id": roomID},
+			Data: map[string]any{"room_id": changes[i].RoomID},
 		})
-	case shouldBeMember && wasMember && currentRole != desiredRole:
-		if err := s.chatRepo.SetMemberRole(ctx, roomID, userID, desiredRole); err != nil {
-			return err
-		}
 	}
+
 	return nil
 }

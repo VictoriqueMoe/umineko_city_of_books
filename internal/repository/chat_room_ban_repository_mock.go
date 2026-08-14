@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockChatRoomBanRepository) EXPECT() *MockChatRoomBanRepository_Expecte
 }
 
 // Ban provides a mock function for the type MockChatRoomBanRepository
-func (_mock *MockChatRoomBanRepository) Ban(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, bannedBy *uuid.UUID, reason string) error {
-	ret := _mock.Called(ctx, roomID, userID, bannedBy, reason)
+func (_mock *MockChatRoomBanRepository) Ban(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, bannedBy *uuid.UUID, reason string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, bannedBy, reason, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, bannedBy, reason)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Ban")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, bannedBy, reason)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, bannedBy, reason, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,11 +73,13 @@ type MockChatRoomBanRepository_Ban_Call struct {
 //   - userID uuid.UUID
 //   - bannedBy *uuid.UUID
 //   - reason string
-func (_e *MockChatRoomBanRepository_Expecter) Ban(ctx any, roomID any, userID any, bannedBy any, reason any) *MockChatRoomBanRepository_Ban_Call {
-	return &MockChatRoomBanRepository_Ban_Call{Call: _e.mock.On("Ban", ctx, roomID, userID, bannedBy, reason)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRoomBanRepository_Expecter) Ban(ctx any, roomID any, userID any, bannedBy any, reason any, tx ...any) *MockChatRoomBanRepository_Ban_Call {
+	return &MockChatRoomBanRepository_Ban_Call{Call: _e.mock.On("Ban",
+		append([]any{ctx, roomID, userID, bannedBy, reason}, tx...)...)}
 }
 
-func (_c *MockChatRoomBanRepository_Ban_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, bannedBy *uuid.UUID, reason string)) *MockChatRoomBanRepository_Ban_Call {
+func (_c *MockChatRoomBanRepository_Ban_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, bannedBy *uuid.UUID, reason string, tx ...*sql.Tx)) *MockChatRoomBanRepository_Ban_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -92,12 +101,19 @@ func (_c *MockChatRoomBanRepository_Ban_Call) Run(run func(ctx context.Context, 
 		if args[4] != nil {
 			arg4 = args[4].(string)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -108,14 +124,20 @@ func (_c *MockChatRoomBanRepository_Ban_Call) Return(err error) *MockChatRoomBan
 	return _c
 }
 
-func (_c *MockChatRoomBanRepository_Ban_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, bannedBy *uuid.UUID, reason string) error) *MockChatRoomBanRepository_Ban_Call {
+func (_c *MockChatRoomBanRepository_Ban_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, bannedBy *uuid.UUID, reason string, tx ...*sql.Tx) error) *MockChatRoomBanRepository_Ban_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // BannedRoomIDsForUser provides a mock function for the type MockChatRoomBanRepository
-func (_mock *MockChatRoomBanRepository) BannedRoomIDsForUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockChatRoomBanRepository) BannedRoomIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for BannedRoomIDsForUser")
@@ -123,18 +145,18 @@ func (_mock *MockChatRoomBanRepository) BannedRoomIDsForUser(ctx context.Context
 
 	var r0 []uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -149,11 +171,13 @@ type MockChatRoomBanRepository_BannedRoomIDsForUser_Call struct {
 // BannedRoomIDsForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) BannedRoomIDsForUser(ctx any, userID any) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
-	return &MockChatRoomBanRepository_BannedRoomIDsForUser_Call{Call: _e.mock.On("BannedRoomIDsForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRoomBanRepository_Expecter) BannedRoomIDsForUser(ctx any, userID any, tx ...any) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
+	return &MockChatRoomBanRepository_BannedRoomIDsForUser_Call{Call: _e.mock.On("BannedRoomIDsForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockChatRoomBanRepository_BannedRoomIDsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
+func (_c *MockChatRoomBanRepository_BannedRoomIDsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -163,9 +187,16 @@ func (_c *MockChatRoomBanRepository_BannedRoomIDsForUser_Call) Run(run func(ctx 
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -176,14 +207,20 @@ func (_c *MockChatRoomBanRepository_BannedRoomIDsForUser_Call) Return(uUIDs []uu
 	return _c
 }
 
-func (_c *MockChatRoomBanRepository_BannedRoomIDsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
+func (_c *MockChatRoomBanRepository_BannedRoomIDsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockChatRoomBanRepository_BannedRoomIDsForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsBanned provides a mock function for the type MockChatRoomBanRepository
-func (_mock *MockChatRoomBanRepository) IsBanned(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRoomBanRepository) IsBanned(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsBanned")
@@ -191,16 +228,16 @@ func (_mock *MockChatRoomBanRepository) IsBanned(ctx context.Context, roomID uui
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -216,11 +253,13 @@ type MockChatRoomBanRepository_IsBanned_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) IsBanned(ctx any, roomID any, userID any) *MockChatRoomBanRepository_IsBanned_Call {
-	return &MockChatRoomBanRepository_IsBanned_Call{Call: _e.mock.On("IsBanned", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRoomBanRepository_Expecter) IsBanned(ctx any, roomID any, userID any, tx ...any) *MockChatRoomBanRepository_IsBanned_Call {
+	return &MockChatRoomBanRepository_IsBanned_Call{Call: _e.mock.On("IsBanned",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRoomBanRepository_IsBanned_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRoomBanRepository_IsBanned_Call {
+func (_c *MockChatRoomBanRepository_IsBanned_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRoomBanRepository_IsBanned_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -234,10 +273,17 @@ func (_c *MockChatRoomBanRepository_IsBanned_Call) Run(run func(ctx context.Cont
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -248,14 +294,20 @@ func (_c *MockChatRoomBanRepository_IsBanned_Call) Return(b bool, err error) *Mo
 	return _c
 }
 
-func (_c *MockChatRoomBanRepository_IsBanned_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRoomBanRepository_IsBanned_Call {
+func (_c *MockChatRoomBanRepository_IsBanned_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRoomBanRepository_IsBanned_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListForRoom provides a mock function for the type MockChatRoomBanRepository
-func (_mock *MockChatRoomBanRepository) ListForRoom(ctx context.Context, roomID uuid.UUID) ([]ChatRoomBanRow, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRoomBanRepository) ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatRoomBanRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListForRoom")
@@ -263,18 +315,18 @@ func (_mock *MockChatRoomBanRepository) ListForRoom(ctx context.Context, roomID 
 
 	var r0 []ChatRoomBanRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatRoomBanRow, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatRoomBanRow, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatRoomBanRow); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatRoomBanRow); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatRoomBanRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -289,11 +341,13 @@ type MockChatRoomBanRepository_ListForRoom_Call struct {
 // ListForRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) ListForRoom(ctx any, roomID any) *MockChatRoomBanRepository_ListForRoom_Call {
-	return &MockChatRoomBanRepository_ListForRoom_Call{Call: _e.mock.On("ListForRoom", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRoomBanRepository_Expecter) ListForRoom(ctx any, roomID any, tx ...any) *MockChatRoomBanRepository_ListForRoom_Call {
+	return &MockChatRoomBanRepository_ListForRoom_Call{Call: _e.mock.On("ListForRoom",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRoomBanRepository_ListForRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRoomBanRepository_ListForRoom_Call {
+func (_c *MockChatRoomBanRepository_ListForRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRoomBanRepository_ListForRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -303,9 +357,16 @@ func (_c *MockChatRoomBanRepository_ListForRoom_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -316,22 +377,28 @@ func (_c *MockChatRoomBanRepository_ListForRoom_Call) Return(chatRoomBanRows []C
 	return _c
 }
 
-func (_c *MockChatRoomBanRepository_ListForRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]ChatRoomBanRow, error)) *MockChatRoomBanRepository_ListForRoom_Call {
+func (_c *MockChatRoomBanRepository_ListForRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatRoomBanRow, error)) *MockChatRoomBanRepository_ListForRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unban provides a mock function for the type MockChatRoomBanRepository
-func (_mock *MockChatRoomBanRepository) Unban(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRoomBanRepository) Unban(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Unban")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -347,11 +414,13 @@ type MockChatRoomBanRepository_Unban_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRoomBanRepository_Expecter) Unban(ctx any, roomID any, userID any) *MockChatRoomBanRepository_Unban_Call {
-	return &MockChatRoomBanRepository_Unban_Call{Call: _e.mock.On("Unban", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRoomBanRepository_Expecter) Unban(ctx any, roomID any, userID any, tx ...any) *MockChatRoomBanRepository_Unban_Call {
+	return &MockChatRoomBanRepository_Unban_Call{Call: _e.mock.On("Unban",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRoomBanRepository_Unban_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRoomBanRepository_Unban_Call {
+func (_c *MockChatRoomBanRepository_Unban_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRoomBanRepository_Unban_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -365,10 +434,17 @@ func (_c *MockChatRoomBanRepository_Unban_Call) Run(run func(ctx context.Context
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -379,7 +455,91 @@ func (_c *MockChatRoomBanRepository_Unban_Call) Return(err error) *MockChatRoomB
 	return _c
 }
 
-func (_c *MockChatRoomBanRepository_Unban_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockChatRoomBanRepository_Unban_Call {
+func (_c *MockChatRoomBanRepository_Unban_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatRoomBanRepository_Unban_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnbanWithAudit provides a mock function for the type MockChatRoomBanRepository
+func (_mock *MockChatRoomBanRepository) UnbanWithAudit(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, actorID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, actorID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnbanWithAudit")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, actorID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRoomBanRepository_UnbanWithAudit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnbanWithAudit'
+type MockChatRoomBanRepository_UnbanWithAudit_Call struct {
+	*mock.Call
+}
+
+// UnbanWithAudit is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userID uuid.UUID
+//   - actorID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRoomBanRepository_Expecter) UnbanWithAudit(ctx any, roomID any, userID any, actorID any, tx ...any) *MockChatRoomBanRepository_UnbanWithAudit_Call {
+	return &MockChatRoomBanRepository_UnbanWithAudit_Call{Call: _e.mock.On("UnbanWithAudit",
+		append([]any{ctx, roomID, userID, actorID}, tx...)...)}
+}
+
+func (_c *MockChatRoomBanRepository_UnbanWithAudit_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx)) *MockChatRoomBanRepository_UnbanWithAudit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRoomBanRepository_UnbanWithAudit_Call) Return(err error) *MockChatRoomBanRepository_UnbanWithAudit_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRoomBanRepository_UnbanWithAudit_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx) error) *MockChatRoomBanRepository_UnbanWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }

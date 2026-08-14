@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
@@ -15,8 +16,8 @@ type (
 	}
 )
 
-func (r *uploadDAO) GetAllReferencedFiles() ([]string, error) {
-	query, err := r.buildUnionQuery()
+func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
+	query, err := r.buildUnionQuery(tx...)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +25,7 @@ func (r *uploadDAO) GetAllReferencedFiles() ([]string, error) {
 		return nil, nil
 	}
 
-	rows, err := r.db.Query(query)
+	rows, err := getDb(r.db, tx).QueryContext(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("query referenced files: %w", err)
 	}
@@ -44,8 +45,8 @@ func (r *uploadDAO) GetAllReferencedFiles() ([]string, error) {
 	return results, rows.Err()
 }
 
-func (r *uploadDAO) buildUnionQuery() (string, error) {
-	rows, err := r.db.Query(
+func (r *uploadDAO) buildUnionQuery(tx ...*sql.Tx) (string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(context.Background(),
 		`SELECT table_name, column_name
 		 FROM information_schema.columns
 		 WHERE table_schema = 'public'

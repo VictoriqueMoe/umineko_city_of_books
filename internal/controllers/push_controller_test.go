@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"testing"
 
@@ -56,7 +57,7 @@ func TestUnregisterDeviceToken_ScopesDeleteToSessionUser(t *testing.T) {
 
 			var gotUserID uuid.UUID
 			repo.EXPECT().Delete(mock.Anything, mock.Anything, "victim-token").
-				RunAndReturn(func(_ context.Context, userID uuid.UUID, _ string) error {
+				RunAndReturn(func(_ context.Context, userID uuid.UUID, _ string, _ ...*sql.Tx) error {
 					gotUserID = userID
 					return nil
 				})
@@ -92,7 +93,7 @@ func TestRegisterDeviceToken_BindsSessionUserNotRequestBody(t *testing.T) {
 
 			var gotUserID uuid.UUID
 			repo.EXPECT().Upsert(mock.Anything, mock.Anything, "tok-handover", "android").
-				RunAndReturn(func(_ context.Context, userID uuid.UUID, _ string, _ string) error {
+				RunAndReturn(func(_ context.Context, userID uuid.UUID, _ string, _ string, _ ...*sql.Tx) error {
 					gotUserID = userID
 					return nil
 				})

@@ -51,10 +51,9 @@ func (s *service) run(id int, j job) {
 
 	tune, _ := s.snapshot()
 
-	invocationID := uuid.New()
 	model := firstNonBlank(j.bot.Model, tune.model)
 
-	out := s.reply(ctx, j, tune, invocationID, model)
+	out := s.reply(ctx, j, tune, model)
 
 	invocationsTotal.WithLabelValues(string(out.status), string(j.ev.channel())).Inc()
 
@@ -112,7 +111,7 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 	noticesTotal.WithLabelValues(string(out.reason), "delivered").Inc()
 }
 
-func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uuid.UUID, model string) outcome {
+func (s *service) reply(ctx context.Context, j job, tune tuning, model string) outcome {
 	quota, err := s.overQuota(ctx, j.ev.SenderID, tune)
 	if err != nil {
 		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
@@ -131,7 +130,15 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 		roomID = new(j.ev.ScopeID)
 	}
 
-	if err := s.botRepo.CreateInvocation(ctx, invocationID, j.bot.UserID, j.ev.SenderID, roomID, j.ev.ItemID, string(j.ev.channel()), model); err != nil {
+	inv, err := s.botRepo.CreateInvocation(ctx, repository.NewInvocation{
+		BotUserID: j.bot.UserID,
+		UserID:    j.ev.SenderID,
+		RoomID:    roomID,
+		MessageID: j.ev.ItemID,
+		Channel:   string(j.ev.channel()),
+		Model:     model,
+	})
+	if err != nil {
 		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
 	}
 
@@ -151,7 +158,10 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 
 	result, err := s.openaiSvc.Complete(ctx, req)
 	if err != nil {
-		_ = s.botRepo.CompleteInvocation(ctx, invocationID, repository.InvocationUsage{}, repository.InvocationFailed)
+		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, repository.InvocationUsage{}, repository.InvocationFailed); closeErr != nil {
+			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the failed invocation")
+		}
+
 		stopTyping()
 
 		return classifyProvider(ctx, err)
@@ -161,7 +171,10 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 
 	body := stripSelfLabel(result.Text, j.bot)
 	if body == "" {
-		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
+		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
+			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the refused invocation")
+		}
+
 		stopTyping()
 
 		return outcome{
@@ -184,12 +197,14 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 	stopTyping()
 
 	if sendErr := s.deliver(ctx, j, body); sendErr != nil {
-		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
+		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
+			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the undelivered invocation")
+		}
 
 		return classifyDelivery(sendErr)
 	}
 
-	if err := s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationReplied); err != nil {
+	if err := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationReplied); err != nil {
 		logger.Log.Error().Err(err).Str("bot", j.bot.Username).Msg("chatbot answered but the invocation could not be closed")
 	}
 

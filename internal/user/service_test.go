@@ -16,7 +16,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
+
+func hashFor(t *testing.T, password string) string {
+	t.Helper()
+	h, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	require.NoError(t, err)
+	return string(h)
+}
 
 func newTestService(t *testing.T) (
 	*service,
@@ -45,39 +53,36 @@ func newFullTestService(t *testing.T) (
 	return svc, userRepo, roleRepo, authzSvc, vanityRepo, settingsSvc
 }
 
-func TestCreate_FirstUserAssignsSuperAdmin(t *testing.T) {
+func TestNewAccountSpec_FirstUserCarriesSuperAdmin(t *testing.T) {
 	// given
-	svc, userRepo, roleRepo, _ := newTestService(t)
-	userID := uuid.New()
-	created := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
+	svc, userRepo, _, _ := newTestService(t)
 	userRepo.EXPECT().Count(mock.Anything).Return(0, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(created, nil)
-	roleRepo.EXPECT().SetRole(mock.Anything, userID, authz.RoleSuperAdmin).Return(nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
+	spec, err := svc.NewAccountSpec(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, userID, got.ID)
-	assert.Equal(t, "alice", got.Username)
+	assert.Equal(t, authz.RoleSuperAdmin, spec.Role)
+	assert.Equal(t, "alice", spec.User.Username)
+	assert.Equal(t, "alice@example.com", spec.User.Email)
+	assert.Equal(t, "Alice", spec.User.DisplayName)
+	assert.Equal(t, "landing", spec.User.HomePage)
+	assert.True(t, spec.User.DMsEnabled)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(spec.User.PasswordHash), []byte("pw")))
 }
 
-func TestCreate_FirstUserSetRoleErrorSwallowed(t *testing.T) {
+func TestNewAccountSpec_DefaultsDisplayNameToUsername(t *testing.T) {
 	// given
-	svc, userRepo, roleRepo, _ := newTestService(t)
-	userID := uuid.New()
-	created := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
-	userRepo.EXPECT().Count(mock.Anything).Return(0, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(created, nil)
-	roleRepo.EXPECT().SetRole(mock.Anything, userID, authz.RoleSuperAdmin).Return(errors.New("boom"))
+	svc, userRepo, _, _ := newTestService(t)
+	userRepo.EXPECT().Count(mock.Anything).Return(3, nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
+	spec, err := svc.NewAccountSpec(context.Background(), "alice", "alice@example.com", "pw", "   ")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, userID, got.ID)
+	assert.Equal(t, "alice", spec.User.DisplayName)
 }
 
 func TestListStaff_OK_FiltersBannedAndSorts(t *testing.T) {
@@ -142,47 +147,31 @@ func TestListStaff_UserRepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestCreate_SubsequentUserNoRoleAssigned(t *testing.T) {
+func TestNewAccountSpec_SubsequentUserCarriesNoRole(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
-	userID := uuid.New()
-	created := &model.User{ID: userID, Username: "bob", DisplayName: "Bob"}
 	userRepo.EXPECT().Count(mock.Anything).Return(5, nil)
-	userRepo.EXPECT().Create(mock.Anything, "bob", "bob@example.com", "pw", "Bob").Return(created, nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "bob", "bob@example.com", "pw", "Bob")
+	spec, err := svc.NewAccountSpec(context.Background(), "bob", "bob@example.com", "pw", "Bob")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, "bob", got.Username)
+	assert.Empty(t, spec.Role)
+	assert.Equal(t, "bob", spec.User.Username)
 }
 
-func TestCreate_CountErrorBubbles(t *testing.T) {
+func TestNewAccountSpec_CountErrorBubbles(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
 	userRepo.EXPECT().Count(mock.Anything).Return(0, errors.New("db down"))
 
 	// when
-	_, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
+	_, err := svc.NewAccountSpec(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "count users")
-}
-
-func TestCreate_CreateErrorBubbles(t *testing.T) {
-	// given
-	svc, userRepo, _, _ := newTestService(t)
-	userRepo.EXPECT().Count(mock.Anything).Return(3, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(nil, errors.New("dup"))
-
-	// when
-	_, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "create user")
 }
 
 func TestGetByID_OK(t *testing.T) {
@@ -232,8 +221,8 @@ func TestValidateCredentials_OK(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
 	userID := uuid.New()
-	found := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
-	userRepo.EXPECT().ValidatePassword(mock.Anything, "alice", "pw").Return(found, nil)
+	found := &model.User{ID: userID, Username: "alice", DisplayName: "Alice", PasswordHash: hashFor(t, "pw")}
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(found, nil)
 
 	// when
 	got, err := svc.ValidateCredentials(context.Background(), "alice", "pw")
@@ -243,10 +232,10 @@ func TestValidateCredentials_OK(t *testing.T) {
 	assert.Equal(t, userID, got.ID)
 }
 
-func TestValidateCredentials_InvalidReturnsErr(t *testing.T) {
+func TestValidateCredentials_UnknownUserReturnsErr(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
-	userRepo.EXPECT().ValidatePassword(mock.Anything, "alice", "wrong").Return(nil, nil)
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(nil, nil)
 
 	// when
 	_, err := svc.ValidateCredentials(context.Background(), "alice", "wrong")
@@ -255,10 +244,36 @@ func TestValidateCredentials_InvalidReturnsErr(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
+func TestValidateCredentials_WrongPasswordReturnsErr(t *testing.T) {
+	// given
+	svc, userRepo, _, _ := newTestService(t)
+	found := &model.User{ID: uuid.New(), Username: "alice", PasswordHash: hashFor(t, "pw")}
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(found, nil)
+
+	// when
+	_, err := svc.ValidateCredentials(context.Background(), "alice", "wrong")
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+func TestValidateCredentials_BotCannotSignIn(t *testing.T) {
+	// given
+	svc, userRepo, _, _ := newTestService(t)
+	found := &model.User{ID: uuid.New(), Username: "beato", IsBot: true, PasswordHash: hashFor(t, "pw")}
+	userRepo.EXPECT().GetByUsername(mock.Anything, "beato").Return(found, nil)
+
+	// when
+	_, err := svc.ValidateCredentials(context.Background(), "beato", "pw")
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
 func TestValidateCredentials_RepoError(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
-	userRepo.EXPECT().ValidatePassword(mock.Anything, "alice", "pw").Return(nil, errors.New("boom"))
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.ValidateCredentials(context.Background(), "alice", "pw")

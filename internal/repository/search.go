@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 )
@@ -46,8 +47,8 @@ type (
 	}
 
 	SearchRepository interface {
-		Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error)
-		QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error)
+		Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int, tx ...*sql.Tx) ([]SearchResult, int, error)
+		QuickSearch(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]SearchResult, error)
 	}
 )
 
@@ -454,10 +455,10 @@ func NewSearchRepo(dao SearchRepository) SearchRepository {
 	return &searchRepository{dao: dao}
 }
 
-func (r *searchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error) {
-	return r.dao.Search(ctx, query, types, limit, offset)
+func (r *searchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int, tx ...*sql.Tx) ([]SearchResult, int, error) {
+	return r.dao.Search(ctx, query, types, limit, offset, tx...)
 }
 
-func (r *searchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error) {
-	return r.dao.QuickSearch(ctx, query, perTypeLimit)
+func (r *searchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]SearchResult, error) {
+	return r.dao.QuickSearch(ctx, query, perTypeLimit, tx...)
 }

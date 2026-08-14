@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,19 +18,32 @@ func TestReportDAO_Create(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	id, err := repos.Report.Create(context.Background(), user.ID, "post", "post-1", "ctx-1", "spam")
+	created, err := repos.Report.Create(context.Background(), repository.NewReport{
+		ReporterID: user.ID,
+		TargetType: "post",
+		TargetID:   "post-1",
+		ContextID:  "ctx-1",
+		Reason:     "spam",
+	})
 
 	// then
 	require.NoError(t, err)
-	assert.Greater(t, id, int64(0))
+	assert.Greater(t, created.ID, 0)
 }
 
 func TestReportDAO_GetByID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Reporter"))
-	id, err := repos.Report.Create(context.Background(), user.ID, "post", "post-1", "ctx-1", "abusive")
+	created, err := repos.Report.Create(context.Background(), repository.NewReport{
+		ReporterID: user.ID,
+		TargetType: "post",
+		TargetID:   "post-1",
+		ContextID:  "ctx-1",
+		Reason:     "abusive",
+	})
 	require.NoError(t, err)
+	id := created.ID
 
 	// when
 	row, err := repos.Report.GetByID(context.Background(), int(id))
@@ -80,8 +94,8 @@ func TestReportDAO_List_All(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	_, err1 := repos.Report.Create(ctx, user.ID, "post", "p1", "", "spam")
-	_, err2 := repos.Report.Create(ctx, user.ID, "comment", "c1", "", "abuse")
+	_, err1 := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
+	_, err2 := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "comment", TargetID: "c1", Reason: "abuse"})
 	require.NoError(t, err1)
 	require.NoError(t, err2)
 
@@ -100,10 +114,12 @@ func TestReportDAO_List_FilterByStatus(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	resolver := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	idOpen, err := repos.Report.Create(ctx, user.ID, "post", "p1", "", "spam")
+	idOpenRow, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
 	require.NoError(t, err)
-	idResolved, err := repos.Report.Create(ctx, user.ID, "post", "p2", "", "spam")
+	idOpen := idOpenRow.ID
+	idResolvedRow, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p2", Reason: "spam"})
 	require.NoError(t, err)
+	idResolved := idResolvedRow.ID
 	require.NoError(t, repos.Report.Resolve(ctx, int(idResolved), resolver.ID, "handled"))
 
 	// when
@@ -126,11 +142,11 @@ func TestReportDAO_List_OrderedByCreatedAtDesc(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	ids := make([]int64, 3)
+	ids := make([]int, 3)
 	for i := range 3 {
-		id, err := repos.Report.Create(ctx, user.ID, "post", "p", "", "r")
+		created, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p", Reason: "r"})
 		require.NoError(t, err)
-		ids[i] = id
+		ids[i] = created.ID
 	}
 
 	// when
@@ -159,7 +175,7 @@ func TestReportDAO_List_Pagination(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	for range 5 {
-		_, err := repos.Report.Create(ctx, user.ID, "post", "p", "", "r")
+		_, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p", Reason: "r"})
 		require.NoError(t, err)
 	}
 
@@ -191,8 +207,9 @@ func TestReportDAO_Resolve(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	resolver := daotest.CreateUser(t, repos, daotest.WithDisplayName("Mod"))
 	ctx := context.Background()
-	id, err := repos.Report.Create(ctx, user.ID, "post", "p1", "", "spam")
+	created, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
 	require.NoError(t, err)
+	id := created.ID
 
 	// when
 	err = repos.Report.Resolve(ctx, int(id), resolver.ID, "warned user")

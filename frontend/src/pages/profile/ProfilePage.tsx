@@ -23,6 +23,7 @@ import { useFollowers, useFollowing } from "../../api/queries/misc";
 import { useCreateGallery } from "../../api/mutations/art";
 import { parseServerDate } from "../../utils/time";
 import { can } from "../../utils/permissions";
+import { renderRich } from "../../utils/richText";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
@@ -383,7 +384,9 @@ export function ProfilePage() {
                 </div>
             </div>
 
-            <div className={styles.bio}>{profile.bio || "This player has not written a bio yet."}</div>
+            <div className={styles.bio}>
+                {profile.bio ? renderRich(profile.bio) : "This player has not written a bio yet."}
+            </div>
 
             {socialEntries.length > 0 && (
                 <div className={styles.socialRow}>

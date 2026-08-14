@@ -137,25 +137,34 @@ func (s *service) Refresh(ctx context.Context) error {
 		}
 	}
 
-	if len(missing) > 0 {
-		if err := s.repo.SetMultiple(ctx, missing, uuid.Nil); err != nil {
+	valid := validKeys()
+
+	var stale []string
+	for k := range existing {
+		if !valid[config.SiteSettingKey(k)] {
+			stale = append(stale, k)
+		}
+	}
+
+	if len(missing) > 0 || len(stale) > 0 {
+		if err := s.repo.Reconcile(ctx, repository.SettingsReconcile{Missing: missing, Stale: stale, UpdatedBy: uuid.Nil}); err != nil {
 			return err
 		}
+	}
+
+	if len(missing) > 0 {
 		maps.Copy(existing, missing)
 
 		logger.Log.Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
 	}
 
-	valid := validKeys()
-	pending := make(map[string]string, len(existing))
+	for _, k := range stale {
+		logger.Log.Info().Str("key", k).Msg("removed stale setting")
+	}
 
+	pending := make(map[string]string, len(existing))
 	for k, v := range existing {
 		if !valid[config.SiteSettingKey(k)] {
-			if err := s.repo.Delete(ctx, k); err != nil {
-				logger.Log.Error().Err(err).Str("key", k).Msg("failed to delete stale setting")
-			} else {
-				logger.Log.Info().Str("key", k).Msg("removed stale setting")
-			}
 			continue
 		}
 

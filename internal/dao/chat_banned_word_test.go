@@ -17,7 +17,7 @@ func TestChatBannedWordDAO_CreateUpdateDelete(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	id, err := repos.ChatBannedWord.Create(ctx, repository.ChatBannedWordSpec{
+	created, err := repos.ChatBannedWord.Create(ctx, repository.ChatBannedWordSpec{
 		Scope:         "global",
 		Pattern:       "old",
 		MatchMode:     "substring",
@@ -26,6 +26,7 @@ func TestChatBannedWordDAO_CreateUpdateDelete(t *testing.T) {
 		CreatedBy:     &user.ID,
 	})
 	require.NoError(t, err)
+	id := created.ID
 
 	got, err := repos.ChatBannedWord.GetByID(ctx, id)
 	require.NoError(t, err)

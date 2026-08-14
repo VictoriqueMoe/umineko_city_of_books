@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -35,21 +36,6 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 	}
 	tags := sanitizeTags(req.Tags)
 
-	roomID := uuid.New()
-	if err := r.chatRepo.CreateRoom(ctx, roomID, name, description, "group", req.IsPublic, req.IsRP, creatorID); err != nil {
-		return nil, fmt.Errorf("create group room: %w", err)
-	}
-	if len(tags) > 0 {
-		if err := r.chatRepo.AddRoomTags(ctx, roomID, tags); err != nil {
-			return nil, fmt.Errorf("add room tags: %w", err)
-		}
-	}
-	if err := r.chatRepo.AddMemberWithRole(ctx, roomID, creatorID, "host", false); err != nil {
-		return nil, fmt.Errorf("add creator to group: %w", err)
-	}
-
-	r.hub.JoinRoom(roomID, creatorID)
-
 	invitedIDs := make([]uuid.UUID, 0, len(req.MemberIDs))
 	for _, memberID := range req.MemberIDs {
 		if memberID == creatorID {
@@ -58,12 +44,28 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		if blocked, _ := r.blockSvc.IsBlockedEither(ctx, creatorID, memberID); blocked {
 			continue
 		}
-		if err := r.chatRepo.AddMemberWithRole(ctx, roomID, memberID, "member", false); err != nil {
-			return nil, fmt.Errorf("add member to group: %w", err)
-		}
 
-		r.hub.JoinRoom(roomID, memberID)
 		invitedIDs = append(invitedIDs, memberID)
+	}
+
+	created, err := r.chatRepo.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+		Name:        name,
+		Description: description,
+		IsPublic:    req.IsPublic,
+		IsRP:        req.IsRP,
+		CreatedBy:   creatorID,
+		Tags:        tags,
+		MemberIDs:   invitedIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	roomID := created.ID
+
+	r.hub.JoinRoom(roomID, creatorID)
+	for _, memberID := range invitedIDs {
+		r.hub.JoinRoom(roomID, memberID)
 	}
 
 	if len(invitedIDs) > 0 {
@@ -207,7 +209,18 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		return nil, ErrRoomFull
 	}
 
-	if err := r.chatRepo.AddMemberWithRole(ctx, roomID, userID, "member", ghost); err != nil {
+	joiner, _ := r.userRepo.GetByID(ctx, userID)
+
+	actionBody := ""
+	if joiner != nil && !ghost {
+		actionBody = r.roomActionMessageBody(ctx, roomID, userID, fmt.Sprintf("%s joined the room.", joiner.DisplayName))
+	}
+
+	actionRow, err := r.chatRepo.AddMemberWithSystemMessage(ctx,
+		repository.NewChatRoomMember{RoomID: roomID, UserID: userID, Role: "member", Ghost: ghost},
+		repository.NewChatMessage{RoomID: roomID, SenderID: userID, Body: actionBody, IsSystem: true},
+	)
+	if err != nil {
 		return nil, fmt.Errorf("add member: %w", err)
 	}
 
@@ -219,7 +232,6 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 	}
 
 	members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
-	joiner, _ := r.userRepo.GetByID(ctx, userID)
 	if joiner != nil {
 		event := ws.Message{
 			Type: "chat_member_joined",
@@ -232,7 +244,7 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		if ghost {
 			r.broadcastToStaff(ctx, members, event)
 		} else {
-			r.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s joined the room.", joiner.DisplayName))
+			r.broadcastRoomActionMessage(ctx, roomID, userID, actionRow)
 			for _, mid := range members {
 				r.hub.SendToUser(mid, event)
 			}
@@ -365,12 +377,14 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 		r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
 
 		members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
-		if err := r.chatRepo.DeleteMessages(ctx, roomID); err != nil {
-			return fmt.Errorf("delete messages: %w", err)
+
+		paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
+		if err != nil {
+			return err
 		}
-		if err := r.chatRepo.DeleteRoom(ctx, roomID); err != nil {
-			return fmt.Errorf("delete room: %w", err)
-		}
+
+		r.uploadSvc.Delete(paths...)
+
 		event := ws.Message{
 			Type: "chat_room_deleted",
 			Data: map[string]any{
@@ -400,12 +414,12 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	if remaining == 0 {
 		r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
 
-		if err := r.chatRepo.DeleteMessages(ctx, roomID); err != nil {
-			return fmt.Errorf("delete messages: %w", err)
+		paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
+		if err != nil {
+			return err
 		}
-		if err := r.chatRepo.DeleteRoom(ctx, roomID); err != nil {
-			return fmt.Errorf("delete room: %w", err)
-		}
+
+		r.uploadSvc.Delete(paths...)
 	}
 
 	return nil
@@ -525,7 +539,7 @@ func (r *roomsService) ClearRoomAvatar(ctx context.Context, roomID, userID uuid.
 	if err == nil {
 		for _, row := range rows {
 			if row.UserID == userID && row.MemberAvatarURL != "" {
-				_ = r.uploadSvc.Delete(row.MemberAvatarURL)
+				r.uploadSvc.Delete(row.MemberAvatarURL)
 				break
 			}
 		}

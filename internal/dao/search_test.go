@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -32,12 +31,13 @@ func TestSearchDAO_Theory_TitleMatch(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	id, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
+	created, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: user.ID,
 		Title:  "The Witch of Endless Magic",
 		Body:   "Beatrice presides over the rokkenjima incident.",
 		Series: "umineko",
 	})
 	require.NoError(t, err)
+	id := created.ID
 
 	// when
 	results := searchRepoOnce(t, repos, "witch", nil)
@@ -52,7 +52,7 @@ func TestSearchDAO_Body_HighlightsMatch(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
+	_, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: user.ID,
 		Title:  "Episode notes",
 		Body:   "The golden truth uncovers Beatrice once and for all.",
 		Series: "umineko",
@@ -72,10 +72,11 @@ func TestSearchDAO_TitleTrigram_HandlesTypo(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	id, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
+	created, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: user.ID,
 		Title: "Beatrice", Body: "The endless witch.", Series: "umineko",
 	})
 	require.NoError(t, err)
+	id := created.ID
 
 	// when
 	results := searchRepoOnce(t, repos, "beatice", nil)
@@ -90,7 +91,7 @@ func TestSearchDAO_BannedUser_ContentHidden(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	bannedUser := daotest.CreateUser(t, repos)
 	admin := daotest.CreateUser(t, repos)
-	_, err := repos.Theory.Create(context.Background(), bannedUser.ID, dto.CreateTheoryRequest{
+	_, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: bannedUser.ID,
 		Title: "Hidden treasure of rokkenjima", Body: "...", Series: "umineko",
 	})
 	require.NoError(t, err)
@@ -107,18 +108,28 @@ func TestSearchDAO_FanficDraft_Hidden(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	draftID := uuid.New()
-	require.NoError(t, repos.Fanfic.CreateWithDetails(
-		context.Background(), draftID, user.ID,
-		"Hidden Draft About Beatrice", "Secret summary about beatrice",
-		"Umineko", "K", "English", "draft", false, false, nil, nil, nil, false,
-	))
-	publishedID := uuid.New()
-	require.NoError(t, repos.Fanfic.CreateWithDetails(
-		context.Background(), publishedID, user.ID,
-		"Public Beatrice Story", "Public summary",
-		"Umineko", "K", "English", "in_progress", false, false, nil, nil, nil, false,
-	))
+	draft, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
+		UserID:   user.ID,
+		Title:    "Hidden Draft About Beatrice",
+		Summary:  "Secret summary about beatrice",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
+	})
+	require.NoError(t, err)
+	draftID := draft.ID
+	published, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
+		UserID:   user.ID,
+		Title:    "Public Beatrice Story",
+		Summary:  "Public summary",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "in_progress",
+	})
+	require.NoError(t, err)
+	publishedID := published.ID
 
 	// when
 	results := searchRepoOnce(t, repos, "beatrice", nil)
@@ -133,12 +144,12 @@ func TestSearchDAO_TypeFilter_ReturnsOnlyRequestedType(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
+	_, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: user.ID,
 		Title: "Maria's lullaby explanation", Body: "x", Series: "umineko",
 	})
 	require.NoError(t, err)
-	postID := uuid.New()
-	require.NoError(t, repos.Post.Create(context.Background(), postID, user.ID, "umineko", "Maria's lullaby was the key", nil, nil))
+	_, err = repos.Post.Create(context.Background(), repository.NewPost{UserID: user.ID, Corner: "umineko", Body: "Maria's lullaby was the key"})
+	require.NoError(t, err)
 
 	// when
 	theoryOnly := searchRepoOnce(t, repos, "lullaby", []repository.SearchEntityType{repository.SearchEntityTheory})
@@ -159,10 +170,12 @@ func TestSearchDAO_PostComment_HasParentID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	postID := uuid.New()
-	require.NoError(t, repos.Post.Create(context.Background(), postID, user.ID, "umineko", "the parent post body", nil, nil))
-	commentID := uuid.New()
-	require.NoError(t, repos.Post.CreateComment(context.Background(), commentID, postID, nil, user.ID, "I think this kinzo theory is right"))
+	post, err := repos.Post.Create(context.Background(), repository.NewPost{UserID: user.ID, Corner: "umineko", Body: "the parent post body"})
+	require.NoError(t, err)
+	postID := post.ID
+	comment, err := repos.Post.CreateComment(context.Background(), postID, nil, user.ID, "I think this kinzo theory is right")
+	require.NoError(t, err)
+	commentID := comment.ID
 
 	// when
 	results := searchRepoOnce(t, repos, "kinzo", []repository.SearchEntityType{repository.SearchEntityPostComment})
@@ -192,7 +205,7 @@ func TestSearchDAO_QuickSearch_CapsPerType(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	for range 5 {
-		_, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
+		_, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: user.ID,
 			Title: "kinzo theory", Body: "kinzo body", Series: "umineko",
 		})
 		require.NoError(t, err)
@@ -218,10 +231,11 @@ func TestSearchDAO_Pagination_RespectsLimitAndOffset(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	created := make([]uuid.UUID, 0, 5)
 	for range 5 {
-		id, err := repos.Theory.Create(context.Background(), user.ID, dto.CreateTheoryRequest{
+		createdRow, err := repos.Theory.Create(context.Background(), repository.NewTheory{UserID: user.ID,
 			Title: "paginated theory", Body: "paginated body", Series: "umineko",
 		})
 		require.NoError(t, err)
+		id := createdRow.ID
 		created = append(created, id)
 	}
 

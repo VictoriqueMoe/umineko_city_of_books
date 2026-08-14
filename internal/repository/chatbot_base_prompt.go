@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"time"
 
@@ -28,11 +29,11 @@ type (
 	}
 
 	ChatbotBasePromptRepository interface {
-		List(ctx context.Context) ([]ChatbotBasePrompt, error)
-		GetByID(ctx context.Context, id uuid.UUID) (*ChatbotBasePrompt, error)
-		Create(ctx context.Context, prompt ChatbotBasePrompt) error
-		Update(ctx context.Context, prompt ChatbotBasePrompt) error
-		Delete(ctx context.Context, id uuid.UUID) error
+		List(ctx context.Context, tx ...*sql.Tx) ([]ChatbotBasePrompt, error)
+		GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatbotBasePrompt, error)
+		Create(ctx context.Context, name, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error)
+		Update(ctx context.Context, id uuid.UUID, name, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error)
+		Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 	}
 
 	BasePromptInvalidator interface {
@@ -49,14 +50,14 @@ func NewChatbotBasePromptRepo(dao ChatbotBasePromptRepository, c *cache.Manager)
 	return &chatbotBasePromptRepository{dao: dao, cache: c}
 }
 
-func (r *chatbotBasePromptRepository) List(ctx context.Context) ([]ChatbotBasePrompt, error) {
+func (r *chatbotBasePromptRepository) List(ctx context.Context, tx ...*sql.Tx) ([]ChatbotBasePrompt, error) {
 	key := cache.ChatbotBasePrompts.Key()
 
 	if cached, err := cache.Get[[]ChatbotBasePrompt](ctx, r.cache, key); err == nil {
 		return cached, nil
 	}
 
-	prompts, err := r.dao.List(ctx)
+	prompts, err := r.dao.List(ctx, tx...)
 	if err != nil {
 		return nil, err
 	}
@@ -66,14 +67,14 @@ func (r *chatbotBasePromptRepository) List(ctx context.Context) ([]ChatbotBasePr
 	return prompts, nil
 }
 
-func (r *chatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID) (*ChatbotBasePrompt, error) {
+func (r *chatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
 	key := cache.ChatbotBasePromptByID.Key(id.String())
 
 	if cached, err := cache.Get[ChatbotBasePrompt](ctx, r.cache, key); err == nil {
 		return &cached, nil
 	}
 
-	prompt, err := r.dao.GetByID(ctx, id)
+	prompt, err := r.dao.GetByID(ctx, id, tx...)
 	if err != nil {
 		return nil, err
 	}
@@ -83,28 +84,30 @@ func (r *chatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID)
 	return prompt, nil
 }
 
-func (r *chatbotBasePromptRepository) Create(ctx context.Context, prompt ChatbotBasePrompt) error {
-	if err := r.dao.Create(ctx, prompt); err != nil {
-		return err
+func (r *chatbotBasePromptRepository) Create(ctx context.Context, name, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
+	created, err := r.dao.Create(ctx, name, prompt, tx...)
+	if err != nil {
+		return nil, err
 	}
 
-	r.invalidate(ctx, prompt.ID)
+	r.invalidate(ctx, created.ID)
 
-	return nil
+	return created, nil
 }
 
-func (r *chatbotBasePromptRepository) Update(ctx context.Context, prompt ChatbotBasePrompt) error {
-	if err := r.dao.Update(ctx, prompt); err != nil {
-		return err
+func (r *chatbotBasePromptRepository) Update(ctx context.Context, id uuid.UUID, name, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
+	updated, err := r.dao.Update(ctx, id, name, prompt, tx...)
+	if err != nil {
+		return nil, err
 	}
 
-	r.invalidate(ctx, prompt.ID)
+	r.invalidate(ctx, id)
 
-	return nil
+	return updated, nil
 }
 
-func (r *chatbotBasePromptRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	if err := r.dao.Delete(ctx, id); err != nil {
+func (r *chatbotBasePromptRepository) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	if err := r.dao.Delete(ctx, id, tx...); err != nil {
 		return err
 	}
 

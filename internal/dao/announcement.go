@@ -44,19 +44,36 @@ func scanAnnouncementRow(scanner interface {
 	return nil
 }
 
-func (r *announcementDAO) Create(ctx context.Context, id uuid.UUID, authorID uuid.UUID, title string, body string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO announcements (id, author_id, title, body) VALUES ($1, $2, $3, $4)`,
-		id, authorID, title, body,
-	)
-	if err != nil {
-		return fmt.Errorf("create announcement: %w", err)
-	}
-	return nil
+func (r *announcementDAO) AddCommentMedia(ctx context.Context, spec repository.NewAnnouncementCommentMedia, tx ...*sql.Tx) (int64, error) {
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
 }
 
-func (r *announcementDAO) Update(ctx context.Context, id uuid.UUID, title string, body string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *announcementDAO) Create(ctx context.Context, authorID uuid.UUID, title string, body string, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {
+	var created repository.AnnouncementRow
+	err := scanAnnouncementRow(
+		getDb(r.db, tx).QueryRowContext(ctx,
+			`WITH a AS (
+			     INSERT INTO announcements (author_id, title, body) VALUES ($1, $2, $3)
+			     RETURNING id, title, body, author_id, pinned, created_at, updated_at
+			 )
+			 SELECT a.id, a.title, a.body, a.author_id, a.pinned, a.created_at, a.updated_at,
+			        COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(r.role, '')
+			 FROM a
+			 LEFT JOIN users u ON u.id = a.author_id
+			 LEFT JOIN user_roles r ON r.user_id = u.id`,
+			authorID, title, body,
+		),
+		&created,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create announcement: %w", err)
+	}
+
+	return &created, nil
+}
+
+func (r *announcementDAO) Update(ctx context.Context, id uuid.UUID, title string, body string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE announcements SET title = $1, body = $2, updated_at = NOW() WHERE id = $3`,
 		title, body, id,
 	)
@@ -66,18 +83,18 @@ func (r *announcementDAO) Update(ctx context.Context, id uuid.UUID, title string
 	return nil
 }
 
-func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM announcements WHERE id = $1`, id)
+func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM announcements WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete announcement: %w", err)
 	}
 	return nil
 }
 
-func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID) (*repository.AnnouncementRow, error) {
+func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {
 	var row repository.AnnouncementRow
 	err := scanAnnouncementRow(
-		r.db.QueryRowContext(ctx, announcementSelectBase+` WHERE a.id = $1`, id),
+		getDb(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` WHERE a.id = $1`, id),
 		&row,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -89,13 +106,13 @@ func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID) (*repositor
 	return &row, nil
 }
 
-func (r *announcementDAO) List(ctx context.Context, limit, offset int) ([]repository.AnnouncementRow, int, error) {
+func (r *announcementDAO) List(ctx context.Context, limit, offset int, tx ...*sql.Tx) ([]repository.AnnouncementRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM announcements`).Scan(&total); err != nil {
+	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM announcements`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count announcements: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
@@ -115,10 +132,10 @@ func (r *announcementDAO) List(ctx context.Context, limit, offset int) ([]reposi
 	return result, total, rows.Err()
 }
 
-func (r *announcementDAO) GetLatest(ctx context.Context) (*repository.AnnouncementRow, error) {
+func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {
 	var row repository.AnnouncementRow
 	err := scanAnnouncementRow(
-		r.db.QueryRowContext(ctx, announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT 1`),
+		getDb(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT 1`),
 		&row,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -130,8 +147,8 @@ func (r *announcementDAO) GetLatest(ctx context.Context) (*repository.Announceme
 	return &row, nil
 }
 
-func (r *announcementDAO) SetPinned(ctx context.Context, id uuid.UUID, pinned bool) error {
-	_, err := r.db.ExecContext(ctx, `UPDATE announcements SET pinned = $1 WHERE id = $2`, pinned, id)
+func (r *announcementDAO) SetPinned(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `UPDATE announcements SET pinned = $1 WHERE id = $2`, pinned, id)
 	if err != nil {
 		return fmt.Errorf("set pinned: %w", err)
 	}

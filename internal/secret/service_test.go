@@ -26,7 +26,6 @@ type testMocks struct {
 	secretRepo     *repository.MockSecretRepository
 	userSecretRepo *repository.MockUserSecretRepository
 	userRepo       *repository.MockUserRepository
-	auditRepo      *repository.MockAuditLogRepository
 	authz          *authz.MockService
 	blockSvc       *block.MockService
 	notif          *notification.MockService
@@ -38,7 +37,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	secretRepo := repository.NewMockSecretRepository(t)
 	userSecretRepo := repository.NewMockUserSecretRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
-	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notif := notification.NewMockService(t)
@@ -47,7 +45,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	hub := ws.NewHub()
 	mediaProc := &media.Processor{}
-	svc := NewService(secretRepo, userSecretRepo, userRepo, auditRepo, authzSvc, blockSvc, notif, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
 
 	secretRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -58,7 +56,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		secretRepo:     secretRepo,
 		userSecretRepo: userSecretRepo,
 		userRepo:       userRepo,
-		auditRepo:      auditRepo,
 		authz:          authzSvc,
 		blockSvc:       blockSvc,
 		notif:          notif,
@@ -219,8 +216,8 @@ func TestCreateComment_Persists(t *testing.T) {
 	svc, m := newTestService(t)
 	user := uuid.New()
 	m.secretRepo.EXPECT().
-		CreateComment(mock.Anything, mock.AnythingOfType("uuid.UUID"), "witchHunter", (*uuid.UUID)(nil), user, "hello").
-		Return(nil)
+		CreateComment(mock.Anything, "witchHunter", (*uuid.UUID)(nil), user, "hello").
+		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("skip")).Maybe()
 
 	// when
@@ -270,7 +267,13 @@ func TestUpdateComment_AuthorPath(t *testing.T) {
 	user := uuid.New()
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermEditAnyComment).Return(false)
-	m.secretRepo.EXPECT().UpdateComment(mock.Anything, commentID, user, "new body").Return(nil)
+	m.secretRepo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.SecretCommentUpdate{
+			CommentID: commentID,
+			UserID:    user,
+			Body:      "new body",
+		}).
+		Return(nil)
 
 	// when
 	err := svc.UpdateComment(context.Background(), commentID, user, dto.UpdateSecretCommentRequest{Body: "new body"})
@@ -285,7 +288,14 @@ func TestUpdateComment_AdminPath(t *testing.T) {
 	user := uuid.New()
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermEditAnyComment).Return(true)
-	m.secretRepo.EXPECT().UpdateCommentAsAdmin(mock.Anything, commentID, "admin edit").Return(nil)
+	m.secretRepo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.SecretCommentUpdate{
+			CommentID: commentID,
+			UserID:    user,
+			Body:      "admin edit",
+			AsAdmin:   true,
+		}).
+		Return(nil)
 
 	// when
 	err := svc.UpdateComment(context.Background(), commentID, user, dto.UpdateSecretCommentRequest{Body: "admin edit"})
@@ -300,14 +310,33 @@ func TestDeleteComment_AdminPath(t *testing.T) {
 	user := uuid.New()
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermDeleteAnyComment).Return(true)
-	m.secretRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, commentID).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, user, "secret_comment_delete_admin", "secret_comment", commentID.String(), "").Return(nil)
+	m.secretRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.SecretCommentDeletion{CommentID: commentID, UserID: user, AsAdmin: true}).
+		Return([]string{"/uploads/secrets/a.png", "/uploads/secrets/a-thumb.png"}, nil)
+	m.upload.EXPECT().Delete([]string{"/uploads/secrets/a.png", "/uploads/secrets/a-thumb.png"}).Return()
 
 	// when
 	err := svc.DeleteComment(context.Background(), commentID, user)
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestDeleteComment_KeepsFilesWhenTransactionFails(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	user := uuid.New()
+	commentID := uuid.New()
+	m.authz.EXPECT().Can(mock.Anything, user, authz.PermDeleteAnyComment).Return(false)
+	m.secretRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.SecretCommentDeletion{CommentID: commentID, UserID: user}).
+		Return(nil, errors.New("rolled back"))
+
+	// when
+	err := svc.DeleteComment(context.Background(), commentID, user)
+
+	// then
+	require.Error(t, err)
 }
 
 func TestBroadcastProgress_UnknownSecretIsNoop(t *testing.T) {

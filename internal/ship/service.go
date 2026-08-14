@@ -77,7 +77,6 @@ type (
 	service struct {
 		shipRepo      repository.ShipRepository
 		userRepo      repository.UserRepository
-		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
@@ -93,7 +92,6 @@ type (
 func NewService(
 	shipRepo repository.ShipRepository,
 	userRepo repository.UserRepository,
-	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -106,7 +104,6 @@ func NewService(
 	return &service{
 		shipRepo:      shipRepo,
 		userRepo:      userRepo,
-		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
@@ -153,13 +150,14 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 		return uuid.Nil, err
 	}
 
-	id := uuid.New()
 	description := strings.TrimSpace(req.Description)
-	if err := s.shipRepo.CreateWithCharacters(ctx, id, userID, title, description, req.Characters); err != nil {
+
+	created, err := s.shipRepo.CreateWithCharacters(ctx, userID, title, description, req.Characters)
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) GetShip(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.ShipDetailResponse, error) {
@@ -218,14 +216,32 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 
 	description := strings.TrimSpace(req.Description)
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
-	return s.shipRepo.UpdateWithCharacters(ctx, id, userID, title, description, req.Characters, asAdmin)
+
+	return s.shipRepo.UpdateWithCharacters(ctx, repository.ShipUpdate{
+		ID:          id,
+		UserID:      userID,
+		Title:       title,
+		Description: description,
+		AsAdmin:     asAdmin,
+		Characters:  req.Characters,
+	})
 }
 
 func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
-		return s.shipRepo.DeleteAsAdmin(ctx, id)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+
+	paths, err := s.shipRepo.DeleteShip(ctx, repository.ShipDeletion{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+	})
+	if err != nil {
+		return err
 	}
-	return s.shipRepo.Delete(ctx, id, userID)
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) ListShips(
@@ -345,10 +361,12 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	id := uuid.New()
-	if err := s.shipRepo.CreateComment(ctx, id, shipID, req.ParentID, userID, body); err != nil {
+	created, err := s.shipRepo.CreateComment(ctx, shipID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()
@@ -395,28 +413,31 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.shipRepo.UpdateCommentAsAdmin(ctx, id, body)
-	}
-	return s.shipRepo.UpdateComment(ctx, id, userID, body)
+
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
+
+	return s.shipRepo.UpdateCommentBody(ctx, repository.ShipCommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
+	})
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "ship_comment_delete"
-	if isAdmin {
-		if err := s.shipRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
-			return err
-		}
-		action = "ship_comment_delete_admin"
-	} else {
-		if err := s.shipRepo.DeleteComment(ctx, id, userID); err != nil {
-			return err
-		}
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+
+	paths, err := s.shipRepo.DeleteCommentWithAudit(ctx, repository.ShipCommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
+	})
+	if err != nil {
+		return err
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "ship_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
-	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -478,7 +499,13 @@ func (s *service) UploadCommentMedia(
 
 	return s.uploader.SaveAndRecord(ctx, "ships", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.shipRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+			return s.shipRepo.AddCommentMedia(ctx, repository.NewShipCommentMedia{
+				CommentID:    commentID,
+				MediaURL:     mediaURL,
+				MediaType:    mediaType,
+				ThumbnailURL: thumbURL,
+				SortOrder:    sortOrder,
+			})
 		},
 		s.shipRepo.UpdateCommentMediaURL,
 		s.shipRepo.UpdateCommentMediaThumbnail,

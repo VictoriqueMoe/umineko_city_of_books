@@ -253,7 +253,7 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	m.postRepo.EXPECT().CreateComment(mock.Anything, mock.Anything, postID, (*uuid.UUID)(nil), userID, "@beatrice hello").Return(nil)
+	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "@beatrice hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 	expectBackgroundSocial(m)
@@ -298,7 +298,7 @@ func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 			botID := uuid.New()
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, tc.corner, "@beatrice hello", (*string)(nil), (*string)(nil)).Return(nil)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: tc.corner, Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 			m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 			expectBackgroundSocial(m)

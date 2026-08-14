@@ -18,9 +18,9 @@ type (
 	}
 )
 
-func (r *roleDAO) GetRole(ctx context.Context, userID uuid.UUID) (role.Role, error) {
+func (r *roleDAO) GetRole(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (role.Role, error) {
 	var result string
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT role FROM user_roles WHERE user_id = $1 LIMIT 1`, userID,
 	).Scan(&result)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -32,7 +32,7 @@ func (r *roleDAO) GetRole(ctx context.Context, userID uuid.UUID) (role.Role, err
 	return role.Role(result), nil
 }
 
-func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.UUID]role.Role, error) {
+func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]role.Role, error) {
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
@@ -42,7 +42,7 @@ func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.U
 		args[i] = userIDs[i]
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT user_id, role FROM user_roles WHERE user_id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
@@ -63,9 +63,9 @@ func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID) (map[uuid.U
 	return out, rows.Err()
 }
 
-func (r *roleDAO) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role) (bool, error) {
+func (r *roleDAO) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM user_roles WHERE user_id = $1 AND role = $2`, userID, string(rl),
 	).Scan(&count)
 	if err != nil {
@@ -74,15 +74,15 @@ func (r *roleDAO) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role) (
 	return count > 0, nil
 }
 
-func (r *roleDAO) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *roleDAO) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM user_roles WHERE user_id = $1`, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("clear existing role: %w", err)
 	}
 
-	_, err = r.db.ExecContext(ctx,
+	_, err = getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO user_roles (user_id, role) VALUES ($1, $2)`, userID, string(rl),
 	)
 	if err != nil {
@@ -91,8 +91,8 @@ func (r *roleDAO) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role) e
 	return nil
 }
 
-func (r *roleDAO) RemoveRole(ctx context.Context, userID uuid.UUID, rl role.Role) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *roleDAO) RemoveRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM user_roles WHERE user_id = $1 AND role = $2`, userID, string(rl),
 	)
 	if err != nil {
@@ -101,7 +101,7 @@ func (r *roleDAO) RemoveRole(ctx context.Context, userID uuid.UUID, rl role.Role
 	return nil
 }
 
-func (r *roleDAO) GetUsersByRoles(ctx context.Context, roles []role.Role) ([]uuid.UUID, error) {
+func (r *roleDAO) GetUsersByRoles(ctx context.Context, roles []role.Role, tx ...*sql.Tx) ([]uuid.UUID, error) {
 	if len(roles) == 0 {
 		return nil, nil
 	}
@@ -112,7 +112,7 @@ func (r *roleDAO) GetUsersByRoles(ctx context.Context, roles []role.Role) ([]uui
 		args = append(args, string(roles[i]))
 		placeholders.WriteString(fmt.Sprintf(", $%d", len(args)))
 	}
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT DISTINCT user_id FROM user_roles WHERE role IN (`+placeholders.String()+`)`, args...,
 	)
 	if err != nil {

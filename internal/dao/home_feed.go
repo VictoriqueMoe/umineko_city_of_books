@@ -43,8 +43,8 @@ ORDER BY f.created_at DESC
 LIMIT $1
 `
 
-func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int) ([]repository.HomeActivityRow, error) {
-	rows, err := r.db.QueryContext(ctx, homeActivitySQL, limit)
+func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomeActivityRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, homeActivitySQL, limit)
 	if err != nil {
 		return nil, fmt.Errorf("home feed activity: %w", err)
 	}
@@ -62,8 +62,8 @@ func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int) ([]repo
 	return out, rows.Err()
 }
 
-func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int) ([]repository.HomeMemberRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomeMemberRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, username, display_name, avatar_url, created_at
 		 FROM users
 		 WHERE banned_at IS NULL AND NOT is_bot
@@ -86,8 +86,8 @@ func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int) ([]repos
 	return out, rows.Err()
 }
 
-func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context) ([]repository.HomeCornerActivityRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]repository.HomeCornerActivityRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT p.corner,
 		        COUNT(*) AS post_count,
 		        COUNT(DISTINCT p.user_id) AS unique_posters,
@@ -133,8 +133,8 @@ UNION ALL
 SELECT 'rooms' AS key, MAX(created_at) AS latest_at FROM chat_rooms WHERE type = 'group' AND is_public = TRUE AND is_system = FALSE
 `
 
-func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context) ([]repository.SidebarActivityEntry, error) {
-	rows, err := r.db.QueryContext(ctx, sidebarActivitySQL)
+func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]repository.SidebarActivityEntry, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, sidebarActivitySQL)
 	if err != nil {
 		return nil, fmt.Errorf("sidebar activity: %w", err)
 	}
@@ -155,8 +155,8 @@ func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context) ([]repository.Sid
 	return out, rows.Err()
 }
 
-func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int) ([]repository.HomePublicRoomRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomePublicRoomRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description,
 		        (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count,
 		        cr.last_message_at
@@ -212,8 +212,8 @@ ORDER BY f.created_at DESC
 LIMIT $2
 `
 
-func (r *homeFeedDAO) ListEchoes(ctx context.Context, ago string, limit int) ([]repository.HomeEchoRow, error) {
-	rows, err := r.db.QueryContext(ctx, homeEchoSQL, ago, limit)
+func (r *homeFeedDAO) ListEchoes(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]repository.HomeEchoRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, homeEchoSQL, ago, limit)
 	if err != nil {
 		return nil, fmt.Errorf("home feed echoes: %w", err)
 	}

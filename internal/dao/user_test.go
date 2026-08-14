@@ -4,10 +4,12 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +74,12 @@ func TestUserDAO_Create(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	u, err := repos.User.Create(context.Background(), "alice", "alice@example.com", "secret123", "Alice")
+	u, err := repos.User.Create(context.Background(), repository.NewUser{
+		Username:     "alice",
+		Email:        "alice@example.com",
+		PasswordHash: "hashed-secret123",
+		DisplayName:  "Alice",
+	})
 
 	// then
 	require.NoError(t, err)
@@ -85,11 +92,11 @@ func TestUserDAO_Create(t *testing.T) {
 func TestUserDAO_Create_DuplicateUsername(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	_, err := repos.User.Create(context.Background(), "dup", "", "pw1", "First")
+	_, err := repos.User.Create(context.Background(), repository.NewUser{Username: "dup", PasswordHash: "pw1", DisplayName: "First"})
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.User.Create(context.Background(), "dup", "", "pw2", "Second")
+	_, err = repos.User.Create(context.Background(), repository.NewUser{Username: "dup", PasswordHash: "pw2", DisplayName: "Second"})
 
 	// then
 	require.Error(t, err)
@@ -299,43 +306,30 @@ func TestUserDAO_Count_Empty(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
-func TestUserDAO_ValidatePassword_Success(t *testing.T) {
+func TestUserDAO_GetPasswordHash_ReturnsStoredHashVerbatim(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	daotest.CreateUser(t, repos, daotest.WithUsername("vpwd"), daotest.WithPassword("hunter2"))
+	created, err := repos.User.Create(context.Background(), repository.NewUser{Username: "vpwd", PasswordHash: "opaque-hash", DisplayName: "V"})
+	require.NoError(t, err)
 
 	// when
-	got, err := repos.User.ValidatePassword(context.Background(), "vpwd", "hunter2")
+	hash, err := repos.User.GetPasswordHash(context.Background(), created.ID)
 
 	// then
 	require.NoError(t, err)
-	require.NotNil(t, got)
-	assert.Equal(t, "vpwd", got.Username)
+	assert.Equal(t, "opaque-hash", hash)
 }
 
-func TestUserDAO_ValidatePassword_WrongPassword(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	daotest.CreateUser(t, repos, daotest.WithUsername("vpwd"), daotest.WithPassword("hunter2"))
-
-	// when
-	got, err := repos.User.ValidatePassword(context.Background(), "vpwd", "wrong")
-
-	// then
-	require.NoError(t, err)
-	assert.Nil(t, got)
-}
-
-func TestUserDAO_ValidatePassword_UnknownUser(t *testing.T) {
+func TestUserDAO_GetPasswordHash_UnknownUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 
 	// when
-	got, err := repos.User.ValidatePassword(context.Background(), "nobody", "pw")
+	hash, err := repos.User.GetPasswordHash(context.Background(), uuid.New())
 
 	// then
 	require.NoError(t, err)
-	assert.Nil(t, got)
+	assert.Empty(t, hash)
 }
 
 func TestUserDAO_UpdateProfile(t *testing.T) {
@@ -671,56 +665,28 @@ func TestUserDAO_GetGMRawScore_WithAttempts(t *testing.T) {
 	assert.Equal(t, 4+2, score)
 }
 
-func TestUserDAO_ChangePassword_Success(t *testing.T) {
+func TestUserDAO_SetPasswordHash(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos, daotest.WithUsername("cp"), daotest.WithPassword("oldpw1"))
+	user := daotest.CreateUser(t, repos, daotest.WithUsername("cp"))
 
 	// when
-	err := repos.User.ChangePassword(context.Background(), user.ID, "oldpw1", "newpw2")
+	err := repos.User.SetPasswordHash(context.Background(), user.ID, "brand-new-hash")
 
 	// then
 	require.NoError(t, err)
-	good, err := repos.User.ValidatePassword(context.Background(), "cp", "newpw2")
+	hash, err := repos.User.GetPasswordHash(context.Background(), user.ID)
 	require.NoError(t, err)
-	assert.NotNil(t, good)
-	bad, err := repos.User.ValidatePassword(context.Background(), "cp", "oldpw1")
-	require.NoError(t, err)
-	assert.Nil(t, bad)
-}
-
-func TestUserDAO_ChangePassword_WrongOld(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos, daotest.WithUsername("cp2"), daotest.WithPassword("rightpw"))
-
-	// when
-	err := repos.User.ChangePassword(context.Background(), user.ID, "wrongpw", "newpw")
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "incorrect password")
-}
-
-func TestUserDAO_ChangePassword_UserNotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	err := repos.User.ChangePassword(context.Background(), uuid.New(), "x", "y")
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "user not found")
+	assert.Equal(t, "brand-new-hash", hash)
 }
 
 func TestUserDAO_DeleteAccount_Success(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos, daotest.WithPassword("delme123"))
+	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.DeleteAccount(context.Background(), user.ID, "delme123")
+	err := repos.User.DeleteAccount(context.Background(), user.ID)
 
 	// then
 	require.NoError(t, err)
@@ -729,32 +695,19 @@ func TestUserDAO_DeleteAccount_Success(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestUserDAO_DeleteAccount_WrongPassword(t *testing.T) {
+func TestUserDAO_DeleteAccount_UnknownUserIsANoOp(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos, daotest.WithPassword("rightpw"))
+	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.DeleteAccount(context.Background(), user.ID, "wrongpw")
+	err := repos.User.DeleteAccount(context.Background(), uuid.New())
 
 	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "incorrect password")
+	require.NoError(t, err)
 	got, err := repos.User.GetByID(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.NotNil(t, got)
-}
-
-func TestUserDAO_DeleteAccount_UserNotFound(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-
-	// when
-	err := repos.User.DeleteAccount(context.Background(), uuid.New(), "pw")
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "user not found")
 }
 
 func TestUserDAO_GetProfileByUsername(t *testing.T) {
@@ -1108,4 +1061,104 @@ func TestUserDAO_AdminDeleteAccount_NotFound(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestUserRepository_RegisterAccountWritesEveryRow(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	inviter := daotest.CreateUser(t, repos, daotest.WithUsername("inviter"))
+	require.NoError(t, repos.Invite.Create(context.Background(), "invite-code-1", inviter.ID))
+
+	spec := repository.NewRegistration{
+		Account: repository.NewAccount{
+			User: repository.NewUser{
+				Username:     "newcomer",
+				Email:        "newcomer@example.com",
+				PasswordHash: "hashed-secret",
+				DisplayName:  "Newcomer",
+				HomePage:     "landing",
+				DMsEnabled:   true,
+			},
+			Role: role.RoleSuperAdmin,
+		},
+		InviteCode:            "invite-code-1",
+		VerificationHash:      "verify-hash-1",
+		VerificationExpiresAt: time.Now().Add(24 * time.Hour),
+		SessionToken:          "session-token-1",
+		SessionExpiresAt:      time.Now().Add(time.Hour),
+	}
+
+	// when
+	created, err := repos.User.RegisterAccount(context.Background(), spec)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, created)
+
+	assigned, err := repos.Role.GetRole(context.Background(), created.ID)
+	require.NoError(t, err)
+	assert.Equal(t, role.RoleSuperAdmin, assigned)
+
+	verification, err := repos.EmailVerification.GetByTokenHash(context.Background(), "verify-hash-1")
+	require.NoError(t, err)
+	require.NotNil(t, verification)
+	assert.Equal(t, created.ID, verification.UserID)
+
+	invite, err := repos.Invite.GetByCode(context.Background(), "invite-code-1")
+	require.NoError(t, err)
+	require.NotNil(t, invite)
+	require.NotNil(t, invite.UsedBy)
+	assert.Equal(t, created.ID, *invite.UsedBy)
+
+	sessionUserID, _, err := repos.Session.GetUserID(context.Background(), "session-token-1")
+	require.NoError(t, err)
+	assert.Equal(t, created.ID, sessionUserID)
+
+	entries, total, err := repos.AuditLog.ListForUser(context.Background(), created.ID, 10, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	require.Len(t, entries, 1)
+	assert.Equal(t, "user_created", entries[0].Action)
+	assert.Equal(t, "username=newcomer", entries[0].Details)
+}
+
+func TestUserRepository_RegisterAccountRollsBackWhenSessionCreationFails(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	holder := daotest.CreateUser(t, repos, daotest.WithUsername("tokenholder"))
+	takenToken := daotest.CreateSession(t, repos, holder.ID)
+
+	spec := repository.NewRegistration{
+		Account: repository.NewAccount{
+			User: repository.NewUser{
+				Username:     "rolledback",
+				Email:        "rolledback@example.com",
+				PasswordHash: "hashed-secret",
+				DisplayName:  "Rolled Back",
+				HomePage:     "landing",
+				DMsEnabled:   true,
+			},
+			Role: role.RoleSuperAdmin,
+		},
+		VerificationHash:      "verify-hash-2",
+		VerificationExpiresAt: time.Now().Add(24 * time.Hour),
+		SessionToken:          takenToken,
+		SessionExpiresAt:      time.Now().Add(time.Hour),
+	}
+
+	// when
+	created, err := repos.User.RegisterAccount(context.Background(), spec)
+
+	// then
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create session")
+	assert.Nil(t, created)
+
+	orphan, err := repos.User.GetByUsername(context.Background(), "rolledback")
+	require.NoError(t, err)
+	assert.Nil(t, orphan)
+
+	verification, err := repos.EmailVerification.GetByTokenHash(context.Background(), "verify-hash-2")
+	require.NoError(t, err)
+	assert.Nil(t, verification)
 }

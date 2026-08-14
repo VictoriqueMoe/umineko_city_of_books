@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/db"
+
 	"github.com/google/uuid"
 )
 
@@ -14,8 +16,8 @@ type (
 	}
 )
 
-func (r *permissionDAO) GetRolePermissions(ctx context.Context) (map[string][]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *permissionDAO) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT role, permission FROM role_permissions ORDER BY role, permission`,
 	)
 	if err != nil {
@@ -36,31 +38,27 @@ func (r *permissionDAO) GetRolePermissions(ctx context.Context) (map[string][]st
 	return result, rows.Err()
 }
 
-func (r *permissionDAO) SetRolePermissions(ctx context.Context, roleName string, perms []string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin set role permissions: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.ExecContext(ctx, `DELETE FROM role_permissions WHERE role = $1`, roleName); err != nil {
-		return fmt.Errorf("clear role permissions: %w", err)
-	}
-
-	for _, perm := range perms {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO role_permissions (role, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-			roleName, perm,
-		); err != nil {
-			return fmt.Errorf("insert role permission: %w", err)
+func (r *permissionDAO) SetRolePermissions(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx) error {
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM role_permissions WHERE role = $1`, roleName); err != nil {
+			return fmt.Errorf("clear role permissions: %w", err)
 		}
-	}
 
-	return tx.Commit()
+		for _, perm := range perms {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO role_permissions (role, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+				roleName, perm,
+			); err != nil {
+				return fmt.Errorf("insert role permission: %w", err)
+			}
+		}
+
+		return nil
+	})
 }
 
-func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context) (map[string][]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT vrp.vanity_role_id, vrp.permission
 		 FROM vanity_role_permissions vrp
 		 JOIN vanity_roles vr ON vr.id = vrp.vanity_role_id
@@ -85,31 +83,27 @@ func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context) (map[strin
 	return result, rows.Err()
 }
 
-func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("begin set vanity role permissions: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if _, err := tx.ExecContext(ctx, `DELETE FROM vanity_role_permissions WHERE vanity_role_id = $1`, vanityRoleID); err != nil {
-		return fmt.Errorf("clear vanity role permissions: %w", err)
-	}
-
-	for _, perm := range perms {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO vanity_role_permissions (vanity_role_id, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-			vanityRoleID, perm,
-		); err != nil {
-			return fmt.Errorf("insert vanity role permission: %w", err)
+func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx) error {
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM vanity_role_permissions WHERE vanity_role_id = $1`, vanityRoleID); err != nil {
+			return fmt.Errorf("clear vanity role permissions: %w", err)
 		}
-	}
 
-	return tx.Commit()
+		for _, perm := range perms {
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO vanity_role_permissions (vanity_role_id, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+				vanityRoleID, perm,
+			); err != nil {
+				return fmt.Errorf("insert vanity role permission: %w", err)
+			}
+		}
+
+		return nil
+	})
 }
 
-func (r *permissionDAO) GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *permissionDAO) GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT vanity_role_id FROM user_vanity_roles WHERE user_id = $1 ORDER BY vanity_role_id`, userID,
 	)
 	if err != nil {

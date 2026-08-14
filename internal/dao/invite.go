@@ -17,8 +17,8 @@ type (
 	}
 )
 
-func (r *inviteDAO) Create(ctx context.Context, code string, createdBy uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *inviteDAO) Create(ctx context.Context, code string, createdBy uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO invites (code, created_by) VALUES ($1, $2)`, code, createdBy,
 	)
 	if err != nil {
@@ -27,9 +27,9 @@ func (r *inviteDAO) Create(ctx context.Context, code string, createdBy uuid.UUID
 	return nil
 }
 
-func (r *inviteDAO) GetByCode(ctx context.Context, code string) (*repository.Invite, error) {
+func (r *inviteDAO) GetByCode(ctx context.Context, code string, tx ...*sql.Tx) (*repository.Invite, error) {
 	var inv repository.Invite
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT code, created_by, used_by, used_at, created_at FROM invites WHERE code = $1`, code,
 	).Scan(&inv.Code, &inv.CreatedBy, &inv.UsedBy, &inv.UsedAt, &inv.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -41,8 +41,8 @@ func (r *inviteDAO) GetByCode(ctx context.Context, code string) (*repository.Inv
 	return &inv, nil
 }
 
-func (r *inviteDAO) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *inviteDAO) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE invites SET used_by = $1, used_at = NOW() WHERE code = $2`, usedBy, code,
 	)
 	if err != nil {
@@ -51,14 +51,14 @@ func (r *inviteDAO) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID)
 	return nil
 }
 
-func (r *inviteDAO) List(ctx context.Context, limit, offset int) ([]repository.Invite, int, error) {
+func (r *inviteDAO) List(ctx context.Context, limit, offset int, tx ...*sql.Tx) ([]repository.Invite, int, error) {
 	var total int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM invites`).Scan(&total)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM invites`).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count invites: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT code, created_by, used_by, used_at, created_at FROM invites ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
@@ -78,8 +78,8 @@ func (r *inviteDAO) List(ctx context.Context, limit, offset int) ([]repository.I
 	return invites, total, rows.Err()
 }
 
-func (r *inviteDAO) Delete(ctx context.Context, code string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM invites WHERE code = $1`, code)
+func (r *inviteDAO) Delete(ctx context.Context, code string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM invites WHERE code = $1`, code)
 	if err != nil {
 		return fmt.Errorf("delete invite: %w", err)
 	}

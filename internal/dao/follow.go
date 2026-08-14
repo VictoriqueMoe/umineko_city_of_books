@@ -16,8 +16,8 @@ type (
 	}
 )
 
-func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		followerID, followingID,
 	)
@@ -27,8 +27,8 @@ func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingI
 	return nil
 }
 
-func (r *followDAO) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *followDAO) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`,
 		followerID, followingID,
 	)
@@ -38,9 +38,9 @@ func (r *followDAO) Unfollow(ctx context.Context, followerID uuid.UUID, followin
 	return nil
 }
 
-func (r *followDAO) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) (bool, error) {
+func (r *followDAO) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE follower_id = $1 AND following_id = $2`,
 		followerID, followingID,
 	).Scan(&count)
@@ -50,9 +50,9 @@ func (r *followDAO) IsFollowing(ctx context.Context, followerID uuid.UUID, follo
 	return count > 0, nil
 }
 
-func (r *followDAO) GetFollowerCount(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *followDAO) GetFollowerCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
@@ -61,9 +61,9 @@ func (r *followDAO) GetFollowerCount(ctx context.Context, userID uuid.UUID) (int
 	return count, nil
 }
 
-func (r *followDAO) GetFollowingCount(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *followDAO) GetFollowingCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
@@ -72,13 +72,13 @@ func (r *followDAO) GetFollowingCount(ctx context.Context, userID uuid.UUID) (in
 	return count, nil
 }
 
-func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int) ([]repository.FollowUser, int, error) {
+func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.FollowUser, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID).Scan(&total); err != nil {
+	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count followers: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f
 		JOIN users u ON f.follower_id = u.id
@@ -104,13 +104,13 @@ func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, o
 	return users, total, rows.Err()
 }
 
-func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int) ([]repository.FollowUser, int, error) {
+func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.FollowUser, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID).Scan(&total); err != nil {
+	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f
 		JOIN users u ON f.following_id = u.id
@@ -136,8 +136,8 @@ func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, o
 	return users, total, rows.Err()
 }
 
-func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT f.follower_id
 		FROM follows f
 		JOIN users u ON u.id = f.follower_id
@@ -160,8 +160,8 @@ func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID
 	return ids, rows.Err()
 }
 
-func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID) ([]repository.FollowUser, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.FollowUser, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f1
 		JOIN follows f2 ON f1.following_id = f2.follower_id AND f2.following_id = f1.follower_id

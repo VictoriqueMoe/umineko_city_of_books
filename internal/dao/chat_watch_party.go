@@ -17,24 +17,25 @@ type (
 	}
 )
 
-func (r *chatWatchPartyDAO) CreateSession(ctx context.Context, row repository.ChatWatchPartySessionRow) (uuid.UUID, error) {
-	var id uuid.UUID
-	err := r.db.QueryRowContext(ctx,
+func (r *chatWatchPartyDAO) CreateSession(ctx context.Context, row repository.ChatWatchPartySessionRow, tx ...*sql.Tx) (*repository.ChatWatchPartySessionRow, error) {
+	created, err := scanSessionRow(getDb(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO chat_watch_party_sessions
 		    (room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url, title, type, start_url, region, status)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'active')
-		 RETURNING id`,
+		 RETURNING id, room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url,
+		           title, type, start_url, region, status, started_at, ended_at, ended_reason`,
 		row.RoomID, row.StartedBy, row.ControllerID, row.HyperbeamSessionID, row.HyperbeamAdminToken, row.EmbedURL,
 		row.VMBaseURL, row.Title, row.Type, row.StartURL, row.Region,
-	).Scan(&id)
+	))
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("create watch party session: %w", err)
+		return nil, fmt.Errorf("create watch party session: %w", err)
 	}
-	return id, nil
+
+	return created, nil
 }
 
-func (r *chatWatchPartyDAO) ListActiveByRoom(ctx context.Context, roomID uuid.UUID) ([]repository.ChatWatchPartySessionRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *chatWatchPartyDAO) ListActiveByRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatWatchPartySessionRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url,
 		        title, type, start_url, region, status, started_at, ended_at, ended_reason
 		 FROM chat_watch_party_sessions
@@ -58,8 +59,8 @@ func (r *chatWatchPartyDAO) ListActiveByRoom(ctx context.Context, roomID uuid.UU
 	return result, rows.Err()
 }
 
-func (r *chatWatchPartyDAO) GetByID(ctx context.Context, sessionID uuid.UUID) (*repository.ChatWatchPartySessionRow, error) {
-	row := r.db.QueryRowContext(ctx,
+func (r *chatWatchPartyDAO) GetByID(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) (*repository.ChatWatchPartySessionRow, error) {
+	row := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT id, room_id, started_by, controller_id, hyperbeam_session_id, hyperbeam_admin_token, embed_url, vm_base_url,
 		        title, type, start_url, region, status, started_at, ended_at, ended_reason
 		 FROM chat_watch_party_sessions
@@ -82,8 +83,8 @@ func scanSessionRow(row *sql.Row) (*repository.ChatWatchPartySessionRow, error) 
 	return &s, nil
 }
 
-func (r *chatWatchPartyDAO) EndSession(ctx context.Context, sessionID uuid.UUID, reason string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) EndSession(ctx context.Context, sessionID uuid.UUID, reason string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_watch_party_sessions
 		    SET status = 'ended', ended_at = NOW(), ended_reason = $2
 		  WHERE id = $1 AND status = 'active'`,
@@ -95,8 +96,8 @@ func (r *chatWatchPartyDAO) EndSession(ctx context.Context, sessionID uuid.UUID,
 	return nil
 }
 
-func (r *chatWatchPartyDAO) SetControllerID(ctx context.Context, sessionID, controllerID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) SetControllerID(ctx context.Context, sessionID, controllerID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_watch_party_sessions SET controller_id = $2 WHERE id = $1`,
 		sessionID, controllerID,
 	)
@@ -106,8 +107,8 @@ func (r *chatWatchPartyDAO) SetControllerID(ctx context.Context, sessionID, cont
 	return nil
 }
 
-func (r *chatWatchPartyDAO) UpsertParticipant(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool, identifier string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) UpsertParticipant(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool, identifier string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_watch_party_participants (session_id, user_id, has_control, hyperbeam_identifier)
 		 VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (session_id, user_id) DO UPDATE SET
@@ -123,8 +124,8 @@ func (r *chatWatchPartyDAO) UpsertParticipant(ctx context.Context, sessionID, us
 	return nil
 }
 
-func (r *chatWatchPartyDAO) SetParticipantIdentifier(ctx context.Context, sessionID, userID uuid.UUID, identifier string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) SetParticipantIdentifier(ctx context.Context, sessionID, userID uuid.UUID, identifier string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_watch_party_participants SET hyperbeam_identifier = $3 WHERE session_id = $1 AND user_id = $2`,
 		sessionID, userID, identifier,
 	)
@@ -134,8 +135,8 @@ func (r *chatWatchPartyDAO) SetParticipantIdentifier(ctx context.Context, sessio
 	return nil
 }
 
-func (r *chatWatchPartyDAO) MarkParticipantLeft(ctx context.Context, sessionID, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) MarkParticipantLeft(ctx context.Context, sessionID, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_watch_party_participants
 		    SET left_at = NOW(), has_control = FALSE
 		  WHERE session_id = $1 AND user_id = $2 AND left_at IS NULL`,
@@ -147,8 +148,8 @@ func (r *chatWatchPartyDAO) MarkParticipantLeft(ctx context.Context, sessionID, 
 	return nil
 }
 
-func (r *chatWatchPartyDAO) MarkAllParticipantsLeft(ctx context.Context, sessionID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) MarkAllParticipantsLeft(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_watch_party_participants
 		    SET left_at = NOW(), has_control = FALSE
 		  WHERE session_id = $1 AND left_at IS NULL`,
@@ -160,8 +161,8 @@ func (r *chatWatchPartyDAO) MarkAllParticipantsLeft(ctx context.Context, session
 	return nil
 }
 
-func (r *chatWatchPartyDAO) GetActiveParticipants(ctx context.Context, sessionID uuid.UUID) ([]repository.ChatWatchPartyParticipantRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *chatWatchPartyDAO) GetActiveParticipants(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatWatchPartyParticipantRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT p.session_id, p.user_id, u.username, u.display_name, u.avatar_url, p.has_control, p.hyperbeam_identifier, p.joined_at, p.left_at
 		   FROM chat_watch_party_participants p
 		   JOIN users u ON u.id = p.user_id
@@ -185,8 +186,8 @@ func (r *chatWatchPartyDAO) GetActiveParticipants(ctx context.Context, sessionID
 	return result, rows.Err()
 }
 
-func (r *chatWatchPartyDAO) GetParticipant(ctx context.Context, sessionID, userID uuid.UUID) (*repository.ChatWatchPartyParticipantRow, error) {
-	row := r.db.QueryRowContext(ctx,
+func (r *chatWatchPartyDAO) GetParticipant(ctx context.Context, sessionID, userID uuid.UUID, tx ...*sql.Tx) (*repository.ChatWatchPartyParticipantRow, error) {
+	row := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT p.session_id, p.user_id, u.username, u.display_name, u.avatar_url, p.has_control, p.hyperbeam_identifier, p.joined_at, p.left_at
 		   FROM chat_watch_party_participants p
 		   JOIN users u ON u.id = p.user_id
@@ -205,8 +206,8 @@ func (r *chatWatchPartyDAO) GetParticipant(ctx context.Context, sessionID, userI
 	return &p, nil
 }
 
-func (r *chatWatchPartyDAO) SetParticipantControl(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatWatchPartyDAO) SetParticipantControl(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_watch_party_participants SET has_control = $3 WHERE session_id = $1 AND user_id = $2 AND left_at IS NULL`,
 		sessionID, userID, hasControl,
 	)
@@ -216,9 +217,9 @@ func (r *chatWatchPartyDAO) SetParticipantControl(ctx context.Context, sessionID
 	return nil
 }
 
-func (r *chatWatchPartyDAO) CountActiveParticipants(ctx context.Context, sessionID uuid.UUID) (int, error) {
+func (r *chatWatchPartyDAO) CountActiveParticipants(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var n int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM chat_watch_party_participants WHERE session_id = $1 AND left_at IS NULL`,
 		sessionID,
 	).Scan(&n)
@@ -228,8 +229,8 @@ func (r *chatWatchPartyDAO) CountActiveParticipants(ctx context.Context, session
 	return n, nil
 }
 
-func (r *chatWatchPartyDAO) ListIdleActiveSessions(ctx context.Context, idleBefore string) ([]repository.ChatWatchPartySessionRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *chatWatchPartyDAO) ListIdleActiveSessions(ctx context.Context, idleBefore string, tx ...*sql.Tx) ([]repository.ChatWatchPartySessionRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT s.id, s.room_id, s.started_by, s.controller_id, s.hyperbeam_session_id, s.hyperbeam_admin_token,
 		        s.embed_url, s.vm_base_url, s.title, s.type, s.start_url, s.region, s.status, s.started_at, s.ended_at, s.ended_reason
 		   FROM chat_watch_party_sessions s

@@ -17,8 +17,8 @@ type (
 	}
 )
 
-func (r *blockDAO) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *blockDAO) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO blocks (blocker_id, blocked_id) VALUES ($1, $2)
 		 ON CONFLICT DO NOTHING`,
 		blockerID, blockedID,
@@ -29,8 +29,8 @@ func (r *blockDAO) Block(ctx context.Context, blockerID uuid.UUID, blockedID uui
 	return nil
 }
 
-func (r *blockDAO) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *blockDAO) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
 		blockerID, blockedID,
 	)
@@ -40,9 +40,9 @@ func (r *blockDAO) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID u
 	return nil
 }
 
-func (r *blockDAO) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) (bool, error) {
+func (r *blockDAO) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
 		blockerID, blockedID,
 	).Scan(&count)
@@ -52,9 +52,9 @@ func (r *blockDAO) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID
 	return count > 0, nil
 }
 
-func (r *blockDAO) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
+func (r *blockDAO) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $3 AND blocked_id = $4)`,
 		userA, userB, userB, userA,
 	).Scan(&count)
@@ -64,8 +64,8 @@ func (r *blockDAO) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB u
 	return count > 0, nil
 }
 
-func (r *blockDAO) GetBlockedIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *blockDAO) GetBlockedIDs(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT blocked_id FROM blocks WHERE blocker_id = $1
 		UNION
 		SELECT blocker_id FROM blocks WHERE blocked_id = $2`,
@@ -87,8 +87,8 @@ func (r *blockDAO) GetBlockedIDs(ctx context.Context, userID uuid.UUID) ([]uuid.
 	return ids, rows.Err()
 }
 
-func (r *blockDAO) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]repository.BlockedUser, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *blockDAO) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]repository.BlockedUser, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, b.created_at
 		FROM blocks b
 		JOIN users u ON b.blocked_id = u.id

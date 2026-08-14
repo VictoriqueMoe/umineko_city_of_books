@@ -80,8 +80,8 @@ func TestSetVanityRolePermissions_InvalidatesVanityPermissionCache(t *testing.T)
 func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 	// given
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockVanityRoleRepository(t)
-	repo := NewVanityRoleRepo(dao, cache.NewManagerWithClient(client))
+	dao := NewMockVanityRoleDAO(t)
+	repo := NewVanityRoleRepo(nil, dao, cache.NewManagerWithClient(client))
 	userID := uuid.New()
 	dao.EXPECT().AssignToUser(mock.Anything, userID, "vanity-a").Return(nil)
 
@@ -106,8 +106,8 @@ func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 	// given
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockVanityRoleRepository(t)
-	repo := NewVanityRoleRepo(dao, cache.NewManagerWithClient(client))
+	dao := NewMockVanityRoleDAO(t)
+	repo := NewVanityRoleRepo(nil, dao, cache.NewManagerWithClient(client))
 	userID := uuid.New()
 	dao.EXPECT().UnassignFromUser(mock.Anything, userID, "vanity-a").Return(nil)
 

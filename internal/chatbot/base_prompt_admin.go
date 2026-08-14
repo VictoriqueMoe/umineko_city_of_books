@@ -53,12 +53,14 @@ func (a *adminService) CreateBasePrompt(ctx context.Context, req dto.ChatbotBase
 		return nil, err
 	}
 
-	created := repository.ChatbotBasePrompt{ID: uuid.New(), Name: name, Prompt: prompt}
-	if err := a.basePromptRepo.Create(ctx, created); err != nil {
+	created, err := a.basePromptRepo.Create(ctx, name, prompt)
+	if err != nil {
 		return nil, err
 	}
 
-	return a.basePromptByID(ctx, created.ID)
+	response := toBasePromptResponse(*created)
+
+	return &response, nil
 }
 
 func (a *adminService) UpdateBasePrompt(ctx context.Context, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error) {
@@ -67,13 +69,16 @@ func (a *adminService) UpdateBasePrompt(ctx context.Context, id uuid.UUID, req d
 		return nil, err
 	}
 
-	if err := a.basePromptRepo.Update(ctx, repository.ChatbotBasePrompt{ID: id, Name: name, Prompt: prompt}); err != nil {
+	updated, err := a.basePromptRepo.Update(ctx, id, name, prompt)
+	if err != nil {
 		return nil, err
 	}
 
 	a.reloader.Reload()
 
-	return a.basePromptByID(ctx, id)
+	response := toBasePromptResponse(*updated)
+
+	return &response, nil
 }
 
 func (a *adminService) DeleteBasePrompt(ctx context.Context, id uuid.UUID) error {
@@ -84,15 +89,4 @@ func (a *adminService) DeleteBasePrompt(ctx context.Context, id uuid.UUID) error
 	a.reloader.Reload()
 
 	return nil
-}
-
-func (a *adminService) basePromptByID(ctx context.Context, id uuid.UUID) (*dto.ChatbotBasePromptResponse, error) {
-	prompt, err := a.basePromptRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	response := toBasePromptResponse(*prompt)
-
-	return &response, nil
 }

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -23,37 +22,51 @@ type (
 	}
 )
 
-func (r *theoryDAO) Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
-	theoryID := uuid.New()
-	series := req.Series
+func (r *theoryDAO) InsertTheory(ctx context.Context, spec repository.NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {
+	series := spec.Series
 	if series == "" {
 		series = "umineko"
 	}
 
-	err := db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO theories (id, user_id, title, body, episode, series) VALUES ($1, $2, $3, $4, $5, $6)`,
-			theoryID, userID, req.Title, req.Body, req.Episode, series,
-		); err != nil {
-			return fmt.Errorf("insert theory: %w", err)
-		}
-		for i, ev := range req.Evidence {
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order, lang) VALUES ($1, $2, $3, $4, $5, $6)`,
-				theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i, langOrDefault(ev.Lang),
-			); err != nil {
-				return fmt.Errorf("insert evidence: %w", err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return uuid.Nil, err
+	var created dto.TheoryDetailResponse
+	var author dto.UserResponse
+	var createdAt time.Time
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH t AS (
+		     INSERT INTO theories (user_id, title, body, episode, series) VALUES ($1, $2, $3, $4, $5)
+		     RETURNING id, user_id, title, body, episode, series, credibility_score, status, created_at
+		 )
+		 SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.status, t.created_at,
+		        u.id, u.username, u.display_name, u.avatar_url,
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
+		 FROM t
+		 JOIN users u ON t.user_id = u.id`,
+		spec.UserID, spec.Title, spec.Body, spec.Episode, series,
+	).Scan(&created.ID, &created.Title, &created.Body, &created.Episode, &created.Series, &created.CredibilityScore, &created.Status, &createdAt,
+		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
+		return nil, fmt.Errorf("insert theory: %w", err)
 	}
-	return theoryID, nil
+
+	created.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	created.Author = author
+
+	return &created, nil
 }
 
-func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error) {
+func (r *theoryDAO) InsertTheoryEvidence(ctx context.Context, theoryID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx) (*dto.EvidenceResponse, error) {
+	var stored dto.EvidenceResponse
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order, lang) VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING id, audio_id, quote_index, note, sort_order, lang`,
+		theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, sortOrder, langOrDefault(ev.Lang),
+	).Scan(&stored.ID, &stored.AudioID, &stored.QuoteIndex, &stored.Note, &stored.SortOrder, &stored.Lang); err != nil {
+		return nil, fmt.Errorf("insert evidence: %w", err)
+	}
+
+	return &stored, nil
+}
+
+func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {
 	var t dto.TheoryDetailResponse
 	var author dto.UserResponse
 	var createdAt time.Time
@@ -63,7 +76,7 @@ func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetai
 	var refuterID *uuid.UUID
 	var refuter dto.UserResponse
 
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT t.id, t.title, t.body, t.episode, t.series, t.credibility_score, t.status, t.refuted_by_response_id, t.refuted_at, t.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), ''),
@@ -96,13 +109,13 @@ func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetai
 		t.RefutedBy = &refuter
 	}
 
-	up, down, err := r.getTheoryVoteCounts(ctx, id)
+	up, down, err := r.getTheoryVoteCounts(ctx, id, tx...)
 	if err != nil {
 		return nil, err
 	}
 	t.VoteScore = up - down
 
-	withLove, withoutLove, err := r.getResponseSideCounts(ctx, id)
+	withLove, withoutLove, err := r.getResponseSideCounts(ctx, id, tx...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +125,7 @@ func (r *theoryDAO) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetai
 	return &t, nil
 }
 
-func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.TheoryResponse, int, error) {
+func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]dto.TheoryResponse, int, error) {
 	idx := 1
 	next := func() string {
 		s := fmt.Sprintf("$%d", idx)
@@ -158,7 +171,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM theories t"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
@@ -198,7 +211,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 	)
 	args = append(args, p.Limit, p.Offset)
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list theories: %w", err)
 	}
@@ -220,13 +233,13 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 			t.Body = t.Body[:200] + "..."
 		}
 
-		up, down, err := r.getTheoryVoteCounts(ctx, t.ID)
+		up, down, err := r.getTheoryVoteCounts(ctx, t.ID, tx...)
 		if err != nil {
 			logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get theory vote counts")
 		}
 		t.VoteScore = up - down
 
-		withLove, withoutLove, err := r.getResponseSideCounts(ctx, t.ID)
+		withLove, withoutLove, err := r.getResponseSideCounts(ctx, t.ID, tx...)
 		if err != nil {
 			logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get response side counts")
 		}
@@ -234,7 +247,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 		t.WithoutLoveCount = withoutLove
 
 		if userID != uuid.Nil {
-			vote, err := r.GetUserTheoryVote(ctx, userID, t.ID)
+			vote, err := r.GetUserTheoryVote(ctx, userID, t.ID, tx...)
 			if err != nil {
 				logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get user theory vote")
 			}
@@ -247,60 +260,56 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 	return theories, total, rows.Err()
 }
 
-func (r *theoryDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
-	return r.updateTheory(ctx, id, &userID, req)
+func (r *theoryDAO) UpdateTheory(ctx context.Context, spec repository.TheoryUpdate, tx ...*sql.Tx) error {
+	var result sql.Result
+	var err error
+	if spec.AsAdmin {
+		result, err = getDb(r.db, tx).ExecContext(ctx,
+			`UPDATE theories SET title = $1, body = $2, episode = $3, updated_at = NOW()
+			 WHERE id = $4`,
+			spec.Title, spec.Body, spec.Episode, spec.ID,
+		)
+	} else {
+		result, err = getDb(r.db, tx).ExecContext(ctx,
+			`UPDATE theories SET title = $1, body = $2, episode = $3, updated_at = NOW()
+			 WHERE id = $4 AND user_id = $5`,
+			spec.Title, spec.Body, spec.Episode, spec.ID, spec.UserID,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("update theory: %w", err)
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get rows affected for theory update")
+	}
+	if affected == 0 {
+		return fmt.Errorf("theory not found or not owned by user")
+	}
+
+	return nil
 }
 
-func (r *theoryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest) error {
-	return r.updateTheory(ctx, id, nil, req)
+func (r *theoryDAO) ReplaceTheoryEvidence(ctx context.Context, theoryID uuid.UUID, evidence []dto.EvidenceInput, tx ...*sql.Tx) error {
+	if _, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM theory_evidence WHERE theory_id = $1`, theoryID); err != nil {
+		return fmt.Errorf("delete old evidence: %w", err)
+	}
+
+	for i, ev := range evidence {
+		if _, err := getDb(r.db, tx).ExecContext(ctx,
+			`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES ($1, $2, $3, $4, $5)`,
+			theoryID, ev.AudioID, ev.QuoteIndex, ev.Note, i,
+		); err != nil {
+			return fmt.Errorf("insert evidence: %w", err)
+		}
+	}
+
+	return nil
 }
 
-func (r *theoryDAO) updateTheory(ctx context.Context, id uuid.UUID, userID *uuid.UUID, req dto.CreateTheoryRequest) error {
-	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		var result sql.Result
-		var err error
-		if userID != nil {
-			result, err = tx.ExecContext(ctx,
-				`UPDATE theories SET title = $1, body = $2, episode = $3, updated_at = NOW()
-				 WHERE id = $4 AND user_id = $5`,
-				req.Title, req.Body, req.Episode, id, *userID,
-			)
-		} else {
-			result, err = tx.ExecContext(ctx,
-				`UPDATE theories SET title = $1, body = $2, episode = $3, updated_at = NOW()
-				 WHERE id = $4`,
-				req.Title, req.Body, req.Episode, id,
-			)
-		}
-		if err != nil {
-			return fmt.Errorf("update theory: %w", err)
-		}
-		affected, err := result.RowsAffected()
-		if err != nil {
-			logger.Log.Error().Err(err).Msg("failed to get rows affected for theory update")
-		}
-		if affected == 0 {
-			return fmt.Errorf("theory not found or not owned by user")
-		}
-
-		if _, err := tx.ExecContext(ctx, `DELETE FROM theory_evidence WHERE theory_id = $1`, id); err != nil {
-			return fmt.Errorf("delete old evidence: %w", err)
-		}
-
-		for i, ev := range req.Evidence {
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO theory_evidence (theory_id, audio_id, quote_index, note, sort_order) VALUES ($1, $2, $3, $4, $5)`,
-				id, ev.AudioID, ev.QuoteIndex, ev.Note, i,
-			); err != nil {
-				return fmt.Errorf("insert evidence: %w", err)
-			}
-		}
-		return nil
-	})
-}
-
-func (r *theoryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	result, err := r.db.ExecContext(ctx,
+func (r *theoryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	result, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM theories WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 	if err != nil {
@@ -316,8 +325,8 @@ func (r *theoryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 	return nil
 }
 
-func (r *theoryDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM theories WHERE id = $1`, id)
+func (r *theoryDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	result, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM theories WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete theory: %w", err)
 	}
@@ -331,8 +340,8 @@ func (r *theoryDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *theoryDAO) GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error) {
-	return r.queryEvidence(ctx,
+func (r *theoryDAO) GetEvidence(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) ([]dto.EvidenceResponse, error) {
+	return r.queryEvidence(ctx, tx,
 		`SELECT te.id, te.audio_id, te.quote_index, te.note, te.sort_order, te.lang
 		 FROM theory_evidence te
 		 WHERE te.theory_id = $1
@@ -340,33 +349,47 @@ func (r *theoryDAO) GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.
 	)
 }
 
-func (r *theoryDAO) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
-	responseID := uuid.New()
-	err := db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO responses (id, theory_id, user_id, side, body, parent_id) VALUES ($1, $2, $3, $4, $5, $6)`,
-			responseID, theoryID, userID, req.Side, req.Body, req.ParentID,
-		); err != nil {
-			return fmt.Errorf("insert response: %w", err)
-		}
-		for i, ev := range req.Evidence {
-			if _, err := tx.ExecContext(ctx,
-				`INSERT INTO response_evidence (response_id, audio_id, quote_index, note, sort_order, lang) VALUES ($1, $2, $3, $4, $5, $6)`,
-				responseID, ev.AudioID, ev.QuoteIndex, ev.Note, i, langOrDefault(ev.Lang),
-			); err != nil {
-				return fmt.Errorf("insert response evidence: %w", err)
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return uuid.Nil, err
+func (r *theoryDAO) InsertResponse(ctx context.Context, spec repository.NewTheoryResponse, tx ...*sql.Tx) (*dto.ResponseResponse, error) {
+	var created dto.ResponseResponse
+	var author dto.UserResponse
+	var createdAt time.Time
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH resp AS (
+		     INSERT INTO responses (theory_id, user_id, side, body, parent_id) VALUES ($1, $2, $3, $4, $5)
+		     RETURNING id, user_id, parent_id, side, body, created_at
+		 )
+		 SELECT resp.id, resp.parent_id, resp.side, resp.body, resp.created_at,
+		        u.id, u.username, u.display_name, u.avatar_url,
+		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
+		 FROM resp
+		 JOIN users u ON resp.user_id = u.id`,
+		spec.TheoryID, spec.UserID, spec.Side, spec.Body, spec.ParentID,
+	).Scan(&created.ID, &created.ParentID, &created.Side, &created.Body, &createdAt,
+		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role); err != nil {
+		return nil, fmt.Errorf("insert response: %w", err)
 	}
-	return responseID, nil
+
+	created.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	created.Author = author
+
+	return &created, nil
 }
 
-func (r *theoryDAO) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	result, err := r.db.ExecContext(ctx,
+func (r *theoryDAO) InsertResponseEvidence(ctx context.Context, responseID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx) (*dto.EvidenceResponse, error) {
+	var stored dto.EvidenceResponse
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO response_evidence (response_id, audio_id, quote_index, note, sort_order, lang) VALUES ($1, $2, $3, $4, $5, $6)
+		 RETURNING id, audio_id, quote_index, note, sort_order, lang`,
+		responseID, ev.AudioID, ev.QuoteIndex, ev.Note, sortOrder, langOrDefault(ev.Lang),
+	).Scan(&stored.ID, &stored.AudioID, &stored.QuoteIndex, &stored.Note, &stored.SortOrder, &stored.Lang); err != nil {
+		return nil, fmt.Errorf("insert response evidence: %w", err)
+	}
+
+	return &stored, nil
+}
+
+func (r *theoryDAO) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	result, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM responses WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 	if err != nil {
@@ -382,8 +405,8 @@ func (r *theoryDAO) DeleteResponse(ctx context.Context, id uuid.UUID, userID uui
 	return nil
 }
 
-func (r *theoryDAO) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID) error {
-	result, err := r.db.ExecContext(ctx, `DELETE FROM responses WHERE id = $1`, id)
+func (r *theoryDAO) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	result, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM responses WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete response: %w", err)
 	}
@@ -397,8 +420,8 @@ func (r *theoryDAO) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID) err
 	return nil
 }
 
-func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID) ([]dto.ResponseResponse, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]dto.ResponseResponse, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT r.id, r.parent_id, r.side, r.body, r.created_at,
 		        u.id, u.username, u.display_name, u.avatar_url,
 		        COALESCE((SELECT role FROM user_roles WHERE user_id = u.id LIMIT 1), '')
@@ -424,21 +447,21 @@ func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID
 		resp.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 		resp.Author = author
 
-		up, down, err := r.getResponseVoteCounts(ctx, resp.ID)
+		up, down, err := r.getResponseVoteCounts(ctx, resp.ID, tx...)
 		if err != nil {
 			logger.Log.Error().Err(err).Str("response_id", resp.ID.String()).Msg("failed to get response vote counts")
 		}
 		resp.VoteScore = up - down
 
 		if userID != uuid.Nil {
-			vote, err := r.getUserResponseVote(ctx, userID, resp.ID)
+			vote, err := r.getUserResponseVote(ctx, userID, resp.ID, tx...)
 			if err != nil {
 				logger.Log.Error().Err(err).Str("response_id", resp.ID.String()).Msg("failed to get user response vote")
 			}
 			resp.UserVote = vote
 		}
 
-		evidence, err := r.GetResponseEvidence(ctx, resp.ID)
+		evidence, err := r.GetResponseEvidence(ctx, resp.ID, tx...)
 		if err != nil {
 			return nil, err
 		}
@@ -457,8 +480,8 @@ func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID
 	), nil
 }
 
-func (r *theoryDAO) GetResponseEvidence(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error) {
-	return r.queryEvidence(ctx,
+func (r *theoryDAO) GetResponseEvidence(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) ([]dto.EvidenceResponse, error) {
+	return r.queryEvidence(ctx, tx,
 		`SELECT re.id, re.audio_id, re.quote_index, re.note, re.sort_order, re.lang
 		 FROM response_evidence re
 		 WHERE re.response_id = $1
@@ -466,8 +489,8 @@ func (r *theoryDAO) GetResponseEvidence(ctx context.Context, responseID uuid.UUI
 	)
 }
 
-func (r *theoryDAO) queryEvidence(ctx context.Context, query string, args ...any) ([]dto.EvidenceResponse, error) {
-	rows, err := r.db.QueryContext(ctx, query, args...)
+func (r *theoryDAO) queryEvidence(ctx context.Context, tx []*sql.Tx, query string, args ...any) ([]dto.EvidenceResponse, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query evidence: %w", err)
 	}
@@ -484,14 +507,14 @@ func (r *theoryDAO) queryEvidence(ctx context.Context, query string, args ...any
 	return evidence, rows.Err()
 }
 
-func (r *theoryDAO) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {
+func (r *theoryDAO) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int, tx ...*sql.Tx) error {
 	if value == 0 {
-		_, err := r.db.ExecContext(ctx,
+		_, err := getDb(r.db, tx).ExecContext(ctx,
 			`DELETE FROM theory_votes WHERE user_id = $1 AND theory_id = $2`, userID, theoryID,
 		)
 		return err
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO theory_votes (user_id, theory_id, value) VALUES ($1, $2, $3)
 		 ON CONFLICT (user_id, theory_id) DO UPDATE SET value = EXCLUDED.value`,
 		userID, theoryID, value,
@@ -499,14 +522,14 @@ func (r *theoryDAO) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID u
 	return err
 }
 
-func (r *theoryDAO) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
+func (r *theoryDAO) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int, tx ...*sql.Tx) error {
 	if value == 0 {
-		_, err := r.db.ExecContext(ctx,
+		_, err := getDb(r.db, tx).ExecContext(ctx,
 			`DELETE FROM response_votes WHERE user_id = $1 AND response_id = $2`, userID, responseID,
 		)
 		return err
 	}
-	_, err := r.db.ExecContext(ctx,
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO response_votes (user_id, response_id, value) VALUES ($1, $2, $3)
 		 ON CONFLICT (user_id, response_id) DO UPDATE SET value = EXCLUDED.value`,
 		userID, responseID, value,
@@ -514,9 +537,9 @@ func (r *theoryDAO) VoteResponse(ctx context.Context, userID uuid.UUID, response
 	return err
 }
 
-func (r *theoryDAO) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID) (int, error) {
+func (r *theoryDAO) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var value int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT value FROM theory_votes WHERE user_id = $1 AND theory_id = $2`, userID, theoryID,
 	).Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -525,9 +548,9 @@ func (r *theoryDAO) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, the
 	return value, err
 }
 
-func (r *theoryDAO) getTheoryVoteCounts(ctx context.Context, theoryID uuid.UUID) (int, int, error) {
+func (r *theoryDAO) getTheoryVoteCounts(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (int, int, error) {
 	var up, down int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)
 		 FROM theory_votes WHERE theory_id = $1`, theoryID,
@@ -535,9 +558,9 @@ func (r *theoryDAO) getTheoryVoteCounts(ctx context.Context, theoryID uuid.UUID)
 	return up, down, err
 }
 
-func (r *theoryDAO) getResponseVoteCounts(ctx context.Context, responseID uuid.UUID) (int, int, error) {
+func (r *theoryDAO) getResponseVoteCounts(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (int, int, error) {
 	var up, down int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)
 		 FROM response_votes WHERE response_id = $1`, responseID,
@@ -545,9 +568,9 @@ func (r *theoryDAO) getResponseVoteCounts(ctx context.Context, responseID uuid.U
 	return up, down, err
 }
 
-func (r *theoryDAO) getUserResponseVote(ctx context.Context, userID uuid.UUID, responseID uuid.UUID) (int, error) {
+func (r *theoryDAO) getUserResponseVote(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var value int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT value FROM response_votes WHERE user_id = $1 AND response_id = $2`, userID, responseID,
 	).Scan(&value)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -556,9 +579,9 @@ func (r *theoryDAO) getUserResponseVote(ctx context.Context, userID uuid.UUID, r
 	return value, err
 }
 
-func (r *theoryDAO) getResponseSideCounts(ctx context.Context, theoryID uuid.UUID) (int, int, error) {
+func (r *theoryDAO) getResponseSideCounts(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (int, int, error) {
 	var withLove, withoutLove int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(CASE WHEN side = 'with_love' THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN side = 'without_love' THEN 1 ELSE 0 END), 0)
 		 FROM responses WHERE theory_id = $1 AND parent_id IS NULL`, theoryID,
@@ -566,9 +589,9 @@ func (r *theoryDAO) getResponseSideCounts(ctx context.Context, theoryID uuid.UUI
 	return withLove, withoutLove, err
 }
 
-func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error) {
+func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id FROM theories WHERE id = $1`, theoryID,
 	).Scan(&userID)
 	if err != nil {
@@ -577,9 +600,9 @@ func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID) (
 	return userID, nil
 }
 
-func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID) (uuid.UUID, uuid.UUID, error) {
+func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
 	var authorID, theoryID uuid.UUID
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, theory_id FROM responses WHERE id = $1`, responseID,
 	).Scan(&authorID, &theoryID)
 	if err != nil {
@@ -588,27 +611,27 @@ func (r *theoryDAO) GetResponseInfo(ctx context.Context, responseID uuid.UUID) (
 	return authorID, theoryID, nil
 }
 
-func (r *theoryDAO) GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error) {
+func (r *theoryDAO) GetTheorySeries(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	var series string
-	err := r.db.QueryRowContext(ctx, `SELECT series FROM theories WHERE id = $1`, theoryID).Scan(&series)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT series FROM theories WHERE id = $1`, theoryID).Scan(&series)
 	if err != nil {
 		return "", fmt.Errorf("get theory series: %w", err)
 	}
 	return series, nil
 }
 
-func (r *theoryDAO) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error) {
+func (r *theoryDAO) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	var title string
-	err := r.db.QueryRowContext(ctx, `SELECT title FROM theories WHERE id = $1`, theoryID).Scan(&title)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT title FROM theories WHERE id = $1`, theoryID).Scan(&title)
 	if err != nil {
 		return "", fmt.Errorf("get theory title: %w", err)
 	}
 	return title, nil
 }
 
-func (r *theoryDAO) GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]dto.ActivityItem, int, error) {
+func (r *theoryDAO) GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]dto.ActivityItem, int, error) {
 	var total int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT (SELECT COUNT(*) FROM theories WHERE user_id = $1) + (SELECT COUNT(*) FROM responses WHERE user_id = $2)`,
 		userID, userID,
 	).Scan(&total)
@@ -616,7 +639,7 @@ func (r *theoryDAO) GetRecentActivityByUser(ctx context.Context, userID uuid.UUI
 		return nil, 0, fmt.Errorf("count activity: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT type, theory_id, theory_title, side, body, created_at FROM (
 			SELECT 'theory' as type, t.id as theory_id, t.title as theory_title, '' as side, t.body, t.created_at
 			FROM theories t WHERE t.user_id = $1
@@ -648,24 +671,24 @@ func (r *theoryDAO) GetRecentActivityByUser(ctx context.Context, userID uuid.UUI
 	return items, total, nil
 }
 
-func (r *theoryDAO) CountUserTheoriesToday(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *theoryDAO) CountUserTheoriesToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM theories WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`, userID,
 	).Scan(&count)
 	return count, err
 }
 
-func (r *theoryDAO) CountUserResponsesToday(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *theoryDAO) CountUserResponsesToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM responses WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`, userID,
 	).Scan(&count)
 	return count, err
 }
 
-func (r *theoryDAO) UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *theoryDAO) UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE theories SET credibility_score = $1 WHERE id = $2`, score, theoryID,
 	)
 	if err != nil {
@@ -674,8 +697,8 @@ func (r *theoryDAO) UpdateCredibilityScore(ctx context.Context, theoryID uuid.UU
 	return nil
 }
 
-func (r *theoryDAO) GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (float64, float64, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *theoryDAO) GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (float64, float64, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT r.side, COALESCE(SUM(re.truth_weight), 0)
 		 FROM responses r
 		 LEFT JOIN response_evidence re ON r.id = re.response_id
@@ -703,8 +726,8 @@ func (r *theoryDAO) GetResponseEvidenceWeights(ctx context.Context, theoryID uui
 	return withLove, withoutLove, rows.Err()
 }
 
-func (r *theoryDAO) SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *theoryDAO) SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE response_evidence SET truth_weight = $1 WHERE id = $2`, weight, evidenceID,
 	)
 	if err != nil {
@@ -720,8 +743,8 @@ func langOrDefault(lang string) string {
 	return lang
 }
 
-func (r *theoryDAO) RecomputeStatus(ctx context.Context, theoryID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *theoryDAO) RecomputeStatus(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE theories t SET status = CASE
 			WHEN EXISTS (SELECT 1 FROM responses r WHERE r.theory_id = t.id AND r.parent_id IS NULL) THEN 'contested'::theory_status
 			ELSE 'open'::theory_status
@@ -734,8 +757,8 @@ func (r *theoryDAO) RecomputeStatus(ctx context.Context, theoryID uuid.UUID) err
 	return nil
 }
 
-func (r *theoryDAO) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx,
+func (r *theoryDAO) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID, tx ...*sql.Tx) error {
+	res, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE theories t SET status = 'refuted', refuted_by_response_id = r.id, refuted_by_user_id = r.user_id, refuted_at = NOW()
 		 FROM responses r
 		 WHERE t.id = $1 AND r.id = $2 AND r.theory_id = t.id AND r.parent_id IS NULL AND r.side = 'without_love' AND r.user_id <> t.user_id AND t.status <> 'refuted'`,
@@ -755,9 +778,9 @@ func (r *theoryDAO) MarkRefuted(ctx context.Context, theoryID uuid.UUID, respons
 	return nil
 }
 
-func (r *theoryDAO) GetResponseMeta(ctx context.Context, responseID uuid.UUID) (repository.ResponseMeta, error) {
+func (r *theoryDAO) GetResponseMeta(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (repository.ResponseMeta, error) {
 	var meta repository.ResponseMeta
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, theory_id, side, parent_id FROM responses WHERE id = $1`, responseID,
 	).Scan(&meta.AuthorID, &meta.TheoryID, &meta.Side, &meta.ParentID)
 	if err != nil {

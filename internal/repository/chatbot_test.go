@@ -15,15 +15,15 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *MockChatbotRepository, *valkeymock.Client) {
+func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *MockChatbotDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockChatbotRepository(t)
+	dao := NewMockChatbotDAO(t)
 	basePrompts := NewMockBasePromptInvalidator(t)
 	basePrompts.EXPECT().InvalidateList(mock.Anything).Return().Maybe()
 
-	return NewChatbotRepo(dao, basePrompts, cache.NewManagerWithClient(client)), dao, client
+	return NewChatbotRepo(nil, dao, nil, nil, basePrompts, cache.NewManagerWithClient(client)), dao, client
 }
 
 func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {

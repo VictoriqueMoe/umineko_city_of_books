@@ -23,8 +23,7 @@ import { Toast } from "./components/Toast/Toast";
 import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitWarning";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 import { LandingPage } from "./pages/landing/LandingPage";
-import { linkify } from "./utils/linkify";
-import { renderColours } from "./utils/colours";
+import { renderRich } from "./utils/richText";
 import {
     AdminAnnouncementsPage,
     AdminAuditLog,
@@ -152,7 +151,7 @@ function AnnouncementBanner() {
         return null;
     }
 
-    return <div className="announcement-banner">{renderColours(banner, linkify, "ab")}</div>;
+    return <div className="announcement-banner">{renderRich(banner)}</div>;
 }
 
 function RouteFallback() {

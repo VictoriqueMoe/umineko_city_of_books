@@ -27,7 +27,6 @@ import (
 type harness struct {
 	repo         *repository.MockAnnouncementRepository
 	userRepo     *repository.MockUserRepository
-	auditRepo    *repository.MockAuditLogRepository
 	blockSvc     *block.MockService
 	notifService *notification.MockService
 	settingsSvc  *settings.MockService
@@ -40,7 +39,6 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	repo := repository.NewMockAnnouncementRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
-	auditRepo := repository.NewMockAuditLogRepository(t)
 	blockSvc := block.NewMockService(t)
 	notifService := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
@@ -56,14 +54,13 @@ func newHarness(t *testing.T) *harness {
 	return &harness{
 		repo:         repo,
 		userRepo:     userRepo,
-		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
 		authzSvc:     authzSvc,
 		uploadSvc:    uploadSvc,
 		hub:          hub,
-		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader),
+		svc:          announcement.NewService(repo, userRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader, uploadSvc),
 	}
 }
 
@@ -170,7 +167,7 @@ func TestService_Create_OK(t *testing.T) {
 	// given
 	h := newHarness(t)
 	userID := uuid.New()
-	h.repo.EXPECT().Create(mock.Anything, mock.AnythingOfType("uuid.UUID"), userID, "t", "b").Return(nil)
+	h.repo.EXPECT().Create(mock.Anything, userID, "t", "b").Return(&repository.AnnouncementRow{ID: uuid.New()}, nil)
 
 	// when
 	id, err := h.svc.Create(context.Background(), userID, "t", "b")
@@ -208,13 +205,41 @@ func TestService_Delete_Delegates(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
-	h.repo.EXPECT().Delete(mock.Anything, id).Return(nil)
+	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return(nil, nil)
+	h.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := h.svc.Delete(context.Background(), id)
 
 	// then
 	assert.NoError(t, err)
+}
+
+func TestService_Delete_UnlinksCommentMediaAfterCommit(t *testing.T) {
+	// given
+	h := newHarness(t)
+	id := uuid.New()
+	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return([]string{"/uploads/announcements/a.png", "/uploads/announcements/a-thumb.png"}, nil)
+	h.uploadSvc.EXPECT().Delete([]string{"/uploads/announcements/a.png", "/uploads/announcements/a-thumb.png"}).Return()
+
+	// when
+	err := h.svc.Delete(context.Background(), id)
+
+	// then
+	assert.NoError(t, err)
+}
+
+func TestService_Delete_KeepsFilesWhenTransactionFails(t *testing.T) {
+	// given
+	h := newHarness(t)
+	id := uuid.New()
+	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return(nil, errors.New("rolled back"))
+
+	// when
+	err := h.svc.Delete(context.Background(), id)
+
+	// then
+	assert.Error(t, err)
 }
 
 func TestService_SetPinned_Delegates(t *testing.T) {
@@ -280,7 +305,7 @@ func TestService_CreateComment_OK(t *testing.T) {
 	h.repo.EXPECT().GetByID(mock.Anything, annID).
 		Return(&repository.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	h.repo.EXPECT().CreateComment(mock.Anything, mock.AnythingOfType("uuid.UUID"), annID, (*uuid.UUID)(nil), userID, "hello").Return(nil)
+	h.repo.EXPECT().CreateComment(mock.Anything, annID, (*uuid.UUID)(nil), userID, "hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	h.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil).Maybe()
 
 	// when
@@ -297,7 +322,13 @@ func TestService_UpdateComment_AsAuthor(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	h.repo.EXPECT().UpdateComment(mock.Anything, id, userID, "x").Return(nil)
+	h.repo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.AnnouncementCommentUpdate{
+			CommentID: id,
+			UserID:    userID,
+			Body:      "x",
+		}).
+		Return(nil)
 
 	// when
 	err := h.svc.UpdateComment(context.Background(), id, userID, "x")
@@ -312,7 +343,14 @@ func TestService_UpdateComment_AsAdmin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	h.repo.EXPECT().UpdateCommentAsAdmin(mock.Anything, id, "x").Return(nil)
+	h.repo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.AnnouncementCommentUpdate{
+			CommentID: id,
+			UserID:    userID,
+			Body:      "x",
+			AsAdmin:   true,
+		}).
+		Return(nil)
 
 	// when
 	err := h.svc.UpdateComment(context.Background(), id, userID, "x")
@@ -338,7 +376,13 @@ func TestService_UpdateComment_NonAuthorIsForbidden(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	h.repo.EXPECT().UpdateComment(mock.Anything, id, userID, "x").Return(errors.New("not yours"))
+	h.repo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.AnnouncementCommentUpdate{
+			CommentID: id,
+			UserID:    userID,
+			Body:      "x",
+		}).
+		Return(errors.New("not yours"))
 
 	// when
 	err := h.svc.UpdateComment(context.Background(), id, userID, "x")
@@ -353,8 +397,10 @@ func TestService_DeleteComment_AsAuthor(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	h.repo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(nil)
-	h.auditRepo.EXPECT().Create(mock.Anything, userID, "announcement_comment_delete", "announcement_comment", id.String(), "").Return(nil)
+	h.repo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.AnnouncementCommentDeletion{CommentID: id, UserID: userID}).
+		Return([]string{"/uploads/announcements/c.png"}, nil)
+	h.uploadSvc.EXPECT().Delete([]string{"/uploads/announcements/c.png"}).Return()
 
 	// when
 	err := h.svc.DeleteComment(context.Background(), id, userID)
@@ -369,8 +415,10 @@ func TestService_DeleteComment_AsAdmin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-	h.repo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
-	h.auditRepo.EXPECT().Create(mock.Anything, userID, "announcement_comment_delete_admin", "announcement_comment", id.String(), "").Return(nil)
+	h.repo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.AnnouncementCommentDeletion{CommentID: id, UserID: userID, AsAdmin: true}).
+		Return(nil, nil)
+	h.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := h.svc.DeleteComment(context.Background(), id, userID)
@@ -385,7 +433,9 @@ func TestService_DeleteComment_NonAuthorIsForbidden(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	h.repo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(errors.New("not yours"))
+	h.repo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.AnnouncementCommentDeletion{CommentID: id, UserID: userID}).
+		Return(nil, errors.New("not yours"))
 
 	// when
 	err := h.svc.DeleteComment(context.Background(), id, userID)

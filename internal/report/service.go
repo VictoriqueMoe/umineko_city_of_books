@@ -73,7 +73,15 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 		return ErrMissingFields
 	}
 
-	_, err := s.reportRepo.Create(ctx, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason)
+	spec := repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}
+
+	_, err := s.reportRepo.Create(ctx, spec)
 	if err != nil {
 		return fmt.Errorf("create report: %w", err)
 	}

@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockSettingsRepository) EXPECT() *MockSettingsRepository_Expecter {
 }
 
 // Delete provides a mock function for the type MockSettingsRepository
-func (_mock *MockSettingsRepository) Delete(ctx context.Context, key string) error {
-	ret := _mock.Called(ctx, key)
+func (_mock *MockSettingsRepository) Delete(ctx context.Context, key string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, key, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, key)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, key, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -63,11 +70,13 @@ type MockSettingsRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *MockSettingsRepository_Expecter) Delete(ctx any, key any) *MockSettingsRepository_Delete_Call {
-	return &MockSettingsRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, key)}
+//   - tx ...*sql.Tx
+func (_e *MockSettingsRepository_Expecter) Delete(ctx any, key any, tx ...any) *MockSettingsRepository_Delete_Call {
+	return &MockSettingsRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, key}, tx...)...)}
 }
 
-func (_c *MockSettingsRepository_Delete_Call) Run(run func(ctx context.Context, key string)) *MockSettingsRepository_Delete_Call {
+func (_c *MockSettingsRepository_Delete_Call) Run(run func(ctx context.Context, key string, tx ...*sql.Tx)) *MockSettingsRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -77,9 +86,16 @@ func (_c *MockSettingsRepository_Delete_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -90,14 +106,20 @@ func (_c *MockSettingsRepository_Delete_Call) Return(err error) *MockSettingsRep
 	return _c
 }
 
-func (_c *MockSettingsRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, key string) error) *MockSettingsRepository_Delete_Call {
+func (_c *MockSettingsRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, key string, tx ...*sql.Tx) error) *MockSettingsRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Get provides a mock function for the type MockSettingsRepository
-func (_mock *MockSettingsRepository) Get(ctx context.Context, key string) (string, error) {
-	ret := _mock.Called(ctx, key)
+func (_mock *MockSettingsRepository) Get(ctx context.Context, key string, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, key, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, key)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -105,16 +127,16 @@ func (_mock *MockSettingsRepository) Get(ctx context.Context, key string) (strin
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, key, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, key, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, key)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, key, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -129,11 +151,13 @@ type MockSettingsRepository_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - key string
-func (_e *MockSettingsRepository_Expecter) Get(ctx any, key any) *MockSettingsRepository_Get_Call {
-	return &MockSettingsRepository_Get_Call{Call: _e.mock.On("Get", ctx, key)}
+//   - tx ...*sql.Tx
+func (_e *MockSettingsRepository_Expecter) Get(ctx any, key any, tx ...any) *MockSettingsRepository_Get_Call {
+	return &MockSettingsRepository_Get_Call{Call: _e.mock.On("Get",
+		append([]any{ctx, key}, tx...)...)}
 }
 
-func (_c *MockSettingsRepository_Get_Call) Run(run func(ctx context.Context, key string)) *MockSettingsRepository_Get_Call {
+func (_c *MockSettingsRepository_Get_Call) Run(run func(ctx context.Context, key string, tx ...*sql.Tx)) *MockSettingsRepository_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -143,9 +167,16 @@ func (_c *MockSettingsRepository_Get_Call) Run(run func(ctx context.Context, key
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -156,14 +187,20 @@ func (_c *MockSettingsRepository_Get_Call) Return(s string, err error) *MockSett
 	return _c
 }
 
-func (_c *MockSettingsRepository_Get_Call) RunAndReturn(run func(ctx context.Context, key string) (string, error)) *MockSettingsRepository_Get_Call {
+func (_c *MockSettingsRepository_Get_Call) RunAndReturn(run func(ctx context.Context, key string, tx ...*sql.Tx) (string, error)) *MockSettingsRepository_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetAll provides a mock function for the type MockSettingsRepository
-func (_mock *MockSettingsRepository) GetAll(ctx context.Context) (map[string]string, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockSettingsRepository) GetAll(ctx context.Context, tx ...*sql.Tx) (map[string]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAll")
@@ -171,18 +208,18 @@ func (_mock *MockSettingsRepository) GetAll(ctx context.Context) (map[string]str
 
 	var r0 map[string]string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]string, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[string]string, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]string); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[string]string); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -196,18 +233,27 @@ type MockSettingsRepository_GetAll_Call struct {
 
 // GetAll is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSettingsRepository_Expecter) GetAll(ctx any) *MockSettingsRepository_GetAll_Call {
-	return &MockSettingsRepository_GetAll_Call{Call: _e.mock.On("GetAll", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockSettingsRepository_Expecter) GetAll(ctx any, tx ...any) *MockSettingsRepository_GetAll_Call {
+	return &MockSettingsRepository_GetAll_Call{Call: _e.mock.On("GetAll",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockSettingsRepository_GetAll_Call) Run(run func(ctx context.Context)) *MockSettingsRepository_GetAll_Call {
+func (_c *MockSettingsRepository_GetAll_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockSettingsRepository_GetAll_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -218,22 +264,100 @@ func (_c *MockSettingsRepository_GetAll_Call) Return(stringToString map[string]s
 	return _c
 }
 
-func (_c *MockSettingsRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context) (map[string]string, error)) *MockSettingsRepository_GetAll_Call {
+func (_c *MockSettingsRepository_GetAll_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[string]string, error)) *MockSettingsRepository_GetAll_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Reconcile provides a mock function for the type MockSettingsRepository
+func (_mock *MockSettingsRepository) Reconcile(ctx context.Context, spec SettingsReconcile, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Reconcile")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, SettingsReconcile, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockSettingsRepository_Reconcile_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Reconcile'
+type MockSettingsRepository_Reconcile_Call struct {
+	*mock.Call
+}
+
+// Reconcile is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec SettingsReconcile
+//   - tx ...*sql.Tx
+func (_e *MockSettingsRepository_Expecter) Reconcile(ctx any, spec any, tx ...any) *MockSettingsRepository_Reconcile_Call {
+	return &MockSettingsRepository_Reconcile_Call{Call: _e.mock.On("Reconcile",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockSettingsRepository_Reconcile_Call) Run(run func(ctx context.Context, spec SettingsReconcile, tx ...*sql.Tx)) *MockSettingsRepository_Reconcile_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 SettingsReconcile
+		if args[1] != nil {
+			arg1 = args[1].(SettingsReconcile)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockSettingsRepository_Reconcile_Call) Return(err error) *MockSettingsRepository_Reconcile_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockSettingsRepository_Reconcile_Call) RunAndReturn(run func(ctx context.Context, spec SettingsReconcile, tx ...*sql.Tx) error) *MockSettingsRepository_Reconcile_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Set provides a mock function for the type MockSettingsRepository
-func (_mock *MockSettingsRepository) Set(ctx context.Context, key string, value string, updatedBy uuid.UUID) error {
-	ret := _mock.Called(ctx, key, value, updatedBy)
+func (_mock *MockSettingsRepository) Set(ctx context.Context, key string, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, key, value, updatedBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, key, value, updatedBy)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Set")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, key, value, updatedBy)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, key, value, updatedBy, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -250,11 +374,13 @@ type MockSettingsRepository_Set_Call struct {
 //   - key string
 //   - value string
 //   - updatedBy uuid.UUID
-func (_e *MockSettingsRepository_Expecter) Set(ctx any, key any, value any, updatedBy any) *MockSettingsRepository_Set_Call {
-	return &MockSettingsRepository_Set_Call{Call: _e.mock.On("Set", ctx, key, value, updatedBy)}
+//   - tx ...*sql.Tx
+func (_e *MockSettingsRepository_Expecter) Set(ctx any, key any, value any, updatedBy any, tx ...any) *MockSettingsRepository_Set_Call {
+	return &MockSettingsRepository_Set_Call{Call: _e.mock.On("Set",
+		append([]any{ctx, key, value, updatedBy}, tx...)...)}
 }
 
-func (_c *MockSettingsRepository_Set_Call) Run(run func(ctx context.Context, key string, value string, updatedBy uuid.UUID)) *MockSettingsRepository_Set_Call {
+func (_c *MockSettingsRepository_Set_Call) Run(run func(ctx context.Context, key string, value string, updatedBy uuid.UUID, tx ...*sql.Tx)) *MockSettingsRepository_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -272,11 +398,18 @@ func (_c *MockSettingsRepository_Set_Call) Run(run func(ctx context.Context, key
 		if args[3] != nil {
 			arg3 = args[3].(uuid.UUID)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -287,22 +420,28 @@ func (_c *MockSettingsRepository_Set_Call) Return(err error) *MockSettingsReposi
 	return _c
 }
 
-func (_c *MockSettingsRepository_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value string, updatedBy uuid.UUID) error) *MockSettingsRepository_Set_Call {
+func (_c *MockSettingsRepository_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error) *MockSettingsRepository_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMultiple provides a mock function for the type MockSettingsRepository
-func (_mock *MockSettingsRepository) SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID) error {
-	ret := _mock.Called(ctx, settings, updatedBy)
+func (_mock *MockSettingsRepository) SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, settings, updatedBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, settings, updatedBy)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMultiple")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]string, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, settings, updatedBy)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]string, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, settings, updatedBy, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -318,11 +457,13 @@ type MockSettingsRepository_SetMultiple_Call struct {
 //   - ctx context.Context
 //   - settings map[string]string
 //   - updatedBy uuid.UUID
-func (_e *MockSettingsRepository_Expecter) SetMultiple(ctx any, settings any, updatedBy any) *MockSettingsRepository_SetMultiple_Call {
-	return &MockSettingsRepository_SetMultiple_Call{Call: _e.mock.On("SetMultiple", ctx, settings, updatedBy)}
+//   - tx ...*sql.Tx
+func (_e *MockSettingsRepository_Expecter) SetMultiple(ctx any, settings any, updatedBy any, tx ...any) *MockSettingsRepository_SetMultiple_Call {
+	return &MockSettingsRepository_SetMultiple_Call{Call: _e.mock.On("SetMultiple",
+		append([]any{ctx, settings, updatedBy}, tx...)...)}
 }
 
-func (_c *MockSettingsRepository_SetMultiple_Call) Run(run func(ctx context.Context, settings map[string]string, updatedBy uuid.UUID)) *MockSettingsRepository_SetMultiple_Call {
+func (_c *MockSettingsRepository_SetMultiple_Call) Run(run func(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx)) *MockSettingsRepository_SetMultiple_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -336,10 +477,17 @@ func (_c *MockSettingsRepository_SetMultiple_Call) Run(run func(ctx context.Cont
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -350,7 +498,7 @@ func (_c *MockSettingsRepository_SetMultiple_Call) Return(err error) *MockSettin
 	return _c
 }
 
-func (_c *MockSettingsRepository_SetMultiple_Call) RunAndReturn(run func(ctx context.Context, settings map[string]string, updatedBy uuid.UUID) error) *MockSettingsRepository_SetMultiple_Call {
+func (_c *MockSettingsRepository_SetMultiple_Call) RunAndReturn(run func(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx) error) *MockSettingsRepository_SetMultiple_Call {
 	_c.Call.Return(run)
 	return _c
 }

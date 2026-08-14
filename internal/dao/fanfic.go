@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -79,107 +79,129 @@ func scanFanficRow(row interface{ Scan(...any) error }, f *model.FanficRow) erro
 	return nil
 }
 
-func insertFanficGenresTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUID, genres []string) error {
+func (r *fanficDAO) Create(ctx context.Context, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, isPairing bool, tx ...*sql.Tx) (*model.FanficRow, error) {
+	var created model.FanficRow
+
+	if err := scanFanficRow(getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH f AS (
+		     INSERT INTO fanfics (user_id, title, summary, series, rating, language, status, is_oneshot, contains_lemons)
+		     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		     RETURNING *
+		 )
+		 SELECT f.id, f.user_id, f.title, f.summary, f.series, f.rating, f.language, f.status,
+		        f.is_oneshot, f.contains_lemons, f.cover_image_url, f.cover_thumbnail_url,
+		        f.word_count, f.favourite_count, f.view_count, f.comment_count,
+		        f.published_at, f.created_at, f.updated_at,
+		        u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
+		        0, FALSE, $10::boolean
+		 FROM f
+		 JOIN users u ON u.id = f.user_id
+		 LEFT JOIN user_roles r ON r.user_id = u.id`,
+		userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing,
+	), &created); err != nil {
+		return nil, fmt.Errorf("create fanfic: %w", err)
+	}
+
+	return &created, nil
+}
+
+func (r *fanficDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, asAdmin bool, tx ...*sql.Tx) error {
+	var res sql.Result
+	var err error
+
+	if asAdmin {
+		res, err = getDb(r.db, tx).ExecContext(ctx,
+			`UPDATE fanfics SET title = $1, summary = $2, series = $3, rating = $4, language = $5, status = $6, is_oneshot = $7, contains_lemons = $8, updated_at = NOW() WHERE id = $9`,
+			title, summary, series, rating, language, status, isOneshot, containsLemons, id,
+		)
+	} else {
+		res, err = getDb(r.db, tx).ExecContext(ctx,
+			`UPDATE fanfics SET title = $1, summary = $2, series = $3, rating = $4, language = $5, status = $6, is_oneshot = $7, contains_lemons = $8, updated_at = NOW() WHERE id = $9 AND user_id = $10`,
+			title, summary, series, rating, language, status, isOneshot, containsLemons, id, userID,
+		)
+	}
+	if err != nil {
+		return fmt.Errorf("update fanfic: %w", err)
+	}
+
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("fanfic not found or not owned")
+	}
+
+	return nil
+}
+
+func (r *fanficDAO) AddGenres(ctx context.Context, fanficID uuid.UUID, genres []string, tx ...*sql.Tx) error {
 	for _, g := range genres {
-		if _, err := tx.ExecContext(ctx,
+		if _, err := getDb(r.db, tx).ExecContext(ctx,
 			`INSERT INTO fanfic_genres (fanfic_id, genre) VALUES ($1, $2)`,
 			fanficID, strings.TrimSpace(g),
 		); err != nil {
 			return fmt.Errorf("add fanfic genre: %w", err)
 		}
 	}
+
 	return nil
 }
 
-func insertFanficTagsTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUID, tags []string) error {
+func (r *fanficDAO) DeleteGenres(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) error {
+	if _, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM fanfic_genres WHERE fanfic_id = $1`, fanficID); err != nil {
+		return fmt.Errorf("delete fanfic genres: %w", err)
+	}
+
+	return nil
+}
+
+func (r *fanficDAO) AddTags(ctx context.Context, fanficID uuid.UUID, tags []string, tx ...*sql.Tx) error {
 	for _, t := range tags {
 		tag := strings.TrimSpace(t)
 		if tag == "" {
 			continue
 		}
-		if _, err := tx.ExecContext(ctx,
+
+		if _, err := getDb(r.db, tx).ExecContext(ctx,
 			`INSERT INTO fanfic_tags (fanfic_id, tag) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 			fanficID, tag,
 		); err != nil {
 			return fmt.Errorf("add fanfic tag: %w", err)
 		}
 	}
+
 	return nil
 }
 
-func insertFanficCharactersTx(ctx context.Context, tx *sql.Tx, fanficID uuid.UUID, characters []dto.FanficCharacter, isPairing bool) error {
+func (r *fanficDAO) DeleteTags(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) error {
+	if _, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM fanfic_tags WHERE fanfic_id = $1`, fanficID); err != nil {
+		return fmt.Errorf("delete fanfic tags: %w", err)
+	}
+
+	return nil
+}
+
+func (r *fanficDAO) AddCharacters(ctx context.Context, fanficID uuid.UUID, characters []dto.FanficCharacter, isPairing bool, tx ...*sql.Tx) error {
 	for i, c := range characters {
-		if _, err := tx.ExecContext(ctx,
+		if _, err := getDb(r.db, tx).ExecContext(ctx,
 			`INSERT INTO fanfic_characters (fanfic_id, series, character_id, character_name, sort_order, is_pairing) VALUES ($1, $2, $3, $4, $5, $6)`,
 			fanficID, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i, isPairing,
 		); err != nil {
 			return fmt.Errorf("add fanfic character: %w", err)
 		}
 	}
+
 	return nil
 }
 
-func (r *fanficDAO) CreateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, tags []string, characters []dto.FanficCharacter, isPairing bool) error {
-	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO fanfics (id, user_id, title, summary, series, rating, language, status, is_oneshot, contains_lemons, cover_image_url, cover_thumbnail_url) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-			id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, "", "",
-		); err != nil {
-			return fmt.Errorf("create fanfic: %w", err)
-		}
-		if err := insertFanficGenresTx(ctx, tx, id, genres); err != nil {
-			return err
-		}
-		if err := insertFanficTagsTx(ctx, tx, id, tags); err != nil {
-			return err
-		}
-		return insertFanficCharactersTx(ctx, tx, id, characters, isPairing)
-	})
+func (r *fanficDAO) DeleteCharacters(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) error {
+	if _, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM fanfic_characters WHERE fanfic_id = $1`, fanficID); err != nil {
+		return fmt.Errorf("delete fanfic characters: %w", err)
+	}
+
+	return nil
 }
 
-func (r *fanficDAO) UpdateWithDetails(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, genres []string, tags []string, characters []dto.FanficCharacter, isPairing bool, asAdmin bool) error {
-	return db.WithTx(ctx, r.db, func(tx *sql.Tx) error {
-		var res sql.Result
-		var err error
-		if asAdmin {
-			res, err = tx.ExecContext(ctx,
-				`UPDATE fanfics SET title = $1, summary = $2, series = $3, rating = $4, language = $5, status = $6, is_oneshot = $7, contains_lemons = $8, updated_at = NOW() WHERE id = $9`,
-				title, summary, series, rating, language, status, isOneshot, containsLemons, id,
-			)
-		} else {
-			res, err = tx.ExecContext(ctx,
-				`UPDATE fanfics SET title = $1, summary = $2, series = $3, rating = $4, language = $5, status = $6, is_oneshot = $7, contains_lemons = $8, updated_at = NOW() WHERE id = $9 AND user_id = $10`,
-				title, summary, series, rating, language, status, isOneshot, containsLemons, id, userID,
-			)
-		}
-		if err != nil {
-			return fmt.Errorf("update fanfic: %w", err)
-		}
-		n, _ := res.RowsAffected()
-		if n == 0 {
-			return fmt.Errorf("fanfic not found or not owned")
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fanfic_genres WHERE fanfic_id = $1`, id); err != nil {
-			return fmt.Errorf("delete fanfic genres: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fanfic_tags WHERE fanfic_id = $1`, id); err != nil {
-			return fmt.Errorf("delete fanfic tags: %w", err)
-		}
-		if _, err := tx.ExecContext(ctx, `DELETE FROM fanfic_characters WHERE fanfic_id = $1`, id); err != nil {
-			return fmt.Errorf("delete fanfic characters: %w", err)
-		}
-		if err := insertFanficGenresTx(ctx, tx, id, genres); err != nil {
-			return err
-		}
-		if err := insertFanficTagsTx(ctx, tx, id, tags); err != nil {
-			return err
-		}
-		return insertFanficCharactersTx(ctx, tx, id, characters, isPairing)
-	})
-}
-
-func (r *fanficDAO) UpdateCoverImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) UpdateCoverImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE fanfics SET cover_image_url = $1, cover_thumbnail_url = $2 WHERE id = $3`,
 		imageURL, thumbnailURL, id,
 	)
@@ -189,8 +211,8 @@ func (r *fanficDAO) UpdateCoverImage(ctx context.Context, id uuid.UUID, imageURL
 	return nil
 }
 
-func (r *fanficDAO) UpdateWordCount(ctx context.Context, fanficID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) UpdateWordCount(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE fanfics SET word_count = COALESCE((SELECT SUM(word_count) FROM fanfic_chapters WHERE fanfic_id = $1), 0), updated_at = NOW() WHERE id = $2`,
 		fanficID, fanficID,
 	)
@@ -200,8 +222,8 @@ func (r *fanficDAO) UpdateWordCount(ctx context.Context, fanficID uuid.UUID) err
 	return nil
 }
 
-func (r *fanficDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM fanfics WHERE id = $1 AND user_id = $2`, id, userID)
+func (r *fanficDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM fanfics WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete fanfic: %w", err)
 	}
@@ -212,17 +234,46 @@ func (r *fanficDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 	return nil
 }
 
-func (r *fanficDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM fanfics WHERE id = $1`, id)
+func (r *fanficDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM fanfics WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete fanfic: %w", err)
 	}
 	return nil
 }
 
-func (r *fanficDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*model.FanficRow, error) {
+func (r *fanficDAO) GetCoverImagePaths(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var (
+		coverURL     string
+		thumbnailURL string
+	)
+
+	err := getDb(r.db, tx).QueryRowContext(ctx,
+		`SELECT cover_image_url, cover_thumbnail_url FROM fanfics WHERE id = $1`,
+		fanficID,
+	).Scan(&coverURL, &thumbnailURL)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get fanfic cover paths: %w", err)
+	}
+
+	var paths []string
+	if coverURL != "" {
+		paths = append(paths, coverURL)
+	}
+
+	if thumbnailURL != "" {
+		paths = append(paths, thumbnailURL)
+	}
+
+	return paths, nil
+}
+
+func (r *fanficDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.FanficRow, error) {
 	var f model.FanficRow
-	err := scanFanficRow(r.db.QueryRowContext(ctx, fanficRenumber(fanficSelectBase+` WHERE f.id = ?`), viewerID, id), &f)
+	err := scanFanficRow(getDb(r.db, tx).QueryRowContext(ctx, fanficRenumber(fanficSelectBase+` WHERE f.id = ?`), viewerID, id), &f)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -232,9 +283,9 @@ func (r *fanficDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUI
 	return &f, nil
 }
 
-func (r *fanficDAO) GetAuthorID(ctx context.Context, fanficID uuid.UUID) (uuid.UUID, error) {
+func (r *fanficDAO) GetAuthorID(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT user_id FROM fanfics WHERE id = $1`, fanficID).Scan(&userID)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM fanfics WHERE id = $1`, fanficID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get fanfic author: %w", err)
 	}
@@ -252,7 +303,7 @@ func fanficOrderClause(sort string) string {
 	}
 }
 
-func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams, excludeUserIDs []uuid.UUID) ([]model.FanficRow, int, error) {
+func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	whereParts := []string{"(f.status != 'draft' OR f.user_id = ?)"}
 	args := []any{viewerID}
 
@@ -333,7 +384,7 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	var total int
 	countArgs := append([]any{}, args...)
 	countArgs = append(countArgs, exclArgs...)
-	if err := r.db.QueryRowContext(ctx,
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
 		fanficRenumber(`SELECT COUNT(*) FROM fanfics f`+whereClause), countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count fanfics: %w", err)
@@ -347,7 +398,7 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	queryArgs = append(queryArgs, exclArgs...)
 	queryArgs = append(queryArgs, params.Limit, params.Offset)
 
-	rows, err := r.db.QueryContext(ctx, query, queryArgs...)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list fanfics: %w", err)
 	}
@@ -364,14 +415,14 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	return fanfics, total, rows.Err()
 }
 
-func (r *fanficDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]model.FanficRow, int, error) {
+func (r *fanficDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user fanfics: %w", err)
 	}
 
 	query := fanficRenumber(fanficSelectBase + ` WHERE f.user_id = ? ORDER BY f.updated_at DESC LIMIT ? OFFSET ?`)
-	rows, err := r.db.QueryContext(ctx, query, viewerID, userID, limit, offset)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user fanfics: %w", err)
 	}
@@ -388,19 +439,29 @@ func (r *fanficDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID u
 	return fanfics, total, rows.Err()
 }
 
-func (r *fanficDAO) CreateChapter(ctx context.Context, id uuid.UUID, fanficID uuid.UUID, chapterNumber int, title string, body string, wordCount int) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO fanfic_chapters (id, fanfic_id, chapter_number, title, body, word_count) VALUES ($1, $2, $3, $4, $5, $6)`,
-		id, fanficID, chapterNumber, title, body, wordCount,
-	)
+func (r *fanficDAO) CreateChapter(ctx context.Context, fanficID uuid.UUID, spec repository.NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
+	var c model.FanficChapterRow
+	var createdAt time.Time
+	var updatedAt sql.NullTime
+
+	err := getDb(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO fanfic_chapters (fanfic_id, chapter_number, title, body, word_count)
+		 VALUES ($1, $2, $3, $4, $5)
+		 RETURNING id, fanfic_id, chapter_number, title, body, word_count, created_at, updated_at`,
+		fanficID, spec.Number, spec.Title, spec.Body, spec.WordCount,
+	).Scan(&c.ID, &c.FanficID, &c.ChapterNum, &c.Title, &c.Body, &c.WordCount, &createdAt, &updatedAt)
 	if err != nil {
-		return fmt.Errorf("create fanfic chapter: %w", err)
+		return nil, fmt.Errorf("create fanfic chapter: %w", err)
 	}
-	return nil
+
+	c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+	c.UpdatedAt = fanficNullTimePtr(updatedAt)
+
+	return &c, nil
 }
 
-func (r *fanficDAO) UpdateChapter(ctx context.Context, id uuid.UUID, title string, body string, wordCount int) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) UpdateChapter(ctx context.Context, id uuid.UUID, title string, body string, wordCount int, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE fanfic_chapters SET title = $1, body = $2, word_count = $3, updated_at = NOW() WHERE id = $4`,
 		title, body, wordCount, id,
 	)
@@ -410,19 +471,19 @@ func (r *fanficDAO) UpdateChapter(ctx context.Context, id uuid.UUID, title strin
 	return nil
 }
 
-func (r *fanficDAO) DeleteChapter(ctx context.Context, id uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM fanfic_chapters WHERE id = $1`, id)
+func (r *fanficDAO) DeleteChapter(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM fanfic_chapters WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete fanfic chapter: %w", err)
 	}
 	return nil
 }
 
-func (r *fanficDAO) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int) (*model.FanficChapterRow, error) {
+func (r *fanficDAO) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
 	var c model.FanficChapterRow
 	var createdAt time.Time
 	var updatedAt sql.NullTime
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT id, fanfic_id, chapter_number, title, body, word_count, created_at, updated_at FROM fanfic_chapters WHERE fanfic_id = $1 AND chapter_number = $2`,
 		fanficID, chapterNumber,
 	).Scan(&c.ID, &c.FanficID, &c.ChapterNum, &c.Title, &c.Body, &c.WordCount, &createdAt, &updatedAt)
@@ -437,8 +498,8 @@ func (r *fanficDAO) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterN
 	return &c, nil
 }
 
-func (r *fanficDAO) ListChapters(ctx context.Context, fanficID uuid.UUID) ([]model.FanficChapterSummaryRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *fanficDAO) ListChapters(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]model.FanficChapterSummaryRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, chapter_number, title, word_count FROM fanfic_chapters WHERE fanfic_id = $1 ORDER BY chapter_number ASC`,
 		fanficID,
 	)
@@ -458,36 +519,36 @@ func (r *fanficDAO) ListChapters(ctx context.Context, fanficID uuid.UUID) ([]mod
 	return chapters, rows.Err()
 }
 
-func (r *fanficDAO) GetChapterCount(ctx context.Context, fanficID uuid.UUID) (int, error) {
+func (r *fanficDAO) GetChapterCount(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM fanfic_chapters WHERE fanfic_id = $1`, fanficID).Scan(&count)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM fanfic_chapters WHERE fanfic_id = $1`, fanficID).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("get fanfic chapter count: %w", err)
 	}
 	return count, nil
 }
 
-func (r *fanficDAO) GetNextChapterNumber(ctx context.Context, fanficID uuid.UUID) (int, error) {
+func (r *fanficDAO) GetNextChapterNumber(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var next int
-	err := r.db.QueryRowContext(ctx, `SELECT COALESCE(MAX(chapter_number), 0) + 1 FROM fanfic_chapters WHERE fanfic_id = $1`, fanficID).Scan(&next)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COALESCE(MAX(chapter_number), 0) + 1 FROM fanfic_chapters WHERE fanfic_id = $1`, fanficID).Scan(&next)
 	if err != nil {
 		return 0, fmt.Errorf("get next chapter number: %w", err)
 	}
 	return next, nil
 }
 
-func (r *fanficDAO) GetChapterFanficID(ctx context.Context, chapterID uuid.UUID) (uuid.UUID, error) {
+func (r *fanficDAO) GetChapterFanficID(ctx context.Context, chapterID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var fanficID uuid.UUID
-	err := r.db.QueryRowContext(ctx, `SELECT fanfic_id FROM fanfic_chapters WHERE id = $1`, chapterID).Scan(&fanficID)
+	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT fanfic_id FROM fanfic_chapters WHERE id = $1`, chapterID).Scan(&fanficID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get chapter fanfic id: %w", err)
 	}
 	return fanficID, nil
 }
 
-func (r *fanficDAO) GetChapterAuthorID(ctx context.Context, chapterID uuid.UUID) (uuid.UUID, error) {
+func (r *fanficDAO) GetChapterAuthorID(ctx context.Context, chapterID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT f.user_id FROM fanfic_chapters c JOIN fanfics f ON c.fanfic_id = f.id WHERE c.id = $1`,
 		chapterID,
 	).Scan(&userID)
@@ -497,8 +558,8 @@ func (r *fanficDAO) GetChapterAuthorID(ctx context.Context, chapterID uuid.UUID)
 	return userID, nil
 }
 
-func (r *fanficDAO) GetGenres(ctx context.Context, fanficID uuid.UUID) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *fanficDAO) GetGenres(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT genre FROM fanfic_genres WHERE fanfic_id = $1 ORDER BY genre ASC`,
 		fanficID,
 	)
@@ -518,7 +579,7 @@ func (r *fanficDAO) GetGenres(ctx context.Context, fanficID uuid.UUID) ([]string
 	return genres, rows.Err()
 }
 
-func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
+func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
 	if len(fanficIDs) == 0 {
 		return nil, nil
 	}
@@ -530,7 +591,7 @@ func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID) (
 		args[i] = id
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT fanfic_id, genre FROM fanfic_genres WHERE fanfic_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY genre ASC`,
 		args...,
 	)
@@ -551,8 +612,8 @@ func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID) (
 	return result, rows.Err()
 }
 
-func (r *fanficDAO) GetTags(ctx context.Context, fanficID uuid.UUID) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *fanficDAO) GetTags(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT tag FROM fanfic_tags WHERE fanfic_id = $1 ORDER BY tag ASC`,
 		fanficID,
 	)
@@ -572,7 +633,7 @@ func (r *fanficDAO) GetTags(ctx context.Context, fanficID uuid.UUID) ([]string, 
 	return tags, rows.Err()
 }
 
-func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
+func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
 	if len(fanficIDs) == 0 {
 		return nil, nil
 	}
@@ -584,7 +645,7 @@ func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID) (ma
 		args[i] = id
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT fanfic_id, tag FROM fanfic_tags WHERE fanfic_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY tag ASC`,
 		args...,
 	)
@@ -605,8 +666,8 @@ func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID) (ma
 	return result, rows.Err()
 }
 
-func (r *fanficDAO) GetCharacters(ctx context.Context, fanficID uuid.UUID) ([]model.FanficCharacterRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *fanficDAO) GetCharacters(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]model.FanficCharacterRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, fanfic_id, series, character_id, character_name, sort_order, is_pairing FROM fanfic_characters WHERE fanfic_id = $1 ORDER BY sort_order ASC`,
 		fanficID,
 	)
@@ -626,7 +687,7 @@ func (r *fanficDAO) GetCharacters(ctx context.Context, fanficID uuid.UUID) ([]mo
 	return chars, rows.Err()
 }
 
-func (r *fanficDAO) GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUID) (map[uuid.UUID][]model.FanficCharacterRow, error) {
+func (r *fanficDAO) GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.FanficCharacterRow, error) {
 	if len(fanficIDs) == 0 {
 		return nil, nil
 	}
@@ -638,7 +699,7 @@ func (r *fanficDAO) GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUI
 		args[i] = id
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT id, fanfic_id, series, character_id, character_name, sort_order, is_pairing FROM fanfic_characters WHERE fanfic_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order ASC`,
 		args...,
 	)
@@ -658,8 +719,8 @@ func (r *fanficDAO) GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUI
 	return result, rows.Err()
 }
 
-func (r *fanficDAO) RegisterOCCharacter(ctx context.Context, name string, creatorID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) RegisterOCCharacter(ctx context.Context, name string, creatorID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO fanfic_oc_characters (name, created_by) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		strings.TrimSpace(name), creatorID,
 	)
@@ -669,8 +730,8 @@ func (r *fanficDAO) RegisterOCCharacter(ctx context.Context, name string, creato
 	return nil
 }
 
-func (r *fanficDAO) SearchOCCharacters(ctx context.Context, query string) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *fanficDAO) SearchOCCharacters(ctx context.Context, query string, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT name FROM fanfic_oc_characters WHERE name LIKE $1 ORDER BY name ASC`,
 		"%"+query+"%",
 	)
@@ -690,8 +751,8 @@ func (r *fanficDAO) SearchOCCharacters(ctx context.Context, query string) ([]str
 	return names, rows.Err()
 }
 
-func (r *fanficDAO) GetLanguages(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT name FROM fanfic_languages ORDER BY name ASC`)
+func (r *fanficDAO) GetLanguages(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT name FROM fanfic_languages ORDER BY name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("get languages: %w", err)
 	}
@@ -708,8 +769,8 @@ func (r *fanficDAO) GetLanguages(ctx context.Context) ([]string, error) {
 	return langs, rows.Err()
 }
 
-func (r *fanficDAO) RegisterLanguage(ctx context.Context, name string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) RegisterLanguage(ctx context.Context, name string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO fanfic_languages (name) VALUES ($1) ON CONFLICT DO NOTHING`,
 		strings.TrimSpace(name),
 	)
@@ -719,8 +780,8 @@ func (r *fanficDAO) RegisterLanguage(ctx context.Context, name string) error {
 	return nil
 }
 
-func (r *fanficDAO) GetSeries(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT name FROM fanfic_series ORDER BY name ASC`)
+func (r *fanficDAO) GetSeries(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT name FROM fanfic_series ORDER BY name ASC`)
 	if err != nil {
 		return nil, fmt.Errorf("get series: %w", err)
 	}
@@ -737,8 +798,8 @@ func (r *fanficDAO) GetSeries(ctx context.Context) ([]string, error) {
 	return series, rows.Err()
 }
 
-func (r *fanficDAO) RegisterSeries(ctx context.Context, name string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) RegisterSeries(ctx context.Context, name string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO fanfic_series (name) VALUES ($1) ON CONFLICT DO NOTHING`,
 		strings.TrimSpace(name),
 	)
@@ -748,15 +809,15 @@ func (r *fanficDAO) RegisterSeries(ctx context.Context, name string) error {
 	return nil
 }
 
-func (r *fanficDAO) Favourite(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) Favourite(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO fanfic_favourites (user_id, fanfic_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, fanficID,
 	)
 	if err != nil {
 		return fmt.Errorf("favourite fanfic: %w", err)
 	}
-	_, err = r.db.ExecContext(ctx,
+	_, err = getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE fanfics SET favourite_count = (SELECT COUNT(*) FROM fanfic_favourites WHERE fanfic_id = $1) WHERE id = $2`,
 		fanficID, fanficID,
 	)
@@ -766,15 +827,15 @@ func (r *fanficDAO) Favourite(ctx context.Context, userID uuid.UUID, fanficID uu
 	return nil
 }
 
-func (r *fanficDAO) Unfavourite(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) Unfavourite(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM fanfic_favourites WHERE user_id = $1 AND fanfic_id = $2`,
 		userID, fanficID,
 	)
 	if err != nil {
 		return fmt.Errorf("unfavourite fanfic: %w", err)
 	}
-	_, err = r.db.ExecContext(ctx,
+	_, err = getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE fanfics SET favourite_count = (SELECT COUNT(*) FROM fanfic_favourites WHERE fanfic_id = $1) WHERE id = $2`,
 		fanficID, fanficID,
 	)
@@ -784,9 +845,9 @@ func (r *fanficDAO) Unfavourite(ctx context.Context, userID uuid.UUID, fanficID 
 	return nil
 }
 
-func (r *fanficDAO) GetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID) (int, error) {
+func (r *fanficDAO) GetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var chapter int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT chapter_number FROM fanfic_reading_progress WHERE user_id = $1 AND fanfic_id = $2`,
 		userID, fanficID,
 	).Scan(&chapter)
@@ -796,8 +857,8 @@ func (r *fanficDAO) GetReadingProgress(ctx context.Context, userID uuid.UUID, fa
 	return chapter, nil
 }
 
-func (r *fanficDAO) SetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, chapterNumber int) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *fanficDAO) SetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO fanfic_reading_progress (user_id, fanfic_id, chapter_number, updated_at) VALUES ($1, $2, $3, NOW())
 		ON CONFLICT (user_id, fanfic_id) DO UPDATE SET chapter_number = $4, updated_at = NOW()`,
 		userID, fanficID, chapterNumber, chapterNumber,
@@ -808,15 +869,15 @@ func (r *fanficDAO) SetReadingProgress(ctx context.Context, userID uuid.UUID, fa
 	return nil
 }
 
-func (r *fanficDAO) ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int) ([]model.FanficRow, int, error) {
+func (r *fanficDAO) ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	var total int
-	if err := r.db.QueryRowContext(ctx,
+	if err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM fanfic_favourites WHERE user_id = $1`, userID,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count favourites: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		fanficRenumber(fanficSelectBase+` JOIN fanfic_favourites fav ON fav.fanfic_id = f.id WHERE fav.user_id = ? AND (f.status != 'draft' OR f.user_id = ?) ORDER BY fav.created_at DESC LIMIT ? OFFSET ?`),
 		viewerID, userID, viewerID, limit, offset,
 	)
@@ -834,4 +895,8 @@ func (r *fanficDAO) ListFavourites(ctx context.Context, userID uuid.UUID, viewer
 		result = append(result, f)
 	}
 	return result, total, rows.Err()
+}
+
+func (r *fanficDAO) AddCommentMedia(ctx context.Context, spec repository.NewFanficCommentMedia, tx ...*sql.Tx) (int64, error) {
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
 }

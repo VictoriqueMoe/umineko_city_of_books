@@ -16,19 +16,33 @@ type (
 	}
 )
 
-func (r *reportDAO) Create(ctx context.Context, reporterID uuid.UUID, targetType, targetID, contextID, reason string) (int64, error) {
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO reports (reporter_id, target_type, target_id, context_id, reason) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		reporterID, targetType, targetID, contextID, reason,
-	).Scan(&id)
+func (r *reportDAO) Create(ctx context.Context, spec repository.NewReport, tx ...*sql.Tx) (*repository.ReportRow, error) {
+	var row repository.ReportRow
+	err := getDb(r.db, tx).QueryRowContext(ctx,
+		`WITH rep AS (
+		     INSERT INTO reports (reporter_id, target_type, target_id, context_id, reason)
+		     VALUES ($1, $2, $3, $4, $5)
+		     RETURNING id, reporter_id, target_type, target_id, context_id, reason, status, resolved_by, created_at
+		 )
+		 SELECT rep.id, rep.reporter_id, u.display_name, u.avatar_url,
+		        rep.target_type, rep.target_id, COALESCE(rep.context_id, ''), rep.reason, rep.status,
+		        rep.resolved_by, ''::text, rep.created_at
+		 FROM rep
+		 JOIN users u ON rep.reporter_id = u.id`,
+		spec.ReporterID, spec.TargetType, spec.TargetID, spec.ContextID, spec.Reason,
+	).Scan(
+		&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
+		&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
+		&row.ResolvedByID, &row.ResolvedByName, &row.CreatedAt,
+	)
 	if err != nil {
-		return 0, fmt.Errorf("create report: %w", err)
+		return nil, fmt.Errorf("create report: %w", err)
 	}
-	return id, nil
+
+	return &row, nil
 }
 
-func (r *reportDAO) List(ctx context.Context, status string, limit, offset int) ([]repository.ReportRow, int, error) {
+func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, tx ...*sql.Tx) ([]repository.ReportRow, int, error) {
 	where := ""
 	var args []any
 	if status != "" {
@@ -39,7 +53,7 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int) 
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM reports r"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
@@ -59,7 +73,7 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int) 
 	)
 	args = append(args, limit, offset)
 
-	rows, err := r.db.QueryContext(ctx, query, args...)
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list reports: %w", err)
 	}
@@ -80,9 +94,9 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int) 
 	return reports, total, rows.Err()
 }
 
-func (r *reportDAO) GetByID(ctx context.Context, id int) (*repository.ReportRow, error) {
+func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*repository.ReportRow, error) {
 	var row repository.ReportRow
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT r.id, r.reporter_id, u.display_name, u.avatar_url,
 		        r.target_type, r.target_id, COALESCE(r.context_id, ''), r.reason, r.status,
 		        r.resolved_by, COALESCE(ru.display_name, ''), r.created_at
@@ -101,8 +115,8 @@ func (r *reportDAO) GetByID(ctx context.Context, id int) (*repository.ReportRow,
 	return &row, nil
 }
 
-func (r *reportDAO) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *reportDAO) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`UPDATE reports SET status = 'resolved', resolved_by = $1, resolution_comment = $2 WHERE id = $3`,
 		resolvedBy, comment, id,
 	)

@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,8 +40,14 @@ func (_m *MockSidebarLastVisitedRepository) EXPECT() *MockSidebarLastVisitedRepo
 }
 
 // ListForUser provides a mock function for the type MockSidebarLastVisitedRepository
-func (_mock *MockSidebarLastVisitedRepository) ListForUser(ctx context.Context, userID uuid.UUID) (map[string]string, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockSidebarLastVisitedRepository) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListForUser")
@@ -48,18 +55,18 @@ func (_mock *MockSidebarLastVisitedRepository) ListForUser(ctx context.Context, 
 
 	var r0 map[string]string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (map[string]string, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (map[string]string, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) map[string]string); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) map[string]string); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,11 +81,13 @@ type MockSidebarLastVisitedRepository_ListForUser_Call struct {
 // ListForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockSidebarLastVisitedRepository_Expecter) ListForUser(ctx any, userID any) *MockSidebarLastVisitedRepository_ListForUser_Call {
-	return &MockSidebarLastVisitedRepository_ListForUser_Call{Call: _e.mock.On("ListForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockSidebarLastVisitedRepository_Expecter) ListForUser(ctx any, userID any, tx ...any) *MockSidebarLastVisitedRepository_ListForUser_Call {
+	return &MockSidebarLastVisitedRepository_ListForUser_Call{Call: _e.mock.On("ListForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockSidebarLastVisitedRepository_ListForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockSidebarLastVisitedRepository_ListForUser_Call {
+func (_c *MockSidebarLastVisitedRepository_ListForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockSidebarLastVisitedRepository_ListForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -88,9 +97,16 @@ func (_c *MockSidebarLastVisitedRepository_ListForUser_Call) Run(run func(ctx co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -101,22 +117,28 @@ func (_c *MockSidebarLastVisitedRepository_ListForUser_Call) Return(stringToStri
 	return _c
 }
 
-func (_c *MockSidebarLastVisitedRepository_ListForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (map[string]string, error)) *MockSidebarLastVisitedRepository_ListForUser_Call {
+func (_c *MockSidebarLastVisitedRepository_ListForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error)) *MockSidebarLastVisitedRepository_ListForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Upsert provides a mock function for the type MockSidebarLastVisitedRepository
-func (_mock *MockSidebarLastVisitedRepository) Upsert(ctx context.Context, userID uuid.UUID, key string) error {
-	ret := _mock.Called(ctx, userID, key)
+func (_mock *MockSidebarLastVisitedRepository) Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, key, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, key)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Upsert")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, userID, key)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, key, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -132,11 +154,13 @@ type MockSidebarLastVisitedRepository_Upsert_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - key string
-func (_e *MockSidebarLastVisitedRepository_Expecter) Upsert(ctx any, userID any, key any) *MockSidebarLastVisitedRepository_Upsert_Call {
-	return &MockSidebarLastVisitedRepository_Upsert_Call{Call: _e.mock.On("Upsert", ctx, userID, key)}
+//   - tx ...*sql.Tx
+func (_e *MockSidebarLastVisitedRepository_Expecter) Upsert(ctx any, userID any, key any, tx ...any) *MockSidebarLastVisitedRepository_Upsert_Call {
+	return &MockSidebarLastVisitedRepository_Upsert_Call{Call: _e.mock.On("Upsert",
+		append([]any{ctx, userID, key}, tx...)...)}
 }
 
-func (_c *MockSidebarLastVisitedRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, key string)) *MockSidebarLastVisitedRepository_Upsert_Call {
+func (_c *MockSidebarLastVisitedRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx)) *MockSidebarLastVisitedRepository_Upsert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -150,10 +174,17 @@ func (_c *MockSidebarLastVisitedRepository_Upsert_Call) Run(run func(ctx context
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -164,7 +195,7 @@ func (_c *MockSidebarLastVisitedRepository_Upsert_Call) Return(err error) *MockS
 	return _c
 }
 
-func (_c *MockSidebarLastVisitedRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, key string) error) *MockSidebarLastVisitedRepository_Upsert_Call {
+func (_c *MockSidebarLastVisitedRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error) *MockSidebarLastVisitedRepository_Upsert_Call {
 	_c.Call.Return(run)
 	return _c
 }

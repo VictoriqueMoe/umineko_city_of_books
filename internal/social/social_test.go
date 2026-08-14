@@ -66,11 +66,9 @@ func TestProcessEmbeds_AddsEmbedsForValidURLs(t *testing.T) {
 	// given
 	postRepo := repository.NewMockPostRepository(t)
 	ownerID := uuid.NewString()
-	postRepo.EXPECT().AddEmbed(
-		mock.Anything, ownerID, "post",
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything,
-	).Return(nil).Maybe()
+	postRepo.EXPECT().AddEmbed(mock.Anything, mock.MatchedBy(func(spec repository.NewEmbed) bool {
+		return spec.OwnerID == ownerID && spec.OwnerType == "post"
+	})).Return(nil).Maybe()
 
 	// when
 	ProcessEmbeds(postRepo, ownerID, "post", "check this https://youtube.com/watch?v=dQw4w9WgXcQ")
@@ -83,11 +81,9 @@ func TestProcessEmbeds_CapsAtFiveURLs(t *testing.T) {
 	postRepo := repository.NewMockPostRepository(t)
 	ownerID := uuid.NewString()
 	body := "https://a.com https://b.com https://c.com https://d.com https://e.com https://f.com https://g.com"
-	postRepo.EXPECT().AddEmbed(
-		mock.Anything, ownerID, "post",
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything,
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything,
-	).Return(nil).Maybe()
+	postRepo.EXPECT().AddEmbed(mock.Anything, mock.MatchedBy(func(spec repository.NewEmbed) bool {
+		return spec.OwnerID == ownerID && spec.OwnerType == "post"
+	})).Return(nil).Maybe()
 
 	// when
 	ProcessEmbeds(postRepo, ownerID, "post", body)

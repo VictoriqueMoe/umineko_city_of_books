@@ -22,8 +22,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
-import { linkify } from "../../utils/linkify";
-import { renderColours } from "../../utils/colours";
+import { renderRich } from "../../utils/richText";
 import { extractGif } from "../../utils/gif";
 import { workLabel } from "../../utils/journalWorks";
 import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
@@ -181,11 +180,7 @@ export function JournalPage() {
                         if (gifURL) {
                             return <GifEmbed src={gifURL} />;
                         }
-                        return (
-                            <div className={styles.spotlightBody}>
-                                {renderColours(latestEntry.body, linkify, `le-${latestEntry.entry_number}`)}
-                            </div>
-                        );
+                        return <div className={styles.spotlightBody}>{renderRich(latestEntry.body)}</div>;
                     })()}
                     {latestEntry.media.length > 0 && <MediaGallery media={latestEntry.media} />}
                     <div className={styles.spotlightFooter}>

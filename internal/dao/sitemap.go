@@ -14,8 +14,8 @@ type (
 	}
 )
 
-func (r *sitemapDAO) listEntries(ctx context.Context, query, label string) ([]repository.SitemapEntry, error) {
-	rows, err := r.db.QueryContext(ctx, query)
+func (r *sitemapDAO) listEntries(ctx context.Context, query, label string, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list %s: %w", label, err)
 	}
@@ -32,32 +32,32 @@ func (r *sitemapDAO) listEntries(ctx context.Context, query, label string) ([]re
 	return entries, rows.Err()
 }
 
-func (r *sitemapDAO) ListTheories(ctx context.Context) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM theories ORDER BY created_at DESC`, "theories")
+func (r *sitemapDAO) ListTheories(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	return r.listEntries(ctx, `SELECT id, created_at FROM theories ORDER BY created_at DESC`, "theories", tx...)
 }
 
-func (r *sitemapDAO) ListPosts(ctx context.Context) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM posts ORDER BY created_at DESC`, "posts")
+func (r *sitemapDAO) ListPosts(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	return r.listEntries(ctx, `SELECT id, created_at FROM posts ORDER BY created_at DESC`, "posts", tx...)
 }
 
-func (r *sitemapDAO) ListArt(ctx context.Context) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM art ORDER BY created_at DESC`, "art")
+func (r *sitemapDAO) ListArt(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	return r.listEntries(ctx, `SELECT id, created_at FROM art ORDER BY created_at DESC`, "art", tx...)
 }
 
-func (r *sitemapDAO) ListMysteries(ctx context.Context) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM mysteries ORDER BY created_at DESC`, "mysteries")
+func (r *sitemapDAO) ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	return r.listEntries(ctx, `SELECT id, created_at FROM mysteries ORDER BY created_at DESC`, "mysteries", tx...)
 }
 
-func (r *sitemapDAO) ListShips(ctx context.Context) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM ships ORDER BY created_at DESC`, "ships")
+func (r *sitemapDAO) ListShips(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	return r.listEntries(ctx, `SELECT id, created_at FROM ships ORDER BY created_at DESC`, "ships", tx...)
 }
 
-func (r *sitemapDAO) ListFanfics(ctx context.Context) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM fanfics ORDER BY created_at DESC`, "fanfics")
+func (r *sitemapDAO) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+	return r.listEntries(ctx, `SELECT id, created_at FROM fanfics ORDER BY created_at DESC`, "fanfics", tx...)
 }
 
-func (r *sitemapDAO) ListUsernames(ctx context.Context) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT username FROM users WHERE NOT is_bot ORDER BY created_at DESC`)
+func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT username FROM users WHERE NOT is_bot ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list usernames: %w", err)
 	}
@@ -74,8 +74,8 @@ func (r *sitemapDAO) ListUsernames(ctx context.Context) ([]string, error) {
 	return usernames, rows.Err()
 }
 
-func (r *sitemapDAO) ListJournalRows(ctx context.Context) ([]repository.SitemapJournalRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapJournalRow, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT j.id, COALESCE(j.updated_at, j.created_at), e.entry_number, e.updated_at
 		FROM journals j
 		LEFT JOIN journal_entries e ON e.journal_id = j.id AND NOT e.is_draft

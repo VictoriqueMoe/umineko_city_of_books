@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"umineko_city_of_books/internal/repository"
+
 	"github.com/google/uuid"
 )
 
@@ -22,12 +24,13 @@ func (s *streamChatService) CreateStreamRoom(ctx context.Context, streamID, stre
 		name = "Live stream"
 	}
 
-	if err := s.chatRepo.CreateSystemRoom(ctx, streamID, name, "", SystemKindLiveStream, streamerID); err != nil {
+	if _, err := s.chatRepo.CreateSystemRoomWithHost(ctx, repository.NewChatSystemRoom{
+		ID:         streamID,
+		Name:       name,
+		SystemKind: SystemKindLiveStream,
+		CreatedBy:  streamerID,
+	}); err != nil {
 		return fmt.Errorf("create stream chat room: %w", err)
-	}
-
-	if err := s.chatRepo.AddMemberWithRole(ctx, streamID, streamerID, "host", false); err != nil {
-		return fmt.Errorf("add streamer to chat room: %w", err)
 	}
 
 	s.hub.JoinRoom(streamID, streamerID)

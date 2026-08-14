@@ -25,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type (
@@ -184,13 +185,25 @@ func (s *service) audit(ctx context.Context, actorID uuid.UUID, action, targetTy
 }
 
 func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) {
-	if err := s.auditRepo.Create(ctx, actorID, action, targetType, targetID, details); err != nil {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		Details:    details,
+	}); err != nil {
 		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
 	}
 }
 
 func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string, subjectID uuid.UUID) {
-	if err := s.auditRepo.CreateForSubject(ctx, actorID, action, targetType, targetID, "", subjectID); err != nil {
+	if err := s.auditRepo.CreateForSubject(ctx, repository.NewAuditSubjectEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		SubjectID:  subjectID,
+	}); err != nil {
 		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
 	}
 }
@@ -490,8 +503,8 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 			return fmt.Errorf("delete user: %w", err)
 		}
 		if user != nil {
-			_ = s.uploadSvc.Delete(user.AvatarURL)
-			_ = s.uploadSvc.Delete(user.BannerURL)
+			s.uploadSvc.Delete(user.AvatarURL)
+			s.uploadSvc.Delete(user.BannerURL)
 		}
 		s.audit(ctx, actorID, "delete_user", "user", targetID.String())
 		return nil
@@ -509,9 +522,16 @@ func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targ
 		if err != nil {
 			return fmt.Errorf("generate password: %w", err)
 		}
-		if err := s.userRepo.SetPassword(ctx, targetID, generated); err != nil {
+
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(generated), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
+
+		if err := s.userRepo.SetPasswordHash(ctx, targetID, string(passwordHash)); err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}
+
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after password reset")
 		}

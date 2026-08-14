@@ -211,7 +211,7 @@ function PrivateCluesDisplay({
                                 </div>
                             ) : (
                                 <>
-                                    {clue.body}
+                                    <span>{renderRich(clue.body)}</span>
                                     <span className={styles.clueActions}>
                                         {canEditClues && (
                                             <>
@@ -881,7 +881,7 @@ export function MysteryDetailPage() {
                                     key={clue.id}
                                     className={`${styles.clue}${clue.truth_type === "purple" ? ` ${styles.cluePurple}` : ""}`}
                                 >
-                                    {clue.body}
+                                    <span>{renderRich(clue.body)}</span>
                                     <span className={styles.clueActions}>
                                         <ClueCopyBtn text={clue.body} />
                                     </span>
@@ -1030,7 +1030,7 @@ export function MysteryDetailPage() {
                             <ProfileLink user={winningAttempt.author} size="small" />
                             <RelativeTimestamp value={winningAttempt.created_at} />
                         </div>
-                        <div className={styles.pinnedWinnerBody}>{winningAttempt.body}</div>
+                        <div className={styles.pinnedWinnerBody}>{renderRich(winningAttempt.body)}</div>
                     </div>
                 )}
 

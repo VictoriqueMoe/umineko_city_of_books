@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -81,7 +82,13 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 			continue
 		}
 
-		if err := m.chatRepo.AddMemberWithRole(ctx, roomID, targetID, "member", false); err != nil {
+		actionBody := m.roomActionMessageBody(ctx, roomID, hostID, fmt.Sprintf("%s invited %s to the room.", inviterName, target.DisplayName))
+
+		actionRow, err := m.chatRepo.AddMemberWithSystemMessage(ctx,
+			repository.NewChatRoomMember{RoomID: roomID, UserID: targetID, Role: "member", Ghost: false},
+			repository.NewChatMessage{RoomID: roomID, SenderID: hostID, Body: actionBody, IsSystem: true},
+		)
+		if err != nil {
 			return nil, fmt.Errorf("add member: %w", err)
 		}
 
@@ -102,7 +109,7 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 		m.hub.SendToUser(targetID, joinedEvent)
 		existingMembers = append(existingMembers, targetID)
 
-		m.postRoomActionMessage(ctx, roomID, hostID, fmt.Sprintf("%s invited %s to the room.", inviterName, target.DisplayName))
+		m.broadcastRoomActionMessage(ctx, roomID, hostID, actionRow)
 	}
 
 	if len(invitedIDs) > 0 {

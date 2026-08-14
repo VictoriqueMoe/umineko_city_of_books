@@ -115,28 +115,17 @@ func (c *core) dropFromLiveKitRoom(ctx context.Context, roomName, identity strin
 }
 
 func (c *core) deleteRoomWithMedia(ctx context.Context, roomID uuid.UUID) error {
-	urls, err := c.chatRepo.ListRoomMediaURLs(ctx, roomID)
-	if err != nil {
-		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room chat media for cleanup failed")
-	}
-
-	for i := range urls {
-		if urls[i] == "" {
-			continue
-		}
-		if delErr := c.uploadSvc.Delete(urls[i]); delErr != nil {
-			logger.Log.Warn().Err(delErr).Str("media_url", urls[i]).Msg("delete room chat media file failed")
-		}
-	}
-
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
 		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room members for hub cleanup failed")
 	}
 
-	if err := c.chatRepo.DeleteRoom(ctx, roomID); err != nil {
+	paths, err := c.chatRepo.DeleteRoomWithMessages(ctx, roomID)
+	if err != nil {
 		return fmt.Errorf("delete room: %w", err)
 	}
+
+	c.uploadSvc.Delete(paths...)
 
 	for i := range members {
 		c.hub.LeaveRoom(roomID, members[i])
@@ -221,16 +210,13 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 			continue
 		}
 
-		if err := c.watchPartyRepo.MarkParticipantLeft(ctx, sessionID, userID); err != nil {
+		if err := c.watchPartyRepo.RemoveParticipant(ctx, sessionID, userID); err != nil {
 			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: mark watch party participant left failed")
 			continue
 		}
 
 		c.dropFromLiveKitRoom(ctx, voiceSessionRoomPrefix+sessionID.String(), userID.String())
 
-		if err := c.chatRepo.RemoveMember(ctx, sessionID, userID); err != nil {
-			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: remove watch party chat member failed")
-		}
 		c.hub.LeaveRoom(sessionID, userID)
 
 		c.hub.BroadcastToRoom(roomID, ws.Message{
@@ -385,24 +371,33 @@ func (c *core) nameAndPossessive(ctx context.Context, userID uuid.UUID) (string,
 }
 
 func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, body string) {
-	actionBody := strings.TrimSpace(body)
+	actionBody := c.roomActionMessageBody(ctx, roomID, actorID, body)
 	if actionBody == "" {
 		return
 	}
 
-	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, roomID, actorID); timedOut {
-		return
-	}
-
-	messageID := uuid.New()
-	if err := c.chatRepo.InsertSystemMessage(ctx, messageID, roomID, actorID, actionBody); err != nil {
-		return
-	}
-
-	row, err := c.chatRepo.GetMessageByID(ctx, messageID)
+	row, err := c.chatRepo.InsertSystemMessage(ctx, roomID, actorID, actionBody)
 	if err != nil {
 		return
 	}
+
+	c.broadcastRoomActionMessage(ctx, roomID, actorID, row)
+}
+
+func (c *core) roomActionMessageBody(ctx context.Context, roomID, actorID uuid.UUID, body string) string {
+	actionBody := strings.TrimSpace(body)
+	if actionBody == "" {
+		return ""
+	}
+
+	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, roomID, actorID); timedOut {
+		return ""
+	}
+
+	return actionBody
+}
+
+func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, row *repository.ChatMessageRow) {
 	if row == nil {
 		return
 	}
@@ -414,6 +409,7 @@ func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.U
 	if err != nil {
 		return
 	}
+
 	event := ws.Message{Type: "chat_message", Data: msg}
 	for i := range members {
 		c.hub.SendToUser(members[i], event)

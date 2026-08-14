@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -38,8 +39,14 @@ func (_m *MockStatsRepository) EXPECT() *MockStatsRepository_Expecter {
 }
 
 // GetMostActiveUsers provides a mock function for the type MockStatsRepository
-func (_mock *MockStatsRepository) GetMostActiveUsers(ctx context.Context, limit int) ([]ActiveUser, error) {
-	ret := _mock.Called(ctx, limit)
+func (_mock *MockStatsRepository) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]ActiveUser, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMostActiveUsers")
@@ -47,18 +54,18 @@ func (_mock *MockStatsRepository) GetMostActiveUsers(ctx context.Context, limit 
 
 	var r0 []ActiveUser
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]ActiveUser, error)); ok {
-		return returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]ActiveUser, error)); ok {
+		return returnFunc(ctx, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []ActiveUser); ok {
-		r0 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []ActiveUser); ok {
+		r0 = returnFunc(ctx, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ActiveUser)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,11 +80,13 @@ type MockStatsRepository_GetMostActiveUsers_Call struct {
 // GetMostActiveUsers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - limit int
-func (_e *MockStatsRepository_Expecter) GetMostActiveUsers(ctx any, limit any) *MockStatsRepository_GetMostActiveUsers_Call {
-	return &MockStatsRepository_GetMostActiveUsers_Call{Call: _e.mock.On("GetMostActiveUsers", ctx, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockStatsRepository_Expecter) GetMostActiveUsers(ctx any, limit any, tx ...any) *MockStatsRepository_GetMostActiveUsers_Call {
+	return &MockStatsRepository_GetMostActiveUsers_Call{Call: _e.mock.On("GetMostActiveUsers",
+		append([]any{ctx, limit}, tx...)...)}
 }
 
-func (_c *MockStatsRepository_GetMostActiveUsers_Call) Run(run func(ctx context.Context, limit int)) *MockStatsRepository_GetMostActiveUsers_Call {
+func (_c *MockStatsRepository_GetMostActiveUsers_Call) Run(run func(ctx context.Context, limit int, tx ...*sql.Tx)) *MockStatsRepository_GetMostActiveUsers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -87,9 +96,16 @@ func (_c *MockStatsRepository_GetMostActiveUsers_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -100,14 +116,20 @@ func (_c *MockStatsRepository_GetMostActiveUsers_Call) Return(activeUsers []Acti
 	return _c
 }
 
-func (_c *MockStatsRepository_GetMostActiveUsers_Call) RunAndReturn(run func(ctx context.Context, limit int) ([]ActiveUser, error)) *MockStatsRepository_GetMostActiveUsers_Call {
+func (_c *MockStatsRepository_GetMostActiveUsers_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]ActiveUser, error)) *MockStatsRepository_GetMostActiveUsers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetOverview provides a mock function for the type MockStatsRepository
-func (_mock *MockStatsRepository) GetOverview(ctx context.Context) (*SiteStats, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockStatsRepository) GetOverview(ctx context.Context, tx ...*sql.Tx) (*SiteStats, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOverview")
@@ -115,18 +137,18 @@ func (_mock *MockStatsRepository) GetOverview(ctx context.Context) (*SiteStats, 
 
 	var r0 *SiteStats
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (*SiteStats, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (*SiteStats, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) *SiteStats); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) *SiteStats); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*SiteStats)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -140,18 +162,27 @@ type MockStatsRepository_GetOverview_Call struct {
 
 // GetOverview is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockStatsRepository_Expecter) GetOverview(ctx any) *MockStatsRepository_GetOverview_Call {
-	return &MockStatsRepository_GetOverview_Call{Call: _e.mock.On("GetOverview", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockStatsRepository_Expecter) GetOverview(ctx any, tx ...any) *MockStatsRepository_GetOverview_Call {
+	return &MockStatsRepository_GetOverview_Call{Call: _e.mock.On("GetOverview",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockStatsRepository_GetOverview_Call) Run(run func(ctx context.Context)) *MockStatsRepository_GetOverview_Call {
+func (_c *MockStatsRepository_GetOverview_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockStatsRepository_GetOverview_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -162,7 +193,7 @@ func (_c *MockStatsRepository_GetOverview_Call) Return(siteStats *SiteStats, err
 	return _c
 }
 
-func (_c *MockStatsRepository_GetOverview_Call) RunAndReturn(run func(ctx context.Context) (*SiteStats, error)) *MockStatsRepository_GetOverview_Call {
+func (_c *MockStatsRepository_GetOverview_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (*SiteStats, error)) *MockStatsRepository_GetOverview_Call {
 	_c.Call.Return(run)
 	return _c
 }

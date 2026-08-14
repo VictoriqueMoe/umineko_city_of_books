@@ -216,15 +216,22 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 		return uuid.Nil, ErrDuplicateName
 	}
 
-	id := uuid.New()
 	description := strings.TrimSpace(req.Description)
-	if err := s.ocRepo.Create(ctx, id, userID, name, description, series, customSeriesName); err != nil {
+
+	created, err := s.ocRepo.Create(ctx, repository.NewOC{
+		UserID:           userID,
+		Name:             name,
+		Description:      description,
+		Series:           series,
+		CustomSeriesName: customSeriesName,
+	})
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	row, _ := s.ocRepo.GetByID(ctx, id, userID)
-	s.sendOwnerOCEvent(userID, "created", row)
-	return id, nil
+	s.sendOwnerOCEvent(userID, "created", created)
+
+	return created.ID, nil
 }
 
 func (s *service) GetOC(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.OCDetailResponse, error) {
@@ -284,7 +291,15 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 
 	description := strings.TrimSpace(req.Description)
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
-	if err := s.ocRepo.Update(ctx, id, userID, name, description, series, customSeriesName, asAdmin); err != nil {
+	if err := s.ocRepo.Update(ctx, repository.OCUpdate{
+		ID:               id,
+		UserID:           userID,
+		Name:             name,
+		Description:      description,
+		Series:           series,
+		CustomSeriesName: customSeriesName,
+		AsAdmin:          asAdmin,
+	}); err != nil {
 		return err
 	}
 
@@ -301,16 +316,22 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 	if err != nil {
 		return ErrNotFound
 	}
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
-		if err := s.ocRepo.DeleteAsAdmin(ctx, id); err != nil {
-			return err
-		}
-	} else {
-		if err := s.ocRepo.Delete(ctx, id, userID); err != nil {
-			return err
-		}
+
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+
+	paths, err := s.ocRepo.DeleteOC(ctx, repository.OCDeletion{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+	})
+	if err != nil {
+		return err
 	}
+
+	s.uploadSvc.Delete(paths...)
+
 	s.sendOwnerOCDeleted(ownerID, id)
+
 	return nil
 }
 
@@ -575,10 +596,12 @@ func (s *service) CreateComment(ctx context.Context, ocID uuid.UUID, userID uuid
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	id := uuid.New()
-	if err := s.ocRepo.CreateComment(ctx, id, ocID, req.ParentID, userID, body); err != nil {
+	created, err := s.ocRepo.CreateComment(ctx, ocID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()
@@ -632,10 +655,20 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
-		return s.ocRepo.DeleteCommentAsAdmin(ctx, id)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+
+	paths, err := s.ocRepo.DeleteCommentWithMedia(ctx, repository.OCCommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
+	})
+	if err != nil {
+		return err
 	}
-	return s.ocRepo.DeleteComment(ctx, id, userID)
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {

@@ -12,6 +12,7 @@ import { EvidenceList } from "../EvidenceList/EvidenceList";
 import { ResponseEditor } from "../ResponseEditor/ResponseEditor";
 import { ReportButton } from "../../ReportButton/ReportButton";
 import { can } from "../../../utils/permissions";
+import { renderRich } from "../../../utils/richText";
 import styles from "./ResponseCard.module.css";
 
 interface ResponseCardProps {
@@ -73,7 +74,7 @@ function ResponseCard({
             </div>
             <div className={styles.content}>
                 {mentionedAuthor && <div className={styles.mention}>@{mentionedAuthor}</div>}
-                <div className={styles.body}>{response.body}</div>
+                <div className={styles.body}>{renderRich(response.body)}</div>
 
                 <EvidenceList evidence={response.evidence ?? []} series={series} />
 

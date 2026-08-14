@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -19,8 +20,9 @@ func TestChatRoomBanDAO_BanIsBannedListAndUnban(t *testing.T) {
 	target := daotest.CreateUser(t, repos, daotest.WithDisplayName("Target"))
 	mod := daotest.CreateUser(t, repos, daotest.WithDisplayName("Mod"))
 
-	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "Room", "", "group", true, false, owner.ID))
+	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Room", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomID := room.ID
 
 	banned, err := repos.ChatRoomBan.IsBanned(ctx, roomID, target.ID)
 	require.NoError(t, err)
@@ -63,8 +65,9 @@ func TestChatRoomBanDAO_Ban_UpsertsExisting(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	target := daotest.CreateUser(t, repos)
 
-	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "Room", "", "group", true, false, owner.ID))
+	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Room", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomID := room.ID
 	require.NoError(t, repos.ChatRoomBan.Ban(ctx, roomID, target.ID, nil, "first reason"))
 
 	// when
@@ -86,12 +89,15 @@ func TestChatRoomBanDAO_BannedRoomIDsForUser(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	target := daotest.CreateUser(t, repos)
 
-	roomA := uuid.New()
-	roomB := uuid.New()
-	roomC := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomA, "A", "", "group", true, false, owner.ID))
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomB, "B", "", "group", true, false, owner.ID))
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomC, "C", "", "group", true, false, owner.ID))
+	roomARow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "A", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomA := roomARow.ID
+	roomBRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "B", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomB := roomBRow.ID
+	roomCRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "C", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomC := roomCRow.ID
 
 	require.NoError(t, repos.ChatRoomBan.Ban(ctx, roomA, target.ID, nil, ""))
 	require.NoError(t, repos.ChatRoomBan.Ban(ctx, roomC, target.ID, nil, ""))
@@ -117,11 +123,12 @@ func TestChatRoomBanDAO_Unban_NonExistentIsNoop(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	target := daotest.CreateUser(t, repos)
-	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateRoom(ctx, roomID, "R", "", "group", true, false, owner.ID))
+	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, err)
+	roomID := room.ID
 
 	// when
-	err := repos.ChatRoomBan.Unban(ctx, roomID, target.ID)
+	err = repos.ChatRoomBan.Unban(ctx, roomID, target.ID)
 
 	// then
 	require.NoError(t, err)

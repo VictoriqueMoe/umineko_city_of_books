@@ -16,8 +16,8 @@ type (
 	}
 )
 
-func (r *giphyFavouriteDAO) Add(ctx context.Context, userID uuid.UUID, fav repository.GiphyFavourite) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *giphyFavouriteDAO) Add(ctx context.Context, userID uuid.UUID, fav repository.GiphyFavourite, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO giphy_favourites (user_id, giphy_id, url, title, preview_url, width, height, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 		 ON CONFLICT (user_id, giphy_id) DO UPDATE SET
@@ -35,8 +35,8 @@ func (r *giphyFavouriteDAO) Add(ctx context.Context, userID uuid.UUID, fav repos
 	return nil
 }
 
-func (r *giphyFavouriteDAO) Remove(ctx context.Context, userID uuid.UUID, giphyID string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *giphyFavouriteDAO) Remove(ctx context.Context, userID uuid.UUID, giphyID string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM giphy_favourites WHERE user_id = $1 AND giphy_id = $2`,
 		userID, giphyID,
 	)
@@ -46,7 +46,7 @@ func (r *giphyFavouriteDAO) Remove(ctx context.Context, userID uuid.UUID, giphyI
 	return nil
 }
 
-func (r *giphyFavouriteDAO) List(ctx context.Context, userID uuid.UUID, limit, offset int) ([]repository.GiphyFavourite, int, error) {
+func (r *giphyFavouriteDAO) List(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.GiphyFavourite, int, error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -54,14 +54,14 @@ func (r *giphyFavouriteDAO) List(ctx context.Context, userID uuid.UUID, limit, o
 		offset = 0
 	}
 	var total int
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM giphy_favourites WHERE user_id = $1`,
 		userID,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count giphy favourites: %w", err)
 	}
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT giphy_id, url, title, preview_url, width, height, created_at
 		 FROM giphy_favourites WHERE user_id = $1
 		 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
@@ -85,8 +85,8 @@ func (r *giphyFavouriteDAO) List(ctx context.Context, userID uuid.UUID, limit, o
 	return out, total, nil
 }
 
-func (r *giphyFavouriteDAO) ListIDs(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *giphyFavouriteDAO) ListIDs(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	rows, err := getDb(r.db, tx).QueryContext(ctx,
 		`SELECT giphy_id FROM giphy_favourites WHERE user_id = $1`,
 		userID,
 	)

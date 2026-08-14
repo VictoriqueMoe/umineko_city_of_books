@@ -17,9 +17,9 @@ type (
 	}
 )
 
-func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID) (*repository.StreamCredentialsRow, error) {
+func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*repository.StreamCredentialsRow, error) {
 	var row repository.StreamCredentialsRow
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, ingress_id, whip_url, stream_key, room
 		   FROM stream_credentials
 		  WHERE user_id = $1`,
@@ -35,8 +35,8 @@ func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID) (*repo
 	return &row, nil
 }
 
-func (r *streamCredentialsDAO) Upsert(ctx context.Context, userID uuid.UUID, ingressID, whipURL, streamKey, room string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *streamCredentialsDAO) Upsert(ctx context.Context, spec repository.NewStreamCredentials, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO stream_credentials (user_id, ingress_id, whip_url, stream_key, room)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (user_id) DO UPDATE
@@ -45,7 +45,7 @@ func (r *streamCredentialsDAO) Upsert(ctx context.Context, userID uuid.UUID, ing
 		        stream_key = excluded.stream_key,
 		        room = excluded.room,
 		        updated_at = NOW()`,
-		userID, ingressID, whipURL, streamKey, room,
+		spec.UserID, spec.IngressID, spec.WhipURL, spec.StreamKey, spec.Room,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert stream credentials: %w", err)
@@ -54,8 +54,8 @@ func (r *streamCredentialsDAO) Upsert(ctx context.Context, userID uuid.UUID, ing
 	return nil
 }
 
-func (r *streamCredentialsDAO) Delete(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *streamCredentialsDAO) Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM stream_credentials WHERE user_id = $1`,
 		userID,
 	)

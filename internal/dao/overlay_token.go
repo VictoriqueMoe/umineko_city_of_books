@@ -15,9 +15,9 @@ type (
 	}
 )
 
-func (r *overlayTokenDAO) GetByUser(ctx context.Context, userID uuid.UUID) (string, error) {
+func (r *overlayTokenDAO) GetByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	var token string
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT token FROM overlay_tokens WHERE user_id = $1`,
 		userID,
 	).Scan(&token)
@@ -31,9 +31,9 @@ func (r *overlayTokenDAO) GetByUser(ctx context.Context, userID uuid.UUID) (stri
 	return token, nil
 }
 
-func (r *overlayTokenDAO) GetUserByToken(ctx context.Context, token string) (uuid.UUID, error) {
+func (r *overlayTokenDAO) GetUserByToken(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := r.db.QueryRowContext(ctx,
+	err := getDb(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id FROM overlay_tokens WHERE token = $1`,
 		token,
 	).Scan(&userID)
@@ -47,8 +47,8 @@ func (r *overlayTokenDAO) GetUserByToken(ctx context.Context, token string) (uui
 	return userID, nil
 }
 
-func (r *overlayTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *overlayTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`INSERT INTO overlay_tokens (user_id, token)
 		 VALUES ($1, $2)
 		 ON CONFLICT (user_id) DO UPDATE
@@ -63,8 +63,8 @@ func (r *overlayTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token st
 	return nil
 }
 
-func (r *overlayTokenDAO) Delete(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *overlayTokenDAO) Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := getDb(r.db, tx).ExecContext(ctx,
 		`DELETE FROM overlay_tokens WHERE user_id = $1`,
 		userID,
 	)

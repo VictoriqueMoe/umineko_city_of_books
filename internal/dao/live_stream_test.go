@@ -21,10 +21,13 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Beatrice"))
 
 	// when
-	id, err := repo.Create(ctx, user.ID, "My Stream", 3)
+	stream, err := repo.Create(ctx, user.ID, "My Stream", 3)
 
 	// then
 	require.NoError(t, err)
+	require.NotNil(t, stream)
+
+	id := stream.ID
 	require.NotEqual(t, uuid.Nil, id)
 
 	row, err := repo.GetByID(ctx, id)
@@ -53,7 +56,13 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 
 	// when
 	room := "live_" + id.String()
-	require.NoError(t, repo.SetIngress(ctx, id, "ing_1", room, "https://whip/w", "key"))
+	require.NoError(t, repo.SetIngress(ctx, repository.LiveStreamIngressUpdate{
+		ID:        id,
+		IngressID: "ing_1",
+		Room:      room,
+		WhipURL:   "https://whip/w",
+		StreamKey: "key",
+	}))
 	require.NoError(t, repo.MarkLive(ctx, id))
 
 	// then
@@ -135,7 +144,7 @@ func TestLiveStreamDAO_ListStartingBefore(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 
-	id, err := repo.Create(ctx, user.ID, "stale", 5)
+	stream, err := repo.Create(ctx, user.ID, "stale", 5)
 	require.NoError(t, err)
 
 	// when
@@ -153,7 +162,7 @@ func TestLiveStreamDAO_ListStartingBefore(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.Len(t, got, 1)
-	assert.Equal(t, id, got[0].ID)
+	assert.Equal(t, stream.ID, got[0].ID)
 }
 
 func TestLiveStreamDAO_SetTitle(t *testing.T) {
@@ -162,8 +171,9 @@ func TestLiveStreamDAO_SetTitle(t *testing.T) {
 	repo := repos.LiveStream
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	id, err := repo.Create(ctx, user.ID, "Old Title", 3)
+	stream, err := repo.Create(ctx, user.ID, "Old Title", 3)
 	require.NoError(t, err)
+	id := stream.ID
 
 	// when
 	err = repo.SetTitle(ctx, id, "New Title")

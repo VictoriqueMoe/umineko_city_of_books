@@ -9,17 +9,17 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type (
 	Service interface {
-		Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error)
+		NewAccountSpec(ctx context.Context, username, email, password, displayName string) (repository.NewAccount, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
 		ListStaff(ctx context.Context) ([]*dto.UserResponse, error)
 		ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error)
@@ -50,10 +50,10 @@ func NewService(repo repository.UserRepository, roleRepo repository.RoleReposito
 	return &service{repo: repo, roleRepo: roleRepo, vanityRepo: vanityRepo, authz: authzService, settings: settingsSvc}
 }
 
-func (s *service) Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error) {
+func (s *service) NewAccountSpec(ctx context.Context, username, email, password, displayName string) (repository.NewAccount, error) {
 	count, err := s.repo.Count(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("count users: %w", err)
+		return repository.NewAccount{}, fmt.Errorf("count users: %w", err)
 	}
 
 	displayName = ClampDisplayName(displayName)
@@ -61,20 +61,27 @@ func (s *service) Create(ctx context.Context, username, email, password, display
 		displayName = username
 	}
 
-	user, err := s.repo.Create(ctx, username, email, password, displayName)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+		return repository.NewAccount{}, fmt.Errorf("hash password: %w", err)
+	}
+
+	spec := repository.NewAccount{
+		User: repository.NewUser{
+			Username:     username,
+			Email:        email,
+			PasswordHash: string(hash),
+			DisplayName:  displayName,
+			HomePage:     "landing",
+			DMsEnabled:   true,
+		},
 	}
 
 	if count == 0 {
-		if err := s.roleRepo.SetRole(ctx, user.ID, authz.RoleSuperAdmin); err != nil {
-			logger.Log.Error().Err(err).Str("user_id", user.ID.String()).Msg("failed to assign super admin role to first user")
-		} else {
-			logger.Log.Info().Str("user_id", user.ID.String()).Str("username", username).Msg("first user created, assigned super admin role")
-		}
+		spec.Role = authz.RoleSuperAdmin
 	}
 
-	return user.ToResponse(), nil
+	return spec, nil
 }
 
 func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error) {
@@ -123,13 +130,18 @@ func (s *service) ListStaff(ctx context.Context) ([]*dto.UserResponse, error) {
 }
 
 func (s *service) ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error) {
-	user, err := s.repo.ValidatePassword(ctx, username, password)
+	user, err := s.repo.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("validate credentials: %w", err)
 	}
-	if user == nil {
+	if user == nil || user.IsBot {
 		return nil, ErrInvalidCredentials
 	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
 	return user.ToResponse(), nil
 }
 

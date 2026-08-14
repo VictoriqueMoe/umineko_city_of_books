@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,8 +40,14 @@ func (_m *MockPermissionRepository) EXPECT() *MockPermissionRepository_Expecter 
 }
 
 // GetRolePermissions provides a mock function for the type MockPermissionRepository
-func (_mock *MockPermissionRepository) GetRolePermissions(ctx context.Context) (map[string][]string, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockPermissionRepository) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRolePermissions")
@@ -48,18 +55,18 @@ func (_mock *MockPermissionRepository) GetRolePermissions(ctx context.Context) (
 
 	var r0 map[string][]string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string][]string, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[string][]string, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string][]string); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[string][]string); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string][]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -73,18 +80,27 @@ type MockPermissionRepository_GetRolePermissions_Call struct {
 
 // GetRolePermissions is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockPermissionRepository_Expecter) GetRolePermissions(ctx any) *MockPermissionRepository_GetRolePermissions_Call {
-	return &MockPermissionRepository_GetRolePermissions_Call{Call: _e.mock.On("GetRolePermissions", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) GetRolePermissions(ctx any, tx ...any) *MockPermissionRepository_GetRolePermissions_Call {
+	return &MockPermissionRepository_GetRolePermissions_Call{Call: _e.mock.On("GetRolePermissions",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockPermissionRepository_GetRolePermissions_Call) Run(run func(ctx context.Context)) *MockPermissionRepository_GetRolePermissions_Call {
+func (_c *MockPermissionRepository_GetRolePermissions_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockPermissionRepository_GetRolePermissions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -95,14 +111,20 @@ func (_c *MockPermissionRepository_GetRolePermissions_Call) Return(stringToStrin
 	return _c
 }
 
-func (_c *MockPermissionRepository_GetRolePermissions_Call) RunAndReturn(run func(ctx context.Context) (map[string][]string, error)) *MockPermissionRepository_GetRolePermissions_Call {
+func (_c *MockPermissionRepository_GetRolePermissions_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)) *MockPermissionRepository_GetRolePermissions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetVanityRoleIDsForUser provides a mock function for the type MockPermissionRepository
-func (_mock *MockPermissionRepository) GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockPermissionRepository) GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVanityRoleIDsForUser")
@@ -110,18 +132,18 @@ func (_mock *MockPermissionRepository) GetVanityRoleIDsForUser(ctx context.Conte
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]string, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []string); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -136,11 +158,13 @@ type MockPermissionRepository_GetVanityRoleIDsForUser_Call struct {
 // GetVanityRoleIDsForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockPermissionRepository_Expecter) GetVanityRoleIDsForUser(ctx any, userID any) *MockPermissionRepository_GetVanityRoleIDsForUser_Call {
-	return &MockPermissionRepository_GetVanityRoleIDsForUser_Call{Call: _e.mock.On("GetVanityRoleIDsForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) GetVanityRoleIDsForUser(ctx any, userID any, tx ...any) *MockPermissionRepository_GetVanityRoleIDsForUser_Call {
+	return &MockPermissionRepository_GetVanityRoleIDsForUser_Call{Call: _e.mock.On("GetVanityRoleIDsForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockPermissionRepository_GetVanityRoleIDsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockPermissionRepository_GetVanityRoleIDsForUser_Call {
+func (_c *MockPermissionRepository_GetVanityRoleIDsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockPermissionRepository_GetVanityRoleIDsForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -150,9 +174,16 @@ func (_c *MockPermissionRepository_GetVanityRoleIDsForUser_Call) Run(run func(ct
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -163,14 +194,20 @@ func (_c *MockPermissionRepository_GetVanityRoleIDsForUser_Call) Return(strings 
 	return _c
 }
 
-func (_c *MockPermissionRepository_GetVanityRoleIDsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]string, error)) *MockPermissionRepository_GetVanityRoleIDsForUser_Call {
+func (_c *MockPermissionRepository_GetVanityRoleIDsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockPermissionRepository_GetVanityRoleIDsForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetVanityRolePermissions provides a mock function for the type MockPermissionRepository
-func (_mock *MockPermissionRepository) GetVanityRolePermissions(ctx context.Context) (map[string][]string, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockPermissionRepository) GetVanityRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetVanityRolePermissions")
@@ -178,18 +215,18 @@ func (_mock *MockPermissionRepository) GetVanityRolePermissions(ctx context.Cont
 
 	var r0 map[string][]string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string][]string, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[string][]string, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string][]string); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[string][]string); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string][]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -203,18 +240,27 @@ type MockPermissionRepository_GetVanityRolePermissions_Call struct {
 
 // GetVanityRolePermissions is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockPermissionRepository_Expecter) GetVanityRolePermissions(ctx any) *MockPermissionRepository_GetVanityRolePermissions_Call {
-	return &MockPermissionRepository_GetVanityRolePermissions_Call{Call: _e.mock.On("GetVanityRolePermissions", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) GetVanityRolePermissions(ctx any, tx ...any) *MockPermissionRepository_GetVanityRolePermissions_Call {
+	return &MockPermissionRepository_GetVanityRolePermissions_Call{Call: _e.mock.On("GetVanityRolePermissions",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockPermissionRepository_GetVanityRolePermissions_Call) Run(run func(ctx context.Context)) *MockPermissionRepository_GetVanityRolePermissions_Call {
+func (_c *MockPermissionRepository_GetVanityRolePermissions_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockPermissionRepository_GetVanityRolePermissions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -225,22 +271,28 @@ func (_c *MockPermissionRepository_GetVanityRolePermissions_Call) Return(stringT
 	return _c
 }
 
-func (_c *MockPermissionRepository_GetVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context) (map[string][]string, error)) *MockPermissionRepository_GetVanityRolePermissions_Call {
+func (_c *MockPermissionRepository_GetVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)) *MockPermissionRepository_GetVanityRolePermissions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetRolePermissions provides a mock function for the type MockPermissionRepository
-func (_mock *MockPermissionRepository) SetRolePermissions(ctx context.Context, roleName string, perms []string) error {
-	ret := _mock.Called(ctx, roleName, perms)
+func (_mock *MockPermissionRepository) SetRolePermissions(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roleName, perms, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roleName, perms)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetRolePermissions")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string) error); ok {
-		r0 = returnFunc(ctx, roleName, perms)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roleName, perms, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -256,11 +308,13 @@ type MockPermissionRepository_SetRolePermissions_Call struct {
 //   - ctx context.Context
 //   - roleName string
 //   - perms []string
-func (_e *MockPermissionRepository_Expecter) SetRolePermissions(ctx any, roleName any, perms any) *MockPermissionRepository_SetRolePermissions_Call {
-	return &MockPermissionRepository_SetRolePermissions_Call{Call: _e.mock.On("SetRolePermissions", ctx, roleName, perms)}
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) SetRolePermissions(ctx any, roleName any, perms any, tx ...any) *MockPermissionRepository_SetRolePermissions_Call {
+	return &MockPermissionRepository_SetRolePermissions_Call{Call: _e.mock.On("SetRolePermissions",
+		append([]any{ctx, roleName, perms}, tx...)...)}
 }
 
-func (_c *MockPermissionRepository_SetRolePermissions_Call) Run(run func(ctx context.Context, roleName string, perms []string)) *MockPermissionRepository_SetRolePermissions_Call {
+func (_c *MockPermissionRepository_SetRolePermissions_Call) Run(run func(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx)) *MockPermissionRepository_SetRolePermissions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -274,10 +328,17 @@ func (_c *MockPermissionRepository_SetRolePermissions_Call) Run(run func(ctx con
 		if args[2] != nil {
 			arg2 = args[2].([]string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -288,22 +349,28 @@ func (_c *MockPermissionRepository_SetRolePermissions_Call) Return(err error) *M
 	return _c
 }
 
-func (_c *MockPermissionRepository_SetRolePermissions_Call) RunAndReturn(run func(ctx context.Context, roleName string, perms []string) error) *MockPermissionRepository_SetRolePermissions_Call {
+func (_c *MockPermissionRepository_SetRolePermissions_Call) RunAndReturn(run func(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx) error) *MockPermissionRepository_SetRolePermissions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetVanityRolePermissions provides a mock function for the type MockPermissionRepository
-func (_mock *MockPermissionRepository) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string) error {
-	ret := _mock.Called(ctx, vanityRoleID, perms)
+func (_mock *MockPermissionRepository) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, vanityRoleID, perms, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, vanityRoleID, perms)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetVanityRolePermissions")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string) error); ok {
-		r0 = returnFunc(ctx, vanityRoleID, perms)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, vanityRoleID, perms, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -319,11 +386,13 @@ type MockPermissionRepository_SetVanityRolePermissions_Call struct {
 //   - ctx context.Context
 //   - vanityRoleID string
 //   - perms []string
-func (_e *MockPermissionRepository_Expecter) SetVanityRolePermissions(ctx any, vanityRoleID any, perms any) *MockPermissionRepository_SetVanityRolePermissions_Call {
-	return &MockPermissionRepository_SetVanityRolePermissions_Call{Call: _e.mock.On("SetVanityRolePermissions", ctx, vanityRoleID, perms)}
+//   - tx ...*sql.Tx
+func (_e *MockPermissionRepository_Expecter) SetVanityRolePermissions(ctx any, vanityRoleID any, perms any, tx ...any) *MockPermissionRepository_SetVanityRolePermissions_Call {
+	return &MockPermissionRepository_SetVanityRolePermissions_Call{Call: _e.mock.On("SetVanityRolePermissions",
+		append([]any{ctx, vanityRoleID, perms}, tx...)...)}
 }
 
-func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) Run(run func(ctx context.Context, vanityRoleID string, perms []string)) *MockPermissionRepository_SetVanityRolePermissions_Call {
+func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) Run(run func(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx)) *MockPermissionRepository_SetVanityRolePermissions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -337,10 +406,17 @@ func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) Run(run func(c
 		if args[2] != nil {
 			arg2 = args[2].([]string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -351,7 +427,7 @@ func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) Return(err err
 	return _c
 }
 
-func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context, vanityRoleID string, perms []string) error) *MockPermissionRepository_SetVanityRolePermissions_Call {
+func (_c *MockPermissionRepository_SetVanityRolePermissions_Call) RunAndReturn(run func(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx) error) *MockPermissionRepository_SetVanityRolePermissions_Call {
 	_c.Call.Return(run)
 	return _c
 }

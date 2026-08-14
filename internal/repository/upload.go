@@ -1,7 +1,11 @@
 package repository
 
+import (
+	"database/sql"
+)
+
 type UploadRepository interface {
-	GetAllReferencedFiles() ([]string, error)
+	GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error)
 }
 
 type uploadRepository struct {
@@ -12,6 +16,6 @@ func NewUploadRepo(dao UploadRepository) UploadRepository {
 	return &uploadRepository{dao: dao}
 }
 
-func (r *uploadRepository) GetAllReferencedFiles() ([]string, error) {
-	return r.dao.GetAllReferencedFiles()
+func (r *uploadRepository) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
+	return r.dao.GetAllReferencedFiles(tx...)
 }

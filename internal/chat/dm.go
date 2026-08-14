@@ -99,17 +99,17 @@ func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uui
 		return nil, err
 	}
 
-	roomID, err := d.chatRepo.CreateDMRoomAtomic(ctx, uuid.New(), senderID, recipientID)
+	room, err := d.chatRepo.CreateDMRoomAtomic(ctx, senderID, recipientID)
 	if err != nil {
 		return nil, fmt.Errorf("create dm room: %w", err)
 	}
 
-	msgResp, err := d.parent.SendMessage(ctx, senderID, roomID, dto.SendMessageRequest{Body: body}, files)
+	msgResp, err := d.parent.SendMessage(ctx, senderID, room.ID, dto.SendMessageRequest{Body: body}, files)
 	if err != nil {
 		return nil, err
 	}
 
-	roomResp, err := d.parent.buildRoomResponse(ctx, roomID, senderID)
+	roomResp, err := d.parent.buildRoomResponse(ctx, room.ID, senderID)
 	if err != nil {
 		return nil, err
 	}

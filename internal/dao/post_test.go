@@ -15,16 +15,16 @@ import (
 
 func createPost(t *testing.T, repos *repository.Repositories, userID uuid.UUID, corner, body string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	require.NoError(t, repos.Post.Create(context.Background(), id, userID, corner, body, nil, nil))
-	return id
+	created, err := repos.Post.Create(context.Background(), repository.NewPost{UserID: userID, Corner: corner, Body: body})
+	require.NoError(t, err)
+	return created.ID
 }
 
 func createComment(t *testing.T, repos *repository.Repositories, postID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	require.NoError(t, repos.Post.CreateComment(context.Background(), id, postID, parentID, userID, body))
-	return id
+	created, err := repos.Post.CreateComment(context.Background(), postID, parentID, userID, body)
+	require.NoError(t, err)
+	return created.ID
 }
 
 func TestPostDAO_CreateAndGetByID(t *testing.T) {
@@ -49,14 +49,18 @@ func TestPostDAO_Create_WithSharedContent(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	id := uuid.New()
 
 	// when
-	err := repos.Post.Create(context.Background(), id, user.ID, "general", "shared", new("abc123"), new("theory"))
+	created, err := repos.Post.Create(context.Background(), repository.NewPost{
+		UserID:        user.ID,
+		Corner:        "general",
+		Body:          "shared",
+		SharedContent: &repository.SharedContentRef{ID: "abc123", Type: "theory"},
+	})
 
 	// then
 	require.NoError(t, err)
-	cid, ctype, err := repos.Post.GetSharedContentFields(context.Background(), id)
+	cid, ctype, err := repos.Post.GetSharedContentFields(context.Background(), created.ID)
 	require.NoError(t, err)
 	require.NotNil(t, cid)
 	require.NotNil(t, ctype)
@@ -469,7 +473,7 @@ func TestPostDAO_AddMedia_GetMedia(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "body")
 
 	// when
-	id, err := repos.Post.AddMedia(context.Background(), postID, "/m.jpg", "image", "/t.jpg", 0)
+	id, err := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "/t.jpg", SortOrder: 0})
 
 	// then
 	require.NoError(t, err)
@@ -486,7 +490,7 @@ func TestPostDAO_DeleteMedia(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	id, err := repos.Post.AddMedia(context.Background(), postID, "/m.jpg", "image", "", 0)
+	id, err := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 	require.NoError(t, err)
 
 	// when
@@ -517,7 +521,7 @@ func TestPostDAO_UpdateMediaURL(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	id, _ := repos.Post.AddMedia(context.Background(), postID, "/old.jpg", "image", "", 0)
+	id, _ := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/old.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	err := repos.Post.UpdateMediaURL(context.Background(), id, "/new.jpg")
@@ -534,7 +538,7 @@ func TestPostDAO_UpdateMediaThumbnail(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	id, _ := repos.Post.AddMedia(context.Background(), postID, "/m.jpg", "image", "", 0)
+	id, _ := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	err := repos.Post.UpdateMediaThumbnail(context.Background(), id, "/thumb.jpg")
@@ -552,8 +556,8 @@ func TestPostDAO_GetMediaBatch(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	p1 := createPost(t, repos, user.ID, "general", "a")
 	p2 := createPost(t, repos, user.ID, "general", "b")
-	_, _ = repos.Post.AddMedia(context.Background(), p1, "/a.jpg", "image", "", 0)
-	_, _ = repos.Post.AddMedia(context.Background(), p2, "/b.jpg", "image", "", 0)
+	_, _ = repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: p1, MediaURL: "/a.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	_, _ = repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: p2, MediaURL: "/b.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	result, err := repos.Post.GetMediaBatch(context.Background(), []uuid.UUID{p1, p2})
@@ -1068,7 +1072,7 @@ func TestPostDAO_AddCommentMedia_GetCommentMedia(t *testing.T) {
 	commentID := createComment(t, repos, postID, user.ID, nil, "c")
 
 	// when
-	id, err := repos.Post.AddCommentMedia(context.Background(), commentID, "/m.jpg", "image", "/t.jpg", 0)
+	id, err := repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "/t.jpg", SortOrder: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1085,7 +1089,7 @@ func TestPostDAO_UpdateCommentMediaURL(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
 	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-	id, _ := repos.Post.AddCommentMedia(context.Background(), commentID, "/old.jpg", "image", "", 0)
+	id, _ := repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/old.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	err := repos.Post.UpdateCommentMediaURL(context.Background(), id, "/new.jpg")
@@ -1103,7 +1107,7 @@ func TestPostDAO_UpdateCommentMediaThumbnail(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
 	commentID := createComment(t, repos, postID, user.ID, nil, "c")
-	id, _ := repos.Post.AddCommentMedia(context.Background(), commentID, "/m.jpg", "image", "", 0)
+	id, _ := repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	err := repos.Post.UpdateCommentMediaThumbnail(context.Background(), id, "/t.jpg")
@@ -1122,8 +1126,8 @@ func TestPostDAO_GetCommentMediaBatch(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "b")
 	c1 := createComment(t, repos, postID, user.ID, nil, "c1")
 	c2 := createComment(t, repos, postID, user.ID, nil, "c2")
-	_, _ = repos.Post.AddCommentMedia(context.Background(), c1, "/1.jpg", "image", "", 0)
-	_, _ = repos.Post.AddCommentMedia(context.Background(), c2, "/2.jpg", "image", "", 0)
+	_, _ = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: c1, MediaURL: "/1.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	_, _ = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: c2, MediaURL: "/2.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	result, err := repos.Post.GetCommentMediaBatch(context.Background(), []uuid.UUID{c1, c2})
@@ -1363,7 +1367,7 @@ func TestPostDAO_AddEmbed_GetEmbeds(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "b")
 
 	// when
-	err := repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://x.com", "link", "Title", "Desc", "/img.jpg", "X", "", 0)
+	err := repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: postID.String(), OwnerType: "post", URL: "https://x.com", EmbedType: "link", Title: "Title", Description: "Desc", Image: "/img.jpg", SiteName: "X", VideoID: "", SortOrder: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1379,7 +1383,7 @@ func TestPostDAO_DeleteEmbeds(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://x.com", "link", "T", "D", "", "", "", 0))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: postID.String(), OwnerType: "post", URL: "https://x.com", EmbedType: "link", Title: "T", Description: "D", Image: "", SiteName: "", VideoID: "", SortOrder: 0}))
 
 	// when
 	err := repos.Post.DeleteEmbeds(context.Background(), postID.String(), "post")
@@ -1395,12 +1399,12 @@ func TestPostDAO_UpdateEmbed(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://x.com", "link", "old", "old", "", "", "", 0))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: postID.String(), OwnerType: "post", URL: "https://x.com", EmbedType: "link", Title: "old", Description: "old", Image: "", SiteName: "", VideoID: "", SortOrder: 0}))
 	embeds, _ := repos.Post.GetEmbeds(context.Background(), postID.String(), "post")
 	require.Len(t, embeds, 1)
 
 	// when
-	err := repos.Post.UpdateEmbed(context.Background(), embeds[0].ID, "new title", "new desc", "/new.jpg", "NewSite")
+	err := repos.Post.UpdateEmbed(context.Background(), repository.EmbedUpdate{ID: embeds[0].ID, Title: "new title", Description: "new desc", Image: "/new.jpg", SiteName: "NewSite"})
 
 	// then
 	require.NoError(t, err)
@@ -1417,8 +1421,8 @@ func TestPostDAO_GetEmbedsBatch(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	p1 := createPost(t, repos, user.ID, "general", "a")
 	p2 := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), p1.String(), "post", "https://a.com", "link", "A", "", "", "", "", 0))
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), p2.String(), "post", "https://b.com", "link", "B", "", "", "", "", 0))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: p1.String(), OwnerType: "post", URL: "https://a.com", EmbedType: "link", Title: "A", Description: "", Image: "", SiteName: "", VideoID: "", SortOrder: 0}))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: p2.String(), OwnerType: "post", URL: "https://b.com", EmbedType: "link", Title: "B", Description: "", Image: "", SiteName: "", VideoID: "", SortOrder: 0}))
 
 	// when
 	result, err := repos.Post.GetEmbedsBatch(context.Background(), []string{p1.String(), p2.String()}, "post")
@@ -1446,7 +1450,7 @@ func TestPostDAO_GetStaleEmbeds(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://x.com", "link", "T", "D", "", "", "", 0))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: postID.String(), OwnerType: "post", URL: "https://x.com", EmbedType: "link", Title: "T", Description: "D", Image: "", SiteName: "", VideoID: "", SortOrder: 0}))
 	db := repos.DB()
 	_, err := db.Exec(`UPDATE embeds SET fetched_at = NOW() - INTERVAL '30 days'`)
 	require.NoError(t, err)
@@ -1464,7 +1468,7 @@ func TestPostDAO_GetStaleEmbeds_None(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://x.com", "link", "T", "D", "", "", "", 0))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: postID.String(), OwnerType: "post", URL: "https://x.com", EmbedType: "link", Title: "T", Description: "D", Image: "", SiteName: "", VideoID: "", SortOrder: 0}))
 
 	// when
 	stale, err := repos.Post.GetStaleEmbeds(context.Background(), "-7 days", 10)
@@ -1479,7 +1483,7 @@ func TestPostDAO_GetStaleEmbeds_SkipsYouTube(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), postID.String(), "post", "https://youtu.be/abc", "youtube", "T", "D", "", "", "abc", 0))
+	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{OwnerID: postID.String(), OwnerType: "post", URL: "https://youtu.be/abc", EmbedType: "youtube", Title: "T", Description: "D", Image: "", SiteName: "", VideoID: "abc", SortOrder: 0}))
 	db := repos.DB()
 	_, err := db.Exec(`UPDATE embeds SET fetched_at = NOW() - INTERVAL '30 days'`)
 	require.NoError(t, err)
@@ -1497,18 +1501,17 @@ func TestPostDAO_CreatePollWithOptions_GetPollByPostID(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "body")
-	pollID := uuid.New()
 	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
 
 	// when
-	err := repos.Post.CreatePollWithOptions(context.Background(), pollID, postID, 86400, expires, []string{"yes", "no"})
+	created, err := repos.Post.CreatePollWithOptions(context.Background(), postID, 86400, expires, []string{"yes", "no"})
 
 	// then
 	require.NoError(t, err)
 	poll, opts, voted, err := repos.Post.GetPollByPostID(context.Background(), postID, user.ID)
 	require.NoError(t, err)
 	require.NotNil(t, poll)
-	assert.Equal(t, pollID.String(), poll.ID)
+	assert.Equal(t, created.ID, poll.ID)
 	assert.Len(t, opts, 2)
 	assert.Nil(t, voted)
 }
@@ -1534,14 +1537,15 @@ func TestPostDAO_VotePoll(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	pollID := uuid.New()
 	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	require.NoError(t, repos.Post.CreatePollWithOptions(context.Background(), pollID, postID, 86400, expires, []string{"yes", "no"}))
+	poll, err := repos.Post.CreatePollWithOptions(context.Background(), postID, 86400, expires, []string{"yes", "no"})
+	require.NoError(t, err)
+	pollID := uuid.MustParse(poll.ID)
 	_, opts, _, _ := repos.Post.GetPollByPostID(context.Background(), postID, user.ID)
 	require.Len(t, opts, 2)
 
 	// when
-	err := repos.Post.VotePoll(context.Background(), pollID, user.ID, opts[0].ID)
+	err = repos.Post.VotePoll(context.Background(), pollID, user.ID, opts[0].ID)
 
 	// then
 	require.NoError(t, err)
@@ -1561,14 +1565,15 @@ func TestPostDAO_VotePoll_DuplicateRejected(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "b")
-	pollID := uuid.New()
 	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	require.NoError(t, repos.Post.CreatePollWithOptions(context.Background(), pollID, postID, 86400, expires, []string{"yes", "no"}))
+	poll, err := repos.Post.CreatePollWithOptions(context.Background(), postID, 86400, expires, []string{"yes", "no"})
+	require.NoError(t, err)
+	pollID := uuid.MustParse(poll.ID)
 	_, opts, _, _ := repos.Post.GetPollByPostID(context.Background(), postID, user.ID)
 	require.NoError(t, repos.Post.VotePoll(context.Background(), pollID, user.ID, opts[0].ID))
 
 	// when
-	err := repos.Post.VotePoll(context.Background(), pollID, user.ID, opts[1].ID)
+	err = repos.Post.VotePoll(context.Background(), pollID, user.ID, opts[1].ID)
 
 	// then
 	require.Error(t, err)
@@ -1581,11 +1586,11 @@ func TestPostDAO_GetPollsByPostIDs(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	p1 := createPost(t, repos, user.ID, "general", "a")
 	p2 := createPost(t, repos, user.ID, "general", "b")
-	poll1 := uuid.New()
-	poll2 := uuid.New()
 	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	require.NoError(t, repos.Post.CreatePollWithOptions(context.Background(), poll1, p1, 86400, expires, []string{"a", "b"}))
-	require.NoError(t, repos.Post.CreatePollWithOptions(context.Background(), poll2, p2, 86400, expires, []string{"c", "d"}))
+	_, err := repos.Post.CreatePollWithOptions(context.Background(), p1, 86400, expires, []string{"a", "b"})
+	require.NoError(t, err)
+	_, err = repos.Post.CreatePollWithOptions(context.Background(), p2, 86400, expires, []string{"c", "d"})
+	require.NoError(t, err)
 
 	// when
 	polls, opts, votes, err := repos.Post.GetPollsByPostIDs(context.Background(), []uuid.UUID{p1, p2}, user.ID)
@@ -1603,9 +1608,10 @@ func TestPostDAO_GetPollsByPostIDs_WithVote(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	postID := createPost(t, repos, user.ID, "general", "a")
-	pollID := uuid.New()
 	expires := time.Now().Add(24 * time.Hour).UTC().Format("2006-01-02 15:04:05")
-	require.NoError(t, repos.Post.CreatePollWithOptions(context.Background(), pollID, postID, 86400, expires, []string{"a", "b"}))
+	poll, err := repos.Post.CreatePollWithOptions(context.Background(), postID, 86400, expires, []string{"a", "b"})
+	require.NoError(t, err)
+	pollID := uuid.MustParse(poll.ID)
 	_, opts, _, _ := repos.Post.GetPollByPostID(context.Background(), postID, user.ID)
 	require.NoError(t, repos.Post.VotePoll(context.Background(), pollID, user.ID, opts[1].ID))
 
@@ -1638,7 +1644,7 @@ func TestGetSharedContentPreviews_Post(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Sharer"))
 	postID := createPost(t, repos, user.ID, "general", "shared body")
-	_, _ = repos.Post.AddMedia(context.Background(), postID, "/m.jpg", "image", "", 0)
+	_, _ = repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/m.jpg", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
 
 	// when
 	result := repos.Post.GetSharedContentPreviews([]repository.SharedContentRef{
@@ -1697,4 +1703,181 @@ func TestGetSharedContentPreviews_UnknownType(t *testing.T) {
 	require.NotNil(t, preview)
 	assert.True(t, preview.Deleted)
 	assert.Equal(t, "/", preview.URL)
+}
+
+func TestPostDAO_DeleteWithSharedContent_ReturnsAllUploadedPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
+	survivorID := createPost(t, repos, user.ID, "general", "survivor")
+
+	_, err := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/uploads/posts/a.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/a_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+	_, err = repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/uploads/posts/b.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 1})
+	require.NoError(t, err)
+
+	commentID := createComment(t, repos, postID, user.ID, nil, "comment")
+	replyID := createComment(t, repos, postID, user.ID, &commentID, "reply")
+	_, err = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+	_, err = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: replyID, MediaURL: "/uploads/posts/d.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	require.NoError(t, err)
+
+	survivorCommentID := createComment(t, repos, survivorID, user.ID, nil, "untouched")
+	_, err = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: survivorCommentID, MediaURL: "/uploads/posts/keep.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	require.NoError(t, err)
+
+	// when
+	shared, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: user.ID})
+
+	// then
+	require.NoError(t, err)
+	assert.Nil(t, shared)
+	assert.ElementsMatch(t, []string{
+		"/uploads/posts/a.webp",
+		"/uploads/posts/a_thumb.webp",
+		"/uploads/posts/b.webp",
+		"/uploads/posts/c.webp",
+		"/uploads/posts/c_thumb.webp",
+		"/uploads/posts/d.webp",
+	}, paths)
+	assert.NotContains(t, paths, "/uploads/posts/keep.webp")
+	row, err := repos.Post.GetByID(context.Background(), postID, user.ID)
+	require.NoError(t, err)
+	assert.Nil(t, row)
+}
+
+func TestPostDAO_DeleteWithSharedContent_AsAdminReturnsAllUploadedPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	admin := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, owner.ID, "general", "body")
+
+	_, err := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/uploads/posts/a.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/a_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+
+	commentID := createComment(t, repos, postID, owner.ID, nil, "comment")
+	_, err = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+
+	// when
+	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: admin.ID, AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/posts/a.webp",
+		"/uploads/posts/a_thumb.webp",
+		"/uploads/posts/c.webp",
+		"/uploads/posts/c_thumb.webp",
+	}, paths)
+}
+
+func TestPostDAO_DeleteWithSharedContent_NoMediaReturnsNoPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
+
+	// when
+	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: user.ID})
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, paths)
+}
+
+func TestPostDAO_DeleteWithSharedContent_FailedDeleteReturnsNoPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
+	_, err := repos.Post.AddMedia(context.Background(), repository.NewPostMedia{PostID: postID, MediaURL: "/uploads/posts/a.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/a_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+
+	// when
+	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: stranger.ID})
+
+	// then
+	require.Error(t, err)
+	assert.Nil(t, paths)
+	media, err := repos.Post.GetMedia(context.Background(), postID)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
+}
+
+func TestPostDAO_DeleteCommentWithAudit_ReturnsCommentAndReplyPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
+	commentID := createComment(t, repos, postID, user.ID, nil, "comment")
+	replyID := createComment(t, repos, postID, user.ID, &commentID, "reply")
+	siblingID := createComment(t, repos, postID, user.ID, nil, "sibling")
+
+	_, err := repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+	_, err = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: replyID, MediaURL: "/uploads/posts/r.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	require.NoError(t, err)
+	_, err = repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: siblingID, MediaURL: "/uploads/posts/keep.webp", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	require.NoError(t, err)
+
+	// when
+	paths, err := repos.Post.DeleteCommentWithAudit(context.Background(), repository.PostCommentDelete{
+		ID:     commentID,
+		UserID: user.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    user.ID,
+			Action:     "post_comment_delete",
+			TargetType: "post_comment",
+			TargetID:   commentID.String(),
+		},
+	})
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/posts/c.webp",
+		"/uploads/posts/c_thumb.webp",
+		"/uploads/posts/r.webp",
+	}, paths)
+	assert.NotContains(t, paths, "/uploads/posts/keep.webp")
+	remaining, total, err := repos.Post.GetComments(context.Background(), postID, user.ID, 10, 0, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	require.Len(t, remaining, 1)
+	assert.Equal(t, siblingID, remaining[0].ID)
+}
+
+func TestPostDAO_DeleteCommentWithAudit_NotOwnedReturnsNoPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	postID := createPost(t, repos, user.ID, "general", "body")
+	commentID := createComment(t, repos, postID, user.ID, nil, "comment")
+	_, err := repos.Post.AddCommentMedia(context.Background(), repository.NewPostCommentMedia{CommentID: commentID, MediaURL: "/uploads/posts/c.webp", MediaType: "image", ThumbnailURL: "/uploads/posts/c_thumb.webp", SortOrder: 0})
+	require.NoError(t, err)
+
+	// when
+	paths, err := repos.Post.DeleteCommentWithAudit(context.Background(), repository.PostCommentDelete{
+		ID:     commentID,
+		UserID: stranger.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    stranger.ID,
+			Action:     "post_comment_delete",
+			TargetType: "post_comment",
+			TargetID:   commentID.String(),
+		},
+	})
+
+	// then
+	require.Error(t, err)
+	assert.Nil(t, paths)
+	media, err := repos.Post.GetCommentMedia(context.Background(), commentID)
+	require.NoError(t, err)
+	require.Len(t, media, 1)
 }

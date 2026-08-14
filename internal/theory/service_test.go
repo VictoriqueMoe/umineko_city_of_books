@@ -2,6 +2,7 @@ package theory
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"sync"
@@ -50,7 +51,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	quoteClient := quotefinder.NewClient()
 	svc := NewService(repo, userRepo, followRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
 	fanout := make(chan uuid.UUID, 8)
-	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID) {
+	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
 		fanout <- userID
 	}).Return(nil, nil).Maybe()
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
@@ -90,13 +91,36 @@ func validCreateTheoryReq() dto.CreateTheoryRequest {
 	}
 }
 
+func expectedNewTheory(userID uuid.UUID, req dto.CreateTheoryRequest) repository.NewTheory {
+	return repository.NewTheory{
+		UserID:   userID,
+		Title:    req.Title,
+		Body:     req.Body,
+		Episode:  req.Episode,
+		Series:   req.Series,
+		Evidence: req.Evidence,
+	}
+}
+
+func expectedTheoryUpdate(id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest, asAdmin bool) repository.TheoryUpdate {
+	return repository.TheoryUpdate{
+		ID:       id,
+		UserID:   userID,
+		Title:    req.Title,
+		Body:     req.Body,
+		Episode:  req.Episode,
+		AsAdmin:  asAdmin,
+		Evidence: req.Evidence,
+	}
+}
+
 func TestCreateTheory_NoLimit_Delegates(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	theoryID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(theoryID, nil)
+	m.repo.EXPECT().Create(mock.Anything, expectedNewTheory(userID, validCreateTheoryReq())).Return(&dto.TheoryDetailResponse{ID: theoryID}, nil)
 
 	// when
 	got, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
@@ -141,7 +165,7 @@ func TestCreateTheory_UnderLimit_Creates(t *testing.T) {
 	theoryID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(5)
 	m.repo.EXPECT().CountUserTheoriesToday(mock.Anything, userID).Return(2, nil)
-	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(theoryID, nil)
+	m.repo.EXPECT().Create(mock.Anything, expectedNewTheory(userID, validCreateTheoryReq())).Return(&dto.TheoryDetailResponse{ID: theoryID}, nil)
 
 	// when
 	got, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
@@ -156,7 +180,7 @@ func TestCreateTheory_RepoCreateError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().Create(mock.Anything, expectedNewTheory(userID, validCreateTheoryReq())).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
@@ -347,7 +371,7 @@ func TestUpdateTheory_NonAdmin_Delegates(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
-	m.repo.EXPECT().Update(mock.Anything, id, userID, mock.Anything).Return(nil)
+	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), false)).Return(nil)
 
 	// when
 	err := svc.UpdateTheory(context.Background(), id, userID, validCreateTheoryReq())
@@ -362,7 +386,7 @@ func TestUpdateTheory_NonAdmin_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
-	m.repo.EXPECT().Update(mock.Anything, id, userID, mock.Anything).Return(errors.New("nope"))
+	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), false)).Return(errors.New("nope"))
 
 	// when
 	err := svc.UpdateTheory(context.Background(), id, userID, validCreateTheoryReq())
@@ -371,13 +395,13 @@ func TestUpdateTheory_NonAdmin_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestUpdateTheory_Admin_UpdateAsAdminError(t *testing.T) {
+func TestUpdateTheory_Admin_UpdateError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, mock.Anything).Return(errors.New("nope"))
+	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), true)).Return(errors.New("nope"))
 
 	// when
 	err := svc.UpdateTheory(context.Background(), id, userID, validCreateTheoryReq())
@@ -393,7 +417,7 @@ func TestUpdateTheory_Admin_OK_TriggersNotification(t *testing.T) {
 	userID := uuid.New()
 	authorID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, mock.Anything).Return(nil)
+	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), true)).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -419,11 +443,11 @@ func TestUpdateTheory_Admin_OK_AuthorLookupErrorSwallowed(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-	m.repo.EXPECT().UpdateAsAdmin(mock.Anything, id, mock.Anything).Return(nil)
+	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), true)).Return(nil)
 
 	done := make(chan struct{})
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).
-		Run(func(_ context.Context, _ uuid.UUID) { close(done) }).
+		Run(func(_ context.Context, _ uuid.UUID, _ ...*sql.Tx) { close(done) }).
 		Return(uuid.Nil, errors.New("missing"))
 
 	// when
@@ -571,7 +595,7 @@ func TestCreateResponse_OwnTheoryAllowedAsReply(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxResponsesPerDay).Return(0)
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, theoryID).Return(userID, nil).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	m.repo.EXPECT().CreateResponse(mock.Anything, theoryID, userID, mock.Anything).Return(responseID, nil)
+	m.repo.EXPECT().CreateResponse(mock.Anything, repository.NewTheoryResponse{TheoryID: theoryID, UserID: userID, ParentID: &parentID, Side: "with_love"}).Return(&dto.ResponseResponse{ID: responseID}, nil)
 
 	m.repo.EXPECT().GetTheorySeries(mock.Anything, theoryID).Return("umineko", nil).Maybe()
 	m.repo.EXPECT().GetResponseEvidence(mock.Anything, responseID).Return(nil, nil).Maybe()
@@ -601,7 +625,7 @@ func TestCreateResponse_RepoCreateError(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxResponsesPerDay).Return(0)
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, theoryID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateResponse(mock.Anything, theoryID, userID, mock.Anything).Return(uuid.Nil, errors.New("boom"))
+	m.repo.EXPECT().CreateResponse(mock.Anything, repository.NewTheoryResponse{TheoryID: theoryID, UserID: userID, Side: "with_love"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateResponse(context.Background(), theoryID, userID, dto.CreateResponseRequest{Side: "with_love"})
@@ -620,7 +644,7 @@ func TestCreateResponse_OK_SendsNotification(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxResponsesPerDay).Return(0)
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, theoryID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateResponse(mock.Anything, theoryID, userID, mock.Anything).Return(responseID, nil)
+	m.repo.EXPECT().CreateResponse(mock.Anything, repository.NewTheoryResponse{TheoryID: theoryID, UserID: userID, Side: "with_love"}).Return(&dto.ResponseResponse{ID: responseID}, nil)
 
 	m.repo.EXPECT().GetTheorySeries(mock.Anything, theoryID).Return("umineko", nil).Maybe()
 	m.repo.EXPECT().GetResponseEvidence(mock.Anything, responseID).Return(nil, nil).Maybe()
@@ -916,7 +940,7 @@ func TestCreateTheory_MentionNotifiesMentionedUser(t *testing.T) {
 	req := validCreateTheoryReq()
 	req.Body = "what do you make of this @alice"
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(theoryID, nil)
+	m.repo.EXPECT().Create(mock.Anything, expectedNewTheory(userID, req)).Return(&dto.TheoryDetailResponse{ID: theoryID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: mentionedID}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -949,7 +973,7 @@ func TestCreateResponse_MentionAnchorsOnTheResponse(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxResponsesPerDay).Return(0)
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, theoryID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateResponse(mock.Anything, theoryID, userID, mock.Anything).Return(responseID, nil)
+	m.repo.EXPECT().CreateResponse(mock.Anything, repository.NewTheoryResponse{TheoryID: theoryID, UserID: userID, Side: "with_love", Body: "agreed @alice"}).Return(&dto.ResponseResponse{ID: responseID}, nil)
 
 	m.repo.EXPECT().GetTheorySeries(mock.Anything, theoryID).Return("umineko", nil).Maybe()
 	m.repo.EXPECT().GetResponseEvidence(mock.Anything, responseID).Return(nil, nil).Maybe()
@@ -985,7 +1009,7 @@ func TestCreateTheory_NotifiesFollowers(t *testing.T) {
 	userID := uuid.New()
 	theoryID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(theoryID, nil)
+	m.repo.EXPECT().Create(mock.Anything, expectedNewTheory(userID, validCreateTheoryReq())).Return(&dto.TheoryDetailResponse{ID: theoryID}, nil)
 
 	// when
 	_, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
@@ -1005,7 +1029,7 @@ func TestCreateTheory_CreateErrorSkipsFollowerFanout(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxTheoriesPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, mock.Anything).Return(uuid.Nil, errors.New("db down"))
+	m.repo.EXPECT().Create(mock.Anything, expectedNewTheory(userID, validCreateTheoryReq())).Return(nil, errors.New("db down"))
 
 	// when
 	_, err := svc.CreateTheory(context.Background(), userID, validCreateTheoryReq())
@@ -1023,7 +1047,7 @@ func TestUpdateTheory_EditDoesNotReNotifyMentions(t *testing.T) {
 	req := validCreateTheoryReq()
 	req.Body = "rethinking this @alice"
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
-	m.repo.EXPECT().Update(mock.Anything, id, userID, mock.Anything).Return(nil)
+	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, req, false)).Return(nil)
 
 	// when
 	err := svc.UpdateTheory(context.Background(), id, userID, req)

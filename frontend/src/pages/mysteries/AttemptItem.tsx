@@ -14,6 +14,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { siteUrl } from "../../utils/siteOrigin";
+import { renderRich } from "../../utils/richText";
 import styles from "./MysteryPages.module.css";
 
 function flattenReplies(attempt: MysteryAttempt): { reply: MysteryAttempt; replyToName: string }[] {
@@ -118,7 +119,7 @@ function SingleAttempt({
                 <RelativeTimestamp value={attempt.created_at} />
                 {attempt.is_winner && <span className={styles.winnerBadge}>Winner</span>}
             </div>
-            <div className={styles.attemptBody}>{attempt.body}</div>
+            <div className={styles.attemptBody}>{renderRich(attempt.body)}</div>
             <div className={styles.attemptActions}>
                 {user && (
                     <>

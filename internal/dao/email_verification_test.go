@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -137,4 +138,30 @@ func TestUserDAO_RequiresEmailVerification(t *testing.T) {
 	// then
 	assert.True(t, blocked)
 	assert.False(t, afterVerify)
+}
+
+func TestEmailVerification_IssueReplacesUnusedTokens(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos, daotest.WithUsername("verifyissue"))
+	require.NoError(t, repos.EmailVerification.Create(context.Background(), "vhash-stale", user.ID, time.Now().Add(time.Hour)))
+
+	// when
+	err := repos.EmailVerification.Issue(context.Background(), repository.NewEmailVerification{
+		TokenHash: "vhash-fresh",
+		UserID:    user.ID,
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+	})
+
+	// then
+	require.NoError(t, err)
+
+	stale, err := repos.EmailVerification.GetByTokenHash(context.Background(), "vhash-stale")
+	require.NoError(t, err)
+	assert.Nil(t, stale)
+
+	fresh, err := repos.EmailVerification.GetByTokenHash(context.Background(), "vhash-fresh")
+	require.NoError(t, err)
+	require.NotNil(t, fresh)
+	assert.Equal(t, user.ID, fresh.UserID)
 }

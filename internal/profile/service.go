@@ -25,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type (
@@ -280,8 +281,25 @@ func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, currentT
 		return ErrPasswordTooShort
 	}
 
-	if err := s.userRepo.ChangePassword(ctx, userID, req.OldPassword, req.NewPassword); err != nil {
-		return err
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.OldPassword)) != nil {
+		return ErrIncorrectPassword
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	if err := s.userRepo.SetPasswordHash(ctx, userID, string(passwordHash)); err != nil {
+		return fmt.Errorf("set password: %w", err)
 	}
 
 	if s.session != nil {
@@ -298,15 +316,20 @@ func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.D
 	if err != nil {
 		return fmt.Errorf("get user for cleanup: %w", err)
 	}
+	if user == nil {
+		return ErrUserNotFound
+	}
 
-	if err := s.userRepo.DeleteAccount(ctx, userID, req.Password); err != nil {
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
+		return ErrIncorrectPassword
+	}
+
+	if err := s.userRepo.DeleteAccount(ctx, userID); err != nil {
 		return err
 	}
 
-	if user != nil {
-		_ = s.uploadSvc.Delete(user.AvatarURL)
-		_ = s.uploadSvc.Delete(user.BannerURL)
-	}
+	s.uploadSvc.Delete(user.AvatarURL)
+	s.uploadSvc.Delete(user.BannerURL)
 
 	return nil
 }

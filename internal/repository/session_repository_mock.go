@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,8 +41,14 @@ func (_m *MockSessionRepository) EXPECT() *MockSessionRepository_Expecter {
 }
 
 // CleanExpired provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) CleanExpired(ctx context.Context) (int, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockSessionRepository) CleanExpired(ctx context.Context, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CleanExpired")
@@ -49,16 +56,16 @@ func (_mock *MockSessionRepository) CleanExpired(ctx context.Context) (int, erro
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,18 +79,27 @@ type MockSessionRepository_CleanExpired_Call struct {
 
 // CleanExpired is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockSessionRepository_Expecter) CleanExpired(ctx any) *MockSessionRepository_CleanExpired_Call {
-	return &MockSessionRepository_CleanExpired_Call{Call: _e.mock.On("CleanExpired", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockSessionRepository_Expecter) CleanExpired(ctx any, tx ...any) *MockSessionRepository_CleanExpired_Call {
+	return &MockSessionRepository_CleanExpired_Call{Call: _e.mock.On("CleanExpired",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_CleanExpired_Call) Run(run func(ctx context.Context)) *MockSessionRepository_CleanExpired_Call {
+func (_c *MockSessionRepository_CleanExpired_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockSessionRepository_CleanExpired_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -94,22 +110,28 @@ func (_c *MockSessionRepository_CleanExpired_Call) Return(n int, err error) *Moc
 	return _c
 }
 
-func (_c *MockSessionRepository_CleanExpired_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockSessionRepository_CleanExpired_Call {
+func (_c *MockSessionRepository_CleanExpired_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (int, error)) *MockSessionRepository_CleanExpired_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Create provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time) error {
-	ret := _mock.Called(ctx, token, userID, expiresAt)
+func (_mock *MockSessionRepository) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, token, userID, expiresAt, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, token, userID, expiresAt)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, time.Time) error); ok {
-		r0 = returnFunc(ctx, token, userID, expiresAt)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, time.Time, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, token, userID, expiresAt, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -126,11 +148,13 @@ type MockSessionRepository_Create_Call struct {
 //   - token string
 //   - userID uuid.UUID
 //   - expiresAt time.Time
-func (_e *MockSessionRepository_Expecter) Create(ctx any, token any, userID any, expiresAt any) *MockSessionRepository_Create_Call {
-	return &MockSessionRepository_Create_Call{Call: _e.mock.On("Create", ctx, token, userID, expiresAt)}
+//   - tx ...*sql.Tx
+func (_e *MockSessionRepository_Expecter) Create(ctx any, token any, userID any, expiresAt any, tx ...any) *MockSessionRepository_Create_Call {
+	return &MockSessionRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, token, userID, expiresAt}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_Create_Call) Run(run func(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time)) *MockSessionRepository_Create_Call {
+func (_c *MockSessionRepository_Create_Call) Run(run func(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx)) *MockSessionRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -148,11 +172,18 @@ func (_c *MockSessionRepository_Create_Call) Run(run func(ctx context.Context, t
 		if args[3] != nil {
 			arg3 = args[3].(time.Time)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -163,22 +194,28 @@ func (_c *MockSessionRepository_Create_Call) Return(err error) *MockSessionRepos
 	return _c
 }
 
-func (_c *MockSessionRepository_Create_Call) RunAndReturn(run func(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time) error) *MockSessionRepository_Create_Call {
+func (_c *MockSessionRepository_Create_Call) RunAndReturn(run func(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error) *MockSessionRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) Delete(ctx context.Context, token string) error {
-	ret := _mock.Called(ctx, token)
+func (_mock *MockSessionRepository) Delete(ctx context.Context, token string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, token, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, token)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, token, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -193,11 +230,13 @@ type MockSessionRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockSessionRepository_Expecter) Delete(ctx any, token any) *MockSessionRepository_Delete_Call {
-	return &MockSessionRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, token)}
+//   - tx ...*sql.Tx
+func (_e *MockSessionRepository_Expecter) Delete(ctx any, token any, tx ...any) *MockSessionRepository_Delete_Call {
+	return &MockSessionRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, token}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_Delete_Call) Run(run func(ctx context.Context, token string)) *MockSessionRepository_Delete_Call {
+func (_c *MockSessionRepository_Delete_Call) Run(run func(ctx context.Context, token string, tx ...*sql.Tx)) *MockSessionRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -207,9 +246,16 @@ func (_c *MockSessionRepository_Delete_Call) Run(run func(ctx context.Context, t
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -220,22 +266,28 @@ func (_c *MockSessionRepository_Delete_Call) Return(err error) *MockSessionRepos
 	return _c
 }
 
-func (_c *MockSessionRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, token string) error) *MockSessionRepository_Delete_Call {
+func (_c *MockSessionRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, token string, tx ...*sql.Tx) error) *MockSessionRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteAllForUser provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockSessionRepository) DeleteAllForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteAllForUser")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -250,11 +302,13 @@ type MockSessionRepository_DeleteAllForUser_Call struct {
 // DeleteAllForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockSessionRepository_Expecter) DeleteAllForUser(ctx any, userID any) *MockSessionRepository_DeleteAllForUser_Call {
-	return &MockSessionRepository_DeleteAllForUser_Call{Call: _e.mock.On("DeleteAllForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockSessionRepository_Expecter) DeleteAllForUser(ctx any, userID any, tx ...any) *MockSessionRepository_DeleteAllForUser_Call {
+	return &MockSessionRepository_DeleteAllForUser_Call{Call: _e.mock.On("DeleteAllForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_DeleteAllForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockSessionRepository_DeleteAllForUser_Call {
+func (_c *MockSessionRepository_DeleteAllForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockSessionRepository_DeleteAllForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -264,9 +318,16 @@ func (_c *MockSessionRepository_DeleteAllForUser_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -277,22 +338,28 @@ func (_c *MockSessionRepository_DeleteAllForUser_Call) Return(err error) *MockSe
 	return _c
 }
 
-func (_c *MockSessionRepository_DeleteAllForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockSessionRepository_DeleteAllForUser_Call {
+func (_c *MockSessionRepository_DeleteAllForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error) *MockSessionRepository_DeleteAllForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteAllForUserExcept provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
-	ret := _mock.Called(ctx, userID, keepToken)
+func (_mock *MockSessionRepository) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, keepToken, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, keepToken)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteAllForUserExcept")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, userID, keepToken)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, keepToken, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -308,11 +375,13 @@ type MockSessionRepository_DeleteAllForUserExcept_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - keepToken string
-func (_e *MockSessionRepository_Expecter) DeleteAllForUserExcept(ctx any, userID any, keepToken any) *MockSessionRepository_DeleteAllForUserExcept_Call {
-	return &MockSessionRepository_DeleteAllForUserExcept_Call{Call: _e.mock.On("DeleteAllForUserExcept", ctx, userID, keepToken)}
+//   - tx ...*sql.Tx
+func (_e *MockSessionRepository_Expecter) DeleteAllForUserExcept(ctx any, userID any, keepToken any, tx ...any) *MockSessionRepository_DeleteAllForUserExcept_Call {
+	return &MockSessionRepository_DeleteAllForUserExcept_Call{Call: _e.mock.On("DeleteAllForUserExcept",
+		append([]any{ctx, userID, keepToken}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Run(run func(ctx context.Context, userID uuid.UUID, keepToken string)) *MockSessionRepository_DeleteAllForUserExcept_Call {
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Run(run func(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx)) *MockSessionRepository_DeleteAllForUserExcept_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -326,10 +395,17 @@ func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Run(run func(ctx co
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -340,14 +416,20 @@ func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, keepToken string) error) *MockSessionRepository_DeleteAllForUserExcept_Call {
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx) error) *MockSessionRepository_DeleteAllForUserExcept_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUserID provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) GetUserID(ctx context.Context, token string) (uuid.UUID, time.Time, error) {
-	ret := _mock.Called(ctx, token)
+func (_mock *MockSessionRepository) GetUserID(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, time.Time, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, token, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, token)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUserID")
@@ -356,23 +438,23 @@ func (_mock *MockSessionRepository) GetUserID(ctx context.Context, token string)
 	var r0 uuid.UUID
 	var r1 time.Time
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (uuid.UUID, time.Time, error)); ok {
-		return returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (uuid.UUID, time.Time, error)); ok {
+		return returnFunc(ctx, token, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) uuid.UUID); ok {
-		r0 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, token, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) time.Time); ok {
-		r1 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) time.Time); ok {
+		r1 = returnFunc(ctx, token, tx...)
 	} else {
 		r1 = ret.Get(1).(time.Time)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string) error); ok {
-		r2 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, token, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -387,11 +469,13 @@ type MockSessionRepository_GetUserID_Call struct {
 // GetUserID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockSessionRepository_Expecter) GetUserID(ctx any, token any) *MockSessionRepository_GetUserID_Call {
-	return &MockSessionRepository_GetUserID_Call{Call: _e.mock.On("GetUserID", ctx, token)}
+//   - tx ...*sql.Tx
+func (_e *MockSessionRepository_Expecter) GetUserID(ctx any, token any, tx ...any) *MockSessionRepository_GetUserID_Call {
+	return &MockSessionRepository_GetUserID_Call{Call: _e.mock.On("GetUserID",
+		append([]any{ctx, token}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_GetUserID_Call) Run(run func(ctx context.Context, token string)) *MockSessionRepository_GetUserID_Call {
+func (_c *MockSessionRepository_GetUserID_Call) Run(run func(ctx context.Context, token string, tx ...*sql.Tx)) *MockSessionRepository_GetUserID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -401,9 +485,16 @@ func (_c *MockSessionRepository_GetUserID_Call) Run(run func(ctx context.Context
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -414,7 +505,7 @@ func (_c *MockSessionRepository_GetUserID_Call) Return(uUID uuid.UUID, time1 tim
 	return _c
 }
 
-func (_c *MockSessionRepository_GetUserID_Call) RunAndReturn(run func(ctx context.Context, token string) (uuid.UUID, time.Time, error)) *MockSessionRepository_GetUserID_Call {
+func (_c *MockSessionRepository_GetUserID_Call) RunAndReturn(run func(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, time.Time, error)) *MockSessionRepository_GetUserID_Call {
 	_c.Call.Return(run)
 	return _c
 }

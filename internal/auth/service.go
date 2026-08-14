@@ -23,6 +23,7 @@ import (
 	"umineko_city_of_books/internal/user"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type (
@@ -47,7 +48,6 @@ type (
 		settingsSvc   settings.Service
 		inviteRepo    repository.InviteRepository
 		userRepo      repository.UserRepository
-		auditRepo     repository.AuditLogRepository
 		resetRepo     repository.PasswordResetRepository
 		verifyRepo    repository.EmailVerificationRepository
 		emailSvc      email.Service
@@ -75,14 +75,13 @@ func isReservedUsername(username string) bool {
 	return false
 }
 
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, auditRepo repository.AuditLogRepository, resetRepo repository.PasswordResetRepository, verifyRepo repository.EmailVerificationRepository, emailSvc email.Service, contentFilter *contentfilter.Manager) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, resetRepo repository.PasswordResetRepository, verifyRepo repository.EmailVerificationRepository, emailSvc email.Service, contentFilter *contentfilter.Manager) Service {
 	return &service{
 		userService:   userService,
 		session:       sessionMgr,
 		settingsSvc:   settingsSvc,
 		inviteRepo:    inviteRepo,
 		userRepo:      userRepo,
-		auditRepo:     auditRepo,
 		resetRepo:     resetRepo,
 		verifyRepo:    verifyRepo,
 		emailSvc:      emailSvc,
@@ -150,31 +149,41 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", err
 	}
 
-	userResp, err := s.userService.Create(ctx, req.Username, email, req.Password, req.DisplayName)
+	account, err := s.userService.NewAccountSpec(ctx, req.Username, email, req.Password, req.DisplayName)
 	if err != nil {
 		return nil, "", fmt.Errorf("create user: %w", err)
 	}
 
-	s.sendVerification(ctx, userResp.ID, email)
-
-	if s.auditRepo != nil {
-		if err := s.auditRepo.Create(ctx, userResp.ID, "user_created", "user", userResp.ID.String(), fmt.Sprintf("username=%s", req.Username)); err != nil {
-			logger.Log.Warn().Err(err).Str("username", req.Username).Msg("failed to write user_created audit log")
-		}
+	raw, verificationHash, err := generateResetToken()
+	if err != nil {
+		return nil, "", fmt.Errorf("generate verification token: %w", err)
 	}
 
-	if regType == "invite" {
-		if err := s.inviteRepo.MarkUsed(ctx, req.InviteCode, userResp.ID); err != nil {
-			logger.Log.Error().Err(err).Str("code", req.InviteCode).Msg("failed to mark invite as used")
-		}
-	}
-
-	token, err := s.session.Create(ctx, userResp.ID)
+	token, sessionExpiresAt, err := s.session.Issue(ctx)
 	if err != nil {
 		return nil, "", fmt.Errorf("create session: %w", err)
 	}
 
-	return userResp, token, nil
+	spec := repository.NewRegistration{
+		Account:               account,
+		VerificationHash:      verificationHash,
+		VerificationExpiresAt: time.Now().Add(verifyTokenTTL),
+		SessionToken:          token,
+		SessionExpiresAt:      sessionExpiresAt,
+	}
+
+	if regType == "invite" {
+		spec.InviteCode = req.InviteCode
+	}
+
+	created, err := s.userRepo.RegisterAccount(ctx, spec)
+	if err != nil {
+		return nil, "", err
+	}
+
+	s.sendVerificationEmail(ctx, created.ID, email, raw)
+
+	return created.ToResponse(), token, nil
 }
 
 func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error) {
@@ -229,12 +238,13 @@ func (s *service) ForgotPassword(ctx context.Context, username string) error {
 		return fmt.Errorf("generate reset token: %w", err)
 	}
 
-	if err := s.resetRepo.DeleteUnusedForUser(ctx, usr.ID); err != nil {
-		logger.Log.Warn().Err(err).Str("user_id", usr.ID.String()).Msg("failed to clear previous reset tokens")
+	spec := repository.NewPasswordReset{
+		TokenHash: hash,
+		UserID:    usr.ID,
+		ExpiresAt: time.Now().Add(resetTokenTTL),
 	}
 
-	expiresAt := time.Now().Add(resetTokenTTL)
-	if err := s.resetRepo.Create(ctx, hash, usr.ID, expiresAt); err != nil {
+	if err := s.resetRepo.Issue(ctx, spec); err != nil {
 		return fmt.Errorf("store reset token: %w", err)
 	}
 
@@ -270,23 +280,22 @@ func (s *service) ResetPassword(ctx context.Context, token, newPassword string) 
 		return ErrInvalidResetToken
 	}
 
-	if err := s.userRepo.SetPassword(ctx, rec.UserID, newPassword); err != nil {
-		return fmt.Errorf("set password: %w", err)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.resetRepo.MarkUsed(ctx, hash); err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to mark reset token used")
+	spec := repository.PasswordUpdate{
+		UserID:       rec.UserID,
+		PasswordHash: string(passwordHash),
+		TokenHash:    hash,
 	}
 
-	if err := s.session.DeleteAllForUser(ctx, rec.UserID); err != nil {
-		logger.Log.Warn().Err(err).Str("user_id", rec.UserID.String()).Msg("failed to invalidate sessions after password reset")
+	if err := s.userRepo.ResetPassword(ctx, spec); err != nil {
+		return err
 	}
 
-	if s.auditRepo != nil {
-		if err := s.auditRepo.Create(ctx, rec.UserID, "password_reset", "user", rec.UserID.String(), ""); err != nil {
-			logger.Log.Warn().Err(err).Msg("failed to write password_reset audit log")
-		}
-	}
+	s.session.Disconnect(rec.UserID)
 
 	return nil
 }
@@ -312,11 +321,12 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, 
 		return ErrInvalidEmail
 	}
 
-	ok, err := s.userRepo.VerifyPassword(ctx, userID, password)
+	passwordHash, err := s.userRepo.GetPasswordHash(ctx, userID)
 	if err != nil {
-		return fmt.Errorf("verify password: %w", err)
+		return fmt.Errorf("get password hash: %w", err)
 	}
-	if !ok {
+
+	if bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)) != nil {
 		return ErrIncorrectPassword
 	}
 
@@ -396,15 +406,7 @@ func (s *service) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
 		return ErrEmailAlreadyVerified
 	}
 
-	if err := s.userRepo.MarkEmailVerified(ctx, userID); err != nil {
-		return fmt.Errorf("mark email verified: %w", err)
-	}
-
-	if err := s.verifyRepo.DeleteUnusedForUser(ctx, userID); err != nil {
-		logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("failed to clear verification tokens after manual verify")
-	}
-
-	return nil
+	return s.userRepo.SetEmailVerified(ctx, userID, true)
 }
 
 func (s *service) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
@@ -422,15 +424,7 @@ func (s *service) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) err
 		return ErrEmailNotVerified
 	}
 
-	if err := s.userRepo.MarkEmailUnverified(ctx, userID); err != nil {
-		return fmt.Errorf("mark email unverified: %w", err)
-	}
-
-	if err := s.verifyRepo.DeleteUnusedForUser(ctx, userID); err != nil {
-		logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("failed to clear verification tokens after manual unverify")
-	}
-
-	return nil
+	return s.userRepo.SetEmailVerified(ctx, userID, false)
 }
 
 func (s *service) notifyEmailChanged(ctx context.Context, previousEmail, newEmail string) {
@@ -461,15 +455,7 @@ func (s *service) VerifyEmail(ctx context.Context, token string) error {
 		return ErrInvalidVerificationToken
 	}
 
-	if err := s.userRepo.MarkEmailVerified(ctx, rec.UserID); err != nil {
-		return fmt.Errorf("mark email verified: %w", err)
-	}
-
-	if err := s.verifyRepo.MarkUsed(ctx, hash); err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to mark verification token used")
-	}
-
-	return nil
+	return s.userRepo.ConfirmEmailVerification(ctx, rec.UserID, hash)
 }
 
 func (s *service) ResendVerification(ctx context.Context, userID uuid.UUID) error {
@@ -498,15 +484,21 @@ func (s *service) sendVerification(ctx context.Context, userID uuid.UUID, email 
 		return
 	}
 
-	if err := s.verifyRepo.DeleteUnusedForUser(ctx, userID); err != nil {
-		logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("failed to clear previous verification tokens")
+	spec := repository.NewEmailVerification{
+		TokenHash: hash,
+		UserID:    userID,
+		ExpiresAt: time.Now().Add(verifyTokenTTL),
 	}
 
-	if err := s.verifyRepo.Create(ctx, hash, userID, time.Now().Add(verifyTokenTTL)); err != nil {
+	if err := s.verifyRepo.Issue(ctx, spec); err != nil {
 		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to store verification token")
 		return
 	}
 
+	s.sendVerificationEmail(ctx, userID, email, raw)
+}
+
+func (s *service) sendVerificationEmail(ctx context.Context, userID uuid.UUID, email string, raw string) {
 	baseURL := strings.TrimRight(s.settingsSvc.Get(ctx, config.SettingBaseURL), "/")
 	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
 	link := fmt.Sprintf("%s/verify-email?token=%s", baseURL, raw)
