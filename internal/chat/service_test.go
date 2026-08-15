@@ -386,6 +386,7 @@ func TestCreateGroupRoom_SkipsBlockedMembers(t *testing.T) {
 	req := dto.CreateGroupRoomRequest{Name: "Room", MemberIDs: []uuid.UUID{creator, memberA, memberB}}
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, memberA).Return(true, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, memberB).Return(false, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{memberB}).Return([]model.User{*sampleUser(memberB)}, nil)
 	m.chatRepo.EXPECT().CreateGroupRoom(mock.Anything, repository.NewChatGroupRoom{
 		Name:      "Room",
 		CreatedBy: creator,
@@ -414,6 +415,7 @@ func TestCreateGroupRoom_AddMemberError(t *testing.T) {
 	memberA := uuid.New()
 	req := dto.CreateGroupRoomRequest{Name: "Room", MemberIDs: []uuid.UUID{memberA}}
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, memberA).Return(false, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{memberA}).Return([]model.User{*sampleUser(memberA)}, nil)
 	m.chatRepo.EXPECT().CreateGroupRoom(mock.Anything, repository.NewChatGroupRoom{
 		Name:      "Room",
 		CreatedBy: creator,
@@ -425,6 +427,435 @@ func TestCreateGroupRoom_AddMemberError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func botUser(id uuid.UUID) *model.User {
+	user := sampleUser(id)
+	user.DisplayName = "Beatrice"
+	user.IsBot = true
+
+	return user
+}
+
+func TestCreateGroupRoom_BotInNonRPRoomIsRejected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	creator := uuid.New()
+	bot := uuid.New()
+	req := dto.CreateGroupRoomRequest{Name: "Room", MemberIDs: []uuid.UUID{bot}}
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, bot).Return(false, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{bot}).Return([]model.User{*botUser(bot)}, nil)
+
+	// when
+	_, err := svc.CreateGroupRoom(context.Background(), creator, req)
+
+	// then
+	require.ErrorIs(t, err, ErrBotsRPRoomsOnly)
+	m.chatRepo.AssertNotCalled(t, "CreateGroupRoom", mock.Anything, mock.Anything)
+}
+
+func TestCreateGroupRoom_BotInRPRoomIsAllowed(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	creator := uuid.New()
+	bot := uuid.New()
+	req := dto.CreateGroupRoomRequest{Name: "Room", IsRP: true, MemberIDs: []uuid.UUID{bot}}
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, creator, bot).Return(false, nil)
+	m.chatRepo.EXPECT().CreateGroupRoom(mock.Anything, repository.NewChatGroupRoom{
+		Name:      "Room",
+		IsRP:      true,
+		CreatedBy: creator,
+		MemberIDs: []uuid.UUID{bot},
+	}).Return(nil, errors.New("boom"))
+
+	// when
+	_, err := svc.CreateGroupRoom(context.Background(), creator, req)
+
+	// then
+	require.NotErrorIs(t, err, ErrBotsRPRoomsOnly)
+}
+
+func TestInviteMembers_BotIntoNonRPRoomIsRejected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	host := uuid.New()
+	roomID := uuid.New()
+	bot := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, host).
+		Return(&repository.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsRP: false}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, host).Return("host", nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{bot}).Return([]model.User{*botUser(bot)}, nil)
+
+	// when
+	_, err := svc.InviteMembers(context.Background(), host, roomID, []uuid.UUID{bot})
+
+	// then
+	require.ErrorIs(t, err, ErrBotsRPRoomsOnly)
+	m.chatRepo.AssertNotCalled(t, "AddMemberWithSystemMessage", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestInviteMembers_BotIntoRPRoomIsNotRejected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	host := uuid.New()
+	roomID := uuid.New()
+	bot := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, host).
+		Return(&repository.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsRP: true}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, host).Return("host", nil)
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxChatRoomMembers).Return(0)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, host).Return(sampleUser(host), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, bot).Return("", errors.New("boom"))
+
+	// when
+	_, err := svc.InviteMembers(context.Background(), host, roomID, []uuid.UUID{bot})
+
+	// then
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrBotsRPRoomsOnly)
+}
+
+func TestInviteMembers_HumanIntoNonRPRoomIsNotRejected(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	host := uuid.New()
+	roomID := uuid.New()
+	member := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, host).
+		Return(&repository.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsRP: false}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, host).Return("host", nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{member}).Return([]model.User{*sampleUser(member)}, nil)
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxChatRoomMembers).Return(0)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, host).Return(sampleUser(host), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, member).Return("", errors.New("boom"))
+
+	// when
+	_, err := svc.InviteMembers(context.Background(), host, roomID, []uuid.UUID{member})
+
+	// then
+	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrBotsRPRoomsOnly)
+}
+
+type rejectRoomEditRule struct{}
+
+func (rejectRoomEditRule) Name() contentfilter.RuleName { return "test_reject" }
+
+func (rejectRoomEditRule) Check(_ context.Context, _ []string) (*contentfilter.Rejection, error) {
+	return &contentfilter.Rejection{Rule: "test_reject", Reason: "nope", Detail: "slur"}, nil
+}
+
+func editableRoom(roomID uuid.UUID) *repository.ChatRoomRow {
+	return &repository.ChatRoomRow{
+		ID:          roomID,
+		Name:        "Old name",
+		Description: "old description",
+		Type:        dto.RoomTypeGroup,
+		IsPublic:    true,
+		Tags:        []string{"tag"},
+	}
+}
+
+func editRequest(name string) dto.UpdateGroupRoomRequest {
+	return dto.UpdateGroupRoomRequest{
+		Name:        name,
+		Description: "old description",
+		Tags:        []string{"tag"},
+		IsPublic:    true,
+	}
+}
+
+func TestUpdateGroupRoom_Guards(t *testing.T) {
+	roomID := uuid.New()
+	actor := uuid.New()
+
+	cases := []struct {
+		name    string
+		req     dto.UpdateGroupRoomRequest
+		setup   func(m *testMocks)
+		wantErr error
+	}{
+		{
+			name: "room not found",
+			req:  editRequest("New name"),
+			setup: func(m *testMocks) {
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(nil, nil)
+			},
+			wantErr: ErrRoomNotFound,
+		},
+		{
+			name: "system room",
+			req:  editRequest("New name"),
+			setup: func(m *testMocks) {
+				row := editableRoom(roomID)
+				row.IsSystem = true
+				row.SystemKind = "announcements"
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(row, nil)
+			},
+			wantErr: ErrSystemRoom,
+		},
+		{
+			name: "neither host nor site staff",
+			req:  editRequest("New name"),
+			setup: func(m *testMocks) {
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(editableRoom(roomID), nil)
+				m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("member", nil)
+				m.authzSvc.EXPECT().GetRole(mock.Anything, actor).Return("", nil)
+			},
+			wantErr: ErrNotHost,
+		},
+		{
+			name: "a dm is not editable even for site staff",
+			req:  editRequest("New name"),
+			setup: func(m *testMocks) {
+				row := editableRoom(roomID)
+				row.Type = dto.RoomTypeDM
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(row, nil)
+				m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("member", nil)
+				m.authzSvc.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
+			},
+			wantErr: ErrNotGroupRoom,
+		},
+		{
+			name: "blank name",
+			req:  editRequest("   "),
+			setup: func(m *testMocks) {
+				m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(editableRoom(roomID), nil)
+				m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("host", nil)
+			},
+			wantErr: ErrMissingFields,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			tc.setup(m)
+
+			// when
+			resp, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, tc.req)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Nil(t, resp)
+			m.chatRepo.AssertNotCalled(t, "UpdateGroupRoom", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestUpdateGroupRoom_ContentFilterRejectionPropagates(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	svc.contentFilter = contentfilter.New(rejectRoomEditRule{})
+	roomID := uuid.New()
+	actor := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(editableRoom(roomID), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("host", nil)
+
+	// when
+	_, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, editRequest("New name"))
+
+	// then
+	var rej *contentfilter.RejectedError
+	require.ErrorAs(t, err, &rej)
+	assert.Equal(t, "slur", rej.Rejection.Detail)
+	m.chatRepo.AssertNotCalled(t, "UpdateGroupRoom", mock.Anything, mock.Anything)
+}
+
+func TestUpdateGroupRoom_RenameAuditsBroadcastsAndStaysSilentInTheRoom(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	actor := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(editableRoom(roomID), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("host", nil)
+	m.chatRepo.EXPECT().UpdateGroupRoom(mock.Anything, repository.UpdateChatRoom{
+		RoomID:      roomID,
+		Name:        "New name",
+		Description: "old description",
+		Tags:        []string{"tag"},
+		IsPublic:    true,
+	}).Return(nil)
+
+	var details string
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == actor &&
+			entry.Action == repository.AuditActionChatRoomUpdate &&
+			entry.TargetType == repository.AuditTargetChatRoom &&
+			entry.TargetID == roomID.String()
+	})).Run(func(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) {
+		details = spec.Details
+	}).Return(nil)
+
+	memberReads := 0
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).
+		Run(func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) {
+			memberReads++
+		}).Return(nil, nil)
+
+	// when
+	resp, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, editRequest("New name"))
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Contains(t, details, `name="Old name"->"New name"`)
+	assert.NotContains(t, details, "is_public")
+	assert.NotContains(t, details, "is_rp")
+	assert.Equal(t, 2, memberReads, "the response build reads the members once and the chat_room_updated broadcast reads them again, so one read means the broadcast never fired")
+	m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateGroupRoom_PrivacyChangePostsASystemMessage(t *testing.T) {
+	cases := []struct {
+		name        string
+		wasPublic   bool
+		nowPublic   bool
+		wantBody    string
+		wantDetails string
+	}{
+		{
+			name:        "private to public",
+			wasPublic:   false,
+			nowPublic:   true,
+			wantBody:    "User made this room public. Anyone who joins can read the history.",
+			wantDetails: "is_public=false->true",
+		},
+		{
+			name:        "public to private",
+			wasPublic:   true,
+			nowPublic:   false,
+			wantBody:    "User made this room private.",
+			wantDetails: "is_public=true->false",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			roomID := uuid.New()
+			actor := uuid.New()
+			row := editableRoom(roomID)
+			row.IsPublic = tc.wasPublic
+			req := editRequest("Old name")
+			req.IsPublic = tc.nowPublic
+
+			m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(row, nil)
+			m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("host", nil)
+			m.chatRepo.EXPECT().UpdateGroupRoom(mock.Anything, repository.UpdateChatRoom{
+				RoomID:      roomID,
+				Name:        "Old name",
+				Description: "old description",
+				Tags:        []string{"tag"},
+				IsPublic:    tc.nowPublic,
+			}).Return(nil)
+			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
+			m.userRepo.EXPECT().GetByID(mock.Anything, actor).Return(sampleUser(actor), nil)
+			m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, actor, tc.wantBody).
+				Return(nil, errors.New("skip"))
+
+			var details string
+			m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+				return entry.Action == repository.AuditActionChatRoomUpdate
+			})).Run(func(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) {
+				details = spec.Details
+			}).Return(nil)
+
+			// when
+			resp, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, req)
+
+			// then
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Contains(t, details, tc.wantDetails, "a privacy flip must never be the one edit that goes unlogged")
+		})
+	}
+}
+
+func TestUpdateGroupRoom_TurningRPOffWithABotNeedsConfirmation(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	actor := uuid.New()
+	human := uuid.New()
+	bot := uuid.New()
+	row := editableRoom(roomID)
+	row.IsRP = true
+	req := editRequest("Old name")
+
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(row, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("host", nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{human, bot}, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{human, bot}).
+		Return([]model.User{*sampleUser(human), *botUser(bot)}, nil)
+
+	// when
+	resp, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, req)
+
+	// then
+	kicked, ok := errors.AsType[*ErrBotsWillBeKicked](err)
+	require.True(t, ok)
+	require.Len(t, kicked.Bots, 1)
+	assert.Equal(t, bot, kicked.Bots[0].ID)
+	assert.Equal(t, "Beatrice", kicked.Bots[0].DisplayName)
+	assert.Nil(t, resp)
+	m.chatRepo.AssertNotCalled(t, "UpdateGroupRoom", mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestUpdateGroupRoom_ConfirmedRPOffRemovesTheBotAndAppliesTheEdit(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	actor := uuid.New()
+	human := uuid.New()
+	bot := uuid.New()
+	row := editableRoom(roomID)
+	row.IsRP = true
+	req := editRequest("Old name")
+	req.ConfirmBotRemoval = true
+
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actor).Return(row, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actor).Return("host", nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{human, bot}, nil)
+	m.userRepo.EXPECT().GetByIDs(mock.Anything, []uuid.UUID{human, bot}).
+		Return([]model.User{*sampleUser(human), *botUser(bot)}, nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, bot).Return(nil)
+	expectEvictionSideEffects(m, roomID)
+	m.chatRepo.EXPECT().UpdateGroupRoom(mock.Anything, repository.UpdateChatRoom{
+		RoomID:      roomID,
+		Name:        "Old name",
+		Description: "old description",
+		Tags:        []string{"tag"},
+		IsPublic:    true,
+	}).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, human).Return(sampleUser(human), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, bot).Return(botUser(bot), nil)
+	m.chatRepo.EXPECT().
+		InsertSystemMessage(mock.Anything, roomID, actor, "Beatrice was removed because this room is no longer a roleplay room.").
+		Return(nil, errors.New("skip"))
+
+	var details string
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.Action == repository.AuditActionChatRoomUpdate
+	})).Run(func(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) {
+		details = spec.Details
+	}).Return(nil)
+
+	// when
+	resp, err := svc.UpdateGroupRoom(context.Background(), roomID, actor, req)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Contains(t, details, "is_rp=true->false")
+	assert.Contains(t, details, "bots_removed=1")
+	m.chatRepo.AssertCalled(t, "RemoveMember", mock.Anything, roomID, bot)
+	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, roomID, human)
 }
 
 func TestListPublicRooms_DefaultsAndTrim(t *testing.T) {

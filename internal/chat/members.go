@@ -28,6 +28,10 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 		return nil, ErrNotGroupRoom
 	}
 
+	if err := m.rejectBotsOutsideRP(ctx, row.IsRP, userIDs); err != nil {
+		return nil, err
+	}
+
 	cap := m.settingsSvc.GetInt(ctx, config.SettingMaxChatRoomMembers)
 	memberCount := row.MemberCount
 
@@ -147,7 +151,7 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 		return ErrTargetImmune
 	}
 
-	if err := m.parent.evictUserFromRoom(ctx, roomID, targetID, ""); err != nil {
+	if err := m.evictUserFromRoom(ctx, roomID, targetID, ""); err != nil {
 		return err
 	}
 

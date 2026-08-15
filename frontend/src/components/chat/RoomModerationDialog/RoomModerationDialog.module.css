@@ -107,6 +107,72 @@
     font-size: 0.8rem;
 }
 
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.label {
+    font-family: var(--font-display);
+    font-size: 0.8rem;
+    color: var(--gold);
+    letter-spacing: 0.05em;
+}
+
+.tagBar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    margin-bottom: 0.4rem;
+}
+
+.tagChip {
+    background: rgba(var(--purple-rgb), 0.25);
+    border: 1px solid rgba(var(--purple-rgb), 0.5);
+    color: var(--text);
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.tagChip:hover {
+    background: rgba(var(--purple-rgb), 0.4);
+}
+
+.confirm {
+    background: rgba(var(--rose-rgb), 0.12);
+    border: 1px solid rgba(var(--rose-rgb), 0.4);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.confirmText {
+    color: var(--text);
+    font-size: 0.85rem;
+    line-height: 1.45;
+}
+
+.confirmList {
+    margin: 0;
+    padding-left: 1.1rem;
+    color: var(--text);
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.confirmActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.4rem;
+}
+
 .formActions {
     display: flex;
     justify-content: flex-end;

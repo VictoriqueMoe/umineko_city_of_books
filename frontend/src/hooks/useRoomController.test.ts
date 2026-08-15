@@ -919,6 +919,60 @@ describe("useRoomController membership events", () => {
         expect(result.current.toast).toBe("This room was deleted by the host");
     });
 
+    it("patches the room in place when its settings are edited", async () => {
+        // given
+        const { result, emit } = await renderLoadedRoom({
+            rooms: [makeRoom({ tags: ["beato"], viewer_muted: true, member_count: 7 })],
+        });
+
+        // when
+        emit({
+            type: "chat_room_updated",
+            data: {
+                room_id: "room-1",
+                name: "Purgatory",
+                description: "the seventh twilight",
+                tags: ["beato", "seventh-twilight"],
+                is_public: false,
+                is_rp: true,
+            },
+        });
+
+        // then
+        expect(result.current.room?.name).toBe("Purgatory");
+        expect(result.current.room?.description).toBe("the seventh twilight");
+        expect(result.current.room?.tags).toEqual(["beato", "seventh-twilight"]);
+        expect(result.current.room?.is_public).toBe(false);
+        expect(result.current.room?.is_rp).toBe(true);
+        expect(result.current.room?.viewer_muted).toBe(true);
+        expect(result.current.room?.member_count).toBe(7);
+    });
+
+    it("ignores an edit to another room", async () => {
+        // given
+        const { result, emit } = await renderLoadedRoom();
+
+        // when
+        emit({
+            type: "chat_room_updated",
+            data: {
+                room_id: "room-2",
+                name: "Purgatory",
+                description: "the seventh twilight",
+                tags: ["seventh-twilight"],
+                is_public: false,
+                is_rp: true,
+            },
+        });
+
+        // then
+        expect(result.current.room?.name).toBe("Golden Land");
+        expect(result.current.room?.description).toBe("a place for tea");
+        expect(result.current.room?.tags).toEqual([]);
+        expect(result.current.room?.is_public).toBe(true);
+        expect(result.current.room?.is_rp).toBe(false);
+    });
+
     it("records a presence change and forgets somebody who goes offline", async () => {
         // given
         const { result, emit } = await renderLoadedRoom({ members: [] });

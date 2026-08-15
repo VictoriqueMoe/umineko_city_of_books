@@ -72,6 +72,7 @@ export function RoomPage() {
         setModerationDialogOpen,
         openMemberMenu,
         setOpenMemberMenu,
+        setRoom,
         setMembers,
         nicknameDialogTarget,
         setNicknameDialogTarget,
@@ -564,8 +565,9 @@ export function RoomPage() {
 
             <RoomModerationDialog
                 isOpen={moderationDialogOpen}
-                roomId={room.id}
+                room={room}
                 onClose={() => setModerationDialogOpen(false)}
+                onSaved={updated => setRoom(updated)}
             />
 
             {watchParty.activeSession && user && (

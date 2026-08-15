@@ -31,6 +31,11 @@ import (
 const (
 	moderatorKindHost  = "host"
 	moderatorKindStaff = "staff"
+
+	wsChatRoomUpdated = "chat_room_updated"
+
+	maxRoomNameLength        = 80
+	maxRoomDescriptionLength = 500
 )
 
 var (
@@ -319,6 +324,98 @@ func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (b
 	}
 
 	return kind != "", nil
+}
+
+func (c *core) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
+	members, _ := c.chatRepo.GetRoomMembers(ctx, roomID)
+
+	if err := c.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
+		return fmt.Errorf("remove member: %w", err)
+	}
+
+	c.clearWatchPartyParticipation(ctx, roomID, targetID)
+	c.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
+
+	c.hub.LeaveRoom(roomID, targetID)
+
+	leftEvent := ws.Message{
+		Type: "chat_member_left",
+		Data: map[string]any{
+			"room_id": roomID,
+			"user_id": targetID,
+		},
+	}
+	for _, mid := range members {
+		if mid == targetID {
+			continue
+		}
+		c.hub.SendToUser(mid, leftEvent)
+	}
+
+	kickData := map[string]any{
+		"room_id": roomID,
+	}
+	if reason != "" {
+		kickData["reason"] = reason
+	}
+	c.hub.SendToUser(targetID, ws.Message{Type: "chat_kicked", Data: kickData})
+
+	return nil
+}
+
+func (c *core) normaliseRoomInput(ctx context.Context, rawName, rawDescription string, rawTags []string) (string, string, []string, error) {
+	name := strings.TrimSpace(rawName)
+	if name == "" {
+		return "", "", nil, ErrMissingFields
+	}
+
+	if err := c.filterTexts(ctx, name, rawDescription); err != nil {
+		return "", "", nil, err
+	}
+
+	if len(name) > maxRoomNameLength {
+		name = name[:maxRoomNameLength]
+	}
+
+	description := strings.TrimSpace(rawDescription)
+	if len(description) > maxRoomDescriptionLength {
+		description = description[:maxRoomDescriptionLength]
+	}
+
+	return name, description, sanitizeTags(rawTags), nil
+}
+
+func (c *core) broadcastRoomUpdated(ctx context.Context, roomID uuid.UUID, name, description string, tags []string, isPublic, isRP bool) {
+	c.broadcastToRoomMembers(ctx, roomID, ws.Message{
+		Type: wsChatRoomUpdated,
+		Data: map[string]any{
+			"room_id":     roomID,
+			"name":        name,
+			"description": description,
+			"tags":        tags,
+			"is_public":   isPublic,
+			"is_rp":       isRP,
+		},
+	})
+}
+
+func (c *core) rejectBotsOutsideRP(ctx context.Context, isRP bool, userIDs []uuid.UUID) error {
+	if isRP || len(userIDs) == 0 {
+		return nil
+	}
+
+	users, err := c.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		return fmt.Errorf("get invited users: %w", err)
+	}
+
+	for _, user := range users {
+		if user.IsBot {
+			return ErrBotsRPRoomsOnly
+		}
+	}
+
+	return nil
 }
 
 func isAuditableRoom(row *repository.ChatRoomRow) bool {

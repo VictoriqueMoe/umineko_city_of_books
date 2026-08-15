@@ -96,6 +96,7 @@ import type {
     TagCount,
     TheoryDetail,
     TheoryListResponse,
+    UpdateGroupRoomRequest,
     UpdateProfilePayload,
     User,
     UserProfile,
@@ -650,6 +651,10 @@ export async function createGroupRoom(payload: {
     member_ids: string[];
 }): Promise<ChatRoom> {
     return apiPost<ChatRoom, typeof payload>("/chat/rooms", payload);
+}
+
+export async function updateChatRoom(roomId: string, payload: UpdateGroupRoomRequest): Promise<ChatRoom> {
+    return apiPut<ChatRoom, UpdateGroupRoomRequest>(`/chat/rooms/${roomId}`, payload);
 }
 
 export async function listPublicChatRooms(params: {

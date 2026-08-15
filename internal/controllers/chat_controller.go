@@ -21,6 +21,7 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupResolveDMRoute,
 		s.setupSendFirstDMRoute,
 		s.setupCreateGroupRoomRoute,
+		s.setupUpdateRoomRoute,
 		s.setupListRoomsRoute,
 		s.setupListMyGroupRoomsRoute,
 		s.setupListPublicRoomsRoute,
@@ -82,6 +83,10 @@ func (s *Service) setupSendFirstDMRoute(r fiber.Router) {
 
 func (s *Service) setupCreateGroupRoomRoute(r fiber.Router) {
 	r.Post("/chat/rooms", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createGroupRoom)
+}
+
+func (s *Service) setupUpdateRoomRoute(r fiber.Router) {
+	r.Put("/chat/rooms/:roomID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateRoom)
 }
 
 func (s *Service) setupListRoomsRoute(r fiber.Router) {
@@ -168,6 +173,9 @@ func (s *Service) createGroupRoom(ctx fiber.Ctx) error {
 		if errors.Is(err, chat.ErrMissingFields) {
 			return utils.BadRequest(ctx, "room name is required")
 		}
+		if errors.Is(err, chat.ErrBotsRPRoomsOnly) {
+			return utils.BadRequest(ctx, "bots can only be added to roleplay rooms, so tick RP or leave them out")
+		}
 		return utils.InternalError(ctx, "failed to create group room")
 	}
 
@@ -175,6 +183,52 @@ func (s *Service) createGroupRoom(ctx fiber.Ctx) error {
 		s.Hub.BumpSidebarActivity("rooms")
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(room)
+}
+
+func (s *Service) updateRoom(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	req, ok := utils.BindJSON[dto.UpdateGroupRoomRequest](ctx)
+	if !ok {
+		return nil
+	}
+
+	room, err := s.ChatService.UpdateGroupRoom(ctx.Context(), roomID, userID, req)
+	if err != nil {
+		if utils.MapFilterError(ctx, err) {
+			return nil
+		}
+		if kicked, ok2 := errors.AsType[*chat.ErrBotsWillBeKicked](err); ok2 {
+			return ctx.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error": kicked.Error(),
+				"code":  "bots_will_be_kicked",
+				"bots":  kicked.Bots,
+			})
+		}
+		if errors.Is(err, chat.ErrMissingFields) {
+			return utils.BadRequest(ctx, "room name is required")
+		}
+		if errors.Is(err, chat.ErrRoomNotFound) {
+			return utils.NotFound(ctx, "room not found")
+		}
+		if errors.Is(err, chat.ErrSystemRoom) {
+			return utils.Forbidden(ctx, "this room is managed automatically")
+		}
+		if errors.Is(err, chat.ErrNotGroupRoom) {
+			return utils.BadRequest(ctx, "only group rooms can be edited")
+		}
+		if errors.Is(err, chat.ErrNotHost) {
+			return utils.Forbidden(ctx, "only the host or a moderator can do this")
+		}
+		return utils.InternalError(ctx, "failed to update room", err)
+	}
+
+	return ctx.JSON(room)
 }
 
 func (s *Service) listRooms(ctx fiber.Ctx) error {
@@ -537,6 +591,9 @@ func (s *Service) inviteMembers(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, chat.ErrNotHost) {
 			return utils.Forbidden(ctx, "only the host can invite members")
+		}
+		if errors.Is(err, chat.ErrBotsRPRoomsOnly) {
+			return utils.BadRequest(ctx, "bots can only be added to roleplay rooms")
 		}
 		return utils.InternalError(ctx, "failed to invite members")
 	}

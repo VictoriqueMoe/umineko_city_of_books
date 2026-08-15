@@ -6470,3 +6470,75 @@ func (_c *MockChatDAO_UpdateMessageMediaURL_Call) RunAndReturn(run func(ctx cont
 	_c.Call.Return(run)
 	return _c
 }
+
+// UpdateRoom provides a mock function for the type MockChatDAO
+func (_mock *MockChatDAO) UpdateRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRoom")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, UpdateChatRoom, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatDAO_UpdateRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateRoom'
+type MockChatDAO_UpdateRoom_Call struct {
+	*mock.Call
+}
+
+// UpdateRoom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec UpdateChatRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatDAO_Expecter) UpdateRoom(ctx any, spec any, tx ...any) *MockChatDAO_UpdateRoom_Call {
+	return &MockChatDAO_UpdateRoom_Call{Call: _e.mock.On("UpdateRoom",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockChatDAO_UpdateRoom_Call) Run(run func(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx)) *MockChatDAO_UpdateRoom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 UpdateChatRoom
+		if args[1] != nil {
+			arg1 = args[1].(UpdateChatRoom)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatDAO_UpdateRoom_Call) Return(err error) *MockChatDAO_UpdateRoom_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatDAO_UpdateRoom_Call) RunAndReturn(run func(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error) *MockChatDAO_UpdateRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}

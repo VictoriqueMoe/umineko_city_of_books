@@ -1,7 +1,15 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { BannedWordRule, ChatRoomBan, CreateBannedWordRequest, User } from "../../../types/api";
+import type {
+    BannedWordRule,
+    ChatRoom,
+    ChatRoomBan,
+    CreateBannedWordRequest,
+    UpdateGroupRoomRequest,
+    User,
+} from "../../../types/api";
+import { ApiError } from "../../../api/client";
 import { renderWithProviders } from "../../../test-utils/render";
 import { RoomModerationDialog } from "./RoomModerationDialog";
 
@@ -15,11 +23,13 @@ const {
     useCreateChatRoomBannedWord,
     useUpdateChatRoomBannedWord,
     useDeleteChatRoomBannedWord,
+    useUpdateChatRoom,
 } = vi.hoisted(() => ({
     useUnbanChatRoomMember: vi.fn(),
     useCreateChatRoomBannedWord: vi.fn(),
     useUpdateChatRoomBannedWord: vi.fn(),
     useDeleteChatRoomBannedWord: vi.fn(),
+    useUpdateChatRoom: vi.fn(),
 }));
 
 vi.mock("../../../api/queries/chat", () => ({ useChatRoomBans, useChatRoomBannedWords }));
@@ -28,10 +38,14 @@ vi.mock("../../../api/mutations/chat", () => ({
     useCreateChatRoomBannedWord,
     useUpdateChatRoomBannedWord,
     useDeleteChatRoomBannedWord,
+    useUpdateChatRoom,
 }));
 
 const roomId = "room-1";
 const patternPlaceholder = "Word or regex to block";
+const namePlaceholder = "e.g. Higurashi book club";
+const descriptionPlaceholder = "What's the room about?";
+const tagPlaceholder = "Type a tag and press Enter or comma (max 10)";
 
 interface StubOptions {
     bans?: ChatRoomBan[];
@@ -41,6 +55,7 @@ interface StubOptions {
     create?: (req: CreateBannedWordRequest) => Promise<unknown>;
     update?: (vars: { ruleId: string; req: CreateBannedWordRequest }) => Promise<unknown>;
     remove?: (ruleId: string) => Promise<unknown>;
+    updateRoom?: (payload: UpdateGroupRoomRequest) => Promise<ChatRoom>;
 }
 
 function makeMember(overrides: Partial<User> = {}): User {
@@ -58,6 +73,27 @@ function makeBan(overrides: Partial<ChatRoomBan> = {}): ChatRoomBan {
         user: makeMember(),
         reason: "",
         created_at: "2026-07-01T12:00:00Z",
+        ...overrides,
+    };
+}
+
+function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
+    return {
+        id: roomId,
+        name: "Golden Land",
+        description: "a place for tea",
+        type: "group",
+        is_public: true,
+        is_rp: false,
+        is_system: false,
+        tags: [],
+        viewer_muted: false,
+        viewer_ghost: false,
+        is_member: true,
+        member_count: 2,
+        hot_score: 0,
+        members: [],
+        created_at: "2026-01-01T00:00:00Z",
         ...overrides,
     };
 }
@@ -94,19 +130,41 @@ function stubModeration(options: StubOptions = {}) {
     const create = vi.fn(options.create ?? (() => Promise.resolve()));
     const update = vi.fn(options.update ?? (() => Promise.resolve()));
     const remove = vi.fn(options.remove ?? (() => Promise.resolve()));
+    const updateRoom = vi.fn(options.updateRoom ?? (() => Promise.resolve(makeRoom())));
     useUnbanChatRoomMember.mockReturnValue({ mutateAsync: unban });
     useCreateChatRoomBannedWord.mockReturnValue({ mutateAsync: create });
     useUpdateChatRoomBannedWord.mockReturnValue({ mutateAsync: update });
     useDeleteChatRoomBannedWord.mockReturnValue({ mutateAsync: remove });
+    useUpdateChatRoom.mockReturnValue({ mutateAsync: updateRoom });
 
-    return { refreshBans, refreshRules, unban, create, update, remove };
+    return { refreshBans, refreshRules, unban, create, update, remove, updateRoom };
 }
 
-function renderDialog(isOpen = true) {
+function renderDialog(isOpen = true, room: ChatRoom = makeRoom()) {
     const onClose = vi.fn();
-    const result = renderWithProviders(<RoomModerationDialog isOpen={isOpen} roomId={roomId} onClose={onClose} />);
+    const onSaved = vi.fn();
+    const result = renderWithProviders(
+        <RoomModerationDialog isOpen={isOpen} room={room} onClose={onClose} onSaved={onSaved} />,
+    );
 
-    return { ...result, onClose };
+    function reopen(next: ChatRoom) {
+        result.rerender(<RoomModerationDialog isOpen={false} room={next} onClose={onClose} onSaved={onSaved} />);
+        result.rerender(<RoomModerationDialog isOpen room={next} onClose={onClose} onSaved={onSaved} />);
+    }
+
+    return { ...result, onClose, onSaved, reopen };
+}
+
+async function openRoomTab(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: "Room" }));
+}
+
+function botsError(bots: User[]): ApiError {
+    return new ApiError(409, "turning roleplay off will remove 2 bots from this room", {
+        error: "turning roleplay off will remove 2 bots from this room",
+        code: "bots_will_be_kicked",
+        bots,
+    });
 }
 
 async function openWordsTab(user: ReturnType<typeof userEvent.setup>) {
@@ -562,5 +620,269 @@ describe("RoomModerationDialog", () => {
 
         // then
         expect(onClose).toHaveBeenCalledOnce();
+    });
+});
+
+describe("RoomModerationDialog room editor", () => {
+    it("offers no room editor for a room that is managed automatically", () => {
+        // given
+        stubModeration();
+
+        // when
+        renderDialog(true, makeRoom({ is_system: true }));
+
+        // then
+        expect(screen.queryByRole("button", { name: "Room" })).not.toBeInTheDocument();
+    });
+
+    it("offers no room editor for a direct message", () => {
+        // given
+        stubModeration();
+
+        // when
+        renderDialog(true, makeRoom({ type: "dm" }));
+
+        // then
+        expect(screen.queryByRole("button", { name: "Room" })).not.toBeInTheDocument();
+    });
+
+    it("shows the room's current settings on the room tab", async () => {
+        // given
+        stubModeration();
+        const user = userEvent.setup();
+        const room = makeRoom({
+            name: "Purgatory",
+            description: "the seventh twilight",
+            tags: ["beato"],
+            is_public: false,
+            is_rp: true,
+        });
+        renderDialog(true, room);
+
+        // when
+        await openRoomTab(user);
+
+        // then
+        expect(screen.getByPlaceholderText(namePlaceholder)).toHaveValue("Purgatory");
+        expect(screen.getByPlaceholderText(descriptionPlaceholder)).toHaveValue("the seventh twilight");
+        expect(screen.getByRole("button", { name: /#beato/ })).toBeInTheDocument();
+        expect(screen.getByRole("switch", { name: "Public" })).not.toBeChecked();
+        expect(screen.getByRole("switch", { name: "Roleplay (RP)" })).toBeChecked();
+    });
+
+    it("keeps the room tab usable while the moderation lists are still loading", async () => {
+        // given
+        stubModeration({ loading: true });
+        const user = userEvent.setup();
+        renderDialog();
+
+        // when
+        await openRoomTab(user);
+
+        // then
+        expect(screen.getByPlaceholderText(namePlaceholder)).toBeInTheDocument();
+        expect(screen.queryByText("Loading...")).not.toBeInTheDocument();
+    });
+
+    it("saves the room with the fields the viewer changed", async () => {
+        // given
+        const saved = makeRoom({ name: "Purgatory", is_rp: true });
+        const { updateRoom } = stubModeration({ updateRoom: () => Promise.resolve(saved) });
+        const user = userEvent.setup();
+        const { onSaved, onClose } = renderDialog(true, makeRoom({ tags: ["beato"] }));
+        await openRoomTab(user);
+
+        // when
+        await user.clear(screen.getByPlaceholderText(namePlaceholder));
+        await user.type(screen.getByPlaceholderText(namePlaceholder), "  Purgatory  ");
+        await user.type(screen.getByPlaceholderText(tagPlaceholder), "Seventh Twilight{Enter}");
+        await user.click(screen.getByRole("switch", { name: "Roleplay (RP)" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        // then
+        expect(updateRoom).toHaveBeenCalledWith({
+            name: "Purgatory",
+            description: "a place for tea",
+            tags: ["beato", "seventh-twilight"],
+            is_public: true,
+            is_rp: true,
+            confirm_bot_removal: false,
+        });
+        await waitFor(() => {
+            expect(onSaved).toHaveBeenCalledWith(saved);
+        });
+        expect(onClose).toHaveBeenCalledOnce();
+    });
+
+    it("re-seeds the form from the room every time the dialog is opened", async () => {
+        // given
+        stubModeration();
+        const user = userEvent.setup();
+        const { reopen } = renderDialog(true, makeRoom({ name: "Golden Land" }));
+        await openRoomTab(user);
+        await user.clear(screen.getByPlaceholderText(namePlaceholder));
+        await user.type(screen.getByPlaceholderText(namePlaceholder), "half typed");
+
+        // when
+        reopen(makeRoom({ name: "Purgatory", description: "the seventh twilight", tags: ["beato"] }));
+        await openRoomTab(user);
+
+        // then
+        expect(screen.getByPlaceholderText(namePlaceholder)).toHaveValue("Purgatory");
+        expect(screen.getByPlaceholderText(descriptionPlaceholder)).toHaveValue("the seventh twilight");
+        expect(screen.getByRole("button", { name: /#beato/ })).toBeInTheDocument();
+    });
+
+    it("warns that the history becomes readable before making a private room public", async () => {
+        // given
+        const { updateRoom } = stubModeration();
+        const user = userEvent.setup();
+        renderDialog(true, makeRoom({ is_public: false }));
+        await openRoomTab(user);
+
+        // when
+        await user.click(screen.getByRole("switch", { name: "Public" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        // then
+        expect(screen.getByText(/including messages sent while it was private/)).toBeInTheDocument();
+        expect(updateRoom).not.toHaveBeenCalled();
+    });
+
+    it("makes the room public once the history warning is accepted", async () => {
+        // given
+        const { updateRoom } = stubModeration();
+        const user = userEvent.setup();
+        renderDialog(true, makeRoom({ is_public: false }));
+        await openRoomTab(user);
+        await user.click(screen.getByRole("switch", { name: "Public" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Make it public" }));
+
+        // then
+        expect(updateRoom).toHaveBeenCalledWith(
+            expect.objectContaining({ is_public: true, confirm_bot_removal: false }),
+        );
+    });
+
+    it("leaves a room that was already public alone without any warning", async () => {
+        // given
+        const { updateRoom } = stubModeration();
+        const user = userEvent.setup();
+        renderDialog(true, makeRoom({ is_public: true }));
+        await openRoomTab(user);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        // then
+        expect(screen.queryByText(/including messages sent while it was private/)).not.toBeInTheDocument();
+        expect(updateRoom).toHaveBeenCalledOnce();
+    });
+
+    it("names the bots the server says roleplay mode is keeping in the room", async () => {
+        // given
+        const bots = [
+            makeMember({ id: "bot-1", username: "ronove", display_name: "Ronove" }),
+            makeMember({ id: "bot-2", username: "virgilia", display_name: "" }),
+        ];
+        stubModeration({ updateRoom: () => Promise.reject(botsError(bots)) });
+        const user = userEvent.setup();
+        renderDialog(true, makeRoom({ is_rp: true }));
+        await openRoomTab(user);
+
+        // when
+        await user.click(screen.getByRole("switch", { name: "Roleplay (RP)" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        // then
+        expect(await screen.findByText("Ronove")).toBeInTheDocument();
+        expect(screen.getByText("virgilia")).toBeInTheDocument();
+        expect(screen.getByText("Turning roleplay off removes these bots from the room:")).toBeInTheDocument();
+    });
+
+    it("resubmits the same edit with the bot removal confirmed", async () => {
+        // given
+        const bots = [makeMember({ id: "bot-1", username: "ronove", display_name: "Ronove" })];
+        const saved = makeRoom({ is_rp: false });
+        let attempt = 0;
+        const { updateRoom } = stubModeration({
+            updateRoom: () => {
+                attempt += 1;
+                if (attempt === 1) {
+                    return Promise.reject(botsError(bots));
+                }
+
+                return Promise.resolve(saved);
+            },
+        });
+        const user = userEvent.setup();
+        const { onSaved } = renderDialog(true, makeRoom({ is_rp: true }));
+        await openRoomTab(user);
+        await user.click(screen.getByRole("switch", { name: "Roleplay (RP)" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+        await screen.findByText("Ronove");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Remove them and save" }));
+
+        // then
+        expect(updateRoom).toHaveBeenCalledTimes(2);
+        expect(updateRoom.mock.calls[0][0]).toEqual({
+            name: "Golden Land",
+            description: "a place for tea",
+            tags: [],
+            is_public: true,
+            is_rp: false,
+            confirm_bot_removal: false,
+        });
+        expect(updateRoom.mock.calls[1][0]).toEqual({
+            name: "Golden Land",
+            description: "a place for tea",
+            tags: [],
+            is_public: true,
+            is_rp: false,
+            confirm_bot_removal: true,
+        });
+        await waitFor(() => {
+            expect(onSaved).toHaveBeenCalledWith(saved);
+        });
+    });
+
+    it("abandons the edit when the bot removal is declined", async () => {
+        // given
+        const bots = [makeMember({ id: "bot-1", username: "ronove", display_name: "Ronove" })];
+        const { updateRoom } = stubModeration({ updateRoom: () => Promise.reject(botsError(bots)) });
+        const user = userEvent.setup();
+        renderDialog(true, makeRoom({ is_rp: true }));
+        await openRoomTab(user);
+        await user.click(screen.getByRole("switch", { name: "Roleplay (RP)" }));
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+        await screen.findByText("Ronove");
+
+        // when
+        await user.click(screen.getAllByRole("button", { name: "Cancel" })[0]);
+
+        // then
+        expect(screen.queryByText("Ronove")).not.toBeInTheDocument();
+        expect(updateRoom).toHaveBeenCalledOnce();
+    });
+
+    it("shows the reason the room could not be saved", async () => {
+        // given
+        stubModeration({ updateRoom: () => Promise.reject(new Error("only the host or a moderator can do this")) });
+        const user = userEvent.setup();
+        const dialog = renderDialog();
+        await openRoomTab(user);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+        // then
+        expect(await screen.findByText("only the host or a moderator can do this")).toBeInTheDocument();
+        expect(dialog.onSaved).not.toHaveBeenCalled();
+        expect(dialog.onClose).not.toHaveBeenCalled();
     });
 });

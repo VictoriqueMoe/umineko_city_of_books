@@ -3,32 +3,66 @@ import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { Modal } from "../../Modal/Modal";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
 import type {
     BannedWordAction,
     BannedWordMatchMode,
     BannedWordRule,
+    BotsWillBeKickedResponse,
+    ChatRoom,
     CreateBannedWordRequest,
+    UpdateGroupRoomRequest,
+    User,
 } from "../../../types/api";
+import { ApiError } from "../../../api/client";
 import { useChatRoomBannedWords, useChatRoomBans } from "../../../api/queries/chat";
 import {
     useCreateChatRoomBannedWord,
     useDeleteChatRoomBannedWord,
     useUnbanChatRoomMember,
+    useUpdateChatRoom,
     useUpdateChatRoomBannedWord,
 } from "../../../api/mutations/chat";
+import {
+    addRoomTags,
+    finaliseRoomTags,
+    isRoomTagCommitKey,
+    MAX_ROOM_TAGS,
+    removeRoomTag,
+} from "../../../utils/roomTags";
 import { formatFullDateTime } from "../../../utils/time";
 import styles from "./RoomModerationDialog.module.css";
 
 interface RoomModerationDialogProps {
     isOpen: boolean;
-    roomId: string;
+    room: ChatRoom;
     onClose: () => void;
+    onSaved: (room: ChatRoom) => void;
 }
 
-type Tab = "bans" | "words";
+type Tab = "bans" | "words" | "room";
+
+type PendingConfirm = { kind: "public" } | { kind: "bots"; bots: User[] };
 
 function formatDate(s: string): string {
     return formatFullDateTime(s, "en-GB");
+}
+
+function botsFromError(err: unknown): User[] | null {
+    if (!(err instanceof ApiError) || err.status !== 409) {
+        return null;
+    }
+
+    const body = err.body as BotsWillBeKickedResponse | null;
+    if (!body || body.code !== "bots_will_be_kicked") {
+        return null;
+    }
+
+    return body.bots ?? [];
+}
+
+function botLabel(bot: User): string {
+    return bot.display_name?.trim() ? bot.display_name : bot.username;
 }
 
 function validateRegex(pattern: string, mode: BannedWordMatchMode): string {
@@ -43,7 +77,9 @@ function validateRegex(pattern: string, mode: BannedWordMatchMode): string {
     }
 }
 
-export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModerationDialogProps) {
+export function RoomModerationDialog({ isOpen, room, onClose, onSaved }: RoomModerationDialogProps) {
+    const roomId = room.id;
+    const canEditRoom = room.type === "group" && !room.is_system;
     const [tab, setTab] = useState<Tab>("bans");
     const bansQuery = useChatRoomBans(roomId, isOpen);
     const rulesQuery = useChatRoomBannedWords(roomId, isOpen);
@@ -65,6 +101,105 @@ export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModeration
     const [saving, setSaving] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    const updateRoomMutation = useUpdateChatRoom(roomId);
+    const [roomName, setRoomName] = useState(room.name);
+    const [roomDescription, setRoomDescription] = useState(room.description);
+    const [roomTags, setRoomTags] = useState<string[]>(room.tags ?? []);
+    const [roomTagInput, setRoomTagInput] = useState("");
+    const [roomIsPublic, setRoomIsPublic] = useState(room.is_public);
+    const [roomIsRP, setRoomIsRP] = useState(room.is_rp);
+    const [roomSaving, setRoomSaving] = useState(false);
+    const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
+
+    const [openInstance, setOpenInstance] = useState(isOpen ? 1 : 0);
+    const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+    if (isOpen !== prevIsOpen) {
+        setPrevIsOpen(isOpen);
+        if (isOpen) {
+            setOpenInstance(n => n + 1);
+        }
+    }
+
+    const [seededForOpenInstance, setSeededForOpenInstance] = useState(0);
+    if (seededForOpenInstance !== openInstance && isOpen) {
+        setSeededForOpenInstance(openInstance);
+        setRoomName(room.name);
+        setRoomDescription(room.description);
+        setRoomTags(room.tags ?? []);
+        setRoomTagInput("");
+        setRoomIsPublic(room.is_public);
+        setRoomIsRP(room.is_rp);
+        setPendingConfirm(null);
+        setError("");
+        setTab("bans");
+    }
+
+    function commitRoomTagInput() {
+        if (!roomTagInput) {
+            return;
+        }
+
+        setRoomTags(prev => addRoomTags(prev, roomTagInput));
+        setRoomTagInput("");
+    }
+
+    function handleRoomTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+        if (isRoomTagCommitKey(e.key)) {
+            e.preventDefault();
+            commitRoomTagInput();
+            return;
+        }
+        if (e.key === "Backspace" && roomTagInput === "" && roomTags.length > 0) {
+            e.preventDefault();
+            setRoomTags(prev => prev.slice(0, -1));
+        }
+    }
+
+    async function submitRoom(confirmBotRemoval: boolean) {
+        if (!roomName.trim() || roomSaving) {
+            return;
+        }
+
+        const payload: UpdateGroupRoomRequest = {
+            name: roomName.trim(),
+            description: roomDescription.trim(),
+            tags: finaliseRoomTags(roomTags, roomTagInput),
+            is_public: roomIsPublic,
+            is_rp: roomIsRP,
+            confirm_bot_removal: confirmBotRemoval,
+        };
+
+        setRoomSaving(true);
+        setError("");
+        try {
+            const updated = await updateRoomMutation.mutateAsync(payload);
+            setPendingConfirm(null);
+            onSaved(updated);
+            onClose();
+        } catch (e) {
+            const bots = botsFromError(e);
+            if (bots) {
+                setPendingConfirm({ kind: "bots", bots });
+                return;
+            }
+
+            setPendingConfirm(null);
+            setError(e instanceof Error ? e.message : "Failed to update room");
+        } finally {
+            setRoomSaving(false);
+        }
+    }
+
+    function handleSaveRoom() {
+        if (roomIsPublic && !room.is_public) {
+            setError("");
+            setPendingConfirm({ kind: "public" });
+            return;
+        }
+
+        submitRoom(false).catch(() => {});
+    }
 
     function resetForm() {
         setPattern("");
@@ -159,11 +294,169 @@ export function RoomModerationDialog({ isOpen, roomId, onClose }: RoomModeration
                 >
                     Banned words ({rules.length})
                 </button>
+                {canEditRoom && (
+                    <button
+                        type="button"
+                        className={`${styles.tab}${tab === "room" ? ` ${styles.tabActive}` : ""}`}
+                        onClick={() => setTab("room")}
+                    >
+                        Room
+                    </button>
+                )}
             </div>
 
             {error && <div className={styles.error}>{error}</div>}
 
-            {loading && <div className={styles.muted}>Loading...</div>}
+            {loading && tab !== "room" && <div className={styles.muted}>Loading...</div>}
+
+            {canEditRoom && tab === "room" && (
+                <div className={styles.section}>
+                    <p className={styles.intro}>
+                        Change how this room appears and who can find it. Only the host and site staff can edit these.
+                    </p>
+
+                    <div className={styles.field}>
+                        <label className={styles.label}>Name</label>
+                        <Input
+                            fullWidth
+                            type="text"
+                            value={roomName}
+                            onChange={e => setRoomName(e.target.value)}
+                            placeholder="e.g. Higurashi book club"
+                            maxLength={80}
+                        />
+                    </div>
+
+                    <div className={styles.field}>
+                        <label className={styles.label}>Description (optional)</label>
+                        <Input
+                            fullWidth
+                            type="text"
+                            value={roomDescription}
+                            onChange={e => setRoomDescription(e.target.value)}
+                            placeholder="What's the room about?"
+                            maxLength={500}
+                        />
+                    </div>
+
+                    <div className={styles.field}>
+                        <label className={styles.label}>Tags (optional)</label>
+                        {roomTags.length > 0 && (
+                            <div className={styles.tagBar}>
+                                {roomTags.map(t => (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        className={styles.tagChip}
+                                        onClick={() => setRoomTags(prev => removeRoomTag(prev, t))}
+                                    >
+                                        #{t} ✕
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        <Input
+                            fullWidth
+                            type="text"
+                            placeholder={`Type a tag and press Enter or comma (max ${MAX_ROOM_TAGS})`}
+                            value={roomTagInput}
+                            onChange={e => setRoomTagInput(e.target.value)}
+                            onKeyDown={handleRoomTagKeyDown}
+                            onBlur={commitRoomTagInput}
+                            disabled={roomTags.length >= MAX_ROOM_TAGS}
+                        />
+                    </div>
+
+                    <ToggleSwitch
+                        enabled={roomIsPublic}
+                        onChange={setRoomIsPublic}
+                        label="Public"
+                        description="Public rooms appear in Browse and anyone can join. Private rooms are invite-only."
+                        disabled={roomSaving}
+                    />
+                    <ToggleSwitch
+                        enabled={roomIsRP}
+                        onChange={setRoomIsRP}
+                        label="Roleplay (RP)"
+                        description="Mark this as a roleplay room. Turning this off removes any bots in the room."
+                        disabled={roomSaving}
+                    />
+
+                    {pendingConfirm?.kind === "public" && (
+                        <div className={styles.confirm}>
+                            <p className={styles.confirmText}>
+                                Making this room public lets anyone join and read everything ever said in it, including
+                                messages sent while it was private. Are you sure?
+                            </p>
+                            <div className={styles.confirmActions}>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={() => setPendingConfirm(null)}
+                                    disabled={roomSaving}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    size="small"
+                                    onClick={() => {
+                                        submitRoom(false).catch(() => {});
+                                    }}
+                                    disabled={roomSaving}
+                                >
+                                    {roomSaving ? "Saving..." : "Make it public"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    {pendingConfirm?.kind === "bots" && (
+                        <div className={styles.confirm}>
+                            <p className={styles.confirmText}>Turning roleplay off removes these bots from the room:</p>
+                            <ul className={styles.confirmList}>
+                                {pendingConfirm.bots.map(b => (
+                                    <li key={b.id}>{botLabel(b)}</li>
+                                ))}
+                            </ul>
+                            <div className={styles.confirmActions}>
+                                <Button
+                                    variant="secondary"
+                                    size="small"
+                                    onClick={() => setPendingConfirm(null)}
+                                    disabled={roomSaving}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    variant="danger"
+                                    size="small"
+                                    onClick={() => {
+                                        submitRoom(true).catch(() => {});
+                                    }}
+                                    disabled={roomSaving}
+                                >
+                                    {roomSaving ? "Saving..." : "Remove them and save"}
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className={styles.formActions}>
+                        <Button variant="ghost" size="small" onClick={onClose} disabled={roomSaving}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="small"
+                            onClick={handleSaveRoom}
+                            disabled={roomSaving || !roomName.trim() || pendingConfirm !== null}
+                        >
+                            {roomSaving ? "Saving..." : "Save changes"}
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {!loading && tab === "bans" && (
                 <div className={styles.section}>

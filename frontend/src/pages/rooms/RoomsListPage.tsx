@@ -171,6 +171,11 @@ export function RoomsListPage() {
                 qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
                 return;
             }
+            if (msg.type === "chat_room_updated") {
+                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
+                return;
+            }
             if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
                 qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
                 qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });

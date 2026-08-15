@@ -121,6 +121,15 @@ type (
 		MemberIDs   []uuid.UUID
 	}
 
+	UpdateChatRoom struct {
+		RoomID      uuid.UUID
+		Name        string
+		Description string
+		Tags        []string
+		IsPublic    bool
+		IsRP        bool
+	}
+
 	NewChatRoomMember struct {
 		RoomID uuid.UUID
 		UserID uuid.UUID
@@ -195,6 +204,7 @@ type (
 		ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
 		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit, offset int, tx ...*sql.Tx) ([]ChatRoomRow, int, error)
 		FindDMRoom(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		UpdateRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error
 		AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error
 		ReplaceRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error
 		GetRoomTags(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)
@@ -245,6 +255,7 @@ type (
 
 		CreateDMRoomAtomic(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error)
 		CreateGroupRoom(ctx context.Context, spec NewChatGroupRoom, tx ...*sql.Tx) (*ChatRoomRow, error)
+		UpdateGroupRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error
 		CreateSystemRoomWithHost(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error)
 		CreateSystemRooms(ctx context.Context, specs []NewChatSystemRoom, tx ...*sql.Tx) error
 		SyncSystemRoomMembership(ctx context.Context, targets []SystemRoomMembership, tx ...*sql.Tx) ([]SystemRoomMembershipChange, error)
@@ -315,6 +326,20 @@ func (r *chatRepository) CreateGroupRoom(ctx context.Context, spec NewChatGroupR
 	}
 
 	return created, nil
+}
+
+func (r *chatRepository) UpdateGroupRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error {
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		if err := r.dao.UpdateRoom(ctx, spec, tx); err != nil {
+			return fmt.Errorf("update group room: %w", err)
+		}
+
+		if err := r.dao.ReplaceRoomTags(ctx, spec.RoomID, spec.Tags, tx); err != nil {
+			return fmt.Errorf("replace room tags: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (r *chatRepository) CreateSystemRoomWithHost(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
@@ -664,6 +689,10 @@ func (r *chatRepository) ListPublicRooms(ctx context.Context, search string, isR
 
 func (r *chatRepository) FindDMRoom(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	return r.dao.FindDMRoom(ctx, userA, userB, tx...)
+}
+
+func (r *chatRepository) UpdateRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error {
+	return r.dao.UpdateRoom(ctx, spec, tx...)
 }
 
 func (r *chatRepository) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error {

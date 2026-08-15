@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
-	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -64,43 +63,6 @@ func (s *moderationService) isBotSender(ctx context.Context, senderID uuid.UUID)
 	}
 
 	return sender.IsBot
-}
-
-func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
-	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
-
-	if err := s.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
-		return fmt.Errorf("remove member: %w", err)
-	}
-
-	s.clearWatchPartyParticipation(ctx, roomID, targetID)
-	s.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
-
-	s.hub.LeaveRoom(roomID, targetID)
-
-	leftEvent := ws.Message{
-		Type: "chat_member_left",
-		Data: map[string]any{
-			"room_id": roomID,
-			"user_id": targetID,
-		},
-	}
-	for _, mid := range members {
-		if mid == targetID {
-			continue
-		}
-		s.hub.SendToUser(mid, leftEvent)
-	}
-
-	kickData := map[string]any{
-		"room_id": roomID,
-	}
-	if reason != "" {
-		kickData["reason"] = reason
-	}
-	s.hub.SendToUser(targetID, ws.Message{Type: "chat_kicked", Data: kickData})
-
-	return nil
 }
 
 func (s *moderationService) banUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, actorID *uuid.UUID, reason string) error {

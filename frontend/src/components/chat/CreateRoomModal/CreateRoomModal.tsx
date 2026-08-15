@@ -7,6 +7,13 @@ import { Input } from "../../Input/Input";
 import { Button } from "../../Button/Button";
 import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import {
+    addRoomTags,
+    finaliseRoomTags,
+    isRoomTagCommitKey,
+    MAX_ROOM_TAGS,
+    removeRoomTag,
+} from "../../../utils/roomTags";
 import styles from "./CreateRoomModal.module.css";
 
 interface CreateRoomModalProps {
@@ -58,43 +65,21 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
     const results = searchQuery.users;
     const createRoomMutation = useCreateGroupRoom();
 
-    function normalizeTag(raw: string): string {
-        return raw
-            .toLowerCase()
-            .trim()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9-]+/g, "")
-            .replace(/^-+|-+$/g, "")
-            .slice(0, 30);
-    }
-
     function commitTagInput() {
         if (!tagInput) {
             return;
         }
-        const parts = tagInput.split(",").map(normalizeTag).filter(Boolean);
-        if (parts.length === 0) {
-            setTagInput("");
-            return;
-        }
-        setTags(prev => {
-            const next = [...prev];
-            for (const t of parts) {
-                if (!next.includes(t) && next.length < 10) {
-                    next.push(t);
-                }
-            }
-            return next;
-        });
+
+        setTags(prev => addRoomTags(prev, tagInput));
         setTagInput("");
     }
 
     function removeTag(t: string) {
-        setTags(prev => prev.filter(x => x !== t));
+        setTags(prev => removeRoomTag(prev, t));
     }
 
     function handleTagKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-        if (e.key === "Enter" || e.key === ",") {
+        if (isRoomTagCommitKey(e.key)) {
             e.preventDefault();
             commitTagInput();
             return;
@@ -118,11 +103,8 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
         if (!name.trim() || submitting) {
             return;
         }
-        const finalTags = [...tags];
-        const trailing = normalizeTag(tagInput);
-        if (trailing && !finalTags.includes(trailing) && finalTags.length < 10) {
-            finalTags.push(trailing);
-        }
+        const finalTags = finaliseRoomTags(tags, tagInput);
+
         setSubmitting(true);
         setError("");
         try {
@@ -198,12 +180,12 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
                     <Input
                         fullWidth
                         type="text"
-                        placeholder="Type a tag and press Enter or comma (max 10)"
+                        placeholder={`Type a tag and press Enter or comma (max ${MAX_ROOM_TAGS})`}
                         value={tagInput}
                         onChange={e => setTagInput(e.target.value)}
                         onKeyDown={handleTagKeyDown}
                         onBlur={commitTagInput}
-                        disabled={tags.length >= 10}
+                        disabled={tags.length >= MAX_ROOM_TAGS}
                     />
                 </div>
 

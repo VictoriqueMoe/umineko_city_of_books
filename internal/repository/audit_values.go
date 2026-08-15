@@ -51,6 +51,7 @@ const (
 	AuditActionChatMessageDelete    AuditAction = "chat_message_delete"
 	AuditActionChatMessageDeleteMod AuditAction = "chat_message_delete_mod"
 	AuditActionChatRoomDelete       AuditAction = "chat_room_delete"
+	AuditActionChatRoomUpdate       AuditAction = "chat_room_update"
 	AuditActionChatRoomKick         AuditAction = "chat_room_kick"
 	AuditActionChatRoomTimeout      AuditAction = "chat_room_timeout"
 

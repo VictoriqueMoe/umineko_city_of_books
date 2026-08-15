@@ -2696,6 +2696,182 @@ func TestChatDAO_CreateGroupRoom_RollsBackWhenAMemberDoesNotExist(t *testing.T) 
 	assert.Empty(t, rooms, "the half built room must not survive the failed member insert")
 }
 
+func TestChatDAO_UpdateRoom_WritesEveryEditableFieldAndLeavesTheRestAlone(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	host := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+		Name:        "Old name",
+		Description: "old description",
+		IsPublic:    false,
+		IsRP:        true,
+		CreatedBy:   host.ID,
+	})
+	require.NoError(t, err)
+	before, err := repos.Chat.GetRoomByID(ctx, room.ID, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, before)
+
+	// when
+	err = repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+		RoomID:      room.ID,
+		Name:        "New name",
+		Description: "new description",
+		IsPublic:    true,
+		IsRP:        false,
+	})
+
+	// then
+	require.NoError(t, err)
+	after, err := repos.Chat.GetRoomByID(ctx, room.ID, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, after)
+	assert.Equal(t, "New name", after.Name)
+	assert.Equal(t, "new description", after.Description)
+	assert.True(t, after.IsPublic)
+	assert.False(t, after.IsRP)
+	assert.Equal(t, dto.RoomTypeGroup, after.Type)
+	assert.False(t, after.IsSystem)
+	assert.Equal(t, before.CreatedBy, after.CreatedBy)
+	assert.Equal(t, before.CreatedAt, after.CreatedAt, "an edit must never restamp created_at")
+}
+
+func TestChatDAO_UpdateGroupRoom_ReplacesTheWholeTagSet(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	host := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+		Name:      "Tagged",
+		CreatedBy: host.ID,
+		Tags:      []string{"old-one", "old-two"},
+	})
+	require.NoError(t, err)
+
+	// when
+	err = repos.Chat.UpdateGroupRoom(ctx, repository.UpdateChatRoom{
+		RoomID:      room.ID,
+		Name:        "Tagged again",
+		Description: "desc",
+		Tags:        []string{"new-one", "new-two", "new-three"},
+		IsPublic:    true,
+		IsRP:        false,
+	})
+
+	// then
+	require.NoError(t, err)
+	tags, err := repos.Chat.GetRoomTags(ctx, room.ID)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"new-one", "new-two", "new-three"}, tags)
+	after, err := repos.Chat.GetRoomByID(ctx, room.ID, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, after)
+	assert.Equal(t, "Tagged again", after.Name)
+	assert.True(t, after.IsPublic)
+}
+
+func TestChatDAO_UpdateGroupRoom_ClearsTheTagsWhenNoneAreGiven(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	host := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+		Name:      "Tagged",
+		CreatedBy: host.ID,
+		Tags:      []string{"keep-me"},
+	})
+	require.NoError(t, err)
+
+	// when
+	err = repos.Chat.UpdateGroupRoom(ctx, repository.UpdateChatRoom{
+		RoomID: room.ID,
+		Name:   "Tagged",
+		Tags:   nil,
+	})
+
+	// then
+	require.NoError(t, err)
+	tags, err := repos.Chat.GetRoomTags(ctx, room.ID)
+	require.NoError(t, err)
+	assert.Empty(t, tags)
+}
+
+func TestChatDAO_UpdateRoom_RefusesToTouchADM(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	require.NoError(t, err)
+	before, err := repos.Chat.GetRoomByID(ctx, room.ID, a.ID)
+	require.NoError(t, err)
+	require.NotNil(t, before)
+
+	// when
+	err = repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+		RoomID:      room.ID,
+		Name:        "Renamed DM",
+		Description: "hijacked",
+		IsPublic:    true,
+		IsRP:        true,
+	})
+
+	// then
+	require.Error(t, err, "the WHERE clause carries type = 'group' so a DM must never match")
+	after, err := repos.Chat.GetRoomByID(ctx, room.ID, a.ID)
+	require.NoError(t, err)
+	require.NotNil(t, after)
+	assert.Equal(t, before.Name, after.Name)
+	assert.Equal(t, before.Description, after.Description)
+	assert.Equal(t, before.IsPublic, after.IsPublic)
+	assert.Equal(t, before.IsRP, after.IsRP)
+}
+
+func TestChatDAO_UpdateRoom_RefusesToTouchASystemRoom(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	host := daotest.CreateUser(t, repos)
+	roomID := uuid.New()
+	_, err := repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: roomID, Name: "Announcements", Description: "system room", SystemKind: "announcements", CreatedBy: host.ID})
+	require.NoError(t, err)
+
+	// when
+	err = repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+		RoomID:      roomID,
+		Name:        "Renamed system room",
+		Description: "hijacked",
+		IsPublic:    true,
+		IsRP:        true,
+	})
+
+	// then
+	require.Error(t, err, "the WHERE clause carries is_system = FALSE so a system room must never match")
+	after, err := repos.Chat.GetRoomByID(ctx, roomID, host.ID)
+	require.NoError(t, err)
+	require.NotNil(t, after)
+	assert.Equal(t, "Announcements", after.Name)
+	assert.Equal(t, "system room", after.Description)
+	assert.True(t, after.IsSystem)
+}
+
+func TestChatDAO_UpdateRoom_MissingRowIsAnError(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+
+	// when
+	err := repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+		RoomID: uuid.New(),
+		Name:   "Ghost room",
+	})
+
+	// then
+	require.Error(t, err)
+}
+
 func TestChatDAO_CreateSystemRoomWithHost(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

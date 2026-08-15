@@ -69,6 +69,15 @@ export interface ChatMemberUpdatedPayload {
     timeout_set_by_staff: boolean;
 }
 
+export interface ChatRoomUpdatedPayload {
+    room_id: string;
+    name: string;
+    description: string;
+    tags: string[];
+    is_public: boolean;
+    is_rp: boolean;
+}
+
 export function applyLocalMemberChange(
     member: ChatRoomMember,
     setMembers: Dispatch<SetStateAction<ChatRoomMember[]>>,

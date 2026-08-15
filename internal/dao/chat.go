@@ -127,6 +127,24 @@ func (r *chatDAO) GetSystemRoomID(ctx context.Context, systemKind string, tx ...
 	return id, nil
 }
 
+func (r *chatDAO) UpdateRoom(ctx context.Context, spec repository.UpdateChatRoom, tx ...*sql.Tx) error {
+	res, err := getDb(r.db, tx).ExecContext(ctx,
+		`UPDATE chat_rooms SET name = $1, description = $2, is_public = $3, is_rp = $4
+		 WHERE id = $5 AND type = 'group' AND is_system = FALSE`,
+		spec.Name, spec.Description, spec.IsPublic, spec.IsRP, spec.RoomID,
+	)
+	if err != nil {
+		return fmt.Errorf("update room: %w", err)
+	}
+
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return fmt.Errorf("room not found or not editable")
+	}
+
+	return nil
+}
+
 func (r *chatDAO) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error {
 	if len(tags) == 0 {
 		return nil

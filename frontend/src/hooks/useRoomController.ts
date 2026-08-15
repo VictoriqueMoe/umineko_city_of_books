@@ -1,4 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "./useAuth";
 import { useNotifications } from "./useNotifications";
@@ -45,6 +46,7 @@ import {
     ChatMessagePinnedPayload,
     ChatMessageUnpinnedPayload,
     ChatReactionPayload,
+    ChatRoomUpdatedPayload,
     handleIncomingChatMessage,
     maybePlayChatMessageSound,
 } from "../utils/chatStream";
@@ -56,6 +58,7 @@ export function useRoomController() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const qc = useQueryClient();
     const matchesViewerMention = useMemo(() => buildMentionMatcher(user?.username), [user?.username]);
     const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
     const [roomOverride, setRoomOverride] = useState<{ roomId: string | null; room: ChatRoom | null }>({
@@ -581,6 +584,28 @@ export function useRoomController() {
                 setTimeout(() => navigate("/rooms"), 1500);
                 return;
             }
+            if (msg.type === "chat_room_updated") {
+                const data = msg.data as ChatRoomUpdatedPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                setRoom(prev => {
+                    if (!prev) {
+                        return prev;
+                    }
+                    return {
+                        ...prev,
+                        name: data.name,
+                        description: data.description,
+                        tags: data.tags ?? [],
+                        is_public: data.is_public,
+                        is_rp: data.is_rp,
+                    };
+                });
+                qc.invalidateQueries({ queryKey: ["chat", "rooms"] });
+                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                return;
+            }
             if (msg.type === "chat_member_updated") {
                 const data = msg.data as ChatMemberUpdatedPayload;
                 if (data.room_id !== roomIdRef.current) {
@@ -690,6 +715,7 @@ export function useRoomController() {
         setMembers,
         setPresenceMap,
         setRoom,
+        qc,
     ]);
 
     function handleSentMessage(message: ChatMessage) {
@@ -1030,6 +1056,7 @@ export function useRoomController() {
         setModerationDialogOpen,
         openMemberMenu,
         setOpenMemberMenu,
+        setRoom,
         setMembers,
         nicknameDialogTarget,
         setNicknameDialogTarget,

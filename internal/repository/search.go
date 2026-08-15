@@ -398,7 +398,8 @@ func (s SearchSource) BuildSubquery() string {
 		parentTitleExpr = "NULL::text"
 	}
 
-	rankExpr := "ts_rank_cd(" + s.SearchVector + ", q.tsq)"
+	var rankExpr strings.Builder
+	rankExpr.WriteString("ts_rank_cd(" + s.SearchVector + ", q.tsq)")
 	matchExpr := s.SearchVector + " @@ q.tsq"
 
 	trigramExprs := append([]string(nil), s.TrigramExprs...)
@@ -406,7 +407,7 @@ func (s SearchSource) BuildSubquery() string {
 		trigramExprs = append([]string{s.TitleExpr}, trigramExprs...)
 	}
 	for _, expr := range trigramExprs {
-		rankExpr += " + COALESCE(similarity(" + expr + ", q.qstr), 0)"
+		rankExpr.WriteString(" + COALESCE(similarity(" + expr + ", q.qstr), 0)")
 		matchExpr += " OR " + expr + " % q.qstr"
 	}
 	if len(trigramExprs) > 0 {
@@ -441,7 +442,7 @@ func (s SearchSource) BuildSubquery() string {
 		s.TitleExpr,
 		s.BodyExpr, SearchHeadlineOptions,
 		s.CreatedAt,
-		rankExpr,
+		rankExpr.String(),
 		strings.Join(parts, "\n        "),
 		strings.Join(whereParts, "\n          AND "),
 	)

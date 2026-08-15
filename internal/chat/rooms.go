@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
@@ -20,21 +22,10 @@ type roomsService struct {
 }
 
 func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return nil, ErrMissingFields
-	}
-	if err := r.filterTexts(ctx, name, req.Description); err != nil {
+	name, description, tags, err := r.normaliseRoomInput(ctx, req.Name, req.Description, req.Tags)
+	if err != nil {
 		return nil, err
 	}
-	if len(name) > 80 {
-		name = name[:80]
-	}
-	description := strings.TrimSpace(req.Description)
-	if len(description) > 500 {
-		description = description[:500]
-	}
-	tags := sanitizeTags(req.Tags)
 
 	invitedIDs := make([]uuid.UUID, 0, len(req.MemberIDs))
 	for _, memberID := range req.MemberIDs {
@@ -46,6 +37,10 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		}
 
 		invitedIDs = append(invitedIDs, memberID)
+	}
+
+	if err := r.rejectBotsOutsideRP(ctx, req.IsRP, invitedIDs); err != nil {
+		return nil, err
 	}
 
 	created, err := r.chatRepo.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
@@ -73,6 +68,163 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 	}
 
 	return r.buildRoomResponse(ctx, roomID, creatorID)
+}
+
+func (r *roomsService) UpdateGroupRoom(ctx context.Context, roomID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error) {
+	row, err := r.loadRoomForMod(ctx, roomID, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if row.Type != dto.RoomTypeGroup {
+		return nil, ErrNotGroupRoom
+	}
+
+	name, description, tags, err := r.normaliseRoomInput(ctx, req.Name, req.Description, req.Tags)
+	if err != nil {
+		return nil, err
+	}
+
+	bots, err := r.botsLosingRPAccess(ctx, roomID, row.IsRP, req.IsRP)
+	if err != nil {
+		return nil, err
+	}
+	if len(bots) > 0 && !req.ConfirmBotRemoval {
+		return nil, &ErrBotsWillBeKicked{Bots: bots}
+	}
+
+	if err := r.chatRepo.UpdateGroupRoom(ctx, repository.UpdateChatRoom{
+		RoomID:      roomID,
+		Name:        name,
+		Description: description,
+		Tags:        tags,
+		IsPublic:    req.IsPublic,
+		IsRP:        req.IsRP,
+	}); err != nil {
+		return nil, fmt.Errorf("update group room: %w", err)
+	}
+
+	r.removeBotsAfterRPChange(ctx, roomID, actorID, bots)
+
+	r.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatRoomUpdate,
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   roomID.String(),
+		Details:    roomUpdateAuditDetails(row, name, description, tags, req.IsPublic, req.IsRP, len(bots)),
+	})
+
+	if row.IsPublic != req.IsPublic {
+		actorName := r.actionDisplayName(ctx, actorID, "A moderator")
+		if req.IsPublic {
+			r.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s made this room public. Anyone who joins can read the history.", actorName))
+		} else {
+			r.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s made this room private.", actorName))
+		}
+	}
+
+	resp, err := r.buildRoomResponse(ctx, roomID, actorID)
+	if err != nil {
+		return nil, err
+	}
+
+	r.broadcastRoomUpdated(ctx, roomID, name, description, tags, req.IsPublic, req.IsRP)
+
+	return resp, nil
+}
+
+func (r *roomsService) removeBotsAfterRPChange(ctx context.Context, roomID, actorID uuid.UUID, bots []dto.UserResponse) {
+	if len(bots) == 0 {
+		return
+	}
+
+	removed := make([]string, 0, len(bots))
+	for i := range bots {
+		if err := r.evictUserFromRoom(ctx, roomID, bots[i].ID, "this room is no longer a roleplay room"); err != nil {
+			logger.Log.Error().Err(err).Str("room_id", roomID.String()).Str("bot_id", bots[i].ID.String()).Msg("failed to remove bot after roleplay was turned off")
+
+			continue
+		}
+
+		removed = append(removed, bots[i].DisplayName)
+	}
+
+	if len(removed) == 0 {
+		return
+	}
+
+	verb := "was"
+	if len(removed) > 1 {
+		verb = "were"
+	}
+
+	r.postRoomActionMessage(ctx, roomID, actorID, fmt.Sprintf("%s %s removed because this room is no longer a roleplay room.", joinNames(removed), verb))
+}
+
+func joinNames(names []string) string {
+	if len(names) == 1 {
+		return names[0]
+	}
+
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
+func (r *roomsService) botsLosingRPAccess(ctx context.Context, roomID uuid.UUID, wasRP, isRP bool) ([]dto.UserResponse, error) {
+	if !wasRP || isRP {
+		return nil, nil
+	}
+
+	memberIDs, err := r.chatRepo.GetRoomMembers(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("get room members: %w", err)
+	}
+	if len(memberIDs) == 0 {
+		return nil, nil
+	}
+
+	users, err := r.userRepo.GetByIDs(ctx, memberIDs)
+	if err != nil {
+		return nil, fmt.Errorf("get room member users: %w", err)
+	}
+
+	bots := make([]dto.UserResponse, 0, len(users))
+	for i := range users {
+		if !users[i].IsBot {
+			continue
+		}
+
+		bots = append(bots, *users[i].ToResponse())
+	}
+
+	return bots, nil
+}
+
+func roomUpdateAuditDetails(row *repository.ChatRoomRow, name, description string, tags []string, isPublic, isRP bool, botsRemoved int) string {
+	changes := make([]string, 0, 6)
+
+	if row.Name != name {
+		changes = append(changes, fmt.Sprintf("name=%q->%q", row.Name, name))
+	}
+	if row.Description != description {
+		changes = append(changes, "description=changed")
+	}
+	if !slices.Equal(row.Tags, tags) {
+		changes = append(changes, fmt.Sprintf("tags=[%s]->[%s]", strings.Join(row.Tags, ","), strings.Join(tags, ",")))
+	}
+	if row.IsPublic != isPublic {
+		changes = append(changes, fmt.Sprintf("is_public=%t->%t", row.IsPublic, isPublic))
+	}
+	if row.IsRP != isRP {
+		changes = append(changes, fmt.Sprintf("is_rp=%t->%t", row.IsRP, isRP))
+	}
+	if botsRemoved > 0 {
+		changes = append(changes, fmt.Sprintf("bots_removed=%d", botsRemoved))
+	}
+
+	if len(changes) == 0 {
+		return "no fields changed"
+	}
+
+	return strings.Join(changes, " ")
 }
 
 func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error) {

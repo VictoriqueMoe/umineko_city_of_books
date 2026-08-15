@@ -61,6 +61,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
         setModerationDialogOpen,
         openMemberMenu,
         setOpenMemberMenu,
+        setRoom,
         setMembers,
         nicknameDialogTarget,
         setNicknameDialogTarget,
@@ -137,8 +138,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
 
             <RoomModerationDialog
                 isOpen={moderationDialogOpen}
-                roomId={room.id}
+                room={room}
                 onClose={() => setModerationDialogOpen(false)}
+                onSaved={updated => setRoom(updated)}
             />
 
             {watchParty.activeSession && user && (

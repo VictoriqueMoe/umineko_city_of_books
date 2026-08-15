@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	chatsvc "umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/upload"
@@ -257,6 +258,7 @@ func TestCreateGroupRoom_ServiceErrors(t *testing.T) {
 		wantBody string
 	}{
 		{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "room name is required"},
+		{"bot outside an rp room", chatsvc.ErrBotsRPRoomsOnly, http.StatusBadRequest, "bots can only be added to roleplay rooms"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to create group room"},
 	}
 	for _, tc := range cases {
@@ -278,6 +280,165 @@ func TestCreateGroupRoom_ServiceErrors(t *testing.T) {
 			assert.Contains(t, string(body), tc.wantBody)
 		})
 	}
+}
+
+func TestUpdateRoom_RouteIsRegistered(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+
+	// when
+	found := false
+	for _, r := range h.App.GetRoutes(true) {
+		if r.Method == http.MethodPut && r.Path == "/chat/rooms/:roomID" {
+			found = true
+		}
+	}
+
+	// then
+	assert.True(t, found, "PUT /chat/rooms/:roomID must be wired into getAllChatRoutes")
+}
+
+func TestUpdateRoom_AuthFailures(t *testing.T) {
+	testutil.RunAuthFailureSuite(t, chatFactory, "PUT", "/chat/rooms/"+uuid.NewString(),
+		dto.UpdateGroupRoomRequest{Name: "room"})
+}
+
+func TestUpdateRoom_OK(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	req := dto.UpdateGroupRoomRequest{Name: "new name", Description: "desc", Tags: []string{"tag"}, IsPublic: true}
+	chatMock.EXPECT().UpdateGroupRoom(mock.Anything, roomID, userID, req).
+		Return(&dto.ChatRoomResponse{ID: roomID, Name: "new name"}, nil)
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()).
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusOK, status)
+	got := testutil.UnmarshalJSON[dto.ChatRoomResponse](t, body)
+	assert.Equal(t, roomID, got.ID)
+	assert.Equal(t, "new name", got.Name)
+}
+
+func TestUpdateRoom_InvalidID(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/not-a-uuid").
+		WithCookie("valid-cookie").
+		WithJSONBody(dto.UpdateGroupRoomRequest{Name: "room"}).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid roomID")
+}
+
+func TestUpdateRoom_BadJSON(t *testing.T) {
+	// given
+	h, _ := newChatHarness(t)
+	h.ExpectValidSession("valid-cookie", uuid.New())
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+uuid.NewString()).
+		WithCookie("valid-cookie").
+		WithRawBody("not json", "application/json").Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "invalid request body")
+}
+
+func TestUpdateRoom_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"missing fields", chatsvc.ErrMissingFields, http.StatusBadRequest, "room name is required"},
+		{"room not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "room not found"},
+		{"system room", chatsvc.ErrSystemRoom, http.StatusForbidden, "this room is managed automatically"},
+		{"not group room", chatsvc.ErrNotGroupRoom, http.StatusBadRequest, "only group rooms can be edited"},
+		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only the host or a moderator can do this"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to update room"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			req := dto.UpdateGroupRoomRequest{Name: "room"}
+			chatMock.EXPECT().UpdateGroupRoom(mock.Anything, roomID, userID, req).Return(nil, tc.err)
+
+			// when
+			status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()).
+				WithCookie("valid-cookie").
+				WithJSONBody(req).Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}
+
+func TestUpdateRoom_ContentFilterRejectionMapsFirst(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	req := dto.UpdateGroupRoomRequest{Name: "room"}
+	chatMock.EXPECT().UpdateGroupRoom(mock.Anything, roomID, userID, req).
+		Return(nil, &contentfilter.RejectedError{Rejection: contentfilter.Rejection{Rule: "slurs", Reason: "nope", Detail: "slur"}})
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()).
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusBadRequest, status)
+	assert.Contains(t, string(body), "content_rejected")
+}
+
+func TestUpdateRoom_BotsWillBeKickedIs409WithTheBotList(t *testing.T) {
+	// given
+	h, chatMock := newChatHarness(t)
+	userID := uuid.New()
+	roomID := uuid.New()
+	botID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	req := dto.UpdateGroupRoomRequest{Name: "room"}
+	chatMock.EXPECT().UpdateGroupRoom(mock.Anything, roomID, userID, req).
+		Return(nil, &chatsvc.ErrBotsWillBeKicked{Bots: []dto.UserResponse{{ID: botID, Username: "beato", DisplayName: "Beatrice"}}})
+
+	// when
+	status, body := h.NewRequest("PUT", "/chat/rooms/"+roomID.String()).
+		WithCookie("valid-cookie").
+		WithJSONBody(req).Do()
+
+	// then
+	require.Equal(t, http.StatusConflict, status)
+	got := testutil.UnmarshalJSON[struct {
+		Error string             `json:"error"`
+		Code  string             `json:"code"`
+		Bots  []dto.UserResponse `json:"bots"`
+	}](t, body)
+	assert.Equal(t, "bots_will_be_kicked", got.Code)
+	assert.Equal(t, "turning roleplay off will remove 1 bot from this room", got.Error)
+	require.Len(t, got.Bots, 1)
+	assert.Equal(t, botID, got.Bots[0].ID)
+	assert.Equal(t, "Beatrice", got.Bots[0].DisplayName)
 }
 
 func TestListRooms_AuthFailures(t *testing.T) {
@@ -746,6 +907,7 @@ func TestInviteMembers_ServiceErrors(t *testing.T) {
 		{"not group room", chatsvc.ErrNotGroupRoom, http.StatusBadRequest, "only group rooms"},
 		{"system room", chatsvc.ErrSystemRoom, http.StatusForbidden, "managed automatically"},
 		{"not host", chatsvc.ErrNotHost, http.StatusForbidden, "only the host can invite"},
+		{"bot outside an rp room", chatsvc.ErrBotsRPRoomsOnly, http.StatusBadRequest, "bots can only be added to roleplay rooms"},
 		{"internal", errors.New("boom"), http.StatusInternalServerError, "failed to invite members"},
 	}
 	for _, tc := range cases {

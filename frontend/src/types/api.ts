@@ -737,6 +737,21 @@ export interface ChatRoom {
     voice_participants?: string[];
 }
 
+export interface UpdateGroupRoomRequest {
+    name: string;
+    description: string;
+    tags: string[];
+    is_public: boolean;
+    is_rp: boolean;
+    confirm_bot_removal: boolean;
+}
+
+export interface BotsWillBeKickedResponse {
+    error: string;
+    code: string;
+    bots: User[];
+}
+
 export interface ChatRoomMember {
     user: User;
     role: string;

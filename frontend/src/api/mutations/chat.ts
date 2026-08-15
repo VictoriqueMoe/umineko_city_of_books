@@ -25,14 +25,16 @@ import {
     unbanChatRoomMember,
     unlockChatRoomMemberNickname,
     unpinChatMessage,
+    updateChatRoom,
     updateChatRoomBannedWord,
     updateChatRoomNickname,
     uploadChatRoomAvatar,
 } from "../endpoints";
-import type { ChatRoom, CreateBannedWordRequest } from "../../types/api";
+import type { ChatRoom, CreateBannedWordRequest, UpdateGroupRoomRequest } from "../../types/api";
 import { queryKeys } from "../queryKeys";
 
 const ROOM_KEY = ["chat", "rooms"] as const;
+const ROOMS_LIST_KEY = ["chat", "rooms-list"] as const;
 
 export function useCreateGroupRoom() {
     const qc = useQueryClient();
@@ -47,6 +49,17 @@ export function useCreateGroupRoom() {
         }): Promise<ChatRoom> => createGroupRoom(payload),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ROOM_KEY });
+        },
+    });
+}
+
+export function useUpdateChatRoom(roomId: string) {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (payload: UpdateGroupRoomRequest): Promise<ChatRoom> => updateChatRoom(roomId, payload),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ROOM_KEY });
+            qc.invalidateQueries({ queryKey: ROOMS_LIST_KEY });
         },
     });
 }

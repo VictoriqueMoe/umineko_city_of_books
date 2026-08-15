@@ -64,6 +64,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
     chat_message_delete: "Chat message deleted",
     chat_message_delete_mod: "Chat message deleted by a moderator",
     chat_room_delete: "Chat room deleted",
+    chat_room_update: "Chat room settings changed",
     chat_room_kick: "Kicked from a chat room",
     chat_room_timeout: "Timed out in a chat room",
     post_delete: "Post deleted",
