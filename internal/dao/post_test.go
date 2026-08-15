@@ -1729,7 +1729,17 @@ func TestPostDAO_DeleteWithSharedContent_ReturnsAllUploadedPaths(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	shared, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: user.ID})
+	shared, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{
+		ID:     postID,
+		UserID: user.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    user.ID,
+			Action:     repository.AuditActionPostDelete,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   postID.String(),
+			SubjectID:  user.ID,
+		},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1763,7 +1773,18 @@ func TestPostDAO_DeleteWithSharedContent_AsAdminReturnsAllUploadedPaths(t *testi
 	require.NoError(t, err)
 
 	// when
-	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: admin.ID, AsAdmin: true})
+	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{
+		ID:      postID,
+		UserID:  admin.ID,
+		AsAdmin: true,
+		Audit: repository.NewAuditEntry{
+			ActorID:    admin.ID,
+			Action:     repository.AuditActionPostDeleteAdmin,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   postID.String(),
+			SubjectID:  owner.ID,
+		},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1782,7 +1803,17 @@ func TestPostDAO_DeleteWithSharedContent_NoMediaReturnsNoPaths(t *testing.T) {
 	postID := createPost(t, repos, user.ID, "general", "body")
 
 	// when
-	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: user.ID})
+	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{
+		ID:     postID,
+		UserID: user.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    user.ID,
+			Action:     repository.AuditActionPostDelete,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   postID.String(),
+			SubjectID:  user.ID,
+		},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1799,7 +1830,17 @@ func TestPostDAO_DeleteWithSharedContent_FailedDeleteReturnsNoPaths(t *testing.T
 	require.NoError(t, err)
 
 	// when
-	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{ID: postID, UserID: stranger.ID})
+	_, paths, err := repos.Post.DeleteWithSharedContent(context.Background(), repository.PostDelete{
+		ID:     postID,
+		UserID: stranger.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    stranger.ID,
+			Action:     repository.AuditActionPostDeleteAdmin,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   postID.String(),
+			SubjectID:  user.ID,
+		},
+	})
 
 	// then
 	require.Error(t, err)
@@ -1831,8 +1872,8 @@ func TestPostDAO_DeleteCommentWithAudit_ReturnsCommentAndReplyPaths(t *testing.T
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    user.ID,
-			Action:     "post_comment_delete",
-			TargetType: "post_comment",
+			Action:     repository.AuditActionPostCommentDelete,
+			TargetType: repository.AuditTargetPostComment,
 			TargetID:   commentID.String(),
 		},
 	})
@@ -1868,8 +1909,8 @@ func TestPostDAO_DeleteCommentWithAudit_NotOwnedReturnsNoPaths(t *testing.T) {
 		UserID: stranger.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    stranger.ID,
-			Action:     "post_comment_delete",
-			TargetType: "post_comment",
+			Action:     repository.AuditActionPostCommentDelete,
+			TargetType: repository.AuditTargetPostComment,
 			TargetID:   commentID.String(),
 		},
 	})

@@ -41,6 +41,7 @@ type (
 		ID         uuid.UUID
 		Name       string
 		Type       dto.RoomType
+		IsPublic   bool
 		IsSystem   bool
 		SystemKind string
 		CreatedBy  uuid.UUID
@@ -256,12 +257,13 @@ type (
 )
 
 type chatRepository struct {
-	db  *sql.DB
-	dao ChatDAO
+	db    *sql.DB
+	dao   ChatDAO
+	audit AuditLogRepository
 }
 
-func NewChatRepo(database *sql.DB, dao ChatDAO) ChatRepository {
-	return &chatRepository{db: database, dao: dao}
+func NewChatRepo(database *sql.DB, dao ChatDAO, audit AuditLogRepository) ChatRepository {
+	return &chatRepository{db: database, dao: dao, audit: audit}
 }
 
 func (r *chatRepository) CreateRoom(ctx context.Context, spec NewChatRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {

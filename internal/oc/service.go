@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -96,6 +97,7 @@ type (
 	service struct {
 		ocRepo        repository.OCRepository
 		userRepo      repository.UserRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
@@ -110,6 +112,7 @@ type (
 func NewService(
 	ocRepo repository.OCRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -122,6 +125,7 @@ func NewService(
 	return &service{
 		ocRepo:        ocRepo,
 		userRepo:      userRepo,
+		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
@@ -138,6 +142,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func validateSeries(series string, customSeriesName string) (string, string, error) {
@@ -331,6 +341,19 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 	s.uploadSvc.Delete(paths...)
 
 	s.sendOwnerOCDeleted(ownerID, id)
+
+	action := repository.AuditActionOCDelete
+	if ownerID != userID {
+		action = repository.AuditActionOCDeleteAdmin
+	}
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetOC,
+		TargetID:   id.String(),
+		SubjectID:  ownerID,
+	})
 
 	return nil
 }
@@ -648,10 +671,34 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.ocRepo.UpdateCommentAsAdmin(ctx, id, body)
+
+	authorID, err := s.ocRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
 	}
-	return s.ocRepo.UpdateComment(ctx, id, userID, body)
+
+	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
+		err = s.ocRepo.UpdateCommentAsAdmin(ctx, id, body)
+	} else {
+		err = s.ocRepo.UpdateComment(ctx, id, userID, body)
+	}
+	if err != nil {
+		return err
+	}
+
+	if authorID == userID {
+		return nil
+	}
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionOCCommentUpdateAdmin,
+		TargetType: repository.AuditTargetOCComment,
+		TargetID:   id.String(),
+		SubjectID:  authorID,
+	})
+
+	return nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

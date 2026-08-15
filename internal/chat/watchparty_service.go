@@ -370,10 +370,10 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 	})
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.CreateForSubject(ctx, repository.NewAuditSubjectEntry{
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
 		ActorID:    callerID,
-		Action:     "watch_party.kick",
-		TargetType: "chat_watch_party_session",
+		Action:     repository.AuditActionWatchPartyKick,
+		TargetType: repository.AuditTargetChatWatchPartySession,
 		TargetID:   session.ID.String(),
 		Details:    details,
 		SubjectID:  targetID,
@@ -478,10 +478,10 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 	s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, targetID, reason)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.CreateForSubject(ctx, repository.NewAuditSubjectEntry{
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
 		ActorID:    callerID,
-		Action:     "watch_party.grant_control",
-		TargetType: "chat_watch_party_session",
+		Action:     repository.AuditActionWatchPartyGrantControl,
+		TargetType: repository.AuditTargetChatWatchPartySession,
 		TargetID:   session.ID.String(),
 		Details:    details,
 		SubjectID:  targetID,
@@ -602,8 +602,8 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 		details := mustJSON(map[string]any{"room_id": roomID, "reason": reason})
 		if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
 			ActorID:    actorID,
-			Action:     "watch_party.end",
-			TargetType: "chat_watch_party_session",
+			Action:     repository.AuditActionWatchPartyEnd,
+			TargetType: repository.AuditTargetChatWatchPartySession,
 			TargetID:   session.ID.String(),
 			Details:    details,
 		}); err != nil {

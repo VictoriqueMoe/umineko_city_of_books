@@ -53,14 +53,21 @@ func newTestService(t *testing.T) (
 	userSecretRepo := repository.NewMockUserSecretRepository(t)
 	userSecretRepo.EXPECT().ListForUser(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	theoryRepo := repository.NewMockTheoryRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	authSvc := auth.NewMockService(t)
 	userSvc := userpkg.NewMockService(t)
 	userSvc.EXPECT().IsChatbotOptedIn(mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc, nil, userSvc).(*service)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, auditRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc, nil, userSvc).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
+}
+
+func auditRepoOf(t *testing.T, svc *service) *repository.MockAuditLogRepository {
+	t.Helper()
+
+	return svc.auditRepo.(*repository.MockAuditLogRepository)
 }
 
 func TestGetProfile_OK(t *testing.T) {
@@ -530,6 +537,14 @@ func TestChangePassword_MinLenZeroSkipsValidation(t *testing.T) {
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(0)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "old")}, nil)
 	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("x")).Return(nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangePassword,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "other_sessions_revoked=false",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "old", NewPassword: "x"})
@@ -545,6 +560,14 @@ func TestChangePassword_OK(t *testing.T) {
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
 	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangePassword,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "other_sessions_revoked=false",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
@@ -563,6 +586,14 @@ func TestChangePassword_RevokesOtherSessionsKeepingCurrent(t *testing.T) {
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
 	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(nil)
 	sessionRepo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "current-token").Return(nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangePassword,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "other_sessions_revoked=true",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "current-token", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
@@ -609,8 +640,15 @@ func TestDeleteAccount_OK_CleansUpUploads(t *testing.T) {
 	// given
 	svc, userRepo, _, _, uploadSvc, _ := newTestService(t)
 	userID := uuid.New()
-	user := &model.User{ID: userID, AvatarURL: "/avatars/a.png", BannerURL: "/banners/b.jpg", PasswordHash: hashFor(t, "pw")}
+	user := &model.User{ID: userID, Username: "alice", DisplayName: "Alice", AvatarURL: "/avatars/a.png", BannerURL: "/banners/b.jpg", PasswordHash: hashFor(t, "pw")}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionDeleteAccount,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "username=alice display_name=Alice",
+	}).Return(nil)
 	userRepo.EXPECT().DeleteAccount(mock.Anything, userID).Return(nil)
 	uploadSvc.EXPECT().Delete([]string{"/avatars/a.png"}).Return()
 	uploadSvc.EXPECT().Delete([]string{"/banners/b.jpg"}).Return()
@@ -668,8 +706,15 @@ func TestDeleteAccount_DeleteRepoError(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	user := &model.User{ID: userID, PasswordHash: hashFor(t, "pw")}
+	user := &model.User{ID: userID, Username: "alice", DisplayName: "Alice", PasswordHash: hashFor(t, "pw")}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionDeleteAccount,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "username=alice display_name=Alice",
+	}).Return(nil)
 	userRepo.EXPECT().DeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
 
 	// when

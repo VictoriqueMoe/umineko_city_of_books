@@ -3749,6 +3749,7 @@ func TestDeleteMessage_Author_OK(t *testing.T) {
 	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
 	m.uploadSvc.EXPECT().Delete().Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
 
 	// when
 	err := svc.DeleteMessage(context.Background(), messageID, authorID)
@@ -3772,6 +3773,7 @@ func TestDeleteMessage_UnlinksMediaAfterTheRowIsGone(t *testing.T) {
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/chat/a.webp", "/uploads/chat/a_thumb.webp"}).
 		Run(func(urlPaths ...string) { order = append(order, "delete-files") }).Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
 
 	// when
 	err := svc.DeleteMessage(context.Background(), messageID, authorID)
@@ -3793,6 +3795,7 @@ func TestDeleteMessage_Host_OK(t *testing.T) {
 	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
 	m.uploadSvc.EXPECT().Delete().Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
 
 	// when
 	err := svc.DeleteMessage(context.Background(), messageID, hostID)
@@ -3814,6 +3817,7 @@ func TestDeleteMessage_SiteMod_OK(t *testing.T) {
 	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
 	m.uploadSvc.EXPECT().Delete().Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
 
 	// when
 	err := svc.DeleteMessage(context.Background(), messageID, modID)
@@ -3852,6 +3856,179 @@ func TestDeleteMessage_NotFound(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrRoomNotFound)
+}
+
+func TestDeleteMessage_PublicRoomAuthor_IsAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	authorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID}, nil)
+	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == authorID && entry.Action == repository.AuditActionChatMessageDelete && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == roomID.String() && entry.SubjectID == authorID && entry.Details == "message="+messageID.String()
+	})).Return(nil)
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, authorID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteMessage_PublicRoomHost_IsAuditedAsMod(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	hostID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, hostID).Return("host", nil)
+	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == hostID && entry.Action == repository.AuditActionChatMessageDeleteMod && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == roomID.String() && entry.SubjectID == senderID && entry.Details == "message="+messageID.String()+" by=host"
+	})).Return(nil)
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, hostID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteMessage_PublicRoomSiteMod_IsAuditedAsStaff(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	senderID := uuid.New()
+	modID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: senderID}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, modID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, modID).Return(authz.RoleModerator, nil)
+	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == modID && entry.Action == repository.AuditActionChatMessageDeleteMod && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == roomID.String() && entry.SubjectID == senderID && entry.Details == "message="+messageID.String()+" by=staff"
+	})).Return(nil)
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, modID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteMessage_DM_IsNotAudited(t *testing.T) {
+	// given a DM, where an audit row would leak that the conversation exists
+	svc, m := newTestService(t)
+	messageID := uuid.New()
+	roomID := uuid.New()
+	authorID := uuid.New()
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{ID: messageID, RoomID: roomID, SenderID: authorID}, nil)
+	m.chatRepo.EXPECT().DeleteMessageWithMedia(mock.Anything, messageID).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil).Maybe()
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeDM}, nil)
+
+	// when
+	err := svc.DeleteMessage(context.Background(), messageID, authorID)
+
+	// then the strict audit mock records no expectation, so any row would fail the test
+	require.NoError(t, err)
+}
+
+func TestDeleteChat_PublicGroupHost_IsAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+	memberID := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima", IsMember: true, Type: dto.RoomTypeGroup, IsPublic: true, ViewerRole: "host"}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, userID).Return("host", nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID, memberID}, nil)
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
+	m.chatRepo.EXPECT().DeleteRoomWithMessages(mock.Anything, roomID).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == userID && entry.Action == repository.AuditActionChatRoomDelete && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == roomID.String() && entry.Details == "name=Rokkenjima members=2"
+	})).Return(nil)
+
+	// when
+	err := svc.DeleteChat(context.Background(), roomID, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestKickMember_PublicRoom_IsAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	hostID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, hostID).Return(&repository.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, hostID).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{hostID, targetID}, nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
+	expectEvictionSideEffects(m, roomID)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, hostID, mock.Anything).Return(nil, errors.New("boom"))
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == hostID && entry.Action == repository.AuditActionChatRoomKick && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == roomID.String() && entry.SubjectID == targetID
+	})).Return(nil)
+
+	// when
+	err := svc.KickMember(context.Background(), hostID, roomID, targetID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestSetMemberTimeout_PublicRoom_IsAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actorID := uuid.New()
+	roomID := uuid.New()
+	targetID := uuid.New()
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, actorID).Return(&repository.ChatRoomRow{ID: roomID, Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, targetID).Return("member", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, actorID).Return("", nil)
+	m.authzSvc.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, roomID, targetID).Return(false, "", false, nil)
+	m.chatRepo.EXPECT().SetMemberTimeout(mock.Anything, roomID, targetID, mock.Anything, false).Return(nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, actorID).Return(sampleUser(actorID), nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(sampleUser(targetID), nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, actorID, mock.Anything).Return(nil, errors.New("boom"))
+	m.chatRepo.EXPECT().GetRoomMembersDetailed(mock.Anything, roomID).Return([]repository.ChatRoomMemberRow{{
+		UserID:      targetID,
+		Username:    "target",
+		DisplayName: "Target",
+		Role:        "member",
+	}}, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, []uuid.UUID{targetID}).Return(nil, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == actorID && entry.Action == repository.AuditActionChatRoomTimeout && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == roomID.String() && entry.SubjectID == targetID && strings.HasPrefix(entry.Details, "until=") && strings.HasSuffix(entry.Details, " duration=1 hour")
+	})).Return(nil)
+
+	// when
+	got, err := svc.SetMemberTimeout(context.Background(), roomID, actorID, targetID, dto.SetMemberTimeoutRequest{Amount: 1, Unit: "hours"})
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, got)
 }
 
 func TestEditMessage_Author_OK(t *testing.T) {

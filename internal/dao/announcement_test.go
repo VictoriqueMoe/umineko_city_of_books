@@ -338,6 +338,47 @@ func TestAnnouncementDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
 	assert.Equal(t, "admin-edit", comments[0].Body)
 }
 
+func TestAnnouncementDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
+
+	// when
+	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetAnnouncementComment, entries[0].TargetType)
+	assert.Equal(t, commentID.String(), entries[0].TargetID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, author.ID, *entries[0].SubjectID)
+	assert.Empty(t, entries[0].Details)
+}
+
+func TestAnnouncementDAO_UpdateCommentBody_OwnEditWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
+
+	// when
+	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: author.ID, Body: "mine", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestAnnouncementDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -355,11 +396,11 @@ func TestAnnouncementDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, _, err := repos.AuditLog.List(context.Background(), "announcement_comment_delete_admin", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentDeleteAdmin, 10, 0)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, "announcement_comment", entries[0].TargetType)
+	assert.Equal(t, repository.AuditTargetAnnouncementComment, entries[0].TargetType)
 	assert.Equal(t, commentID.String(), entries[0].TargetID)
 }
 
@@ -380,7 +421,7 @@ func TestAnnouncementDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing
 	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	entries, _, err := repos.AuditLog.List(context.Background(), "announcement_comment_delete", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }

@@ -126,6 +126,7 @@ type (
 		ID      uuid.UUID
 		UserID  uuid.UUID
 		AsAdmin bool
+		Audit   NewAuditEntry
 	}
 
 	PostCommentUpdate struct {
@@ -267,10 +268,19 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, spec PostD
 		paths = append(mediaPaths, commentPaths...)
 
 		if spec.AsAdmin {
-			return r.dao.DeleteAsAdmin(ctx, spec.ID, tx)
+			err = r.dao.DeleteAsAdmin(ctx, spec.ID, tx)
+		} else {
+			err = r.dao.Delete(ctx, spec.ID, spec.UserID, tx)
+		}
+		if err != nil {
+			return err
 		}
 
-		return r.dao.Delete(ctx, spec.ID, spec.UserID, tx)
+		if err := r.audit.Create(ctx, spec.Audit, tx); err != nil {
+			return fmt.Errorf("audit post delete: %w", err)
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, nil, err

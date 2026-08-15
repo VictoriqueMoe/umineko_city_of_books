@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
 	usersvc "umineko_city_of_books/internal/user"
@@ -26,7 +27,7 @@ import (
 type (
 	roleMutation func(ctx context.Context, actorID, targetID uuid.UUID, r role.Role) error
 	scoreReader  func(ctx context.Context, userID uuid.UUID) (int, error)
-	scoreUpdater func(ctx context.Context, userID uuid.UUID, adjustment int) error
+	scoreUpdater func(ctx context.Context, actorID, userID uuid.UUID, adjustment int) error
 )
 
 func (s *Service) getAllAdminRoutes() []FSetupRoute {
@@ -522,7 +523,7 @@ func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
-	action := ctx.Query("action")
+	action := repository.AuditAction(ctx.Query("action"))
 	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
 
 	result, err := s.AdminService.GetAuditLog(ctx.Context(), action, page)
@@ -561,7 +562,7 @@ func (s *Service) handleScoreUpdate(ctx fiber.Ctx, getRaw scoreReader, setAdjust
 		return utils.BadRequest(ctx, "invalid request")
 	}
 	rawScore, _ := getRaw(ctx.Context(), targetID)
-	if err := setAdjustment(ctx.Context(), targetID, req.DesiredScore-rawScore); err != nil {
+	if err := setAdjustment(ctx.Context(), utils.UserID(ctx), targetID, req.DesiredScore-rawScore); err != nil {
 		return utils.InternalError(ctx, "failed to update")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)

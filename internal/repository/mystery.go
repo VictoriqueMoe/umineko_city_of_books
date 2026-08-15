@@ -386,6 +386,11 @@ func (r *mysteryRepository) DeleteWithFiles(ctx context.Context, spec MysteryDel
 	var paths []string
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		row, err := r.dao.GetByID(ctx, spec.ID, tx)
+		if err != nil {
+			return err
+		}
+
 		collected, err := r.collectFilePaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -394,10 +399,36 @@ func (r *mysteryRepository) DeleteWithFiles(ctx context.Context, spec MysteryDel
 		paths = dedupePaths(collected)
 
 		if spec.AsAdmin {
-			return r.dao.DeleteAsAdmin(ctx, spec.ID, tx)
+			if err := r.dao.DeleteAsAdmin(ctx, spec.ID, tx); err != nil {
+				return err
+			}
+		} else {
+			if err := r.dao.Delete(ctx, spec.ID, spec.UserID, tx); err != nil {
+				return err
+			}
 		}
 
-		return r.dao.Delete(ctx, spec.ID, spec.UserID, tx)
+		if row == nil {
+			return nil
+		}
+
+		action := AuditActionMysteryDelete
+		if row.UserID != spec.UserID {
+			action = AuditActionMysteryDeleteAdmin
+		}
+
+		if err := r.audit.Create(ctx, NewAuditEntry{
+			ActorID:    spec.UserID,
+			Action:     action,
+			TargetType: AuditTargetMystery,
+			TargetID:   spec.ID.String(),
+			Details:    fmt.Sprintf("title=%q attempts=%d", row.Title, row.AttemptCount),
+			SubjectID:  row.UserID,
+		}, tx); err != nil {
+			return fmt.Errorf("audit mystery delete: %w", err)
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -656,6 +687,11 @@ func (r *mysteryRepository) DeleteCommentWithAudit(ctx context.Context, spec Mys
 	var paths []string
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.ID, tx)
+		if err != nil {
+			return err
+		}
+
 		collected, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -663,25 +699,27 @@ func (r *mysteryRepository) DeleteCommentWithAudit(ctx context.Context, spec Mys
 
 		paths = dedupePaths(collected)
 
-		action := "mystery_comment_delete"
-
 		if spec.AsAdmin {
 			if err := r.dao.DeleteCommentAsAdmin(ctx, spec.ID, tx); err != nil {
 				return err
 			}
-
-			action = "mystery_comment_delete_admin"
 		} else {
 			if err := r.dao.DeleteComment(ctx, spec.ID, spec.UserID, tx); err != nil {
 				return err
 			}
 		}
 
+		action := AuditActionMysteryCommentDelete
+		if authorID != spec.UserID {
+			action = AuditActionMysteryCommentDeleteAdmin
+		}
+
 		if err := r.audit.Create(ctx, NewAuditEntry{
 			ActorID:    spec.UserID,
 			Action:     action,
-			TargetType: "mystery_comment",
+			TargetType: AuditTargetMysteryComment,
 			TargetID:   spec.ID.String(),
+			SubjectID:  authorID,
 		}, tx); err != nil {
 			return fmt.Errorf("audit comment delete: %w", err)
 		}

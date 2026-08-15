@@ -8,6 +8,7 @@ import (
 	"context"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -648,7 +649,7 @@ func (_c *MockService_ForceLogout_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // GetAuditLog provides a mock function for the type MockService
-func (_mock *MockService) GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error) {
+func (_mock *MockService) GetAuditLog(ctx context.Context, action repository.AuditAction, page bounds.Page) (*dto.AuditLogListResponse, error) {
 	ret := _mock.Called(ctx, action, page)
 
 	if len(ret) == 0 {
@@ -657,17 +658,17 @@ func (_mock *MockService) GetAuditLog(ctx context.Context, action string, page b
 
 	var r0 *dto.AuditLogListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) (*dto.AuditLogListResponse, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.AuditAction, bounds.Page) (*dto.AuditLogListResponse, error)); ok {
 		return returnFunc(ctx, action, page)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bounds.Page) *dto.AuditLogListResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, repository.AuditAction, bounds.Page) *dto.AuditLogListResponse); ok {
 		r0 = returnFunc(ctx, action, page)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.AuditLogListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bounds.Page) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, repository.AuditAction, bounds.Page) error); ok {
 		r1 = returnFunc(ctx, action, page)
 	} else {
 		r1 = ret.Error(1)
@@ -682,21 +683,21 @@ type MockService_GetAuditLog_Call struct {
 
 // GetAuditLog is a helper method to define mock.On call
 //   - ctx context.Context
-//   - action string
+//   - action repository.AuditAction
 //   - page bounds.Page
 func (_e *MockService_Expecter) GetAuditLog(ctx any, action any, page any) *MockService_GetAuditLog_Call {
 	return &MockService_GetAuditLog_Call{Call: _e.mock.On("GetAuditLog", ctx, action, page)}
 }
 
-func (_c *MockService_GetAuditLog_Call) Run(run func(ctx context.Context, action string, page bounds.Page)) *MockService_GetAuditLog_Call {
+func (_c *MockService_GetAuditLog_Call) Run(run func(ctx context.Context, action repository.AuditAction, page bounds.Page)) *MockService_GetAuditLog_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 repository.AuditAction
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(repository.AuditAction)
 		}
 		var arg2 bounds.Page
 		if args[2] != nil {
@@ -716,7 +717,7 @@ func (_c *MockService_GetAuditLog_Call) Return(auditLogListResponse *dto.AuditLo
 	return _c
 }
 
-func (_c *MockService_GetAuditLog_Call) RunAndReturn(run func(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error)) *MockService_GetAuditLog_Call {
+func (_c *MockService_GetAuditLog_Call) RunAndReturn(run func(ctx context.Context, action repository.AuditAction, page bounds.Page) (*dto.AuditLogListResponse, error)) *MockService_GetAuditLog_Call {
 	_c.Call.Return(run)
 	return _c
 }

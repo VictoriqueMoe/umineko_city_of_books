@@ -394,6 +394,17 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 		for _, mid := range members {
 			r.hub.SendToUser(mid, event)
 		}
+
+		if isAuditableRoom(row) {
+			r.writeAudit(ctx, repository.NewAuditEntry{
+				ActorID:    userID,
+				Action:     repository.AuditActionChatRoomDelete,
+				TargetType: repository.AuditTargetChatRoom,
+				TargetID:   roomID.String(),
+				Details:    fmt.Sprintf("name=%s members=%d", row.Name, len(members)),
+			})
+		}
+
 		return nil
 	}
 

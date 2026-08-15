@@ -17,29 +17,35 @@ type (
 )
 
 func (r *auditLogDAO) Create(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES ($1, $2, $3, $4, $5)`,
-		spec.ActorID, spec.Action, spec.TargetType, spec.TargetID, spec.Details,
-	)
-	if err != nil {
+	if err := r.insert(ctx, spec.ActorID, spec, tx); err != nil {
 		return fmt.Errorf("create audit log: %w", err)
 	}
 	return nil
 }
 
-func (r *auditLogDAO) CreateSystem(ctx context.Context, action, targetType, targetID, details string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES (NULL, $1, $2, $3, $4)`,
-		action, targetType, targetID, details,
-	)
-	if err != nil {
+func (r *auditLogDAO) CreateSystem(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) error {
+	if err := r.insert(ctx, nil, spec, tx); err != nil {
 		return fmt.Errorf("create system audit log: %w", err)
 	}
 	return nil
 }
 
+func (r *auditLogDAO) insert(ctx context.Context, actorID any, spec repository.NewAuditEntry, tx []*sql.Tx) error {
+	var subjectID any
+	if spec.SubjectID != uuid.Nil {
+		subjectID = spec.SubjectID
+	}
+
+	_, err := getDb(r.db, tx).ExecContext(ctx,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
+		actorID, spec.Action, spec.TargetType, spec.TargetID, spec.Details, subjectID,
+	)
+
+	return err
+}
+
 func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
-	const scope = `((a.target_type = 'user' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
+	const scope = `((a.target_type = '` + string(repository.AuditTargetUser) + `' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
 
 	id := userID.String()
 
@@ -73,28 +79,6 @@ func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, 
 	return entries, total, rows.Err()
 }
 
-func (r *auditLogDAO) CreateForSubject(ctx context.Context, spec repository.NewAuditSubjectEntry, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
-		spec.ActorID, spec.Action, spec.TargetType, spec.TargetID, spec.Details, spec.SubjectID,
-	)
-	if err != nil {
-		return fmt.Errorf("create audit log for subject: %w", err)
-	}
-	return nil
-}
-
-func (r *auditLogDAO) CreateSystemForSubject(ctx context.Context, spec repository.NewAuditSubjectEntry, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES (NULL, $1, $2, $3, $4, $5)`,
-		spec.Action, spec.TargetType, spec.TargetID, spec.Details, spec.SubjectID,
-	)
-	if err != nil {
-		return fmt.Errorf("create system audit log for subject: %w", err)
-	}
-	return nil
-}
-
 func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
 	var entries []repository.AuditLogEntry
 	for rows.Next() {
@@ -111,7 +95,7 @@ func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
 	return entries, nil
 }
 
-func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
+func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
 	where := ""
 	var args []any
 	if action != "" {

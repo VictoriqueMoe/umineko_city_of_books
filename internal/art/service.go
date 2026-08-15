@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -61,6 +62,7 @@ type (
 		artRepo       repository.ArtRepository
 		postRepo      repository.PostRepository
 		userRepo      repository.UserRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
@@ -76,6 +78,7 @@ func NewService(
 	artRepo repository.ArtRepository,
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -88,6 +91,7 @@ func NewService(
 		artRepo:       artRepo,
 		postRepo:      postRepo,
 		userRepo:      userRepo,
+		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
@@ -104,6 +108,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.CreateArtRequest, contentType string, fileSize int64, reader io.Reader) (uuid.UUID, error) {
@@ -287,9 +297,30 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 }
 
 func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.artRepo.GetArtAuthorID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	action := repository.AuditActionArtDelete
+	if authorID != userID {
+		action = repository.AuditActionArtDeleteAdmin
+	}
+
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
 
-	paths, err := s.artRepo.DeleteWithImage(ctx, repository.ArtDelete{ID: id, UserID: userID, AsAdmin: asAdmin})
+	paths, err := s.artRepo.DeleteWithImage(ctx, repository.ArtDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		},
+	})
 	if err != nil {
 		return err
 	}
@@ -493,6 +524,11 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
+	authorID, err := s.artRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
 	spec := repository.ArtCommentUpdate{
@@ -506,6 +542,16 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
+	if authorID != userID {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionArtCommentUpdateAdmin,
+			TargetType: repository.AuditTargetArtComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		})
+	}
+
 	if asAdmin {
 		go s.notifyArtCommentEdited(ctx, id, userID)
 	}
@@ -516,22 +562,26 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+	authorID, err := s.artRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return err
+	}
 
-	action := "art_comment_delete"
-	if isAdmin {
-		action = "art_comment_delete_admin"
+	action := repository.AuditActionArtCommentDelete
+	if authorID != userID {
+		action = repository.AuditActionArtCommentDeleteAdmin
 	}
 
 	paths, err := s.artRepo.DeleteCommentWithAudit(ctx, repository.ArtCommentDelete{
 		ID:      id,
 		UserID:  userID,
-		AsAdmin: isAdmin,
+		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
 		Audit: repository.NewAuditEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: "art_comment",
+			TargetType: repository.AuditTargetArtComment,
 			TargetID:   id.String(),
+			SubjectID:  authorID,
 		},
 	})
 	if err != nil {
@@ -644,12 +694,29 @@ func (s *service) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, user
 }
 
 func (s *service) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	gallery, err := s.artRepo.GetGalleryByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if gallery == nil {
+		return ErrNotFound
+	}
+
 	paths, err := s.artRepo.DeleteGallery(ctx, id, userID)
 	if err != nil {
 		return err
 	}
 
 	s.uploadSvc.Delete(paths...)
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionGalleryDelete,
+		TargetType: repository.AuditTargetGallery,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("name=%q art=%d files=%d", gallery.Name, gallery.ArtCount, len(paths)),
+		SubjectID:  gallery.UserID,
+	})
 
 	return nil
 }

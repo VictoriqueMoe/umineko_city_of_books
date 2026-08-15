@@ -108,12 +108,6 @@ type (
 	}
 )
 
-const (
-	shipCommentTarget      = "ship_comment"
-	shipCommentDeleteLog   = "ship_comment_delete"
-	shipCommentDeleteAdmin = "ship_comment_delete_admin"
-)
-
 type shipRepository struct {
 	db    *sql.DB
 	dao   ShipDAO
@@ -204,30 +198,65 @@ func (r *shipRepository) DeleteShip(ctx context.Context, spec ShipDeletion, tx .
 }
 
 func (r *shipRepository) UpdateCommentBody(ctx context.Context, spec ShipCommentUpdate, tx ...*sql.Tx) error {
-	if spec.AsAdmin {
-		return r.dao.UpdateCommentAsAdmin(ctx, spec.CommentID, spec.Body, tx...)
-	}
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		if err != nil {
+			return err
+		}
 
-	return r.dao.UpdateComment(ctx, spec.CommentID, spec.UserID, spec.Body, tx...)
+		if spec.AsAdmin {
+			if err := r.dao.UpdateCommentAsAdmin(ctx, spec.CommentID, spec.Body, tx); err != nil {
+				return err
+			}
+		} else {
+			if err := r.dao.UpdateComment(ctx, spec.CommentID, spec.UserID, spec.Body, tx); err != nil {
+				return err
+			}
+		}
+
+		if authorID == spec.UserID {
+			return nil
+		}
+
+		entry := NewAuditEntry{
+			ActorID:    spec.UserID,
+			Action:     AuditActionShipCommentUpdateAdmin,
+			TargetType: AuditTargetShipComment,
+			TargetID:   spec.CommentID.String(),
+			SubjectID:  authorID,
+		}
+
+		if err := r.audit.Create(ctx, entry, tx); err != nil {
+			return fmt.Errorf("audit comment update: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (r *shipRepository) DeleteCommentWithAudit(ctx context.Context, spec ShipCommentDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		if err != nil {
+			return err
+		}
+
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.CommentID, tx)
 		if err != nil {
 			return err
 		}
 
-		action := shipCommentDeleteLog
+		action := AuditActionShipCommentDelete
+		if authorID != spec.UserID {
+			action = AuditActionShipCommentDeleteAdmin
+		}
 
 		if spec.AsAdmin {
 			if err := r.dao.DeleteCommentAsAdmin(ctx, spec.CommentID, tx); err != nil {
 				return err
 			}
-
-			action = shipCommentDeleteAdmin
 		} else {
 			if err := r.dao.DeleteComment(ctx, spec.CommentID, spec.UserID, tx); err != nil {
 				return err
@@ -237,8 +266,9 @@ func (r *shipRepository) DeleteCommentWithAudit(ctx context.Context, spec ShipCo
 		entry := NewAuditEntry{
 			ActorID:    spec.UserID,
 			Action:     action,
-			TargetType: shipCommentTarget,
+			TargetType: AuditTargetShipComment,
 			TargetID:   spec.CommentID.String(),
+			SubjectID:  authorID,
 		}
 
 		if err := r.audit.Create(ctx, entry, tx); err != nil {

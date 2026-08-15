@@ -84,12 +84,6 @@ type (
 	}
 )
 
-const (
-	announcementCommentTarget      = "announcement_comment"
-	announcementCommentDeleteLog   = "announcement_comment_delete"
-	announcementCommentDeleteAdmin = "announcement_comment_delete_admin"
-)
-
 type announcementRepository struct {
 	db    *sql.DB
 	dao   AnnouncementDAO
@@ -101,18 +95,50 @@ func NewAnnouncementRepo(database *sql.DB, dao AnnouncementDAO, audit AuditLogRe
 }
 
 func (r *announcementRepository) UpdateCommentBody(ctx context.Context, spec AnnouncementCommentUpdate, tx ...*sql.Tx) error {
-	if spec.AsAdmin {
-		return r.dao.UpdateCommentAsAdmin(ctx, spec.CommentID, spec.Body, tx...)
-	}
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		if err != nil {
+			return err
+		}
 
-	return r.dao.UpdateComment(ctx, spec.CommentID, spec.UserID, spec.Body, tx...)
+		if spec.AsAdmin {
+			if err := r.dao.UpdateCommentAsAdmin(ctx, spec.CommentID, spec.Body, tx); err != nil {
+				return err
+			}
+		} else {
+			if err := r.dao.UpdateComment(ctx, spec.CommentID, spec.UserID, spec.Body, tx); err != nil {
+				return err
+			}
+		}
+
+		if authorID == spec.UserID {
+			return nil
+		}
+
+		entry := NewAuditEntry{
+			ActorID:    spec.UserID,
+			Action:     AuditActionAnnouncementCommentUpdateAdmin,
+			TargetType: AuditTargetAnnouncementComment,
+			TargetID:   spec.CommentID.String(),
+			SubjectID:  authorID,
+		}
+
+		if err := r.audit.Create(ctx, entry, tx); err != nil {
+			return fmt.Errorf("audit comment update: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (r *announcementRepository) DeleteCommentWithAudit(ctx context.Context, spec AnnouncementCommentDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
-		action := announcementCommentDeleteLog
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		if err != nil {
+			return err
+		}
 
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.CommentID, tx)
 		if err != nil {
@@ -123,19 +149,23 @@ func (r *announcementRepository) DeleteCommentWithAudit(ctx context.Context, spe
 			if err := r.dao.DeleteCommentAsAdmin(ctx, spec.CommentID, tx); err != nil {
 				return err
 			}
-
-			action = announcementCommentDeleteAdmin
 		} else {
 			if err := r.dao.DeleteComment(ctx, spec.CommentID, spec.UserID, tx); err != nil {
 				return err
 			}
 		}
 
+		action := AuditActionAnnouncementCommentDelete
+		if authorID != spec.UserID {
+			action = AuditActionAnnouncementCommentDeleteAdmin
+		}
+
 		entry := NewAuditEntry{
 			ActorID:    spec.UserID,
 			Action:     action,
-			TargetType: announcementCommentTarget,
+			TargetType: AuditTargetAnnouncementComment,
 			TargetID:   spec.CommentID.String(),
+			SubjectID:  authorID,
 		}
 
 		if err := r.audit.Create(ctx, entry, tx); err != nil {

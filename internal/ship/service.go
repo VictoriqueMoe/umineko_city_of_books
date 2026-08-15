@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/quotefinder"
@@ -77,6 +78,7 @@ type (
 	service struct {
 		shipRepo      repository.ShipRepository
 		userRepo      repository.UserRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
@@ -92,6 +94,7 @@ type (
 func NewService(
 	shipRepo repository.ShipRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -104,6 +107,7 @@ func NewService(
 	return &service{
 		shipRepo:      shipRepo,
 		userRepo:      userRepo,
+		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
@@ -121,6 +125,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func validateCharacters(chars []dto.ShipCharacter) error {
@@ -214,20 +224,48 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		return err
 	}
 
+	authorID, err := s.shipRepo.GetAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
+
 	description := strings.TrimSpace(req.Description)
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
 
-	return s.shipRepo.UpdateWithCharacters(ctx, repository.ShipUpdate{
+	if err := s.shipRepo.UpdateWithCharacters(ctx, repository.ShipUpdate{
 		ID:          id,
 		UserID:      userID,
 		Title:       title,
 		Description: description,
 		AsAdmin:     asAdmin,
 		Characters:  req.Characters,
-	})
+	}); err != nil {
+		return err
+	}
+
+	if authorID != userID {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionShipUpdateAdmin,
+			TargetType: repository.AuditTargetShip,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("title=%s", title),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	doomed, err := s.shipRepo.GetByID(ctx, id, userID)
+	if err != nil {
+		return err
+	}
+	if doomed == nil {
+		return ErrNotFound
+	}
+
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
 
 	paths, err := s.shipRepo.DeleteShip(ctx, repository.ShipDeletion{
@@ -240,6 +278,20 @@ func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	s.uploadSvc.Delete(paths...)
+
+	action := repository.AuditActionShipDelete
+	if doomed.UserID != userID {
+		action = repository.AuditActionShipDeleteAdmin
+	}
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetShip,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("title=%s vote_score=%d comments=%d", doomed.Title, doomed.VoteScore, doomed.CommentCount),
+		SubjectID:  doomed.UserID,
+	})
 
 	return nil
 }

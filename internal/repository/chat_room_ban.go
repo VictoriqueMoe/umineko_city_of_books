@@ -56,10 +56,10 @@ func (r *chatRoomBanRepository) UnbanWithAudit(ctx context.Context, roomID, user
 			return err
 		}
 
-		return r.audit.CreateForSubject(ctx, NewAuditSubjectEntry{
+		return r.audit.Create(ctx, NewAuditEntry{
 			ActorID:    actorID,
-			Action:     "chat_room_unban",
-			TargetType: "chat_room",
+			Action:     AuditActionChatRoomUnban,
+			TargetType: AuditTargetChatRoom,
 			TargetID:   roomID.String(),
 			SubjectID:  userID,
 		}, tx)

@@ -40,6 +40,7 @@ type testMocks struct {
 	sessionRepo *repository.MockSessionRepository
 	resetRepo   *repository.MockPasswordResetRepository
 	verifyRepo  *repository.MockEmailVerificationRepository
+	auditRepo   *repository.MockAuditLogRepository
 	emailSvc    *email.MockService
 }
 
@@ -51,10 +52,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	sessionRepo := repository.NewMockSessionRepository(t)
 	resetRepo := repository.NewMockPasswordResetRepository(t)
 	verifyRepo := repository.NewMockEmailVerificationRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	emailSvc := email.NewMockService(t)
 	sessionMgr := session.NewManager(sessionRepo, settingsSvc)
 	filter := contentfilter.New(slursrule.New())
-	svc := NewService(userSvc, sessionMgr, settingsSvc, inviteRepo, userRepo, resetRepo, verifyRepo, emailSvc, filter).(*service)
+	svc := NewService(userSvc, sessionMgr, settingsSvc, inviteRepo, userRepo, resetRepo, verifyRepo, auditRepo, emailSvc, filter).(*service)
 	return svc, &testMocks{
 		userSvc:     userSvc,
 		settingsSvc: settingsSvc,
@@ -63,6 +65,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		sessionRepo: sessionRepo,
 		resetRepo:   resetRepo,
 		verifyRepo:  verifyRepo,
+		auditRepo:   auditRepo,
 		emailSvc:    emailSvc,
 	}
 }
@@ -615,6 +618,14 @@ func TestLogin_BannedUser(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().ValidateCredentials(mock.Anything, req.Username, req.Password).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
 	m.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(true, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionLoginBanned,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "username=alice",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	_, _, err := svc.Login(context.Background(), req)
@@ -805,6 +816,14 @@ func TestSetEmail_OK(t *testing.T) {
 	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
 	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangeEmail,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "new@example.com",
+		SubjectID:  userID,
+	}).Return(nil)
 	expectVerificationSent(m, userID, "new@example.com")
 
 	// when
@@ -822,6 +841,14 @@ func TestSetEmail_AlertsPreviousAddress(t *testing.T) {
 	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
 	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangeEmail,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    "old@example.com -> new@example.com",
+		SubjectID:  userID,
+	}).Return(nil)
 	m.emailSvc.EXPECT().Enabled(mock.Anything).Return(true)
 	m.emailSvc.EXPECT().Send(mock.Anything, "old@example.com", mock.Anything, mock.Anything).Return(nil)
 	expectVerificationSent(m, userID, "new@example.com")

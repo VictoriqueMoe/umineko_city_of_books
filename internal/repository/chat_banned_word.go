@@ -23,8 +23,8 @@ type (
 	ChatBannedWordRepository interface {
 		ChatBannedWordDAO
 
-		CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit ChatBannedWordAudit, tx ...*sql.Tx) (*ChatBannedWordRow, error)
-		DeleteWithAudit(ctx context.Context, id uuid.UUID, audit ChatBannedWordAudit, tx ...*sql.Tx) error
+		CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error)
+		DeleteWithAudit(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error
 	}
 
 	ChatBannedWordSpec struct {
@@ -42,14 +42,6 @@ type (
 		MatchMode     string
 		CaseSensitive bool
 		Action        string
-	}
-
-	ChatBannedWordAudit struct {
-		ActorID    uuid.UUID
-		Action     string
-		TargetType string
-		TargetID   string
-		Details    string
 	}
 
 	ChatBannedWordRow struct {
@@ -76,7 +68,7 @@ func NewChatBannedWordRepo(database *sql.DB, dao ChatBannedWordDAO, audit AuditL
 	return &chatBannedWordRepository{db: database, dao: dao, audit: audit}
 }
 
-func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit ChatBannedWordAudit, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
 	var created *ChatBannedWordRow
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
@@ -87,18 +79,11 @@ func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec Cha
 			return err
 		}
 
-		targetID := audit.TargetID
-		if targetID == "" {
-			targetID = created.ID.String()
+		if audit.TargetID == "" {
+			audit.TargetID = created.ID.String()
 		}
 
-		return r.audit.Create(ctx, NewAuditEntry{
-			ActorID:    audit.ActorID,
-			Action:     audit.Action,
-			TargetType: audit.TargetType,
-			TargetID:   targetID,
-			Details:    audit.Details,
-		}, tx)
+		return r.audit.Create(ctx, audit, tx)
 	})
 	if err != nil {
 		return nil, err
@@ -107,19 +92,13 @@ func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec Cha
 	return created, nil
 }
 
-func (r *chatBannedWordRepository) DeleteWithAudit(ctx context.Context, id uuid.UUID, audit ChatBannedWordAudit, tx ...*sql.Tx) error {
+func (r *chatBannedWordRepository) DeleteWithAudit(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error {
 	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.Delete(ctx, id, tx); err != nil {
 			return err
 		}
 
-		return r.audit.Create(ctx, NewAuditEntry{
-			ActorID:    audit.ActorID,
-			Action:     audit.Action,
-			TargetType: audit.TargetType,
-			TargetID:   audit.TargetID,
-			Details:    audit.Details,
-		}, tx)
+		return r.audit.Create(ctx, audit, tx)
 	})
 }
 

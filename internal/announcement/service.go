@@ -32,9 +32,9 @@ type (
 		GetDetail(ctx context.Context, id, viewerID uuid.UUID) (*dto.AnnouncementDetailResponse, error)
 		GetLatest(ctx context.Context) (*dto.AnnouncementResponse, error)
 		Create(ctx context.Context, userID uuid.UUID, title, body string) (uuid.UUID, error)
-		Update(ctx context.Context, id uuid.UUID, title, body string) error
-		Delete(ctx context.Context, id uuid.UUID) error
-		SetPinned(ctx context.Context, id uuid.UUID, pinned bool) error
+		Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, title, body string) error
+		Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error
+		SetPinned(ctx context.Context, actorID uuid.UUID, id uuid.UUID, pinned bool) error
 
 		CreateComment(ctx context.Context, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error)
 		UpdateComment(ctx context.Context, id, userID uuid.UUID, body string) error
@@ -47,6 +47,7 @@ type (
 	service struct {
 		repo         repository.AnnouncementRepository
 		userRepo     repository.UserRepository
+		auditRepo    repository.AuditLogRepository
 		blockSvc     block.Service
 		notifService notification.Service
 		settingsSvc  settings.Service
@@ -60,6 +61,7 @@ type (
 func NewService(
 	repo repository.AnnouncementRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	blockSvc block.Service,
 	notifService notification.Service,
 	settingsSvc settings.Service,
@@ -71,6 +73,7 @@ func NewService(
 	return &service{
 		repo:         repo,
 		userRepo:     userRepo,
+		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
@@ -187,6 +190,19 @@ func (s *service) GetLatest(ctx context.Context) (*dto.AnnouncementResponse, err
 	return new(rowToResponse(*row)), nil
 }
 
+func (s *service) audit(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, id, subjectID uuid.UUID, details string) {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: repository.AuditTargetAnnouncement,
+		TargetID:   id.String(),
+		Details:    details,
+		SubjectID:  subjectID,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
+	}
+}
+
 func (s *service) Create(ctx context.Context, userID uuid.UUID, title, body string) (uuid.UUID, error) {
 	if title == "" || body == "" {
 		return uuid.Nil, ErrEmptyTitleOrBody
@@ -205,17 +221,47 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, title, body stri
 		},
 	})
 
+	s.audit(ctx, userID, repository.AuditActionAnnouncementCreate, created.ID, userID, fmt.Sprintf("title=%s", title))
+
 	return created.ID, nil
 }
 
-func (s *service) Update(ctx context.Context, id uuid.UUID, title, body string) error {
+func (s *service) Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, title, body string) error {
 	if title == "" || body == "" {
 		return ErrEmptyTitleOrBody
 	}
-	return s.repo.Update(ctx, id, title, body)
+
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return ErrNotFound
+	}
+
+	if err := s.repo.Update(ctx, id, title, body); err != nil {
+		return err
+	}
+
+	details := fmt.Sprintf("title=%s", title)
+	if current.Title != title {
+		details = fmt.Sprintf("title=%s -> %s", current.Title, title)
+	}
+
+	s.audit(ctx, actorID, repository.AuditActionAnnouncementUpdate, id, current.AuthorID, details)
+
+	return nil
 }
 
-func (s *service) Delete(ctx context.Context, id uuid.UUID) error {
+func (s *service) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
+	doomed, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if doomed == nil {
+		return ErrNotFound
+	}
+
 	paths, err := s.repo.DeleteWithMedia(ctx, id)
 	if err != nil {
 		return err
@@ -223,11 +269,27 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID) error {
 
 	s.uploadSvc.Delete(paths...)
 
+	s.audit(ctx, actorID, repository.AuditActionAnnouncementDelete, id, doomed.AuthorID, fmt.Sprintf("title=%s", doomed.Title))
+
 	return nil
 }
 
-func (s *service) SetPinned(ctx context.Context, id uuid.UUID, pinned bool) error {
-	return s.repo.SetPinned(ctx, id, pinned)
+func (s *service) SetPinned(ctx context.Context, actorID uuid.UUID, id uuid.UUID, pinned bool) error {
+	current, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current == nil {
+		return ErrNotFound
+	}
+
+	if err := s.repo.SetPinned(ctx, id, pinned); err != nil {
+		return err
+	}
+
+	s.audit(ctx, actorID, repository.AuditActionAnnouncementPin, id, current.AuthorID, fmt.Sprintf("title=%s pinned=%t", current.Title, pinned))
+
+	return nil
 }
 
 func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) (uuid.UUID, error) {

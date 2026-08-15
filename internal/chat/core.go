@@ -28,6 +28,11 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	moderatorKindHost  = "host"
+	moderatorKindStaff = "staff"
+)
+
 var (
 	tagAllowedRegex  = regexp.MustCompile(`[^a-z0-9-]+`)
 	timeoutUnitYears = map[string]int{
@@ -287,19 +292,55 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 	return ErrLockedNonStaffDM
 }
 
-func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+func (c *core) moderatorKind(ctx context.Context, roomID, userID uuid.UUID) (string, error) {
 	memberRole, err := c.chatRepo.GetMemberRole(ctx, roomID, userID)
 	if err != nil {
-		return false, fmt.Errorf("get member role: %w", err)
+		return "", fmt.Errorf("get member role: %w", err)
 	}
 	if memberRole == "host" {
-		return true, nil
+		return moderatorKindHost, nil
 	}
+
 	siteRole, err := c.authzSvc.GetRole(ctx, userID)
 	if err != nil {
-		return false, fmt.Errorf("get site role: %w", err)
+		return "", fmt.Errorf("get site role: %w", err)
 	}
-	return siteRole.IsSiteStaff(), nil
+	if siteRole.IsSiteStaff() {
+		return moderatorKindStaff, nil
+	}
+
+	return "", nil
+}
+
+func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	kind, err := c.moderatorKind(ctx, roomID, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return kind != "", nil
+}
+
+func isAuditableRoom(row *repository.ChatRoomRow) bool {
+	if row == nil {
+		return false
+	}
+
+	return row.Type == dto.RoomTypeGroup && !row.IsSystem && row.IsPublic
+}
+
+func isAuditableSendContext(row *repository.ChatRoomSendContext) bool {
+	if row == nil {
+		return false
+	}
+
+	return row.Type == dto.RoomTypeGroup && !row.IsSystem && row.IsPublic
+}
+
+func (c *core) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := c.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func (c *core) toVanityRoleResponses(rows []repository.VanityRoleRow) []dto.VanityRoleResponse {

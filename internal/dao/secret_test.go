@@ -222,6 +222,45 @@ func TestSecretDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
 	assert.Equal(t, "moderated", comment.Body)
 }
 
+func TestSecretDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
+
+	// when
+	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetSecretComment, entries[0].TargetType)
+	assert.Equal(t, id.String(), entries[0].TargetID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, owner.ID, *entries[0].SubjectID)
+	assert.Empty(t, entries[0].Details)
+}
+
+func TestSecretDAO_UpdateCommentBody_OwnEditWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
+
+	// when
+	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: owner.ID, Body: "mine", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestSecretDAO_UpdateCommentBody_OnlyOwner(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -252,11 +291,11 @@ func TestSecretDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
 	require.NoError(t, err)
 	assert.Nil(t, comment)
-	entries, _, err := repos.AuditLog.List(context.Background(), "secret_comment_delete_admin", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentDeleteAdmin, 10, 0)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, "secret_comment", entries[0].TargetType)
+	assert.Equal(t, repository.AuditTargetSecretComment, entries[0].TargetType)
 	assert.Equal(t, id.String(), entries[0].TargetID)
 }
 
@@ -276,7 +315,7 @@ func TestSecretDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
 	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
 	require.NoError(t, err)
 	assert.NotNil(t, comment)
-	entries, _, err := repos.AuditLog.List(context.Background(), "secret_comment_delete", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }

@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	usersvc "umineko_city_of_books/internal/user"
 
@@ -1097,7 +1098,7 @@ func TestAdminGetAuditLog_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
 	expected := &dto.AuditLogListResponse{Total: 3, Limit: 50, Offset: 0}
-	ms.EXPECT().GetAuditLog(mock.Anything, "", bounds.NewPage(50, 0)).Return(expected, nil)
+	ms.EXPECT().GetAuditLog(mock.Anything, repository.AuditAction(""), bounds.NewPage(50, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/audit-log").WithCookie("valid-cookie").Do()
@@ -1114,7 +1115,7 @@ func TestAdminGetAuditLog_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
-	ms.EXPECT().GetAuditLog(mock.Anything, "ban_user", bounds.NewPage(10, 20)).Return(&dto.AuditLogListResponse{}, nil)
+	ms.EXPECT().GetAuditLog(mock.Anything, repository.AuditActionBanUser, bounds.NewPage(10, 20)).Return(&dto.AuditLogListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/audit-log?action=ban_user&limit=10&offset=20").
@@ -1130,7 +1131,7 @@ func TestAdminGetAuditLog_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
-	ms.EXPECT().GetAuditLog(mock.Anything, "", bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
+	ms.EXPECT().GetAuditLog(mock.Anything, repository.AuditAction(""), bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/audit-log").WithCookie("valid-cookie").Do()
@@ -1310,7 +1311,7 @@ func TestAdminUpdateMysteryScore_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
 	us.EXPECT().GetDetectiveRawScore(mock.Anything, targetID).Return(30, nil)
-	us.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, targetID, 70).Return(nil)
+	us.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, userID, targetID, 70).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/mystery-score").
@@ -1330,7 +1331,7 @@ func TestAdminUpdateMysteryScore_UpdateFails(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
 	us.EXPECT().GetDetectiveRawScore(mock.Anything, targetID).Return(0, nil)
-	us.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, targetID, 100).Return(errors.New("boom"))
+	us.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, userID, targetID, 100).Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/mystery-score").
@@ -1391,7 +1392,7 @@ func TestAdminUpdateGMScore_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
 	us.EXPECT().GetGMRawScore(mock.Anything, targetID).Return(10, nil)
-	us.EXPECT().UpdateGMScoreAdjustment(mock.Anything, targetID, 40).Return(nil)
+	us.EXPECT().UpdateGMScoreAdjustment(mock.Anything, userID, targetID, 40).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/gm-score").
@@ -1411,7 +1412,7 @@ func TestAdminUpdateGMScore_UpdateFails(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermEditMysteryScore, true)
 	us.EXPECT().GetGMRawScore(mock.Anything, targetID).Return(0, nil)
-	us.EXPECT().UpdateGMScoreAdjustment(mock.Anything, targetID, 50).Return(errors.New("boom"))
+	us.EXPECT().UpdateGMScoreAdjustment(mock.Anything, userID, targetID, 50).Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("PUT", "/admin/users/"+targetID.String()+"/gm-score").

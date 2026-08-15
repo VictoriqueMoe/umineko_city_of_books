@@ -882,7 +882,7 @@ func TestJournalDAO_DeleteComment_NotOwnedLeavesNoAuditRow(t *testing.T) {
 
 	// then
 	require.Error(t, err)
-	entries, total, listErr := repos.AuditLog.List(context.Background(), "journal_comment_delete", 10, 0)
+	entries, total, listErr := repos.AuditLog.List(context.Background(), repository.AuditActionJournalCommentDelete, 10, 0)
 	require.NoError(t, listErr)
 	assert.Equal(t, 0, total)
 	assert.Empty(t, entries)
@@ -904,12 +904,12 @@ func TestJournalDAO_DeleteComment_AsAdminWritesAuditRow(t *testing.T) {
 	_, total, err := repos.Journal.GetComments(context.Background(), journalID, author.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, auditTotal, auditErr := repos.AuditLog.List(context.Background(), "journal_comment_delete_admin", 10, 0)
+	entries, auditTotal, auditErr := repos.AuditLog.List(context.Background(), repository.AuditActionJournalCommentDeleteAdmin, 10, 0)
 	require.NoError(t, auditErr)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
 	assert.Equal(t, admin.ID, entries[0].ActorID)
-	assert.Equal(t, "journal_comment", entries[0].TargetType)
+	assert.Equal(t, repository.AuditTargetJournalComment, entries[0].TargetType)
 	assert.Equal(t, commentID.String(), entries[0].TargetID)
 }
 

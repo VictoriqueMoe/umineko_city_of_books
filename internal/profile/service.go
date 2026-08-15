@@ -46,6 +46,7 @@ type (
 		userRepo       repository.UserRepository
 		userSecretRepo repository.UserSecretRepository
 		theoryRepo     repository.TheoryRepository
+		auditRepo      repository.AuditLogRepository
 		authz          authz.Service
 		uploadSvc      upload.Service
 		settingsSvc    settings.Service
@@ -85,6 +86,7 @@ func NewService(
 	userRepo repository.UserRepository,
 	userSecretRepo repository.UserSecretRepository,
 	theoryRepo repository.TheoryRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
@@ -98,6 +100,7 @@ func NewService(
 		userRepo:       userRepo,
 		userSecretRepo: userSecretRepo,
 		theoryRepo:     theoryRepo,
+		auditRepo:      auditRepo,
 		authz:          authzService,
 		uploadSvc:      uploadSvc,
 		settingsSvc:    settingsSvc,
@@ -106,6 +109,12 @@ func NewService(
 		authService:    authService,
 		userSvc:        userSvc,
 		session:        sessionMgr,
+	}
+}
+
+func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
@@ -302,11 +311,23 @@ func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, currentT
 		return fmt.Errorf("set password: %w", err)
 	}
 
+	othersRevoked := false
 	if s.session != nil {
 		if err := s.session.DeleteAllForUserExcept(ctx, userID, currentToken); err != nil {
 			logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate other sessions after password change")
+		} else {
+			othersRevoked = true
 		}
 	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangePassword,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    fmt.Sprintf("other_sessions_revoked=%t", othersRevoked),
+		SubjectID:  userID,
+	})
 
 	return nil
 }
@@ -323,6 +344,14 @@ func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.D
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
 		return ErrIncorrectPassword
 	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionDeleteAccount,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    fmt.Sprintf("username=%s display_name=%s", user.Username, user.DisplayName),
+	})
 
 	if err := s.userRepo.DeleteAccount(ctx, userID); err != nil {
 		return err

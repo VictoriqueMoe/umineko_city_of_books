@@ -934,6 +934,73 @@ func TestShipDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
 	assert.Equal(t, "moderated", comments[0].Body)
 }
 
+func TestShipDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	shipID := createShip(t, repos, user.ID, "T", makeChars())
+	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "old")
+	require.NoError(t, err)
+
+	// when
+	err = repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: comment.ID, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetShipComment, entries[0].TargetType)
+	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, user.ID, *entries[0].SubjectID)
+	assert.Empty(t, entries[0].Details)
+}
+
+func TestShipDAO_UpdateCommentBody_ModeratorEditingOwnCommentWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	moderator := daotest.CreateUser(t, repos)
+	shipID := createShip(t, repos, moderator.ID, "T", makeChars())
+	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, moderator.ID, "old")
+	require.NoError(t, err)
+
+	// when
+	err = repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: comment.ID, UserID: moderator.ID, Body: "mine", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestShipDAO_DeleteCommentWithAudit_ModeratorDeletingOwnCommentRecordsOwnerAction(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	moderator := daotest.CreateUser(t, repos)
+	shipID := createShip(t, repos, moderator.ID, "T", makeChars())
+	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, moderator.ID, "x")
+	require.NoError(t, err)
+
+	// when
+	_, err = repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	adminEntries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentDeleteAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, adminEntries)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentDelete, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, moderator.ID, *entries[0].SubjectID)
+}
+
 func TestShipDAO_UpdateCommentBody_NotOwnedFails(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -967,11 +1034,11 @@ func TestShipDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	_, total, err := repos.Ship.GetComments(context.Background(), shipID, user.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, _, err := repos.AuditLog.List(context.Background(), "ship_comment_delete_admin", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentDeleteAdmin, 10, 0)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, "ship_comment", entries[0].TargetType)
+	assert.Equal(t, repository.AuditTargetShipComment, entries[0].TargetType)
 	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
 }
 
@@ -988,7 +1055,7 @@ func TestShipDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), "ship_comment_delete", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentDelete, 10, 0)
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, user.ID, entries[0].ActorID)
@@ -1011,7 +1078,7 @@ func TestShipDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
 	_, total, err := repos.Ship.GetComments(context.Background(), shipID, user.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	entries, _, err := repos.AuditLog.List(context.Background(), "ship_comment_delete", 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionShipCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }

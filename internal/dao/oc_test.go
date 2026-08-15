@@ -313,6 +313,74 @@ func TestOCDAO_DeleteCommentWithMedia_AsAdmin(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
+func TestOCDAO_DeleteCommentWithMedia_AsAdminWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
+	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "spam")
+	require.NoError(t, err)
+
+	// when
+	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionOCCommentDeleteAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetOCComment, entries[0].TargetType)
+	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, user.ID, *entries[0].SubjectID)
+	assert.Empty(t, entries[0].Details)
+}
+
+func TestOCDAO_DeleteCommentWithMedia_AsOwnerWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
+	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "mine")
+	require.NoError(t, err)
+
+	// when
+	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: user.ID})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionOCCommentDelete, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, user.ID, entries[0].ActorID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, user.ID, *entries[0].SubjectID)
+}
+
+func TestOCDAO_DeleteCommentWithMedia_NotOwnedWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
+	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "mine")
+	require.NoError(t, err)
+
+	// when
+	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: stranger.ID})
+
+	// then
+	require.Error(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionOCCommentDeleteAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+	_, total, err := repos.OC.GetComments(context.Background(), id, user.ID, 20, 0, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+}
+
 func TestOCDAO_List_FiltersBySeries(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

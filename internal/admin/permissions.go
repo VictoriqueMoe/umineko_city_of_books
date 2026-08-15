@@ -8,6 +8,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
@@ -98,7 +99,7 @@ func (s *service) UpdateRolePermissions(ctx context.Context, actorID uuid.UUID, 
 		return fmt.Errorf("set role permissions: %w", err)
 	}
 
-	s.auditDetails(ctx, actorID, "update_role_permissions", "role", string(target), strings.Join(clean, ","))
+	s.auditDetails(ctx, actorID, repository.AuditActionUpdateRolePermissions, repository.AuditTargetRole, string(target), strings.Join(clean, ","))
 	s.broadcastPermissionsChanged()
 
 	return nil
@@ -127,7 +128,7 @@ func (s *service) UpdateVanityRolePermissions(ctx context.Context, actorID uuid.
 		return fmt.Errorf("set vanity role permissions: %w", err)
 	}
 
-	s.auditDetails(ctx, actorID, "update_vanity_role_permissions", "vanity_role", vanityRoleID, strings.Join(clean, ","))
+	s.auditDetails(ctx, actorID, repository.AuditActionUpdateVanityRolePermissions, repository.AuditTargetVanityRole, vanityRoleID, strings.Join(clean, ","))
 	s.broadcastPermissionsChanged()
 
 	return nil

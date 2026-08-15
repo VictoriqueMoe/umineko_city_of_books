@@ -116,8 +116,8 @@ func (r *chatWatchPartyRepository) StartSession(ctx context.Context, spec NewWat
 
 		return r.audit.Create(ctx, NewAuditEntry{
 			ActorID:    host,
-			Action:     "watch_party.start",
-			TargetType: "chat_watch_party_session",
+			Action:     AuditActionWatchPartyStart,
+			TargetType: AuditTargetChatWatchPartySession,
 			TargetID:   created.ID.String(),
 			Details:    spec.AuditDetails,
 		}, tx)

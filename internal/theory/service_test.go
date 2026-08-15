@@ -32,6 +32,7 @@ type testMocks struct {
 	repo        *repository.MockTheoryRepository
 	userRepo    *repository.MockUserRepository
 	followRepo  *repository.MockFollowRepository
+	auditRepo   *repository.MockAuditLogRepository
 	fanout      chan uuid.UUID
 	authz       *authz.MockService
 	blockSvc    *block.MockService
@@ -43,13 +44,14 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	repo := repository.NewMockTheoryRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
 	followRepo := repository.NewMockFollowRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	credSvc := credibility.NewService(repo)
 	quoteClient := quotefinder.NewClient()
-	svc := NewService(repo, userRepo, followRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
 		fanout <- userID
@@ -61,6 +63,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		repo:        repo,
 		userRepo:    userRepo,
 		followRepo:  followRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -370,6 +373,7 @@ func TestUpdateTheory_NonAdmin_Delegates(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), false)).Return(nil)
 
@@ -385,6 +389,7 @@ func TestUpdateTheory_NonAdmin_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), false)).Return(errors.New("nope"))
 
@@ -400,6 +405,7 @@ func TestUpdateTheory_Admin_UpdateError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), true)).Return(errors.New("nope"))
 
@@ -418,6 +424,15 @@ func TestUpdateTheory_Admin_OK_TriggersNotification(t *testing.T) {
 	authorID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), true)).Return(nil)
+
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryUpdateAdmin,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("title=%q", validCreateTheoryReq().Title),
+		SubjectID:  authorID,
+	}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -442,13 +457,23 @@ func TestUpdateTheory_Admin_OK_AuthorLookupErrorSwallowed(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, validCreateTheoryReq(), true)).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryUpdateAdmin,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("title=%q", validCreateTheoryReq().Title),
+		SubjectID:  authorID,
+	}).Return(nil)
 
 	done := make(chan struct{})
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(authorID, nil).Once()
 	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).
 		Run(func(_ context.Context, _ uuid.UUID, _ ...*sql.Tx) { close(done) }).
-		Return(uuid.Nil, errors.New("missing"))
+		Return(uuid.Nil, errors.New("missing")).Once()
 
 	// when
 	err := svc.UpdateTheory(context.Background(), id, userID, validCreateTheoryReq())
@@ -467,8 +492,44 @@ func TestDeleteTheory_Admin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(authorID, nil)
+	m.repo.EXPECT().GetTheoryTitle(mock.Anything, id).Return("a wild theory", nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(true)
 	m.repo.EXPECT().DeleteAsAdmin(mock.Anything, id).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryDeleteAdmin,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   id.String(),
+		Details:    `title="a wild theory"`,
+		SubjectID:  authorID,
+	}).Return(nil)
+
+	// when
+	err := svc.DeleteTheory(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteTheory_ModeratorDeletingOwnTheory_UsesThePlainAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(userID, nil)
+	m.repo.EXPECT().GetTheoryTitle(mock.Anything, id).Return("mine", nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(true)
+	m.repo.EXPECT().DeleteAsAdmin(mock.Anything, id).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryDelete,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   id.String(),
+		Details:    `title="mine"`,
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteTheory(context.Background(), id, userID)
@@ -482,8 +543,18 @@ func TestDeleteTheory_NonAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(userID, nil)
+	m.repo.EXPECT().GetTheoryTitle(mock.Anything, id).Return("mine", nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(false)
 	m.repo.EXPECT().Delete(mock.Anything, id, userID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryDelete,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   id.String(),
+		Details:    `title="mine"`,
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteTheory(context.Background(), id, userID)
@@ -497,8 +568,25 @@ func TestDeleteTheory_NonAdmin_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(userID, nil)
+	m.repo.EXPECT().GetTheoryTitle(mock.Anything, id).Return("mine", nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(false)
 	m.repo.EXPECT().Delete(mock.Anything, id, userID).Return(errors.New("boom"))
+
+	// when
+	err := svc.DeleteTheory(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestDeleteTheory_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteTheory(context.Background(), id, userID)
@@ -677,9 +765,18 @@ func TestDeleteResponse_Admin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	theoryID := uuid.New()
-	m.repo.EXPECT().GetResponseInfo(mock.Anything, id).Return(uuid.New(), theoryID, nil)
+	responseAuthor := uuid.New()
+	m.repo.EXPECT().GetResponseInfo(mock.Anything, id).Return(responseAuthor, theoryID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyResponse).Return(true)
 	m.repo.EXPECT().DeleteResponseAsAdmin(mock.Anything, id).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryResponseDeleteAdmin,
+		TargetType: repository.AuditTargetTheoryResponse,
+		TargetID:   id.String(),
+		Details:    "theory=" + theoryID.String(),
+		SubjectID:  responseAuthor,
+	}).Return(nil)
 	m.repo.EXPECT().GetResponseEvidenceWeights(mock.Anything, theoryID).Return(0, 0, nil).Maybe()
 	m.repo.EXPECT().UpdateCredibilityScore(mock.Anything, theoryID, mock.Anything).Return(nil).Maybe()
 
@@ -690,13 +787,33 @@ func TestDeleteResponse_Admin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteResponse_ModeratorDeletingOwnResponse_WritesNoAuditRow(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	theoryID := uuid.New()
+	m.repo.EXPECT().GetResponseInfo(mock.Anything, id).Return(userID, theoryID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyResponse).Return(true)
+	m.repo.EXPECT().DeleteResponseAsAdmin(mock.Anything, id).Return(nil)
+	m.repo.EXPECT().GetResponseEvidenceWeights(mock.Anything, theoryID).Return(0, 0, nil).Maybe()
+	m.repo.EXPECT().UpdateCredibilityScore(mock.Anything, theoryID, mock.Anything).Return(nil).Maybe()
+
+	// when
+	err := svc.DeleteResponse(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
 func TestDeleteResponse_NonAdmin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
 	theoryID := uuid.New()
-	m.repo.EXPECT().GetResponseInfo(mock.Anything, id).Return(uuid.New(), theoryID, nil)
+	m.repo.EXPECT().GetResponseInfo(mock.Anything, id).Return(userID, theoryID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyResponse).Return(false)
 	m.repo.EXPECT().DeleteResponse(mock.Anything, id, userID).Return(nil)
 	m.repo.EXPECT().GetResponseEvidenceWeights(mock.Anything, theoryID).Return(0, 0, nil).Maybe()
@@ -707,6 +824,7 @@ func TestDeleteResponse_NonAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestDeleteResponse_NonAdmin_RepoError_NoRecalc(t *testing.T) {
@@ -1046,6 +1164,7 @@ func TestUpdateTheory_EditDoesNotReNotifyMentions(t *testing.T) {
 	userID := uuid.New()
 	req := validCreateTheoryReq()
 	req.Body = "rethinking this @alice"
+	m.repo.EXPECT().GetTheoryAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 	m.repo.EXPECT().Update(mock.Anything, expectedTheoryUpdate(id, userID, req, false)).Return(nil)
 
@@ -1065,25 +1184,28 @@ func TestRefuteTheory_Guards(t *testing.T) {
 	parentID := uuid.New()
 
 	tests := []struct {
-		name    string
-		actorID uuid.UUID
-		isAdmin bool
-		status  dto.TheoryStatus
-		meta    repository.ResponseMeta
-		wantErr error
+		name        string
+		actorID     uuid.UUID
+		isAdmin     bool
+		status      dto.TheoryStatus
+		meta        repository.ResponseMeta
+		wantAuditBy string
+		wantErr     error
 	}{
 		{
-			name:    "author refutes with an opposing top level response",
-			actorID: authorID,
-			status:  dto.TheoryStatusContested,
-			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+			name:        "author refutes with an opposing top level response",
+			actorID:     authorID,
+			status:      dto.TheoryStatusContested,
+			meta:        repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+			wantAuditBy: "author",
 		},
 		{
-			name:    "a moderator may also refute",
-			actorID: otherID,
-			isAdmin: true,
-			status:  dto.TheoryStatusContested,
-			meta:    repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+			name:        "a moderator may also refute",
+			actorID:     otherID,
+			isAdmin:     true,
+			status:      dto.TheoryStatusContested,
+			meta:        repository.ResponseMeta{AuthorID: otherID, TheoryID: theoryID, Side: "without_love"},
+			wantAuditBy: "staff",
 		},
 		{
 			name:    "a bystander may not refute",
@@ -1142,6 +1264,14 @@ func TestRefuteTheory_Guards(t *testing.T) {
 			m.repo.EXPECT().GetResponseMeta(mock.Anything, responseID).Return(tt.meta, nil).Maybe()
 			if tt.wantErr == nil {
 				m.repo.EXPECT().MarkRefuted(mock.Anything, theoryID, responseID).Return(nil)
+				m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+					ActorID:    tt.actorID,
+					Action:     repository.AuditActionTheoryRefuted,
+					TargetType: repository.AuditTargetTheory,
+					TargetID:   theoryID.String(),
+					Details:    fmt.Sprintf("response=%s by=%s", responseID, tt.wantAuditBy),
+					SubjectID:  tt.meta.AuthorID,
+				}).Return(nil)
 				m.repo.EXPECT().GetTheoryTitle(mock.Anything, theoryID).Return("t", nil).Maybe()
 				m.userRepo.EXPECT().GetByID(mock.Anything, tt.actorID).Return(&model.User{ID: tt.actorID, DisplayName: "A"}, nil).Maybe()
 				m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()

@@ -123,7 +123,8 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 }
 
 func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetID uuid.UUID) error {
-	if _, err := m.loadRoomForMod(ctx, roomID, hostID); err != nil {
+	row, err := m.loadRoomForMod(ctx, roomID, hostID)
+	if err != nil {
 		return err
 	}
 
@@ -154,11 +155,22 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 
 	m.parent.notifyModerationAction(roomID, targetID, hostID, "kicked", "")
 
+	if isAuditableRoom(row) {
+		m.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    hostID,
+			Action:     repository.AuditActionChatRoomKick,
+			TargetType: repository.AuditTargetChatRoom,
+			TargetID:   roomID.String(),
+			SubjectID:  targetID,
+		})
+	}
+
 	return nil
 }
 
 func (m *membersService) SetMemberTimeout(ctx context.Context, roomID, actorID, targetID uuid.UUID, req dto.SetMemberTimeoutRequest) (*dto.ChatRoomMemberResponse, error) {
-	if _, err := m.loadRoomForMod(ctx, roomID, actorID); err != nil {
+	row, err := m.loadRoomForMod(ctx, roomID, actorID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -203,6 +215,17 @@ func (m *membersService) SetMemberTimeout(ctx context.Context, roomID, actorID, 
 
 	if err := m.chatRepo.SetMemberTimeout(ctx, roomID, targetID, until.Format(time.DateTime), actorIsStaff); err != nil {
 		return nil, fmt.Errorf("set member timeout: %w", err)
+	}
+
+	if isAuditableRoom(row) {
+		m.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    actorID,
+			Action:     repository.AuditActionChatRoomTimeout,
+			TargetType: repository.AuditTargetChatRoom,
+			TargetID:   roomID.String(),
+			Details:    fmt.Sprintf("until=%s duration=%s", until.Format(time.DateTime), label),
+			SubjectID:  targetID,
+		})
 	}
 
 	actorName := m.actionDisplayName(ctx, actorID, "A moderator")

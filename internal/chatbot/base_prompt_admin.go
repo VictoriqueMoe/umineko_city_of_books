@@ -2,10 +2,12 @@ package chatbot
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -47,7 +49,7 @@ func (a *adminService) ListBasePrompts(ctx context.Context) ([]dto.ChatbotBasePr
 	return out, nil
 }
 
-func (a *adminService) CreateBasePrompt(ctx context.Context, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error) {
+func (a *adminService) CreateBasePrompt(ctx context.Context, actorID uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error) {
 	name, prompt, err := validateBasePrompt(req)
 	if err != nil {
 		return nil, err
@@ -58,12 +60,20 @@ func (a *adminService) CreateBasePrompt(ctx context.Context, req dto.ChatbotBase
 		return nil, err
 	}
 
+	a.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotBasePromptCreate,
+		TargetType: repository.AuditTargetChatbotBasePrompt,
+		TargetID:   created.ID.String(),
+		Details:    fmt.Sprintf("name=%s", created.Name),
+	})
+
 	response := toBasePromptResponse(*created)
 
 	return &response, nil
 }
 
-func (a *adminService) UpdateBasePrompt(ctx context.Context, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error) {
+func (a *adminService) UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error) {
 	name, prompt, err := validateBasePrompt(req)
 	if err != nil {
 		return nil, err
@@ -76,17 +86,43 @@ func (a *adminService) UpdateBasePrompt(ctx context.Context, id uuid.UUID, req d
 
 	a.reloader.Reload()
 
+	a.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotBasePromptUpdate,
+		TargetType: repository.AuditTargetChatbotBasePrompt,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("name=%s bots=%d", updated.Name, updated.BotCount),
+	})
+
 	response := toBasePromptResponse(*updated)
 
 	return &response, nil
 }
 
-func (a *adminService) DeleteBasePrompt(ctx context.Context, id uuid.UUID) error {
+func (a *adminService) DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
+	doomed, lookupErr := a.basePromptRepo.GetByID(ctx, id)
+	if lookupErr != nil && !errors.Is(lookupErr, repository.ErrBasePromptNotFound) {
+		logger.Log.Error().Err(lookupErr).Str("base_prompt_id", id.String()).Msg("failed to read the base prompt before deleting it")
+	}
+
 	if err := a.basePromptRepo.Delete(ctx, id); err != nil {
 		return err
 	}
 
 	a.reloader.Reload()
+
+	entry := repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotBasePromptDelete,
+		TargetType: repository.AuditTargetChatbotBasePrompt,
+		TargetID:   id.String(),
+	}
+
+	if doomed != nil {
+		entry.Details = fmt.Sprintf("name=%s bots=%d", doomed.Name, doomed.BotCount)
+	}
+
+	a.audit(ctx, entry)
 
 	return nil
 }

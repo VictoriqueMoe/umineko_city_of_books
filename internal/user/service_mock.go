@@ -648,16 +648,16 @@ func (_c *MockService_UpdateAppearance_Call) RunAndReturn(run func(ctx context.C
 }
 
 // UpdateGMScoreAdjustment provides a mock function for the type MockService
-func (_mock *MockService) UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
-	ret := _mock.Called(ctx, id, adjustment)
+func (_mock *MockService) UpdateGMScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error {
+	ret := _mock.Called(ctx, actorID, id, adjustment)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGMScoreAdjustment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, id, adjustment)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r0 = returnFunc(ctx, actorID, id, adjustment)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -671,13 +671,14 @@ type MockService_UpdateGMScoreAdjustment_Call struct {
 
 // UpdateGMScoreAdjustment is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
 //   - adjustment int
-func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx any, id any, adjustment any) *MockService_UpdateGMScoreAdjustment_Call {
-	return &MockService_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, id, adjustment)}
+func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx any, actorID any, id any, adjustment any) *MockService_UpdateGMScoreAdjustment_Call {
+	return &MockService_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, actorID, id, adjustment)}
 }
 
-func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, id uuid.UUID, adjustment int)) *MockService_UpdateGMScoreAdjustment_Call {
+func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int)) *MockService_UpdateGMScoreAdjustment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -687,14 +688,19 @@ func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -705,7 +711,7 @@ func (_c *MockService_UpdateGMScoreAdjustment_Call) Return(err error) *MockServi
 	return _c
 }
 
-func (_c *MockService_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, adjustment int) error) *MockService_UpdateGMScoreAdjustment_Call {
+func (_c *MockService_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error) *MockService_UpdateGMScoreAdjustment_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -837,16 +843,16 @@ func (_c *MockService_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // UpdateMysteryScoreAdjustment provides a mock function for the type MockService
-func (_mock *MockService) UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
-	ret := _mock.Called(ctx, id, adjustment)
+func (_mock *MockService) UpdateMysteryScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error {
+	ret := _mock.Called(ctx, actorID, id, adjustment)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateMysteryScoreAdjustment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, id, adjustment)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r0 = returnFunc(ctx, actorID, id, adjustment)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -860,13 +866,14 @@ type MockService_UpdateMysteryScoreAdjustment_Call struct {
 
 // UpdateMysteryScoreAdjustment is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
 //   - adjustment int
-func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx any, id any, adjustment any) *MockService_UpdateMysteryScoreAdjustment_Call {
-	return &MockService_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, id, adjustment)}
+func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx any, actorID any, id any, adjustment any) *MockService_UpdateMysteryScoreAdjustment_Call {
+	return &MockService_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, actorID, id, adjustment)}
 }
 
-func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, id uuid.UUID, adjustment int)) *MockService_UpdateMysteryScoreAdjustment_Call {
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int)) *MockService_UpdateMysteryScoreAdjustment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -876,14 +883,19 @@ func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -894,7 +906,7 @@ func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockService_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, adjustment int) error) *MockService_UpdateMysteryScoreAdjustment_Call {
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error) *MockService_UpdateMysteryScoreAdjustment_Call {
 	_c.Call.Return(run)
 	return _c
 }

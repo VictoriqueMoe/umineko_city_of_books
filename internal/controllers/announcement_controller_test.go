@@ -278,7 +278,7 @@ func TestUpdateAnnouncement_OK(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().Update(mock.Anything, annID, "t", "b").Return(nil)
+	deps.svc.EXPECT().Update(mock.Anything, userID, annID, "t", "b").Return(nil)
 
 	// when
 	status, _ := h.NewRequest("PUT", "/admin/announcements/"+annID.String()).
@@ -297,7 +297,7 @@ func TestUpdateAnnouncement_MissingFields(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().Update(mock.Anything, annID, "", "").Return(announcementsvc.ErrEmptyTitleOrBody)
+	deps.svc.EXPECT().Update(mock.Anything, userID, annID, "", "").Return(announcementsvc.ErrEmptyTitleOrBody)
 
 	// when
 	status, body := h.NewRequest("PUT", "/admin/announcements/"+annID.String()).
@@ -317,7 +317,7 @@ func TestUpdateAnnouncement_InternalError(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().Update(mock.Anything, annID, "t", "b").Return(errors.New("boom"))
+	deps.svc.EXPECT().Update(mock.Anything, userID, annID, "t", "b").Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("PUT", "/admin/announcements/"+annID.String()).
@@ -342,7 +342,7 @@ func TestDeleteAnnouncement_OK(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().Delete(mock.Anything, annID).Return(nil)
+	deps.svc.EXPECT().Delete(mock.Anything, userID, annID).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("DELETE", "/admin/announcements/"+annID.String()).
@@ -359,7 +359,7 @@ func TestDeleteAnnouncement_InternalError(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().Delete(mock.Anything, annID).Return(errors.New("boom"))
+	deps.svc.EXPECT().Delete(mock.Anything, userID, annID).Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("DELETE", "/admin/announcements/"+annID.String()).
@@ -382,7 +382,7 @@ func TestPinAnnouncement_OK(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().SetPinned(mock.Anything, annID, true).Return(nil)
+	deps.svc.EXPECT().SetPinned(mock.Anything, userID, annID, true).Return(nil)
 
 	// when
 	status, _ := h.NewRequest("POST", "/admin/announcements/"+annID.String()+"/pin").
@@ -401,7 +401,7 @@ func TestPinAnnouncement_InternalError(t *testing.T) {
 	annID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermManageSettings, true)
-	deps.svc.EXPECT().SetPinned(mock.Anything, annID, false).Return(errors.New("boom"))
+	deps.svc.EXPECT().SetPinned(mock.Anything, userID, annID, false).Return(errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("POST", "/admin/announcements/"+annID.String()+"/pin").

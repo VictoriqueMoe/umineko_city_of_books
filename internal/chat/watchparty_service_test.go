@@ -398,8 +398,8 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, controllerID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
-		return entry.ActorID == controllerID && entry.Action == "watch_party.grant_control" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == targetID
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == controllerID && entry.Action == repository.AuditActionWatchPartyGrantControl && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == targetID
 	})).Return(nil)
 
 	// when
@@ -434,8 +434,8 @@ func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
 	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{modID}, adminID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
-		return entry.ActorID == adminID && entry.Action == "watch_party.grant_control" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == adminID
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == adminID && entry.Action == repository.AuditActionWatchPartyGrantControl && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == adminID
 	})).Return(nil)
 
 	// when
@@ -519,8 +519,8 @@ func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
 	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{memberID}, ownerID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
-		return entry.ActorID == ownerID && entry.Action == "watch_party.grant_control" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == ownerID
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == ownerID && entry.Action == repository.AuditActionWatchPartyGrantControl && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == ownerID
 	})).Return(nil)
 
 	// when
@@ -588,8 +588,8 @@ func TestKickWatchPartyParticipant_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditSubjectEntry) bool {
-		return entry.ActorID == adminID && entry.Action == "watch_party.kick" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String() && entry.SubjectID == memberID
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
+		return entry.ActorID == adminID && entry.Action == repository.AuditActionWatchPartyKick && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == memberID
 	})).Return(nil)
 
 	// when
@@ -620,7 +620,7 @@ func TestLeaveWatchParty_OwnerLeavesEndsSession(t *testing.T) {
 	m.uploadSvc.EXPECT().Delete().Return()
 	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == ownerID && entry.Action == "watch_party.end" && entry.TargetType == "chat_watch_party_session" && entry.TargetID == sessionID.String()
+		return entry.ActorID == ownerID && entry.Action == repository.AuditActionWatchPartyEnd && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String()
 	})).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
 	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, ownerID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)

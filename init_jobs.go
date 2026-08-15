@@ -27,7 +27,7 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
 	settingsSvc.Subscribe(push.NewSettingListener(svc.push))
-	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, settingsSvc))
+	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, repos.AuditLog, settingsSvc))
 	settingsSvc.Subscribe(svc.cache)
 	settingsSvc.SubscribeBatch(email.NewMailSettingListener(svc.email))
 	settingsSvc.SubscribeBatch(svc.chatbot)

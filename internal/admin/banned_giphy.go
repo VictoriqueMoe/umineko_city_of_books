@@ -2,8 +2,10 @@ package admin
 
 import (
 	"context"
+	"fmt"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/giphy/banlist"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 )
@@ -38,6 +40,9 @@ func (s *service) AddBannedGif(ctx context.Context, actorID uuid.UUID, req dto.A
 	if err := s.giphyBanlist.Add(ctx, kind, value, req.Reason, &actor); err != nil {
 		return nil, err
 	}
+
+	s.auditDetails(ctx, actorID, repository.AuditActionBannedGifCreate, repository.AuditTargetBannedGif, value, fmt.Sprintf("kind=%s id=%s", kind, value))
+
 	return &dto.AddBannedGiphyResponse{
 		Entry: dto.BannedGiphyEntry{
 			Kind:      string(kind),
@@ -48,10 +53,17 @@ func (s *service) AddBannedGif(ctx context.Context, actorID uuid.UUID, req dto.A
 	}, nil
 }
 
-func (s *service) RemoveBannedGif(ctx context.Context, _ uuid.UUID, kind, value string) error {
+func (s *service) RemoveBannedGif(ctx context.Context, actorID uuid.UUID, kind, value string) error {
 	k := banlist.Kind(kind)
 	if k != banlist.KindGif && k != banlist.KindUser {
 		return banlist.ErrInvalidKind
 	}
-	return s.giphyBanlist.Remove(ctx, k, value)
+
+	if err := s.giphyBanlist.Remove(ctx, k, value); err != nil {
+		return err
+	}
+
+	s.auditDetails(ctx, actorID, repository.AuditActionBannedGifDelete, repository.AuditTargetBannedGif, value, fmt.Sprintf("kind=%s id=%s", k, value))
+
+	return nil
 }

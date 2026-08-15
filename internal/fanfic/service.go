@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -66,6 +67,7 @@ type (
 	service struct {
 		fanficRepo    repository.FanficRepository
 		userRepo      repository.UserRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifSvc      notification.Service
@@ -80,6 +82,7 @@ type (
 func NewService(
 	fanficRepo repository.FanficRepository,
 	userRepo repository.UserRepository,
+	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
 	blockSvc block.Service,
 	notifSvc notification.Service,
@@ -91,6 +94,7 @@ func NewService(
 	return &service{
 		fanficRepo:    fanficRepo,
 		userRepo:      userRepo,
+		auditRepo:     auditRepo,
 		authz:         authzSvc,
 		blockSvc:      blockSvc,
 		notifSvc:      notifSvc,
@@ -107,6 +111,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 var (
@@ -135,6 +145,52 @@ func sanitiseTags(raw []string) []string {
 func countWords(html string) int {
 	text := htmlTagRe.ReplaceAllString(html, " ")
 	return len(strings.Fields(text))
+}
+
+func fanficUpdateDetails(before *model.FanficRow, spec repository.FanficUpdate) string {
+	if before == nil {
+		return ""
+	}
+
+	var changed []string
+
+	if before.Title != spec.Title {
+		changed = append(changed, "title")
+	}
+
+	if before.Summary != spec.Summary {
+		changed = append(changed, "summary")
+	}
+
+	if before.Series != spec.Series {
+		changed = append(changed, "series")
+	}
+
+	if before.Rating != spec.Rating {
+		changed = append(changed, "rating")
+	}
+
+	if before.Language != spec.Language {
+		changed = append(changed, "language")
+	}
+
+	if before.Status != spec.Status {
+		changed = append(changed, "status")
+	}
+
+	if before.IsOneshot != spec.IsOneshot {
+		changed = append(changed, "is_oneshot")
+	}
+
+	if before.ContainsLemons != spec.ContainsLemons {
+		changed = append(changed, "contains_lemons")
+	}
+
+	if len(changed) == 0 {
+		return "changed=none"
+	}
+
+	return "changed=" + strings.Join(changed, ",")
 }
 
 func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.CreateFanficRequest) (uuid.UUID, error) {
@@ -291,8 +347,8 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		return ErrNotFound
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyTheory)
-	if authorID != userID && !asAdmin {
+	asAdmin := authorID != userID
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
 	if err := s.filterTexts(ctx, req.Title, req.Summary); err != nil {
@@ -353,20 +409,60 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		Characters:     req.Characters,
 	}
 
-	return s.fanficRepo.UpdateWithDetails(ctx, spec)
+	var before *model.FanficRow
+	if asAdmin {
+		before, _ = s.fanficRepo.GetByID(ctx, id, userID)
+	}
+
+	if err := s.fanficRepo.UpdateWithDetails(ctx, spec); err != nil {
+		return err
+	}
+
+	if asAdmin {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionFanficUpdateAdmin,
+			TargetType: repository.AuditTargetFanfic,
+			TargetID:   id.String(),
+			Details:    fanficUpdateDetails(before, spec),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error {
+	authorID, err := s.fanficRepo.GetAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+
 	spec := repository.FanficDelete{
 		ID:      id,
 		UserID:  userID,
-		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyPost),
+		AsAdmin: asAdmin,
 	}
 
 	paths, err := s.fanficRepo.DeleteFanfic(ctx, spec)
 	if err != nil {
 		return err
 	}
+
+	action := repository.AuditActionFanficDelete
+	if asAdmin {
+		action = repository.AuditActionFanficDeleteAdmin
+	}
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetFanfic,
+		TargetID:   id.String(),
+		SubjectID:  authorID,
+	})
 
 	s.uploadSvc.Delete(paths...)
 
@@ -532,7 +628,9 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 	if err != nil {
 		return ErrNotFound
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+
+	asAdmin := authorID != userID
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
 	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
@@ -551,7 +649,22 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 		WordCount: countWords(body),
 	}
 
-	return s.fanficRepo.UpdateChapterWithCount(ctx, spec)
+	if err := s.fanficRepo.UpdateChapterWithCount(ctx, spec); err != nil {
+		return err
+	}
+
+	if asAdmin {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionFanficChapterUpdateAdmin,
+			TargetType: repository.AuditTargetFanficChapter,
+			TargetID:   chapterID.String(),
+			Details:    fmt.Sprintf("title=%s,word_count=%d", spec.Title, spec.WordCount),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID) error {
@@ -559,11 +672,30 @@ func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID
 	if err != nil {
 		return ErrNotFound
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
+
+	asAdmin := authorID != userID
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
 		return ErrNotAuthor
 	}
 
-	return s.fanficRepo.DeleteChapterWithCount(ctx, chapterID)
+	if err := s.fanficRepo.DeleteChapterWithCount(ctx, chapterID); err != nil {
+		return err
+	}
+
+	action := repository.AuditActionFanficChapterDelete
+	if asAdmin {
+		action = repository.AuditActionFanficChapterDeleteAdmin
+	}
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetFanficChapter,
+		TargetID:   chapterID.String(),
+		SubjectID:  authorID,
+	})
+
+	return nil
 }
 
 func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) error {
@@ -689,33 +821,60 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 		return err
 	}
 
+	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
+
 	spec := repository.FanficCommentUpdate{
 		ID:      id,
 		UserID:  userID,
 		Body:    body,
-		AsAdmin: s.authz.Can(ctx, userID, authz.PermEditAnyComment),
+		AsAdmin: asAdmin,
 	}
 
-	return s.fanficRepo.UpdateCommentBody(ctx, spec)
+	if err := s.fanficRepo.UpdateCommentBody(ctx, spec); err != nil {
+		return err
+	}
+
+	if asAdmin {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionFanficCommentUpdateAdmin,
+			TargetType: repository.AuditTargetFanficComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
 
-	action := "fanfic_comment_delete"
-	if isAdmin {
-		action = "fanfic_comment_delete_admin"
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+
+	action := repository.AuditActionFanficCommentDelete
+	if asAdmin {
+		action = repository.AuditActionFanficCommentDeleteAdmin
 	}
 
 	spec := repository.FanficCommentDelete{
 		ID:      id,
 		UserID:  userID,
-		AsAdmin: isAdmin,
+		AsAdmin: asAdmin,
 		Audit: repository.NewAuditEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: "fanfic_comment",
+			TargetType: repository.AuditTargetFanficComment,
 			TargetID:   id.String(),
+			SubjectID:  authorID,
 		},
 	}
 

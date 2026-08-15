@@ -50,6 +50,7 @@ type (
 		userRepo      repository.UserRepository
 		resetRepo     repository.PasswordResetRepository
 		verifyRepo    repository.EmailVerificationRepository
+		auditRepo     repository.AuditLogRepository
 		emailSvc      email.Service
 		contentFilter *contentfilter.Manager
 	}
@@ -75,7 +76,7 @@ func isReservedUsername(username string) bool {
 	return false
 }
 
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, resetRepo repository.PasswordResetRepository, verifyRepo repository.EmailVerificationRepository, emailSvc email.Service, contentFilter *contentfilter.Manager) Service {
+func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, resetRepo repository.PasswordResetRepository, verifyRepo repository.EmailVerificationRepository, auditRepo repository.AuditLogRepository, emailSvc email.Service, contentFilter *contentfilter.Manager) Service {
 	return &service{
 		userService:   userService,
 		session:       sessionMgr,
@@ -84,9 +85,24 @@ func NewService(userService user.Service, sessionMgr *session.Manager, settingsS
 		userRepo:      userRepo,
 		resetRepo:     resetRepo,
 		verifyRepo:    verifyRepo,
+		auditRepo:     auditRepo,
 		emailSvc:      emailSvc,
 		contentFilter: contentFilter,
 	}
+}
+
+func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
+func changeDetails(previous, next string) string {
+	if previous == "" {
+		return next
+	}
+
+	return fmt.Sprintf("%s -> %s", previous, next)
 }
 
 func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.UserResponse, string, error) {
@@ -195,6 +211,15 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserRes
 
 	banned, _ := s.userRepo.IsBanned(ctx, userResp.ID)
 	if banned {
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    userResp.ID,
+			Action:     repository.AuditActionLoginBanned,
+			TargetType: repository.AuditTargetUser,
+			TargetID:   userResp.ID.String(),
+			Details:    "username=" + userResp.Username,
+			SubjectID:  userResp.ID,
+		})
+
 		return nil, "", ErrUserBanned
 	}
 
@@ -347,8 +372,22 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, 
 		return fmt.Errorf("set email: %w", err)
 	}
 
-	if previous != nil && previous.Email != "" {
-		s.notifyEmailChanged(ctx, previous.Email, email)
+	previousEmail := ""
+	if previous != nil {
+		previousEmail = previous.Email
+	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionChangeEmail,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   userID.String(),
+		Details:    changeDetails(previousEmail, email),
+		SubjectID:  userID,
+	})
+
+	if previousEmail != "" {
+		s.notifyEmailChanged(ctx, previousEmail, email)
 	}
 
 	s.sendVerification(ctx, userID, email)

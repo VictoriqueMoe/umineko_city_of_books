@@ -168,10 +168,11 @@ func (r *userRepository) RegisterAccount(ctx context.Context, spec NewRegistrati
 
 		entry := NewAuditEntry{
 			ActorID:    created.ID,
-			Action:     "user_created",
-			TargetType: "user",
+			Action:     AuditActionUserCreated,
+			TargetType: AuditTargetUser,
 			TargetID:   created.ID.String(),
 			Details:    "username=" + spec.Account.User.Username,
+			SubjectID:  created.ID,
 		}
 
 		if err := r.audit.Create(ctx, entry, tx); err != nil {
@@ -217,9 +218,10 @@ func (r *userRepository) ResetPassword(ctx context.Context, spec PasswordUpdate,
 
 		entry := NewAuditEntry{
 			ActorID:    spec.UserID,
-			Action:     "password_reset",
-			TargetType: "user",
+			Action:     AuditActionPasswordReset,
+			TargetType: AuditTargetUser,
 			TargetID:   spec.UserID.String(),
+			SubjectID:  spec.UserID,
 		}
 
 		if err := r.audit.Create(ctx, entry, tx); err != nil {

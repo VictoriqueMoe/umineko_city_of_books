@@ -155,7 +155,7 @@ func (s *Service) updateAnnouncement(ctx fiber.Ctx) error {
 		return ctrlutils.BadRequest(ctx, "invalid request body")
 	}
 
-	if err := s.AnnouncementService.Update(ctx.Context(), id, req.Title, req.Body); err != nil {
+	if err := s.AnnouncementService.Update(ctx.Context(), ctrlutils.UserID(ctx), id, req.Title, req.Body); err != nil {
 		if errors.Is(err, announcementsvc.ErrEmptyTitleOrBody) {
 			return ctrlutils.BadRequest(ctx, "title and body are required")
 		}
@@ -171,7 +171,7 @@ func (s *Service) deleteAnnouncement(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	if err := s.AnnouncementService.Delete(ctx.Context(), id); err != nil {
+	if err := s.AnnouncementService.Delete(ctx.Context(), ctrlutils.UserID(ctx), id); err != nil {
 		return ctrlutils.InternalError(ctx, "failed to delete announcement", err)
 	}
 
@@ -191,7 +191,7 @@ func (s *Service) pinAnnouncement(ctx fiber.Ctx) error {
 		return ctrlutils.BadRequest(ctx, "invalid request body")
 	}
 
-	if err := s.AnnouncementService.SetPinned(ctx.Context(), id, req.Pinned); err != nil {
+	if err := s.AnnouncementService.SetPinned(ctx.Context(), ctrlutils.UserID(ctx), id, req.Pinned); err != nil {
 		return ctrlutils.InternalError(ctx, "failed to pin announcement", err)
 	}
 

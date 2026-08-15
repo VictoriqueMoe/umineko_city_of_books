@@ -630,9 +630,9 @@ func (r *chatDAO) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx .
 	var systemKind sql.NullString
 
 	err := getDb(r.db, tx).QueryRowContext(ctx,
-		`SELECT id, name, type, is_system, system_kind, created_by FROM chat_rooms WHERE id = $1`,
+		`SELECT id, name, type, is_public, is_system, system_kind, created_by FROM chat_rooms WHERE id = $1`,
 		roomID,
-	).Scan(&row.ID, &row.Name, &row.Type, &row.IsSystem, &systemKind, &row.CreatedBy)
+	).Scan(&row.ID, &row.Name, &row.Type, &row.IsPublic, &row.IsSystem, &systemKind, &row.CreatedBy)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}

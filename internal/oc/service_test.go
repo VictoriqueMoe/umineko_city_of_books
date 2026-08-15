@@ -26,6 +26,7 @@ import (
 type testMocks struct {
 	ocRepo      *repository.MockOCRepository
 	userRepo    *repository.MockUserRepository
+	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -36,6 +37,7 @@ type testMocks struct {
 func newTestService(t *testing.T) (*service, *testMocks) {
 	ocRepo := repository.NewMockOCRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -43,10 +45,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
-	svc := NewService(ocRepo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New()).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
 		userRepo:    userRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -264,6 +267,13 @@ func TestDeleteOC_AsOwner(t *testing.T) {
 		DeleteOC(mock.Anything, repository.OCDeletion{ID: id, UserID: userID}).
 		Return([]string{"/uploads/ocs/portrait.png", "/uploads/ocs/portrait_thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/portrait.png", "/uploads/ocs/portrait_thumb.png"}).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionOCDelete,
+		TargetType: repository.AuditTargetOC,
+		TargetID:   id.String(),
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteOC(context.Background(), id, userID)
@@ -277,15 +287,49 @@ func TestDeleteOC_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	adminID := uuid.New()
-	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.New(), nil)
+	ownerID := uuid.New()
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(ownerID, nil)
 	m.authz.EXPECT().Can(mock.Anything, adminID, authz.PermDeleteAnyPost).Return(true)
 	m.ocRepo.EXPECT().
 		DeleteOC(mock.Anything, repository.OCDeletion{ID: id, UserID: adminID, AsAdmin: true}).
 		Return([]string{"/uploads/ocs/gallery.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/gallery.png"}).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    adminID,
+		Action:     repository.AuditActionOCDeleteAdmin,
+		TargetType: repository.AuditTargetOC,
+		TargetID:   id.String(),
+		SubjectID:  ownerID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteOC(context.Background(), id, adminID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteOC_ModeratorDeletingOwnOCRecordsOwnerAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
+	m.ocRepo.EXPECT().
+		DeleteOC(mock.Anything, repository.OCDeletion{ID: id, UserID: userID, AsAdmin: true}).
+		Return([]string{"/uploads/ocs/mine.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ocs/mine.png"}).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionOCDelete,
+		TargetType: repository.AuditTargetOC,
+		TargetID:   id.String(),
+		SubjectID:  userID,
+	}).Return(nil)
+
+	// when
+	err := svc.DeleteOC(context.Background(), id, userID)
 
 	// then
 	require.NoError(t, err)
@@ -436,6 +480,78 @@ func TestUpdateComment_EmptyBodyRejected(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrEmptyBody)
+}
+
+func TestUpdateComment_CommentNotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("no row"))
+
+	// when
+	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "hi"})
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestUpdateComment_AdminEditAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
+	m.ocRepo.EXPECT().UpdateCommentAsAdmin(mock.Anything, commentID, "moderated").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionOCCommentUpdateAdmin,
+		TargetType: repository.AuditTargetOCComment,
+		TargetID:   commentID.String(),
+		SubjectID:  authorID,
+	}).Return(nil)
+
+	// when
+	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: " moderated "})
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestUpdateComment_ModeratorEditingOwnCommentWritesNoAdminRow(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
+	m.ocRepo.EXPECT().UpdateCommentAsAdmin(mock.Anything, commentID, "mine").Return(nil)
+
+	// when
+	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "mine"})
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestUpdateComment_AsOwner(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
+	m.ocRepo.EXPECT().UpdateComment(mock.Anything, commentID, userID, "edited").Return(nil)
+
+	// when
+	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "edited"})
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestValidateSeries_AllVariants(t *testing.T) {

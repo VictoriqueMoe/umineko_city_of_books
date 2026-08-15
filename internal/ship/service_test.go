@@ -30,6 +30,7 @@ import (
 type testMocks struct {
 	shipRepo    *repository.MockShipRepository
 	userRepo    *repository.MockUserRepository
+	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -42,6 +43,7 @@ type testMocks struct {
 func newTestService(t *testing.T) (*service, *testMocks) {
 	shipRepo := repository.NewMockShipRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -51,10 +53,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := media.NewProcessor(1)
 	quoteClient := quotefinder.NewClient()
 
-	svc := NewService(shipRepo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentfilter.New()).(*service)
+	svc := NewService(shipRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		shipRepo:    shipRepo,
 		userRepo:    userRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -255,7 +258,9 @@ func TestUpdateShip_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
 	req := dto.UpdateShipRequest{Title: " T ", Description: " d ", Characters: validCharacters()}
+	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
 	m.shipRepo.EXPECT().
 		UpdateWithCharacters(mock.Anything, repository.ShipUpdate{
@@ -267,6 +272,14 @@ func TestUpdateShip_AsAdmin(t *testing.T) {
 			Characters:  req.Characters,
 		}).
 		Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionShipUpdateAdmin,
+		TargetType: repository.AuditTargetShip,
+		TargetID:   shipID.String(),
+		Details:    "title=T",
+		SubjectID:  authorID,
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateShip(context.Background(), shipID, userID, req)
@@ -275,12 +288,54 @@ func TestUpdateShip_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateShip_ModeratorEditingOwnShipWritesNoAdminRow(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	shipID := uuid.New()
+	userID := uuid.New()
+	req := dto.UpdateShipRequest{Title: "T", Characters: validCharacters()}
+	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
+	m.shipRepo.EXPECT().
+		UpdateWithCharacters(mock.Anything, repository.ShipUpdate{
+			ID:         shipID,
+			UserID:     userID,
+			Title:      "T",
+			AsAdmin:    true,
+			Characters: req.Characters,
+		}).
+		Return(nil)
+
+	// when
+	err := svc.UpdateShip(context.Background(), shipID, userID, req)
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestUpdateShip_ShipNotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	shipID := uuid.New()
+	userID := uuid.New()
+	req := dto.UpdateShipRequest{Title: "T", Characters: validCharacters()}
+	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(uuid.Nil, errors.New("no row"))
+
+	// when
+	err := svc.UpdateShip(context.Background(), shipID, userID, req)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
 func TestUpdateShip_AsOwner(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	userID := uuid.New()
 	req := dto.UpdateShipRequest{Title: "T", Characters: validCharacters()}
+	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 	m.shipRepo.EXPECT().
 		UpdateWithCharacters(mock.Anything, repository.ShipUpdate{
@@ -303,11 +358,50 @@ func TestDeleteShip_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	row := &model.ShipRow{ID: shipID, UserID: authorID, Title: "Doomed", VoteScore: 7, CommentCount: 3}
+	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
 	m.shipRepo.EXPECT().
 		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: true}).
 		Return([]string{"/uploads/ships/x.png", "/uploads/ships/x-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/x.png", "/uploads/ships/x-thumb.png"}).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionShipDeleteAdmin,
+		TargetType: repository.AuditTargetShip,
+		TargetID:   shipID.String(),
+		Details:    "title=Doomed vote_score=7 comments=3",
+		SubjectID:  authorID,
+	}).Return(nil)
+
+	// when
+	err := svc.DeleteShip(context.Background(), shipID, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteShip_ModeratorDeletingOwnShipRecordsOwnerAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	shipID := uuid.New()
+	userID := uuid.New()
+	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Mine", VoteScore: 1, CommentCount: 0}
+	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
+	m.shipRepo.EXPECT().
+		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: true}).
+		Return([]string{"/uploads/ships/mine.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/mine.png"}).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionShipDelete,
+		TargetType: repository.AuditTargetShip,
+		TargetID:   shipID.String(),
+		Details:    "title=Mine vote_score=1 comments=0",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteShip(context.Background(), shipID, userID)
@@ -321,11 +415,21 @@ func TestDeleteShip_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	userID := uuid.New()
+	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Owned"}
+	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
 	m.shipRepo.EXPECT().
 		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID}).
 		Return([]string{"/uploads/ships/owned.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/owned.png"}).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionShipDelete,
+		TargetType: repository.AuditTargetShip,
+		TargetID:   shipID.String(),
+		Details:    "title=Owned vote_score=0 comments=0",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteShip(context.Background(), shipID, userID)
@@ -334,11 +438,27 @@ func TestDeleteShip_AsOwner(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteShip_NotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	shipID := uuid.New()
+	userID := uuid.New()
+	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(nil, nil)
+
+	// when
+	err := svc.DeleteShip(context.Background(), shipID, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
 func TestDeleteShip_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	userID := uuid.New()
+	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Owned"}
+	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
 	m.shipRepo.EXPECT().
 		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID}).
@@ -349,6 +469,7 @@ func TestDeleteShip_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestListShips_RepoError(t *testing.T) {

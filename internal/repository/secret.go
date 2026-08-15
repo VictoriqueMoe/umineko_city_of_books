@@ -100,12 +100,6 @@ type (
 	}
 )
 
-const (
-	secretCommentTarget      = "secret_comment"
-	secretCommentDeleteLog   = "secret_comment_delete"
-	secretCommentDeleteAdmin = "secret_comment_delete_admin"
-)
-
 type secretRepository struct {
 	db    *sql.DB
 	dao   SecretDAO
@@ -117,30 +111,65 @@ func NewSecretRepo(database *sql.DB, dao SecretDAO, audit AuditLogRepository) Se
 }
 
 func (r *secretRepository) UpdateCommentBody(ctx context.Context, spec SecretCommentUpdate, tx ...*sql.Tx) error {
-	if spec.AsAdmin {
-		return r.dao.UpdateCommentAsAdmin(ctx, spec.CommentID, spec.Body, tx...)
-	}
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		if err != nil {
+			return err
+		}
 
-	return r.dao.UpdateComment(ctx, spec.CommentID, spec.UserID, spec.Body, tx...)
+		if spec.AsAdmin {
+			if err := r.dao.UpdateCommentAsAdmin(ctx, spec.CommentID, spec.Body, tx); err != nil {
+				return err
+			}
+		} else {
+			if err := r.dao.UpdateComment(ctx, spec.CommentID, spec.UserID, spec.Body, tx); err != nil {
+				return err
+			}
+		}
+
+		if authorID == spec.UserID {
+			return nil
+		}
+
+		entry := NewAuditEntry{
+			ActorID:    spec.UserID,
+			Action:     AuditActionSecretCommentUpdateAdmin,
+			TargetType: AuditTargetSecretComment,
+			TargetID:   spec.CommentID.String(),
+			SubjectID:  authorID,
+		}
+
+		if err := r.audit.Create(ctx, entry, tx); err != nil {
+			return fmt.Errorf("audit comment update: %w", err)
+		}
+
+		return nil
+	})
 }
 
 func (r *secretRepository) DeleteCommentWithAudit(ctx context.Context, spec SecretCommentDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
-		action := secretCommentDeleteLog
+		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		if err != nil {
+			return err
+		}
 
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.CommentID, tx)
 		if err != nil {
 			return err
 		}
 
+		action := AuditActionSecretCommentDelete
+		if authorID != spec.UserID {
+			action = AuditActionSecretCommentDeleteAdmin
+		}
+
 		if spec.AsAdmin {
 			if err := r.dao.DeleteCommentAsAdmin(ctx, spec.CommentID, tx); err != nil {
 				return err
 			}
-
-			action = secretCommentDeleteAdmin
 		} else {
 			if err := r.dao.DeleteComment(ctx, spec.CommentID, spec.UserID, tx); err != nil {
 				return err
@@ -150,8 +179,9 @@ func (r *secretRepository) DeleteCommentWithAudit(ctx context.Context, spec Secr
 		entry := NewAuditEntry{
 			ActorID:    spec.UserID,
 			Action:     action,
-			TargetType: secretCommentTarget,
+			TargetType: AuditTargetSecretComment,
 			TargetID:   spec.CommentID.String(),
+			SubjectID:  authorID,
 		}
 
 		if err := r.audit.Create(ctx, entry, tx); err != nil {

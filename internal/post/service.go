@@ -59,6 +59,7 @@ type (
 		postRepo      repository.PostRepository
 		userRepo      repository.UserRepository
 		roleRepo      repository.RoleRepository
+		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
@@ -81,6 +82,7 @@ func NewService(
 	postRepo repository.PostRepository,
 	userRepo repository.UserRepository,
 	roleRepo repository.RoleRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -94,6 +96,7 @@ func NewService(
 		postRepo:      postRepo,
 		userRepo:      userRepo,
 		roleRepo:      roleRepo,
+		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
@@ -111,6 +114,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 var validSharedContentTypes = map[string]bool{
@@ -309,10 +318,33 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 }
 
 func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	postMedia, err := s.postRepo.GetMedia(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	action := repository.AuditActionPostDelete
+	if authorID != userID {
+		action = repository.AuditActionPostDeleteAdmin
+	}
+
 	spec := repository.PostDelete{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyPost),
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("media=%d", len(postMedia)),
+			SubjectID:  authorID,
+		},
 	}
 
 	shared, paths, err := s.postRepo.DeleteWithSharedContent(ctx, spec)
@@ -638,6 +670,11 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
+	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return err
+	}
+
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
 	spec := repository.PostCommentUpdate{
@@ -650,6 +687,16 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
+	if authorID != userID {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionPostCommentUpdateAdmin,
+			TargetType: repository.AuditTargetPostComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		})
+	}
+
 	if asAdmin {
 		go s.notifyCommentEdited(ctx, id, "post", userID)
 	}
@@ -660,22 +707,26 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return err
+	}
 
-	action := "post_comment_delete"
-	if isAdmin {
-		action = "post_comment_delete_admin"
+	action := repository.AuditActionPostCommentDelete
+	if authorID != userID {
+		action = repository.AuditActionPostCommentDeleteAdmin
 	}
 
 	paths, err := s.postRepo.DeleteCommentWithAudit(ctx, repository.PostCommentDelete{
 		ID:      id,
 		UserID:  userID,
-		AsAdmin: isAdmin,
+		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
 		Audit: repository.NewAuditEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: "post_comment",
+			TargetType: repository.AuditTargetPostComment,
 			TargetID:   id.String(),
+			SubjectID:  authorID,
 		},
 	})
 	if err != nil {

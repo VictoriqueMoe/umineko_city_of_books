@@ -29,6 +29,7 @@ type testMocks struct {
 	artRepo     *repository.MockArtRepository
 	postRepo    *repository.MockPostRepository
 	userRepo    *repository.MockUserRepository
+	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
 	blockSvc    *block.MockService
 	notifSvc    *notification.MockService
@@ -41,6 +42,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	artRepo := repository.NewMockArtRepository(t)
 	postRepo := repository.NewMockPostRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
@@ -49,11 +51,12 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
-	svc := NewService(artRepo, postRepo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		artRepo:     artRepo,
 		postRepo:    postRepo,
 		userRepo:    userRepo,
+		auditRepo:   auditRepo,
 		authz:       authzSvc,
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
@@ -370,13 +373,35 @@ func TestUpdateArt_AsAdmin_SpawnsNotify(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func artDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) repository.ArtDelete {
+	action := repository.AuditActionArtDelete
+	if authorID != userID {
+		action = repository.AuditActionArtDeleteAdmin
+	}
+
+	return repository.ArtDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		},
+	}
+}
+
 func TestDeleteArt_AsAdmin_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
-	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, repository.ArtDelete{ID: id, UserID: userID, AsAdmin: true}).Return([]string{"/u/x.png", "/u/x-thumb.png"}, nil)
+	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, artDeleteSpec(id, userID, authorID, true)).Return([]string{"/u/x.png", "/u/x-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/x.png", "/u/x-thumb.png"}).Return()
 
 	// when
@@ -386,13 +411,46 @@ func TestDeleteArt_AsAdmin_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteArt_ModeratorDeletingOwnArtIsNotAdminAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
+	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, artDeleteSpec(id, userID, userID, true)).Return([]string{"/u/x.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/u/x.png"}).Return()
+
+	// when
+	err := svc.DeleteArt(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteArt_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("gone"))
+
+	// when
+	err := svc.DeleteArt(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+}
+
 func TestDeleteArt_AsAdmin_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
-	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, repository.ArtDelete{ID: id, UserID: userID, AsAdmin: true}).Return(nil, errors.New("boom"))
+	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, artDeleteSpec(id, userID, authorID, true)).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteArt(context.Background(), id, userID)
@@ -406,8 +464,9 @@ func TestDeleteArt_AsOwner_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, repository.ArtDelete{ID: id, UserID: userID}).Return([]string{"/u/x.png", "/u/c.png"}, nil)
+	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, artDeleteSpec(id, userID, userID, false)).Return([]string{"/u/x.png", "/u/c.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/x.png", "/u/c.png"}).Return()
 
 	// when
@@ -422,8 +481,9 @@ func TestDeleteArt_AsOwner_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, repository.ArtDelete{ID: id, UserID: userID}).Return(nil, errors.New("not owner"))
+	m.artRepo.EXPECT().DeleteWithImage(mock.Anything, artDeleteSpec(id, userID, userID, false)).Return(nil, errors.New("not owner"))
 
 	// when
 	err := svc.DeleteArt(context.Background(), id, userID)
@@ -775,10 +835,25 @@ func TestUpdateComment_AsAdmin_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.artRepo.EXPECT().
 		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
 		Return(errors.New("db"))
+
+	// when
+	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "hi"})
+
+	// then
+	require.Error(t, err)
+}
+
+func TestUpdateComment_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("gone"))
 
 	// when
 	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "hi"})
@@ -792,11 +867,20 @@ func TestUpdateComment_AsAdmin_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.artRepo.EXPECT().
 		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
 		Return(nil)
-	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionArtCommentUpdateAdmin,
+		TargetType: repository.AuditTargetArtComment,
+		TargetID:   commentID.String(),
+		SubjectID:  authorID,
+	}).Return(nil)
+	m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
 	// when
 	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "  hi  "})
@@ -805,11 +889,32 @@ func TestUpdateComment_AsAdmin_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateComment_ModeratorEditingOwnCommentIsNotAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
+	m.artRepo.EXPECT().
+		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
+		Return(nil)
+	m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
+
+	// when
+	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "hi"})
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
 func TestUpdateComment_AsOwner_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	m.artRepo.EXPECT().
 		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi"}).
@@ -827,6 +932,7 @@ func TestUpdateComment_AsOwner_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	m.artRepo.EXPECT().
 		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi"}).
@@ -839,24 +945,36 @@ func TestUpdateComment_AsOwner_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func artCommentDeleteSpec(commentID uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) repository.ArtCommentDelete {
+	action := repository.AuditActionArtCommentDelete
+	if authorID != userID {
+		action = repository.AuditActionArtCommentDeleteAdmin
+	}
+
+	return repository.ArtCommentDelete{
+		ID:      commentID,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetArtComment,
+			TargetID:   commentID.String(),
+			SubjectID:  authorID,
+		},
+	}
+}
+
 func TestDeleteComment_AsAdmin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.artRepo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.ArtCommentDelete{
-			ID:      commentID,
-			UserID:  userID,
-			AsAdmin: true,
-			Audit: repository.NewAuditEntry{
-				ActorID:    userID,
-				Action:     "art_comment_delete_admin",
-				TargetType: "art_comment",
-				TargetID:   commentID.String(),
-			},
-		}).
+		DeleteCommentWithAudit(mock.Anything, artCommentDeleteSpec(commentID, userID, authorID, true)).
 		Return([]string{"/u/c.png", "/u/c-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/c.png", "/u/c-thumb.png"}).Return()
 
@@ -867,23 +985,48 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteComment_ModeratorDeletingOwnCommentIsNotAdminAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
+	m.artRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, artCommentDeleteSpec(commentID, userID, userID, true)).
+		Return([]string{"/u/c.png"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/u/c.png"}).Return()
+
+	// when
+	err := svc.DeleteComment(context.Background(), commentID, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteComment_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	commentID := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("gone"))
+
+	// when
+	err := svc.DeleteComment(context.Background(), commentID, userID)
+
+	// then
+	require.Error(t, err)
+}
+
 func TestDeleteComment_AsOwner(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	m.artRepo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.ArtCommentDelete{
-			ID:     commentID,
-			UserID: userID,
-			Audit: repository.NewAuditEntry{
-				ActorID:    userID,
-				Action:     "art_comment_delete",
-				TargetType: "art_comment",
-				TargetID:   commentID.String(),
-			},
-		}).
+		DeleteCommentWithAudit(mock.Anything, artCommentDeleteSpec(commentID, userID, userID, false)).
 		Return(nil, errors.New("not owner"))
 
 	// when
@@ -1198,6 +1341,7 @@ func TestDeleteGallery_DeleteError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(&model.GalleryRow{ID: id, UserID: userID, Name: "sketches", ArtCount: 3}, nil)
 	m.artRepo.EXPECT().DeleteGallery(mock.Anything, id, userID).Return(nil, errors.New("not owner"))
 
 	// when
@@ -1205,6 +1349,21 @@ func TestDeleteGallery_DeleteError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
+func TestDeleteGallery_MissingGallery(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(nil, nil)
+
+	// when
+	err := svc.DeleteGallery(context.Background(), id, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestDeleteGallery_OK_DeletesImages(t *testing.T) {
@@ -1213,8 +1372,17 @@ func TestDeleteGallery_OK_DeletesImages(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	paths := []string{"/u/a.png", "/u/a-thumb.png", "/u/b.png", "/u/comment.png"}
+	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(&model.GalleryRow{ID: id, UserID: userID, Name: "sketches", ArtCount: 2}, nil)
 	m.artRepo.EXPECT().DeleteGallery(mock.Anything, id, userID).Return(paths, nil)
 	m.uploadSvc.EXPECT().Delete(paths).Return()
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionGalleryDelete,
+		TargetType: repository.AuditTargetGallery,
+		TargetID:   id.String(),
+		Details:    `name="sketches" art=2 files=4`,
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteGallery(context.Background(), id, userID)

@@ -27,6 +27,7 @@ import (
 type harness struct {
 	repo         *repository.MockAnnouncementRepository
 	userRepo     *repository.MockUserRepository
+	auditRepo    *repository.MockAuditLogRepository
 	blockSvc     *block.MockService
 	notifService *notification.MockService
 	settingsSvc  *settings.MockService
@@ -39,6 +40,7 @@ type harness struct {
 func newHarness(t *testing.T) *harness {
 	repo := repository.NewMockAnnouncementRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	blockSvc := block.NewMockService(t)
 	notifService := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
@@ -54,13 +56,14 @@ func newHarness(t *testing.T) *harness {
 	return &harness{
 		repo:         repo,
 		userRepo:     userRepo,
+		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
 		settingsSvc:  settingsSvc,
 		authzSvc:     authzSvc,
 		uploadSvc:    uploadSvc,
 		hub:          hub,
-		svc:          announcement.NewService(repo, userRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader, uploadSvc),
+		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader, uploadSvc),
 	}
 }
 
@@ -167,14 +170,23 @@ func TestService_Create_OK(t *testing.T) {
 	// given
 	h := newHarness(t)
 	userID := uuid.New()
-	h.repo.EXPECT().Create(mock.Anything, userID, "t", "b").Return(&repository.AnnouncementRow{ID: uuid.New()}, nil)
+	annID := uuid.New()
+	h.repo.EXPECT().Create(mock.Anything, userID, "t", "b").Return(&repository.AnnouncementRow{ID: annID}, nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionAnnouncementCreate,
+		TargetType: repository.AuditTargetAnnouncement,
+		TargetID:   annID.String(),
+		Details:    "title=t",
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	id, err := h.svc.Create(context.Background(), userID, "t", "b")
 
 	// then
 	require.NoError(t, err)
-	assert.NotEqual(t, uuid.Nil, id)
+	assert.Equal(t, annID, id)
 }
 
 func TestService_Update_RejectsEmpty(t *testing.T) {
@@ -182,7 +194,7 @@ func TestService_Update_RejectsEmpty(t *testing.T) {
 	h := newHarness(t)
 
 	// when
-	err := h.svc.Update(context.Background(), uuid.New(), "", "")
+	err := h.svc.Update(context.Background(), uuid.New(), uuid.New(), "", "")
 
 	// then
 	assert.ErrorIs(t, err, announcement.ErrEmptyTitleOrBody)
@@ -192,24 +204,59 @@ func TestService_Update_Delegates(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
+	actor := uuid.New()
+	author := uuid.New()
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "old", AuthorID: author}, nil)
 	h.repo.EXPECT().Update(mock.Anything, id, "t", "b").Return(nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionAnnouncementUpdate,
+		TargetType: repository.AuditTargetAnnouncement,
+		TargetID:   id.String(),
+		Details:    "title=old -> t",
+		SubjectID:  author,
+	}).Return(nil)
 
 	// when
-	err := h.svc.Update(context.Background(), id, "t", "b")
+	err := h.svc.Update(context.Background(), actor, id, "t", "b")
 
 	// then
 	assert.NoError(t, err)
+}
+
+func TestService_Update_MissingAnnouncement(t *testing.T) {
+	// given
+	h := newHarness(t)
+	id := uuid.New()
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(nil, nil)
+
+	// when
+	err := h.svc.Update(context.Background(), uuid.New(), id, "t", "b")
+
+	// then
+	assert.ErrorIs(t, err, announcement.ErrNotFound)
 }
 
 func TestService_Delete_Delegates(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
+	actor := uuid.New()
+	author := uuid.New()
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Doomed", AuthorID: author}, nil)
 	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return(nil, nil)
 	h.uploadSvc.EXPECT().Delete().Return()
+	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionAnnouncementDelete,
+		TargetType: repository.AuditTargetAnnouncement,
+		TargetID:   id.String(),
+		Details:    "title=Doomed",
+		SubjectID:  author,
+	}).Return(nil)
 
 	// when
-	err := h.svc.Delete(context.Background(), id)
+	err := h.svc.Delete(context.Background(), actor, id)
 
 	// then
 	assert.NoError(t, err)
@@ -219,11 +266,13 @@ func TestService_Delete_UnlinksCommentMediaAfterCommit(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Doomed"}, nil)
 	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return([]string{"/uploads/announcements/a.png", "/uploads/announcements/a-thumb.png"}, nil)
 	h.uploadSvc.EXPECT().Delete([]string{"/uploads/announcements/a.png", "/uploads/announcements/a-thumb.png"}).Return()
+	h.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 
 	// when
-	err := h.svc.Delete(context.Background(), id)
+	err := h.svc.Delete(context.Background(), uuid.New(), id)
 
 	// then
 	assert.NoError(t, err)
@@ -233,10 +282,11 @@ func TestService_Delete_KeepsFilesWhenTransactionFails(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Doomed"}, nil)
 	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return(nil, errors.New("rolled back"))
 
 	// when
-	err := h.svc.Delete(context.Background(), id)
+	err := h.svc.Delete(context.Background(), uuid.New(), id)
 
 	// then
 	assert.Error(t, err)
@@ -246,10 +296,21 @@ func TestService_SetPinned_Delegates(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
+	actor := uuid.New()
+	author := uuid.New()
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Welcome", AuthorID: author}, nil)
 	h.repo.EXPECT().SetPinned(mock.Anything, id, true).Return(nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionAnnouncementPin,
+		TargetType: repository.AuditTargetAnnouncement,
+		TargetID:   id.String(),
+		Details:    "title=Welcome pinned=true",
+		SubjectID:  author,
+	}).Return(nil)
 
 	// when
-	err := h.svc.SetPinned(context.Background(), id, true)
+	err := h.svc.SetPinned(context.Background(), actor, id, true)
 
 	// then
 	assert.NoError(t, err)

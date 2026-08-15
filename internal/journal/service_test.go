@@ -28,6 +28,7 @@ import (
 type testMocks struct {
 	repo         *repository.MockJournalRepository
 	userRepo     *repository.MockUserRepository
+	auditRepo    *repository.MockAuditLogRepository
 	authz        *authz.MockService
 	blockSvc     *block.MockService
 	notifService *notification.MockService
@@ -38,16 +39,18 @@ type testMocks struct {
 func newTestService(t *testing.T) (*service, *testMocks) {
 	repo := repository.NewMockJournalRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	blockSvc := block.NewMockService(t)
 	notifSvc := notification.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
-	svc := NewService(repo, userRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		repo:         repo,
 		userRepo:     userRepo,
+		auditRepo:    auditRepo,
 		authz:        authzSvc,
 		blockSvc:     blockSvc,
 		notifService: notifSvc,
@@ -338,13 +341,24 @@ func TestUpdateJournal_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(true)
+	m.repo.EXPECT().GetByID(mock.Anything, id, userID).Return(&dto.JournalResponse{ID: id, Title: "Old", Work: "umineko"}, nil)
 	m.repo.EXPECT().Update(mock.Anything, repository.JournalUpdate{
 		ID:      id,
 		UserID:  userID,
 		Title:   "Title",
 		Work:    "umineko",
 		AsAdmin: true,
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalUpdateAdmin,
+		TargetType: repository.AuditTargetJournal,
+		TargetID:   id.String(),
+		Details:    "changed=title",
+		SubjectID:  authorID,
 	}).Return(nil)
 
 	// when
@@ -359,7 +373,7 @@ func TestUpdateJournal_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(false)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().Update(mock.Anything, repository.JournalUpdate{
 		ID:     id,
 		UserID: userID,
@@ -372,6 +386,7 @@ func TestUpdateJournal_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestUpdateJournal_RepoErrorBubbles(t *testing.T) {
@@ -379,7 +394,7 @@ func TestUpdateJournal_RepoErrorBubbles(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(false)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().Update(mock.Anything, repository.JournalUpdate{
 		ID:     id,
 		UserID: userID,
@@ -394,13 +409,38 @@ func TestUpdateJournal_RepoErrorBubbles(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestUpdateJournal_NotFoundIfAuthorLookupFails(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("no row"))
+
+	// when
+	err := svc.UpdateJournal(context.Background(), id, userID, validCreateReq())
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
 func TestDeleteJournal_AsAdmin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyJournal).Return(true)
+	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("Rokkenjima", nil)
 	m.repo.EXPECT().Delete(mock.Anything, id, userID, true).Return([]string{"/u/entry.png", "/u/entry-thumb.png"}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalDeleteAdmin,
+		TargetType: repository.AuditTargetJournal,
+		TargetID:   id.String(),
+		Details:    "title=Rokkenjima",
+		SubjectID:  authorID,
+	}).Return(nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/entry.png", "/u/entry-thumb.png"}).Return()
 
 	// when
@@ -415,8 +455,17 @@ func TestDeleteJournal_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyJournal).Return(false)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("Rokkenjima", nil)
 	m.repo.EXPECT().Delete(mock.Anything, id, userID, false).Return([]string{"/u/comment.png"}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalDelete,
+		TargetType: repository.AuditTargetJournal,
+		TargetID:   id.String(),
+		Details:    "title=Rokkenjima",
+		SubjectID:  userID,
+	}).Return(nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/comment.png"}).Return()
 
 	// when
@@ -431,7 +480,8 @@ func TestDeleteJournal_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyJournal).Return(false)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("Rokkenjima", nil)
 	m.repo.EXPECT().Delete(mock.Anything, id, userID, false).Return(nil, errors.New("boom"))
 
 	// when
@@ -439,6 +489,7 @@ func TestDeleteJournal_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func expectBackgroundCommentNotify(m *testMocks) {
@@ -615,12 +666,21 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
 		ID:      id,
 		UserID:  userID,
 		Body:    "new body",
 		AsAdmin: true,
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalCommentUpdateAdmin,
+		TargetType: repository.AuditTargetJournalComment,
+		TargetID:   id.String(),
+		SubjectID:  authorID,
 	}).Return(nil)
 
 	// when
@@ -635,7 +695,7 @@ func TestUpdateComment_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
 		ID:     id,
 		UserID: userID,
@@ -647,6 +707,7 @@ func TestUpdateComment_AsOwner(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 }
 
 func TestUpdateComment_TrimsBody(t *testing.T) {
@@ -654,7 +715,7 @@ func TestUpdateComment_TrimsBody(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
 		ID:     id,
 		UserID: userID,
@@ -673,7 +734,7 @@ func TestUpdateComment_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
 		ID:     id,
 		UserID: userID,
@@ -692,6 +753,8 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID, true).Return([]string{"/u/c.png", "/u/c-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/c.png", "/u/c-thumb.png"}).Return()
@@ -708,7 +771,7 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID, false).Return([]string{"/u/reply.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/reply.png"}).Return()
 
@@ -724,7 +787,7 @@ func TestDeleteComment_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
+	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID, false).Return(nil, errors.New("boom"))
 
 	// when
@@ -1136,6 +1199,45 @@ func TestCreateEntry_OK_WithTitle(t *testing.T) {
 	assert.Equal(t, 1, num)
 }
 
+func TestCreateEntry_AsAdminAuditsCreation(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	journalID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	entryID := uuid.New()
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(true)
+	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(4, nil)
+	m.repo.EXPECT().CreateEntry(mock.Anything, repository.NewJournalEntry{
+		JournalID:   journalID,
+		EntryNumber: 4,
+		Body:        "an entry",
+		WordCount:   2,
+	}).Return(&repository.JournalEntryRow{ID: entryID}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalEntryCreateAdmin,
+		TargetType: repository.AuditTargetJournalEntry,
+		TargetID:   entryID.String(),
+		Details:    "journal_id=" + journalID.String() + ",entry_number=4,is_draft=false",
+		SubjectID:  authorID,
+	}).Return(nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.repo.EXPECT().GetFollowerIDs(mock.Anything, journalID).Return(nil, nil).Maybe()
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
+
+	// when
+	id, num, err := svc.CreateEntry(context.Background(), journalID, userID, dto.CreateJournalEntryRequest{Body: "an entry"})
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, entryID, id)
+	assert.Equal(t, 4, num)
+}
+
 func TestGetEntry_NotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1244,6 +1346,44 @@ func TestUpdateEntry_PublishingDraft_RecordsActivity(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateEntry_AsAdminAuditsChangedFields(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	entryID := uuid.New()
+	journalID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 2, Body: "old body", IsDraft: true}, nil)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(true)
+	m.repo.EXPECT().UpdateEntry(mock.Anything, repository.JournalEntryUpdate{
+		ID:                   entryID,
+		JournalID:            journalID,
+		Body:                 "new body",
+		WordCount:            2,
+		RecordAuthorActivity: true,
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalEntryUpdateAdmin,
+		TargetType: repository.AuditTargetJournalEntry,
+		TargetID:   entryID.String(),
+		Details:    "changed=body,is_draft",
+		SubjectID:  authorID,
+	}).Return(nil)
+	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.repo.EXPECT().GetFollowerIDs(mock.Anything, journalID).Return(nil, nil).Maybe()
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, userID).Return(nil, nil).Maybe()
+	m.notifService.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
+
+	// when
+	err := svc.UpdateEntry(context.Background(), entryID, userID, dto.UpdateJournalEntryRequest{Body: "new body"})
+
+	// then
+	require.NoError(t, err)
+}
+
 func TestDeleteEntry_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1251,7 +1391,39 @@ func TestDeleteEntry_OK(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(userID, nil)
 	m.repo.EXPECT().DeleteEntry(mock.Anything, entryID).Return([]string{"/u/e.png", "/u/e-thumb.png"}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalEntryDelete,
+		TargetType: repository.AuditTargetJournalEntry,
+		TargetID:   entryID.String(),
+		SubjectID:  userID,
+	}).Return(nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/e.png", "/u/e-thumb.png"}).Return()
+
+	// when
+	err := svc.DeleteEntry(context.Background(), entryID, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteEntry_AsAdmin(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	entryID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(authorID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyJournal).Return(true)
+	m.repo.EXPECT().DeleteEntry(mock.Anything, entryID).Return(nil, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionJournalEntryDeleteAdmin,
+		TargetType: repository.AuditTargetJournalEntry,
+		TargetID:   entryID.String(),
+		SubjectID:  authorID,
+	}).Return(nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := svc.DeleteEntry(context.Background(), entryID, userID)

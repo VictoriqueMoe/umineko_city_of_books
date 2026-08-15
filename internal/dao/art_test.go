@@ -233,7 +233,17 @@ func TestArtDAO_DeleteWithImage_Owner(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{ID: id, UserID: user.ID})
+	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+		ID:     id,
+		UserID: user.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    user.ID,
+			Action:     repository.AuditActionArtDelete,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   id.String(),
+			SubjectID:  user.ID,
+		},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -254,7 +264,17 @@ func TestArtDAO_DeleteWithImage_ReturnsArtAndCommentMediaPaths(t *testing.T) {
 	addArtCommentMedia(t, repos, replyID, "https://example.com/c2.png", "")
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{ID: id, UserID: user.ID})
+	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+		ID:     id,
+		UserID: user.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    user.ID,
+			Action:     repository.AuditActionArtDelete,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   id.String(),
+			SubjectID:  user.ID,
+		},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -275,7 +295,17 @@ func TestArtDAO_DeleteWithImage_NotOwner_Fails(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{ID: id, UserID: other.ID})
+	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+		ID:     id,
+		UserID: other.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    other.ID,
+			Action:     repository.AuditActionArtDeleteAdmin,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   id.String(),
+			SubjectID:  owner.ID,
+		},
+	})
 
 	// then
 	require.Error(t, err)
@@ -293,7 +323,18 @@ func TestArtDAO_DeleteWithImage_AsAdmin(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{ID: id, UserID: admin.ID, AsAdmin: true})
+	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+		ID:      id,
+		UserID:  admin.ID,
+		AsAdmin: true,
+		Audit: repository.NewAuditEntry{
+			ActorID:    admin.ID,
+			Action:     repository.AuditActionArtDeleteAdmin,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   id.String(),
+			SubjectID:  owner.ID,
+		},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -307,9 +348,20 @@ func TestArtDAO_DeleteWithImage_UnknownArt_Fails(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
+	unknownID := uuid.New()
 
 	// when
-	_, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{ID: uuid.New(), UserID: user.ID})
+	_, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+		ID:     unknownID,
+		UserID: user.ID,
+		Audit: repository.NewAuditEntry{
+			ActorID:    user.ID,
+			Action:     repository.AuditActionArtDelete,
+			TargetType: repository.AuditTargetArt,
+			TargetID:   unknownID.String(),
+			SubjectID:  user.ID,
+		},
+	})
 
 	// then
 	require.Error(t, err)
@@ -989,8 +1041,8 @@ func TestArtDAO_DeleteCommentWithAudit_Owner(t *testing.T) {
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    user.ID,
-			Action:     "art_comment_delete",
-			TargetType: "art_comment",
+			Action:     repository.AuditActionArtCommentDelete,
+			TargetType: repository.AuditTargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
@@ -1000,7 +1052,7 @@ func TestArtDAO_DeleteCommentWithAudit_Owner(t *testing.T) {
 	_, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), "art_comment_delete", 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionArtCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1025,8 +1077,8 @@ func TestArtDAO_DeleteCommentWithAudit_ReturnsThreadMediaPaths(t *testing.T) {
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    user.ID,
-			Action:     "art_comment_delete",
-			TargetType: "art_comment",
+			Action:     repository.AuditActionArtCommentDelete,
+			TargetType: repository.AuditTargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
@@ -1055,8 +1107,8 @@ func TestArtDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 		AsAdmin: true,
 		Audit: repository.NewAuditEntry{
 			ActorID:    admin.ID,
-			Action:     "art_comment_delete_admin",
-			TargetType: "art_comment",
+			Action:     repository.AuditActionArtCommentDeleteAdmin,
+			TargetType: repository.AuditTargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
@@ -1066,7 +1118,7 @@ func TestArtDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	_, total, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), "art_comment_delete_admin", 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionArtCommentDeleteAdmin, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1087,8 +1139,8 @@ func TestArtDAO_DeleteCommentWithAudit_NotOwner_WritesNoAudit(t *testing.T) {
 		UserID: other.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    other.ID,
-			Action:     "art_comment_delete",
-			TargetType: "art_comment",
+			Action:     repository.AuditActionArtCommentDelete,
+			TargetType: repository.AuditTargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
@@ -1098,7 +1150,7 @@ func TestArtDAO_DeleteCommentWithAudit_NotOwner_WritesNoAudit(t *testing.T) {
 	_, total, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	_, auditTotal, err := repos.AuditLog.List(context.Background(), "art_comment_delete", 10, 0)
+	_, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionArtCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 0, auditTotal)
 }
@@ -1116,8 +1168,8 @@ func TestArtDAO_DeleteCommentWithAudit_BadActor_RollsBackDelete(t *testing.T) {
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    uuid.New(),
-			Action:     "art_comment_delete",
-			TargetType: "art_comment",
+			Action:     repository.AuditActionArtCommentDelete,
+			TargetType: repository.AuditTargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})

@@ -1118,7 +1118,7 @@ func TestUserRepository_RegisterAccountWritesEveryRow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	require.Len(t, entries, 1)
-	assert.Equal(t, "user_created", entries[0].Action)
+	assert.Equal(t, repository.AuditActionUserCreated, entries[0].Action)
 	assert.Equal(t, "username=newcomer", entries[0].Details)
 }
 

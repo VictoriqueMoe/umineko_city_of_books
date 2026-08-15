@@ -1234,10 +1234,10 @@ func TestMysteryRepo_DeleteCommentWithAudit(t *testing.T) {
 	tests := []struct {
 		name       string
 		asAdmin    bool
-		wantAction string
+		wantAction repository.AuditAction
 	}{
-		{name: "the owner deleting their own comment", asAdmin: false, wantAction: "mystery_comment_delete"},
-		{name: "a moderator deleting someone else's comment", asAdmin: true, wantAction: "mystery_comment_delete_admin"},
+		{name: "the owner deleting their own comment", asAdmin: false, wantAction: repository.AuditActionMysteryCommentDelete},
+		{name: "a moderator deleting someone else's comment", asAdmin: true, wantAction: repository.AuditActionMysteryCommentDeleteAdmin},
 	}
 
 	for _, tt := range tests {
@@ -1271,7 +1271,7 @@ func TestMysteryRepo_DeleteCommentWithAudit(t *testing.T) {
 			assert.Equal(t, 1, total)
 			require.Len(t, entries, 1)
 			assert.Equal(t, actor.ID, entries[0].ActorID)
-			assert.Equal(t, "mystery_comment", entries[0].TargetType)
+			assert.Equal(t, repository.AuditTargetMysteryComment, entries[0].TargetType)
 			assert.Equal(t, commentID.String(), entries[0].TargetID)
 		})
 	}

@@ -15,12 +15,6 @@ import (
 	"github.com/google/uuid"
 )
 
-const (
-	journalCommentTargetType        = "journal_comment"
-	journalCommentDeleteAction      = "journal_comment_delete"
-	journalCommentDeleteAdminAction = "journal_comment_delete_admin"
-)
-
 type (
 	JournalDAO interface {
 		Create(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest, tx ...*sql.Tx) (*dto.JournalResponse, error)
@@ -537,14 +531,14 @@ func (r *journalRepository) DeleteComment(ctx context.Context, id uuid.UUID, use
 			return err
 		}
 
-		action := journalCommentDeleteAction
+		action := AuditActionJournalCommentDelete
 
 		if asAdmin {
 			if err := r.dao.DeleteCommentAsAdmin(ctx, id, tx); err != nil {
 				return err
 			}
 
-			action = journalCommentDeleteAdminAction
+			action = AuditActionJournalCommentDeleteAdmin
 		} else {
 			if err := r.dao.DeleteComment(ctx, id, userID, tx); err != nil {
 				return err
@@ -554,7 +548,7 @@ func (r *journalRepository) DeleteComment(ctx context.Context, id uuid.UUID, use
 		if err := r.audit.Create(ctx, NewAuditEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: journalCommentTargetType,
+			TargetType: AuditTargetJournalComment,
 			TargetID:   id.String(),
 		}, tx); err != nil {
 			return fmt.Errorf("audit comment delete: %w", err)

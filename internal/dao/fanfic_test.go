@@ -1767,8 +1767,8 @@ func TestFanficDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    user.ID,
-			Action:     "fanfic_comment_delete",
-			TargetType: "fanfic_comment",
+			Action:     repository.AuditActionFanficCommentDelete,
+			TargetType: repository.AuditTargetFanficComment,
 			TargetID:   cid.String(),
 		},
 	})
@@ -1778,7 +1778,7 @@ func TestFanficDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
 	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), "fanfic_comment_delete", 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionFanficCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1802,8 +1802,8 @@ func TestFanficDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 		AsAdmin: true,
 		Audit: repository.NewAuditEntry{
 			ActorID:    admin.ID,
-			Action:     "fanfic_comment_delete_admin",
-			TargetType: "fanfic_comment",
+			Action:     repository.AuditActionFanficCommentDeleteAdmin,
+			TargetType: repository.AuditTargetFanficComment,
 			TargetID:   cid.String(),
 		},
 	})
@@ -1813,7 +1813,7 @@ func TestFanficDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), "fanfic_comment_delete_admin", 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionFanficCommentDeleteAdmin, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1836,8 +1836,8 @@ func TestFanficDAO_DeleteCommentWithAudit_NonOwnerWritesNoAudit(t *testing.T) {
 		UserID: other.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    other.ID,
-			Action:     "fanfic_comment_delete",
-			TargetType: "fanfic_comment",
+			Action:     repository.AuditActionFanficCommentDelete,
+			TargetType: repository.AuditTargetFanficComment,
 			TargetID:   cid.String(),
 		},
 	})
@@ -1848,7 +1848,7 @@ func TestFanficDAO_DeleteCommentWithAudit_NonOwnerWritesNoAudit(t *testing.T) {
 	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
 	require.NoError(t, err)
 	assert.Len(t, cs, 1)
-	_, auditTotal, err := repos.AuditLog.List(context.Background(), "fanfic_comment_delete", 10, 0)
+	_, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionFanficCommentDelete, 10, 0)
 	require.NoError(t, err)
 	assert.Equal(t, 0, auditTotal)
 }
@@ -1888,8 +1888,8 @@ func TestFanficDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentsMediaPaths(t *t
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    user.ID,
-			Action:     "fanfic_comment_delete",
-			TargetType: "fanfic_comment",
+			Action:     repository.AuditActionFanficCommentDelete,
+			TargetType: repository.AuditTargetFanficComment,
 			TargetID:   target.ID.String(),
 		},
 	})

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -30,22 +31,23 @@ const (
 type (
 	AdminService interface {
 		List(ctx context.Context) ([]dto.ChatbotResponse, error)
-		Create(ctx context.Context, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
-		Update(ctx context.Context, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
-		Delete(ctx context.Context, id uuid.UUID) error
+		Create(ctx context.Context, actorID uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
+		Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
+		Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error
 		Usage(ctx context.Context, since time.Time) (*dto.ChatbotUsageResponse, error)
 		Models(ctx context.Context) ([]string, error)
 		Test(ctx context.Context, model string) (bool, string, error)
 
 		ListBasePrompts(ctx context.Context) ([]dto.ChatbotBasePromptResponse, error)
-		CreateBasePrompt(ctx context.Context, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
-		UpdateBasePrompt(ctx context.Context, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
-		DeleteBasePrompt(ctx context.Context, id uuid.UUID) error
+		CreateBasePrompt(ctx context.Context, actorID uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
+		UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
+		DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error
 	}
 
 	adminService struct {
 		botRepo        repository.ChatbotRepository
 		basePromptRepo repository.ChatbotBasePromptRepository
+		auditRepo      repository.AuditLogRepository
 		userSvc        user.Service
 		openaiSvc      openai.Service
 		reloader       Service
@@ -55,6 +57,7 @@ type (
 func NewAdminService(
 	botRepo repository.ChatbotRepository,
 	basePromptRepo repository.ChatbotBasePromptRepository,
+	auditRepo repository.AuditLogRepository,
 	userSvc user.Service,
 	openaiSvc openai.Service,
 	reloader Service,
@@ -62,6 +65,7 @@ func NewAdminService(
 	return &adminService{
 		botRepo:        botRepo,
 		basePromptRepo: basePromptRepo,
+		auditRepo:      auditRepo,
 		userSvc:        userSvc,
 		openaiSvc:      openaiSvc,
 		reloader:       reloader,
@@ -82,7 +86,7 @@ func (a *adminService) List(ctx context.Context) ([]dto.ChatbotResponse, error) 
 	return out, nil
 }
 
-func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
+func (a *adminService) Create(ctx context.Context, actorID uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
 	if err := a.validateUpsert(ctx, req); err != nil {
 		return nil, err
 	}
@@ -128,12 +132,21 @@ func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest)
 
 	a.reloader.Reload()
 
+	a.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotCreate,
+		TargetType: repository.AuditTargetChatbot,
+		TargetID:   created.ID.String(),
+		Details:    fmt.Sprintf("username=%s name=%s model=%s enabled=%t", created.Username, created.DisplayName, created.Model, created.Enabled),
+		SubjectID:  created.UserID,
+	})
+
 	response := toResponse(*created)
 
 	return &response, nil
 }
 
-func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
+func (a *adminService) Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
 	if err := a.validateUpsert(ctx, req); err != nil {
 		return nil, err
 	}
@@ -143,21 +156,9 @@ func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.Chatbot
 		return nil, ErrBotInvalid
 	}
 
-	bots, err := a.botRepo.ListBots(ctx)
+	current, err := a.findBot(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("list chatbots: %w", err)
-	}
-
-	var current *repository.Chatbot
-	for i := range bots {
-		if bots[i].ID == id {
-			current = &bots[i]
-
-			break
-		}
-	}
-	if current == nil {
-		return nil, ErrBotNotFound
+		return nil, err
 	}
 
 	spec := *current
@@ -176,12 +177,26 @@ func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.Chatbot
 
 	a.reloader.Reload()
 
+	a.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotUpdate,
+		TargetType: repository.AuditTargetChatbot,
+		TargetID:   id.String(),
+		Details:    chatbotChanges(*current, req, displayName),
+		SubjectID:  current.UserID,
+	})
+
 	response := toResponse(*updated)
 
 	return &response, nil
 }
 
-func (a *adminService) Delete(ctx context.Context, id uuid.UUID) error {
+func (a *adminService) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
+	doomed, lookupErr := a.findBot(ctx, id)
+	if lookupErr != nil && !errors.Is(lookupErr, ErrBotNotFound) {
+		logger.Log.Error().Err(lookupErr).Str("chatbot_id", id.String()).Msg("failed to read the chatbot before deleting it")
+	}
+
 	if err := a.botRepo.DeleteBot(ctx, id); err != nil {
 		if errors.Is(err, repository.ErrBotNotFound) {
 			return ErrBotNotFound
@@ -192,7 +207,96 @@ func (a *adminService) Delete(ctx context.Context, id uuid.UUID) error {
 
 	a.reloader.Reload()
 
+	entry := repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotDelete,
+		TargetType: repository.AuditTargetChatbot,
+		TargetID:   id.String(),
+	}
+
+	if doomed != nil {
+		entry.Details = fmt.Sprintf("username=%s name=%s", doomed.Username, doomed.DisplayName)
+		entry.SubjectID = doomed.UserID
+	}
+
+	a.audit(ctx, entry)
+
 	return nil
+}
+
+func (a *adminService) findBot(ctx context.Context, id uuid.UUID) (*repository.Chatbot, error) {
+	bots, err := a.botRepo.ListBots(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list chatbots: %w", err)
+	}
+
+	for i := range bots {
+		if bots[i].ID == id {
+			return &bots[i], nil
+		}
+	}
+
+	return nil, ErrBotNotFound
+}
+
+func (a *adminService) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := a.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
+func sameBasePrompt(current, next *uuid.UUID) bool {
+	if current == nil || next == nil {
+		return current == next
+	}
+
+	return *current == *next
+}
+
+func chatbotChanges(current repository.Chatbot, req dto.ChatbotUpsertRequest, displayName string) string {
+	changed := make([]string, 0, 9)
+
+	if current.SystemPrompt != req.SystemPrompt {
+		changed = append(changed, "system_prompt")
+	}
+
+	if !sameBasePrompt(current.BasePromptID, req.BasePromptID) {
+		changed = append(changed, "base_prompt")
+	}
+
+	if current.Model != req.Model {
+		changed = append(changed, fmt.Sprintf("model=%s", req.Model))
+	}
+
+	if current.ReasoningEffort != req.ReasoningEffort {
+		changed = append(changed, fmt.Sprintf("reasoning_effort=%s", req.ReasoningEffort))
+	}
+
+	if current.Verbosity != req.Verbosity {
+		changed = append(changed, fmt.Sprintf("verbosity=%s", req.Verbosity))
+	}
+
+	if current.MaxOutputTokens != req.MaxOutputTokens {
+		changed = append(changed, fmt.Sprintf("max_output_tokens=%d", req.MaxOutputTokens))
+	}
+
+	if current.Enabled != req.Enabled {
+		changed = append(changed, fmt.Sprintf("enabled=%t", req.Enabled))
+	}
+
+	if current.DisplayName != displayName {
+		changed = append(changed, fmt.Sprintf("display_name=%s", displayName))
+	}
+
+	if current.AvatarURL != req.AvatarURL {
+		changed = append(changed, "avatar")
+	}
+
+	if len(changed) == 0 {
+		return "unchanged"
+	}
+
+	return strings.Join(changed, " ")
 }
 
 func (a *adminService) Usage(ctx context.Context, since time.Time) (*dto.ChatbotUsageResponse, error) {

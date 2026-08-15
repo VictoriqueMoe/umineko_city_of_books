@@ -96,12 +96,13 @@ type (
 )
 
 type theoryRepository struct {
-	db  *sql.DB
-	dao TheoryDAO
+	db    *sql.DB
+	dao   TheoryDAO
+	audit AuditLogRepository
 }
 
-func NewTheoryRepo(database *sql.DB, dao TheoryDAO) TheoryRepository {
-	return &theoryRepository{db: database, dao: dao}
+func NewTheoryRepo(database *sql.DB, dao TheoryDAO, audit AuditLogRepository) TheoryRepository {
+	return &theoryRepository{db: database, dao: dao, audit: audit}
 }
 
 func (r *theoryRepository) Create(ctx context.Context, spec NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {

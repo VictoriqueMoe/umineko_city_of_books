@@ -755,14 +755,17 @@ func (m *messagesService) DeleteMessage(ctx context.Context, messageID, actorID 
 		return ErrCannotDeleteStaffMessage
 	}
 
+	modKind := ""
 	if msg.SenderID != actorID {
-		canMod, err := m.canModerateRoom(ctx, msg.RoomID, actorID)
+		kind, err := m.moderatorKind(ctx, msg.RoomID, actorID)
 		if err != nil {
 			return err
 		}
-		if !canMod {
+		if kind == "" {
 			return ErrMessageDeletePermission
 		}
+
+		modKind = kind
 	}
 
 	paths, err := m.chatRepo.DeleteMessageWithMedia(ctx, messageID)
@@ -779,5 +782,35 @@ func (m *messagesService) DeleteMessage(ctx context.Context, messageID, actorID 
 			"message_id": messageID,
 		},
 	})
+
+	m.auditMessageDelete(ctx, *msg, actorID, modKind)
+
 	return nil
+}
+
+func (m *messagesService) auditMessageDelete(ctx context.Context, msg repository.ChatMessageRow, actorID uuid.UUID, modKind string) {
+	room, err := m.chatRepo.GetRoomSendContext(ctx, msg.RoomID)
+	if err != nil {
+		logger.Log.Error().Err(err).Str("room_id", msg.RoomID.String()).Msg("audit chat message delete: get room send context failed")
+		return
+	}
+	if !isAuditableSendContext(room) {
+		return
+	}
+
+	action := repository.AuditActionChatMessageDelete
+	details := fmt.Sprintf("message=%s", msg.ID)
+	if modKind != "" {
+		action = repository.AuditActionChatMessageDeleteMod
+		details = fmt.Sprintf("message=%s by=%s", msg.ID, modKind)
+	}
+
+	m.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   msg.RoomID.String(),
+		Details:    details,
+		SubjectID:  msg.SenderID,
+	})
 }

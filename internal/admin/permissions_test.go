@@ -84,8 +84,8 @@ func TestUpdateRolePermissions_AllowsStaffPermissionsOnModerator(t *testing.T) {
 		[]string{string(authz.PermBanUser), string(authz.PermViewAdminPanel)}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
 		ActorID:    actor,
-		Action:     "update_role_permissions",
-		TargetType: "role",
+		Action:     repository.AuditActionUpdateRolePermissions,
+		TargetType: repository.AuditTargetRole,
 		TargetID:   string(authz.RoleModerator),
 		Details:    "ban_user,view_admin_panel",
 	}).Return(nil)
@@ -154,8 +154,8 @@ func TestUpdateRolePermissions_UnticksEverything(t *testing.T) {
 	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, string(authz.RoleModerator), []string{}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
 		ActorID:    actor,
-		Action:     "update_role_permissions",
-		TargetType: "role",
+		Action:     repository.AuditActionUpdateRolePermissions,
+		TargetType: repository.AuditTargetRole,
 		TargetID:   string(authz.RoleModerator),
 		Details:    "",
 	}).Return(nil)
@@ -227,8 +227,8 @@ func TestUpdateVanityRolePermissions_AcceptsAssignableSubset(t *testing.T) {
 	m.permRepo.EXPECT().SetVanityRolePermissions(mock.Anything, "r1", []string{string(authz.PermUseChatbot)}).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
 		ActorID:    actor,
-		Action:     "update_vanity_role_permissions",
-		TargetType: "vanity_role",
+		Action:     repository.AuditActionUpdateVanityRolePermissions,
+		TargetType: repository.AuditTargetVanityRole,
 		TargetID:   "r1",
 		Details:    "use_chatbot",
 	}).Return(nil)
@@ -334,10 +334,10 @@ func TestAssignVanityRole_PermissionCarryingRoleObeysRankGate(t *testing.T) {
 
 			if tc.wantErr == nil {
 				m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-				m.auditRepo.EXPECT().CreateForSubject(mock.Anything, repository.NewAuditSubjectEntry{
+				m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
 					ActorID:    actor,
-					Action:     "assign_vanity_role",
-					TargetType: "vanity_role",
+					Action:     repository.AuditActionAssignVanityRole,
+					TargetType: repository.AuditTargetVanityRole,
 					TargetID:   "r1",
 					Details:    "",
 					SubjectID:  target,
@@ -367,10 +367,10 @@ func TestAssignVanityRole_DecorativeRoleSkipsRankGate(t *testing.T) {
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(map[string][]string{}, nil)
 	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, repository.NewAuditSubjectEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
 		ActorID:    actor,
-		Action:     "assign_vanity_role",
-		TargetType: "vanity_role",
+		Action:     repository.AuditActionAssignVanityRole,
+		TargetType: repository.AuditTargetVanityRole,
 		TargetID:   "r1",
 		Details:    "",
 		SubjectID:  target,
