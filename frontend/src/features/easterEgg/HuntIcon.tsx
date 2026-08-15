@@ -17,13 +17,7 @@ export function HuntIcon({ profileUserId, secret }: HuntIconProps) {
 
     const isOwner = !!user && user.id === profileUserId;
 
-    if (!isOwner) {
-        return null;
-    }
-    if (state.solved) {
-        return null;
-    }
-    if (state.collectedCount === 0) {
+    if (!isOwner || state.solved || state.collectedCount === 0) {
         return null;
     }
 
