@@ -609,12 +609,28 @@ func (s *service) Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.G
 	if err != nil {
 		return nil, err
 	}
+
+	ids := make([]uuid.UUID, len(rows))
+	for i := range rows {
+		ids[i] = rows[i].UserID
+	}
+	users, err := s.userRepo.GetByIDs(ctx, ids)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("game_type", string(gameType)).Msg("load scoreboard users")
+		users = nil
+	}
+	byID := make(map[uuid.UUID]*model.User, len(users))
+	for i := range users {
+		byID[users[i].ID] = &users[i]
+	}
+
 	out := make([]dto.GameScoreboardRow, 0, len(rows))
 	for _, r := range rows {
-		u, err := s.userRepo.GetByID(ctx, r.UserID)
-		if err != nil || u == nil {
+		u := byID[r.UserID]
+		if u == nil {
 			continue
 		}
+
 		games := r.Wins + r.Losses + r.Draws
 		var winRate float64
 		if games > 0 {

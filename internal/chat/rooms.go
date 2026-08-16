@@ -397,9 +397,7 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 			r.broadcastToStaff(ctx, members, event)
 		} else {
 			r.broadcastRoomActionMessage(ctx, roomID, userID, actionRow)
-			for _, mid := range members {
-				r.hub.SendToUser(mid, event)
-			}
+			r.hub.SendToUsers(members, event)
 		}
 	}
 	return resp, nil
@@ -463,9 +461,7 @@ func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) 
 		if wasGhost {
 			r.broadcastToStaff(ctx, members, event)
 		} else {
-			for _, mid := range members {
-				r.hub.SendToUser(mid, event)
-			}
+			r.hub.SendToUsers(members, event)
 		}
 	}
 	return nil
@@ -543,9 +539,7 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 				"room_id": roomID,
 			},
 		}
-		for _, mid := range members {
-			r.hub.SendToUser(mid, event)
-		}
+		r.hub.SendToUsers(members, event)
 
 		if isAuditableRoom(row) {
 			r.writeAudit(ctx, repository.NewAuditEntry{

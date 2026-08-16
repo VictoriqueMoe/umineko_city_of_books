@@ -549,9 +549,7 @@ func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID u
 	}
 
 	event := ws.Message{Type: "chat_message", Data: msg}
-	for i := range members {
-		c.hub.SendToUser(members[i], event)
-	}
+	c.hub.SendToUsers(members, event)
 }
 
 func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []repository.ChatMessageRow) []dto.ChatMessageResponse {
@@ -852,9 +850,7 @@ func (c *core) broadcastToRoomMembers(ctx context.Context, roomID uuid.UUID, msg
 		return
 	}
 
-	for i := range members {
-		c.hub.SendToUser(members[i], msg)
-	}
+	c.hub.SendToUsers(members, msg)
 }
 
 func (c *core) checkSenderTimeout(ctx context.Context, roomID, senderID uuid.UUID) error {

@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
+	daoutils "umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -21,6 +23,11 @@ type (
 		db            *sql.DB
 		theoryVotes   *voteDAO
 		responseVotes *voteDAO
+	}
+
+	theorySideCounts struct {
+		withLove    int
+		withoutLove int
 	}
 )
 
@@ -220,6 +227,7 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 	defer rows.Close()
 
 	var theories []dto.TheoryResponse
+	var ids []uuid.UUID
 	for rows.Next() {
 		var t dto.TheoryResponse
 		var author dto.UserResponse
@@ -235,31 +243,43 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 			t.Body = t.Body[:200] + "..."
 		}
 
-		up, down, err := r.getTheoryVoteCounts(ctx, t.ID, tx...)
-		if err != nil {
-			logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get theory vote counts")
-		}
-		t.VoteScore = up - down
-
-		withLove, withoutLove, err := r.getResponseSideCounts(ctx, t.ID, tx...)
-		if err != nil {
-			logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get response side counts")
-		}
-		t.WithLoveCount = withLove
-		t.WithoutLoveCount = withoutLove
-
-		if userID != uuid.Nil {
-			vote, err := r.GetUserTheoryVote(ctx, userID, t.ID, tx...)
-			if err != nil {
-				logger.Log.Error().Err(err).Str("theory_id", t.ID.String()).Msg("failed to get user theory vote")
-			}
-			t.UserVote = vote
-		}
-
 		theories = append(theories, t)
+		ids = append(ids, t.ID)
+	}
+	if err := rows.Err(); err != nil {
+		return theories, total, err
+	}
+	rows.Close()
+
+	voteScores, err := r.theoryVoteScoresBatch(ctx, ids, tx...)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get theory vote counts")
 	}
 
-	return theories, total, rows.Err()
+	sideCounts, err := r.responseSideCountsBatch(ctx, ids, tx...)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get response side counts")
+	}
+
+	var userVotes map[uuid.UUID]int
+	if userID != uuid.Nil {
+		userVotes, err = r.userTheoryVotesBatch(ctx, userID, ids, tx...)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("failed to get user theory vote")
+		}
+	}
+
+	for i := range theories {
+		theories[i].VoteScore = voteScores[theories[i].ID]
+
+		sides := sideCounts[theories[i].ID]
+		theories[i].WithLoveCount = sides.withLove
+		theories[i].WithoutLoveCount = sides.withoutLove
+
+		theories[i].UserVote = userVotes[theories[i].ID]
+	}
+
+	return theories, total, nil
 }
 
 func (r *theoryDAO) UpdateTheory(ctx context.Context, spec repository.TheoryUpdate, tx ...*sql.Tx) error {
@@ -438,6 +458,7 @@ func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID
 	defer rows.Close()
 
 	var all []dto.ResponseResponse
+	var ids []uuid.UUID
 	for rows.Next() {
 		var resp dto.ResponseResponse
 		var author dto.UserResponse
@@ -449,30 +470,36 @@ func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID
 		resp.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 		resp.Author = author
 
-		up, down, err := r.getResponseVoteCounts(ctx, resp.ID, tx...)
-		if err != nil {
-			logger.Log.Error().Err(err).Str("response_id", resp.ID.String()).Msg("failed to get response vote counts")
-		}
-		resp.VoteScore = up - down
-
-		if userID != uuid.Nil {
-			vote, err := r.getUserResponseVote(ctx, userID, resp.ID, tx...)
-			if err != nil {
-				logger.Log.Error().Err(err).Str("response_id", resp.ID.String()).Msg("failed to get user response vote")
-			}
-			resp.UserVote = vote
-		}
-
-		evidence, err := r.GetResponseEvidence(ctx, resp.ID, tx...)
-		if err != nil {
-			return nil, err
-		}
-		resp.Evidence = evidence
-
 		all = append(all, resp)
+		ids = append(ids, resp.ID)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	rows.Close()
+
+	voteScores, err := r.responseVoteScoresBatch(ctx, ids, tx...)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("failed to get response vote counts")
+	}
+
+	var userVotes map[uuid.UUID]int
+	if userID != uuid.Nil {
+		userVotes, err = r.userResponseVotesBatch(ctx, userID, ids, tx...)
+		if err != nil {
+			logger.Log.Error().Err(err).Msg("failed to get user response vote")
+		}
+	}
+
+	evidence, err := r.responseEvidenceBatch(ctx, ids, tx...)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range all {
+		all[i].VoteScore = voteScores[all[i].ID]
+		all[i].UserVote = userVotes[all[i].ID]
+		all[i].Evidence = evidence[all[i].ID]
 	}
 
 	return utils.BuildTree(all,
@@ -489,6 +516,38 @@ func (r *theoryDAO) GetResponseEvidence(ctx context.Context, responseID uuid.UUI
 		 WHERE re.response_id = $1
 		 ORDER BY re.sort_order`, responseID,
 	)
+}
+
+func (r *theoryDAO) responseEvidenceBatch(ctx context.Context, responseIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.EvidenceResponse, error) {
+	if len(responseIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders, args := daoutils.PlaceholderArgs(responseIDs, 1)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT re.response_id, re.id, re.audio_id, re.quote_index, re.note, re.sort_order, re.lang
+		 FROM response_evidence re
+		 WHERE re.response_id IN (`+strings.Join(placeholders, ", ")+`)
+		 ORDER BY re.response_id, re.sort_order`, args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("query evidence: %w", err)
+	}
+	defer rows.Close()
+
+	byResponse := make(map[uuid.UUID][]dto.EvidenceResponse, len(responseIDs))
+	for rows.Next() {
+		var responseID uuid.UUID
+		var ev dto.EvidenceResponse
+		if err := rows.Scan(&responseID, &ev.ID, &ev.AudioID, &ev.QuoteIndex, &ev.Note, &ev.SortOrder, &ev.Lang); err != nil {
+			return nil, fmt.Errorf("scan evidence: %w", err)
+		}
+
+		byResponse[responseID] = append(byResponse[responseID], ev)
+	}
+
+	return byResponse, rows.Err()
 }
 
 func (r *theoryDAO) queryEvidence(ctx context.Context, tx []*sql.Tx, query string, args ...any) ([]dto.EvidenceResponse, error) {
@@ -538,25 +597,132 @@ func (r *theoryDAO) getTheoryVoteCounts(ctx context.Context, theoryID uuid.UUID,
 	return up, down, err
 }
 
-func (r *theoryDAO) getResponseVoteCounts(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (int, int, error) {
-	var up, down int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
+func (r *theoryDAO) theoryVoteScoresBatch(ctx context.Context, theoryIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]int, error) {
+	if len(theoryIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders, args := daoutils.PlaceholderArgs(theoryIDs, 1)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT theory_id,
+		        COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
 		        COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)
-		 FROM response_votes WHERE response_id = $1`, responseID,
-	).Scan(&up, &down)
-	return up, down, err
+		 FROM theory_votes WHERE theory_id IN (`+strings.Join(placeholders, ", ")+`)
+		 GROUP BY theory_id`, args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch theory vote counts: %w", err)
+	}
+	defer rows.Close()
+
+	scores := make(map[uuid.UUID]int, len(theoryIDs))
+	for rows.Next() {
+		var theoryID uuid.UUID
+		var up, down int
+		if err := rows.Scan(&theoryID, &up, &down); err != nil {
+			return nil, fmt.Errorf("scan theory vote counts: %w", err)
+		}
+
+		scores[theoryID] = up - down
+	}
+
+	return scores, rows.Err()
 }
 
-func (r *theoryDAO) getUserResponseVote(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, tx ...*sql.Tx) (int, error) {
-	var value int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT value FROM response_votes WHERE user_id = $1 AND response_id = $2`, userID, responseID,
-	).Scan(&value)
-	if errors.Is(err, sql.ErrNoRows) {
-		return 0, nil
+func (r *theoryDAO) responseVoteScoresBatch(ctx context.Context, responseIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]int, error) {
+	if len(responseIDs) == 0 {
+		return nil, nil
 	}
-	return value, err
+
+	placeholders, args := daoutils.PlaceholderArgs(responseIDs, 1)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT response_id,
+		        COALESCE(SUM(CASE WHEN value = 1 THEN 1 ELSE 0 END), 0),
+		        COALESCE(SUM(CASE WHEN value = -1 THEN 1 ELSE 0 END), 0)
+		 FROM response_votes WHERE response_id IN (`+strings.Join(placeholders, ", ")+`)
+		 GROUP BY response_id`, args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch response vote counts: %w", err)
+	}
+	defer rows.Close()
+
+	scores := make(map[uuid.UUID]int, len(responseIDs))
+	for rows.Next() {
+		var responseID uuid.UUID
+		var up, down int
+		if err := rows.Scan(&responseID, &up, &down); err != nil {
+			return nil, fmt.Errorf("scan response vote counts: %w", err)
+		}
+
+		scores[responseID] = up - down
+	}
+
+	return scores, rows.Err()
+}
+
+func (r *theoryDAO) userTheoryVotesBatch(ctx context.Context, userID uuid.UUID, theoryIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]int, error) {
+	if len(theoryIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders, idArgs := daoutils.PlaceholderArgs(theoryIDs, 2)
+	args := append([]any{userID}, idArgs...)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT theory_id, value FROM theory_votes WHERE user_id = $1 AND theory_id IN (`+strings.Join(placeholders, ", ")+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch user theory votes: %w", err)
+	}
+	defer rows.Close()
+
+	votes := make(map[uuid.UUID]int, len(theoryIDs))
+	for rows.Next() {
+		var theoryID uuid.UUID
+		var value int
+		if err := rows.Scan(&theoryID, &value); err != nil {
+			return nil, fmt.Errorf("scan user theory vote: %w", err)
+		}
+
+		votes[theoryID] = value
+	}
+
+	return votes, rows.Err()
+}
+
+func (r *theoryDAO) userResponseVotesBatch(ctx context.Context, userID uuid.UUID, responseIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]int, error) {
+	if len(responseIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders, idArgs := daoutils.PlaceholderArgs(responseIDs, 2)
+	args := append([]any{userID}, idArgs...)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT response_id, value FROM response_votes WHERE user_id = $1 AND response_id IN (`+strings.Join(placeholders, ", ")+`)`,
+		args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch user response votes: %w", err)
+	}
+	defer rows.Close()
+
+	votes := make(map[uuid.UUID]int, len(responseIDs))
+	for rows.Next() {
+		var responseID uuid.UUID
+		var value int
+		if err := rows.Scan(&responseID, &value); err != nil {
+			return nil, fmt.Errorf("scan user response vote: %w", err)
+		}
+
+		votes[responseID] = value
+	}
+
+	return votes, rows.Err()
 }
 
 func (r *theoryDAO) getResponseSideCounts(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (int, int, error) {
@@ -567,6 +733,39 @@ func (r *theoryDAO) getResponseSideCounts(ctx context.Context, theoryID uuid.UUI
 		 FROM responses WHERE theory_id = $1 AND parent_id IS NULL`, theoryID,
 	).Scan(&withLove, &withoutLove)
 	return withLove, withoutLove, err
+}
+
+func (r *theoryDAO) responseSideCountsBatch(ctx context.Context, theoryIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]theorySideCounts, error) {
+	if len(theoryIDs) == 0 {
+		return nil, nil
+	}
+
+	placeholders, args := daoutils.PlaceholderArgs(theoryIDs, 1)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT theory_id,
+		        COALESCE(SUM(CASE WHEN side = 'with_love' THEN 1 ELSE 0 END), 0),
+		        COALESCE(SUM(CASE WHEN side = 'without_love' THEN 1 ELSE 0 END), 0)
+		 FROM responses WHERE theory_id IN (`+strings.Join(placeholders, ", ")+`) AND parent_id IS NULL
+		 GROUP BY theory_id`, args...,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch response side counts: %w", err)
+	}
+	defer rows.Close()
+
+	counts := make(map[uuid.UUID]theorySideCounts, len(theoryIDs))
+	for rows.Next() {
+		var theoryID uuid.UUID
+		var side theorySideCounts
+		if err := rows.Scan(&theoryID, &side.withLove, &side.withoutLove); err != nil {
+			return nil, fmt.Errorf("scan response side counts: %w", err)
+		}
+
+		counts[theoryID] = side
+	}
+
+	return counts, rows.Err()
 }
 
 func (r *theoryDAO) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {

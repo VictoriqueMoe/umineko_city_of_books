@@ -292,11 +292,10 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		Type: "chat_message",
 		Data: resp,
 	}
+	m.hub.SendToUsers(members, msg)
+
 	recipients := make([]uuid.UUID, 0, len(members))
-
 	for _, memberID := range members {
-		m.hub.SendToUser(memberID, msg)
-
 		if memberID == senderID {
 			continue
 		}
@@ -339,9 +338,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 					"volume":  chatTriggers[i].volume,
 				},
 			}
-			for j := range members {
-				m.hub.SendToUser(members[j], audioMsg)
-			}
+			m.hub.SendToUsers(members, audioMsg)
 		}
 	}
 

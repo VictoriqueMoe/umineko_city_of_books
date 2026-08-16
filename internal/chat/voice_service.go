@@ -355,7 +355,5 @@ func (s *voiceService) broadcastVoicePresence(ctx context.Context, roomID uuid.U
 		return
 	}
 
-	for i := range members {
-		s.hub.SendToUser(members[i], event)
-	}
+	s.hub.SendToUsers(members, event)
 }

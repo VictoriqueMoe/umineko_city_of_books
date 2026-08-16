@@ -107,9 +107,7 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 				"user":    target.ToResponse(),
 			},
 		}
-		for _, mid := range existingMembers {
-			m.hub.SendToUser(mid, joinedEvent)
-		}
+		m.hub.SendToUsers(existingMembers, joinedEvent)
 		m.hub.SendToUser(targetID, joinedEvent)
 		existingMembers = append(existingMembers, targetID)
 

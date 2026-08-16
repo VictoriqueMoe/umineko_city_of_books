@@ -8,6 +8,14 @@ import (
 	"umineko_city_of_books/internal/repository"
 )
 
+const (
+	recentCountsQuery = `SELECT
+		COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 day'),
+		COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days'),
+		COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days')
+	 FROM %s`
+)
+
 type (
 	statsDAO struct {
 		db *sql.DB
@@ -42,31 +50,22 @@ func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.
 	_ = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM posts`).Scan(&s.TotalPosts)
 	_ = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments`).Scan(&s.TotalComments)
 
-	periods := []struct {
-		interval  string
-		users     *int
-		theories  *int
-		responses *int
-		posts     *int
+	recent := []struct {
+		from  string
+		day   *int
+		week  *int
+		month *int
 	}{
-		{"1 day", &s.NewUsers24h, &s.NewTheories24h, &s.NewResponses24h, &s.NewPosts24h},
-		{"7 days", &s.NewUsers7d, &s.NewTheories7d, &s.NewResponses7d, &s.NewPosts7d},
-		{"30 days", &s.NewUsers30d, &s.NewTheories30d, &s.NewResponses30d, &s.NewPosts30d},
+		{"users WHERE NOT is_bot", &s.NewUsers24h, &s.NewUsers7d, &s.NewUsers30d},
+		{"theories", &s.NewTheories24h, &s.NewTheories7d, &s.NewTheories30d},
+		{"responses", &s.NewResponses24h, &s.NewResponses7d, &s.NewResponses30d},
+		{"posts", &s.NewPosts24h, &s.NewPosts7d, &s.NewPosts30d},
 	}
 
-	for _, p := range periods {
-		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM users WHERE NOT is_bot AND created_at > NOW() - $1::interval`, p.interval,
-		).Scan(p.users)
-		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM theories WHERE created_at > NOW() - $1::interval`, p.interval,
-		).Scan(p.theories)
-		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM responses WHERE created_at > NOW() - $1::interval`, p.interval,
-		).Scan(p.responses)
-		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
-			`SELECT COUNT(*) FROM posts WHERE created_at > NOW() - $1::interval`, p.interval,
-		).Scan(p.posts)
+	for i := range recent {
+		c := recent[i]
+		_ = txOrDB(r.db, tx).QueryRowContext(ctx, fmt.Sprintf(recentCountsQuery, c.from)).
+			Scan(c.day, c.week, c.month)
 	}
 
 	s.PostsByCorner = make(map[string]int)
