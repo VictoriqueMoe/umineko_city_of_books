@@ -19,7 +19,7 @@ type (
 )
 
 func (r *emailVerificationDAO) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO email_verification_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
 		tokenHash, userID, expiresAt,
 	)
@@ -31,7 +31,7 @@ func (r *emailVerificationDAO) Create(ctx context.Context, tokenHash string, use
 
 func (r *emailVerificationDAO) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*repository.EmailVerificationToken, error) {
 	var t repository.EmailVerificationToken
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT token_hash, user_id, expires_at, used_at, created_at FROM email_verification_tokens WHERE token_hash = $1`,
 		tokenHash,
 	).Scan(&t.TokenHash, &t.UserID, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt)
@@ -45,7 +45,7 @@ func (r *emailVerificationDAO) GetByTokenHash(ctx context.Context, tokenHash str
 }
 
 func (r *emailVerificationDAO) MarkUsed(ctx context.Context, tokenHash string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE email_verification_tokens SET used_at = NOW() WHERE token_hash = $1`, tokenHash,
 	)
 	if err != nil {
@@ -55,7 +55,7 @@ func (r *emailVerificationDAO) MarkUsed(ctx context.Context, tokenHash string, t
 }
 
 func (r *emailVerificationDAO) DeleteUnusedForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM email_verification_tokens WHERE user_id = $1 AND used_at IS NULL`, userID,
 	)
 	if err != nil {

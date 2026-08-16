@@ -32,7 +32,7 @@ func (r *searchDAO) Search(ctx context.Context, query string, types []repository
         SELECT COUNT(*) FROM (%s) results`, union)
 
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, countSQL, query).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, countSQL, query).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("search count: %w", err)
 	}
 
@@ -43,7 +43,7 @@ func (r *searchDAO) Search(ctx context.Context, query string, types []repository
         ORDER BY rank DESC, created_at DESC
         LIMIT $2 OFFSET $3`, union)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, dataSQL, query, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, dataSQL, query, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("search query: %w", err)
 	}
@@ -71,7 +71,7 @@ func (r *searchDAO) QuickSearch(ctx context.Context, query string, perTypeLimit 
         FROM (%s) results
         ORDER BY rank DESC, created_at DESC`, union)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, sqlStr, query)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sqlStr, query)
 	if err != nil {
 		return nil, fmt.Errorf("quick search: %w", err)
 	}

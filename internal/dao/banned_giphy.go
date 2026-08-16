@@ -15,7 +15,7 @@ type (
 )
 
 func (r *bannedGiphyDAO) List(ctx context.Context, tx ...*sql.Tx) ([]repository.BannedGiphyRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT kind, value, created_at, created_by, reason FROM banned_giphy ORDER BY created_at DESC`,
 	)
 	if err != nil {
@@ -45,7 +45,7 @@ func (r *bannedGiphyDAO) Add(ctx context.Context, kind, value, reason string, cr
 	} else {
 		reasonVal = reason
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO banned_giphy (kind, value, created_by, reason) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
 		kind, value, createdBy, reasonVal,
 	)
@@ -56,7 +56,7 @@ func (r *bannedGiphyDAO) Add(ctx context.Context, kind, value, reason string, cr
 }
 
 func (r *bannedGiphyDAO) Remove(ctx context.Context, kind, value string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM banned_giphy WHERE kind = $1 AND value = $2`,
 		kind, value,
 	)

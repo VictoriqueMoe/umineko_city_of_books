@@ -58,7 +58,7 @@ func scanArtRow(row interface{ Scan(...any) error }, a *model.ArtRow) error {
 func (r *artDAO) CreateArt(ctx context.Context, spec repository.NewArt, tx ...*sql.Tx) (*model.ArtRow, error) {
 	var created model.ArtRow
 
-	if err := scanArtRow(getDb(r.db, tx).QueryRowContext(ctx,
+	if err := scanArtRow(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH a AS (
 		     INSERT INTO art (user_id, corner, art_type, title, description, image_url, thumbnail_url, is_spoiler)
 		     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -85,12 +85,12 @@ func (r *artDAO) UpdateArt(ctx context.Context, spec repository.ArtUpdate, tx ..
 	var err error
 
 	if spec.AsAdmin {
-		res, err = getDb(r.db, tx).ExecContext(ctx,
+		res, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE art SET title = $1, description = $2, is_spoiler = $3, updated_at = NOW() WHERE id = $4`,
 			spec.Title, spec.Description, spec.IsSpoiler, spec.ID,
 		)
 	} else {
-		res, err = getDb(r.db, tx).ExecContext(ctx,
+		res, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE art SET title = $1, description = $2, is_spoiler = $3, updated_at = NOW() WHERE id = $4 AND user_id = $5`,
 			spec.Title, spec.Description, spec.IsSpoiler, spec.ID, spec.UserID,
 		)
@@ -114,7 +114,7 @@ func (r *artDAO) InsertTags(ctx context.Context, artID uuid.UUID, tags []string,
 			continue
 		}
 
-		if _, err := getDb(r.db, tx).ExecContext(ctx,
+		if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`INSERT INTO art_tags (art_id, tag) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 			artID, tag,
 		); err != nil {
@@ -126,7 +126,7 @@ func (r *artDAO) InsertTags(ctx context.Context, artID uuid.UUID, tags []string,
 }
 
 func (r *artDAO) DeleteTags(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) error {
-	if _, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM art_tags WHERE art_id = $1`, artID); err != nil {
+	if _, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM art_tags WHERE art_id = $1`, artID); err != nil {
 		return fmt.Errorf("delete art tags: %w", err)
 	}
 
@@ -135,7 +135,7 @@ func (r *artDAO) DeleteTags(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx)
 
 func (r *artDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ArtRow, error) {
 	var a model.ArtRow
-	err := scanArtRow(getDb(r.db, tx).QueryRowContext(ctx, artSelectBase+` WHERE a.id = $2`, viewerID, id), &a)
+	err := scanArtRow(txOrDB(r.db, tx).QueryRowContext(ctx, artSelectBase+` WHERE a.id = $2`, viewerID, id), &a)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -146,7 +146,7 @@ func (r *artDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 }
 
 func (r *artDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM art WHERE id = $1 AND user_id = $2`, id, userID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM art WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete art: %w", err)
 	}
@@ -158,7 +158,7 @@ func (r *artDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx 
 }
 
 func (r *artDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM art WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM art WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete art: %w", err)
 	}
@@ -207,7 +207,7 @@ func (r *artDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string,
 	}
 
 	countWhere, countArgs, _ := buildWhere(1)
-	if err := getDb(r.db, tx).QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM art a JOIN users u ON a.user_id = u.id`+countWhere, countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count art: %w", err)
@@ -224,7 +224,7 @@ func (r *artDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string,
 	queryArgs = append(queryArgs, listArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, queryArgs...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list art: %w", err)
 	}
@@ -243,12 +243,12 @@ func (r *artDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string,
 
 func (r *artDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM art WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM art WHERE user_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user art: %w", err)
 	}
 
 	query := artSelectBase + ` WHERE a.user_id = $2 ORDER BY a.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user art: %w", err)
 	}
@@ -267,7 +267,7 @@ func (r *artDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid
 
 func (r *artDAO) GetArtAuthorID(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM art WHERE id = $1`, artID).Scan(&userID)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM art WHERE id = $1`, artID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get art author: %w", err)
 	}
@@ -276,7 +276,7 @@ func (r *artDAO) GetArtAuthorID(ctx context.Context, artID uuid.UUID, tx ...*sql
 
 func (r *artDAO) GetImageURL(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	var url string
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT image_url FROM art WHERE id = $1`, artID).Scan(&url)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT image_url FROM art WHERE id = $1`, artID).Scan(&url)
 	if err != nil {
 		return "", fmt.Errorf("get art image url: %w", err)
 	}
@@ -289,7 +289,7 @@ func (r *artDAO) GetArtImagePaths(ctx context.Context, artID uuid.UUID, tx ...*s
 		thumbnailURL string
 	)
 
-	if err := getDb(r.db, tx).QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT image_url, thumbnail_url FROM art WHERE id = $1`, artID,
 	).Scan(&imageURL, &thumbnailURL); err != nil {
 		return nil, fmt.Errorf("get art image paths: %w", err)
@@ -309,7 +309,7 @@ func (r *artDAO) GetArtImagePaths(ctx context.Context, artID uuid.UUID, tx ...*s
 }
 
 func (r *artDAO) ListGalleryArtImages(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]repository.ArtImageRef, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, image_url, thumbnail_url FROM art WHERE gallery_id = $1 AND user_id = $2`,
 		galleryID, userID,
 	)
@@ -332,7 +332,7 @@ func (r *artDAO) ListGalleryArtImages(ctx context.Context, galleryID uuid.UUID, 
 }
 
 func (r *artDAO) ListCommentThreadIDs(ctx context.Context, rootID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`WITH RECURSIVE thread AS (
 			SELECT id FROM art_comments WHERE id = $1
 			UNION ALL
@@ -360,7 +360,7 @@ func (r *artDAO) ListCommentThreadIDs(ctx context.Context, rootID uuid.UUID, tx 
 }
 
 func (r *artDAO) GetTags(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT tag FROM art_tags WHERE art_id = $1 ORDER BY tag`, artID)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT tag FROM art_tags WHERE art_id = $1 ORDER BY tag`, artID)
 	if err != nil {
 		return nil, fmt.Errorf("get art tags: %w", err)
 	}
@@ -390,7 +390,7 @@ func (r *artDAO) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID, tx ...*sq
 		args = append(args, id)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT art_id, tag FROM art_tags WHERE art_id IN (`+placeholders.String()+`) ORDER BY tag`,
 		args...,
 	)
@@ -424,7 +424,7 @@ func (r *artDAO) GetPopularTags(ctx context.Context, corner string, limit int, t
 	}
 	args = append(args, limit)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("get popular tags: %w", err)
 	}
@@ -442,7 +442,7 @@ func (r *artDAO) GetPopularTags(ctx context.Context, corner string, limit int, t
 }
 
 func (r *artDAO) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT corner, COUNT(*) FROM art GROUP BY corner`)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT corner, COUNT(*) FROM art GROUP BY corner`)
 	if err != nil {
 		return nil, fmt.Errorf("art corner counts: %w", err)
 	}
@@ -462,7 +462,7 @@ func (r *artDAO) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string
 
 func (r *artDAO) CountUserArtToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM art WHERE user_id = $1 AND created_at > NOW() - INTERVAL '1 day'`,
 		userID,
 	).Scan(&count)
@@ -477,7 +477,7 @@ func (r *artDAO) AddCommentMedia(ctx context.Context, spec repository.NewArtComm
 }
 
 func (r *artDAO) SetGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE art SET gallery_id = $1 WHERE id = $2 AND user_id = $3`,
 		galleryID, artID, userID,
 	)
@@ -495,7 +495,7 @@ func (r *artDAO) CreateGallery(ctx context.Context, userID uuid.UUID, name strin
 	var g model.GalleryRow
 	var createdAt time.Time
 	var updatedAt *time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH g AS (
 		     INSERT INTO galleries (user_id, name, description) VALUES ($1, $2, $3)
 		     RETURNING *
@@ -524,7 +524,7 @@ func (r *artDAO) CreateGallery(ctx context.Context, userID uuid.UUID, name strin
 }
 
 func (r *artDAO) UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE galleries SET name = $1, description = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4`,
 		name, description, id, userID,
 	)
@@ -539,7 +539,7 @@ func (r *artDAO) UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UU
 }
 
 func (r *artDAO) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE galleries SET cover_art_id = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
 		coverArtID, galleryID, userID,
 	)
@@ -554,7 +554,7 @@ func (r *artDAO) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userI
 }
 
 func (r *artDAO) DeleteArtInGallery(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	if _, err := getDb(r.db, tx).ExecContext(ctx,
+	if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM art WHERE gallery_id = $1 AND user_id = $2`,
 		galleryID, userID,
 	); err != nil {
@@ -565,7 +565,7 @@ func (r *artDAO) DeleteArtInGallery(ctx context.Context, galleryID uuid.UUID, us
 }
 
 func (r *artDAO) DeleteGalleryRow(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM galleries WHERE id = $1 AND user_id = $2`, id, userID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM galleries WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete gallery: %w", err)
 	}
@@ -582,7 +582,7 @@ func (r *artDAO) GetGalleryByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx
 	var g model.GalleryRow
 	var createdAt time.Time
 	var updatedAt *time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT g.id, g.user_id, g.name, g.description, g.cover_art_id,
 			COALESCE(a.image_url, ''), COALESCE(a.thumbnail_url, ''),
 			(SELECT COUNT(*) FROM art WHERE gallery_id = g.id),
@@ -611,7 +611,7 @@ func (r *artDAO) GetGalleryByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx
 }
 
 func (r *artDAO) ListGalleriesByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.GalleryRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT g.id, g.user_id, g.name, g.description, g.cover_art_id,
 			COALESCE(a.image_url, ''), COALESCE(a.thumbnail_url, ''),
 			(SELECT COUNT(*) FROM art WHERE gallery_id = g.id),
@@ -667,7 +667,7 @@ func (r *artDAO) ListAllGalleries(ctx context.Context, corner string, tx ...*sql
 
 	query += ` ORDER BY g.created_at DESC`
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("list all galleries: %w", err)
 	}
@@ -694,7 +694,7 @@ func (r *artDAO) ListAllGalleries(ctx context.Context, corner string, tx ...*sql
 }
 
 func (r *artDAO) GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int, tx ...*sql.Tx) ([]repository.PreviewImage, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT thumbnail_url, image_url FROM art WHERE gallery_id = $1 ORDER BY created_at DESC LIMIT $2`,
 		galleryID, limit,
 	)
@@ -716,12 +716,12 @@ func (r *artDAO) GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUI
 
 func (r *artDAO) ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM art WHERE gallery_id = $1`, galleryID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM art WHERE gallery_id = $1`, galleryID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count gallery art: %w", err)
 	}
 
 	query := artSelectBase + ` WHERE a.gallery_id = $2 ORDER BY a.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, viewerID, galleryID, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, galleryID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list gallery art: %w", err)
 	}

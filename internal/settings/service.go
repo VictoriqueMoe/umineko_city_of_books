@@ -137,11 +137,9 @@ func (s *service) Refresh(ctx context.Context) error {
 		}
 	}
 
-	valid := validKeys()
-
 	var stale []string
 	for k := range existing {
-		if !valid[config.SiteSettingKey(k)] {
+		if _, ok := config.SettingByKey(config.SiteSettingKey(k)); !ok {
 			stale = append(stale, k)
 		}
 	}
@@ -164,7 +162,7 @@ func (s *service) Refresh(ctx context.Context) error {
 
 	pending := make(map[string]string, len(existing))
 	for k, v := range existing {
-		if !valid[config.SiteSettingKey(k)] {
+		if _, ok := config.SettingByKey(config.SiteSettingKey(k)); !ok {
 			continue
 		}
 
@@ -247,20 +245,22 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 }
 
 func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSettingKey]string, updatedBy uuid.UUID) error {
-	valid := validKeys()
-
-	raw := make(map[string]string, len(values))
-	for k, v := range values {
-		if !valid[k] {
-			return fmt.Errorf("unknown setting: %s", k)
-		}
-		raw[string(k)] = v
-	}
-
 	merged := s.GetAll(ctx)
 
+	raw := make(map[string]string, len(values))
+	pending := make(map[string]string, len(values))
+	keys := make([]config.SiteSettingKey, 0, len(values))
 	changed := make(map[config.SiteSettingKey]string)
+
 	for k, v := range values {
+		if _, ok := config.SettingByKey(k); !ok {
+			return fmt.Errorf("unknown setting: %s", k)
+		}
+
+		raw[string(k)] = v
+		pending[cache.Setting.Key(string(k))] = v
+		keys = append(keys, k)
+
 		if merged[k] != v {
 			changed[k] = v
 		}
@@ -280,14 +280,6 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
-	pending := make(map[string]string, len(values))
-	keys := make([]config.SiteSettingKey, 0, len(values))
-
-	for k, v := range values {
-		pending[cache.Setting.Key(string(k))] = v
-		keys = append(keys, k)
-	}
-
 	_ = cache.SetMany(ctx, s.cache, pending, cache.Setting.TTL)
 
 	for k, v := range values {
@@ -297,12 +289,4 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	s.notifyBatch(keys)
 	logger.Log.Info().Int("count", len(values)).Str("updated_by", updatedBy.String()).Msg("settings updated")
 	return nil
-}
-
-func validKeys() map[config.SiteSettingKey]bool {
-	m := make(map[config.SiteSettingKey]bool, len(config.AllSiteSettings))
-	for _, def := range config.AllSiteSettings {
-		m[def.Key] = true
-	}
-	return m
 }

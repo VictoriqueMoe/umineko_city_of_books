@@ -49,7 +49,7 @@ func scanShipRow(row interface{ Scan(...any) error }, s *model.ShipRow) error {
 func (r *shipDAO) Create(ctx context.Context, userID uuid.UUID, title string, description string, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var created model.ShipRow
 
-	if err := scanShipRow(getDb(r.db, tx).QueryRowContext(ctx,
+	if err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH s AS (
 		     INSERT INTO ships (user_id, title, description, image_url, thumbnail_url)
 		     VALUES ($1, $2, $3, '', '')
@@ -76,12 +76,12 @@ func (r *shipDAO) UpdateDetails(ctx context.Context, spec repository.ShipDetails
 	)
 
 	if spec.AsAdmin {
-		res, err = getDb(r.db, tx).ExecContext(ctx,
+		res, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE ships SET title = $1, description = $2, updated_at = NOW() WHERE id = $3`,
 			spec.Title, spec.Description, spec.ID,
 		)
 	} else {
-		res, err = getDb(r.db, tx).ExecContext(ctx,
+		res, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE ships SET title = $1, description = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4`,
 			spec.Title, spec.Description, spec.ID, spec.UserID,
 		)
@@ -103,7 +103,7 @@ func (r *shipDAO) AddCommentMedia(ctx context.Context, spec repository.NewShipCo
 }
 
 func (r *shipDAO) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE ships SET image_url = $1, thumbnail_url = $2 WHERE id = $3`,
 		imageURL, thumbnailURL, id,
 	)
@@ -128,7 +128,7 @@ func appendShipPaths(paths []string, values ...string) []string {
 func (r *shipDAO) GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var imageURL, thumbnailURL string
 
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT image_url, thumbnail_url FROM ships WHERE id = $1`, shipID,
 	).Scan(&imageURL, &thumbnailURL)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -142,7 +142,7 @@ func (r *shipDAO) GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sq
 }
 
 func (r *shipDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM ships WHERE id = $1 AND user_id = $2`, id, userID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ships WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete ship: %w", err)
 	}
@@ -154,7 +154,7 @@ func (r *shipDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx
 }
 
 func (r *shipDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM ships WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ships WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete ship: %w", err)
 	}
@@ -163,7 +163,7 @@ func (r *shipDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx
 
 func (r *shipDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var s model.ShipRow
-	err := scanShipRow(getDb(r.db, tx).QueryRowContext(ctx, shipSelectBase+` WHERE s.id = $2`, viewerID, id), &s)
+	err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx, shipSelectBase+` WHERE s.id = $2`, viewerID, id), &s)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -175,7 +175,7 @@ func (r *shipDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 
 func (r *shipDAO) GetAuthorID(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM ships WHERE id = $1`, shipID).Scan(&userID)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM ships WHERE id = $1`, shipID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get ship author: %w", err)
 	}
@@ -211,7 +211,7 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 
 	countWhere, countArgs, _ := buildWhere(1)
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ships s`+countWhere, countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count ships: %w", err)
@@ -227,7 +227,7 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 	queryArgs = append(queryArgs, listArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, queryArgs...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list ships: %w", err)
 	}
@@ -267,12 +267,12 @@ func shipOrderClause(sort string) string {
 
 func (r *shipDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user ships: %w", err)
 	}
 
 	query := shipSelectBase + ` WHERE s.user_id = $2 ORDER BY s.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user ships: %w", err)
 	}
@@ -291,7 +291,7 @@ func (r *shipDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uui
 
 func (r *shipDAO) InsertCharacters(ctx context.Context, shipID uuid.UUID, characters []dto.ShipCharacter, tx ...*sql.Tx) error {
 	for i, c := range characters {
-		if _, err := getDb(r.db, tx).ExecContext(ctx,
+		if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`INSERT INTO ship_characters (ship_id, series, character_id, character_name, sort_order) VALUES ($1, $2, $3, $4, $5)`,
 			shipID, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i,
 		); err != nil {
@@ -303,7 +303,7 @@ func (r *shipDAO) InsertCharacters(ctx context.Context, shipID uuid.UUID, charac
 }
 
 func (r *shipDAO) DeleteCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) error {
-	if _, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM ship_characters WHERE ship_id = $1`, shipID); err != nil {
+	if _, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ship_characters WHERE ship_id = $1`, shipID); err != nil {
 		return fmt.Errorf("delete ship characters: %w", err)
 	}
 
@@ -311,7 +311,7 @@ func (r *shipDAO) DeleteCharacters(ctx context.Context, shipID uuid.UUID, tx ...
 }
 
 func (r *shipDAO) GetCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) ([]model.ShipCharacterRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id = $1 ORDER BY sort_order ASC`,
 		shipID,
 	)
@@ -344,7 +344,7 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, t
 		args = append(args, id)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id IN (`+placeholders.String()+`) ORDER BY sort_order ASC`,
 		args...,
 	)
@@ -366,13 +366,13 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, t
 
 func (r *shipDAO) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx) error {
 	if value == 0 {
-		_, err := getDb(r.db, tx).ExecContext(ctx,
+		_, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`DELETE FROM ship_votes WHERE user_id = $1 AND ship_id = $2`,
 			userID, shipID,
 		)
 		return err
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO ship_votes (user_id, ship_id, value) VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, ship_id) DO UPDATE SET value = EXCLUDED.value`,
 		userID, shipID, value,

@@ -39,7 +39,7 @@ func secretIDPlaceholders(ids []string, startIndex int) (string, []any) {
 func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*repository.SecretSolver, error) {
 	var s repository.SecretSolver
 	var unlockedAt time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), us.unlocked_at
 		 FROM user_secrets us
 		 JOIN users u ON us.user_id = u.id
@@ -65,7 +65,7 @@ func (r *secretDAO) GetProgressLeaderboard(ctx context.Context, pieceIDs []strin
 	}
 	placeholders, args := secretIDPlaceholders(pieceIDs, 1)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), COUNT(*) AS pieces
 		 FROM user_secrets us
 		 JOIN users u ON us.user_id = u.id
@@ -98,7 +98,7 @@ func (r *secretDAO) GetPieceCountForUser(ctx context.Context, userID uuid.UUID, 
 	placeholders, args := secretIDPlaceholders(pieceIDs, 2)
 	args = append([]any{userID}, args...)
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM user_secrets WHERE user_id = $1 AND secret_id IN (`+placeholders+`)`,
 		args...,
 	).Scan(&count)
@@ -114,7 +114,7 @@ func (r *secretDAO) GetSolversLeaderboard(ctx context.Context, parentSecretIDs [
 	}
 	placeholders, args := secretIDPlaceholders(parentSecretIDs, 1)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			COUNT(*) AS solved,
 			MAX(us.unlocked_at) AS last_solved
@@ -153,7 +153,7 @@ func (r *secretDAO) GetUserProgressSummary(ctx context.Context, userID uuid.UUID
 	queryArgs := append(args, userID)
 
 	var row repository.SecretLeaderboardRow
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM user_secrets us WHERE us.user_id = u.id AND us.secret_id IN (`+placeholders+`))
 		 FROM users u
@@ -174,7 +174,7 @@ func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql
 	var c repository.CommentRow
 	var createdAt time.Time
 	var updatedAt *time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT c.id, c.secret_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM secret_comment_likes WHERE comment_id = c.id),
@@ -201,7 +201,7 @@ func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql
 }
 
 func (r *secretDAO) GetCommenterIDs(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT DISTINCT user_id FROM secret_comments WHERE secret_id = $1`,
 		secretID,
 	)
@@ -227,7 +227,7 @@ func (r *secretDAO) CountCommentsBySecret(ctx context.Context, secretIDs []strin
 		return result, nil
 	}
 	placeholders, args := secretIDPlaceholders(secretIDs, 1)
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT secret_id, COUNT(*) FROM secret_comments WHERE secret_id IN (`+placeholders+`) GROUP BY secret_id`,
 		args...,
 	)

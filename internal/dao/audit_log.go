@@ -36,7 +36,7 @@ func (r *auditLogDAO) insert(ctx context.Context, actorID any, spec repository.N
 		subjectID = spec.SubjectID
 	}
 
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
 		actorID, spec.Action, spec.TargetType, spec.TargetID, spec.Details, subjectID,
 	)
@@ -50,14 +50,14 @@ func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, 
 	id := userID.String()
 
 	var total int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM audit_log a WHERE `+scope, id,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count audit log for user: %w", err)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
 		 FROM audit_log a
 		 LEFT JOIN users u ON a.actor_id = u.id
@@ -106,7 +106,7 @@ func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, l
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM audit_log a"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, l
 	limitPlaceholder := fmt.Sprintf("$%d", len(args)+1)
 	offsetPlaceholder := fmt.Sprintf("$%d", len(args)+2)
 	args = append(args, limit, offset)
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
 		 FROM audit_log a
 		 LEFT JOIN users u ON a.actor_id = u.id

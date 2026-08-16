@@ -1,5 +1,5 @@
 .page {
-    max-width: var(--page-max-width, 1100px);
+    max-width: var(--page-max-width);
     margin: 0 auto;
     padding: 1.5rem 1rem 3rem;
 }
@@ -13,14 +13,14 @@
 }
 
 .pageTitle {
-    font-family: var(--font-display, serif);
+    font-family: var(--font-display);
     font-size: 2rem;
     margin: 0;
 }
 
 .goLiveBtn {
-    border: 1px solid var(--gold, #c9a227);
-    background: var(--gold, #c9a227);
+    border: 1px solid var(--gold);
+    background: var(--gold);
     color: #1a1410;
     font-weight: 600;
     border-radius: 6px;
@@ -51,7 +51,7 @@
 
 .card:hover {
     transform: translateY(-2px);
-    border-color: var(--gold, #c9a227);
+    border-color: var(--gold);
 }
 
 .cardThumb {
@@ -87,10 +87,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: var(--font-display, serif);
+    font-family: var(--font-display);
     font-size: 2rem;
     font-weight: 700;
-    color: var(--gold, #c9a227);
+    color: var(--gold);
     background: rgba(0, 0, 0, 0.35);
     border: 2px solid rgba(255, 255, 255, 0.25);
 }
@@ -153,7 +153,7 @@
 }
 
 .watchPage {
-    max-width: var(--page-max-width, 1280px);
+    max-width: var(--page-max-width);
     margin: 0 auto;
     padding: 1rem;
 }
@@ -191,9 +191,9 @@
     left: 50%;
     transform: translateX(-50%);
     z-index: 3;
-    border: 1px solid var(--gold, #c9a227);
+    border: 1px solid var(--gold);
     background: rgba(0, 0, 0, 0.7);
-    color: var(--gold, #c9a227);
+    color: var(--gold);
     font-weight: 600;
     border-radius: 6px;
     padding: 0.5rem 1rem;
@@ -298,7 +298,7 @@
 }
 
 .watchTitle {
-    font-family: var(--font-display, serif);
+    font-family: var(--font-display);
     font-size: 1.4rem;
     margin: 0;
     flex: 1 1 auto;
@@ -315,7 +315,7 @@
 
 .backLink {
     text-decoration: none;
-    color: var(--gold, #c9a227);
+    color: var(--gold);
     font-size: 0.9rem;
 }
 
@@ -417,7 +417,7 @@
 }
 
 .modeBtnActive {
-    background: var(--gold, #c9a227);
+    background: var(--gold);
     color: #000;
     font-weight: 600;
 }

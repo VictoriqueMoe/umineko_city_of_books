@@ -15,7 +15,7 @@ type (
 )
 
 func (r *sitemapDAO) listEntries(ctx context.Context, query, label string, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list %s: %w", label, err)
 	}
@@ -57,7 +57,7 @@ func (r *sitemapDAO) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]reposito
 }
 
 func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT username FROM users WHERE NOT is_bot ORDER BY created_at DESC`)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT username FROM users WHERE NOT is_bot ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("list usernames: %w", err)
 	}
@@ -75,7 +75,7 @@ func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string
 }
 
 func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapJournalRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT j.id, COALESCE(j.updated_at, j.created_at), e.entry_number, e.updated_at
 		FROM journals j
 		LEFT JOIN journal_entries e ON e.journal_id = j.id AND NOT e.is_draft

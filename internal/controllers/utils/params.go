@@ -1,6 +1,9 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"fmt"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
@@ -36,4 +39,18 @@ func ActorAndTarget(ctx fiber.Ctx) (uuid.UUID, uuid.UUID, bool) {
 		return uuid.Nil, uuid.Nil, false
 	}
 	return UserID(ctx), targetID, true
+}
+
+func ViewerHash(ctx fiber.Ctx) string {
+	userID, ok := OptionalUserID(ctx)
+
+	var raw string
+	if ok && userID != uuid.Nil {
+		raw = userID.String()
+	} else {
+		raw = ctx.IP()
+	}
+
+	h := sha256.Sum256([]byte(raw))
+	return fmt.Sprintf("%x", h[:16])
 }

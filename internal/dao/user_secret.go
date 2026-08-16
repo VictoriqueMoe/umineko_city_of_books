@@ -17,7 +17,7 @@ type (
 )
 
 func (r *userSecretDAO) Unlock(ctx context.Context, userID uuid.UUID, secretID string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO user_secrets (user_id, secret_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, secretID,
 	)
@@ -28,7 +28,7 @@ func (r *userSecretDAO) Unlock(ctx context.Context, userID uuid.UUID, secretID s
 }
 
 func (r *userSecretDAO) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT secret_id FROM user_secrets WHERE user_id = $1 ORDER BY secret_id`,
 		userID,
 	)
@@ -59,7 +59,7 @@ func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []s
 		args = append(args, pieceIDs[i])
 		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
 	}
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
 		args...,
 	)
@@ -81,7 +81,7 @@ func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []s
 
 func (r *userSecretDAO) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
 	var exists int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT 1 FROM user_secrets WHERE secret_id = $1 LIMIT 1`,
 		secretID,
 	).Scan(&exists)
@@ -105,7 +105,7 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string, t
 		args = append(args, secretIDs[i])
 		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
 		args...,
 	)
@@ -116,7 +116,7 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string, t
 }
 
 func (r *userSecretDAO) GetUserIDsWithSecret(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT user_id FROM user_secrets WHERE secret_id = $1`,
 		secretID,
 	)

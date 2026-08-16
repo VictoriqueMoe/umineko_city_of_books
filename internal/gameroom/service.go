@@ -1086,10 +1086,7 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 	}
 	s.mu.Unlock()
 
-	var finishedAt *string
-	if row.FinishedAt != nil {
-		finishedAt = row.FinishedAt
-	}
+	finishedAt := row.FinishedAt
 
 	var stats json.RawMessage
 	projectedState := row.StateJSON
@@ -1160,7 +1157,7 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 			Joined: row.Joined,
 		}
 		if u := byID[row.UserID]; u != nil {
-			resp := userToResponse(u)
+			resp := u.ToResponse()
 			player.User = *resp
 			player.Username = resp.Username
 			player.DisplayName = resp.DisplayName
@@ -1264,9 +1261,3 @@ func winnerUserID(slot *int, players []dto.GameRoomPlayer) *uuid.UUID {
 	}
 	return nil
 }
-
-func userToResponse(u *model.User) *dto.UserResponse {
-	return u.ToResponse()
-}
-
-var _ = errors.New

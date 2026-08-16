@@ -31,7 +31,7 @@ func scanMediaPaths(rows *sql.Rows, table string) ([]string, error) {
 }
 
 func (m *mediaDAO) CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(m.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(m.db, tx).QueryContext(ctx,
 		`SELECT media_url, thumbnail_url FROM `+m.table+` WHERE `+m.fk+` = $1`, entityID,
 	)
 	if err != nil {
@@ -42,7 +42,7 @@ func (m *mediaDAO) CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx
 }
 
 func (c *commentDAO[K]) CollectCommentMediaPaths(ctx context.Context, entityID K, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(c.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
 		`SELECT m.media_url, m.thumbnail_url
 		 FROM `+c.mediaTable+` m
 		 JOIN `+c.table+` cm ON cm.id = m.comment_id
@@ -56,7 +56,7 @@ func (c *commentDAO[K]) CollectCommentMediaPaths(ctx context.Context, entityID K
 }
 
 func (c *commentDAO[K]) CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(c.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
 		`WITH RECURSIVE tree AS (
 		     SELECT id FROM `+c.table+` WHERE id = $1
 		     UNION ALL

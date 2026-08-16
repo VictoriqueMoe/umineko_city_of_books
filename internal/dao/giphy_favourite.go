@@ -17,7 +17,7 @@ type (
 )
 
 func (r *giphyFavouriteDAO) Add(ctx context.Context, userID uuid.UUID, fav repository.GiphyFavourite, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO giphy_favourites (user_id, giphy_id, url, title, preview_url, width, height, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
 		 ON CONFLICT (user_id, giphy_id) DO UPDATE SET
@@ -36,7 +36,7 @@ func (r *giphyFavouriteDAO) Add(ctx context.Context, userID uuid.UUID, fav repos
 }
 
 func (r *giphyFavouriteDAO) Remove(ctx context.Context, userID uuid.UUID, giphyID string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM giphy_favourites WHERE user_id = $1 AND giphy_id = $2`,
 		userID, giphyID,
 	)
@@ -54,14 +54,14 @@ func (r *giphyFavouriteDAO) List(ctx context.Context, userID uuid.UUID, limit, o
 		offset = 0
 	}
 	var total int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM giphy_favourites WHERE user_id = $1`,
 		userID,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count giphy favourites: %w", err)
 	}
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT giphy_id, url, title, preview_url, width, height, created_at
 		 FROM giphy_favourites WHERE user_id = $1
 		 ORDER BY created_at DESC LIMIT $2 OFFSET $3`,
@@ -86,7 +86,7 @@ func (r *giphyFavouriteDAO) List(ctx context.Context, userID uuid.UUID, limit, o
 }
 
 func (r *giphyFavouriteDAO) ListIDs(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT giphy_id FROM giphy_favourites WHERE user_id = $1`,
 		userID,
 	)

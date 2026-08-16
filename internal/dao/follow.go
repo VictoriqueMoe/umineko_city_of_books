@@ -17,7 +17,7 @@ type (
 )
 
 func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		followerID, followingID,
 	)
@@ -28,7 +28,7 @@ func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingI
 }
 
 func (r *followDAO) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`,
 		followerID, followingID,
 	)
@@ -40,7 +40,7 @@ func (r *followDAO) Unfollow(ctx context.Context, followerID uuid.UUID, followin
 
 func (r *followDAO) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE follower_id = $1 AND following_id = $2`,
 		followerID, followingID,
 	).Scan(&count)
@@ -52,7 +52,7 @@ func (r *followDAO) IsFollowing(ctx context.Context, followerID uuid.UUID, follo
 
 func (r *followDAO) GetFollowerCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
@@ -63,7 +63,7 @@ func (r *followDAO) GetFollowerCount(ctx context.Context, userID uuid.UUID, tx .
 
 func (r *followDAO) GetFollowingCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
@@ -74,11 +74,11 @@ func (r *followDAO) GetFollowingCount(ctx context.Context, userID uuid.UUID, tx 
 
 func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.FollowUser, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count followers: %w", err)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f
 		JOIN users u ON f.follower_id = u.id
@@ -106,11 +106,11 @@ func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, o
 
 func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.FollowUser, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following: %w", err)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f
 		JOIN users u ON f.following_id = u.id
@@ -137,7 +137,7 @@ func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, o
 }
 
 func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT f.follower_id
 		FROM follows f
 		JOIN users u ON u.id = f.follower_id
@@ -161,7 +161,7 @@ func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID
 }
 
 func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.FollowUser, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f1
 		JOIN follows f2 ON f1.following_id = f2.follower_id AND f2.following_id = f1.follower_id

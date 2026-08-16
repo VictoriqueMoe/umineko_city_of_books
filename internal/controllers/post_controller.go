@@ -1,9 +1,7 @@
 package controllers
 
 import (
-	"crypto/sha256"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"umineko_city_of_books/internal/block"
@@ -15,7 +13,6 @@ import (
 	postsvc "umineko_city_of_books/internal/post"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 )
 
 func (s *Service) getAllPostRoutes() []FSetupRoute {
@@ -215,18 +212,6 @@ func (s *Service) updatePost(ctx fiber.Ctx) error {
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
-func viewerHash(ctx fiber.Ctx) string {
-	userID, ok := ctx.Locals("userID").(uuid.UUID)
-	var raw string
-	if ok && userID != uuid.Nil {
-		raw = userID.String()
-	} else {
-		raw = ctx.IP()
-	}
-	h := sha256.Sum256([]byte(raw))
-	return fmt.Sprintf("%x", h[:16])
-}
-
 func (s *Service) getPost(ctx fiber.Ctx) error {
 	id, ok := utils.ParseID(ctx)
 	if !ok {
@@ -234,7 +219,7 @@ func (s *Service) getPost(ctx fiber.Ctx) error {
 	}
 
 	viewerID := utils.UserID(ctx)
-	result, err := s.PostService.GetPost(ctx.Context(), id, viewerID, viewerHash(ctx))
+	result, err := s.PostService.GetPost(ctx.Context(), id, viewerID, utils.ViewerHash(ctx))
 	if err != nil {
 		if errors.Is(err, postsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "post not found")

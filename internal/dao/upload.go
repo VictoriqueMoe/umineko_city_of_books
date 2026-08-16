@@ -25,7 +25,7 @@ func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 		return nil, nil
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(context.Background(), query)
+	rows, err := txOrDB(r.db, tx).QueryContext(context.Background(), query)
 	if err != nil {
 		return nil, fmt.Errorf("query referenced files: %w", err)
 	}
@@ -46,7 +46,7 @@ func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 }
 
 func (r *uploadDAO) buildUnionQuery(tx ...*sql.Tx) (string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(context.Background(),
+	rows, err := txOrDB(r.db, tx).QueryContext(context.Background(),
 		`SELECT table_name, column_name
 		 FROM information_schema.columns
 		 WHERE table_schema = 'public'

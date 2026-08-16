@@ -52,7 +52,7 @@ func scanOCRow(row interface{ Scan(...any) error }, o *model.OCRow) error {
 
 func (r *ocDAO) Create(ctx context.Context, spec repository.NewOC, tx ...*sql.Tx) (*model.OCRow, error) {
 	var created model.OCRow
-	err := scanOCRow(getDb(r.db, tx).QueryRowContext(ctx,
+	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH o AS (
 		     INSERT INTO ocs (user_id, name, description, series, custom_series_name)
 		     VALUES ($1, $2, $3, $4, $5)
@@ -101,7 +101,7 @@ func (r *ocDAO) Update(ctx context.Context, spec repository.OCUpdate, tx ...*sql
 }
 
 func (r *ocDAO) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE ocs SET image_url = $1, thumbnail_url = $2 WHERE id = $3`,
 		imageURL, thumbnailURL, id,
 	)
@@ -126,7 +126,7 @@ func appendOCPaths(paths []string, values ...string) []string {
 func (r *ocDAO) GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var imageURL, thumbnailURL string
 
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT image_url, thumbnail_url FROM ocs WHERE id = $1`, ocID,
 	).Scan(&imageURL, &thumbnailURL)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -140,7 +140,7 @@ func (r *ocDAO) GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx
 }
 
 func (r *ocDAO) GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT image_url, thumbnail_url FROM oc_images WHERE oc_id = $1 ORDER BY sort_order, id`,
 		ocID,
 	)
@@ -163,7 +163,7 @@ func (r *ocDAO) GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.
 }
 
 func (r *ocDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM ocs WHERE id = $1 AND user_id = $2`, id, userID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ocs WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete oc: %w", err)
 	}
@@ -175,7 +175,7 @@ func (r *ocDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx .
 }
 
 func (r *ocDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM ocs WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ocs WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete oc: %w", err)
 	}
@@ -184,7 +184,7 @@ func (r *ocDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) 
 
 func (r *ocDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.OCRow, error) {
 	var o model.OCRow
-	err := scanOCRow(getDb(r.db, tx).QueryRowContext(ctx, ocSelectBase+` WHERE o.id = $2`, viewerID, id), &o)
+	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx, ocSelectBase+` WHERE o.id = $2`, viewerID, id), &o)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -196,7 +196,7 @@ func (r *ocDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, t
 
 func (r *ocDAO) GetAuthorID(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var userID uuid.UUID
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM ocs WHERE id = $1`, ocID).Scan(&userID)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM ocs WHERE id = $1`, ocID).Scan(&userID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get oc author: %w", err)
 	}
@@ -205,7 +205,7 @@ func (r *ocDAO) GetAuthorID(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) 
 
 func (r *ocDAO) HasOC(ctx context.Context, userID uuid.UUID, name string, tx ...*sql.Tx) (bool, error) {
 	var exists bool
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM ocs WHERE user_id = $1 AND lower(name) = lower($2))`,
 		userID, name,
 	).Scan(&exists)
@@ -248,7 +248,7 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 
 	countWhere, countArgs, _ := buildWhere(1)
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ocs o`+countWhere, countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count ocs: %w", err)
@@ -264,7 +264,7 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 	queryArgs = append(queryArgs, listArgs...)
 	queryArgs = append(queryArgs, limit, offset)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, queryArgs...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list ocs: %w", err)
 	}
@@ -304,12 +304,12 @@ func ocOrderClause(sort string) string {
 
 func (r *ocDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.OCRow, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ocs WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ocs WHERE user_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user ocs: %w", err)
 	}
 
 	query := ocSelectBase + ` WHERE o.user_id = $2 ORDER BY o.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user ocs: %w", err)
 	}
@@ -327,7 +327,7 @@ func (r *ocDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.
 }
 
 func (r *ocDAO) ListSummariesByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.OCSummaryRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, name, series, custom_series_name, thumbnail_url FROM ocs WHERE user_id = $1 ORDER BY lower(name) ASC`,
 		userID,
 	)
@@ -349,7 +349,7 @@ func (r *ocDAO) ListSummariesByUser(ctx context.Context, userID uuid.UUID, tx ..
 
 func (r *ocDAO) AddGalleryImage(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int, tx ...*sql.Tx) (int64, error) {
 	var id int64
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO oc_images (oc_id, image_url, thumbnail_url, caption, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
 		ocID, imageURL, thumbnailURL, caption, sortOrder,
 	).Scan(&id)
@@ -360,7 +360,7 @@ func (r *ocDAO) AddGalleryImage(ctx context.Context, ocID uuid.UUID, imageURL st
 }
 
 func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, id int64, imageURL string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET image_url = $1 WHERE id = $2`, imageURL, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET image_url = $1 WHERE id = $2`, imageURL, id)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image url: %w", err)
 	}
@@ -368,7 +368,7 @@ func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, id int64, imageURL st
 }
 
 func (r *ocDAO) UpdateGalleryImageThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image thumbnail: %w", err)
 	}
@@ -394,7 +394,7 @@ func (r *ocDAO) UpdateGalleryImage(ctx context.Context, id int64, ocID uuid.UUID
 	}
 	args = append(args, id, ocID)
 	query := fmt.Sprintf(`UPDATE oc_images SET %s WHERE id = $%d AND oc_id = $%d`, strings.Join(parts, ", "), idx, idx+1)
-	res, err := getDb(r.db, tx).ExecContext(ctx, query, args...)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image: %w", err)
 	}
@@ -406,7 +406,7 @@ func (r *ocDAO) UpdateGalleryImage(ctx context.Context, id int64, ocID uuid.UUID
 }
 
 func (r *ocDAO) DeleteGalleryImage(ctx context.Context, id int64, ocID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM oc_images WHERE id = $1 AND oc_id = $2`, id, ocID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM oc_images WHERE id = $1 AND oc_id = $2`, id, ocID)
 	if err != nil {
 		return fmt.Errorf("delete oc gallery image: %w", err)
 	}
@@ -418,7 +418,7 @@ func (r *ocDAO) DeleteGalleryImage(ctx context.Context, id int64, ocID uuid.UUID
 }
 
 func (r *ocDAO) GetGallery(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]model.OCImageRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id = $1 ORDER BY sort_order ASC, id ASC`,
 		ocID,
 	)
@@ -449,7 +449,7 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
 		args = append(args, id)
 	}
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id IN (`+placeholders.String()+`) ORDER BY sort_order ASC, id ASC`,
 		args...,
 	)
@@ -471,13 +471,13 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 
 func (r *ocDAO) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int, tx ...*sql.Tx) error {
 	if value == 0 {
-		_, err := getDb(r.db, tx).ExecContext(ctx,
+		_, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`DELETE FROM oc_votes WHERE user_id = $1 AND oc_id = $2`,
 			userID, ocID,
 		)
 		return err
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO oc_votes (user_id, oc_id, value) VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, oc_id) DO UPDATE SET value = EXCLUDED.value`,
 		userID, ocID, value,
@@ -489,7 +489,7 @@ func (r *ocDAO) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, valu
 }
 
 func (r *ocDAO) Favourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO oc_favourites (user_id, oc_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, ocID,
 	)
@@ -500,7 +500,7 @@ func (r *ocDAO) Favourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID,
 }
 
 func (r *ocDAO) Unfavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM oc_favourites WHERE user_id = $1 AND oc_id = $2`,
 		userID, ocID,
 	)

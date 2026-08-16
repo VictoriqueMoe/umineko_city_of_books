@@ -18,7 +18,7 @@ type (
 
 func (r *reportDAO) Create(ctx context.Context, spec repository.NewReport, tx ...*sql.Tx) (*repository.ReportRow, error) {
 	var row repository.ReportRow
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH rep AS (
 		     INSERT INTO reports (reporter_id, target_type, target_id, context_id, reason)
 		     VALUES ($1, $2, $3, $4, $5)
@@ -53,7 +53,7 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, 
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM reports r"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
@@ -73,7 +73,7 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, 
 	)
 	args = append(args, limit, offset)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list reports: %w", err)
 	}
@@ -96,7 +96,7 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, 
 
 func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*repository.ReportRow, error) {
 	var row repository.ReportRow
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT r.id, r.reporter_id, u.display_name, u.avatar_url,
 		        r.target_type, r.target_id, COALESCE(r.context_id, ''), r.reason, r.status,
 		        r.resolved_by, COALESCE(ru.display_name, ''), r.created_at
@@ -116,7 +116,7 @@ func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*reposi
 }
 
 func (r *reportDAO) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE reports SET status = 'resolved', resolved_by = $1, resolution_comment = $2 WHERE id = $3`,
 		resolvedBy, comment, id,
 	)

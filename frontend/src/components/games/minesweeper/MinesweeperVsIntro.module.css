@@ -46,18 +46,18 @@
 }
 
 .name {
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-size: 1.25rem;
     font-weight: 700;
-    color: var(--gold, #ffd87a);
+    color: var(--gold);
     text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
 }
 
 .vs {
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-size: 3rem;
     font-weight: 900;
-    color: var(--rose, #ff6b8e);
+    color: var(--rose);
     text-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
     animation: pop 0.5s ease-out;
 }

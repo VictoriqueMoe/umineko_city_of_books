@@ -17,7 +17,7 @@ type (
 )
 
 func (r *permissionDAO) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT role, permission FROM role_permissions ORDER BY role, permission`,
 	)
 	if err != nil {
@@ -58,7 +58,7 @@ func (r *permissionDAO) SetRolePermissions(ctx context.Context, roleName string,
 }
 
 func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT vrp.vanity_role_id, vrp.permission
 		 FROM vanity_role_permissions vrp
 		 JOIN vanity_roles vr ON vr.id = vrp.vanity_role_id
@@ -103,7 +103,7 @@ func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, vanityRole
 }
 
 func (r *permissionDAO) GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT vanity_role_id FROM user_vanity_roles WHERE user_id = $1 ORDER BY vanity_role_id`, userID,
 	)
 	if err != nil {

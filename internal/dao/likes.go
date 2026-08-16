@@ -21,7 +21,7 @@ func newLikeDAO(db *sql.DB, table string, fk string) *likeDAO {
 }
 
 func (l *likeDAO) Like(ctx context.Context, userID uuid.UUID, entityID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(l.db, tx).ExecContext(ctx,
+	_, err := txOrDB(l.db, tx).ExecContext(ctx,
 		`INSERT INTO `+l.table+` (user_id, `+l.fk+`) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, entityID,
 	)
@@ -33,7 +33,7 @@ func (l *likeDAO) Like(ctx context.Context, userID uuid.UUID, entityID uuid.UUID
 }
 
 func (l *likeDAO) Unlike(ctx context.Context, userID uuid.UUID, entityID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(l.db, tx).ExecContext(ctx,
+	_, err := txOrDB(l.db, tx).ExecContext(ctx,
 		`DELETE FROM `+l.table+` WHERE user_id = $1 AND `+l.fk+` = $2`,
 		userID, entityID,
 	)
@@ -50,7 +50,7 @@ func (l *likeDAO) GetLikedBy(ctx context.Context, entityID uuid.UUID, excludeUse
 	queryArgs := []any{entityID}
 	queryArgs = append(queryArgs, exclArgs...)
 
-	rows, err := getDb(l.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(l.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM `+l.table+` lk
 		JOIN users u ON lk.user_id = u.id

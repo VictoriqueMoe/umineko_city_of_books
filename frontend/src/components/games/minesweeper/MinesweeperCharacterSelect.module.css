@@ -52,7 +52,7 @@
 
 .title {
     margin: 0;
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-style: italic;
     font-weight: 600;
     font-size: 1.55rem;
@@ -240,7 +240,7 @@
 }
 
 .name {
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: 0.95rem;
     letter-spacing: 0.12em;

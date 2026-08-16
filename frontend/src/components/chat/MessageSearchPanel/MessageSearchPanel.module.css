@@ -156,7 +156,7 @@
 }
 
 .resultSnippet mark {
-    background: rgba(var(--gold-rgb, 212, 175, 55), 0.35);
+    background: rgba(var(--gold-rgb), 0.35);
     color: var(--text);
     border-radius: 2px;
     padding: 0 1px;

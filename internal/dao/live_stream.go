@@ -40,7 +40,7 @@ func scanLiveStreamRow(scan func(dest ...any) error) (*repository.LiveStreamRow,
 }
 
 func (r *liveStreamDAO) Create(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int, tx ...*sql.Tx) (*repository.LiveStreamRow, error) {
-	row := getDb(r.db, tx).QueryRowContext(ctx,
+	row := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH ins AS (
 		     INSERT INTO live_streams (user_id, title, status)
 		     SELECT $1, $2, 'starting'
@@ -68,7 +68,7 @@ func (r *liveStreamDAO) Create(ctx context.Context, userID uuid.UUID, title stri
 }
 
 func (r *liveStreamDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.LiveStreamRow, error) {
-	row := getDb(r.db, tx).QueryRowContext(ctx,
+	row := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT `+liveStreamSelectColumns+`
 		   FROM live_streams s
 		   JOIN users u ON u.id = s.user_id
@@ -80,7 +80,7 @@ func (r *liveStreamDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx
 }
 
 func (r *liveStreamDAO) GetByRoom(ctx context.Context, room string, tx ...*sql.Tx) (*repository.LiveStreamRow, error) {
-	row := getDb(r.db, tx).QueryRowContext(ctx,
+	row := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT `+liveStreamSelectColumns+`
 		   FROM live_streams s
 		   JOIN users u ON u.id = s.user_id
@@ -92,7 +92,7 @@ func (r *liveStreamDAO) GetByRoom(ctx context.Context, room string, tx ...*sql.T
 }
 
 func (r *liveStreamDAO) GetActiveByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*repository.LiveStreamRow, error) {
-	row := getDb(r.db, tx).QueryRowContext(ctx,
+	row := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT `+liveStreamSelectColumns+`
 		   FROM live_streams s
 		   JOIN users u ON u.id = s.user_id
@@ -105,7 +105,7 @@ func (r *liveStreamDAO) GetActiveByUser(ctx context.Context, userID uuid.UUID, t
 }
 
 func (r *liveStreamDAO) listBy(ctx context.Context, tx []*sql.Tx, where string, args ...any) ([]repository.LiveStreamRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+liveStreamSelectColumns+`
 		   FROM live_streams s
 		   JOIN users u ON u.id = s.user_id
@@ -139,7 +139,7 @@ func (r *liveStreamDAO) ListStartingBefore(ctx context.Context, cutoff string, t
 
 func (r *liveStreamDAO) CountActive(ctx context.Context, tx ...*sql.Tx) (int, error) {
 	var n int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM live_streams WHERE status <> 'offline'`,
 	).Scan(&n)
 	if err != nil {
@@ -150,7 +150,7 @@ func (r *liveStreamDAO) CountActive(ctx context.Context, tx ...*sql.Tx) (int, er
 }
 
 func (r *liveStreamDAO) SetIngress(ctx context.Context, spec repository.LiveStreamIngressUpdate, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams
 		    SET ingress_id = $2, livekit_room = $3, whip_url = $4, stream_key = $5
 		  WHERE id = $1`,
@@ -164,7 +164,7 @@ func (r *liveStreamDAO) SetIngress(ctx context.Context, spec repository.LiveStre
 }
 
 func (r *liveStreamDAO) MarkLive(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams
 		    SET status = 'live', started_at = COALESCE(started_at, NOW())
 		  WHERE id = $1 AND status <> 'offline'`,
@@ -178,7 +178,7 @@ func (r *liveStreamDAO) MarkLive(ctx context.Context, id uuid.UUID, tx ...*sql.T
 }
 
 func (r *liveStreamDAO) MarkOffline(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error) {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams
 		    SET status = 'offline', ended_at = NOW(), viewer_count = 0
 		  WHERE id = $1 AND status <> 'offline'`,
@@ -198,7 +198,7 @@ func (r *liveStreamDAO) MarkOffline(ctx context.Context, id uuid.UUID, tx ...*sq
 
 func (r *liveStreamDAO) AdjustViewerCount(ctx context.Context, id uuid.UUID, delta int, tx ...*sql.Tx) (int, bool, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`UPDATE live_streams
 		    SET viewer_count = GREATEST(0, viewer_count + $2)
 		  WHERE id = $1 AND status = 'live'
@@ -216,7 +216,7 @@ func (r *liveStreamDAO) AdjustViewerCount(ctx context.Context, id uuid.UUID, del
 }
 
 func (r *liveStreamDAO) SetThumbnail(ctx context.Context, id uuid.UUID, url string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams SET thumbnail_url = $2 WHERE id = $1`,
 		id, url,
 	)
@@ -228,7 +228,7 @@ func (r *liveStreamDAO) SetThumbnail(ctx context.Context, id uuid.UUID, url stri
 }
 
 func (r *liveStreamDAO) SetEgress(ctx context.Context, id uuid.UUID, egressID, hlsURL string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams SET egress_id = $2, hls_playlist_url = $3 WHERE id = $1`,
 		id, egressID, hlsURL,
 	)
@@ -240,7 +240,7 @@ func (r *liveStreamDAO) SetEgress(ctx context.Context, id uuid.UUID, egressID, h
 }
 
 func (r *liveStreamDAO) SetDefaultMode(ctx context.Context, id uuid.UUID, mode string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams SET default_mode = $2 WHERE id = $1`,
 		id, mode,
 	)
@@ -252,7 +252,7 @@ func (r *liveStreamDAO) SetDefaultMode(ctx context.Context, id uuid.UUID, mode s
 }
 
 func (r *liveStreamDAO) SetTitle(ctx context.Context, id uuid.UUID, title string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE live_streams SET title = $2 WHERE id = $1`,
 		id, title,
 	)

@@ -11,7 +11,7 @@
 
 .heading {
     margin: 0;
-    font-family: var(--font-display, serif);
+    font-family: var(--font-display);
     font-size: 1.2rem;
 }
 
@@ -39,7 +39,7 @@
     font-size: 0.82rem;
     opacity: 0.75;
     line-height: 1.5;
-    border-left: 2px solid var(--gold, #c9a227);
+    border-left: 2px solid var(--gold);
     padding-left: 0.6rem;
 }
 
@@ -77,7 +77,7 @@
 }
 
 .disclosureToggle:hover {
-    border-color: var(--gold, #c9a227);
+    border-color: var(--gold);
     background: rgba(201, 162, 39, 0.06);
 }
 
@@ -92,7 +92,7 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: var(--gold, #c9a227);
+    color: var(--gold);
 }
 
 .disclosureSub {
@@ -102,7 +102,7 @@
 
 .chevron {
     flex-shrink: 0;
-    color: var(--gold, #c9a227);
+    color: var(--gold);
     font-size: 1rem;
     line-height: 1;
     transition: transform 0.2s ease;
@@ -130,7 +130,7 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    font-family: var(--font-display, serif);
+    font-family: var(--font-display);
     font-size: 0.95rem;
 }
 
@@ -142,9 +142,9 @@
     height: 1.4rem;
     flex-shrink: 0;
     border-radius: 50%;
-    border: 1px solid var(--gold, #c9a227);
+    border: 1px solid var(--gold);
     background: rgba(201, 162, 39, 0.15);
-    color: var(--gold, #c9a227);
+    color: var(--gold);
     font-size: 0.78rem;
     font-weight: 700;
 }
@@ -169,10 +169,10 @@
 }
 
 .calcResultMain {
-    font-family: var(--font-display, serif);
+    font-family: var(--font-display);
     font-size: 1.8rem;
     line-height: 1.1;
-    color: var(--gold, #c9a227);
+    color: var(--gold);
 }
 
 .calcResultSub {
@@ -272,12 +272,12 @@
 }
 
 .pill:hover {
-    border-color: var(--gold, #c9a227);
+    border-color: var(--gold);
 }
 
 .pillActive {
-    border-color: var(--gold, #c9a227);
-    background: var(--gold, #c9a227);
+    border-color: var(--gold);
+    background: var(--gold);
     color: #1a1208;
     font-weight: 600;
 }
@@ -307,7 +307,7 @@
 }
 
 .encTable td {
-    color: var(--gold, #c9a227);
+    color: var(--gold);
     font-weight: 600;
 }
 

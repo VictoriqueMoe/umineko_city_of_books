@@ -1,10 +1,8 @@
 package controllers
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/block"
@@ -110,18 +108,6 @@ func (s *Service) setupListUserArt(r fiber.Router) {
 	r.Get("/users/:id/art", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserArt)
 }
 
-func artViewerHash(ctx fiber.Ctx) string {
-	userID, ok := ctx.Locals("userID").(uuid.UUID)
-	var raw string
-	if ok && userID != uuid.Nil {
-		raw = userID.String()
-	} else {
-		raw = ctx.IP()
-	}
-	h := sha256.Sum256([]byte(raw))
-	return fmt.Sprintf("%x", h[:16])
-}
-
 func (s *Service) listArt(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
 	corner := ctx.Query("corner", "general")
@@ -162,7 +148,7 @@ func (s *Service) getArt(ctx fiber.Ctx) error {
 	}
 
 	viewerID := utils.UserID(ctx)
-	result, err := s.ArtService.GetArt(ctx.Context(), id, viewerID, artViewerHash(ctx))
+	result, err := s.ArtService.GetArt(ctx.Context(), id, viewerID, utils.ViewerHash(ctx))
 	if err != nil {
 		if errors.Is(err, artsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "art not found")

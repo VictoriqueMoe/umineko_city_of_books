@@ -18,7 +18,7 @@ type (
 
 func (r *settingsDAO) Get(ctx context.Context, key string, tx ...*sql.Tx) (string, error) {
 	var value string
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT value FROM site_settings WHERE key = $1`, key,
 	).Scan(&value)
 	if err != nil {
@@ -28,7 +28,7 @@ func (r *settingsDAO) Get(ctx context.Context, key string, tx ...*sql.Tx) (strin
 }
 
 func (r *settingsDAO) GetAll(ctx context.Context, tx ...*sql.Tx) (map[string]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT key, value FROM site_settings`)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT key, value FROM site_settings`)
 	if err != nil {
 		return nil, fmt.Errorf("get all settings: %w", err)
 	}
@@ -50,7 +50,7 @@ func (r *settingsDAO) Set(ctx context.Context, key, value string, updatedBy uuid
 	if updatedBy != uuid.Nil {
 		actor = updatedBy
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, NOW())
 		 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_by = EXCLUDED.updated_by, updated_at = NOW()`,
 		key, value, actor,
@@ -82,7 +82,7 @@ func (r *settingsDAO) SetMultiple(ctx context.Context, settings map[string]strin
 }
 
 func (r *settingsDAO) Delete(ctx context.Context, key string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM site_settings WHERE key = $1`, key)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM site_settings WHERE key = $1`, key)
 	if err != nil {
 		return fmt.Errorf("delete setting %q: %w", key, err)
 	}

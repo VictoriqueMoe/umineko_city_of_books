@@ -18,7 +18,7 @@ type (
 )
 
 func (r *inviteDAO) Create(ctx context.Context, code string, createdBy uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO invites (code, created_by) VALUES ($1, $2)`, code, createdBy,
 	)
 	if err != nil {
@@ -29,7 +29,7 @@ func (r *inviteDAO) Create(ctx context.Context, code string, createdBy uuid.UUID
 
 func (r *inviteDAO) GetByCode(ctx context.Context, code string, tx ...*sql.Tx) (*repository.Invite, error) {
 	var inv repository.Invite
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT code, created_by, used_by, used_at, created_at FROM invites WHERE code = $1`, code,
 	).Scan(&inv.Code, &inv.CreatedBy, &inv.UsedBy, &inv.UsedAt, &inv.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -42,7 +42,7 @@ func (r *inviteDAO) GetByCode(ctx context.Context, code string, tx ...*sql.Tx) (
 }
 
 func (r *inviteDAO) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE invites SET used_by = $1, used_at = NOW() WHERE code = $2`, usedBy, code,
 	)
 	if err != nil {
@@ -53,12 +53,12 @@ func (r *inviteDAO) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID,
 
 func (r *inviteDAO) List(ctx context.Context, limit, offset int, tx ...*sql.Tx) ([]repository.Invite, int, error) {
 	var total int
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM invites`).Scan(&total)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM invites`).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count invites: %w", err)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT code, created_by, used_by, used_at, created_at FROM invites ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
@@ -79,7 +79,7 @@ func (r *inviteDAO) List(ctx context.Context, limit, offset int, tx ...*sql.Tx) 
 }
 
 func (r *inviteDAO) Delete(ctx context.Context, code string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM invites WHERE code = $1`, code)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM invites WHERE code = $1`, code)
 	if err != nil {
 		return fmt.Errorf("delete invite: %w", err)
 	}

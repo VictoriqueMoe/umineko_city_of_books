@@ -25,7 +25,7 @@ func hashSessionToken(token string) string {
 }
 
 func (r *sessionDAO) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)`,
 		hashSessionToken(token), userID, expiresAt,
 	)
@@ -39,7 +39,7 @@ func (r *sessionDAO) GetUserID(ctx context.Context, token string, tx ...*sql.Tx)
 	var userID uuid.UUID
 	var expiresAt time.Time
 
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, expires_at FROM sessions WHERE token = $1`, hashSessionToken(token),
 	).Scan(&userID, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -53,22 +53,22 @@ func (r *sessionDAO) GetUserID(ctx context.Context, token string, tx ...*sql.Tx)
 }
 
 func (r *sessionDAO) Delete(ctx context.Context, token string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE token = $1`, hashSessionToken(token))
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE token = $1`, hashSessionToken(token))
 	return err
 }
 
 func (r *sessionDAO) DeleteAllForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
 	return err
 }
 
 func (r *sessionDAO) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1 AND token <> $2`, userID, hashSessionToken(keepToken))
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1 AND token <> $2`, userID, hashSessionToken(keepToken))
 	return err
 }
 
 func (r *sessionDAO) CleanExpired(ctx context.Context, tx ...*sql.Tx) (int, error) {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < $1`, time.Now())
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < $1`, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("clean expired sessions: %w", err)
 	}

@@ -13,7 +13,7 @@ type (
 	}
 )
 
-func getDb(db *sql.DB, tx []*sql.Tx) dbtx {
+func txOrDB(db *sql.DB, tx []*sql.Tx) dbtx {
 	if len(tx) > 0 && tx[0] != nil {
 		return tx[0]
 	}

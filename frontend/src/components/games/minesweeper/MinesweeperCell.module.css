@@ -5,7 +5,7 @@
     border: none;
     background: var(--bg-card);
     color: var(--text);
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: calc(var(--cell-size, 32px) * 0.5);
     line-height: 1;

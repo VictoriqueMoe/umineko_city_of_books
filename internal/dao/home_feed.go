@@ -44,7 +44,7 @@ LIMIT $1
 `
 
 func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomeActivityRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, homeActivitySQL, limit)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeActivitySQL, limit)
 	if err != nil {
 		return nil, fmt.Errorf("home feed activity: %w", err)
 	}
@@ -63,7 +63,7 @@ func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*
 }
 
 func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomeMemberRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, username, display_name, avatar_url, created_at
 		 FROM users
 		 WHERE banned_at IS NULL AND NOT is_bot
@@ -87,7 +87,7 @@ func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*s
 }
 
 func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]repository.HomeCornerActivityRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT p.corner,
 		        COUNT(*) AS post_count,
 		        COUNT(DISTINCT p.user_id) AS unique_posters,
@@ -134,7 +134,7 @@ SELECT 'rooms' AS key, MAX(created_at) AS latest_at FROM chat_rooms WHERE type =
 `
 
 func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]repository.SidebarActivityEntry, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, sidebarActivitySQL)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sidebarActivitySQL)
 	if err != nil {
 		return nil, fmt.Errorf("sidebar activity: %w", err)
 	}
@@ -156,7 +156,7 @@ func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([
 }
 
 func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomePublicRoomRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description,
 		        (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count,
 		        cr.last_message_at
@@ -213,7 +213,7 @@ LIMIT $2
 `
 
 func (r *homeFeedDAO) ListEchoes(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]repository.HomeEchoRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, homeEchoSQL, ago, limit)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeEchoSQL, ago, limit)
 	if err != nil {
 		return nil, fmt.Errorf("home feed echoes: %w", err)
 	}

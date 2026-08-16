@@ -20,7 +20,7 @@ func newViewDAO(db *sql.DB, viewsTable string, fk string, entityTable string) *v
 }
 
 func (v *viewDAO) RecordView(ctx context.Context, entityID uuid.UUID, viewerHash string, tx ...*sql.Tx) (bool, error) {
-	res, err := getDb(v.db, tx).ExecContext(ctx,
+	res, err := txOrDB(v.db, tx).ExecContext(ctx,
 		`INSERT INTO `+v.viewsTable+` (`+v.fk+`, viewer_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		entityID, viewerHash,
 	)
@@ -30,7 +30,7 @@ func (v *viewDAO) RecordView(ctx context.Context, entityID uuid.UUID, viewerHash
 
 	n, _ := res.RowsAffected()
 	if n > 0 {
-		if _, err := getDb(v.db, tx).ExecContext(ctx,
+		if _, err := txOrDB(v.db, tx).ExecContext(ctx,
 			`UPDATE `+v.entityTable+` SET view_count = view_count + 1 WHERE id = $1`, entityID,
 		); err != nil {
 			return false, fmt.Errorf("increment view count in %s: %w", v.entityTable, err)

@@ -32,7 +32,7 @@ func (r *mysteryDAO) Create(ctx context.Context, userID uuid.UUID, title string,
 	var row repository.MysteryRow
 	var solvedAt, pausedAt sql.NullTime
 	var createdAt, updatedAt time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH m AS (
 			INSERT INTO mysteries (user_id, title, body, difficulty, free_for_all, keep_open_after_solve,
 				knox_culprit_named_early, knox_no_supernatural, knox_passages_declared, knox_no_unknown_poison, knox_no_outsider,
@@ -70,7 +70,7 @@ func (r *mysteryDAO) Create(ctx context.Context, userID uuid.UUID, title string,
 
 func (r *mysteryDAO) AddClue(ctx context.Context, mysteryID uuid.UUID, spec repository.NewClue, tx ...*sql.Tx) (*dto.MysteryClue, error) {
 	var clue dto.MysteryClue
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO mystery_clues (mystery_id, body, truth_type, sort_order, player_id) VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, body, truth_type, sort_order, player_id`,
 		mysteryID, spec.Body, spec.TruthType, spec.SortOrder, spec.PlayerID,
@@ -83,7 +83,7 @@ func (r *mysteryDAO) AddClue(ctx context.Context, mysteryID uuid.UUID, spec repo
 }
 
 func (r *mysteryDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET title = $1, body = $2, difficulty = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND user_id = $5`,
 		title, body, difficulty, id, userID,
 	)
@@ -98,7 +98,7 @@ func (r *mysteryDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 }
 
 func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET title = $1, body = $2, difficulty = $3, free_for_all = $4, keep_open_after_solve = $5,
 			knox_culprit_named_early = $6, knox_no_supernatural = $7, knox_passages_declared = $8, knox_no_unknown_poison = $9, knox_no_outsider = $10,
 			knox_no_lucky_accident = $11, knox_detective_not_culprit = $12, knox_clues_shown = $13, knox_narrator_hides_nothing = $14, knox_no_unannounced_twins = $15, knox_contract_published = TRUE,
@@ -116,7 +116,7 @@ func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title stri
 }
 
 func (r *mysteryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM mysteries WHERE id = $1 AND user_id = $2`, id, userID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mysteries WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete mystery: %w", err)
 	}
@@ -128,7 +128,7 @@ func (r *mysteryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 }
 
 func (r *mysteryDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM mysteries WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mysteries WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete mystery: %w", err)
 	}
@@ -139,7 +139,7 @@ func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (
 	var row repository.MysteryRow
 	var solvedAt, pausedAt sql.NullTime
 	var createdAt, updatedAt time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT m.id, m.user_id, m.title, m.body, m.difficulty, m.solved, m.paused, m.gm_away, m.free_for_all, m.keep_open_after_solve, m.knox_culprit_named_early, m.knox_no_supernatural, m.knox_passages_declared, m.knox_no_unknown_poison, m.knox_no_outsider, m.knox_no_lucky_accident, m.knox_detective_not_culprit, m.knox_clues_shown, m.knox_narrator_hides_nothing, m.knox_no_unannounced_twins, m.knox_contract_published, m.solved_at, m.paused_at, m.paused_duration_seconds, m.created_at, m.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			w.id, w.username, w.display_name, w.avatar_url, COALESCE(wr.role, ''),
@@ -194,7 +194,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries m`+where, countArgs...).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries m`+where, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count mysteries: %w", err)
 	}
 
@@ -218,7 +218,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 	LEFT JOIN user_roles wr ON wr.user_id = w.id` + where + ` ` + orderBy + ` LIMIT ` + limitPlaceholder + ` OFFSET ` + offsetPlaceholder
 	args = append(args, limit, offset)
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list mysteries: %w", err)
 	}
@@ -247,7 +247,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 }
 
 func (r *mysteryDAO) GetClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryClue, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, body, truth_type, sort_order, player_id FROM mystery_clues WHERE mystery_id = $1 ORDER BY sort_order ASC`,
 		mysteryID,
 	)
@@ -268,7 +268,7 @@ func (r *mysteryDAO) GetClues(ctx context.Context, mysteryID uuid.UUID, tx ...*s
 }
 
 func (r *mysteryDAO) DeleteClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_clues WHERE mystery_id = $1 AND player_id IS NULL`, mysteryID)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_clues WHERE mystery_id = $1 AND player_id IS NULL`, mysteryID)
 	if err != nil {
 		return fmt.Errorf("delete clues: %w", err)
 	}
@@ -276,7 +276,7 @@ func (r *mysteryDAO) DeleteClues(ctx context.Context, mysteryID uuid.UUID, tx ..
 }
 
 func (r *mysteryDAO) DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_clues WHERE id = $1`, clueID)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_clues WHERE id = $1`, clueID)
 	if err != nil {
 		return fmt.Errorf("delete clue: %w", err)
 	}
@@ -284,7 +284,7 @@ func (r *mysteryDAO) DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) 
 }
 
 func (r *mysteryDAO) UpdateClue(ctx context.Context, clueID int, body string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `UPDATE mystery_clues SET body = $1 WHERE id = $2`, body, clueID)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE mystery_clues SET body = $1 WHERE id = $2`, body, clueID)
 	if err != nil {
 		return fmt.Errorf("update clue: %w", err)
 	}
@@ -293,7 +293,7 @@ func (r *mysteryDAO) UpdateClue(ctx context.Context, clueID int, body string, tx
 
 func (r *mysteryDAO) GetAuthorID(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var authorID uuid.UUID
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM mysteries WHERE id = $1`, mysteryID).Scan(&authorID)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM mysteries WHERE id = $1`, mysteryID).Scan(&authorID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get mystery author: %w", err)
 	}
@@ -303,7 +303,7 @@ func (r *mysteryDAO) GetAuthorID(ctx context.Context, mysteryID uuid.UUID, tx ..
 func (r *mysteryDAO) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string, tx ...*sql.Tx) (*repository.MysteryAttemptRow, error) {
 	var row repository.MysteryAttemptRow
 	var createdAt time.Time
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH a AS (
 			INSERT INTO mystery_attempts (mystery_id, user_id, parent_id, body) VALUES ($1, $2, $3, $4)
 			RETURNING id, mystery_id, user_id, parent_id, body, is_winner, created_at
@@ -330,7 +330,7 @@ func (r *mysteryDAO) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, use
 }
 
 func (r *mysteryDAO) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_attempts WHERE id = $1 AND user_id = $2`, id, userID)
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_attempts WHERE id = $1 AND user_id = $2`, id, userID)
 	if err != nil {
 		return fmt.Errorf("delete attempt: %w", err)
 	}
@@ -342,7 +342,7 @@ func (r *mysteryDAO) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uui
 }
 
 func (r *mysteryDAO) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_attempts WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_attempts WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("admin delete attempt: %w", err)
 	}
@@ -350,7 +350,7 @@ func (r *mysteryDAO) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID, tx 
 }
 
 func (r *mysteryDAO) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) ([]repository.MysteryAttemptRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.mystery_id, a.user_id, a.parent_id, a.body, a.is_winner, a.created_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			COALESCE((SELECT SUM(value) FROM mystery_attempt_votes WHERE attempt_id = a.id), 0),
@@ -386,7 +386,7 @@ func (r *mysteryDAO) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewe
 
 func (r *mysteryDAO) GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var authorID uuid.UUID
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM mystery_attempts WHERE id = $1`, attemptID).Scan(&authorID)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM mystery_attempts WHERE id = $1`, attemptID).Scan(&authorID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get attempt author: %w", err)
 	}
@@ -395,7 +395,7 @@ func (r *mysteryDAO) GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID
 
 func (r *mysteryDAO) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	var mysteryID uuid.UUID
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT mystery_id FROM mystery_attempts WHERE id = $1`, attemptID).Scan(&mysteryID)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT mystery_id FROM mystery_attempts WHERE id = $1`, attemptID).Scan(&mysteryID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get attempt mystery: %w", err)
 	}
@@ -404,13 +404,13 @@ func (r *mysteryDAO) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUI
 
 func (r *mysteryDAO) VoteAttempt(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int, tx ...*sql.Tx) error {
 	if value == 0 {
-		_, err := getDb(r.db, tx).ExecContext(ctx,
+		_, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`DELETE FROM mystery_attempt_votes WHERE user_id = $1 AND attempt_id = $2`,
 			userID, attemptID,
 		)
 		return err
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO mystery_attempt_votes (user_id, attempt_id, value) VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, attempt_id) DO UPDATE SET value = $4`,
 		userID, attemptID, value, value,
@@ -424,7 +424,7 @@ func (r *mysteryDAO) VoteAttempt(ctx context.Context, userID uuid.UUID, attemptI
 func (r *mysteryDAO) GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
 	var attemptUserID uuid.UUID
 	var attemptMysteryID uuid.UUID
-	if err := getDb(r.db, tx).QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, mystery_id FROM mystery_attempts WHERE id = $1`, attemptID,
 	).Scan(&attemptUserID, &attemptMysteryID); err != nil {
 		return uuid.Nil, uuid.Nil, fmt.Errorf("get attempt for winner: %w", err)
@@ -434,7 +434,7 @@ func (r *mysteryDAO) GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, t
 }
 
 func (r *mysteryDAO) SetMysteryWinner(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID, tx ...*sql.Tx) error {
-	if _, err := getDb(r.db, tx).ExecContext(ctx,
+	if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET solved = TRUE, winner_id = $1, solved_at = NOW() WHERE id = $2`,
 		winnerID, mysteryID,
 	); err != nil {
@@ -445,7 +445,7 @@ func (r *mysteryDAO) SetMysteryWinner(ctx context.Context, mysteryID uuid.UUID, 
 }
 
 func (r *mysteryDAO) SetAttemptWinner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) error {
-	if _, err := getDb(r.db, tx).ExecContext(ctx,
+	if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mystery_attempts SET is_winner = TRUE WHERE id = $1`, attemptID,
 	); err != nil {
 		return fmt.Errorf("set winning attempt: %w", err)
@@ -455,7 +455,7 @@ func (r *mysteryDAO) SetAttemptWinner(ctx context.Context, attemptID uuid.UUID, 
 }
 
 func (r *mysteryDAO) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET solved = TRUE, solved_at = NOW() WHERE id = $1 AND solved = FALSE`,
 		mysteryID,
 	)
@@ -471,7 +471,7 @@ func (r *mysteryDAO) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.U
 
 func (r *mysteryDAO) UserHasWinningAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var exists bool
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM mystery_attempts WHERE mystery_id = $1 AND user_id = $2 AND is_winner = TRUE)`,
 		mysteryID, userID,
 	).Scan(&exists)
@@ -482,7 +482,7 @@ func (r *mysteryDAO) UserHasWinningAttempt(ctx context.Context, mysteryID uuid.U
 }
 
 func (r *mysteryDAO) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT DISTINCT user_id FROM mystery_attempts WHERE mystery_id = $1 AND is_winner = TRUE`,
 		mysteryID,
 	)
@@ -504,7 +504,7 @@ func (r *mysteryDAO) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID, tx .
 
 func (r *mysteryDAO) IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var solved bool
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT solved FROM mysteries WHERE id = $1`, mysteryID).Scan(&solved)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT solved FROM mysteries WHERE id = $1`, mysteryID).Scan(&solved)
 	if err != nil {
 		return false, fmt.Errorf("check mystery solved: %w", err)
 	}
@@ -513,7 +513,7 @@ func (r *mysteryDAO) IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*s
 
 func (r *mysteryDAO) IsPaused(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var paused bool
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT paused FROM mysteries WHERE id = $1`, mysteryID).Scan(&paused)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT paused FROM mysteries WHERE id = $1`, mysteryID).Scan(&paused)
 	if err != nil {
 		return false, fmt.Errorf("check mystery paused: %w", err)
 	}
@@ -522,7 +522,7 @@ func (r *mysteryDAO) IsPaused(ctx context.Context, mysteryID uuid.UUID, tx ...*s
 
 func (r *mysteryDAO) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused bool, tx ...*sql.Tx) error {
 	if paused {
-		_, err := getDb(r.db, tx).ExecContext(ctx,
+		_, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE mysteries
 			 SET paused = TRUE,
 			     paused_at = CASE WHEN paused = TRUE THEN paused_at ELSE NOW() END
@@ -532,7 +532,7 @@ func (r *mysteryDAO) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused 
 		}
 		return nil
 	}
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries
 		 SET paused = FALSE,
 		     paused_duration_seconds = paused_duration_seconds + CASE
@@ -549,7 +549,7 @@ func (r *mysteryDAO) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused 
 }
 
 func (r *mysteryDAO) SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bool, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `UPDATE mysteries SET gm_away = $1 WHERE id = $2`, away, mysteryID)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE mysteries SET gm_away = $1 WHERE id = $2`, away, mysteryID)
 	if err != nil {
 		return fmt.Errorf("set mystery gm_away: %w", err)
 	}
@@ -558,18 +558,18 @@ func (r *mysteryDAO) SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bo
 
 func (r *mysteryDAO) CountAttempts(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = $1`, mysteryID).Scan(&count)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_attempts WHERE mystery_id = $1`, mysteryID).Scan(&count)
 	return count, err
 }
 
 func (r *mysteryDAO) CountClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_clues WHERE mystery_id = $1`, mysteryID).Scan(&count)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mystery_clues WHERE mystery_id = $1`, mysteryID).Scan(&count)
 	return count, err
 }
 
 func (r *mysteryDAO) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT DISTINCT ma.user_id FROM mystery_attempts ma
 		JOIN mysteries m ON m.id = ma.mystery_id
 		WHERE ma.mystery_id = $1 AND ma.user_id != m.user_id`, mysteryID,
@@ -592,7 +592,7 @@ func (r *mysteryDAO) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx .
 
 func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.MysteryRow, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, userID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user mysteries: %w", err)
 	}
 
@@ -611,7 +611,7 @@ func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, of
 	ORDER BY m.created_at DESC
 	LIMIT $2 OFFSET $3`
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, userID, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, userID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user mysteries: %w", err)
 	}
@@ -643,7 +643,7 @@ func (r *mysteryDAO) GetLeaderboard(ctx context.Context, limit int, tx ...*sql.T
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, username, display_name, avatar_url, role, score, easy_solved, medium_solved, hard_solved, nightmare_solved, score_adjustment FROM (
 			SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '') AS role,
 				COALESCE(SUM(CASE WHEN m.id IS NOT NULL THEN
@@ -692,7 +692,7 @@ func (r *mysteryDAO) GetLeaderboard(ctx context.Context, limit int, tx ...*sql.T
 }
 
 func (r *mysteryDAO) GetTopDetectiveIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`WITH ranked AS (
 			SELECT u.id AS user_id,
 				COALESCE(SUM(CASE WHEN m.id IS NOT NULL THEN
@@ -737,7 +737,7 @@ func (r *mysteryDAO) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql
 	if limit <= 0 {
 		limit = 20
 	}
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT user_id, username, display_name, avatar_url, role, score, mystery_count, player_count FROM (
 			SELECT u.id AS user_id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '') AS role,
 				SUM(
@@ -789,7 +789,7 @@ func (r *mysteryDAO) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql
 }
 
 func (r *mysteryDAO) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`WITH ranked AS (
 			SELECT u.id AS user_id,
 				SUM(
@@ -838,7 +838,7 @@ func (r *mysteryDAO) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, 
 
 func (r *mysteryDAO) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int, tx ...*sql.Tx) (int64, error) {
 	var id int64
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO mystery_attachments (mystery_id, file_url, file_name, file_size) VALUES ($1, $2, $3, $4) RETURNING id`,
 		mysteryID, fileURL, fileName, fileSize,
 	).Scan(&id)
@@ -849,7 +849,7 @@ func (r *mysteryDAO) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fil
 }
 
 func (r *mysteryDAO) DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM mystery_attachments WHERE id = $1 AND mystery_id = $2`,
 		id, mysteryID,
 	)
@@ -864,7 +864,7 @@ func (r *mysteryDAO) DeleteAttachment(ctx context.Context, id int64, mysteryID u
 }
 
 func (r *mysteryDAO) GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryAttachment, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, file_url, file_name, file_size FROM mystery_attachments WHERE mystery_id = $1 ORDER BY created_at`,
 		mysteryID,
 	)
@@ -893,7 +893,7 @@ func (r *mysteryDAO) AddCommentMedia(ctx context.Context, spec repository.NewMys
 }
 
 func (r *mysteryDAO) GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT file_url FROM mystery_attachments WHERE mystery_id = $1 ORDER BY created_at, id`,
 		mysteryID,
 	)

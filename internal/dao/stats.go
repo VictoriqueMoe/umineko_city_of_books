@@ -17,30 +17,30 @@ type (
 func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.SiteStats, error) {
 	var s repository.SiteStats
 
-	err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE NOT is_bot`).Scan(&s.TotalUsers)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE NOT is_bot`).Scan(&s.TotalUsers)
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
 	}
 
-	err = getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM theories`).Scan(&s.TotalTheories)
+	err = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM theories`).Scan(&s.TotalTheories)
 	if err != nil {
 		return nil, fmt.Errorf("count theories: %w", err)
 	}
 
-	err = getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM responses`).Scan(&s.TotalResponses)
+	err = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM responses`).Scan(&s.TotalResponses)
 	if err != nil {
 		return nil, fmt.Errorf("count responses: %w", err)
 	}
 
-	err = getDb(r.db, tx).QueryRowContext(ctx,
+	err = txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT (SELECT COUNT(*) FROM theory_votes) + (SELECT COUNT(*) FROM response_votes)`,
 	).Scan(&s.TotalVotes)
 	if err != nil {
 		return nil, fmt.Errorf("count votes: %w", err)
 	}
 
-	_ = getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM posts`).Scan(&s.TotalPosts)
-	_ = getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments`).Scan(&s.TotalComments)
+	_ = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM posts`).Scan(&s.TotalPosts)
+	_ = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments`).Scan(&s.TotalComments)
 
 	periods := []struct {
 		interval  string
@@ -55,22 +55,22 @@ func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.
 	}
 
 	for _, p := range periods {
-		_ = getDb(r.db, tx).QueryRowContext(ctx,
+		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM users WHERE NOT is_bot AND created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.users)
-		_ = getDb(r.db, tx).QueryRowContext(ctx,
+		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM theories WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.theories)
-		_ = getDb(r.db, tx).QueryRowContext(ctx,
+		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM responses WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.responses)
-		_ = getDb(r.db, tx).QueryRowContext(ctx,
+		_ = txOrDB(r.db, tx).QueryRowContext(ctx,
 			`SELECT COUNT(*) FROM posts WHERE created_at > NOW() - $1::interval`, p.interval,
 		).Scan(p.posts)
 	}
 
 	s.PostsByCorner = make(map[string]int)
-	cornerRows, err := getDb(r.db, tx).QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
+	cornerRows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
 	if err == nil {
 		defer cornerRows.Close()
 		for cornerRows.Next() {
@@ -86,7 +86,7 @@ func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.
 }
 
 func (r *statsDAO) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.ActiveUser, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COUNT(*) as action_count
 		 FROM (
 			SELECT user_id FROM theories

@@ -15,7 +15,7 @@ type (
 )
 
 func (r *deviceTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token, platform string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO device_tokens (token, user_id, platform, last_seen)
 		 VALUES ($1, $2, $3, NOW())
 		 ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, last_seen = NOW()`,
@@ -28,7 +28,7 @@ func (r *deviceTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token, pl
 }
 
 func (r *deviceTokenDAO) TokensForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT token FROM device_tokens WHERE user_id = $1`, userID,
 	)
 	if err != nil {
@@ -52,7 +52,7 @@ func (r *deviceTokenDAO) TokensForUser(ctx context.Context, userID uuid.UUID, tx
 }
 
 func (r *deviceTokenDAO) Delete(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, token, userID)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, token, userID)
 	if err != nil {
 		return fmt.Errorf("delete device token: %w", err)
 	}

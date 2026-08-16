@@ -390,7 +390,7 @@
 .ownerPill {
     font-size: 0.65rem;
     text-transform: uppercase;
-    background: rgba(var(--purple-rgb, 152, 87, 184), 0.25);
+    background: rgba(var(--purple-rgb), 0.25);
     color: var(--text);
     padding: 0.08rem 0.4rem;
     border-radius: 999px;

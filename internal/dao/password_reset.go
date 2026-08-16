@@ -19,7 +19,7 @@ type (
 )
 
 func (r *passwordResetDAO) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
 		tokenHash, userID, expiresAt,
 	)
@@ -31,7 +31,7 @@ func (r *passwordResetDAO) Create(ctx context.Context, tokenHash string, userID 
 
 func (r *passwordResetDAO) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*repository.PasswordResetToken, error) {
 	var t repository.PasswordResetToken
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT token_hash, user_id, expires_at, used_at, created_at FROM password_reset_tokens WHERE token_hash = $1`,
 		tokenHash,
 	).Scan(&t.TokenHash, &t.UserID, &t.ExpiresAt, &t.UsedAt, &t.CreatedAt)
@@ -45,7 +45,7 @@ func (r *passwordResetDAO) GetByTokenHash(ctx context.Context, tokenHash string,
 }
 
 func (r *passwordResetDAO) MarkUsed(ctx context.Context, tokenHash string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE password_reset_tokens SET used_at = NOW() WHERE token_hash = $1`, tokenHash,
 	)
 	if err != nil {
@@ -55,7 +55,7 @@ func (r *passwordResetDAO) MarkUsed(ctx context.Context, tokenHash string, tx ..
 }
 
 func (r *passwordResetDAO) DeleteUnusedForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM password_reset_tokens WHERE user_id = $1 AND used_at IS NULL`, userID,
 	)
 	if err != nil {

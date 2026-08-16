@@ -506,12 +506,6 @@ function categoryFromReferenceType(notif: Notification): NotificationCategory {
     if (refType === "mystery") {
         return "game_board";
     }
-    if (refType === "ship" || refType.startsWith("ship_comment:")) {
-        return "social";
-    }
-    if (refType === "oc" || refType.startsWith("oc_comment:")) {
-        return "social";
-    }
     return "social";
 }
 

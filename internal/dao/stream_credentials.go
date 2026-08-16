@@ -19,7 +19,7 @@ type (
 
 func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*repository.StreamCredentialsRow, error) {
 	var row repository.StreamCredentialsRow
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, ingress_id, whip_url, stream_key, room
 		   FROM stream_credentials
 		  WHERE user_id = $1`,
@@ -36,7 +36,7 @@ func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...
 }
 
 func (r *streamCredentialsDAO) Upsert(ctx context.Context, spec repository.NewStreamCredentials, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO stream_credentials (user_id, ingress_id, whip_url, stream_key, room)
 		 VALUES ($1, $2, $3, $4, $5)
 		 ON CONFLICT (user_id) DO UPDATE
@@ -55,7 +55,7 @@ func (r *streamCredentialsDAO) Upsert(ctx context.Context, spec repository.NewSt
 }
 
 func (r *streamCredentialsDAO) Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM stream_credentials WHERE user_id = $1`,
 		userID,
 	)

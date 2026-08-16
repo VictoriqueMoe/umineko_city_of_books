@@ -16,7 +16,7 @@ type (
 )
 
 func (r *sidebarLastVisitedDAO) Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO sidebar_last_visited (user_id, key, visited_at)
 		 VALUES ($1, $2, NOW())
 		 ON CONFLICT (user_id, key) DO UPDATE SET visited_at = EXCLUDED.visited_at`,
@@ -29,7 +29,7 @@ func (r *sidebarLastVisitedDAO) Upsert(ctx context.Context, userID uuid.UUID, ke
 }
 
 func (r *sidebarLastVisitedDAO) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT key, visited_at FROM sidebar_last_visited WHERE user_id = $1`,
 		userID,
 	)

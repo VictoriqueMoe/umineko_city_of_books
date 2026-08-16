@@ -21,7 +21,7 @@ func (r *chatBannedWordDAO) Create(ctx context.Context, spec repository.ChatBann
 	var row repository.ChatBannedWordRow
 	var createdByName sql.NullString
 
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH ins AS (
 			INSERT INTO chat_banned_words (scope, room_id, pattern, match_mode, case_sensitive, action, created_by)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -46,7 +46,7 @@ func (r *chatBannedWordDAO) Create(ctx context.Context, spec repository.ChatBann
 }
 
 func (r *chatBannedWordDAO) Update(ctx context.Context, id uuid.UUID, spec repository.ChatBannedWordUpdate, tx ...*sql.Tx) error {
-	res, err := getDb(r.db, tx).ExecContext(ctx,
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_banned_words SET pattern = $1, match_mode = $2, case_sensitive = $3, action = $4 WHERE id = $5`,
 		spec.Pattern, spec.MatchMode, spec.CaseSensitive, spec.Action, id,
 	)
@@ -61,7 +61,7 @@ func (r *chatBannedWordDAO) Update(ctx context.Context, id uuid.UUID, spec repos
 }
 
 func (r *chatBannedWordDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM chat_banned_words WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM chat_banned_words WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete banned word: %w", err)
 	}
@@ -71,7 +71,7 @@ func (r *chatBannedWordDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql
 func (r *chatBannedWordDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.ChatBannedWordRow, error) {
 	var row repository.ChatBannedWordRow
 	var createdByName sql.NullString
-	err := getDb(r.db, tx).QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT w.id, w.scope, w.room_id, w.pattern, w.match_mode, w.case_sensitive, w.action,
 		        w.created_by, COALESCE(u.display_name, u.username), w.created_at
 		 FROM chat_banned_words w
@@ -127,7 +127,7 @@ func (r *chatBannedWordDAO) ListApplicable(ctx context.Context, roomID uuid.UUID
 }
 
 func (r *chatBannedWordDAO) queryRows(ctx context.Context, tx []*sql.Tx, query string, args ...any) ([]repository.ChatBannedWordRow, error) {
-	rows, err := getDb(r.db, tx).QueryContext(ctx, query, args...)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query banned words: %w", err)
 	}

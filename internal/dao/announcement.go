@@ -51,7 +51,7 @@ func (r *announcementDAO) AddCommentMedia(ctx context.Context, spec repository.N
 func (r *announcementDAO) Create(ctx context.Context, authorID uuid.UUID, title string, body string, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {
 	var created repository.AnnouncementRow
 	err := scanAnnouncementRow(
-		getDb(r.db, tx).QueryRowContext(ctx,
+		txOrDB(r.db, tx).QueryRowContext(ctx,
 			`WITH a AS (
 			     INSERT INTO announcements (author_id, title, body) VALUES ($1, $2, $3)
 			     RETURNING id, title, body, author_id, pinned, created_at, updated_at
@@ -73,7 +73,7 @@ func (r *announcementDAO) Create(ctx context.Context, authorID uuid.UUID, title 
 }
 
 func (r *announcementDAO) Update(ctx context.Context, id uuid.UUID, title string, body string, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx,
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE announcements SET title = $1, body = $2, updated_at = NOW() WHERE id = $3`,
 		title, body, id,
 	)
@@ -84,7 +84,7 @@ func (r *announcementDAO) Update(ctx context.Context, id uuid.UUID, title string
 }
 
 func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `DELETE FROM announcements WHERE id = $1`, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM announcements WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("delete announcement: %w", err)
 	}
@@ -94,7 +94,7 @@ func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.T
 func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {
 	var row repository.AnnouncementRow
 	err := scanAnnouncementRow(
-		getDb(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` WHERE a.id = $1`, id),
+		txOrDB(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` WHERE a.id = $1`, id),
 		&row,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -108,11 +108,11 @@ func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.
 
 func (r *announcementDAO) List(ctx context.Context, limit, offset int, tx ...*sql.Tx) ([]repository.AnnouncementRow, int, error) {
 	var total int
-	if err := getDb(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM announcements`).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM announcements`).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count announcements: %w", err)
 	}
 
-	rows, err := getDb(r.db, tx).QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
@@ -135,7 +135,7 @@ func (r *announcementDAO) List(ctx context.Context, limit, offset int, tx ...*sq
 func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {
 	var row repository.AnnouncementRow
 	err := scanAnnouncementRow(
-		getDb(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT 1`),
+		txOrDB(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT 1`),
 		&row,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -148,7 +148,7 @@ func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*reposi
 }
 
 func (r *announcementDAO) SetPinned(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx) error {
-	_, err := getDb(r.db, tx).ExecContext(ctx, `UPDATE announcements SET pinned = $1 WHERE id = $2`, pinned, id)
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE announcements SET pinned = $1 WHERE id = $2`, pinned, id)
 	if err != nil {
 		return fmt.Errorf("set pinned: %w", err)
 	}

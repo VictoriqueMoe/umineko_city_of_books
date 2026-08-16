@@ -70,7 +70,7 @@
     left: 0;
     right: 0;
     text-align: center;
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -133,7 +133,7 @@
 }
 
 .statLabel {
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.12em;
@@ -141,7 +141,7 @@
 }
 
 .statValue {
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-size: 1rem;
     font-weight: 600;
     color: rgba(var(--gold-rgb), 1);
@@ -172,7 +172,7 @@
     border: none;
     background: var(--bg-card);
     color: var(--text-muted);
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: 0.9rem;
     letter-spacing: 0.04em;
