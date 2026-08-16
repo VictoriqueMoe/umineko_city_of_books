@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/chatbot"
 	"umineko_city_of_books/internal/config"
@@ -235,10 +236,18 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 }
 
 func initCache(manager *cache.Manager, settingsSvc settings.Service) {
-	settingsSvc.RegisterValidator(config.SettingValkeyURL, cache.ProbeURL)
+	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
 
-	err := manager.Reconfigure(settingsSvc.Get(context.Background(), config.SettingValkeyURL))
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("valkey cache reconfigure failed at startup")
+	url := settingsSvc.Get(context.Background(), config.SettingValkeyURL)
+
+	for _, candidate := range manager.Engines() {
+		configurable, ok := candidate.(interface{ Reconfigure(string) error })
+		if !ok {
+			continue
+		}
+
+		if err := configurable.Reconfigure(url); err != nil {
+			logger.Log.Warn().Err(err).Str("engine", candidate.Name()).Msg("cache engine reconfigure failed at startup")
+		}
 	}
 }

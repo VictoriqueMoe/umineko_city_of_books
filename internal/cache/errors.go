@@ -1,7 +1,15 @@
 package cache
 
-import "errors"
+import (
+	"errors"
+
+	"umineko_city_of_books/internal/cache/engine"
+)
 
 var (
-	ErrMiss = errors.New("cache: miss")
+	ErrMiss = engine.ErrMiss
 )
+
+func errorIsMiss(err error) bool {
+	return errors.Is(err, ErrMiss)
+}

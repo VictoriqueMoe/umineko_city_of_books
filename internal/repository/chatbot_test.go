@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,7 @@ func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *MockChatbotDAO, *va
 	basePrompts := NewMockBasePromptInvalidator(t)
 	basePrompts.EXPECT().InvalidateList(mock.Anything).Return().Maybe()
 
-	return NewChatbotRepo(nil, dao, nil, nil, basePrompts, cache.NewManagerWithClient(client)), dao, client
+	return NewChatbotRepo(nil, dao, nil, nil, basePrompts, cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
 }
 
 func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {

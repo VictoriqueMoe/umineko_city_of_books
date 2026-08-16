@@ -130,7 +130,9 @@ type (
 )
 
 func initServer() (*fiber.App, func()) {
-	repos, settingsSvc, cacheMgr := initDatabase()
+	cacheMgr := cache.New()
+
+	repos, settingsSvc := initDatabase(cacheMgr)
 
 	svc := initServices(repos, settingsSvc, cacheMgr)
 	app := initApp(svc, repos, settingsSvc)

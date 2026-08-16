@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ func newCachedMysteryRepo(t *testing.T) (MysteryRepository, *MockMysteryDAO, *va
 	client := valkeymock.NewClient(gomock.NewController(t))
 	dao := NewMockMysteryDAO(t)
 
-	return NewMysteryRepo(nil, dao, NewMockAuditLogRepository(t), cache.NewManagerWithClient(client)), dao, client
+	return NewMysteryRepo(nil, dao, NewMockAuditLogRepository(t), cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
 }
 
 func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mysteryWriterCase {

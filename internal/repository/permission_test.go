@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func newCachedPermissionRepo(t *testing.T) (PermissionRepository, *MockPermissio
 	client := valkeymock.NewClient(gomock.NewController(t))
 	dao := NewMockPermissionRepository(t)
 
-	return NewPermissionRepo(dao, cache.NewManagerWithClient(client)), dao, client
+	return NewPermissionRepo(dao, cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
 }
 
 func expectDel(t *testing.T, client *valkeymock.Client, key string) *gomock.Call {
@@ -81,7 +82,7 @@ func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 	// given
 	client := valkeymock.NewClient(gomock.NewController(t))
 	dao := NewMockVanityRoleDAO(t)
-	repo := NewVanityRoleRepo(nil, dao, cache.NewManagerWithClient(client))
+	repo := NewVanityRoleRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)))
 	userID := uuid.New()
 	dao.EXPECT().AssignToUser(mock.Anything, userID, "vanity-a").Return(nil)
 
@@ -107,7 +108,7 @@ func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 	// given
 	client := valkeymock.NewClient(gomock.NewController(t))
 	dao := NewMockVanityRoleDAO(t)
-	repo := NewVanityRoleRepo(nil, dao, cache.NewManagerWithClient(client))
+	repo := NewVanityRoleRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)))
 	userID := uuid.New()
 	dao.EXPECT().UnassignFromUser(mock.Anything, userID, "vanity-a").Return(nil)
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/secrets"
 
@@ -24,7 +25,7 @@ func newCachedUserRepo(t *testing.T) (UserRepository, *MockUserDAO, *valkeymock.
 	client := valkeymock.NewClient(gomock.NewController(t))
 	dao := NewMockUserDAO(t)
 
-	return NewUserRepo(nil, dao, cache.NewManagerWithClient(client), nil, nil, nil, nil, nil, nil), dao, client
+	return NewUserRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)), nil, nil, nil, nil, nil, nil), dao, client
 }
 
 func captureDel(client *valkeymock.Client, commands *[]string) {

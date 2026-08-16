@@ -14,7 +14,7 @@ import (
 	"umineko_city_of_books/internal/telemetry"
 )
 
-func initDatabase() (*repository.Repositories, settings.Service, *cache.Manager) {
+func initDatabase(cacheMgr *cache.Manager) (*repository.Repositories, settings.Service) {
 	if err := telemetry.Init(
 		context.Background(),
 		"umineko-city-of-books",
@@ -39,7 +39,6 @@ func initDatabase() (*repository.Repositories, settings.Service, *cache.Manager)
 		logger.Log.Fatal().Err(err).Msg("failed to seed content")
 	}
 
-	cacheMgr := cache.NewManager()
 	repos := store.New(database, cacheMgr)
 
 	settingsSvc := settings.NewService(repos.Settings, cacheMgr)
@@ -63,5 +62,5 @@ func initDatabase() (*repository.Repositories, settings.Service, *cache.Manager)
 		logger.Log.Warn().Err(err).Msg("pyroscope init failed; profiling disabled")
 	}
 
-	return repos, settingsSvc, cacheMgr
+	return repos, settingsSvc
 }
