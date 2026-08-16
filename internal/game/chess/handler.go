@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -172,7 +171,7 @@ func (h *Handler) ComputeStats(stateJSON, result, createdAt, finishedAt string) 
 		}
 	}
 
-	stats.DurationSeconds = durationSeconds(createdAt, finishedAt)
+	stats.DurationSeconds = gameroom.DurationSeconds(createdAt, finishedAt)
 	return stats, nil
 }
 
@@ -208,39 +207,6 @@ func classifyResult(result string, game *chesslib.Game) string {
 		return "draw"
 	}
 	return ""
-}
-
-func durationSeconds(createdAt, finishedAt string) int {
-	if createdAt == "" {
-		return 0
-	}
-	start, err := parseDBTime(createdAt)
-	if err != nil {
-		return 0
-	}
-	end := time.Now().UTC()
-	if finishedAt != "" {
-		parsed, err := parseDBTime(finishedAt)
-		if err != nil {
-			return 0
-		}
-		end = parsed
-	}
-	d := end.Sub(start)
-	if d < 0 {
-		return 0
-	}
-	return int(d.Seconds())
-}
-
-func parseDBTime(s string) (time.Time, error) {
-	layouts := []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"}
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("unrecognised time format: %s", s)
 }
 
 func (h *Handler) OnGraceExpired(_ string, disconnectedSlot int) gameroom.DisconnectResult {

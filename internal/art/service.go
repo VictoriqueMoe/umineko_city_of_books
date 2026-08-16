@@ -388,10 +388,6 @@ func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID
 	}
 
 	go func() {
-		authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
-		if err != nil {
-			return
-		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil || actor == nil {
 			return
@@ -460,10 +456,6 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
-		artAuthorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
-		if err != nil {
-			return
-		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil || actor == nil {
 			return
@@ -472,7 +464,7 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 
 		if req.ParentID == nil {
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   artAuthorID,
+				RecipientID:   authorID,
 				Type:          dto.NotifArtCommented,
 				ReferenceID:   artID,
 				ReferenceType: fmt.Sprintf("art_comment:%s", id),
@@ -498,9 +490,9 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 			})
 		}
 
-		if artAuthorID != userID && artAuthorID != parentAuthorID {
+		if authorID != userID && authorID != parentAuthorID {
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   artAuthorID,
+				RecipientID:   authorID,
 				Type:          dto.NotifArtCommented,
 				ReferenceID:   artID,
 				ReferenceType: fmt.Sprintf("art_comment:%s", id),
@@ -607,10 +599,6 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	}
 
 	go func() {
-		authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
-		if err != nil {
-			return
-		}
 		artID, err := s.artRepo.GetCommentEntityID(ctx, commentID)
 		if err != nil {
 			return
@@ -620,7 +608,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 			return
 		}
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
+			RecipientID:   commentAuthorID,
 			Type:          dto.NotifCommentLiked,
 			ReferenceID:   artID,
 			ReferenceType: fmt.Sprintf("art_comment:%s", commentID),

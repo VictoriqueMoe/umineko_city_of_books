@@ -542,10 +542,6 @@ func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UU
 	s.broadcastLikeUpdate(postID, 1)
 
 	go func() {
-		authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-		if err != nil {
-			return
-		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil || actor == nil {
 			return
@@ -607,17 +603,13 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	go func() {
 		ctx := context.Background()
 
-		postAuthorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-		if err != nil {
-			return
-		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil || actor == nil {
 			return
 		}
 		if req.ParentID == nil {
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   postAuthorID,
+				RecipientID:   authorID,
 				Type:          dto.NotifPostCommented,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
@@ -643,9 +635,9 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 			})
 		}
 
-		if postAuthorID != userID && postAuthorID != parentAuthorID {
+		if authorID != userID && authorID != parentAuthorID {
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   postAuthorID,
+				RecipientID:   authorID,
 				Type:          dto.NotifPostCommented,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
@@ -752,10 +744,6 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	}
 
 	go func() {
-		authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-		if err != nil {
-			return
-		}
 		postID, err := s.postRepo.GetCommentEntityID(ctx, commentID)
 		if err != nil {
 			return
@@ -765,7 +753,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 			return
 		}
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
+			RecipientID:   commentAuthorID,
 			Type:          dto.NotifCommentLiked,
 			ReferenceID:   postID,
 			ReferenceType: fmt.Sprintf("post_comment:%s", commentID),

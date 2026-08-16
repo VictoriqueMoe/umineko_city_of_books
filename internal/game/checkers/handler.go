@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
@@ -259,7 +258,7 @@ func (h *Handler) ComputeStats(stateJSON, result, createdAt, finishedAt string) 
 		RedCrownings:    s.RedCrownings,
 		BlackCrownings:  s.BlackCrownings,
 		ResultReason:    classifyResult(result),
-		DurationSeconds: durationSeconds(createdAt, finishedAt),
+		DurationSeconds: gameroom.DurationSeconds(createdAt, finishedAt),
 		FinalBoard:      s.Board,
 		RedPiecesLeft:   red,
 		BlackPiecesLeft: black,
@@ -288,37 +287,4 @@ func splitMoves(total int) (int, int) {
 	red := (total + 1) / 2
 	black := total / 2
 	return red, black
-}
-
-func durationSeconds(createdAt, finishedAt string) int {
-	if createdAt == "" {
-		return 0
-	}
-	start, err := parseDBTime(createdAt)
-	if err != nil {
-		return 0
-	}
-	end := time.Now().UTC()
-	if finishedAt != "" {
-		parsed, perr := parseDBTime(finishedAt)
-		if perr != nil {
-			return 0
-		}
-		end = parsed
-	}
-	d := end.Sub(start)
-	if d < 0 {
-		return 0
-	}
-	return int(d.Seconds())
-}
-
-func parseDBTime(s string) (time.Time, error) {
-	layouts := []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02T15:04:05Z"}
-	for _, layout := range layouts {
-		if t, err := time.Parse(layout, s); err == nil {
-			return t, nil
-		}
-	}
-	return time.Time{}, fmt.Errorf("unrecognised time format: %s", s)
 }

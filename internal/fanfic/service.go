@@ -64,6 +64,13 @@ type (
 		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 	}
 
+	fanficFields struct {
+		Tags     []string
+		Rating   string
+		Series   string
+		Language string
+	}
+
 	service struct {
 		fanficRepo    repository.FanficRepository
 		userRepo      repository.UserRepository
@@ -147,6 +154,47 @@ func countWords(html string) int {
 	return len(strings.Fields(text))
 }
 
+func validateFanficFields(genres, rawTags []string, rawRating, rawSeries, rawLanguage string) (fanficFields, error) {
+	if len(genres) > 2 {
+		return fanficFields{}, ErrTooManyGenres
+	}
+
+	tags := sanitiseTags(rawTags)
+	if len(tags) > 10 {
+		return fanficFields{}, ErrTooManyTags
+	}
+	for _, t := range tags {
+		if len(t) > 30 {
+			return fanficFields{}, ErrTagTooLong
+		}
+	}
+
+	rating := strings.TrimSpace(rawRating)
+	if rating == "" {
+		rating = "K"
+	}
+	if !validRatings[rating] {
+		return fanficFields{}, ErrInvalidRating
+	}
+
+	series := strings.TrimSpace(rawSeries)
+	if series == "" {
+		series = defaultSeries
+	}
+
+	language := strings.TrimSpace(rawLanguage)
+	if language == "" {
+		language = defaultLanguage
+	}
+
+	return fanficFields{
+		Tags:     tags,
+		Rating:   rating,
+		Series:   series,
+		Language: language,
+	}, nil
+}
+
 func fanficUpdateDetails(before *model.FanficRow, spec repository.FanficUpdate) string {
 	if before == nil {
 		return ""
@@ -201,36 +249,10 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	if err := s.filterTexts(ctx, title, req.Summary, req.Body); err != nil {
 		return uuid.Nil, err
 	}
-	if len(req.Genres) > 2 {
-		return uuid.Nil, ErrTooManyGenres
-	}
 
-	tags := sanitiseTags(req.Tags)
-	if len(tags) > 10 {
-		return uuid.Nil, ErrTooManyTags
-	}
-	for _, t := range tags {
-		if len(t) > 30 {
-			return uuid.Nil, ErrTagTooLong
-		}
-	}
-
-	rating := strings.TrimSpace(req.Rating)
-	if rating == "" {
-		rating = "K"
-	}
-	if !validRatings[rating] {
-		return uuid.Nil, ErrInvalidRating
-	}
-
-	series := strings.TrimSpace(req.Series)
-	if series == "" {
-		series = defaultSeries
-	}
-
-	language := strings.TrimSpace(req.Language)
-	if language == "" {
-		language = defaultLanguage
+	fields, err := validateFanficFields(req.Genres, req.Tags, req.Rating, req.Series, req.Language)
+	if err != nil {
+		return uuid.Nil, err
 	}
 
 	status := strings.TrimSpace(req.Status)
@@ -244,15 +266,15 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 		UserID:         userID,
 		Title:          title,
 		Summary:        strings.TrimSpace(req.Summary),
-		Series:         series,
-		Rating:         rating,
-		Language:       language,
+		Series:         fields.Series,
+		Rating:         fields.Rating,
+		Language:       fields.Language,
 		Status:         status,
 		IsOneshot:      req.IsOneshot,
 		ContainsLemons: req.ContainsLemons,
 		IsPairing:      req.IsPairing,
 		Genres:         req.Genres,
-		Tags:           tags,
+		Tags:           fields.Tags,
 		Characters:     req.Characters,
 	}
 
@@ -359,36 +381,10 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	if title == "" {
 		return ErrEmptyTitle
 	}
-	if len(req.Genres) > 2 {
-		return ErrTooManyGenres
-	}
 
-	tags := sanitiseTags(req.Tags)
-	if len(tags) > 10 {
-		return ErrTooManyTags
-	}
-	for _, t := range tags {
-		if len(t) > 30 {
-			return ErrTagTooLong
-		}
-	}
-
-	rating := strings.TrimSpace(req.Rating)
-	if rating == "" {
-		rating = "K"
-	}
-	if !validRatings[rating] {
-		return ErrInvalidRating
-	}
-
-	series := strings.TrimSpace(req.Series)
-	if series == "" {
-		series = defaultSeries
-	}
-
-	language := strings.TrimSpace(req.Language)
-	if language == "" {
-		language = defaultLanguage
+	fields, err := validateFanficFields(req.Genres, req.Tags, req.Rating, req.Series, req.Language)
+	if err != nil {
+		return err
 	}
 
 	spec := repository.FanficUpdate{
@@ -396,16 +392,16 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		UserID:         userID,
 		Title:          title,
 		Summary:        strings.TrimSpace(req.Summary),
-		Series:         series,
-		Rating:         rating,
-		Language:       language,
+		Series:         fields.Series,
+		Rating:         fields.Rating,
+		Language:       fields.Language,
 		Status:         strings.TrimSpace(req.Status),
 		IsOneshot:      req.IsOneshot,
 		ContainsLemons: req.ContainsLemons,
 		IsPairing:      req.IsPairing,
 		AsAdmin:        asAdmin,
 		Genres:         req.Genres,
-		Tags:           tags,
+		Tags:           fields.Tags,
 		Characters:     req.Characters,
 	}
 

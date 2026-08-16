@@ -445,24 +445,20 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	return created.ID, nextNumber, nil
 }
 
-func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, actorUserID uuid.UUID) {
-	bgCtx := context.Background()
-	title, _ := s.repo.GetTitle(bgCtx, journalID)
-	actor := s.actorName(bgCtx, actorUserID)
-
-	followerIDs, err := s.repo.GetFollowerIDs(bgCtx, journalID)
+func (s *service) eligibleFollowerIDs(ctx context.Context, journalID uuid.UUID, actorUserID uuid.UUID) ([]uuid.UUID, error) {
+	followerIDs, err := s.repo.GetFollowerIDs(ctx, journalID)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("get follower ids failed on entry publish")
-		return
+		return nil, err
 	}
 
 	blockedSet := make(map[uuid.UUID]struct{})
-	if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, actorUserID); err == nil {
+	if blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, actorUserID); err == nil {
 		for i := range blockedIDs {
 			blockedSet[blockedIDs[i]] = struct{}{}
 		}
 	}
-	notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
+
+	eligible := make([]uuid.UUID, 0, len(followerIDs))
 	for _, followerID := range followerIDs {
 		if followerID == actorUserID {
 			continue
@@ -470,6 +466,25 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 		if _, isBlocked := blockedSet[followerID]; isBlocked {
 			continue
 		}
+		eligible = append(eligible, followerID)
+	}
+
+	return eligible, nil
+}
+
+func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, actorUserID uuid.UUID) {
+	bgCtx := context.Background()
+	title, _ := s.repo.GetTitle(bgCtx, journalID)
+	actor := s.actorName(bgCtx, actorUserID)
+
+	followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, actorUserID)
+	if err != nil {
+		logger.Log.Error().Err(err).Msg("get follower ids failed on entry publish")
+		return
+	}
+
+	notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
+	for _, followerID := range followerIDs {
 		notifyParams = append(notifyParams, dto.NotifyParams{
 			RecipientID:   followerID,
 			Type:          dto.NotifJournalUpdate,
@@ -695,25 +710,14 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		actor := s.actorName(bgCtx, userID)
 
 		if isAuthorComment {
-			followerIDs, err := s.repo.GetFollowerIDs(bgCtx, journalID)
+			followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, userID)
 			if err != nil {
 				logger.Log.Error().Err(err).Msg("get follower ids failed")
 				return
 			}
-			blockedSet := make(map[uuid.UUID]struct{})
-			if blockedIDs, err := s.blockSvc.GetBlockedIDs(bgCtx, userID); err == nil {
-				for i := range blockedIDs {
-					blockedSet[blockedIDs[i]] = struct{}{}
-				}
-			}
+
 			notifyParams := make([]dto.NotifyParams, 0, len(followerIDs))
 			for _, followerID := range followerIDs {
-				if followerID == userID {
-					continue
-				}
-				if _, isBlocked := blockedSet[followerID]; isBlocked {
-					continue
-				}
 				notifyParams = append(notifyParams, dto.NotifyParams{
 					RecipientID:   followerID,
 					Type:          dto.NotifJournalUpdate,

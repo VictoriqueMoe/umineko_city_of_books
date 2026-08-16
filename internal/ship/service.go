@@ -312,23 +312,7 @@ func (s *service) ListShips(
 		return nil, err
 	}
 
-	shipIDs := make([]uuid.UUID, len(rows))
-	for i, r := range rows {
-		shipIDs[i] = r.ID
-	}
-	charactersMap, _ := s.shipRepo.GetCharactersBatch(ctx, shipIDs)
-
-	ships := make([]dto.ShipResponse, len(rows))
-	for i, r := range rows {
-		ships[i] = r.ToResponse(charactersMap[r.ID])
-	}
-
-	return &dto.ShipListResponse{
-		Ships:  ships,
-		Total:  total,
-		Limit:  page.Limit(),
-		Offset: page.Offset(),
-	}, nil
+	return s.buildShipList(ctx, rows, total, page.Limit(), page.Offset()), nil
 }
 
 func (s *service) ListShipsByUser(
@@ -342,6 +326,10 @@ func (s *service) ListShipsByUser(
 		return nil, err
 	}
 
+	return s.buildShipList(ctx, rows, total, page.Limit(), page.Offset()), nil
+}
+
+func (s *service) buildShipList(ctx context.Context, rows []model.ShipRow, total, limit, offset int) *dto.ShipListResponse {
 	shipIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		shipIDs[i] = r.ID
@@ -356,9 +344,9 @@ func (s *service) ListShipsByUser(
 	return &dto.ShipListResponse{
 		Ships:  ships,
 		Total:  total,
-		Limit:  page.Limit(),
-		Offset: page.Offset(),
-	}, nil
+		Limit:  limit,
+		Offset: offset,
+	}
 }
 
 func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (string, error) {

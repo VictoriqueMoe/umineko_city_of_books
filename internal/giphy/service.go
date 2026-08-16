@@ -187,8 +187,8 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 	if gifID == "" {
 		return "", false
 	}
-	if username, known, ok := s.userCache.get(gifID); ok {
-		return username, known
+	if cached, ok := s.userCache.get(gifID); ok {
+		return cached.username, cached.known
 	}
 	if !s.Enabled() {
 		return "", false
@@ -201,7 +201,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 	status, err := s.fetch(ctx, "/gifs/"+gifID, params, &payload)
 	if err != nil {
 		if status == http.StatusNotFound {
-			s.userCache.set(gifID, "", false, userCacheTTL)
+			s.userCache.set(gifID, userValue{}, userCacheTTL)
 		}
 		return "", false
 	}
@@ -209,7 +209,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 	if payload.Data.User != nil {
 		username = payload.Data.User.Username
 	}
-	s.userCache.set(gifID, username, username != "", userCacheTTL)
+	s.userCache.set(gifID, userValue{username: username, known: username != ""}, userCacheTTL)
 	return username, username != ""
 }
 

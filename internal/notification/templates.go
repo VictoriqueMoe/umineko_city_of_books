@@ -53,6 +53,15 @@ type EmailChangedEmailData struct {
 	LinkURL  string
 }
 
+func render(name, subject string, data any) (string, string) {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		return subject, fmt.Sprintf("<p>%s</p>", subject)
+	}
+
+	return subject, buf.String()
+}
+
 func notifEmail(actorName, action, title, linkURL, siteName string) (subject string, body string) {
 	subject = fmt.Sprintf("%s %s", actorName, action)
 
@@ -65,12 +74,7 @@ func notifEmail(actorName, action, title, linkURL, siteName string) (subject str
 		SiteName:  siteName,
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "notification.tmpl", data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
-	}
-
-	return subject, buf.String()
+	return render("notification.tmpl", subject, data)
 }
 
 func reportEmail(reporterName, targetType, reason, linkURL, siteName string) (subject string, body string) {
@@ -84,12 +88,7 @@ func reportEmail(reporterName, targetType, reason, linkURL, siteName string) (su
 		SiteName:     siteName,
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "report.tmpl", data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
-	}
-
-	return subject, buf.String()
+	return render("report.tmpl", subject, data)
 }
 
 func reportResolvedEmail(resolverName, targetType, comment, linkURL, siteName string) (subject string, body string) {
@@ -103,12 +102,7 @@ func reportResolvedEmail(resolverName, targetType, comment, linkURL, siteName st
 		SiteName:     siteName,
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "report_resolved.tmpl", data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
-	}
-
-	return subject, buf.String()
+	return render("report_resolved.tmpl", subject, data)
 }
 
 func PasswordResetEmail(siteName, linkURL string) (subject string, body string) {
@@ -119,12 +113,7 @@ func PasswordResetEmail(siteName, linkURL string) (subject string, body string) 
 		LinkURL:  linkURL,
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "password_reset.tmpl", data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
-	}
-
-	return subject, buf.String()
+	return render("password_reset.tmpl", subject, data)
 }
 
 func EmailChangedEmail(siteName, newEmail, linkURL string) (subject string, body string) {
@@ -136,12 +125,7 @@ func EmailChangedEmail(siteName, newEmail, linkURL string) (subject string, body
 		LinkURL:  linkURL,
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "email_changed.tmpl", data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
-	}
-
-	return subject, buf.String()
+	return render("email_changed.tmpl", subject, data)
 }
 
 func VerificationEmail(siteName, linkURL string) (subject string, body string) {
@@ -152,10 +136,5 @@ func VerificationEmail(siteName, linkURL string) (subject string, body string) {
 		LinkURL:  linkURL,
 	}
 
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "verify_email.tmpl", data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
-	}
-
-	return subject, buf.String()
+	return render("verify_email.tmpl", subject, data)
 }

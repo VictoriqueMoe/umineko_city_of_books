@@ -67,20 +67,32 @@ func (r *ChatBannedWordsRule) CheckForRoom(ctx context.Context, roomID uuid.UUID
 	if len(rows) == 0 {
 		return nil, nil
 	}
+
+	normalisedByMode := make(map[string][]string)
+
 	for _, row := range rows {
 		compiled, err := r.compile(row)
 		if err != nil {
 			continue
 		}
-		for _, text := range texts {
-			if text == "" {
+
+		normalised, ok := normalisedByMode[row.MatchMode]
+		if !ok {
+			normalised = make([]string, len(texts))
+			for i := range texts {
+				if texts[i] == "" {
+					continue
+				}
+				normalised[i] = compiled.normaliser(texts[i])
+			}
+			normalisedByMode[row.MatchMode] = normalised
+		}
+
+		for i := range normalised {
+			if normalised[i] == "" {
 				continue
 			}
-			normalised := compiled.normaliser(text)
-			if normalised == "" {
-				continue
-			}
-			if match := compiled.re.FindString(normalised); match != "" {
+			if match := compiled.re.FindString(normalised[i]); match != "" {
 				return &ChatBannedWordMatch{
 					RuleID:    compiled.id,
 					Scope:     compiled.scope,

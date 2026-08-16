@@ -342,13 +342,9 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, theoryID, fmt.Sprintf("theory_response:%s", created.ID), fmt.Sprintf("/theory/%s#response-%s", theoryID, created.ID))
 
 	go func() {
-		authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
-		if err != nil {
-			return
-		}
 		title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 		if err := s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
+			RecipientID:   theoryAuthorID,
 			Type:          dto.NotifTheoryResponse,
 			ReferenceID:   theoryID,
 			ReferenceType: "theory",
@@ -551,10 +547,6 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 
 	if value == 1 {
 		go func() {
-			authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
-			if err != nil {
-				return
-			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   authorID,
@@ -576,7 +568,7 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 }
 
 func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
-	respAuthorID, _, err := s.repo.GetResponseInfo(ctx, responseID)
+	respAuthorID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
 	if err != nil {
 		return err
 	}
@@ -590,13 +582,9 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 
 	if value == 1 {
 		go func() {
-			recipientID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
-			if err != nil {
-				return
-			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   recipientID,
+				RecipientID:   respAuthorID,
 				Type:          dto.NotifResponseUpvote,
 				ReferenceID:   theoryID,
 				ReferenceType: "theory",

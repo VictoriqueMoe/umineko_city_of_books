@@ -439,9 +439,7 @@ func (r *Resolver) theoryMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	desc := theory.Body
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	status := "Open"
 	switch theory.Status {
@@ -471,9 +469,7 @@ func (r *Resolver) profileMeta(ctx context.Context, username string) *Meta {
 		siteName, _ := r.getSiteMeta(ctx)
 		desc = fmt.Sprintf("%s's profile on %s", u.DisplayLabel(), siteName)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	return &Meta{
 		Title:       fmt.Sprintf("%s (@%s)", u.DisplayLabel(), u.Username),
@@ -516,9 +512,7 @@ func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	desc := post.Body
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	title := fmt.Sprintf("%s on Game Board", post.AuthorDisplayName)
 
@@ -557,9 +551,7 @@ func (r *Resolver) artMeta(ctx context.Context, idStr string) *Meta {
 		siteName, _ := r.getSiteMeta(ctx)
 		desc = fmt.Sprintf("Art by %s on %s", art.AuthorDisplayName, siteName)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	return &Meta{
 		Title:       fmt.Sprintf("%s - by %s", art.Title, art.AuthorDisplayName),
@@ -585,9 +577,7 @@ func (r *Resolver) galleryMeta(ctx context.Context, idStr string) *Meta {
 		siteName, _ := r.getSiteMeta(ctx)
 		desc = fmt.Sprintf("%s's art gallery on %s", gallery.AuthorDisplayName, siteName)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	meta := &Meta{
 		Title:       fmt.Sprintf("%s - %s's Gallery", gallery.Name, gallery.AuthorDisplayName),
@@ -619,9 +609,7 @@ func (r *Resolver) mysteryMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	desc := mystery.Body
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	status := "Open"
 	if mystery.Solved {
@@ -649,9 +637,7 @@ func (r *Resolver) announcementMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	desc := ann.Body
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	title := fmt.Sprintf("%s - Announcement by %s", ann.Title, ann.AuthorDisplayName)
 
@@ -684,9 +670,7 @@ func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
 	if desc == "" {
 		desc = fmt.Sprintf("A ship by %s featuring %s", ship.AuthorDisplayName, pairing)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	title := fmt.Sprintf("%s - %s", ship.Title, pairing)
 
@@ -722,9 +706,7 @@ func (r *Resolver) ocMeta(ctx context.Context, idStr string) *Meta {
 		}
 		desc = fmt.Sprintf("%s, an OC by %s (%s)", row.Name, row.AuthorDisplayName, seriesLabel)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	meta := &Meta{
 		Title:       fmt.Sprintf("%s - OC by %s", row.Name, row.AuthorDisplayName),
@@ -754,9 +736,7 @@ func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
 	if desc == "" {
 		desc = fmt.Sprintf("A fanfic by %s", fanfic.AuthorDisplayName)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	meta := &Meta{
 		Title:       fanfic.Title + " - Fanfiction",
@@ -781,9 +761,7 @@ func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	desc := journal.LatestEntryExcerpt
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 	if desc == "" {
 		desc = fmt.Sprintf("%s's Reading Journal", journal.Author.DisplayName)
 	}
@@ -818,9 +796,7 @@ func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr
 	}
 
 	desc := entry.Body
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 	if desc == "" {
 		desc = fmt.Sprintf("Entry %d in %s's Reading Journal", number, journal.Author.DisplayName)
 	}
@@ -850,9 +826,7 @@ func (r *Resolver) secretMeta(ctx context.Context, id string) *Meta {
 	if desc == "" {
 		desc = fmt.Sprintf("A hidden hunt on %s.", siteName)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 	return &Meta{
 		Title:       fmt.Sprintf("%s - %s", spec.Title, siteName),
 		Description: desc,
@@ -876,9 +850,7 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 		siteName, _ := r.getSiteMeta(ctx)
 		desc = fmt.Sprintf("A chat room with %d members on %s", room.MemberCount, siteName)
 	}
-	if len(desc) > 200 {
-		desc = desc[:197] + "..."
-	}
+	desc = truncateDesc(desc)
 
 	return &Meta{
 		Title:       room.Name + " - Chat Room",
@@ -928,10 +900,7 @@ func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr str
 		desc = fmt.Sprintf("A finished watch party in %s on %s", room.Name, siteName)
 	}
 
-	runes := []rune(desc)
-	if len(runes) > 200 {
-		desc = string(runes[:197]) + "..."
-	}
+	desc = truncateDescRunes(desc)
 
 	return &Meta{
 		Title:       title,
@@ -962,10 +931,7 @@ func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
 		desc = fmt.Sprintf("A live stream by %s on %s", name, siteName)
 	}
 
-	runes := []rune(desc)
-	if len(runes) > 200 {
-		desc = string(runes[:197]) + "..."
-	}
+	desc = truncateDescRunes(desc)
 
 	meta := &Meta{
 		Title:       fmt.Sprintf("%s - %s's live stream", stream.Title, name),
@@ -1068,6 +1034,23 @@ func (r *Resolver) ogImageURL(img string) string {
 
 	rel := strings.TrimPrefix(img, prefix)
 	return r.baseURL + "/og-image/" + rel[:len(rel)-len(".webp")] + ".jpg"
+}
+
+func truncateDesc(desc string) string {
+	if len(desc) > 200 {
+		return desc[:197] + "..."
+	}
+
+	return desc
+}
+
+func truncateDescRunes(desc string) string {
+	runes := []rune(desc)
+	if len(runes) > 200 {
+		return string(runes[:197]) + "..."
+	}
+
+	return desc
 }
 
 func escapeAttr(s string) string {

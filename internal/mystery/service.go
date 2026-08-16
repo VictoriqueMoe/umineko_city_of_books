@@ -165,6 +165,10 @@ func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, 
 		return nil, err
 	}
 
+	return s.buildMysteryList(rows, total, page.Limit(), page.Offset()), nil
+}
+
+func (s *service) buildMysteryList(rows []repository.MysteryRow, total, limit, offset int) *dto.MysteryListResponse {
 	mysteries := make([]dto.MysteryResponse, len(rows))
 	for i, r := range rows {
 		resp := r.ToResponse()
@@ -177,9 +181,9 @@ func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, 
 	return &dto.MysteryListResponse{
 		Mysteries: mysteries,
 		Total:     total,
-		Limit:     page.Limit(),
-		Offset:    page.Offset(),
-	}, nil
+		Limit:     limit,
+		Offset:    offset,
+	}
 }
 
 func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.MysteryDetailResponse, error) {
@@ -998,21 +1002,7 @@ func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, page bounds.
 		return nil, err
 	}
 
-	mysteries := make([]dto.MysteryResponse, len(rows))
-	for i, r := range rows {
-		resp := r.ToResponse()
-		if len(resp.Body) > 200 {
-			resp.Body = resp.Body[:200] + "..."
-		}
-		mysteries[i] = resp
-	}
-
-	return &dto.MysteryListResponse{
-		Mysteries: mysteries,
-		Total:     total,
-		Limit:     page.Limit(),
-		Offset:    page.Offset(),
-	}, nil
+	return s.buildMysteryList(rows, total, page.Limit(), page.Offset()), nil
 }
 
 func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {

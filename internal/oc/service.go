@@ -375,23 +375,7 @@ func (s *service) ListOCs(
 		return nil, err
 	}
 
-	ocIDs := make([]uuid.UUID, len(rows))
-	for i, r := range rows {
-		ocIDs[i] = r.ID
-	}
-	galleryMap, _ := s.ocRepo.GetGalleryBatch(ctx, ocIDs)
-
-	ocs := make([]dto.OCResponse, len(rows))
-	for i, r := range rows {
-		ocs[i] = r.ToResponse(galleryMap[r.ID])
-	}
-
-	return &dto.OCListResponse{
-		OCs:    ocs,
-		Total:  total,
-		Limit:  page.Limit(),
-		Offset: page.Offset(),
-	}, nil
+	return s.buildOCList(ctx, rows, total, page.Limit(), page.Offset()), nil
 }
 
 func (s *service) ListOCsByUser(
@@ -405,6 +389,10 @@ func (s *service) ListOCsByUser(
 		return nil, err
 	}
 
+	return s.buildOCList(ctx, rows, total, page.Limit(), page.Offset()), nil
+}
+
+func (s *service) buildOCList(ctx context.Context, rows []model.OCRow, total, limit, offset int) *dto.OCListResponse {
 	ocIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		ocIDs[i] = r.ID
@@ -419,9 +407,9 @@ func (s *service) ListOCsByUser(
 	return &dto.OCListResponse{
 		OCs:    ocs,
 		Total:  total,
-		Limit:  page.Limit(),
-		Offset: page.Offset(),
-	}, nil
+		Limit:  limit,
+		Offset: offset,
+	}
 }
 
 func (s *service) ListOCSummariesByUser(ctx context.Context, userID uuid.UUID) ([]dto.OCSummary, error) {
