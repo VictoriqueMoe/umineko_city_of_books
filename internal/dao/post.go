@@ -40,12 +40,9 @@ func excludeClauseQ(column string, ids []uuid.UUID) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
-	placeholders := make([]string, len(ids))
-	args := make([]any, len(ids))
-	for i := range ids {
-		placeholders[i] = "?"
-		args[i] = ids[i]
-	}
+
+	placeholders, args := utils.QuestionArgs(ids)
+
 	return " AND " + column + " NOT IN (" + strings.Join(placeholders, ",") + ")", args
 }
 
@@ -443,17 +440,11 @@ func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, 
 		return nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("?")
-	args := []any{contentIDs[0]}
-	for i := 1; i < len(contentIDs); i++ {
-		placeholders.WriteString(", ?")
-		args = append(args, contentIDs[i])
-	}
+	placeholders, args := buildPlaceholders(contentIDs)
 	args = append(args, contentType)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		utils.Rebind(`SELECT content_id, share_count FROM share_counts WHERE content_id IN (`+placeholders.String()+`) AND content_type = ?`),
+		utils.Rebind(`SELECT content_id, share_count FROM share_counts WHERE content_id IN (`+placeholders+`) AND content_type = ?`),
 		args...,
 	)
 	if err != nil {
@@ -575,15 +566,10 @@ func contentURL(contentType, id string) string {
 	}
 }
 
-func buildPlaceholders(ids []string) (string, []any) {
-	var placeholders strings.Builder
-	placeholders.WriteString("?")
-	args := []any{ids[0]}
-	for i := 1; i < len(ids); i++ {
-		placeholders.WriteString(", ?")
-		args = append(args, ids[i])
-	}
-	return placeholders.String(), args
+func buildPlaceholders[T any](ids []T) (string, []any) {
+	placeholders, args := utils.QuestionArgs(ids)
+
+	return strings.Join(placeholders, ", "), args
 }
 
 func truncateBody(body string, maxLen int) string {
@@ -970,17 +956,11 @@ func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerTy
 		return nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("?")
-	args := []any{ownerIDs[0]}
-	for i := 1; i < len(ownerIDs); i++ {
-		placeholders.WriteString(", ?")
-		args = append(args, ownerIDs[i])
-	}
+	placeholders, args := buildPlaceholders(ownerIDs)
 	args = append(args, ownerType)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		utils.Rebind(`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders.String()+`) AND owner_type = ? ORDER BY sort_order`),
+		utils.Rebind(`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders+`) AND owner_type = ? ORDER BY sort_order`),
 		args...,
 	)
 	if err != nil {
@@ -1088,16 +1068,10 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		return nil, nil, nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("?")
-	args := []any{postIDs[0]}
-	for i := 1; i < len(postIDs); i++ {
-		placeholders.WriteString(", ?")
-		args = append(args, postIDs[i])
-	}
+	placeholders, args := buildPlaceholders(postIDs)
 
 	pollRows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		utils.Rebind(`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id IN (`+placeholders.String()+`)`), args...,
+		utils.Rebind(`SELECT id, post_id, duration_seconds, expires_at FROM post_polls WHERE post_id IN (`+placeholders+`)`), args...,
 	)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("batch get polls: %w", err)
@@ -1128,19 +1102,13 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		return polls, nil, nil, nil
 	}
 
-	var pPlaceholders strings.Builder
-	pPlaceholders.WriteString("?")
-	pArgs := []any{pollIDs[0]}
-	for i := 1; i < len(pollIDs); i++ {
-		pPlaceholders.WriteString(", ?")
-		pArgs = append(pArgs, pollIDs[i])
-	}
+	pPlaceholders, pArgs := buildPlaceholders(pollIDs)
 
 	optRows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		utils.Rebind(`SELECT o.id, o.poll_id, o.label, o.sort_order,
 			(SELECT COUNT(*) FROM post_poll_votes WHERE option_id = o.id)
 		FROM post_poll_options o
-		WHERE o.poll_id IN (`+pPlaceholders.String()+`)
+		WHERE o.poll_id IN (`+pPlaceholders+`)
 		ORDER BY o.sort_order`), pArgs...,
 	)
 	if err != nil {
@@ -1165,7 +1133,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 	if viewerID != uuid.Nil {
 		vRows, err := txOrDB(r.db, tx).QueryContext(ctx,
 			utils.Rebind(`SELECT v.poll_id, v.option_id FROM post_poll_votes v
-			WHERE v.poll_id IN (`+pPlaceholders.String()+`) AND v.user_id = ?`),
+			WHERE v.poll_id IN (`+pPlaceholders+`) AND v.user_id = ?`),
 			append(pArgs, viewerID)...,
 		)
 		if err != nil {

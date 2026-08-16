@@ -8,6 +8,7 @@ import (
 	"strings"
 	"umineko_city_of_books/internal/repository/model"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
@@ -170,12 +171,8 @@ func (r *userDAO) GetByIDs(ctx context.Context, ids []uuid.UUID, tx ...*sql.Tx) 
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	args := make([]any, len(ids))
-	placeholders := make([]string, len(ids))
-	for i := range ids {
-		args[i] = ids[i]
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-	}
+	placeholders, args := utils.PlaceholderArgs(ids, 1)
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,

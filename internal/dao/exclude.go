@@ -1,8 +1,9 @@
 package dao
 
 import (
-	"fmt"
 	"strings"
+
+	"umineko_city_of_books/internal/dao/utils"
 
 	"github.com/google/uuid"
 )
@@ -11,12 +12,9 @@ func ExcludeClause(column string, ids []uuid.UUID, startIndex int) (string, []an
 	if len(ids) == 0 {
 		return "", nil
 	}
-	placeholders := make([]string, len(ids))
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", startIndex+i)
-		args[i] = id
-	}
+
+	placeholders, args := utils.PlaceholderArgs(ids, startIndex)
+
 	return " AND " + column + " NOT IN (" + strings.Join(placeholders, ",") + ")", args
 }
 
@@ -25,12 +23,7 @@ func ExcludeClauseNullable(column string, ids []uuid.UUID, startIndex int) (stri
 		return "", nil
 	}
 
-	placeholders := make([]string, len(ids))
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", startIndex+i)
-		args[i] = id
-	}
+	placeholders, args := utils.PlaceholderArgs(ids, startIndex)
 
 	return " AND (" + column + " IS NULL OR " + column + " NOT IN (" + strings.Join(placeholders, ",") + "))", args
 }

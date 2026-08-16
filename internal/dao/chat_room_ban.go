@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -105,15 +106,5 @@ func (r *chatRoomBanDAO) BannedRoomIDsForUser(ctx context.Context, userID uuid.U
 	if err != nil {
 		return nil, fmt.Errorf("list banned rooms for user: %w", err)
 	}
-	defer rows.Close()
-
-	var result []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan banned room id: %w", err)
-		}
-		result = append(result, id)
-	}
-	return result, rows.Err()
+	return utils.ScanIDs(rows, "banned room id")
 }

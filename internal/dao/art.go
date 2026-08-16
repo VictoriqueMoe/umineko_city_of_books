@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 )
@@ -354,16 +355,10 @@ func (r *artDAO) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID, tx ...*sq
 		return nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{artIDs[0]}
-	for i, id := range artIDs[1:] {
-		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
-		args = append(args, id)
-	}
+	placeholders, args := utils.PlaceholderArgs(artIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT art_id, tag FROM art_tags WHERE art_id IN (`+placeholders.String()+`) ORDER BY tag`,
+		`SELECT art_id, tag FROM art_tags WHERE art_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY tag`,
 		args...,
 	)
 	if err != nil {

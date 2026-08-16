@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 
@@ -293,16 +294,10 @@ func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 		return nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{commentIDs[0]}
-	for i, id := range commentIDs[1:] {
-		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
-		args = append(args, id)
-	}
+	placeholders, args := utils.PlaceholderArgs(commentIDs, 1)
 
 	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM `+c.mediaTable+` WHERE comment_id IN (`+placeholders.String()+`) ORDER BY sort_order`,
+		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM `+c.mediaTable+` WHERE comment_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order`,
 		args...,
 	)
 	if err != nil {

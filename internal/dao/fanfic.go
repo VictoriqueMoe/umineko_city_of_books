@@ -357,12 +357,8 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 	exclSQL := ""
 	var exclArgs []any
 	if len(excludeUserIDs) > 0 {
-		marks := make([]string, len(excludeUserIDs))
-		exclArgs = make([]any, len(excludeUserIDs))
-		for i, id := range excludeUserIDs {
-			marks[i] = "?"
-			exclArgs[i] = id
-		}
+		var marks []string
+		marks, exclArgs = utils.QuestionArgs(excludeUserIDs)
 		exclSQL = " AND f.user_id NOT IN (" + strings.Join(marks, ",") + ")"
 	}
 	whereClause := " WHERE " + strings.Join(whereParts, " AND ") + exclSQL
@@ -570,12 +566,7 @@ func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID, t
 		return nil, nil
 	}
 
-	placeholders := make([]string, len(fanficIDs))
-	args := make([]any, len(fanficIDs))
-	for i, id := range fanficIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
+	placeholders, args := utils.PlaceholderArgs(fanficIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT fanfic_id, genre FROM fanfic_genres WHERE fanfic_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY genre ASC`,
@@ -624,12 +615,7 @@ func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID, tx 
 		return nil, nil
 	}
 
-	placeholders := make([]string, len(fanficIDs))
-	args := make([]any, len(fanficIDs))
-	for i, id := range fanficIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
+	placeholders, args := utils.PlaceholderArgs(fanficIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT fanfic_id, tag FROM fanfic_tags WHERE fanfic_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY tag ASC`,
@@ -678,12 +664,7 @@ func (r *fanficDAO) GetCharactersBatch(ctx context.Context, fanficIDs []uuid.UUI
 		return nil, nil
 	}
 
-	placeholders := make([]string, len(fanficIDs))
-	args := make([]any, len(fanficIDs))
-	for i, id := range fanficIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
+	placeholders, args := utils.PlaceholderArgs(fanficIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, fanfic_id, series, character_id, character_name, sort_order, is_pairing FROM fanfic_characters WHERE fanfic_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order ASC`,

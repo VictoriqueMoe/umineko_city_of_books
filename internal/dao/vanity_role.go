@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -178,12 +179,8 @@ func (r *vanityRoleDAO) GetRolesForUsersBatch(ctx context.Context, userIDs []uui
 	if len(userIDs) == 0 {
 		return result, nil
 	}
-	placeholders := make([]string, len(userIDs))
-	args := make([]any, len(userIDs))
-	for i := range userIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = userIDs[i]
-	}
+	placeholders, args := utils.PlaceholderArgs(userIDs, 1)
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT uvr.user_id, vr.id, vr.label, vr.color, vr.is_system, vr.sort_order
 		 FROM user_vanity_roles uvr

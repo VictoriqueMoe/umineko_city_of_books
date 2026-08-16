@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -147,17 +148,7 @@ func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("get follower ids to notify: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan follower id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "follower id")
 }
 
 func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.FollowUser, error) {

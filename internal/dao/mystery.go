@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 )
@@ -489,17 +490,7 @@ func (r *mysteryDAO) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID, tx .
 	if err != nil {
 		return nil, fmt.Errorf("get solver ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan solver id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "solver id")
 }
 
 func (r *mysteryDAO) IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
@@ -577,17 +568,7 @@ func (r *mysteryDAO) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx .
 	if err != nil {
 		return nil, fmt.Errorf("get player ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan player id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "player id")
 }
 
 func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.MysteryRow, int, error) {

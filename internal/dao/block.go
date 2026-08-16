@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -74,17 +75,7 @@ func (r *blockDAO) GetBlockedIDs(ctx context.Context, userID uuid.UUID, tx ...*s
 	if err != nil {
 		return nil, fmt.Errorf("get blocked ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan blocked id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "blocked id")
 }
 
 func (r *blockDAO) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]repository.BlockedUser, error) {

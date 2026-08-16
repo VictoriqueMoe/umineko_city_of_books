@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
@@ -99,16 +100,10 @@ func (m *mediaDAO) GetMediaBatch(ctx context.Context, entityIDs []uuid.UUID, tx 
 		return nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{entityIDs[0]}
-	for i := 1; i < len(entityIDs); i++ {
-		placeholders.WriteString(fmt.Sprintf(", $%d", i+1))
-		args = append(args, entityIDs[i])
-	}
+	placeholders, args := utils.PlaceholderArgs(entityIDs, 1)
 
 	rows, err := txOrDB(m.db, tx).QueryContext(ctx,
-		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, sort_order FROM `+m.table+` WHERE `+m.fk+` IN (`+placeholders.String()+`) ORDER BY sort_order, id`,
+		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, sort_order FROM `+m.table+` WHERE `+m.fk+` IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order, id`,
 		args...,
 	)
 	if err != nil {

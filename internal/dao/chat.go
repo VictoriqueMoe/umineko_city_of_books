@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
@@ -195,12 +196,8 @@ func (r *chatDAO) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID, tx 
 	if len(roomIDs) == 0 {
 		return result, nil
 	}
-	placeholders := make([]string, len(roomIDs))
-	args := make([]any, len(roomIDs))
-	for i := range roomIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = roomIDs[i]
-	}
+	placeholders, args := utils.PlaceholderArgs(roomIDs, 1)
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT room_id, tag FROM chat_room_tags WHERE room_id IN (`+strings.Join(placeholders, ",")+`) ORDER BY tag`,
 		args...,
@@ -491,16 +488,7 @@ func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*s
 		return nil, err
 	}
 
-	if len(result) > 0 {
-		ids := make([]uuid.UUID, len(result))
-		for i := range result {
-			ids[i] = result[i].ID
-		}
-		tagMap, _ := r.GetRoomTagsBatch(ctx, ids, tx...)
-		for i := range result {
-			result[i].Tags = tagMap[result[i].ID]
-		}
-	}
+	r.attachRoomTags(ctx, result, tx...)
 	return result, nil
 }
 
@@ -588,17 +576,24 @@ func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 		return nil, 0, err
 	}
 
-	if len(result) > 0 {
-		ids := make([]uuid.UUID, len(result))
-		for i := range result {
-			ids[i] = result[i].ID
-		}
-		tagMap, _ := r.GetRoomTagsBatch(ctx, ids, tx...)
-		for i := range result {
-			result[i].Tags = tagMap[result[i].ID]
-		}
-	}
+	r.attachRoomTags(ctx, result, tx...)
 	return result, total, nil
+}
+
+func (r *chatDAO) attachRoomTags(ctx context.Context, rooms []repository.ChatRoomRow, tx ...*sql.Tx) {
+	if len(rooms) == 0 {
+		return
+	}
+
+	ids := make([]uuid.UUID, len(rooms))
+	for i := range rooms {
+		ids[i] = rooms[i].ID
+	}
+
+	tagMap, _ := r.GetRoomTagsBatch(ctx, ids, tx...)
+	for i := range rooms {
+		rooms[i].Tags = tagMap[rooms[i].ID]
+	}
 }
 
 func (r *chatDAO) GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID, tx ...*sql.Tx) (*repository.ChatRoomRow, error) {
@@ -814,16 +809,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		return nil, 0, err
 	}
 
-	if len(result) > 0 {
-		ids := make([]uuid.UUID, len(result))
-		for i := range result {
-			ids[i] = result[i].ID
-		}
-		tagMap, _ := r.GetRoomTagsBatch(ctx, ids, tx...)
-		for i := range result {
-			result[i].Tags = tagMap[result[i].ID]
-		}
-	}
+	r.attachRoomTags(ctx, result, tx...)
 	return result, total, nil
 }
 
@@ -834,17 +820,7 @@ func (r *chatDAO) GetRoomMembers(ctx context.Context, roomID uuid.UUID, tx ...*s
 	if err != nil {
 		return nil, fmt.Errorf("get room members: %w", err)
 	}
-	defer rows.Close()
-
-	var members []uuid.UUID
-	for rows.Next() {
-		var uid uuid.UUID
-		if err := rows.Scan(&uid); err != nil {
-			return nil, fmt.Errorf("scan member: %w", err)
-		}
-		members = append(members, uid)
-	}
-	return members, rows.Err()
+	return utils.ScanIDs(rows, "member")
 }
 
 func (r *chatDAO) IsMember(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
@@ -889,17 +865,7 @@ func (r *chatDAO) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID, t
 	if err != nil {
 		return nil, fmt.Errorf("get unmuted members: %w", err)
 	}
-	defer rows.Close()
-
-	var members []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan unmuted member: %w", err)
-		}
-		members = append(members, id)
-	}
-	return members, rows.Err()
+	return utils.ScanIDs(rows, "unmuted member")
 }
 
 func (r *chatDAO) SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedBy uuid.UUID, muted bool, tx ...*sql.Tx) error {
@@ -1322,29 +1288,17 @@ func (r *chatDAO) ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time, 
 	if err != nil {
 		return nil, fmt.Errorf("find stale chat rooms: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan stale chat room id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := utils.ScanIDs(rows, "stale chat room id")
+	if err != nil {
 		return nil, err
 	}
+
 	if len(ids) == 0 {
 		return nil, nil
 	}
 
-	placeholders := make([]string, len(ids))
-	args := make([]any, len(ids))
-	for i, id := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = id
-	}
+	placeholders, args := utils.PlaceholderArgs(ids, 1)
+
 	_, err = txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_rooms SET archived_at = NOW() WHERE id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
@@ -1415,12 +1369,7 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 		return result, nil
 	}
 
-	placeholders := make([]string, len(messageIDs))
-	args := make([]any, len(messageIDs))
-	for i := range messageIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = messageIDs[i]
-	}
+	placeholders, args := utils.PlaceholderArgs(messageIDs, 1)
 
 	query := `SELECT id, message_id, media_url, media_type, thumbnail_url, sort_order, width, height
 	          FROM chat_message_media WHERE message_id IN (` + strings.Join(placeholders, ",") + `)
@@ -1673,13 +1622,8 @@ func (r *chatDAO) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID,
 		return result, nil
 	}
 
-	placeholders := make([]string, len(messageIDs))
-	args := make([]any, 0, len(messageIDs)+1)
-	args = append(args, viewerID)
-	for i := range messageIDs {
-		placeholders[i] = fmt.Sprintf("$%d", i+2)
-		args = append(args, messageIDs[i])
-	}
+	placeholders, idArgs := utils.PlaceholderArgs(messageIDs, 2)
+	args := append([]any{viewerID}, idArgs...)
 
 	query := `SELECT r.message_id, r.emoji, COUNT(*) AS cnt,
 	          BOOL_OR(r.user_id = $1) AS viewer_reacted,

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -336,16 +337,10 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, t
 		return nil, nil
 	}
 
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{shipIDs[0]}
-	for i, id := range shipIDs[1:] {
-		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
-		args = append(args, id)
-	}
+	placeholders, args := utils.PlaceholderArgs(shipIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id IN (`+placeholders.String()+`) ORDER BY sort_order ASC`,
+		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order ASC`,
 		args...,
 	)
 	if err != nil {

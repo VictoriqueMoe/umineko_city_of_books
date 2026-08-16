@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -26,14 +27,10 @@ func secretIDPlaceholders(ids []string, startIndex int) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString(fmt.Sprintf("$%d", startIndex))
-	args := []any{ids[0]}
-	for i := 1; i < len(ids); i++ {
-		placeholders.WriteString(fmt.Sprintf(",$%d", startIndex+i))
-		args = append(args, ids[i])
-	}
-	return placeholders.String(), args
+
+	placeholders, args := utils.PlaceholderArgs(ids, startIndex)
+
+	return strings.Join(placeholders, ","), args
 }
 
 func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*repository.SecretSolver, error) {
@@ -208,17 +205,7 @@ func (r *secretDAO) GetCommenterIDs(ctx context.Context, secretID string, tx ...
 	if err != nil {
 		return nil, fmt.Errorf("list commenter ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan commenter id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "commenter id")
 }
 
 func (r *secretDAO) CountCommentsBySecret(ctx context.Context, secretIDs []string, tx ...*sql.Tx) (map[string]int, error) {

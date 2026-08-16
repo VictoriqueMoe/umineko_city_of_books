@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
 
@@ -268,19 +269,7 @@ func (r *journalDAO) ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx .
 	if err != nil {
 		return nil, fmt.Errorf("list journal entry ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan journal entry id: %w", err)
-		}
-
-		ids = append(ids, id)
-	}
-
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "journal entry id")
 }
 
 func (r *journalDAO) ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
@@ -296,19 +285,7 @@ func (r *journalDAO) ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID,
 	if err != nil {
 		return nil, fmt.Errorf("list entry comment ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan entry comment id: %w", err)
-		}
-
-		ids = append(ids, id)
-	}
-
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "entry comment id")
 }
 
 func (r *journalDAO) GetAuthorID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
@@ -369,17 +346,8 @@ func (r *journalDAO) ArchiveStale(ctx context.Context, cutoff time.Time, tx ...*
 	if err != nil {
 		return nil, fmt.Errorf("find stale journals: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan stale journal id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
+	ids, err := utils.ScanIDs(rows, "stale journal id")
+	if err != nil {
 		return nil, err
 	}
 
@@ -439,17 +407,7 @@ func (r *journalDAO) GetFollowerIDs(ctx context.Context, journalID uuid.UUID, tx
 	if err != nil {
 		return nil, fmt.Errorf("get follower ids: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan follower id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "follower id")
 }
 
 func (r *journalDAO) GetFollowerCount(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) (int, error) {

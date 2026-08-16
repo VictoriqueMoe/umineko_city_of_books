@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -442,15 +443,10 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 	if len(ocIDs) == 0 {
 		return nil, nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{ocIDs[0]}
-	for i, id := range ocIDs[1:] {
-		placeholders.WriteString(fmt.Sprintf(", $%d", i+2))
-		args = append(args, id)
-	}
+	placeholders, args := utils.PlaceholderArgs(ocIDs, 1)
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id IN (`+placeholders.String()+`) ORDER BY sort_order ASC, id ASC`,
+		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order ASC, id ASC`,
 		args...,
 	)
 	if err != nil {

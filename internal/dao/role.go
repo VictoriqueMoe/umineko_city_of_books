@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -36,12 +37,8 @@ func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
-	args := make([]any, len(userIDs))
-	placeholders := make([]string, len(userIDs))
-	for i := range userIDs {
-		args[i] = userIDs[i]
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-	}
+	placeholders, args := utils.PlaceholderArgs(userIDs, 1)
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT user_id, role FROM user_roles WHERE user_id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
@@ -118,15 +115,5 @@ func (r *roleDAO) GetUsersByRoles(ctx context.Context, roles []role.Role, tx ...
 	if err != nil {
 		return nil, fmt.Errorf("get users by roles: %w", err)
 	}
-	defer rows.Close()
-
-	var userIDs []uuid.UUID
-	for rows.Next() {
-		var uid uuid.UUID
-		if err := rows.Scan(&uid); err != nil {
-			return nil, fmt.Errorf("scan user id: %w", err)
-		}
-		userIDs = append(userIDs, uid)
-	}
-	return userIDs, rows.Err()
+	return utils.ScanIDs(rows, "user id")
 }

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/dao/utils"
+
 	"github.com/google/uuid"
 )
 
@@ -52,31 +54,16 @@ func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []s
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{pieceIDs[0]}
-	for i := 1; i < len(pieceIDs); i++ {
-		args = append(args, pieceIDs[i])
-		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
-	}
+	placeholders, args := utils.PlaceholderArgs(pieceIDs, 1)
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
+		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list piece participants: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan participant id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "participant id")
 }
 
 func (r *userSecretDAO) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
@@ -98,15 +85,10 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string, t
 	if len(secretIDs) == 0 {
 		return nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{secretIDs[0]}
-	for i := 1; i < len(secretIDs); i++ {
-		args = append(args, secretIDs[i])
-		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
-	}
+	placeholders, args := utils.PlaceholderArgs(secretIDs, 1)
+
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
+		`DELETE FROM user_secrets WHERE secret_id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
@@ -123,15 +105,5 @@ func (r *userSecretDAO) GetUserIDsWithSecret(ctx context.Context, secretID strin
 	if err != nil {
 		return nil, fmt.Errorf("list secret holders: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan secret holder: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "secret holder")
 }
