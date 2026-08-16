@@ -1,4 +1,4 @@
-import { type PropsWithChildren, useCallback } from "react";
+import { type PropsWithChildren, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { UserProfile } from "../types/api";
 import { AuthContext } from "./authContextValue";
@@ -17,16 +17,16 @@ export function AuthProvider({ children }: PropsWithChildren) {
         [qc],
     );
 
-    const loginMutation = useLogin();
-    const registerMutation = useRegister();
-    const logoutMutation = useLogout();
+    const { mutateAsync: login } = useLogin();
+    const { mutateAsync: register } = useRegister();
+    const { mutateAsync: logout } = useLogout();
 
     const loginUser = useCallback(
         async (username: string, password: string, turnstileToken?: string) => {
-            await loginMutation.mutateAsync({ username, password, turnstileToken });
+            await login({ username, password, turnstileToken });
             await refresh();
         },
-        [loginMutation, refresh],
+        [login, refresh],
     );
 
     const registerUser = useCallback(
@@ -38,20 +38,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
             inviteCode?: string,
             turnstileToken?: string,
         ) => {
-            await registerMutation.mutateAsync({ username, email, password, displayName, inviteCode, turnstileToken });
+            await register({ username, email, password, displayName, inviteCode, turnstileToken });
             await refresh();
         },
-        [registerMutation, refresh],
+        [register, refresh],
     );
 
     const logoutUser = useCallback(async () => {
-        await logoutMutation.mutateAsync();
+        await logout();
         setUser(null);
-    }, [logoutMutation, setUser]);
+    }, [logout, setUser]);
 
-    return (
-        <AuthContext.Provider value={{ user, loading: meLoading, setUser, loginUser, registerUser, logoutUser }}>
-            {children}
-        </AuthContext.Provider>
+    const value = useMemo(
+        () => ({ user, loading: meLoading, setUser, loginUser, registerUser, logoutUser }),
+        [user, meLoading, setUser, loginUser, registerUser, logoutUser],
     );
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

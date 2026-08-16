@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { User } from "../../types/api";
 import { fetchSearchUsers } from "../../api/queries/misc";
 import { COLOUR_CLASS, type ColourTag, colourRegex } from "../../utils/colours";
@@ -124,6 +124,8 @@ export function MentionTextArea({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
     const lastHeightRef = useRef("");
+
+    const highlightedValue = useMemo(() => highlightMentions(value), [value]);
 
     useImperativeHandle(
         ref,
@@ -358,7 +360,7 @@ export function MentionTextArea({
                     ref={backdropRef}
                     className={`${styles.backdrop} ${className || ""}`}
                     style={{ minHeight: `${rows * 1.5}em` }}
-                    dangerouslySetInnerHTML={{ __html: highlightMentions(value) }}
+                    dangerouslySetInnerHTML={{ __html: highlightedValue }}
                 />
                 <textarea
                     ref={textareaRef}

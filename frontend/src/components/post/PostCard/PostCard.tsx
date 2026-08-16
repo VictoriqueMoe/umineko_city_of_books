@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Post, PostMedia } from "../../../types/api";
 import {
@@ -59,6 +59,15 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const updateMutation = useUpdatePost(post.id);
     const uploadMediaMutation = useUploadPostMedia(post.id);
     const deleteMediaMutation = useDeletePostMedia(post.id);
+
+    const bodyContent = useMemo(() => {
+        const gifURL = extractGif(displayBody);
+        if (gifURL) {
+            return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
+        }
+
+        return <div className={styles.text}>{renderRich(displayBody)}</div>;
+    }, [displayBody]);
 
     useEffect(() => {
         return addWSListener(msg => {
@@ -219,13 +228,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                             }
                         }}
                     >
-                        {(() => {
-                            const gifURL = extractGif(displayBody);
-                            if (gifURL) {
-                                return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
-                            }
-                            return <div className={styles.text}>{renderRich(displayBody)}</div>;
-                        })()}
+                        {bodyContent}
                         <MediaGallery media={displayMedia} />
                         {post.embeds && <PostEmbeds embeds={post.embeds} />}
                         {post.shared_content && <SharedContentCard content={post.shared_content} />}

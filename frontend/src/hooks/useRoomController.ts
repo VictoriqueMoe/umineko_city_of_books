@@ -190,8 +190,9 @@ export function useRoomController() {
     const userRoomsList = userRoomsQuery.rooms;
     const baseRoom = roomId ? (userRoomsList.find(r => r.id === roomId) ?? null) : null;
     const room = roomOverride.roomId === roomId && roomOverride.room ? roomOverride.room : baseRoom;
-    const voice = useVoiceChat(roomId ?? "", room?.voice_participants ?? []);
-    const voiceIdSet = new Set(voice.participantIds);
+    const voiceParticipants = useMemo(() => room?.voice_participants ?? [], [room?.voice_participants]);
+    const voice = useVoiceChat(roomId ?? "", voiceParticipants);
+    const voiceIdSet = useMemo(() => new Set(voice.participantIds), [voice.participantIds]);
     const loading = !!roomId && userRoomsLoading;
     const setRoom: Dispatch<SetStateAction<ChatRoom | null>> = useCallback(
         updater => {
@@ -237,13 +238,16 @@ export function useRoomController() {
         return { ...seed, ...presenceMap };
     }, [baseMembers, presenceMap]);
 
-    const memberOnlineWeight = (id: string) => {
-        const p = presenceMapMerged[id];
-        if (p === "active" || p === "idle") {
-            return 0;
-        }
-        return 1;
-    };
+    const memberOnlineWeight = useCallback(
+        (id: string) => {
+            const p = presenceMapMerged[id];
+            if (p === "active" || p === "idle") {
+                return 0;
+            }
+            return 1;
+        },
+        [presenceMapMerged],
+    );
     const memberRankWeight = (m: ChatRoomMember) => {
         if (m.user.role === "super_admin") {
             return 0;
@@ -294,33 +298,33 @@ export function useRoomController() {
                 return rank;
             }
 
-            const onlineWeight = (id: string) => {
-                const p = presenceMapMerged[id];
-                return p === "active" || p === "idle" ? 0 : 1;
-            };
-            const online = onlineWeight(a.user.id) - onlineWeight(b.user.id);
+            const online = memberOnlineWeight(a.user.id) - memberOnlineWeight(b.user.id);
             if (online !== 0) {
                 return online;
             }
 
             return memberSortName(a).localeCompare(memberSortName(b));
         });
-    }, [members, presenceMapMerged]);
-    const memberGroups: { label: string; members: ChatRoomMember[] }[] = [];
-    for (const m of sortedMembers) {
-        const label = memberRankLabel(m);
-        const last = memberGroups[memberGroups.length - 1];
-        if (last && last.label === label) {
-            last.members.push(m);
-        } else {
-            memberGroups.push({ label, members: [m] });
+    }, [members, memberOnlineWeight]);
+    const memberGroups = useMemo(() => {
+        const groups: { label: string; members: ChatRoomMember[] }[] = [];
+        for (const m of sortedMembers) {
+            const label = memberRankLabel(m);
+            const last = groups[groups.length - 1];
+            if (last && last.label === label) {
+                last.members.push(m);
+            } else {
+                groups.push({ label, members: [m] });
+            }
         }
-    }
 
-    const inVoiceMembers = sortedMembers.filter(m => voiceIdSet.has(m.user.id));
-    if (inVoiceMembers.length > 0) {
-        memberGroups.unshift({ label: "In Voice", members: inVoiceMembers });
-    }
+        const inVoiceMembers = sortedMembers.filter(m => voiceIdSet.has(m.user.id));
+        if (inVoiceMembers.length > 0) {
+            groups.unshift({ label: "In Voice", members: inVoiceMembers });
+        }
+
+        return groups;
+    }, [sortedMembers, voiceIdSet]);
 
     const {
         messages,
@@ -386,14 +390,19 @@ export function useRoomController() {
             });
     }, [invitedPartyId, invitedPartyResolved, invitedPartyMissing, joinWatchParty]);
 
-    const [nowTick, setNowTick] = useState(() => Date.now());
-    useEffect(() => {
-        const t = setInterval(() => setNowTick(Date.now()), 30_000);
-        return () => clearInterval(t);
-    }, []);
-
     const currentMember = members.find(m => m.user.id === user?.id) ?? null;
     const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
+
+    const [nowTick, setNowTick] = useState(() => Date.now());
+    useEffect(() => {
+        if (!viewerTimeoutUntil) {
+            return;
+        }
+
+        const t = setInterval(() => setNowTick(Date.now()), 30_000);
+        return () => clearInterval(t);
+    }, [viewerTimeoutUntil]);
+
     const viewerTimedOutDate = parseServerDate(viewerTimeoutUntil);
     const viewerTimedOut = viewerTimedOutDate ? viewerTimedOutDate.getTime() > nowTick : false;
 

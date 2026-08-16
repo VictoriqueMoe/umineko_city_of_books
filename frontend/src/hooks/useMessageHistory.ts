@@ -14,6 +14,22 @@ import { fetchRoomMessages, fetchRoomMessagesBefore } from "../api/queries/chat"
 const PAGE_SIZE = 50;
 const AT_BOTTOM_THRESHOLD = 80;
 
+function withoutKnown(prev: ChatMessage[], incoming: ChatMessage[]): ChatMessage[] {
+    const existing = new Set(prev.map(message => message.id));
+    const unique: ChatMessage[] = [];
+
+    for (const message of incoming) {
+        if (existing.has(message.id)) {
+            continue;
+        }
+
+        unique.push(message);
+        existing.add(message.id);
+    }
+
+    return unique;
+}
+
 export interface ScrollToBottomOptions {
     force?: boolean;
 }
@@ -233,18 +249,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
             if (res.messages.length === 0) {
                 setHasMore(false);
             } else {
-                setMessages(prev => {
-                    const existing = new Set(prev.map(message => message.id));
-                    const olderUnique: ChatMessage[] = [];
-                    for (let i = 0; i < res.messages.length; i++) {
-                        const message = res.messages[i];
-                        if (!existing.has(message.id)) {
-                            olderUnique.push(message);
-                            existing.add(message.id);
-                        }
-                    }
-                    return [...olderUnique, ...prev];
-                });
+                setMessages(prev => [...withoutKnown(prev, res.messages), ...prev]);
                 if (container) {
                     requestAnimationFrame(() => {
                         container.scrollTop = container.scrollHeight - prevScrollHeight;
@@ -287,14 +292,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                     const cursor = `${targetCreatedAt}|ffffffff-ffff-ffff-ffff-ffffffffffff`;
                     const res = await fetchRoomMessagesBefore(roomId, cursor, PAGE_SIZE);
                     setMessages(prev => {
-                        const existing = new Set(prev.map(m => m.id));
-                        const merged = prev.slice();
-                        for (const msg of res.messages) {
-                            if (!existing.has(msg.id)) {
-                                merged.push(msg);
-                                existing.add(msg.id);
-                            }
-                        }
+                        const merged = [...prev, ...withoutKnown(prev, res.messages)];
                         merged.sort((a, b) => {
                             const ta = Date.parse(a.created_at);
                             const tb = Date.parse(b.created_at);
@@ -325,17 +323,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
                         return false;
                     }
 
-                    setMessages(prev => {
-                        const existing = new Set(prev.map(m => m.id));
-                        const olderUnique: ChatMessage[] = [];
-                        for (const msg of res.messages) {
-                            if (!existing.has(msg.id)) {
-                                olderUnique.push(msg);
-                                existing.add(msg.id);
-                            }
-                        }
-                        return [...olderUnique, ...prev];
-                    });
+                    setMessages(prev => [...withoutKnown(prev, res.messages), ...prev]);
                     if (res.messages.some(m => m.id === messageId)) {
                         return true;
                     }
@@ -379,15 +367,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
             }
 
             setMessages(prev => {
-                const existing = new Set(prev.map(m => m.id));
-                const fresh: ChatMessage[] = [];
-                for (let i = 0; i < res.messages.length; i++) {
-                    const message = res.messages[i];
-                    if (!existing.has(message.id)) {
-                        fresh.push(message);
-                    }
-                }
-
+                const fresh = withoutKnown(prev, res.messages);
                 if (fresh.length === 0) {
                     return prev;
                 }

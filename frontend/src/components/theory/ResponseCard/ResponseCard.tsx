@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
 import type { Response as TheoryResponse } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
@@ -53,6 +53,8 @@ function ResponseCard({
 
     const { score, userVote, vote } = useVote(response.vote_score, response.user_vote ?? 0, voteFn);
 
+    const richBody = useMemo(() => renderRich(response.body), [response.body]);
+
     async function handleDelete() {
         if (!window.confirm("Are you sure you want to delete this response?")) {
             return;
@@ -74,7 +76,7 @@ function ResponseCard({
             </div>
             <div className={styles.content}>
                 {mentionedAuthor && <div className={styles.mention}>@{mentionedAuthor}</div>}
-                <div className={styles.body}>{renderRich(response.body)}</div>
+                <div className={styles.body}>{richBody}</div>
 
                 <EvidenceList evidence={response.evidence ?? []} series={series} />
 
