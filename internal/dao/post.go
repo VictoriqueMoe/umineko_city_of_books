@@ -1105,6 +1105,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 	defer pollRows.Close()
 
 	polls := make(map[uuid.UUID]*model.PollRow)
+	pollToPost := make(map[string]uuid.UUID)
 	var pollIDs []string
 	for pollRows.Next() {
 		var (
@@ -1117,6 +1118,7 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 		p.ExpiresAt = expiresAt.UTC().Format(time.RFC3339)
 		postUUID, _ := uuid.Parse(p.PostID)
 		polls[postUUID] = &p
+		pollToPost[p.ID] = postUUID
 		pollIDs = append(pollIDs, p.ID)
 	}
 	if err := pollRows.Err(); err != nil {
@@ -1147,10 +1149,6 @@ func (r *postDAO) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, vi
 	defer optRows.Close()
 
 	optionsByPost := make(map[uuid.UUID][]model.PollOptionRow)
-	pollToPost := make(map[string]uuid.UUID)
-	for postUUID, p := range polls {
-		pollToPost[p.ID] = postUUID
-	}
 	for optRows.Next() {
 		var o model.PollOptionRow
 		if err := optRows.Scan(&o.ID, &o.PollID, &o.Label, &o.SortOrder, &o.VoteCount); err != nil {

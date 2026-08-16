@@ -168,12 +168,9 @@ func (s *service) replyChain(ctx context.Context, ev botEvent, botUserID uuid.UU
 		cursor = parentID
 	}
 
-	ordered := make([]openai.Message, 0, len(chain)+1)
-	for i := len(chain) - 1; i >= 0; i-- {
-		ordered = append(ordered, chain[i])
-	}
+	slices.Reverse(chain)
 
-	return s.withPostRoot(ctx, ev, botUserID, append(ordered, openai.Message{Role: "user", Content: authored(ev.Body, speaker(ev.SenderHandle, ev.SenderName), messageBodyMax)}))
+	return s.withPostRoot(ctx, ev, botUserID, append(chain, openai.Message{Role: "user", Content: authored(ev.Body, speaker(ev.SenderHandle, ev.SenderName), messageBodyMax)}))
 }
 
 func (s *service) parentRow(ctx context.Context, ev botEvent, id uuid.UUID) (promptRow, *uuid.UUID, bool) {

@@ -40,6 +40,7 @@ type (
 
 	Hub struct {
 		name         string
+		tracer       trace.Tracer
 		clients      map[uuid.UUID][]*Client
 		rooms        map[uuid.UUID]map[uuid.UUID]bool
 		viewers      map[uuid.UUID]map[uuid.UUID]*viewerInfo
@@ -134,6 +135,7 @@ func NewHub(name ...string) *Hub {
 
 	return &Hub{
 		name:         hubName,
+		tracer:       otel.Tracer(wsTracerName),
 		clients:      make(map[uuid.UUID][]*Client),
 		rooms:        make(map[uuid.UUID]map[uuid.UUID]bool),
 		viewers:      make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
@@ -473,7 +475,7 @@ func (h *Hub) LeaveTopic(topic string, userID uuid.UUID) {
 }
 
 func (h *Hub) BroadcastToTopic(topic string, msg Message) {
-	_, span := otel.Tracer(wsTracerName).Start(
+	_, span := h.tracer.Start(
 		context.Background(),
 		"ws.broadcast_topic",
 		trace.WithSpanKind(trace.SpanKindInternal),

@@ -16,7 +16,6 @@ import (
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
@@ -327,7 +326,7 @@ func runAnonReader(hub *Hub, conn *websocket.Conn) {
 func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
 	userID := client.UserID
 
-	spanCtx, span := otel.Tracer(wsTracerName).Start(
+	spanCtx, span := hub.tracer.Start(
 		context.Background(),
 		"ws."+msg.Type,
 		trace.WithSpanKind(trace.SpanKindServer),

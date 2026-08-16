@@ -402,6 +402,8 @@ func (m *messagesService) dispatchPostSendSideEffects(
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	msgRef := fmt.Sprintf("chat_message:%s", msgID)
+
 	for _, memberID := range recipients {
 		inRoom := m.hub.IsUserViewing(roomID, memberID)
 		if inRoom {
@@ -418,7 +420,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 					ActorID:       senderID,
 					Type:          dto.NotifChatMention,
 					ReferenceID:   roomID,
-					ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+					ReferenceType: msgRef,
 				})
 			} else if isReplyTarget {
 				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
@@ -426,7 +428,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 					ActorID:       senderID,
 					Type:          dto.NotifChatReply,
 					ReferenceID:   roomID,
-					ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+					ReferenceType: msgRef,
 				})
 			} else {
 				muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
@@ -440,7 +442,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 						ActorID:       senderID,
 						Type:          dto.NotifChatRoomMessage,
 						ReferenceID:   roomID,
-						ReferenceType: fmt.Sprintf("chat_message:%s", msgID),
+						ReferenceType: msgRef,
 						Message:       fmt.Sprintf("sent a message in %s", roomName),
 					})
 				}

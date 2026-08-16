@@ -138,10 +138,14 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	var stale []string
-	for k := range existing {
+	pending := make(map[string]string, len(existing))
+	for k, v := range existing {
 		if _, ok := config.SettingByKey(config.SiteSettingKey(k)); !ok {
 			stale = append(stale, k)
+			continue
 		}
+
+		pending[cache.Setting.Key(k)] = v
 	}
 
 	if len(missing) > 0 || len(stale) > 0 {
@@ -151,22 +155,15 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	if len(missing) > 0 {
-		maps.Copy(existing, missing)
+		for k, v := range missing {
+			pending[cache.Setting.Key(k)] = v
+		}
 
 		logger.Log.Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
 	}
 
 	for _, k := range stale {
 		logger.Log.Info().Str("key", k).Msg("removed stale setting")
-	}
-
-	pending := make(map[string]string, len(existing))
-	for k, v := range existing {
-		if _, ok := config.SettingByKey(config.SiteSettingKey(k)); !ok {
-			continue
-		}
-
-		pending[cache.Setting.Key(k)] = v
 	}
 
 	_ = cache.SetMany(ctx, s.cache, pending, cache.Setting.TTL)

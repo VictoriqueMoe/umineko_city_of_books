@@ -101,7 +101,6 @@ type (
 		ForceMuteVoice(ctx context.Context, roomID, actorID, targetID uuid.UUID, muted bool) error
 		HandleVoiceWebhook(ctx context.Context, authHeader string, body []byte) error
 		VoiceParticipants(roomID uuid.UUID) []uuid.UUID
-		VoiceCount(roomID uuid.UUID) int
 		ReconcilePresence(ctx context.Context) (int, error)
 		SetMessageObserver(obs MessageObserver)
 	}

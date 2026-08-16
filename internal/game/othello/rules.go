@@ -17,6 +17,11 @@ type (
 		finished   bool
 		winnerSlot *int
 	}
+
+	legalMoves struct {
+		blackHasMove bool
+		whiteHasMove bool
+	}
 )
 
 var directions = [8][2]int{
@@ -179,14 +184,16 @@ func cornerCounts(b board) (int, int) {
 	return black, white
 }
 
-func evaluateOutcome(b board) (outcomeResult, string) {
+func evaluateOutcome(b board) (outcomeResult, legalMoves, string) {
 	black, white := countDiscsBoard(b)
 	boardFull := (black + white) == boardSize*boardSize
-	blackHasMove := !boardFull && playerHasAnyLegalMove(b, slotBlack)
-	whiteHasMove := !boardFull && playerHasAnyLegalMove(b, slotWhite)
+	moves := legalMoves{
+		blackHasMove: !boardFull && playerHasAnyLegalMove(b, slotBlack),
+		whiteHasMove: !boardFull && playerHasAnyLegalMove(b, slotWhite),
+	}
 
-	if !boardFull && (blackHasMove || whiteHasMove) {
-		return outcomeResult{}, ""
+	if !boardFull && (moves.blackHasMove || moves.whiteHasMove) {
+		return outcomeResult{}, moves, ""
 	}
 
 	reason := "most_discs"
@@ -194,10 +201,10 @@ func evaluateOutcome(b board) (outcomeResult, string) {
 		reason = "no_moves"
 	}
 	if black == white {
-		return outcomeResult{finished: true}, "draw"
+		return outcomeResult{finished: true}, moves, "draw"
 	}
 	if black > white {
-		return outcomeResult{finished: true, winnerSlot: new(slotBlack)}, reason
+		return outcomeResult{finished: true, winnerSlot: new(slotBlack)}, moves, reason
 	}
-	return outcomeResult{finished: true, winnerSlot: new(slotWhite)}, reason
+	return outcomeResult{finished: true, winnerSlot: new(slotWhite)}, moves, reason
 }

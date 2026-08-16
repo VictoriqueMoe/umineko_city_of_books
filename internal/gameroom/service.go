@@ -315,13 +315,7 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 		return nil, err
 	}
 
-	var firstTurnUser *uuid.UUID
-	for i := range players {
-		if players[i].Slot == firstTurnSlot {
-			firstTurnUser = new(players[i].UserID)
-			break
-		}
-	}
+	firstTurnUser := winnerUserID(&firstTurnSlot, players)
 
 	if err := s.repo.Start(ctx, repository.GameRoomStart{
 		RoomID:     roomID,
@@ -491,15 +485,7 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 		return s.finishAndBroadcast(ctx, roomID, winner, result.Result, result.NewStateJSON, nil, userID)
 	}
 
-	var nextTurn *uuid.UUID
-	if result.NextTurnSlot != nil {
-		for i := range players {
-			if players[i].Slot == *result.NextTurnSlot {
-				nextTurn = new(players[i].UserID)
-				break
-			}
-		}
-	}
+	nextTurn := winnerUserID(result.NextTurnSlot, players)
 	if err := s.repo.SetState(ctx, roomID, result.NewStateJSON, nextTurn); err != nil {
 		return nil, err
 	}
@@ -1076,12 +1062,7 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 		}
 		watchers = len(st.spectators)
 		if st.draw != nil {
-			for i := range players {
-				if players[i].Slot == st.draw.fromSlot {
-					drawOfferFrom = new(players[i].UserID)
-					break
-				}
-			}
+			drawOfferFrom = winnerUserID(&st.draw.fromSlot, players)
 		}
 	}
 	s.mu.Unlock()

@@ -331,34 +331,6 @@ func (r *artDAO) ListGalleryArtImages(ctx context.Context, galleryID uuid.UUID, 
 	return refs, rows.Err()
 }
 
-func (r *artDAO) ListCommentThreadIDs(ctx context.Context, rootID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`WITH RECURSIVE thread AS (
-			SELECT id FROM art_comments WHERE id = $1
-			UNION ALL
-			SELECT c.id FROM art_comments c JOIN thread t ON c.parent_id = t.id
-		)
-		SELECT id FROM thread`,
-		rootID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("list art comment thread ids: %w", err)
-	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan art comment thread id: %w", err)
-		}
-
-		ids = append(ids, id)
-	}
-
-	return ids, rows.Err()
-}
-
 func (r *artDAO) GetTags(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT tag FROM art_tags WHERE art_id = $1 ORDER BY tag`, artID)
 	if err != nil {

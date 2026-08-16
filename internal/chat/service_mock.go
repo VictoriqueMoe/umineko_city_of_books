@@ -5096,57 +5096,6 @@ func (_c *MockService_UpdateRoomBannedWord_Call) RunAndReturn(run func(ctx conte
 	return _c
 }
 
-// VoiceCount provides a mock function for the type MockService
-func (_mock *MockService) VoiceCount(roomID uuid.UUID) int {
-	ret := _mock.Called(roomID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VoiceCount")
-	}
-
-	var r0 int
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) int); ok {
-		r0 = returnFunc(roomID)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-	return r0
-}
-
-// MockService_VoiceCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoiceCount'
-type MockService_VoiceCount_Call struct {
-	*mock.Call
-}
-
-// VoiceCount is a helper method to define mock.On call
-//   - roomID uuid.UUID
-func (_e *MockService_Expecter) VoiceCount(roomID any) *MockService_VoiceCount_Call {
-	return &MockService_VoiceCount_Call{Call: _e.mock.On("VoiceCount", roomID)}
-}
-
-func (_c *MockService_VoiceCount_Call) Run(run func(roomID uuid.UUID)) *MockService_VoiceCount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 uuid.UUID
-		if args[0] != nil {
-			arg0 = args[0].(uuid.UUID)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_VoiceCount_Call) Return(n int) *MockService_VoiceCount_Call {
-	_c.Call.Return(n)
-	return _c
-}
-
-func (_c *MockService_VoiceCount_Call) RunAndReturn(run func(roomID uuid.UUID) int) *MockService_VoiceCount_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // VoiceEnabled provides a mock function for the type MockService
 func (_mock *MockService) VoiceEnabled() bool {
 	ret := _mock.Called()

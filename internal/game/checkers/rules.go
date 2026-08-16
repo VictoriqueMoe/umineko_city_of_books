@@ -12,6 +12,12 @@ type outcomeResult struct {
 	winnerSlot *int
 }
 
+var (
+	kingMoveDirs     = [][2]int{{-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
+	redManMoveDirs   = [][2]int{{1, -1}, {1, 1}}
+	blackManMoveDirs = [][2]int{{-1, -1}, {-1, 1}}
+)
+
 func isDarkSquare(row, col int) bool {
 	return (row+col)%2 == 0
 }
@@ -80,13 +86,13 @@ func isKing(p byte) bool {
 
 func moveDirs(piece byte) [][2]int {
 	if isKing(piece) {
-		return [][2]int{{-1, -1}, {-1, 1}, {1, -1}, {1, 1}}
+		return kingMoveDirs
 	}
 	if piece == cellRedMan {
-		return [][2]int{{1, -1}, {1, 1}}
+		return redManMoveDirs
 	}
 	if piece == cellBlackMan {
-		return [][2]int{{-1, -1}, {-1, 1}}
+		return blackManMoveDirs
 	}
 	return nil
 }

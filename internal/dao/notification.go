@@ -131,15 +131,11 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		if actorID != nil {
 			n.ActorID = *actorID
 		}
-		notifications = append(notifications, n)
-	}
-
-	for i := range notifications {
-		n := &notifications[i]
 		if n.Type == dto.NotifChatRoomMessage && n.Count > 1 {
 			roomName := strings.TrimPrefix(n.Message, chatRoomMessagePrefix)
 			n.Message = fmt.Sprintf("%d messages sent in %s", n.Count, roomName)
 		}
+		notifications = append(notifications, n)
 	}
 
 	return notifications, total, rows.Err()

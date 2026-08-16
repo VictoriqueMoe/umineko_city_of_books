@@ -150,7 +150,7 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 		s.WhiteFlips += len(flipped)
 	}
 
-	outcome, reason := evaluateOutcome(b)
+	outcome, moves, reason := evaluateOutcome(b)
 	if outcome.finished {
 		s.Turn = -1
 		raw, merr := json.Marshal(s)
@@ -169,7 +169,12 @@ func (h *Handler) ValidateAction(stateJSON string, actorSlot int, action json.Ra
 	}
 
 	nextSlot := 1 - actorSlot
-	if !playerHasAnyLegalMove(b, nextSlot) {
+	nextHasMove := moves.whiteHasMove
+	if nextSlot == slotBlack {
+		nextHasMove = moves.blackHasMove
+	}
+
+	if !nextHasMove {
 		if nextSlot == slotBlack {
 			s.BlackPasses++
 		} else {

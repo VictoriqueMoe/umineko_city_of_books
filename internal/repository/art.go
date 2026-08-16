@@ -24,7 +24,6 @@ type (
 		GetImageURL(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) (string, error)
 		GetArtImagePaths(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		ListGalleryArtImages(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]ArtImageRef, error)
-		ListCommentThreadIDs(ctx context.Context, rootID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
 		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
 
@@ -264,23 +263,12 @@ func (r *artRepository) DeleteCommentWithAudit(ctx context.Context, spec ArtComm
 	var paths []string
 
 	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
-		threadIDs, err := r.dao.ListCommentThreadIDs(ctx, spec.ID, tx)
+		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
 		}
 
-		var collected []string
-
-		for i := range threadIDs {
-			mediaPaths, mediaErr := r.dao.CollectSingleCommentMediaPaths(ctx, threadIDs[i], tx)
-			if mediaErr != nil {
-				return mediaErr
-			}
-
-			collected = append(collected, mediaPaths...)
-		}
-
-		paths = dedupePaths(collected)
+		paths = dedupePaths(mediaPaths)
 
 		if spec.AsAdmin {
 			err = r.dao.DeleteCommentAsAdmin(ctx, spec.ID, tx)
@@ -346,10 +334,6 @@ func (r *artRepository) GetArtImagePaths(ctx context.Context, artID uuid.UUID, t
 
 func (r *artRepository) ListGalleryArtImages(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]ArtImageRef, error) {
 	return r.dao.ListGalleryArtImages(ctx, galleryID, userID, tx...)
-}
-
-func (r *artRepository) ListCommentThreadIDs(ctx context.Context, rootID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	return r.dao.ListCommentThreadIDs(ctx, rootID, tx...)
 }
 
 func (r *artRepository) CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
