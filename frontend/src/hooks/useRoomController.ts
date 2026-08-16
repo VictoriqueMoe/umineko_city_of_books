@@ -400,8 +400,13 @@ export function useRoomController() {
             return;
         }
 
+        const reseed = setTimeout(() => setNowTick(Date.now()), 0);
         const t = setInterval(() => setNowTick(Date.now()), 30_000);
-        return () => clearInterval(t);
+
+        return () => {
+            clearTimeout(reseed);
+            clearInterval(t);
+        };
     }, [viewerTimeoutUntil]);
 
     const viewerTimedOutDate = parseServerDate(viewerTimeoutUntil);

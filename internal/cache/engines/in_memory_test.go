@@ -121,8 +121,10 @@ func TestInMemoryTTLExpiry(t *testing.T) {
 		{name: "before expiry", ttl: time.Minute, advance: 30 * time.Second, wantHit: true},
 		{name: "exactly at expiry", ttl: time.Minute, advance: time.Minute, wantHit: true},
 		{name: "past expiry", ttl: time.Minute, advance: 90 * time.Second, wantHit: false},
-		{name: "zero ttl never expires", ttl: 0, advance: 24 * time.Hour, wantHit: true},
-		{name: "negative ttl never expires", ttl: -time.Minute, advance: 24 * time.Hour, wantHit: true},
+		{name: "zero ttl still live below the ceiling", ttl: 0, advance: 30 * time.Second, wantHit: true},
+		{name: "zero ttl expires at the ceiling", ttl: 0, advance: unboundedTTLCeiling + time.Second, wantHit: false},
+		{name: "negative ttl expires at the ceiling", ttl: -time.Minute, advance: unboundedTTLCeiling + time.Second, wantHit: false},
+		{name: "long ttl is left alone", ttl: 24 * time.Hour, advance: 12 * time.Hour, wantHit: true},
 	}
 
 	for _, tt := range tests {
@@ -232,6 +234,53 @@ func TestInMemoryCloseClearsEntries(t *testing.T) {
 
 	_, err := c.Get(ctx, "k")
 	require.ErrorIs(t, err, engine.ErrMiss)
+}
+
+func TestInMemoryNeverHoldsAnEntryIndefinitely(t *testing.T) {
+	c, clock := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	require.NoError(t, c.Set(ctx, "setting:maintenance_mode", []byte("false"), 0))
+
+	clock.advance(24 * time.Hour)
+
+	_, err := c.Get(ctx, "setting:maintenance_mode")
+	require.ErrorIs(t, err, engine.ErrMiss)
+}
+
+func TestInMemoryEvictsOnByteCeiling(t *testing.T) {
+	c, _ := newClockedInMemory(t, 0)
+	c.maxBytes = 1000
+	ctx := context.Background()
+
+	blob := make([]byte, 400)
+	for _, key := range []string{"a", "b", "c"} {
+		require.NoError(t, c.Set(ctx, key, blob, time.Minute))
+	}
+
+	assert.LessOrEqual(t, c.Bytes(), 1000)
+	assert.Equal(t, 2, c.Len())
+
+	_, err := c.Get(ctx, "a")
+	require.ErrorIs(t, err, engine.ErrMiss)
+}
+
+func TestInMemoryBytesTracksOverwriteAndDelete(t *testing.T) {
+	c, _ := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	require.NoError(t, c.Set(ctx, "k", make([]byte, 500), time.Minute))
+	assert.Equal(t, 500, c.Bytes())
+
+	require.NoError(t, c.Set(ctx, "k", make([]byte, 100), time.Minute))
+	assert.Equal(t, 100, c.Bytes())
+
+	require.NoError(t, c.Del(ctx, "k"))
+	assert.Zero(t, c.Bytes())
+
+	require.NoError(t, c.Set(ctx, "k", make([]byte, 50), time.Minute))
+	require.NoError(t, c.Close())
+	assert.Zero(t, c.Bytes())
 }
 
 func TestInMemoryIsAlwaysAvailable(t *testing.T) {

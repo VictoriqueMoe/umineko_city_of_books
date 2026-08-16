@@ -138,14 +138,10 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	var stale []string
-	pending := make(map[string]string, len(existing))
-	for k, v := range existing {
+	for k := range existing {
 		if _, ok := config.SettingByKey(config.SiteSettingKey(k)); !ok {
 			stale = append(stale, k)
-			continue
 		}
-
-		pending[cache.Setting.Key(k)] = v
 	}
 
 	if len(missing) > 0 || len(stale) > 0 {
@@ -155,10 +151,6 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	if len(missing) > 0 {
-		for k, v := range missing {
-			pending[cache.Setting.Key(k)] = v
-		}
-
 		logger.Log.Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
 	}
 
@@ -166,9 +158,7 @@ func (s *service) Refresh(ctx context.Context) error {
 		logger.Log.Info().Str("key", k).Msg("removed stale setting")
 	}
 
-	_ = cache.SetMany(ctx, s.cache, pending, cache.Setting.TTL)
-
-	logger.Log.Debug().Msg("settings cache loaded")
+	logger.Log.Debug().Msg("settings reconciled")
 	return nil
 }
 
@@ -235,7 +225,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 		return err
 	}
 
-	_ = cache.Set(ctx, s.cache, cache.Setting.Key(string(setting.Key)), value, cache.Setting.TTL)
+	_ = s.cache.Del(ctx, cache.Setting.Key(string(setting.Key)))
 	s.notify(setting.Key, value)
 	logger.Log.Info().Str("key", string(setting.Key)).Str("updated_by", updatedBy.String()).Msg("setting updated")
 	return nil
@@ -245,7 +235,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	merged := s.GetAll(ctx)
 
 	raw := make(map[string]string, len(values))
-	pending := make(map[string]string, len(values))
+	cacheKeys := make([]string, 0, len(values))
 	keys := make([]config.SiteSettingKey, 0, len(values))
 	changed := make(map[config.SiteSettingKey]string)
 
@@ -255,7 +245,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		}
 
 		raw[string(k)] = v
-		pending[cache.Setting.Key(string(k))] = v
+		cacheKeys = append(cacheKeys, cache.Setting.Key(string(k)))
 		keys = append(keys, k)
 
 		if merged[k] != v {
@@ -277,7 +267,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
-	_ = cache.SetMany(ctx, s.cache, pending, cache.Setting.TTL)
+	_ = s.cache.Del(ctx, cacheKeys...)
 
 	for k, v := range values {
 		s.notify(k, v)

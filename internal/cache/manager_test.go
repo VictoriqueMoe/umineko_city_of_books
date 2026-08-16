@@ -159,6 +159,7 @@ type stubEngine struct {
 	enabled  bool
 	values   map[string][]byte
 	closeErr error
+	delErr   error
 
 	sets   int
 	dels   int
@@ -207,7 +208,7 @@ func (s *stubEngine) Del(_ context.Context, keys ...string) error {
 		delete(s.values, keys[i])
 	}
 
-	return nil
+	return s.delErr
 }
 
 func (s *stubEngine) Ping(_ context.Context) error {
@@ -282,12 +283,42 @@ func TestManagerWithoutAnyEnabledEngine(t *testing.T) {
 
 	require.NoError(t, Set(ctx, m, "k", "v", 0))
 	require.NoError(t, SetMany(ctx, m, map[string]string{"k": "v"}, 0))
-	require.NoError(t, m.Del(ctx, "k"))
 	require.NoError(t, m.Ping(ctx))
 
 	assert.Zero(t, stub.sets)
-	assert.Zero(t, stub.dels)
 	assert.Zero(t, stub.pings)
+
+	require.NoError(t, m.Del(ctx, "k"))
+	assert.Equal(t, 1, stub.dels)
+}
+
+func TestManagerDelReachesEveryEngineIncludingDisabledOnes(t *testing.T) {
+	primary := newStubEngine("primary", false)
+	primary.values["role:u1"] = []byte("admin")
+
+	fallback := newStubEngine("fallback", true)
+	fallback.values["role:u1"] = []byte("admin")
+
+	m := NewManager(primary, fallback)
+
+	require.NoError(t, m.Del(context.Background(), "role:u1"))
+
+	assert.Equal(t, 1, primary.dels)
+	assert.Equal(t, 1, fallback.dels)
+	assert.NotContains(t, primary.values, "role:u1")
+	assert.NotContains(t, fallback.values, "role:u1")
+}
+
+func TestManagerDelSurfacesAnEngineFailure(t *testing.T) {
+	primary := newStubEngine("primary", false)
+	primary.delErr = errors.New("valkey unreachable")
+
+	fallback := newStubEngine("fallback", true)
+
+	err := NewManager(primary, fallback).Del(context.Background(), "role:u1")
+
+	require.ErrorIs(t, err, primary.delErr)
+	assert.Equal(t, 1, fallback.dels)
 }
 
 func TestManagerNilReceiverIsSafe(t *testing.T) {

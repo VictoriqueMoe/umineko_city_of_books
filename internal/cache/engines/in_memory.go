@@ -11,6 +11,8 @@ import (
 
 const (
 	defaultInMemoryMaxEntries = 8192
+	defaultInMemoryMaxBytes   = 64 << 20
+	unboundedTTLCeiling       = time.Minute
 )
 
 type (
@@ -25,6 +27,8 @@ type (
 		items      map[string]*list.Element
 		order      *list.List
 		maxEntries int
+		maxBytes   int
+		bytes      int
 		now        func() time.Time
 	}
 )
@@ -38,6 +42,7 @@ func NewInMemory(maxEntries int) *InMemory {
 		items:      make(map[string]*list.Element),
 		order:      list.New(),
 		maxEntries: maxEntries,
+		maxBytes:   defaultInMemoryMaxBytes,
 		now:        time.Now,
 	}
 }
@@ -60,9 +65,8 @@ func (c *InMemory) Get(_ context.Context, key string) ([]byte, error) {
 	}
 
 	entry := el.Value.(*inMemoryEntry)
-	if !entry.expiresAt.IsZero() && c.now().After(entry.expiresAt) {
-		c.order.Remove(el)
-		delete(c.items, key)
+	if c.now().After(entry.expiresAt) {
+		c.drop(el)
 
 		return nil, engine.ErrMiss
 	}
@@ -106,8 +110,7 @@ func (c *InMemory) Del(_ context.Context, keys ...string) error {
 			continue
 		}
 
-		c.order.Remove(el)
-		delete(c.items, keys[i])
+		c.drop(el)
 	}
 
 	return nil
@@ -123,6 +126,7 @@ func (c *InMemory) Close() error {
 
 	c.items = make(map[string]*list.Element)
 	c.order.Init()
+	c.bytes = 0
 
 	return nil
 }
@@ -134,14 +138,30 @@ func (c *InMemory) Len() int {
 	return c.order.Len()
 }
 
+func (c *InMemory) Bytes() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	return c.bytes
+}
+
+func (c *InMemory) drop(el *list.Element) {
+	entry := el.Value.(*inMemoryEntry)
+	c.order.Remove(el)
+	delete(c.items, entry.key)
+	c.bytes -= len(entry.data)
+}
+
 func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
-	var expiresAt time.Time
-	if ttl > 0 {
-		expiresAt = c.now().Add(ttl)
+	if ttl <= 0 {
+		ttl = unboundedTTLCeiling
 	}
+
+	expiresAt := c.now().Add(ttl)
 
 	if el, ok := c.items[key]; ok {
 		entry := el.Value.(*inMemoryEntry)
+		c.bytes += len(data) - len(entry.data)
 		entry.data = data
 		entry.expiresAt = expiresAt
 		c.order.MoveToFront(el)
@@ -150,14 +170,14 @@ func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
 	}
 
 	c.items[key] = c.order.PushFront(&inMemoryEntry{key: key, data: data, expiresAt: expiresAt})
+	c.bytes += len(data)
 
-	for c.order.Len() > c.maxEntries {
+	for c.order.Len() > c.maxEntries || c.bytes > c.maxBytes {
 		oldest := c.order.Back()
 		if oldest == nil {
 			break
 		}
 
-		c.order.Remove(oldest)
-		delete(c.items, oldest.Value.(*inMemoryEntry).key)
+		c.drop(oldest)
 	}
 }

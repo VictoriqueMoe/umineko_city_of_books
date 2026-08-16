@@ -43,12 +43,19 @@ func (m *Manager) Engines() []engine.Engine {
 }
 
 func (m *Manager) Del(ctx context.Context, keys ...string) error {
-	active := m.current()
-	if active == nil || len(keys) == 0 {
+	if m == nil || len(keys) == 0 {
 		return nil
 	}
 
-	return active.Del(ctx, keys...)
+	var firstErr error
+	for i := range m.engines {
+		err := m.engines[i].Del(ctx, keys...)
+		if err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+
+	return firstErr
 }
 
 func (m *Manager) Ping(ctx context.Context) error {
