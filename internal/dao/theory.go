@@ -18,7 +18,9 @@ import (
 
 type (
 	theoryDAO struct {
-		db *sql.DB
+		db            *sql.DB
+		theoryVotes   *voteDAO
+		responseVotes *voteDAO
 	}
 )
 
@@ -508,33 +510,11 @@ func (r *theoryDAO) queryEvidence(ctx context.Context, tx []*sql.Tx, query strin
 }
 
 func (r *theoryDAO) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int, tx ...*sql.Tx) error {
-	if value == 0 {
-		_, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`DELETE FROM theory_votes WHERE user_id = $1 AND theory_id = $2`, userID, theoryID,
-		)
-		return err
-	}
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO theory_votes (user_id, theory_id, value) VALUES ($1, $2, $3)
-		 ON CONFLICT (user_id, theory_id) DO UPDATE SET value = EXCLUDED.value`,
-		userID, theoryID, value,
-	)
-	return err
+	return r.theoryVotes.Vote(ctx, userID, theoryID, value, tx...)
 }
 
 func (r *theoryDAO) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int, tx ...*sql.Tx) error {
-	if value == 0 {
-		_, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`DELETE FROM response_votes WHERE user_id = $1 AND response_id = $2`, userID, responseID,
-		)
-		return err
-	}
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO response_votes (user_id, response_id, value) VALUES ($1, $2, $3)
-		 ON CONFLICT (user_id, response_id) DO UPDATE SET value = EXCLUDED.value`,
-		userID, responseID, value,
-	)
-	return err
+	return r.responseVotes.Vote(ctx, userID, responseID, value, tx...)
 }
 
 func (r *theoryDAO) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, tx ...*sql.Tx) (int, error) {

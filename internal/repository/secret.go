@@ -148,55 +148,14 @@ func (r *secretRepository) UpdateCommentBody(ctx context.Context, spec SecretCom
 }
 
 func (r *secretRepository) DeleteCommentWithAudit(ctx context.Context, spec SecretCommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
-		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		action := AuditActionSecretCommentDelete
-		if authorID != spec.UserID {
-			action = AuditActionSecretCommentDeleteAdmin
-		}
-
-		if spec.AsAdmin {
-			if err := r.dao.DeleteCommentAsAdmin(ctx, spec.CommentID, tx); err != nil {
-				return err
-			}
-		} else {
-			if err := r.dao.DeleteComment(ctx, spec.CommentID, spec.UserID, tx); err != nil {
-				return err
-			}
-		}
-
-		entry := NewAuditEntry{
-			ActorID:    spec.UserID,
-			Action:     action,
-			TargetType: AuditTargetSecretComment,
-			TargetID:   spec.CommentID.String(),
-			SubjectID:  authorID,
-		}
-
-		if err := r.audit.Create(ctx, entry, tx); err != nil {
-			return fmt.Errorf("audit comment delete: %w", err)
-		}
-
-		paths = mediaPaths
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return paths, nil
+	return deleteCommentWithAudit(ctx, r.db, r.dao, r.audit, commentDeleteSpec{
+		CommentID:   spec.CommentID,
+		UserID:      spec.UserID,
+		AsAdmin:     spec.AsAdmin,
+		OwnAction:   AuditActionSecretCommentDelete,
+		AdminAction: AuditActionSecretCommentDeleteAdmin,
+		TargetType:  AuditTargetSecretComment,
+	}, tx)
 }
 
 func (r *secretRepository) GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*SecretSolver, error) {

@@ -20,6 +20,7 @@ import (
 type (
 	fanficDAO struct {
 		db *sql.DB
+		*ownedDAO
 		*commentDAO[uuid.UUID]
 		*viewDAO
 	}
@@ -208,26 +209,6 @@ func (r *fanficDAO) UpdateWordCount(ctx context.Context, fanficID uuid.UUID, tx 
 	return nil
 }
 
-func (r *fanficDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM fanfics WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete fanfic: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("fanfic not found or not owned")
-	}
-	return nil
-}
-
-func (r *fanficDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM fanfics WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete fanfic: %w", err)
-	}
-	return nil
-}
-
 func (r *fanficDAO) GetCoverImagePaths(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var (
 		coverURL     string
@@ -267,15 +248,6 @@ func (r *fanficDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUI
 		return nil, fmt.Errorf("get fanfic: %w", err)
 	}
 	return &f, nil
-}
-
-func (r *fanficDAO) GetAuthorID(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM fanfics WHERE id = $1`, fanficID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get fanfic author: %w", err)
-	}
-	return userID, nil
 }
 
 func fanficOrderClause(sort string) string {

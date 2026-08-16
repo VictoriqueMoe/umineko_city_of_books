@@ -20,6 +20,7 @@ import (
 type (
 	postDAO struct {
 		db *sql.DB
+		*ownedDAO
 		*commentDAO[uuid.UUID]
 		*likeDAO
 		*mediaDAO
@@ -206,26 +207,6 @@ func (r *postDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 	return &p, nil
 }
 
-func (r *postDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM posts WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete post: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("post not found or not owned")
-	}
-	return nil
-}
-
-func (r *postDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM posts WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete post: %w", err)
-	}
-	return nil
-}
-
 func (r *postDAO) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, search string, sort string, seed int, limit, offset int, excludeUserIDs []uuid.UUID, resolvedFilter string, tx ...*sql.Tx) ([]model.PostRow, int, error) {
 	var total int
 	whereParts := []string{"p.corner = ?"}
@@ -346,12 +327,7 @@ func (r *postDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uui
 }
 
 func (r *postDAO) GetPostAuthorID(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM posts WHERE id = $1`, postID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get post author: %w", err)
-	}
-	return userID, nil
+	return r.ownedDAO.GetAuthorID(ctx, postID, tx...)
 }
 
 func (r *postDAO) GetSharedContentAuthor(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) (uuid.UUID, error) {

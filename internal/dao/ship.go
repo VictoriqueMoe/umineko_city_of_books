@@ -19,6 +19,8 @@ import (
 type (
 	shipDAO struct {
 		db *sql.DB
+		*ownedDAO
+		*voteDAO
 		*commentDAO[uuid.UUID]
 	}
 )
@@ -142,26 +144,6 @@ func (r *shipDAO) GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sq
 	return appendShipPaths(nil, imageURL, thumbnailURL), nil
 }
 
-func (r *shipDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ships WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete ship: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("ship not found or not owned")
-	}
-	return nil
-}
-
-func (r *shipDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ships WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete ship: %w", err)
-	}
-	return nil
-}
-
 func (r *shipDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var s model.ShipRow
 	err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx, shipSelectBase+` WHERE s.id = $2`, viewerID, id), &s)
@@ -172,15 +154,6 @@ func (r *shipDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		return nil, fmt.Errorf("get ship: %w", err)
 	}
 	return &s, nil
-}
-
-func (r *shipDAO) GetAuthorID(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM ships WHERE id = $1`, shipID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get ship author: %w", err)
-	}
-	return userID, nil
 }
 
 func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
@@ -357,23 +330,4 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, t
 		result[c.ShipID] = append(result[c.ShipID], c)
 	}
 	return result, rows.Err()
-}
-
-func (r *shipDAO) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx) error {
-	if value == 0 {
-		_, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`DELETE FROM ship_votes WHERE user_id = $1 AND ship_id = $2`,
-			userID, shipID,
-		)
-		return err
-	}
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO ship_votes (user_id, ship_id, value) VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, ship_id) DO UPDATE SET value = EXCLUDED.value`,
-		userID, shipID, value,
-	)
-	if err != nil {
-		return fmt.Errorf("vote ship: %w", err)
-	}
-	return nil
 }

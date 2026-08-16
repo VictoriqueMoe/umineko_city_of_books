@@ -18,6 +18,7 @@ import (
 type (
 	artDAO struct {
 		db *sql.DB
+		*ownedDAO
 		*commentDAO[uuid.UUID]
 		*likeDAO
 		*viewDAO
@@ -146,26 +147,6 @@ func (r *artDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	return &a, nil
 }
 
-func (r *artDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM art WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete art: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("art not found or not owned")
-	}
-	return nil
-}
-
-func (r *artDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM art WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete art: %w", err)
-	}
-	return nil
-}
-
 func artOrderClause(sort string) string {
 	switch sort {
 	case "popular":
@@ -267,12 +248,7 @@ func (r *artDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid
 }
 
 func (r *artDAO) GetArtAuthorID(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM art WHERE id = $1`, artID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get art author: %w", err)
-	}
-	return userID, nil
+	return r.ownedDAO.GetAuthorID(ctx, artID, tx...)
 }
 
 func (r *artDAO) GetImageURL(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) (string, error) {

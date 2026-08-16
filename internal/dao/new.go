@@ -12,7 +12,13 @@ func NewSession(db *sql.DB) repository.SessionRepository { return &sessionDAO{db
 
 func NewUser(db *sql.DB) repository.UserDAO { return &userDAO{db: db} }
 
-func NewTheory(db *sql.DB) repository.TheoryDAO { return &theoryDAO{db: db} }
+func NewTheory(db *sql.DB) repository.TheoryDAO {
+	return &theoryDAO{
+		db:            db,
+		theoryVotes:   newVoteDAO(db, "theory_votes", "theory_id", ""),
+		responseVotes: newVoteDAO(db, "response_votes", "response_id", ""),
+	}
+}
 
 func NewNotification(db *sql.DB) repository.NotificationRepository { return &notificationDAO{db: db} }
 
@@ -41,6 +47,7 @@ func NewReport(db *sql.DB) repository.ReportRepository { return &reportDAO{db: d
 func NewPost(db *sql.DB) repository.PostDAO {
 	return &postDAO{
 		db:         db,
+		ownedDAO:   newOwnedDAO(db, "posts", "post"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "post_comments", "post_id", "post_comment_likes", "post_comment_media"),
 		likeDAO:    newLikeDAO(db, "post_likes", "post_id"),
 		mediaDAO:   newMediaDAO(db, "post_media", "post_id"),
@@ -53,6 +60,7 @@ func NewFollow(db *sql.DB) repository.FollowRepository { return &followDAO{db: d
 func NewArt(db *sql.DB) repository.ArtDAO {
 	return &artDAO{
 		db:         db,
+		ownedDAO:   newOwnedDAO(db, "art", "art"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "art_comments", "art_id", "art_comment_likes", "art_comment_media"),
 		likeDAO:    newLikeDAO(db, "art_likes", "art_id"),
 		viewDAO:    newViewDAO(db, "art_views", "art_id", "art"),
@@ -72,15 +80,19 @@ func NewAnnouncement(db *sql.DB) repository.AnnouncementDAO {
 
 func NewMystery(db *sql.DB) repository.MysteryDAO {
 	return &mysteryDAO{
-		db:         db,
-		commentDAO: newCommentDAO[uuid.UUID](db, "mystery_comments", "mystery_id", "mystery_comment_likes", "mystery_comment_media"),
-		mediaDAO:   newMediaDAO(db, "mystery_media", "mystery_id"),
+		db:           db,
+		ownedDAO:     newOwnedDAO(db, "mysteries", "mystery"),
+		attemptVotes: newVoteDAO(db, "mystery_attempt_votes", "attempt_id", "vote attempt"),
+		commentDAO:   newCommentDAO[uuid.UUID](db, "mystery_comments", "mystery_id", "mystery_comment_likes", "mystery_comment_media"),
+		mediaDAO:     newMediaDAO(db, "mystery_media", "mystery_id"),
 	}
 }
 
 func NewShip(db *sql.DB) repository.ShipDAO {
 	return &shipDAO{
 		db:         db,
+		ownedDAO:   newOwnedDAO(db, "ships", "ship"),
+		voteDAO:    newVoteDAO(db, "ship_votes", "ship_id", "vote ship"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "ship_comments", "ship_id", "ship_comment_likes", "ship_comment_media"),
 	}
 }
@@ -88,6 +100,8 @@ func NewShip(db *sql.DB) repository.ShipDAO {
 func NewOC(db *sql.DB) repository.OCDAO {
 	return &ocDAO{
 		db:         db,
+		ownedDAO:   newOwnedDAO(db, "ocs", "oc"),
+		voteDAO:    newVoteDAO(db, "oc_votes", "oc_id", "vote oc"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "oc_comments", "oc_id", "oc_comment_likes", "oc_comment_media"),
 	}
 }
@@ -95,6 +109,7 @@ func NewOC(db *sql.DB) repository.OCDAO {
 func NewFanfic(db *sql.DB) repository.FanficDAO {
 	return &fanficDAO{
 		db:         db,
+		ownedDAO:   newOwnedDAO(db, "fanfics", "fanfic"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "fanfic_comments", "fanfic_id", "fanfic_comment_likes", "fanfic_comment_media"),
 		viewDAO:    newViewDAO(db, "fanfic_views", "fanfic_id", "fanfics"),
 	}
@@ -103,6 +118,7 @@ func NewFanfic(db *sql.DB) repository.FanficDAO {
 func NewJournal(db *sql.DB) repository.JournalDAO {
 	return &journalDAO{
 		db:         db,
+		ownedDAO:   newOwnedDAO(db, "journals", "journal"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "journal_comments", "journal_id", "journal_comment_likes", "journal_comment_media"),
 		mediaDAO:   newMediaDAO(db, "journal_entry_media", "entry_id"),
 	}

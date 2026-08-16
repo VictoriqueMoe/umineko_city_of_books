@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/repository/model"
@@ -151,55 +150,14 @@ func (r *ocRepository) DeleteOC(ctx context.Context, spec OCDeletion, tx ...*sql
 }
 
 func (r *ocRepository) DeleteCommentWithMedia(ctx context.Context, spec OCCommentDeletion, tx ...*sql.Tx) ([]string, error) {
-	var paths []string
-
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
-		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.CommentID, tx)
-		if err != nil {
-			return err
-		}
-
-		action := AuditActionOCCommentDelete
-		if authorID != spec.UserID {
-			action = AuditActionOCCommentDeleteAdmin
-		}
-
-		if spec.AsAdmin {
-			if err := r.dao.DeleteCommentAsAdmin(ctx, spec.CommentID, tx); err != nil {
-				return err
-			}
-		} else {
-			if err := r.dao.DeleteComment(ctx, spec.CommentID, spec.UserID, tx); err != nil {
-				return err
-			}
-		}
-
-		entry := NewAuditEntry{
-			ActorID:    spec.UserID,
-			Action:     action,
-			TargetType: AuditTargetOCComment,
-			TargetID:   spec.CommentID.String(),
-			SubjectID:  authorID,
-		}
-
-		if err := r.audit.Create(ctx, entry, tx); err != nil {
-			return fmt.Errorf("audit comment delete: %w", err)
-		}
-
-		paths = mediaPaths
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return paths, nil
+	return deleteCommentWithAudit(ctx, r.db, r.dao, r.audit, commentDeleteSpec{
+		CommentID:   spec.CommentID,
+		UserID:      spec.UserID,
+		AsAdmin:     spec.AsAdmin,
+		OwnAction:   AuditActionOCCommentDelete,
+		AdminAction: AuditActionOCCommentDeleteAdmin,
+		TargetType:  AuditTargetOCComment,
+	}, tx)
 }
 
 func (r *ocRepository) GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {

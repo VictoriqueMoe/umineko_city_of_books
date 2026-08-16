@@ -3,10 +3,10 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
 
 	"github.com/google/uuid"
@@ -59,12 +59,9 @@ func ExcludeVanityRoleIDs(ids []string, startIndex int) (string, []interface{}) 
 	if len(ids) == 0 {
 		return "", nil
 	}
-	placeholders := make([]string, len(ids))
-	args := make([]interface{}, len(ids))
-	for i, id := range ids {
-		placeholders[i] = fmt.Sprintf("$%d", startIndex+i)
-		args[i] = id
-	}
+
+	placeholders, args := utils.PlaceholderArgs(ids, startIndex)
+
 	return " AND id NOT IN (" + strings.Join(placeholders, ", ") + ")", args
 }
 

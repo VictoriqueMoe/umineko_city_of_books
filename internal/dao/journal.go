@@ -19,6 +19,7 @@ import (
 type (
 	journalDAO struct {
 		db *sql.DB
+		*ownedDAO
 		*commentDAO[uuid.UUID]
 		*mediaDAO
 	}
@@ -241,26 +242,6 @@ func (r *journalDAO) UpdateAsAdmin(ctx context.Context, spec repository.JournalU
 	return nil
 }
 
-func (r *journalDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM journals WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete journal: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("journal not found or not owned")
-	}
-	return nil
-}
-
-func (r *journalDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM journals WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete journal: %w", err)
-	}
-	return nil
-}
-
 func (r *journalDAO) ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id FROM journal_entries WHERE journal_id = $1 ORDER BY entry_number`,
@@ -286,15 +267,6 @@ func (r *journalDAO) ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID,
 		return nil, fmt.Errorf("list entry comment ids: %w", err)
 	}
 	return utils.ScanIDs(rows, "entry comment id")
-}
-
-func (r *journalDAO) GetAuthorID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var authorID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM journals WHERE id = $1`, id).Scan(&authorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get journal author: %w", err)
-	}
-	return authorID, nil
 }
 
 func (r *journalDAO) GetTitle(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (string, error) {

@@ -19,6 +19,8 @@ import (
 type (
 	ocDAO struct {
 		db *sql.DB
+		*ownedDAO
+		*voteDAO
 		*commentDAO[uuid.UUID]
 	}
 )
@@ -163,26 +165,6 @@ func (r *ocDAO) GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.
 	return paths, rows.Err()
 }
 
-func (r *ocDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ocs WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete oc: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("oc not found or not owned")
-	}
-	return nil
-}
-
-func (r *ocDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ocs WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete oc: %w", err)
-	}
-	return nil
-}
-
 func (r *ocDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.OCRow, error) {
 	var o model.OCRow
 	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx, ocSelectBase+` WHERE o.id = $2`, viewerID, id), &o)
@@ -193,15 +175,6 @@ func (r *ocDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, t
 		return nil, fmt.Errorf("get oc: %w", err)
 	}
 	return &o, nil
-}
-
-func (r *ocDAO) GetAuthorID(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM ocs WHERE id = $1`, ocID).Scan(&userID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get oc author: %w", err)
-	}
-	return userID, nil
 }
 
 func (r *ocDAO) HasOC(ctx context.Context, userID uuid.UUID, name string, tx ...*sql.Tx) (bool, error) {
@@ -463,25 +436,6 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 		result[m.OCID] = append(result[m.OCID], m)
 	}
 	return result, rows.Err()
-}
-
-func (r *ocDAO) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int, tx ...*sql.Tx) error {
-	if value == 0 {
-		_, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`DELETE FROM oc_votes WHERE user_id = $1 AND oc_id = $2`,
-			userID, ocID,
-		)
-		return err
-	}
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO oc_votes (user_id, oc_id, value) VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, oc_id) DO UPDATE SET value = EXCLUDED.value`,
-		userID, ocID, value,
-	)
-	if err != nil {
-		return fmt.Errorf("vote oc: %w", err)
-	}
-	return nil
 }
 
 func (r *ocDAO) Favourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {

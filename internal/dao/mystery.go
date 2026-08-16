@@ -17,6 +17,8 @@ import (
 type (
 	mysteryDAO struct {
 		db *sql.DB
+		*ownedDAO
+		attemptVotes *voteDAO
 		*commentDAO[uuid.UUID]
 		*mediaDAO
 	}
@@ -112,26 +114,6 @@ func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title stri
 	)
 	if err != nil {
 		return fmt.Errorf("update mystery as admin: %w", err)
-	}
-	return nil
-}
-
-func (r *mysteryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mysteries WHERE id = $1 AND user_id = $2`, id, userID)
-	if err != nil {
-		return fmt.Errorf("delete mystery: %w", err)
-	}
-	n, _ := res.RowsAffected()
-	if n == 0 {
-		return fmt.Errorf("mystery not found or not owned")
-	}
-	return nil
-}
-
-func (r *mysteryDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mysteries WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete mystery: %w", err)
 	}
 	return nil
 }
@@ -292,15 +274,6 @@ func (r *mysteryDAO) UpdateClue(ctx context.Context, clueID int, body string, tx
 	return nil
 }
 
-func (r *mysteryDAO) GetAuthorID(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var authorID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT user_id FROM mysteries WHERE id = $1`, mysteryID).Scan(&authorID)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("get mystery author: %w", err)
-	}
-	return authorID, nil
-}
-
 func (r *mysteryDAO) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string, tx ...*sql.Tx) (*repository.MysteryAttemptRow, error) {
 	var row repository.MysteryAttemptRow
 	var createdAt time.Time
@@ -404,22 +377,7 @@ func (r *mysteryDAO) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUI
 }
 
 func (r *mysteryDAO) VoteAttempt(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int, tx ...*sql.Tx) error {
-	if value == 0 {
-		_, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`DELETE FROM mystery_attempt_votes WHERE user_id = $1 AND attempt_id = $2`,
-			userID, attemptID,
-		)
-		return err
-	}
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO mystery_attempt_votes (user_id, attempt_id, value) VALUES ($1, $2, $3)
-		ON CONFLICT (user_id, attempt_id) DO UPDATE SET value = $4`,
-		userID, attemptID, value, value,
-	)
-	if err != nil {
-		return fmt.Errorf("vote attempt: %w", err)
-	}
-	return nil
+	return r.attemptVotes.Vote(ctx, userID, attemptID, value, tx...)
 }
 
 func (r *mysteryDAO) GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
