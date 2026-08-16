@@ -1,0 +1,57 @@
+.grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.item {
+    position: relative;
+    width: 96px;
+    height: 96px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.itemPending {
+    outline: 2px solid rgba(220, 80, 80, 0.7);
+}
+
+.itemPending .thumb {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+
+.thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.remove {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 0.9rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.remove:hover:not(:disabled) {
+    background: rgba(220, 80, 80, 0.85);
+}
+
+.remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}

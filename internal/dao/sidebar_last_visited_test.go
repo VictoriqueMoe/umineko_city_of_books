@@ -3,7 +3,6 @@ package dao_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
 
@@ -24,19 +23,26 @@ func TestSidebarLastVisitedDAO_Upsert_Insert(t *testing.T) {
 }
 
 func TestSidebarLastVisitedDAO_Upsert_Overwrites(t *testing.T) {
+	ctx := context.Background()
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), user.ID, "mysteries"))
-	first, err := repos.SidebarVisited.ListForUser(context.Background(), user.ID)
+	require.NoError(t, repos.SidebarVisited.Upsert(ctx, user.ID, "mysteries"))
+
+	_, err := repos.DB().ExecContext(ctx,
+		`UPDATE sidebar_last_visited SET visited_at = NOW() - INTERVAL '1 hour' WHERE user_id = $1 AND key = $2`,
+		user.ID, "mysteries",
+	)
+	require.NoError(t, err)
+
+	first, err := repos.SidebarVisited.ListForUser(ctx, user.ID)
 	require.NoError(t, err)
 	firstTs := first["mysteries"]
 	require.NotEmpty(t, firstTs)
 
-	time.Sleep(1100 * time.Millisecond)
-	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), user.ID, "mysteries"))
+	require.NoError(t, repos.SidebarVisited.Upsert(ctx, user.ID, "mysteries"))
 
-	second, err := repos.SidebarVisited.ListForUser(context.Background(), user.ID)
+	second, err := repos.SidebarVisited.ListForUser(ctx, user.ID)
 	require.NoError(t, err)
 	require.Len(t, second, 1)
 	assert.NotEqual(t, firstTs, second["mysteries"])

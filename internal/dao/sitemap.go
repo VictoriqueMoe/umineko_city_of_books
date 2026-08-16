@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -61,17 +62,8 @@ func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string
 	if err != nil {
 		return nil, fmt.Errorf("list usernames: %w", err)
 	}
-	defer rows.Close()
 
-	var usernames []string
-	for rows.Next() {
-		var u string
-		if err := rows.Scan(&u); err != nil {
-			return nil, fmt.Errorf("scan username: %w", err)
-		}
-		usernames = append(usernames, u)
-	}
-	return usernames, rows.Err()
+	return utils.ScanStrings(rows, "username")
 }
 
 func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapJournalRow, error) {

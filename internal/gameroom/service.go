@@ -614,14 +614,9 @@ func (s *service) Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.G
 	for i := range rows {
 		ids[i] = rows[i].UserID
 	}
-	users, err := s.userRepo.GetByIDs(ctx, ids)
+	byID, err := s.usersByID(ctx, ids)
 	if err != nil {
 		logger.Log.Warn().Err(err).Str("game_type", string(gameType)).Msg("load scoreboard users")
-		users = nil
-	}
-	byID := make(map[uuid.UUID]*model.User, len(users))
-	for i := range users {
-		byID[users[i].ID] = &users[i]
 	}
 
 	out := make([]dto.GameScoreboardRow, 0, len(rows))
@@ -1124,6 +1119,20 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 	}, nil
 }
 
+func (s *service) usersByID(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*model.User, error) {
+	users, err := s.userRepo.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	byID := make(map[uuid.UUID]*model.User, len(users))
+	for i := range users {
+		byID[users[i].ID] = &users[i]
+	}
+
+	return byID, nil
+}
+
 func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.GameRoomPlayer, error) {
 	rows, err := s.repo.GetPlayers(ctx, roomID)
 	if err != nil {
@@ -1137,13 +1146,9 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 	for i := range rows {
 		ids[i] = rows[i].UserID
 	}
-	users, err := s.userRepo.GetByIDs(ctx, ids)
+	byID, err := s.usersByID(ctx, ids)
 	if err != nil {
 		return nil, err
-	}
-	byID := make(map[uuid.UUID]*model.User, len(users))
-	for i := range users {
-		byID[users[i].ID] = &users[i]
 	}
 
 	out := make([]dto.GameRoomPlayer, 0, len(rows))

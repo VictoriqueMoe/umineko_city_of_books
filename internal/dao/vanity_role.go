@@ -211,15 +211,6 @@ func (r *vanityRoleDAO) GetAllAssignments(ctx context.Context, tx ...*sql.Tx) (m
 	if err != nil {
 		return nil, fmt.Errorf("get all vanity role assignments: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[string][]string)
-	for rows.Next() {
-		var userID, roleID string
-		if err := rows.Scan(&userID, &roleID); err != nil {
-			return nil, fmt.Errorf("scan assignment: %w", err)
-		}
-		result[userID] = append(result[userID], roleID)
-	}
-	return result, rows.Err()
+	return utils.ScanGroups[string, string](rows, "assignment")
 }

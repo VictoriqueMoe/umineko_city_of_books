@@ -1,128 +1,19 @@
-import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { usePageTitle } from "../../hooks/usePageTitle";
-import { useGameRoom } from "../../api/queries/gameRoom";
 import {
     useAcceptDraw,
-    useAcceptGameInvite,
     useDeclineDraw,
-    useDeclineGameInvite,
     useOfferDraw,
     useResignGame,
     useSubmitGameAction,
 } from "../../api/mutations/gameRoom";
 import { ChessBoardView } from "../../components/games/chess/ChessBoardView";
-import { GameChat } from "../../components/games/chat/GameChat.tsx";
-import { Button } from "../../components/Button/Button";
-import styles from "./GamesPages.module.css";
+import { GameRoomShell, type GameBoardProps } from "./GameRoomShell";
 
-export function ChessGamePage() {
-    const { id } = useParams<{ id: string }>();
-    const { user } = useAuth();
-    const navigate = useNavigate();
-    const { room, loading, error, refetch } = useGameRoom(id);
-    const [acceptError, setAcceptError] = useState("");
-    const acceptInvite = useAcceptGameInvite();
-    const declineInvite = useDeclineGameInvite();
-    const submitAction = useSubmitGameAction(room?.id ?? "");
+function ChessBoard({ room, viewer, isSpectator }: GameBoardProps) {
+    const submitAction = useSubmitGameAction(room.id);
     const resign = useResignGame();
     const offerDraw = useOfferDraw();
     const acceptDraw = useAcceptDraw();
     const declineDraw = useDeclineDraw();
-
-    usePageTitle(room ? `Chess - ${room.players.map(p => p.display_name).join(" vs ")}` : "Chess");
-
-    if (!id) {
-        return null;
-    }
-
-    if (loading && !room) {
-        return <div className={styles.page}>Loading...</div>;
-    }
-
-    if (error && !room) {
-        return (
-            <div className={styles.page}>
-                <div className={styles.error}>{error}</div>
-                <Button onClick={() => navigate("/games/live")}>Back</Button>
-            </div>
-        );
-    }
-
-    if (!room) {
-        return null;
-    }
-
-    const isParticipant = user ? room.players.some(p => p.user_id === user.id) : false;
-    const isInvitee = user ? room.created_by !== user.id && isParticipant : false;
-
-    if (room.status === "pending") {
-        if (!isParticipant) {
-            return (
-                <div className={styles.page}>
-                    <h2 className={styles.heading}>Chess</h2>
-                    <p>This match hasn't started yet — invites are private.</p>
-                    <div className={styles.actions}>
-                        <Button onClick={() => navigate("/games/live")}>Live Games</Button>
-                    </div>
-                </div>
-            );
-        }
-        const opponent = room.players.find(p => p.user_id !== user?.id);
-        return (
-            <div className={styles.page}>
-                <h2 className={styles.heading}>Chess</h2>
-                {isInvitee ? (
-                    <p>
-                        {opponent?.display_name ?? "Someone"} has invited you to a chess game. Accept to start — you
-                        will play as black.
-                    </p>
-                ) : (
-                    <p>Waiting for {opponent?.display_name ?? "opponent"} to accept.</p>
-                )}
-                <div className={styles.actions}>
-                    {isInvitee && (
-                        <>
-                            <Button
-                                variant="primary"
-                                onClick={async () => {
-                                    setAcceptError("");
-                                    try {
-                                        await acceptInvite.mutateAsync(room.id);
-                                        await refetch();
-                                    } catch (err) {
-                                        setAcceptError(err instanceof Error ? err.message : "Failed to accept invite");
-                                    }
-                                }}
-                            >
-                                Accept
-                            </Button>
-                            <Button
-                                variant="ghost"
-                                onClick={async () => {
-                                    setAcceptError("");
-                                    try {
-                                        await declineInvite.mutateAsync(room.id);
-                                    } catch (err) {
-                                        setAcceptError(err instanceof Error ? err.message : "Failed to decline invite");
-                                        return;
-                                    }
-                                    navigate("/games");
-                                }}
-                            >
-                                Decline
-                            </Button>
-                        </>
-                    )}
-                    <Button variant="ghost" onClick={() => navigate("/games")}>
-                        Back
-                    </Button>
-                </div>
-                {acceptError && <div className={styles.error}>{acceptError}</div>}
-            </div>
-        );
-    }
 
     async function handleMove(move: { from: string; to: string; promotion?: string }) {
         await submitAction.mutateAsync({
@@ -132,43 +23,34 @@ export function ChessGamePage() {
         });
     }
 
-    async function handleResign() {
-        await resign.mutateAsync(room!.id);
-    }
-
-    async function handleOfferDraw() {
-        await offerDraw.mutateAsync(room!.id);
-    }
-
-    async function handleAcceptDraw() {
-        await acceptDraw.mutateAsync(room!.id);
-    }
-
-    async function handleDeclineDraw() {
-        await declineDraw.mutateAsync(room!.id);
-    }
-
     return (
-        <div className={`${styles.page} ${styles.gamePage}`}>
-            <div className={styles.boardColumn}>
-                <ChessBoardView
-                    room={room}
-                    viewer={user}
-                    isSpectator={!isParticipant}
-                    onMove={handleMove}
-                    onResign={handleResign}
-                    onOfferDraw={handleOfferDraw}
-                    onAcceptDraw={handleAcceptDraw}
-                    onDeclineDraw={handleDeclineDraw}
-                />
-            </div>
-            <div className={styles.chatColumn}>
-                <GameChat
-                    roomId={room.id}
-                    variant={isParticipant ? "player" : "spectator"}
-                    watcherCount={room.watcher_count}
-                />
-            </div>
-        </div>
+        <ChessBoardView
+            room={room}
+            viewer={viewer}
+            isSpectator={isSpectator}
+            onMove={handleMove}
+            onResign={async () => {
+                await resign.mutateAsync(room.id);
+            }}
+            onOfferDraw={async () => {
+                await offerDraw.mutateAsync(room.id);
+            }}
+            onAcceptDraw={async () => {
+                await acceptDraw.mutateAsync(room.id);
+            }}
+            onDeclineDraw={async () => {
+                await declineDraw.mutateAsync(room.id);
+            }}
+        />
+    );
+}
+
+export function ChessGamePage() {
+    return (
+        <GameRoomShell
+            gameName="Chess"
+            inviteCopy={name => `${name} has invited you to a chess game. Accept to start - you will play as black.`}
+            Board={ChessBoard}
+        />
     );
 }

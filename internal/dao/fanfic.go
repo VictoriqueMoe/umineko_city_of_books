@@ -520,17 +520,8 @@ func (r *fanficDAO) GetGenres(ctx context.Context, fanficID uuid.UUID, tx ...*sq
 	if err != nil {
 		return nil, fmt.Errorf("get fanfic genres: %w", err)
 	}
-	defer rows.Close()
 
-	var genres []string
-	for rows.Next() {
-		var g string
-		if err := rows.Scan(&g); err != nil {
-			return nil, fmt.Errorf("scan fanfic genre: %w", err)
-		}
-		genres = append(genres, g)
-	}
-	return genres, rows.Err()
+	return utils.ScanStrings(rows, "fanfic genre")
 }
 
 func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
@@ -547,18 +538,8 @@ func (r *fanficDAO) GetGenresBatch(ctx context.Context, fanficIDs []uuid.UUID, t
 	if err != nil {
 		return nil, fmt.Errorf("batch get fanfic genres: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[uuid.UUID][]string)
-	for rows.Next() {
-		var fanficID uuid.UUID
-		var genre string
-		if err := rows.Scan(&fanficID, &genre); err != nil {
-			return nil, fmt.Errorf("scan fanfic genre: %w", err)
-		}
-		result[fanficID] = append(result[fanficID], genre)
-	}
-	return result, rows.Err()
+	return utils.ScanGroups[uuid.UUID, string](rows, "fanfic genre")
 }
 
 func (r *fanficDAO) GetTags(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
@@ -569,17 +550,8 @@ func (r *fanficDAO) GetTags(ctx context.Context, fanficID uuid.UUID, tx ...*sql.
 	if err != nil {
 		return nil, fmt.Errorf("get fanfic tags: %w", err)
 	}
-	defer rows.Close()
 
-	var tags []string
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, fmt.Errorf("scan fanfic tag: %w", err)
-		}
-		tags = append(tags, t)
-	}
-	return tags, rows.Err()
+	return utils.ScanStrings(rows, "fanfic tag")
 }
 
 func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
@@ -596,18 +568,8 @@ func (r *fanficDAO) GetTagsBatch(ctx context.Context, fanficIDs []uuid.UUID, tx 
 	if err != nil {
 		return nil, fmt.Errorf("batch get fanfic tags: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[uuid.UUID][]string)
-	for rows.Next() {
-		var fanficID uuid.UUID
-		var tag string
-		if err := rows.Scan(&fanficID, &tag); err != nil {
-			return nil, fmt.Errorf("scan fanfic tag: %w", err)
-		}
-		result[fanficID] = append(result[fanficID], tag)
-	}
-	return result, rows.Err()
+	return utils.ScanGroups[uuid.UUID, string](rows, "fanfic tag")
 }
 
 func (r *fanficDAO) GetCharacters(ctx context.Context, fanficID uuid.UUID, tx ...*sql.Tx) ([]model.FanficCharacterRow, error) {
@@ -677,17 +639,8 @@ func (r *fanficDAO) SearchOCCharacters(ctx context.Context, query string, tx ...
 	if err != nil {
 		return nil, fmt.Errorf("search oc characters: %w", err)
 	}
-	defer rows.Close()
 
-	var names []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("scan oc character: %w", err)
-		}
-		names = append(names, name)
-	}
-	return names, rows.Err()
+	return utils.ScanStrings(rows, "oc character")
 }
 
 func (r *fanficDAO) GetLanguages(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
@@ -695,17 +648,8 @@ func (r *fanficDAO) GetLanguages(ctx context.Context, tx ...*sql.Tx) ([]string, 
 	if err != nil {
 		return nil, fmt.Errorf("get languages: %w", err)
 	}
-	defer rows.Close()
 
-	var langs []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("scan language: %w", err)
-		}
-		langs = append(langs, name)
-	}
-	return langs, rows.Err()
+	return utils.ScanStrings(rows, "language")
 }
 
 func (r *fanficDAO) RegisterLanguage(ctx context.Context, name string, tx ...*sql.Tx) error {
@@ -724,17 +668,8 @@ func (r *fanficDAO) GetSeries(ctx context.Context, tx ...*sql.Tx) ([]string, err
 	if err != nil {
 		return nil, fmt.Errorf("get series: %w", err)
 	}
-	defer rows.Close()
 
-	var series []string
-	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
-			return nil, fmt.Errorf("scan series: %w", err)
-		}
-		series = append(series, name)
-	}
-	return series, rows.Err()
+	return utils.ScanStrings(rows, "series")
 }
 
 func (r *fanficDAO) RegisterSeries(ctx context.Context, name string, tx ...*sql.Tx) error {

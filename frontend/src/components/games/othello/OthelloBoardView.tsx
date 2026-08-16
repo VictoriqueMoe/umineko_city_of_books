@@ -6,6 +6,7 @@ import { GameOverPanel } from "../GameOverPanel.tsx";
 import { GamePlayerBar } from "../GamePlayerBar.tsx";
 import { GameStatsGrid } from "../GameStatsGrid.tsx";
 import { gameResultLabel, getMySlot, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers.ts";
+import shell from "../boardShell.module.css";
 import styles from "./OthelloBoardView.module.css";
 
 const BOARD_SIZE = 8;
@@ -277,7 +278,7 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
     }
 
     return (
-        <div className={styles.wrapper}>
+        <div className={shell.wrapper}>
             <GamePlayerBar
                 room={room}
                 slot0Label="Black"
@@ -287,17 +288,17 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
 
             <DisconnectBanner offlinePlayer={offlinePlayer} forfeitRemaining={forfeitRemaining} />
 
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={shell.error}>{error}</div>}
             {opponentPassed && !error && (
-                <div className={styles.info}>Opponent had no legal moves and passed. Your turn again.</div>
+                <div className={shell.info}>Opponent had no legal moves and passed. Your turn again.</div>
             )}
             {!opponentPassed && isMyTurn && legalSquares.size === 0 && room.status === "active" && (
-                <div className={styles.info}>
+                <div className={shell.info}>
                     You have no legal moves; the server will pass for you on the next sync.
                 </div>
             )}
 
-            <div className={styles.boardContainer}>
+            <div className={shell.boardContainer}>
                 <div className={styles.board}>
                     {displayRows.map(r => (
                         <div className={styles.boardRow} key={r}>
@@ -388,7 +389,7 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
             </GameOverPanel>
 
             {room.status === "active" && !isSpectator && (
-                <div className={styles.controls}>
+                <div className={shell.controls}>
                     <Button variant="danger" onClick={handleResign} disabled={submitting}>
                         Resign
                     </Button>

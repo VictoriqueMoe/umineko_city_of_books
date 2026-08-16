@@ -18,13 +18,16 @@ export interface Quote {
     audioTextMap?: Record<string, string>;
 }
 
-export interface QuoteBrowseResponse {
-    character: string;
-    characterId: string;
-    quotes: Quote[];
+export interface PaginationFields {
     total: number;
     limit: number;
     offset: number;
+}
+
+export interface QuoteBrowseResponse extends PaginationFields {
+    character: string;
+    characterId: string;
+    quotes: Quote[];
 }
 
 export interface QuoteSearchResult {
@@ -32,11 +35,8 @@ export interface QuoteSearchResult {
     score: number;
 }
 
-export interface QuoteSearchResponse {
+export interface QuoteSearchResponse extends PaginationFields {
     results: QuoteSearchResult[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 import type { SiteRole } from "../utils/permissions";
@@ -86,11 +86,8 @@ export interface TheoryDetail extends Theory {
     refuted_at?: string;
 }
 
-export interface TheoryListResponse {
+export interface TheoryListResponse extends PaginationFields {
     theories: Theory[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface Response {
@@ -253,11 +250,8 @@ export interface ActivityItem {
     created_at: string;
 }
 
-export interface ActivityListResponse {
+export interface ActivityListResponse extends PaginationFields {
     items: ActivityItem[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface PostMedia {
@@ -344,25 +338,25 @@ export interface PostDetail extends Post {
     viewer_blocked: boolean;
 }
 
-export interface PostComment {
+interface CommentFields {
     id: string;
     parent_id?: string;
     author: User;
     body: string;
     media: PostMedia[];
-    embeds?: PostEmbed[];
     like_count: number;
     user_liked: boolean;
-    replies?: PostComment[];
     created_at: string;
     updated_at?: string;
 }
 
-export interface PostListResponse {
+export interface PostComment extends CommentFields {
+    embeds?: PostEmbed[];
+    replies?: PostComment[];
+}
+
+export interface PostListResponse extends PaginationFields {
     posts: Post[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface FollowStats {
@@ -429,11 +423,8 @@ export interface JournalDetail extends Journal {
     comments: JournalComment[];
 }
 
-export interface JournalListResponse {
+export interface JournalListResponse extends PaginationFields {
     journals: Journal[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface CreateJournalPayload {
@@ -532,11 +523,8 @@ export interface Notification {
     count: number;
 }
 
-export interface NotificationListResponse {
+export interface NotificationListResponse extends PaginationFields {
     notifications: Notification[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface WSMessage {
@@ -555,11 +543,8 @@ export interface AdminUserItem {
     created_at: string;
 }
 
-export interface AdminUserListResponse {
+export interface AdminUserListResponse extends PaginationFields {
     users: AdminUserItem[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface AdminUserDetail extends AdminUserItem {
@@ -623,11 +608,8 @@ export interface AuditLogEntry {
     subject_username?: string;
 }
 
-export interface AuditLogListResponse {
+export interface AuditLogListResponse extends PaginationFields {
     entries: AuditLogEntry[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface AdminIPMatches {
@@ -665,25 +647,13 @@ export interface ArtDetail extends Art {
     viewer_blocked: boolean;
 }
 
-export interface ArtComment {
-    id: string;
-    parent_id?: string;
-    author: User;
-    body: string;
-    media: PostMedia[];
+export interface ArtComment extends CommentFields {
     embeds?: PostEmbed[];
-    like_count: number;
-    user_liked: boolean;
     replies?: ArtComment[];
-    created_at: string;
-    updated_at?: string;
 }
 
-export interface ArtListResponse {
+export interface ArtListResponse extends PaginationFields {
     art: Art[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface TagCount {
@@ -704,12 +674,9 @@ export interface Gallery {
     updated_at?: string;
 }
 
-export interface GalleryDetailResponse {
+export interface GalleryDetailResponse extends PaginationFields {
     gallery: Gallery;
     art: Art[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface ChatRoom {
@@ -955,17 +922,8 @@ export interface MysteryAttempt {
     created_at: string;
 }
 
-export interface MysteryComment {
-    id: string;
-    parent_id?: string;
-    author: User;
-    body: string;
-    media: PostMedia[];
-    like_count: number;
-    user_liked: boolean;
+export interface MysteryComment extends CommentFields {
     replies?: MysteryComment[];
-    created_at: string;
-    updated_at?: string;
 }
 
 export interface MysteryAttachment {
@@ -1017,24 +975,12 @@ export interface MysteryDetail {
     created_at: string;
 }
 
-export interface MysteryListResponse {
+export interface MysteryListResponse extends PaginationFields {
     mysteries: Mystery[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
-export interface SecretComment {
-    id: string;
-    parent_id?: string;
-    author: User;
-    body: string;
-    media: PostMedia[];
-    like_count: number;
-    user_liked: boolean;
+export interface SecretComment extends CommentFields {
     replies?: SecretComment[];
-    created_at: string;
-    updated_at?: string;
 }
 
 export interface SecretLeaderboardEntry {
@@ -1171,11 +1117,8 @@ export interface FanficDetail extends Fanfic {
     viewer_blocked: boolean;
 }
 
-export interface FanficListResponse {
+export interface FanficListResponse extends PaginationFields {
     fanfics: Fanfic[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface Announcement {
@@ -1189,18 +1132,9 @@ export interface Announcement {
     comments?: AnnouncementComment[];
 }
 
-export interface AnnouncementComment {
-    id: string;
-    parent_id?: string;
-    author: User;
-    body: string;
-    media: PostMedia[];
+export interface AnnouncementComment extends CommentFields {
     embeds?: PostEmbed[];
-    like_count: number;
-    user_liked: boolean;
     replies?: AnnouncementComment[];
-    created_at: string;
-    updated_at?: string;
 }
 
 export interface ShipCharacter {
@@ -1226,18 +1160,9 @@ export interface Ship {
     updated_at?: string;
 }
 
-export interface ShipComment {
-    id: string;
-    parent_id?: string;
-    author: User;
-    body: string;
-    media: PostMedia[];
+export interface ShipComment extends CommentFields {
     embeds?: PostEmbed[];
-    like_count: number;
-    user_liked: boolean;
     replies?: ShipComment[];
-    created_at: string;
-    updated_at?: string;
 }
 
 export interface ShipDetail extends Ship {
@@ -1245,11 +1170,8 @@ export interface ShipDetail extends Ship {
     viewer_blocked: boolean;
 }
 
-export interface ShipListResponse {
+export interface ShipListResponse extends PaginationFields {
     ships: Ship[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface OCImage {
@@ -1280,17 +1202,8 @@ export interface OC {
     updated_at?: string;
 }
 
-export interface OCComment {
-    id: string;
-    parent_id?: string;
-    author: User;
-    body: string;
-    media: PostMedia[];
-    like_count: number;
-    user_liked: boolean;
+export interface OCComment extends CommentFields {
     replies?: OCComment[];
-    created_at: string;
-    updated_at?: string;
 }
 
 export interface OCDetail extends OC {
@@ -1298,11 +1211,8 @@ export interface OCDetail extends OC {
     viewer_blocked: boolean;
 }
 
-export interface OCListResponse {
+export interface OCListResponse extends PaginationFields {
     ocs: OC[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export interface OCSummary {
@@ -1324,11 +1234,8 @@ export interface CharacterListResponse {
     characters: CharacterListEntry[];
 }
 
-export interface AnnouncementListResponse {
+export interface AnnouncementListResponse extends PaginationFields {
     announcements: Announcement[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export type GameType = "chess" | "checkers" | "othello" | "minesweeper" | "snakes_and_ladders";

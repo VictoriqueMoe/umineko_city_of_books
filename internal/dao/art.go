@@ -313,17 +313,8 @@ func (r *artDAO) GetTags(ctx context.Context, artID uuid.UUID, tx ...*sql.Tx) ([
 	if err != nil {
 		return nil, fmt.Errorf("get art tags: %w", err)
 	}
-	defer rows.Close()
 
-	var tags []string
-	for rows.Next() {
-		var tag string
-		if err := rows.Scan(&tag); err != nil {
-			return nil, fmt.Errorf("scan art tag: %w", err)
-		}
-		tags = append(tags, tag)
-	}
-	return tags, rows.Err()
+	return utils.ScanStrings(rows, "art tag")
 }
 
 func (r *artDAO) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
@@ -340,18 +331,8 @@ func (r *artDAO) GetTagsBatch(ctx context.Context, artIDs []uuid.UUID, tx ...*sq
 	if err != nil {
 		return nil, fmt.Errorf("batch get art tags: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[uuid.UUID][]string)
-	for rows.Next() {
-		var artID uuid.UUID
-		var tag string
-		if err := rows.Scan(&artID, &tag); err != nil {
-			return nil, fmt.Errorf("scan art tag: %w", err)
-		}
-		result[artID] = append(result[artID], tag)
-	}
-	return result, rows.Err()
+	return utils.ScanGroups[uuid.UUID, string](rows, "art tag")
 }
 
 func (r *artDAO) GetPopularTags(ctx context.Context, corner string, limit int, tx ...*sql.Tx) ([]model.TagCount, error) {
@@ -389,18 +370,8 @@ func (r *artDAO) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string
 	if err != nil {
 		return nil, fmt.Errorf("art corner counts: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[string]int)
-	for rows.Next() {
-		var corner string
-		var count int
-		if err := rows.Scan(&corner, &count); err != nil {
-			return nil, fmt.Errorf("scan art corner count: %w", err)
-		}
-		result[corner] = count
-	}
-	return result, rows.Err()
+	return utils.ScanMap[string, int](rows, "art corner count")
 }
 
 func (r *artDAO) CountUserArtToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {

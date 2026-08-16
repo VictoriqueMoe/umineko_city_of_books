@@ -26,7 +26,7 @@ function diffSeconds(dateStr: string | null | undefined): number | null {
     return Math.floor((Date.now() - d.getTime()) / 1000);
 }
 
-export function relativeTime(dateStr: string | null | undefined): string {
+function relativeLadder(dateStr: string | null | undefined, suffix: string): string {
     const diff = diffSeconds(dateStr);
     if (diff === null) {
         return "";
@@ -34,44 +34,32 @@ export function relativeTime(dateStr: string | null | undefined): string {
     if (diff < 60) {
         return "just now";
     }
+
     const mins = Math.floor(diff / 60);
     if (mins < 60) {
-        return `${mins}m ago`;
+        return `${mins}m${suffix}`;
     }
+
     const hours = Math.floor(mins / 60);
     if (hours < 24) {
-        return `${hours}h ago`;
+        return `${hours}h${suffix}`;
     }
+
     const days = Math.floor(hours / 24);
     if (days < 30) {
-        return `${days}d ago`;
+        return `${days}d${suffix}`;
     }
+
     const months = Math.floor(days / 30);
-    return `${months}mo ago`;
+    return `${months}mo${suffix}`;
+}
+
+export function relativeTime(dateStr: string | null | undefined): string {
+    return relativeLadder(dateStr, " ago");
 }
 
 export function shortRelativeTime(dateStr: string | null | undefined): string {
-    const diff = diffSeconds(dateStr);
-    if (diff === null) {
-        return "";
-    }
-    if (diff < 60) {
-        return "just now";
-    }
-    const mins = Math.floor(diff / 60);
-    if (mins < 60) {
-        return `${mins}m`;
-    }
-    const hours = Math.floor(mins / 60);
-    if (hours < 24) {
-        return `${hours}h`;
-    }
-    const days = Math.floor(hours / 24);
-    if (days < 30) {
-        return `${days}d`;
-    }
-    const months = Math.floor(days / 30);
-    return `${months}mo`;
+    return relativeLadder(dateStr, "");
 }
 
 const TIME_FORMAT = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });

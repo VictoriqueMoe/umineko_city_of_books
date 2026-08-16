@@ -209,10 +209,10 @@ func (r *secretDAO) GetCommenterIDs(ctx context.Context, secretID string, tx ...
 }
 
 func (r *secretDAO) CountCommentsBySecret(ctx context.Context, secretIDs []string, tx ...*sql.Tx) (map[string]int, error) {
-	result := make(map[string]int)
 	if len(secretIDs) == 0 {
-		return result, nil
+		return make(map[string]int), nil
 	}
+
 	placeholders, args := secretIDPlaceholders(secretIDs, 1)
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT secret_id, COUNT(*) FROM secret_comments WHERE secret_id IN (`+placeholders+`) GROUP BY secret_id`,
@@ -221,15 +221,6 @@ func (r *secretDAO) CountCommentsBySecret(ctx context.Context, secretIDs []strin
 	if err != nil {
 		return nil, fmt.Errorf("count secret comments: %w", err)
 	}
-	defer rows.Close()
 
-	for rows.Next() {
-		var id string
-		var count int
-		if err := rows.Scan(&id, &count); err != nil {
-			return nil, fmt.Errorf("scan secret comment count: %w", err)
-		}
-		result[id] = count
-	}
-	return result, rows.Err()
+	return utils.ScanMap[string, int](rows, "secret comment count")
 }

@@ -37,17 +37,8 @@ func (r *userSecretDAO) ListForUser(ctx context.Context, userID uuid.UUID, tx ..
 	if err != nil {
 		return nil, fmt.Errorf("list user secrets: %w", err)
 	}
-	defer rows.Close()
 
-	var result []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan user secret: %w", err)
-		}
-		result = append(result, id)
-	}
-	return result, rows.Err()
+	return utils.ScanStrings(rows, "user secret")
 }
 
 func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]uuid.UUID, error) {

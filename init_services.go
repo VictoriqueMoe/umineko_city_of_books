@@ -87,7 +87,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
 	}
-	giphySvc := giphy.NewService(giphyBanlist)
+	giphySvc := giphy.NewService(giphyBanlist, cacheManager)
 	if !giphySvc.Enabled() {
 		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
 	}

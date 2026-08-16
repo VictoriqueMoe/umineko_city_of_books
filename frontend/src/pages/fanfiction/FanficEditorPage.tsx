@@ -53,6 +53,65 @@ const PINNED_SERIES = ["Umineko", "Higurashi", "Ciconia"];
 const OTHER_VALUE = "__other__";
 const DRAFT_KEY = "fanfic-draft";
 
+interface EditorFields {
+    title: string;
+    summary: string;
+    rating: string;
+    isOneshot: boolean;
+    containsLemons: boolean;
+    isPairing: boolean;
+    status: string;
+    characters: ShipCharacter[];
+    genreA: string;
+    genreB: string;
+    tags: string[];
+    series: string;
+    customSeries: string;
+    language: string;
+    customLanguage: string;
+    coverPreview: string;
+}
+
+function fieldDefaults(): EditorFields {
+    return {
+        title: "",
+        summary: "",
+        rating: "K",
+        isOneshot: true,
+        containsLemons: false,
+        isPairing: false,
+        status: "in_progress",
+        characters: [],
+        genreA: "",
+        genreB: "",
+        tags: [],
+        series: "Umineko",
+        customSeries: "",
+        language: "English",
+        customLanguage: "",
+        coverPreview: "",
+    };
+}
+
+function mergeDefined<T extends object>(base: T, ...overrides: (Partial<T> | null | undefined)[]): T {
+    const merged = { ...base };
+
+    for (const override of overrides) {
+        if (!override) {
+            continue;
+        }
+
+        for (const key of Object.keys(base) as (keyof T)[]) {
+            const value = override[key];
+            if (value !== undefined) {
+                merged[key] = value;
+            }
+        }
+    }
+
+    return merged;
+}
+
 interface DraftData {
     title: string;
     summary: string;
@@ -180,22 +239,7 @@ export function FanficEditorPage() {
     }, [editData, user, navigate, editId]);
 
     const [step, setStep] = useState(1);
-    const [titleDraft, setTitleDraft] = useState<string | null>(null);
-    const [summaryDraft, setSummaryDraft] = useState<string | null>(null);
-    const [ratingDraft, setRatingDraft] = useState<string | null>(null);
-    const [isOneshotDraft, setIsOneshotDraft] = useState<boolean | null>(null);
-    const [containsLemonsDraft, setContainsLemonsDraft] = useState<boolean | null>(null);
-    const [isPairingDraft, setIsPairingDraft] = useState<boolean | null>(null);
-    const [statusDraft, setStatusDraft] = useState<string | null>(null);
-    const [charactersDraft, setCharactersDraft] = useState<ShipCharacter[] | null>(null);
-    const [genreADraft, setGenreADraft] = useState<string | null>(null);
-    const [genreBDraft, setGenreBDraft] = useState<string | null>(null);
-    const [tagsDraft, setTagsDraft] = useState<string[] | null>(null);
-    const [seriesDraft, setSeriesDraft] = useState<string | null>(null);
-    const [customSeriesDraft, setCustomSeriesDraft] = useState<string | null>(null);
-    const [languageDraft, setLanguageDraft] = useState<string | null>(null);
-    const [customLanguageDraft, setCustomLanguageDraft] = useState<string | null>(null);
-    const [coverPreviewDraft, setCoverPreviewDraft] = useState<string | null>(null);
+    const [draft, setDraft] = useState<Partial<EditorFields>>({});
     const [tagInput, setTagInput] = useState("");
     const [body, setBody] = useState("");
     const [coverFile, setCoverFile] = useState<File | null>(null);
@@ -204,82 +248,93 @@ export function FanficEditorPage() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
 
-    const title = titleDraft ?? seedFromEdit?.title ?? "";
-    const summary = summaryDraft ?? seedFromEdit?.summary ?? "";
-    const rating = ratingDraft ?? seedFromEdit?.rating ?? "K";
-    const isOneshot = isOneshotDraft ?? seedFromEdit?.isOneshot ?? true;
-    const containsLemons = containsLemonsDraft ?? seedFromEdit?.containsLemons ?? false;
-    const isPairing = isPairingDraft ?? seedFromEdit?.isPairing ?? false;
-    const status = statusDraft ?? seedFromEdit?.status ?? "in_progress";
-    const characters = useMemo(
-        () => charactersDraft ?? seedFromEdit?.characters ?? [],
-        [charactersDraft, seedFromEdit?.characters],
-    );
-    const genreA = genreADraft ?? seedFromEdit?.genreA ?? "";
-    const genreB = genreBDraft ?? seedFromEdit?.genreB ?? "";
-    const tags = useMemo(() => tagsDraft ?? seedFromEdit?.tags ?? [], [tagsDraft, seedFromEdit?.tags]);
-    const series = seriesDraft ?? seedFromEdit?.series ?? "Umineko";
-    const customSeries = customSeriesDraft ?? seedFromEdit?.customSeries ?? "";
-    const language = languageDraft ?? seedFromEdit?.language ?? "English";
-    const customLanguage = customLanguageDraft ?? seedFromEdit?.customLanguage ?? "";
-    const coverPreview = coverPreviewDraft ?? seedFromEdit?.coverPreview ?? "";
+    const fields = useMemo(() => mergeDefined(fieldDefaults(), seedFromEdit, draft), [seedFromEdit, draft]);
+
+    const {
+        title,
+        summary,
+        rating,
+        isOneshot,
+        containsLemons,
+        isPairing,
+        status,
+        characters,
+        genreA,
+        genreB,
+        tags,
+        series,
+        customSeries,
+        language,
+        customLanguage,
+        coverPreview,
+    } = fields;
     const editChapterCount = seedFromEdit?.chapterCount ?? 0;
 
+    function setField<K extends keyof EditorFields>(key: K, value: EditorFields[K]) {
+        setDraft(prev => ({ ...prev, [key]: value }));
+    }
+
+    function updateField<K extends keyof EditorFields>(
+        key: K,
+        updater: EditorFields[K] | ((prev: EditorFields[K]) => EditorFields[K]),
+    ) {
+        setDraft(prev => {
+            if (typeof updater !== "function") {
+                return { ...prev, [key]: updater };
+            }
+
+            const current = prev[key] ?? seedFromEdit?.[key] ?? fieldDefaults()[key];
+            return { ...prev, [key]: updater(current) };
+        });
+    }
+
     function setTitle(v: string) {
-        setTitleDraft(v);
+        setField("title", v);
     }
     function setSummary(v: string) {
-        setSummaryDraft(v);
+        setField("summary", v);
     }
     function setRating(v: string) {
-        setRatingDraft(v);
+        setField("rating", v);
     }
     function setIsOneshot(v: boolean) {
-        setIsOneshotDraft(v);
+        setField("isOneshot", v);
     }
     function setContainsLemons(v: boolean) {
-        setContainsLemonsDraft(v);
+        setField("containsLemons", v);
     }
     function setIsPairing(v: boolean) {
-        setIsPairingDraft(v);
+        setField("isPairing", v);
     }
     function setStatus(v: string) {
-        setStatusDraft(v);
+        setField("status", v);
     }
     function setCharacters(updater: ShipCharacter[] | ((prev: ShipCharacter[]) => ShipCharacter[])) {
-        if (typeof updater === "function") {
-            setCharactersDraft(prev => updater(prev ?? seedFromEdit?.characters ?? []));
-        } else {
-            setCharactersDraft(updater);
-        }
+        updateField("characters", updater);
     }
     function setGenreA(v: string) {
-        setGenreADraft(v);
+        setField("genreA", v);
     }
     function setGenreB(v: string) {
-        setGenreBDraft(v);
+        setField("genreB", v);
     }
     function setTags(updater: string[] | ((prev: string[]) => string[])) {
-        if (typeof updater === "function") {
-            setTagsDraft(prev => updater(prev ?? seedFromEdit?.tags ?? []));
-        } else {
-            setTagsDraft(updater);
-        }
+        updateField("tags", updater);
     }
     function setSeries(v: string) {
-        setSeriesDraft(v);
+        setField("series", v);
     }
     function setCustomSeries(v: string) {
-        setCustomSeriesDraft(v);
+        setField("customSeries", v);
     }
     function setLanguage(v: string) {
-        setLanguageDraft(v);
+        setField("language", v);
     }
     function setCustomLanguage(v: string) {
-        setCustomLanguageDraft(v);
+        setField("customLanguage", v);
     }
     function setCoverPreview(v: string) {
-        setCoverPreviewDraft(v);
+        setField("coverPreview", v);
     }
 
     const showCustomSeries = series === OTHER_VALUE;

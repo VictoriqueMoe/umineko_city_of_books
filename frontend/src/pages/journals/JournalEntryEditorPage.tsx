@@ -17,6 +17,7 @@ import {
     useUpdateJournalEntry,
     useUploadJournalEntryMedia,
 } from "../../api/mutations/journal";
+import { ExistingMediaGrid } from "../../components/ExistingMediaGrid/ExistingMediaGrid";
 import styles from "./JournalEntryEditorPage.module.css";
 
 export function JournalEntryEditorPage() {
@@ -219,30 +220,12 @@ export function JournalEntryEditorPage() {
                 </div>
 
                 {isEdit && entry && entry.media.length > 0 && (
-                    <div className={styles.existingMedia}>
-                        {entry.media.map(m => {
-                            const markedForRemoval = pendingDeletions.includes(m.id);
-                            const itemClass = `${styles.existingMediaItem}${markedForRemoval ? ` ${styles.existingMediaItemPending}` : ""}`;
-                            return (
-                                <div key={m.id} className={itemClass}>
-                                    {m.media_type === "video" ? (
-                                        <video src={m.media_url} className={styles.existingMediaThumb} />
-                                    ) : (
-                                        <img src={m.media_url} className={styles.existingMediaThumb} alt="" />
-                                    )}
-                                    <button
-                                        type="button"
-                                        className={styles.existingMediaRemove}
-                                        onClick={() => togglePendingDeletion(m.id)}
-                                        aria-label={markedForRemoval ? "Undo remove" : "Remove attachment"}
-                                        title={markedForRemoval ? "Undo remove" : "Remove on save"}
-                                    >
-                                        {markedForRemoval ? "↺" : "×"}
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
+                    <ExistingMediaGrid
+                        media={entry.media}
+                        pendingIds={pendingDeletions}
+                        onToggle={togglePendingDeletion}
+                        removeLabel="Remove attachment"
+                    />
                 )}
 
                 <MediaPreviews files={files} onRemove={removeFile} />

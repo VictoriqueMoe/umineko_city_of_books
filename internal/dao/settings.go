@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
 
 	"github.com/google/uuid"
@@ -32,17 +33,8 @@ func (r *settingsDAO) GetAll(ctx context.Context, tx ...*sql.Tx) (map[string]str
 	if err != nil {
 		return nil, fmt.Errorf("get all settings: %w", err)
 	}
-	defer rows.Close()
 
-	settings := make(map[string]string)
-	for rows.Next() {
-		var key, value string
-		if err := rows.Scan(&key, &value); err != nil {
-			return nil, fmt.Errorf("scan setting: %w", err)
-		}
-		settings[key] = value
-	}
-	return settings, rows.Err()
+	return utils.ScanMap[string, string](rows, "setting")
 }
 
 func (r *settingsDAO) Set(ctx context.Context, key, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {

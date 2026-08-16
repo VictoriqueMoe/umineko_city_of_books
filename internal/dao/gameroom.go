@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
@@ -380,17 +381,8 @@ func (r *gameRoomDAO) GetTopWinnerIDs(ctx context.Context, gameType string, tx .
 	if err != nil {
 		return nil, fmt.Errorf("get top winner ids: %w", err)
 	}
-	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan top winner id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanStrings(rows, "top winner id")
 }
 
 func (r *gameRoomDAO) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time, tx ...*sql.Tx) (bool, error) {

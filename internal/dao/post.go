@@ -380,20 +380,8 @@ func (r *postDAO) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[strin
 	if err != nil {
 		return nil, fmt.Errorf("corner counts: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[string]int)
-	for rows.Next() {
-		var (
-			corner string
-			count  int
-		)
-		if err := rows.Scan(&corner, &count); err != nil {
-			return nil, fmt.Errorf("scan corner count: %w", err)
-		}
-		result[corner] = count
-	}
-	return result, rows.Err()
+	return utils.ScanMap[string, int](rows, "corner count")
 }
 
 func (r *postDAO) GetShareCount(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) (int, error) {
@@ -426,20 +414,8 @@ func (r *postDAO) GetShareCountsBatch(ctx context.Context, contentIDs []string, 
 	if err != nil {
 		return nil, fmt.Errorf("batch get share counts: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[string]int)
-	for rows.Next() {
-		var (
-			id    string
-			count int
-		)
-		if err := rows.Scan(&id, &count); err != nil {
-			return nil, fmt.Errorf("scan share count: %w", err)
-		}
-		result[id] = count
-	}
-	return result, rows.Err()
+	return utils.ScanMap[string, int](rows, "share count")
 }
 
 func (r *postDAO) IncrementShareCount(ctx context.Context, contentID string, contentType string, tx ...*sql.Tx) error {

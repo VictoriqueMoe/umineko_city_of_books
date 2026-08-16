@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
 
 	"github.com/google/uuid"
@@ -23,19 +24,8 @@ func (r *permissionDAO) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (
 	if err != nil {
 		return nil, fmt.Errorf("get role permissions: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[string][]string)
-	for rows.Next() {
-		var roleName, perm string
-		if err := rows.Scan(&roleName, &perm); err != nil {
-			return nil, fmt.Errorf("scan role permission: %w", err)
-		}
-
-		result[roleName] = append(result[roleName], perm)
-	}
-
-	return result, rows.Err()
+	return utils.ScanGroups[string, string](rows, "role permission")
 }
 
 func (r *permissionDAO) SetRolePermissions(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx) error {
@@ -68,19 +58,8 @@ func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context, tx ...*sql
 	if err != nil {
 		return nil, fmt.Errorf("get vanity role permissions: %w", err)
 	}
-	defer rows.Close()
 
-	result := make(map[string][]string)
-	for rows.Next() {
-		var roleID, perm string
-		if err := rows.Scan(&roleID, &perm); err != nil {
-			return nil, fmt.Errorf("scan vanity role permission: %w", err)
-		}
-
-		result[roleID] = append(result[roleID], perm)
-	}
-
-	return result, rows.Err()
+	return utils.ScanGroups[string, string](rows, "vanity role permission")
 }
 
 func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx) error {

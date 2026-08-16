@@ -179,23 +179,15 @@ func (r *chatDAO) GetRoomTags(ctx context.Context, roomID uuid.UUID, tx ...*sql.
 	if err != nil {
 		return nil, fmt.Errorf("get room tags: %w", err)
 	}
-	defer rows.Close()
-	var tags []string
-	for rows.Next() {
-		var t string
-		if err := rows.Scan(&t); err != nil {
-			return nil, fmt.Errorf("scan room tag: %w", err)
-		}
-		tags = append(tags, t)
-	}
-	return tags, rows.Err()
+
+	return utils.ScanStrings(rows, "room tag")
 }
 
 func (r *chatDAO) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
-	result := make(map[uuid.UUID][]string)
 	if len(roomIDs) == 0 {
-		return result, nil
+		return make(map[uuid.UUID][]string), nil
 	}
+
 	placeholders, args := utils.PlaceholderArgs(roomIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
@@ -205,16 +197,8 @@ func (r *chatDAO) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID, tx 
 	if err != nil {
 		return nil, fmt.Errorf("get room tags batch: %w", err)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var roomID uuid.UUID
-		var tag string
-		if err := rows.Scan(&roomID, &tag); err != nil {
-			return nil, fmt.Errorf("scan room tag batch: %w", err)
-		}
-		result[roomID] = append(result[roomID], tag)
-	}
-	return result, rows.Err()
+
+	return utils.ScanGroups[uuid.UUID, string](rows, "room tag batch")
 }
 
 func (r *chatDAO) AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string, ghost bool, tx ...*sql.Tx) error {

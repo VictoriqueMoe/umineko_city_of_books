@@ -74,6 +74,7 @@ import type {
     OCImage,
     OCListResponse,
     OCSummary,
+    PaginationFields,
     Poll,
     PostDetail,
     PostListResponse,
@@ -634,11 +635,8 @@ export interface InviteItem {
     created_at: string;
 }
 
-export interface InviteListResponse {
+export interface InviteListResponse extends PaginationFields {
     invites: InviteItem[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export async function createInvite(): Promise<InviteItem> {
@@ -1161,11 +1159,8 @@ export interface ReportItem {
     created_at: string;
 }
 
-export interface ReportListResponse {
+export interface ReportListResponse extends PaginationFields {
     reports: ReportItem[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export async function getReports(
@@ -2202,11 +2197,8 @@ export async function deleteVanityRole(id: string): Promise<void> {
     await apiDelete(`/admin/vanity-roles/${id}`);
 }
 
-export interface VanityRoleUsersResponse {
+export interface VanityRoleUsersResponse extends PaginationFields {
     users: { id: string; username: string; display_name: string; avatar_url: string }[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export async function getVanityRoleUsers(

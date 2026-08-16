@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	defaultInMemoryMaxEntries = 4096
+	defaultInMemoryMaxEntries = 8192
 )
 
 type (
