@@ -10,7 +10,6 @@ import (
 
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/stream"
 )
 
@@ -35,45 +34,45 @@ func (s *Service) setupListLiveStreamsRoute(r fiber.Router) {
 }
 
 func (s *Service) setupMyStreamRoute(r fiber.Router) {
-	r.Get("/streams/mine", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.myStream)
+	r.Get("/streams/mine", s.requireAuth(), s.myStream)
 }
 
 func (s *Service) setupStartStreamRoute(r fiber.Router) {
-	r.Post("/streams", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.startStream)
+	r.Post("/streams", s.requireAuth(), s.startStream)
 }
 
 func (s *Service) setupStopStreamRoute(r fiber.Router) {
-	r.Delete("/streams/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.stopStream)
+	r.Delete("/streams/:id", s.requireAuth(), s.stopStream)
 }
 
 func (s *Service) setupUpdateStreamTitleRoute(r fiber.Router) {
-	r.Patch("/streams/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateStreamTitle)
+	r.Patch("/streams/:id", s.requireAuth(), s.updateStreamTitle)
 }
 
 func (s *Service) setupStreamViewerTokenRoute(r fiber.Router) {
-	r.Post("/streams/:id/token", middleware.OptionalAuth(s.AuthSession, s.AuthzService), limiter.New(limiter.Config{
+	r.Post("/streams/:id/token", s.optionalAuth(), limiter.New(limiter.Config{
 		Max:        30,
 		Expiration: time.Minute,
 	}), s.mintViewerToken)
 }
 
 func (s *Service) setupJoinStreamChatRoute(r fiber.Router) {
-	r.Post("/streams/:id/join-chat", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.joinStreamChat)
+	r.Post("/streams/:id/join-chat", s.requireAuth(), s.joinStreamChat)
 }
 
 func (s *Service) setupUploadStreamThumbnailRoute(r fiber.Router) {
-	r.Post("/streams/:id/thumbnail", middleware.RequireAuth(s.AuthSession, s.AuthzService), limiter.New(limiter.Config{
+	r.Post("/streams/:id/thumbnail", s.requireAuth(), limiter.New(limiter.Config{
 		Max:        6,
 		Expiration: time.Minute,
 	}), s.uploadStreamThumbnail)
 }
 
 func (s *Service) setupStreamCredentialsRoute(r fiber.Router) {
-	r.Get("/streams/credentials", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.streamCredentials)
+	r.Get("/streams/credentials", s.requireAuth(), s.streamCredentials)
 }
 
 func (s *Service) setupResetStreamCredentialsRoute(r fiber.Router) {
-	r.Post("/streams/credentials/reset", middleware.RequireAuth(s.AuthSession, s.AuthzService), limiter.New(limiter.Config{
+	r.Post("/streams/credentials/reset", s.requireAuth(), limiter.New(limiter.Config{
 		Max:        5,
 		Expiration: time.Minute,
 	}), s.resetStreamCredentials)

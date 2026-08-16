@@ -96,102 +96,6 @@ type (
 	}
 )
 
-func NewService(
-	authService auth.Service,
-	profileService profile.Service,
-	theoryService theory.Service,
-	notificationService notification.Service,
-	adminService admin.Service,
-	authzService authz.Service,
-	settingsService settings.Service,
-	chatService chat.Service,
-	chatbotAdminService chatbot.AdminService,
-	chatbotService chatbot.Service,
-	reportService report.Service,
-	postService postsvc.Service,
-	followService follow.Service,
-	artService artsvc.Service,
-	blockService block.Service,
-	announcementService announcementsvc.Service,
-	mysteryService mysterysvc.Service,
-	userService usersvc.Service,
-	shipService shipsvc.Service,
-	ocService ocsvc.Service,
-	fanficService fanficsvc.Service,
-	journalService journal.Service,
-	secretService secretsvc.Service,
-	uploadService upload.Service,
-	mediaProcessor *media.Processor,
-	vanityRoleService vanityrole.Service,
-	userSecretService usersecret.Service,
-	authSession *session.Manager,
-	hub *ws.Hub,
-	giphyService giphy.Service,
-	giphyFavouriteService giphyfavourite.Service,
-	gameRoomService gameroom.Service,
-	homeFeedService homefeed.Service,
-	sidebarService sidebar.Service,
-	searchService searchsvc.Service,
-	pushService push.Service,
-	streamService stream.Service,
-	healthService health.Service,
-	overlayService overlay.Service,
-	sitemapService sitemap.Service,
-	siteInfoService siteinfo.Service,
-	ogResolver *og.Resolver,
-	ogImageService *og.ImageService,
-	staticFS fs.FS,
-	htmlContent string,
-) Service {
-	return Service{
-		AuthService:           authService,
-		ProfileService:        profileService,
-		TheoryService:         theoryService,
-		NotificationService:   notificationService,
-		AdminService:          adminService,
-		AuthzService:          authzService,
-		SettingsService:       settingsService,
-		ChatService:           chatService,
-		ChatbotAdminService:   chatbotAdminService,
-		ChatbotService:        chatbotService,
-		ReportService:         reportService,
-		PostService:           postService,
-		FollowService:         followService,
-		ArtService:            artService,
-		BlockService:          blockService,
-		AnnouncementService:   announcementService,
-		MysteryService:        mysteryService,
-		UserService:           userService,
-		ShipService:           shipService,
-		OCService:             ocService,
-		FanficService:         fanficService,
-		JournalService:        journalService,
-		SecretService:         secretService,
-		UploadService:         uploadService,
-		MediaProcessor:        mediaProcessor,
-		VanityRoleService:     vanityRoleService,
-		UserSecretService:     userSecretService,
-		AuthSession:           authSession,
-		Hub:                   hub,
-		GiphyService:          giphyService,
-		GiphyFavouriteService: giphyFavouriteService,
-		GameRoomService:       gameRoomService,
-		HomeFeedService:       homeFeedService,
-		SidebarService:        sidebarService,
-		SearchService:         searchService,
-		PushService:           pushService,
-		StreamService:         streamService,
-		HealthService:         healthService,
-		OverlayService:        overlayService,
-		SitemapService:        sitemapService,
-		SiteInfoService:       siteInfoService,
-		OGResolver:            ogResolver,
-		OGImageService:        ogImageService,
-		StaticFS:              staticFS,
-		HTMLContent:           htmlContent,
-	}
-}
-
 func (s *Service) GetAPIRoutes() []FSetupRoute {
 	var all []FSetupRoute
 	all = append(all, s.getAllAuthRoutes()...)
@@ -222,6 +126,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllStreamRoutes()...)
 	all = append(all, s.getAllWebSocketRoutes()...)
 	all = append(all, s.getAllOverlayRoutes()...)
+	all = append(all, s.getAllOverlayTokenRoutes()...)
 	return all
 }
 
@@ -232,7 +137,6 @@ func (s *Service) GetPageRoutes() []FSetupRoute {
 	all = append(all, s.getAllHLSRoutes()...)
 	all = append(all, s.getAllOGImageRoutes()...)
 	all = append(all, s.getAllSitemapRoutes()...)
-	all = append(all, s.getAllOverlayPageRoutes()...)
 	all = append(all, s.getAllSPARoutes()...)
 	return all
 }

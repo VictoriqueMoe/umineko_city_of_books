@@ -8,7 +8,6 @@ import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/giphy"
 	giphyfavourite "umineko_city_of_books/internal/giphy/favourite"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -37,11 +36,11 @@ func (s *Service) getAllGiphyRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupGiphySearchRoute(r fiber.Router) {
-	r.Get("/giphy/search", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.giphySearch)
+	r.Get("/giphy/search", s.requireAuth(), s.giphySearch)
 }
 
 func (s *Service) setupGiphyTrendingRoute(r fiber.Router) {
-	r.Get("/giphy/trending", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.giphyTrending)
+	r.Get("/giphy/trending", s.requireAuth(), s.giphyTrending)
 }
 
 func (s *Service) giphySearch(ctx fiber.Ctx) error {
@@ -71,15 +70,15 @@ func (s *Service) giphyTrending(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupGiphyFavouritesListRoute(r fiber.Router) {
-	r.Get("/giphy/favourites", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.giphyFavouritesList)
+	r.Get("/giphy/favourites", s.requireAuth(), s.giphyFavouritesList)
 }
 
 func (s *Service) setupGiphyFavouritesAddRoute(r fiber.Router) {
-	r.Post("/giphy/favourites", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.giphyFavouritesAdd)
+	r.Post("/giphy/favourites", s.requireAuth(), s.giphyFavouritesAdd)
 }
 
 func (s *Service) setupGiphyFavouritesRemoveRoute(r fiber.Router) {
-	r.Delete("/giphy/favourites/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.giphyFavouritesRemove)
+	r.Delete("/giphy/favourites/:id", s.requireAuth(), s.giphyFavouritesRemove)
 }
 
 func (s *Service) giphyFavouritesList(ctx fiber.Ctx) error {

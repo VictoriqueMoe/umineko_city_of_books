@@ -4,9 +4,15 @@ import (
 	"crypto/sha256"
 	"fmt"
 
+	"umineko_city_of_books/internal/bounds"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
+
+func Page(ctx fiber.Ctx, defaultLimit int) bounds.Page {
+	return bounds.NewPage(fiber.Query[int](ctx, "limit", defaultLimit), fiber.Query[int](ctx, "offset", 0))
+}
 
 // ParseIDParam parses the named route param as a UUID. On failure it writes a
 // 400 response and returns uuid.Nil + false; callers should then `return nil`.

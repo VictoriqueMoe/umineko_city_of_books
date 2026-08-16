@@ -50,47 +50,47 @@ func (s *Service) getAllMysteryRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListMysteries(r fiber.Router) {
-	r.Get("/mysteries", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listMysteries)
+	r.Get("/mysteries", s.optionalAuth(), s.listMysteries)
 }
 
 func (s *Service) setupGetMystery(r fiber.Router) {
-	r.Get("/mysteries/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getMystery)
+	r.Get("/mysteries/:id", s.optionalAuth(), s.getMystery)
 }
 
 func (s *Service) setupCreateMystery(r fiber.Router) {
-	r.Post("/mysteries", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createMystery)
+	r.Post("/mysteries", s.requireAuth(), s.createMystery)
 }
 
 func (s *Service) setupUpdateMystery(r fiber.Router) {
-	r.Put("/mysteries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateMystery)
+	r.Put("/mysteries/:id", s.requireAuth(), s.updateMystery)
 }
 
 func (s *Service) setupDeleteMystery(r fiber.Router) {
-	r.Delete("/mysteries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMystery)
+	r.Delete("/mysteries/:id", s.requireAuth(), s.deleteMystery)
 }
 
 func (s *Service) setupCreateAttempt(r fiber.Router) {
-	r.Post("/mysteries/:id/attempts", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createAttempt)
+	r.Post("/mysteries/:id/attempts", s.requireAuth(), s.createAttempt)
 }
 
 func (s *Service) setupDeleteAttempt(r fiber.Router) {
-	r.Delete("/mystery-attempts/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteAttempt)
+	r.Delete("/mystery-attempts/:id", s.requireAuth(), s.deleteAttempt)
 }
 
 func (s *Service) setupVoteAttempt(r fiber.Router) {
-	r.Post("/mystery-attempts/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteAttempt)
+	r.Post("/mystery-attempts/:id/vote", s.requireAuth(), s.voteAttempt)
 }
 
 func (s *Service) setupMarkSolved(r fiber.Router) {
-	r.Post("/mysteries/:id/solve", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markSolved)
+	r.Post("/mysteries/:id/solve", s.requireAuth(), s.markSolved)
 }
 
 func (s *Service) setupMarkPermanentlySolved(r fiber.Router) {
-	r.Post("/mysteries/:id/close", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markPermanentlySolved)
+	r.Post("/mysteries/:id/close", s.requireAuth(), s.markPermanentlySolved)
 }
 
 func (s *Service) setupAddClue(r fiber.Router) {
-	r.Post("/mysteries/:id/clues", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.addClue)
+	r.Post("/mysteries/:id/clues", s.requireAuth(), s.addClue)
 }
 
 func (s *Service) setupMysteryLeaderboard(r fiber.Router) {
@@ -104,7 +104,7 @@ func (s *Service) setupListUserMysteries(r fiber.Router) {
 func (s *Service) listMysteries(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 	sort := ctx.Query("sort", "new")
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	var solved *bool
 	solvedStr := ctx.Query("solved")
@@ -377,7 +377,7 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 	if !ok {
 		return nil
 	}
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	resp, err := s.MysteryService.ListByUser(ctx.Context(), userID, page)
 	if err != nil {
@@ -387,27 +387,27 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupCreateMysteryComment(r fiber.Router) {
-	r.Post("/mysteries/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createMysteryComment)
+	r.Post("/mysteries/:id/comments", s.requireAuth(), s.createMysteryComment)
 }
 
 func (s *Service) setupUpdateMysteryComment(r fiber.Router) {
-	r.Put("/mystery-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateMysteryComment)
+	r.Put("/mystery-comments/:id", s.requireAuth(), s.updateMysteryComment)
 }
 
 func (s *Service) setupDeleteMysteryComment(r fiber.Router) {
-	r.Delete("/mystery-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMysteryComment)
+	r.Delete("/mystery-comments/:id", s.requireAuth(), s.deleteMysteryComment)
 }
 
 func (s *Service) setupLikeMysteryComment(r fiber.Router) {
-	r.Post("/mystery-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeMysteryComment)
+	r.Post("/mystery-comments/:id/like", s.requireAuth(), s.likeMysteryComment)
 }
 
 func (s *Service) setupUnlikeMysteryComment(r fiber.Router) {
-	r.Delete("/mystery-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeMysteryComment)
+	r.Delete("/mystery-comments/:id/like", s.requireAuth(), s.unlikeMysteryComment)
 }
 
 func (s *Service) setupUploadMysteryCommentMedia(r fiber.Router) {
-	r.Post("/mystery-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadMysteryCommentMedia)
+	r.Post("/mystery-comments/:id/media", s.requireAuth(), s.uploadMysteryCommentMedia)
 }
 
 func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
@@ -466,77 +466,27 @@ func (s *Service) updateMysteryComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteMysteryComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.MysteryService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleDeleteComment(ctx, s.MysteryService.DeleteComment)
 }
 
 func (s *Service) likeMysteryComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.MysteryService.LikeComment(ctx.Context(), userID, commentID); err != nil {
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		return utils.InternalError(ctx, "failed to like comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleLikeComment(ctx, s.MysteryService.LikeComment)
 }
 
 func (s *Service) unlikeMysteryComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.MysteryService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleUnlikeComment(ctx, s.MysteryService.UnlikeComment)
 }
 
 func (s *Service) uploadMysteryCommentMedia(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
-
-	result, err := s.MysteryService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
-	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(result)
+	return handleUploadCommentMedia(ctx, s.MysteryService.UploadCommentMedia)
 }
 
 func (s *Service) setupUploadMysteryAttachment(r fiber.Router) {
-	r.Post("/mysteries/:id/attachments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadMysteryAttachment)
+	r.Post("/mysteries/:id/attachments", s.requireAuth(), s.uploadMysteryAttachment)
 }
 
 func (s *Service) setupDeleteMysteryAttachment(r fiber.Router) {
-	r.Delete("/mysteries/:id/attachments/:attachmentId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMysteryAttachment)
+	r.Delete("/mysteries/:id/attachments/:attachmentId", s.requireAuth(), s.deleteMysteryAttachment)
 }
 
 func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
@@ -594,11 +544,11 @@ func (s *Service) deleteMysteryAttachment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupUploadMysteryMedia(r fiber.Router) {
-	r.Post("/mysteries/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadMysteryMedia)
+	r.Post("/mysteries/:id/media", s.requireAuth(), s.uploadMysteryMedia)
 }
 
 func (s *Service) setupDeleteMysteryMedia(r fiber.Router) {
-	r.Delete("/mysteries/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteMysteryMedia)
+	r.Delete("/mysteries/:id/media/:mediaId", s.requireAuth(), s.deleteMysteryMedia)
 }
 
 func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
@@ -655,7 +605,7 @@ func (s *Service) deleteMysteryMedia(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupToggleMysteryPause(r fiber.Router) {
-	r.Post("/mysteries/:id/pause", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.toggleMysteryPause)
+	r.Post("/mysteries/:id/pause", s.requireAuth(), s.toggleMysteryPause)
 }
 
 func (s *Service) toggleMysteryPause(ctx fiber.Ctx) error {
@@ -685,7 +635,7 @@ func (s *Service) toggleMysteryPause(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupToggleMysteryGmAway(r fiber.Router) {
-	r.Post("/mysteries/:id/away", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.toggleMysteryGmAway)
+	r.Post("/mysteries/:id/away", s.requireAuth(), s.toggleMysteryGmAway)
 }
 
 func (s *Service) toggleMysteryGmAway(ctx fiber.Ctx) error {

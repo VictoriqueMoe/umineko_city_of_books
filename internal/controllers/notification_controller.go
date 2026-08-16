@@ -1,9 +1,7 @@
 package controllers
 
 import (
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -18,24 +16,24 @@ func (s *Service) getAllNotificationRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListNotificationsRoute(r fiber.Router) {
-	r.Get("/notifications", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listNotifications)
+	r.Get("/notifications", s.requireAuth(), s.listNotifications)
 }
 
 func (s *Service) setupMarkNotificationReadRoute(r fiber.Router) {
-	r.Post("/notifications/:id<int>/read", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markNotificationRead)
+	r.Post("/notifications/:id<int>/read", s.requireAuth(), s.markNotificationRead)
 }
 
 func (s *Service) setupMarkAllNotificationsReadRoute(r fiber.Router) {
-	r.Post("/notifications/read", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markAllNotificationsRead)
+	r.Post("/notifications/read", s.requireAuth(), s.markAllNotificationsRead)
 }
 
 func (s *Service) setupUnreadCountRoute(r fiber.Router) {
-	r.Get("/notifications/unread-count", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unreadCount)
+	r.Get("/notifications/unread-count", s.requireAuth(), s.unreadCount)
 }
 
 func (s *Service) listNotifications(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.NotificationService.List(ctx.Context(), userID, page)
 	if err != nil {

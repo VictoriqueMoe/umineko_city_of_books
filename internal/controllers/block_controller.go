@@ -5,7 +5,6 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -21,19 +20,19 @@ func (s *Service) getAllBlockRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupBlockUser(r fiber.Router) {
-	r.Post("/users/:id/block", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.blockUser)
+	r.Post("/users/:id/block", s.requireAuth(), s.blockUser)
 }
 
 func (s *Service) setupUnblockUser(r fiber.Router) {
-	r.Delete("/users/:id/block", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unblockUser)
+	r.Delete("/users/:id/block", s.requireAuth(), s.unblockUser)
 }
 
 func (s *Service) setupGetBlockStatus(r fiber.Router) {
-	r.Get("/users/:id/block-status", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getBlockStatus)
+	r.Get("/users/:id/block-status", s.optionalAuth(), s.getBlockStatus)
 }
 
 func (s *Service) setupListBlockedUsers(r fiber.Router) {
-	r.Get("/blocked-users", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listBlockedUsers)
+	r.Get("/blocked-users", s.requireAuth(), s.listBlockedUsers)
 }
 
 func (s *Service) listBlockedUsers(ctx fiber.Ctx) error {

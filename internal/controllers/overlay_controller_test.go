@@ -17,7 +17,15 @@ import (
 func newOverlayHarness(t *testing.T) (*testutil.Harness, *overlay.MockService) {
 	h := testutil.NewHarness(t)
 	svc := overlay.NewMockService(t)
-	NewOverlayHandler(svc, h.SessionManager, h.AuthzService).Register(h.App)
+	s := &Service{
+		OverlayService: svc,
+		AuthSession:    h.SessionManager,
+		AuthzService:   h.AuthzService,
+	}
+	api := h.App.Group("/api/v1")
+	for _, setup := range s.getAllOverlayTokenRoutes() {
+		setup(api)
+	}
 	return h, svc
 }
 

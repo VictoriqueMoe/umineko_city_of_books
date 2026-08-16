@@ -6,7 +6,6 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	secretsvc "umineko_city_of_books/internal/secret"
 
 	"github.com/gofiber/fiber/v3"
@@ -26,35 +25,35 @@ func (s *Service) getAllSecretRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListSecrets(r fiber.Router) {
-	r.Get("/secrets", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listSecrets)
+	r.Get("/secrets", s.optionalAuth(), s.listSecrets)
 }
 
 func (s *Service) setupGetSecret(r fiber.Router) {
-	r.Get("/secrets/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getSecret)
+	r.Get("/secrets/:id", s.optionalAuth(), s.getSecret)
 }
 
 func (s *Service) setupCreateSecretComment(r fiber.Router) {
-	r.Post("/secrets/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createSecretComment)
+	r.Post("/secrets/:id/comments", s.requireAuth(), s.createSecretComment)
 }
 
 func (s *Service) setupUpdateSecretComment(r fiber.Router) {
-	r.Put("/secret-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateSecretComment)
+	r.Put("/secret-comments/:id", s.requireAuth(), s.updateSecretComment)
 }
 
 func (s *Service) setupDeleteSecretComment(r fiber.Router) {
-	r.Delete("/secret-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteSecretComment)
+	r.Delete("/secret-comments/:id", s.requireAuth(), s.deleteSecretComment)
 }
 
 func (s *Service) setupLikeSecretComment(r fiber.Router) {
-	r.Post("/secret-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeSecretComment)
+	r.Post("/secret-comments/:id/like", s.requireAuth(), s.likeSecretComment)
 }
 
 func (s *Service) setupUnlikeSecretComment(r fiber.Router) {
-	r.Delete("/secret-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeSecretComment)
+	r.Delete("/secret-comments/:id/like", s.requireAuth(), s.unlikeSecretComment)
 }
 
 func (s *Service) setupUploadSecretCommentMedia(r fiber.Router) {
-	r.Post("/secret-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadSecretCommentMedia)
+	r.Post("/secret-comments/:id/media", s.requireAuth(), s.uploadSecretCommentMedia)
 }
 
 func (s *Service) listSecrets(ctx fiber.Ctx) error {
@@ -133,67 +132,17 @@ func (s *Service) updateSecretComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteSecretComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.SecretService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleDeleteComment(ctx, s.SecretService.DeleteComment)
 }
 
 func (s *Service) likeSecretComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.SecretService.LikeComment(ctx.Context(), userID, commentID); err != nil {
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		return utils.InternalError(ctx, "failed to like comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleLikeComment(ctx, s.SecretService.LikeComment)
 }
 
 func (s *Service) unlikeSecretComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.SecretService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleUnlikeComment(ctx, s.SecretService.UnlikeComment)
 }
 
 func (s *Service) uploadSecretCommentMedia(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
-
-	result, err := s.SecretService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
-	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(result)
+	return handleUploadCommentMedia(ctx, s.SecretService.UploadCommentMedia)
 }

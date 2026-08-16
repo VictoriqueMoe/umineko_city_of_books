@@ -898,7 +898,7 @@ Wiring is explicit and split across four files at the repo root. There is no DI 
 
 - `init_db.go` (`initDatabase`): telemetry, `db.Open`, `db.Migrate`, `db.SeedContent`, the cache manager, the repositories, and the settings service. Once settings are loaded it re-inits the logger and applies the GlitchTip DSN, the OTLP endpoint, and the Pyroscope endpoint.
 - `init_services.go` (`initServices`): every service, in dependency order.
-- `server.go` (`initServer`, `initApp`): builds the Fiber app, installs middleware, hands the services to `controllers.NewService`, registers routes, and returns the app plus a cleanup func.
+- `server.go` (`initServer`, `initApp`): builds the Fiber app, installs middleware, assembles the services into a `controllers.Service`, registers routes, and returns the app plus a cleanup func.
 - `init_jobs.go` (`registerListeners`): settings listeners and the background job tickers, returning a stop func.
 
 ```
@@ -927,7 +927,7 @@ Wiring is explicit and split across four files at the repo root. There is no DI 
      ▼                                                        (server.go)
   fiber.New → middleware.Setup(app, settings, session, authz)
             → metrics + pprof routes
-            → controllers.NewService(...) → routes.PublicRoutes(ctrl, app)
+            → controllers.Service{...} → routes.PublicRoutes(ctrl, app)
      │
      ▼                                                     (init_jobs.go)
   settings listeners + background jobs (stale embeds, orphaned uploads,

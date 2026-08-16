@@ -6,10 +6,8 @@ import (
 
 	announcementsvc "umineko_city_of_books/internal/announcement"
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/bounds"
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -33,27 +31,27 @@ func (s *Service) getAllAnnouncementRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupCreateAnnouncementComment(r fiber.Router) {
-	r.Post("/announcements/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createAnnouncementComment)
+	r.Post("/announcements/:id/comments", s.requireAuth(), s.createAnnouncementComment)
 }
 
 func (s *Service) setupUpdateAnnouncementComment(r fiber.Router) {
-	r.Put("/announcement-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateAnnouncementComment)
+	r.Put("/announcement-comments/:id", s.requireAuth(), s.updateAnnouncementComment)
 }
 
 func (s *Service) setupDeleteAnnouncementComment(r fiber.Router) {
-	r.Delete("/announcement-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteAnnouncementComment)
+	r.Delete("/announcement-comments/:id", s.requireAuth(), s.deleteAnnouncementComment)
 }
 
 func (s *Service) setupLikeAnnouncementComment(r fiber.Router) {
-	r.Post("/announcement-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeAnnouncementComment)
+	r.Post("/announcement-comments/:id/like", s.requireAuth(), s.likeAnnouncementComment)
 }
 
 func (s *Service) setupUnlikeAnnouncementComment(r fiber.Router) {
-	r.Delete("/announcement-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeAnnouncementComment)
+	r.Delete("/announcement-comments/:id/like", s.requireAuth(), s.unlikeAnnouncementComment)
 }
 
 func (s *Service) setupUploadAnnouncementCommentMedia(r fiber.Router) {
-	r.Post("/announcement-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadAnnouncementCommentMedia)
+	r.Post("/announcement-comments/:id/media", s.requireAuth(), s.uploadAnnouncementCommentMedia)
 }
 
 func (s *Service) setupListAnnouncements(r fiber.Router) {
@@ -61,7 +59,7 @@ func (s *Service) setupListAnnouncements(r fiber.Router) {
 }
 
 func (s *Service) setupGetAnnouncement(r fiber.Router) {
-	r.Get("/announcements/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getAnnouncement)
+	r.Get("/announcements/:id", s.optionalAuth(), s.getAnnouncement)
 }
 
 func (s *Service) setupGetLatestAnnouncement(r fiber.Router) {
@@ -85,7 +83,7 @@ func (s *Service) setupPinAnnouncement(r fiber.Router) {
 }
 
 func (s *Service) listAnnouncements(ctx fiber.Ctx) error {
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := ctrlutils.Page(ctx, 20)
 
 	resp, err := s.AnnouncementService.List(ctx.Context(), page)
 	if err != nil {

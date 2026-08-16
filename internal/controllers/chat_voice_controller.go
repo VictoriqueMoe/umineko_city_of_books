@@ -8,15 +8,14 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 )
 
 func (s *Service) setupVoiceTokenRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/voice/token", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voiceToken)
+	r.Post("/chat/rooms/:roomID/voice/token", s.requireAuth(), s.voiceToken)
 }
 
 func (s *Service) setupVoiceMuteRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/voice/participants/:userID/mute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voiceMute)
+	r.Post("/chat/rooms/:roomID/voice/participants/:userID/mute", s.requireAuth(), s.voiceMute)
 }
 
 func (s *Service) setupLiveKitWebhookRoute(r fiber.Router) {

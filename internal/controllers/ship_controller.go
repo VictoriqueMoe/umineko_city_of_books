@@ -4,10 +4,8 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/ship"
 
@@ -35,55 +33,55 @@ func (s *Service) getAllShipRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListShips(r fiber.Router) {
-	r.Get("/ships", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listShips)
+	r.Get("/ships", s.optionalAuth(), s.listShips)
 }
 
 func (s *Service) setupGetShip(r fiber.Router) {
-	r.Get("/ships/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getShip)
+	r.Get("/ships/:id", s.optionalAuth(), s.getShip)
 }
 
 func (s *Service) setupCreateShip(r fiber.Router) {
-	r.Post("/ships", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createShip)
+	r.Post("/ships", s.requireAuth(), s.createShip)
 }
 
 func (s *Service) setupUpdateShip(r fiber.Router) {
-	r.Put("/ships/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateShip)
+	r.Put("/ships/:id", s.requireAuth(), s.updateShip)
 }
 
 func (s *Service) setupDeleteShip(r fiber.Router) {
-	r.Delete("/ships/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteShip)
+	r.Delete("/ships/:id", s.requireAuth(), s.deleteShip)
 }
 
 func (s *Service) setupUploadShipImage(r fiber.Router) {
-	r.Post("/ships/:id/image", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadShipImage)
+	r.Post("/ships/:id/image", s.requireAuth(), s.uploadShipImage)
 }
 
 func (s *Service) setupVoteShip(r fiber.Router) {
-	r.Post("/ships/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteShip)
+	r.Post("/ships/:id/vote", s.requireAuth(), s.voteShip)
 }
 
 func (s *Service) setupCreateShipComment(r fiber.Router) {
-	r.Post("/ships/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createShipComment)
+	r.Post("/ships/:id/comments", s.requireAuth(), s.createShipComment)
 }
 
 func (s *Service) setupUpdateShipComment(r fiber.Router) {
-	r.Put("/ship-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateShipComment)
+	r.Put("/ship-comments/:id", s.requireAuth(), s.updateShipComment)
 }
 
 func (s *Service) setupDeleteShipComment(r fiber.Router) {
-	r.Delete("/ship-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteShipComment)
+	r.Delete("/ship-comments/:id", s.requireAuth(), s.deleteShipComment)
 }
 
 func (s *Service) setupLikeShipComment(r fiber.Router) {
-	r.Post("/ship-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeShipComment)
+	r.Post("/ship-comments/:id/like", s.requireAuth(), s.likeShipComment)
 }
 
 func (s *Service) setupUnlikeShipComment(r fiber.Router) {
-	r.Delete("/ship-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeShipComment)
+	r.Delete("/ship-comments/:id/like", s.requireAuth(), s.unlikeShipComment)
 }
 
 func (s *Service) setupUploadShipCommentMedia(r fiber.Router) {
-	r.Post("/ship-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadShipCommentMedia)
+	r.Post("/ship-comments/:id/media", s.requireAuth(), s.uploadShipCommentMedia)
 }
 
 func (s *Service) setupListCharacters(r fiber.Router) {
@@ -96,7 +94,7 @@ func (s *Service) listShips(ctx fiber.Ctx) error {
 	series := ctx.Query("series")
 	characterID := ctx.Query("character")
 	crackshipsOnly := ctx.Query("crackships") == "true"
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.ShipService.ListShips(ctx.Context(), viewerID, sort, crackshipsOnly, series, characterID, page)
 	if err != nil {
@@ -281,69 +279,19 @@ func (s *Service) updateShipComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteShipComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.ShipService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleDeleteComment(ctx, s.ShipService.DeleteComment)
 }
 
 func (s *Service) likeShipComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.ShipService.LikeComment(ctx.Context(), userID, commentID); err != nil {
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		return utils.InternalError(ctx, "failed to like comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleLikeComment(ctx, s.ShipService.LikeComment)
 }
 
 func (s *Service) unlikeShipComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.ShipService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleUnlikeComment(ctx, s.ShipService.UnlikeComment)
 }
 
 func (s *Service) uploadShipCommentMedia(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
-
-	result, err := s.ShipService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
-	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(result)
+	return handleUploadCommentMedia(ctx, s.ShipService.UploadCommentMedia)
 }
 
 func (s *Service) listCharacters(ctx fiber.Ctx) error {
@@ -362,7 +310,7 @@ func (s *Service) listCharacters(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupListUserShips(r fiber.Router) {
-	r.Get("/users/:id/ships", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserShips)
+	r.Get("/users/:id/ships", s.optionalAuth(), s.listUserShips)
 }
 
 func (s *Service) listUserShips(ctx fiber.Ctx) error {
@@ -371,7 +319,7 @@ func (s *Service) listUserShips(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.ShipService.ListShipsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {

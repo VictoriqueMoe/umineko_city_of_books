@@ -5,7 +5,6 @@ import (
 
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/sidebar"
 
 	"github.com/gofiber/fiber/v3"
@@ -29,11 +28,11 @@ func (s *Service) setupGetSidebarActivity(r fiber.Router) {
 }
 
 func (s *Service) setupGetSidebarLastVisited(r fiber.Router) {
-	r.Get("/sidebar/last-visited", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getSidebarLastVisited)
+	r.Get("/sidebar/last-visited", s.requireAuth(), s.getSidebarLastVisited)
 }
 
 func (s *Service) setupMarkSidebarVisited(r fiber.Router) {
-	r.Post("/sidebar/last-visited", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.markSidebarVisited)
+	r.Post("/sidebar/last-visited", s.requireAuth(), s.markSidebarVisited)
 }
 
 func (s *Service) getSidebarLastVisited(ctx fiber.Ctx) error {

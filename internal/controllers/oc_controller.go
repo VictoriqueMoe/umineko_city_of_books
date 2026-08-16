@@ -5,10 +5,8 @@ import (
 	"strconv"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/oc"
 
 	"github.com/gofiber/fiber/v3"
@@ -40,79 +38,79 @@ func (s *Service) getAllOCRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListOCs(r fiber.Router) {
-	r.Get("/ocs", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listOCs)
+	r.Get("/ocs", s.optionalAuth(), s.listOCs)
 }
 
 func (s *Service) setupGetOC(r fiber.Router) {
-	r.Get("/ocs/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getOC)
+	r.Get("/ocs/:id", s.optionalAuth(), s.getOC)
 }
 
 func (s *Service) setupCreateOC(r fiber.Router) {
-	r.Post("/ocs", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createOC)
+	r.Post("/ocs", s.requireAuth(), s.createOC)
 }
 
 func (s *Service) setupUpdateOC(r fiber.Router) {
-	r.Put("/ocs/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateOC)
+	r.Put("/ocs/:id", s.requireAuth(), s.updateOC)
 }
 
 func (s *Service) setupDeleteOC(r fiber.Router) {
-	r.Delete("/ocs/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteOC)
+	r.Delete("/ocs/:id", s.requireAuth(), s.deleteOC)
 }
 
 func (s *Service) setupUploadOCImage(r fiber.Router) {
-	r.Post("/ocs/:id/image", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadOCImage)
+	r.Post("/ocs/:id/image", s.requireAuth(), s.uploadOCImage)
 }
 
 func (s *Service) setupAddOCGalleryImage(r fiber.Router) {
-	r.Post("/ocs/:id/gallery", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.addOCGalleryImage)
+	r.Post("/ocs/:id/gallery", s.requireAuth(), s.addOCGalleryImage)
 }
 
 func (s *Service) setupUpdateOCGalleryImage(r fiber.Router) {
-	r.Patch("/ocs/:id/gallery/:imageID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateOCGalleryImage)
+	r.Patch("/ocs/:id/gallery/:imageID", s.requireAuth(), s.updateOCGalleryImage)
 }
 
 func (s *Service) setupDeleteOCGalleryImage(r fiber.Router) {
-	r.Delete("/ocs/:id/gallery/:imageID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteOCGalleryImage)
+	r.Delete("/ocs/:id/gallery/:imageID", s.requireAuth(), s.deleteOCGalleryImage)
 }
 
 func (s *Service) setupVoteOC(r fiber.Router) {
-	r.Post("/ocs/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteOC)
+	r.Post("/ocs/:id/vote", s.requireAuth(), s.voteOC)
 }
 
 func (s *Service) setupFavouriteOC(r fiber.Router) {
-	r.Post("/ocs/:id/favourite", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.favouriteOC)
+	r.Post("/ocs/:id/favourite", s.requireAuth(), s.favouriteOC)
 }
 
 func (s *Service) setupCreateOCComment(r fiber.Router) {
-	r.Post("/ocs/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createOCComment)
+	r.Post("/ocs/:id/comments", s.requireAuth(), s.createOCComment)
 }
 
 func (s *Service) setupUpdateOCComment(r fiber.Router) {
-	r.Put("/oc-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateOCComment)
+	r.Put("/oc-comments/:id", s.requireAuth(), s.updateOCComment)
 }
 
 func (s *Service) setupDeleteOCComment(r fiber.Router) {
-	r.Delete("/oc-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteOCComment)
+	r.Delete("/oc-comments/:id", s.requireAuth(), s.deleteOCComment)
 }
 
 func (s *Service) setupLikeOCComment(r fiber.Router) {
-	r.Post("/oc-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeOCComment)
+	r.Post("/oc-comments/:id/like", s.requireAuth(), s.likeOCComment)
 }
 
 func (s *Service) setupUnlikeOCComment(r fiber.Router) {
-	r.Delete("/oc-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeOCComment)
+	r.Delete("/oc-comments/:id/like", s.requireAuth(), s.unlikeOCComment)
 }
 
 func (s *Service) setupUploadOCCommentMedia(r fiber.Router) {
-	r.Post("/oc-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadOCCommentMedia)
+	r.Post("/oc-comments/:id/media", s.requireAuth(), s.uploadOCCommentMedia)
 }
 
 func (s *Service) setupListUserOCs(r fiber.Router) {
-	r.Get("/users/:id/ocs", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserOCs)
+	r.Get("/users/:id/ocs", s.optionalAuth(), s.listUserOCs)
 }
 
 func (s *Service) setupListUserOCSummaries(r fiber.Router) {
-	r.Get("/users/:id/oc-summaries", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserOCSummaries)
+	r.Get("/users/:id/oc-summaries", s.optionalAuth(), s.listUserOCSummaries)
 }
 
 func (s *Service) listOCs(ctx fiber.Ctx) error {
@@ -121,7 +119,7 @@ func (s *Service) listOCs(ctx fiber.Ctx) error {
 	series := ctx.Query("series")
 	customSeriesName := ctx.Query("custom")
 	crackOnly := ctx.Query("crack") == "true"
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	var ownerID uuid.UUID
 	if rawOwner := ctx.Query("user_id"); rawOwner != "" {
@@ -399,69 +397,19 @@ func (s *Service) updateOCComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteOCComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.OCService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleDeleteComment(ctx, s.OCService.DeleteComment)
 }
 
 func (s *Service) likeOCComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.OCService.LikeComment(ctx.Context(), userID, commentID); err != nil {
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		return utils.InternalError(ctx, "failed to like comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleLikeComment(ctx, s.OCService.LikeComment)
 }
 
 func (s *Service) unlikeOCComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.OCService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleUnlikeComment(ctx, s.OCService.UnlikeComment)
 }
 
 func (s *Service) uploadOCCommentMedia(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
-
-	result, err := s.OCService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
-	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(result)
+	return handleUploadCommentMedia(ctx, s.OCService.UploadCommentMedia)
 }
 
 func (s *Service) listUserOCs(ctx fiber.Ctx) error {
@@ -470,7 +418,7 @@ func (s *Service) listUserOCs(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.OCService.ListOCsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {

@@ -6,12 +6,10 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -44,87 +42,87 @@ func (s *Service) getAllJournalRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListJournalsRoute(r fiber.Router) {
-	r.Get("/journals", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listJournals)
+	r.Get("/journals", s.optionalAuth(), s.listJournals)
 }
 
 func (s *Service) setupListUserJournalsRoute(r fiber.Router) {
-	r.Get("/users/:id/journals", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserJournals)
+	r.Get("/users/:id/journals", s.optionalAuth(), s.listUserJournals)
 }
 
 func (s *Service) setupListUserFollowedJournalsRoute(r fiber.Router) {
-	r.Get("/users/:id/journal-follows", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserFollowedJournals)
+	r.Get("/users/:id/journal-follows", s.optionalAuth(), s.listUserFollowedJournals)
 }
 
 func (s *Service) setupCreateJournalRoute(r fiber.Router) {
-	r.Post("/journals", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createJournal)
+	r.Post("/journals", s.requireAuth(), s.createJournal)
 }
 
 func (s *Service) setupGetJournalRoute(r fiber.Router) {
-	r.Get("/journals/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getJournal)
+	r.Get("/journals/:id", s.optionalAuth(), s.getJournal)
 }
 
 func (s *Service) setupUpdateJournalRoute(r fiber.Router) {
-	r.Put("/journals/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateJournal)
+	r.Put("/journals/:id", s.requireAuth(), s.updateJournal)
 }
 
 func (s *Service) setupDeleteJournalRoute(r fiber.Router) {
-	r.Delete("/journals/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournal)
+	r.Delete("/journals/:id", s.requireAuth(), s.deleteJournal)
 }
 
 func (s *Service) setupFollowJournalRoute(r fiber.Router) {
-	r.Post("/journals/:id/follow", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.followJournal)
+	r.Post("/journals/:id/follow", s.requireAuth(), s.followJournal)
 }
 
 func (s *Service) setupUnfollowJournalRoute(r fiber.Router) {
-	r.Delete("/journals/:id/follow", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unfollowJournal)
+	r.Delete("/journals/:id/follow", s.requireAuth(), s.unfollowJournal)
 }
 
 func (s *Service) setupCreateJournalCommentRoute(r fiber.Router) {
-	r.Post("/journals/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createJournalComment)
+	r.Post("/journals/:id/comments", s.requireAuth(), s.createJournalComment)
 }
 
 func (s *Service) setupUpdateJournalCommentRoute(r fiber.Router) {
-	r.Put("/journal-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateJournalComment)
+	r.Put("/journal-comments/:id", s.requireAuth(), s.updateJournalComment)
 }
 
 func (s *Service) setupDeleteJournalCommentRoute(r fiber.Router) {
-	r.Delete("/journal-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournalComment)
+	r.Delete("/journal-comments/:id", s.requireAuth(), s.deleteJournalComment)
 }
 
 func (s *Service) setupLikeJournalCommentRoute(r fiber.Router) {
-	r.Post("/journal-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeJournalComment)
+	r.Post("/journal-comments/:id/like", s.requireAuth(), s.likeJournalComment)
 }
 
 func (s *Service) setupUnlikeJournalCommentRoute(r fiber.Router) {
-	r.Delete("/journal-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeJournalComment)
+	r.Delete("/journal-comments/:id/like", s.requireAuth(), s.unlikeJournalComment)
 }
 
 func (s *Service) setupUploadJournalCommentMediaRoute(r fiber.Router) {
-	r.Post("/journal-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadJournalCommentMedia)
+	r.Post("/journal-comments/:id/media", s.requireAuth(), s.uploadJournalCommentMedia)
 }
 
 func (s *Service) setupGetJournalEntryRoute(r fiber.Router) {
-	r.Get("/journals/:id/entries/:number", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getJournalEntry)
+	r.Get("/journals/:id/entries/:number", s.optionalAuth(), s.getJournalEntry)
 }
 
 func (s *Service) setupCreateJournalEntryRoute(r fiber.Router) {
-	r.Post("/journals/:id/entries", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createJournalEntry)
+	r.Post("/journals/:id/entries", s.requireAuth(), s.createJournalEntry)
 }
 
 func (s *Service) setupUpdateJournalEntryRoute(r fiber.Router) {
-	r.Put("/journal-entries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateJournalEntry)
+	r.Put("/journal-entries/:id", s.requireAuth(), s.updateJournalEntry)
 }
 
 func (s *Service) setupDeleteJournalEntryRoute(r fiber.Router) {
-	r.Delete("/journal-entries/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournalEntry)
+	r.Delete("/journal-entries/:id", s.requireAuth(), s.deleteJournalEntry)
 }
 
 func (s *Service) setupUploadJournalEntryMediaRoute(r fiber.Router) {
-	r.Post("/journal-entries/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadJournalEntryMedia)
+	r.Post("/journal-entries/:id/media", s.requireAuth(), s.uploadJournalEntryMedia)
 }
 
 func (s *Service) setupDeleteJournalEntryMediaRoute(r fiber.Router) {
-	r.Delete("/journal-entries/:id/media/:mediaId", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteJournalEntryMedia)
+	r.Delete("/journal-entries/:id/media/:mediaId", s.requireAuth(), s.deleteJournalEntryMedia)
 }
 
 func (s *Service) listUserJournals(ctx fiber.Ctx) error {
@@ -149,7 +147,7 @@ func (s *Service) listUserFollowedJournals(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.JournalService.ListFollowedByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
