@@ -16,6 +16,7 @@ import {
     voteOC,
 } from "../endpoints";
 import { queryKeys } from "../queryKeys";
+import { commentMutations } from "./commentMutations";
 
 export function useCreateOC() {
     const qc = useQueryClient();
@@ -92,42 +93,16 @@ export function useCreateOCComment(ocId: string) {
     });
 }
 
-export function useUpdateOCComment() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, body }: { id: string; body: string }) => updateOCComment(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
-    });
-}
+const ocCommentMutations = commentMutations(queryKeys.oc.all, {
+    update: (id, body) => updateOCComment(id, body),
+    remove: id => deleteOCComment(id),
+    like: id => likeOCComment(id),
+    unlike: id => unlikeOCComment(id),
+    uploadMedia: (commentId, file) => uploadOCCommentMedia(commentId, file),
+});
 
-export function useDeleteOCComment() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => deleteOCComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
-    });
-}
-
-export function useLikeOCComment() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => likeOCComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
-    });
-}
-
-export function useUnlikeOCComment() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => unlikeOCComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
-    });
-}
-
-export function useUploadOCCommentMedia() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) => uploadOCCommentMedia(commentId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.oc.all }),
-    });
-}
+export const useUpdateOCComment = ocCommentMutations.useUpdate;
+export const useDeleteOCComment = ocCommentMutations.useDelete;
+export const useLikeOCComment = ocCommentMutations.useLike;
+export const useUnlikeOCComment = ocCommentMutations.useUnlike;
+export const useUploadOCCommentMedia = ocCommentMutations.useUploadMedia;

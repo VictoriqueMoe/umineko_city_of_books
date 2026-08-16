@@ -14,6 +14,7 @@ import {
 } from "../endpoints";
 import type { ShipCharacter } from "../../types/api";
 import { queryKeys } from "../queryKeys";
+import { commentMutations } from "./commentMutations";
 
 export function useCreateShip() {
     const qc = useQueryClient();
@@ -64,42 +65,16 @@ export function useCreateShipComment(shipId: string) {
     });
 }
 
-export function useUpdateShipComment(_shipId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, body }: { id: string; body: string }) => updateShipComment(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.ship.all }),
-    });
-}
+const shipCommentMutations = commentMutations(queryKeys.ship.all, {
+    update: (id, body) => updateShipComment(id, body),
+    remove: id => deleteShipComment(id),
+    like: id => likeShipComment(id),
+    unlike: id => unlikeShipComment(id),
+    uploadMedia: (commentId, file) => uploadShipCommentMedia(commentId, file),
+});
 
-export function useDeleteShipComment(_shipId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => deleteShipComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.ship.all }),
-    });
-}
-
-export function useLikeShipComment(_shipId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => likeShipComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.ship.all }),
-    });
-}
-
-export function useUnlikeShipComment(_shipId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => unlikeShipComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.ship.all }),
-    });
-}
-
-export function useUploadShipCommentMedia(_shipId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) => uploadShipCommentMedia(commentId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.ship.all }),
-    });
-}
+export const useUpdateShipComment = shipCommentMutations.useUpdate;
+export const useDeleteShipComment = shipCommentMutations.useDelete;
+export const useLikeShipComment = shipCommentMutations.useLike;
+export const useUnlikeShipComment = shipCommentMutations.useUnlike;
+export const useUploadShipCommentMedia = shipCommentMutations.useUploadMedia;

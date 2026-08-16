@@ -5,6 +5,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { useNotifications } from "../../hooks/useNotifications";
 import { listLiveStreams, type LiveStream, type LiveStreamListResponse } from "../../api/endpoints";
+import { queryKeys } from "../../api/queryKeys";
 import type { WSMessage } from "../../types/api";
 import { GoLivePanel } from "../../components/live/GoLivePanel";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
@@ -18,14 +19,14 @@ export function LiveDirectory() {
     const [showGoLive, setShowGoLive] = useState(false);
 
     const query = useQuery({
-        queryKey: ["streams", "live"],
+        queryKey: queryKeys.streams.live(),
         queryFn: listLiveStreams,
     });
 
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "stream_live" || msg.type === "stream_offline") {
-                qc.invalidateQueries({ queryKey: ["streams", "live"] });
+                qc.invalidateQueries({ queryKey: queryKeys.streams.live() });
                 return;
             }
 
@@ -87,7 +88,7 @@ export function LiveDirectory() {
             {!enabled && <div className="empty-state">Live streaming is currently disabled.</div>}
 
             {user && enabled && showGoLive && (
-                <GoLivePanel onChanged={() => qc.invalidateQueries({ queryKey: ["streams", "live"] })} />
+                <GoLivePanel onChanged={() => qc.invalidateQueries({ queryKey: queryKeys.streams.live() })} />
             )}
 
             {enabled && query.isLoading && <div className="loading">Loading streams...</div>}

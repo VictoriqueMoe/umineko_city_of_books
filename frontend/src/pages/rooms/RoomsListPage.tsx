@@ -167,22 +167,22 @@ export function RoomsListPage() {
     useEffect(() => {
         return addWSListener((msg: WSMessage) => {
             if (msg.type === "chat_room_invited") {
-                qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "joined"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListJoined() });
                 qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
                 return;
             }
             if (msg.type === "chat_room_updated") {
-                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
                 qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
                 return;
             }
             if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
-                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
                 qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
                 return;
             }
             if (msg.type === "voice_presence") {
-                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
             }
         });
     }, [addWSListener, qc]);
@@ -192,8 +192,8 @@ export function RoomsListPage() {
         setJoinError("");
         try {
             const joinedRoom = await joinRoomMutation.mutateAsync({ roomId: room.id, ghost });
-            qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "joined"] });
-            qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "discover"] });
+            qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListJoined() });
+            qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListDiscover() });
             navigate(`/rooms/${joinedRoom.id}`);
         } catch (err) {
             setJoinError(err instanceof Error ? err.message : "Could not join that room.");
@@ -554,7 +554,7 @@ export function RoomsListPage() {
                 isOpen={showCreate}
                 onClose={() => setShowCreate(false)}
                 onCreated={room => {
-                    qc.invalidateQueries({ queryKey: ["chat", "rooms-list", "hosted"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListHosted() });
                     navigate(`/rooms/${room.id}`);
                 }}
             />

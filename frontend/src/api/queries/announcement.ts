@@ -1,9 +1,10 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { getAnnouncement, getLatestAnnouncement, listAnnouncements } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 
 export function useAnnouncementList(limit = 20, offset = 0) {
     const q = useQuery({
-        queryKey: ["announcements", "list", { limit, offset }],
+        queryKey: queryKeys.announcements.list({ limit, offset }),
         queryFn: () => listAnnouncements(limit, offset),
     });
     return {
@@ -16,7 +17,7 @@ export function useAnnouncementList(limit = 20, offset = 0) {
 
 export function useAnnouncement(id: string) {
     const q = useQuery({
-        queryKey: ["announcements", "detail", id],
+        queryKey: queryKeys.announcements.detail(id),
         queryFn: () => getAnnouncement(id),
         enabled: !!id,
     });
@@ -29,7 +30,7 @@ export function useAnnouncement(id: string) {
 
 export function useLatestAnnouncement() {
     const q = useQuery({
-        queryKey: ["announcements", "latest"],
+        queryKey: queryKeys.announcements.latest(),
         queryFn: () => getLatestAnnouncement(),
     });
     return { announcement: q.data?.announcement ?? null, loading: q.isLoading };

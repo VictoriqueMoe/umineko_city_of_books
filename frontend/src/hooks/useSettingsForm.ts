@@ -6,6 +6,7 @@ import { useAllCharacters } from "../api/queries/characters";
 import { useSiteInfo } from "./useSiteInfo";
 import { useUpdateProfile, useUploadAvatar, useUploadBanner } from "../api/mutations/auth";
 import { validateFileSize } from "../utils/fileValidation";
+import { queryKeys } from "../api/queryKeys";
 import type { UpdateProfilePayload, UserProfile } from "../types/api";
 
 const GENDER_OPTIONS = ["Prefer not to say", "Male", "Female", "Custom"];
@@ -395,7 +396,7 @@ export function useSettingsForm() {
         try {
             await updateProfileMutation.mutateAsync(payload);
             try {
-                await qc.refetchQueries({ queryKey: ["auth", "me"] });
+                await qc.refetchQueries({ queryKey: queryKeys.auth.me() });
             } catch {}
             setSuccess("Profile updated successfully.");
         } catch (err) {

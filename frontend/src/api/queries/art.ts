@@ -54,7 +54,7 @@ export function useArt(id: string) {
 
 export function useGallery(id: string, limit: number = 24, offset: number = 0) {
     const query = useQuery({
-        queryKey: ["gallery", id, { limit, offset }],
+        queryKey: queryKeys.gallery.detail(id, { limit, offset }),
         queryFn: () => getGallery(id, limit, offset),
         enabled: !!id,
     });
@@ -69,7 +69,7 @@ export function useGallery(id: string, limit: number = 24, offset: number = 0) {
 
 export function useAllGalleries(corner?: string, enabled = true) {
     const query = useQuery({
-        queryKey: ["galleries", "all", corner ?? ""],
+        queryKey: queryKeys.gallery.list(corner ?? ""),
         queryFn: () => listAllGalleries(corner),
         enabled,
     });

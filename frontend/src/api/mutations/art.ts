@@ -35,8 +35,8 @@ type CreateArtInput = {
 type UpdateArtInput = { title: string; description: string; tags: string[]; is_spoiler: boolean };
 
 function invalidateGalleries(qc: QueryClient) {
-    qc.invalidateQueries({ queryKey: ["galleries"] });
-    qc.invalidateQueries({ queryKey: ["gallery"] });
+    qc.invalidateQueries({ queryKey: queryKeys.gallery.allGalleries() });
+    qc.invalidateQueries({ queryKey: queryKeys.gallery.root() });
 }
 
 export function useCreateArt() {

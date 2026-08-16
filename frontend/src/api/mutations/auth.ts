@@ -69,8 +69,8 @@ export function useUpdateProfile() {
     return useMutation({
         mutationFn: (payload: UpdateProfilePayload) => updateProfile(payload),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
-            qc.invalidateQueries({ queryKey: ["profile"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
+            qc.invalidateQueries({ queryKey: queryKeys.profile.all });
         },
     });
 }
@@ -85,7 +85,7 @@ export function useSetEmail() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: { email: string; password: string }) => setEmail(payload.email, payload.password),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.auth.me() }),
     });
 }
 
@@ -93,7 +93,7 @@ export function useVerifyEmail() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (token: string) => verifyEmail(token),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["auth", "me"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.auth.me() }),
     });
 }
 
@@ -132,7 +132,7 @@ export function useUploadAvatar() {
     return useMutation({
         mutationFn: (file: File) => uploadAvatar(file),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
     });
 }
@@ -142,7 +142,7 @@ export function useUploadBanner() {
     return useMutation({
         mutationFn: (file: File) => uploadBanner(file),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
     });
 }
@@ -152,7 +152,7 @@ export function useUpdateGameBoardSort() {
     return useMutation({
         mutationFn: (sort: string) => updateGameBoardSort(sort),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
     });
 }
@@ -163,7 +163,7 @@ export function useUpdateChatbotOptIn() {
         mutationFn: (optedIn: boolean) => updateChatbotOptIn(optedIn),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.profile.all });
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
     });
 }
@@ -174,7 +174,7 @@ export function useUpdateAppearance() {
         mutationFn: ({ theme, font, wideLayout }: { theme: string; font: string; wideLayout: boolean }) =>
             updateAppearance(theme, font, wideLayout),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["auth", "me"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
         },
     });
 }

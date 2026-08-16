@@ -1,10 +1,11 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { listGiphyFavourites, searchGiphy, trendingGiphy } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 import { useAuth } from "../../hooks/useAuth";
 
 export function useGiphySearch(query: string, offset = 0, limit = 0, enabled = true) {
     const q = useQuery({
-        queryKey: ["giphy", "search", query, { offset, limit }],
+        queryKey: queryKeys.giphy.search(query, { offset, limit }),
         queryFn: () => searchGiphy(query, offset, limit),
         enabled: enabled && !!query,
         staleTime: 5 * 60_000,
@@ -14,7 +15,7 @@ export function useGiphySearch(query: string, offset = 0, limit = 0, enabled = t
 
 export function useGiphyTrending(offset = 0, limit = 0, enabled = true) {
     const q = useQuery({
-        queryKey: ["giphy", "trending", { offset, limit }],
+        queryKey: queryKeys.giphy.trending({ offset, limit }),
         queryFn: () => trendingGiphy(offset, limit),
         enabled,
         staleTime: 5 * 60_000,
@@ -25,7 +26,7 @@ export function useGiphyTrending(offset = 0, limit = 0, enabled = true) {
 export function useGiphyFavourites(offset = 0, limit = 0) {
     const { user } = useAuth();
     const q = useQuery({
-        queryKey: ["giphy", "favourites", { offset, limit }],
+        queryKey: queryKeys.giphy.favouritesList({ offset, limit }),
         queryFn: () => listGiphyFavourites(offset, limit),
         enabled: !!user,
     });

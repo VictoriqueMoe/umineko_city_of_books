@@ -32,7 +32,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const unreadCount = user ? unreadCountQuery.count : 0;
     const chatUnreadCount = user ? chatUnreadCountQuery.count : 0;
     const liveGamesCount = liveGamesQuery.total ?? 0;
-    const liveStreamsQuery = useQuery({ queryKey: ["streams", "live"], queryFn: listLiveStreams });
+    const liveStreamsQuery = useQuery({ queryKey: queryKeys.streams.live(), queryFn: listLiveStreams });
     const liveStreamsCount = liveStreamsQuery.data?.streams.length ?? 0;
 
     const { mutateAsync: markReadMutate } = useMarkNotificationRead();
@@ -170,7 +170,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (msg.type === "notification") {
                     const notif = msg.data as Notification;
                     bumpUnread();
-                    qc.invalidateQueries({ queryKey: ["notifications", "list"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.notifications.listAll() });
                     showDesktopNotification(notif);
                     if (userRef.current?.private?.play_notification_sound ?? true) {
                         playNotificationSound();
@@ -241,7 +241,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     window.dispatchEvent(new CustomEvent("site-info-refresh"));
                 }
                 if (msg.type === "permissions_changed" || msg.type === "vanity_roles_changed") {
-                    qc.invalidateQueries({ queryKey: ["auth", "me"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
                 }
                 if (msg.type === "chatbots_changed") {
                     qc.invalidateQueries({ queryKey: queryKeys.chatbots.all });
@@ -259,7 +259,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     }
                 }
                 if (msg.type === "stream_live" || msg.type === "stream_offline") {
-                    qc.invalidateQueries({ queryKey: ["streams", "live"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.streams.live() });
                 }
                 if (msg.type === "secret_closed") {
                     window.dispatchEvent(new CustomEvent("secret-closed", { detail: msg.data }));

@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { EvidenceItem, Quote } from "../types/api";
-import type { Series } from "../api/endpoints";
-
-const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
+import { type Series, tryGetQuoteByAudioId, tryGetQuoteByIndex } from "../api/endpoints";
 
 function evidenceKey(ev: EvidenceItem): string {
     if (ev.audio_id) {
@@ -14,43 +12,13 @@ function evidenceKey(ev: EvidenceItem): string {
     return "";
 }
 
-async function fetchQuoteByAudioId(series: Series, audioId: string, lang?: string): Promise<Quote | null> {
-    const firstId = audioId.split(",")[0].trim();
-    if (!firstId) {
-        return null;
-    }
-    try {
-        const qs = lang ? `?lang=${lang}` : "";
-        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}${qs}`);
-        if (!response.ok) {
-            return null;
-        }
-        return response.json();
-    } catch {
-        return null;
-    }
-}
-
-async function fetchQuoteByIndex(series: Series, index: number, lang?: string): Promise<Quote | null> {
-    try {
-        const qs = lang ? `?lang=${lang}` : "";
-        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}${qs}`);
-        if (!response.ok) {
-            return null;
-        }
-        return response.json();
-    } catch {
-        return null;
-    }
-}
-
 async function fetchEvidence(series: Series, ev: EvidenceItem): Promise<Quote | null> {
     const lang = ev.lang || undefined;
     if (ev.audio_id) {
-        return fetchQuoteByAudioId(series, ev.audio_id, lang);
+        return tryGetQuoteByAudioId(series, ev.audio_id, lang);
     }
     if (ev.quote_index !== undefined) {
-        return fetchQuoteByIndex(series, ev.quote_index, lang);
+        return tryGetQuoteByIndex(series, ev.quote_index, lang);
     }
     return null;
 }

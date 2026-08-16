@@ -19,6 +19,7 @@ import {
 } from "../endpoints";
 import type { CreateJournalPayload, JournalEntryPayload } from "../../types/api";
 import { queryKeys } from "../queryKeys";
+import { commentMutations } from "./commentMutations";
 
 export function useCreateJournal() {
     const qc = useQueryClient();
@@ -93,46 +94,19 @@ export function useDeleteJournalEntry(_journalId: string) {
     });
 }
 
-export function useUpdateJournalComment(_journalId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, body }: { id: string; body: string }) => updateJournalComment(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
-    });
-}
+const journalCommentMutations = commentMutations(queryKeys.journal.all, {
+    update: (id, body) => updateJournalComment(id, body),
+    remove: id => deleteJournalComment(id),
+    like: id => likeJournalComment(id),
+    unlike: id => unlikeJournalComment(id),
+    uploadMedia: (commentId, file) => uploadJournalCommentMedia(commentId, file),
+});
 
-export function useDeleteJournalComment(_journalId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => deleteJournalComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
-    });
-}
-
-export function useLikeJournalComment(_journalId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => likeJournalComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
-    });
-}
-
-export function useUnlikeJournalComment(_journalId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => unlikeJournalComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
-    });
-}
-
-export function useUploadJournalCommentMedia(_journalId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) =>
-            uploadJournalCommentMedia(commentId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
-    });
-}
+export const useUpdateJournalComment = journalCommentMutations.useUpdate;
+export const useDeleteJournalComment = journalCommentMutations.useDelete;
+export const useLikeJournalComment = journalCommentMutations.useLike;
+export const useUnlikeJournalComment = journalCommentMutations.useUnlike;
+export const useUploadJournalCommentMedia = journalCommentMutations.useUploadMedia;
 
 export function useUploadJournalEntryMedia(_journalId: string) {
     const qc = useQueryClient();

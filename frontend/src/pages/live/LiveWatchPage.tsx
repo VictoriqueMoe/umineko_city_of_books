@@ -14,6 +14,7 @@ import {
     uploadStreamThumbnail,
 } from "../../api/endpoints";
 import type { WSMessage } from "../../types/api";
+import { queryKeys } from "../../api/queryKeys";
 import { STREAM_CHAT_POPOUT_CLOSED, openStreamChatPopout } from "../../utils/streamChatPopout";
 import { useAuth } from "../../hooks/useAuth";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
@@ -31,7 +32,7 @@ export function LiveWatchPage() {
     const isMobile = useIsMobile();
 
     const streamQuery = useQuery({
-        queryKey: ["streams", "detail", streamID],
+        queryKey: queryKeys.streams.detail(streamID),
         queryFn: () => getStream(streamID as string),
         enabled: !!streamID,
     });
@@ -95,7 +96,7 @@ export function LiveWatchPage() {
             if (msg.type === "stream_offline") {
                 const data = msg.data as { streamId: string };
                 if (data.streamId === streamID) {
-                    qc.invalidateQueries({ queryKey: ["streams", "detail", streamID] });
+                    qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamID) });
                 }
                 return;
             }
@@ -103,7 +104,7 @@ export function LiveWatchPage() {
             if (msg.type === "stream_live") {
                 const data = msg.data as LiveStream;
                 if (data.id === streamID) {
-                    qc.invalidateQueries({ queryKey: ["streams", "detail", streamID] });
+                    qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamID) });
                 }
                 return;
             }

@@ -17,21 +17,21 @@ import { queryKeys } from "../queryKeys";
 
 export function fetchMutualFollowers() {
     return queryClient.fetchQuery({
-        queryKey: ["users", "mutuals"],
+        queryKey: queryKeys.users.mutuals(),
         queryFn: () => getMutualFollowers(),
     });
 }
 
 export function fetchSearchUsers(query: string) {
     return queryClient.fetchQuery({
-        queryKey: ["users", "search", query],
+        queryKey: queryKeys.users.search(query),
         queryFn: () => searchUsers(query),
     });
 }
 
 export function useSearchUsers(query: string, enabled = true) {
     const q = useQuery({
-        queryKey: ["users", "search", query],
+        queryKey: queryKeys.users.search(query),
         queryFn: () => searchUsers(query),
         enabled: enabled && !!query,
     });
@@ -40,7 +40,7 @@ export function useSearchUsers(query: string, enabled = true) {
 
 export function useMutualFollowers(enabled = true) {
     const q = useQuery({
-        queryKey: ["users", "mutuals"],
+        queryKey: queryKeys.users.mutuals(),
         queryFn: () => getMutualFollowers(),
         enabled,
     });
@@ -53,13 +53,13 @@ export function useCornerCounts() {
 }
 
 export function useArtCornerCounts() {
-    const q = useQuery({ queryKey: ["art", "corner-counts"], queryFn: () => getArtCornerCounts() });
+    const q = useQuery({ queryKey: queryKeys.art.cornerCounts(), queryFn: () => getArtCornerCounts() });
     return { counts: q.data ?? {}, loading: q.isLoading };
 }
 
 export function usePopularTags(corner?: string) {
     const q = useQuery({
-        queryKey: ["art", "popular-tags", corner ?? ""],
+        queryKey: queryKeys.art.popularTags(corner ?? ""),
         queryFn: () => getPopularTags(corner),
     });
     return { tags: q.data ?? [], loading: q.isLoading };
@@ -67,7 +67,7 @@ export function usePopularTags(corner?: string) {
 
 export function useFollowStats(userId: string) {
     const q = useQuery({
-        queryKey: ["follow-stats", userId],
+        queryKey: queryKeys.followStats(userId),
         queryFn: () => getFollowStats(userId),
         enabled: !!userId,
     });
@@ -76,7 +76,7 @@ export function useFollowStats(userId: string) {
 
 export function useFollowers(userId: string, limit = 50, offset = 0) {
     const q = useQuery({
-        queryKey: ["users", userId, "followers", { limit, offset }],
+        queryKey: queryKeys.users.followers(userId, { limit, offset }),
         queryFn: () => getFollowers(userId, limit, offset),
         enabled: !!userId,
     });
@@ -89,7 +89,7 @@ export function useFollowers(userId: string, limit = 50, offset = 0) {
 
 export function useFollowing(userId: string, limit = 50, offset = 0) {
     const q = useQuery({
-        queryKey: ["users", userId, "following", { limit, offset }],
+        queryKey: queryKeys.users.following(userId, { limit, offset }),
         queryFn: () => getFollowing(userId, limit, offset),
         enabled: !!userId,
     });
@@ -101,13 +101,13 @@ export function useFollowing(userId: string, limit = 50, offset = 0) {
 }
 
 export function useUsersPublic() {
-    const q = useQuery({ queryKey: ["users", "public"], queryFn: () => listUsersPublic() });
+    const q = useQuery({ queryKey: queryKeys.users.publicList(), queryFn: () => listUsersPublic() });
     return { users: q.data ?? [], loading: q.isLoading };
 }
 
 export function useBlockStatus(userId: string) {
     const q = useQuery({
-        queryKey: ["block-status", userId],
+        queryKey: queryKeys.blockStatus(userId),
         queryFn: () => getBlockStatus(userId),
         enabled: !!userId,
     });
@@ -120,7 +120,7 @@ export function useBlockStatus(userId: string) {
 
 export function useRules(page: string) {
     const q = useQuery({
-        queryKey: ["rules", page],
+        queryKey: queryKeys.rules(page),
         queryFn: () => getRules(page),
         enabled: !!page,
     });

@@ -9,6 +9,7 @@ import { buildMentionMatcher } from "../utils/mentions";
 import { ROLE_GROUPS, type SiteRole } from "../utils/permissions";
 import { parseServerDate } from "../utils/time";
 import { useChatRoomMembers, useUserRooms } from "../api/queries/chat";
+import { queryKeys } from "../api/queryKeys";
 import {
     useAddChatMessageReaction,
     useBanChatRoomMember,
@@ -611,8 +612,8 @@ export function useRoomController() {
                         is_rp: data.is_rp,
                     };
                 });
-                qc.invalidateQueries({ queryKey: ["chat", "rooms"] });
-                qc.invalidateQueries({ queryKey: ["chat", "rooms-list"] });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.rooms() });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
                 return;
             }
             if (msg.type === "chat_member_updated") {

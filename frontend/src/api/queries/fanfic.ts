@@ -21,7 +21,7 @@ export function useFanfic(id: string) {
 
 export function useFanficChapter(fanficId: string, chapterNumber: number) {
     const q = useQuery({
-        queryKey: ["fanfic", fanficId, "chapter", chapterNumber],
+        queryKey: queryKeys.fanfic.chapter(fanficId, chapterNumber),
         queryFn: () => getFanficChapter(fanficId, chapterNumber),
         enabled: !!fanficId && chapterNumber > 0,
     });
@@ -34,14 +34,14 @@ export const fanficQueryFns = {
         queryFn: () => getFanfic(id),
     }),
     chapter: (fanficId: string, chapterNumber: number) => ({
-        queryKey: ["fanfic", fanficId, "chapter", chapterNumber] as const,
+        queryKey: queryKeys.fanfic.chapter(fanficId, chapterNumber),
         queryFn: () => getFanficChapter(fanficId, chapterNumber),
     }),
 };
 
 export function useFanficLanguages() {
     const q = useQuery({
-        queryKey: ["fanfic", "languages"],
+        queryKey: queryKeys.fanfic.languages(),
         queryFn: () => getFanficLanguages(),
         staleTime: Infinity,
     });
@@ -50,7 +50,7 @@ export function useFanficLanguages() {
 
 export function useFanficSeries() {
     const q = useQuery({
-        queryKey: ["fanfic", "series"],
+        queryKey: queryKeys.fanfic.seriesList(),
         queryFn: () => getFanficSeries(),
         staleTime: Infinity,
     });

@@ -8,59 +8,34 @@ import {
     updateSecretComment,
     uploadSecretCommentMedia,
 } from "../endpoints";
+import { queryKeys } from "../queryKeys";
+import { commentMutations } from "./commentMutations";
 
 export function useCreateSecretComment(secretId: string) {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ body, parentId }: { body: string; parentId?: string }) =>
             createSecretComment(secretId, body, parentId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["secrets"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.secrets.all }),
     });
 }
 
-export function useUpdateSecretComment(_secretId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, body }: { id: string; body: string }) => updateSecretComment(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["secrets"] }),
-    });
-}
+const secretCommentMutations = commentMutations(queryKeys.secrets.all, {
+    update: (id, body) => updateSecretComment(id, body),
+    remove: id => deleteSecretComment(id),
+    like: id => likeSecretComment(id),
+    unlike: id => unlikeSecretComment(id),
+    uploadMedia: (commentId, file) => uploadSecretCommentMedia(commentId, file),
+});
 
-export function useDeleteSecretComment(_secretId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => deleteSecretComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["secrets"] }),
-    });
-}
-
-export function useLikeSecretComment(_secretId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => likeSecretComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["secrets"] }),
-    });
-}
-
-export function useUnlikeSecretComment(_secretId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => unlikeSecretComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["secrets"] }),
-    });
-}
+export const useUpdateSecretComment = secretCommentMutations.useUpdate;
+export const useDeleteSecretComment = secretCommentMutations.useDelete;
+export const useLikeSecretComment = secretCommentMutations.useLike;
+export const useUnlikeSecretComment = secretCommentMutations.useUnlike;
+export const useUploadSecretCommentMedia = secretCommentMutations.useUploadMedia;
 
 export function useUnlockSecret() {
     return useMutation({
         mutationFn: ({ id, phrase }: { id: string; phrase: string }) => unlockSecret(id, phrase),
-    });
-}
-
-export function useUploadSecretCommentMedia(_secretId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) =>
-            uploadSecretCommentMedia(commentId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["secrets"] }),
     });
 }

@@ -3,6 +3,7 @@ import { useParams } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useNotifications } from "../../hooks/useNotifications";
+import { queryKeys } from "../../api/queryKeys";
 import { getStream } from "../../api/endpoints";
 import type { WSMessage } from "../../types/api";
 import { STREAM_CHAT_POPOUT_CLOSED } from "../../utils/streamChatPopout";
@@ -15,7 +16,7 @@ export function StreamChatPopout() {
     const { addWSListener } = useNotifications();
 
     const streamQuery = useQuery({
-        queryKey: ["streams", "detail", streamID],
+        queryKey: queryKeys.streams.detail(streamID),
         queryFn: () => getStream(streamID as string),
         enabled: !!streamID,
     });
@@ -31,7 +32,7 @@ export function StreamChatPopout() {
 
             const data = msg.data as { id?: string; streamId?: string };
             if (data.id === streamID || data.streamId === streamID) {
-                qc.invalidateQueries({ queryKey: ["streams", "detail", streamID] });
+                qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamID) });
             }
         });
     }, [addWSListener, qc, streamID]);
