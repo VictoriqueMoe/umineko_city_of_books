@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/logger"
 
@@ -13,11 +14,11 @@ import (
 
 type (
 	SettingsDAO interface {
-		Get(ctx context.Context, key string, tx ...*sql.Tx) (string, error)
-		GetAll(ctx context.Context, tx ...*sql.Tx) (map[string]string, error)
-		Set(ctx context.Context, key, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error
-		SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx) error
-		Delete(ctx context.Context, key string, tx ...*sql.Tx) error
+		Get(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error)
+		GetAll(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error)
+		Set(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error
+		SetMultiple(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx) error
+		Delete(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) error
 	}
 
 	SettingsRepository interface {
@@ -27,8 +28,8 @@ type (
 	}
 
 	SettingsReconcile struct {
-		Missing   map[string]string
-		Stale     []string
+		Missing   map[config.SiteSettingKey]string
+		Stale     []config.SiteSettingKey
 		UpdatedBy uuid.UUID
 	}
 )
@@ -63,7 +64,7 @@ func (r *settingsRepository) Reconcile(ctx context.Context, spec SettingsReconci
 		return err
 	}
 
-	touched := make([]string, 0, len(spec.Missing)+len(spec.Stale))
+	touched := make([]config.SiteSettingKey, 0, len(spec.Missing)+len(spec.Stale))
 	for key := range spec.Missing {
 		touched = append(touched, key)
 	}
@@ -74,8 +75,8 @@ func (r *settingsRepository) Reconcile(ctx context.Context, spec SettingsReconci
 	return nil
 }
 
-func (r *settingsRepository) Get(ctx context.Context, key string, tx ...*sql.Tx) (string, error) {
-	cacheKey := cache.Setting.Key(key)
+func (r *settingsRepository) Get(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error) {
+	cacheKey := cache.Setting.Key(string(key))
 
 	if cached, err := cache.Get[string](ctx, r.cache, cacheKey); err == nil {
 		return cached, nil
@@ -91,11 +92,11 @@ func (r *settingsRepository) Get(ctx context.Context, key string, tx ...*sql.Tx)
 	return value, nil
 }
 
-func (r *settingsRepository) GetAll(ctx context.Context, tx ...*sql.Tx) (map[string]string, error) {
+func (r *settingsRepository) GetAll(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error) {
 	return r.dao.GetAll(ctx, tx...)
 }
 
-func (r *settingsRepository) Set(ctx context.Context, key, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
+func (r *settingsRepository) Set(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
 	if err := r.dao.Set(ctx, key, value, updatedBy, tx...); err != nil {
 		return err
 	}
@@ -105,12 +106,12 @@ func (r *settingsRepository) Set(ctx context.Context, key, value string, updated
 	return nil
 }
 
-func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
+func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
 	if err := r.dao.SetMultiple(ctx, settings, updatedBy, tx...); err != nil {
 		return err
 	}
 
-	touched := make([]string, 0, len(settings))
+	touched := make([]config.SiteSettingKey, 0, len(settings))
 	for key := range settings {
 		touched = append(touched, key)
 	}
@@ -120,7 +121,7 @@ func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[strin
 	return nil
 }
 
-func (r *settingsRepository) Delete(ctx context.Context, key string, tx ...*sql.Tx) error {
+func (r *settingsRepository) Delete(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) error {
 	if err := r.dao.Delete(ctx, key, tx...); err != nil {
 		return err
 	}
@@ -130,14 +131,14 @@ func (r *settingsRepository) Delete(ctx context.Context, key string, tx ...*sql.
 	return nil
 }
 
-func (r *settingsRepository) invalidate(ctx context.Context, keys ...string) {
+func (r *settingsRepository) invalidate(ctx context.Context, keys ...config.SiteSettingKey) {
 	if len(keys) == 0 {
 		return
 	}
 
 	cacheKeys := make([]string, 0, len(keys))
 	for _, key := range keys {
-		cacheKeys = append(cacheKeys, cache.Setting.Key(key))
+		cacheKeys = append(cacheKeys, cache.Setting.Key(string(key)))
 	}
 
 	if err := r.cache.Del(ctx, cacheKeys...); err != nil {

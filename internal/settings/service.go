@@ -128,16 +128,16 @@ func (s *service) Refresh(ctx context.Context) error {
 		return err
 	}
 
-	missing := make(map[string]string)
+	missing := make(map[config.SiteSettingKey]string)
 	for _, def := range config.AllSiteSettings {
-		if _, ok := existing[string(def.Key)]; !ok {
-			missing[string(def.Key)] = def.Default
+		if _, ok := existing[def.Key]; !ok {
+			missing[def.Key] = def.Default
 		}
 	}
 
-	var stale []string
+	var stale []config.SiteSettingKey
 	for k := range existing {
-		if _, ok := config.SettingByKey(config.SiteSettingKey(k)); !ok {
+		if _, ok := config.SettingByKey(k); !ok {
 			stale = append(stale, k)
 		}
 	}
@@ -153,7 +153,7 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	for _, k := range stale {
-		logger.Log.Info().Str("key", k).Msg("removed stale setting")
+		logger.Log.Info().Str("key", string(k)).Msg("removed stale setting")
 	}
 
 	logger.Log.Debug().Msg("settings reconciled")
@@ -161,7 +161,7 @@ func (s *service) Refresh(ctx context.Context) error {
 }
 
 func (s *service) Get(ctx context.Context, def *config.SiteSettingDef) string {
-	v, err := s.repo.Get(ctx, string(def.Key))
+	v, err := s.repo.Get(ctx, def.Key)
 	if err != nil {
 		return def.Default
 	}
@@ -189,9 +189,7 @@ func (s *service) GetAll(ctx context.Context) map[config.SiteSettingKey]string {
 
 	stored, err := s.repo.GetAll(ctx)
 	if err == nil {
-		for k, v := range stored {
-			result[config.SiteSettingKey(k)] = v
-		}
+		maps.Copy(result, stored)
 	}
 
 	return result
@@ -212,7 +210,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 		}
 	}
 
-	if err := s.repo.Set(ctx, string(setting.Key), value, updatedBy); err != nil {
+	if err := s.repo.Set(ctx, setting.Key, value, updatedBy); err != nil {
 		return err
 	}
 
@@ -224,7 +222,6 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSettingKey]string, updatedBy uuid.UUID) error {
 	merged := s.GetAll(ctx)
 
-	raw := make(map[string]string, len(values))
 	keys := make([]config.SiteSettingKey, 0, len(values))
 	changed := make(map[config.SiteSettingKey]string)
 
@@ -233,7 +230,6 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 			return fmt.Errorf("unknown setting: %s", k)
 		}
 
-		raw[string(k)] = v
 		keys = append(keys, k)
 
 		if merged[k] != v {
@@ -251,7 +247,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
-	if err := s.repo.SetMultiple(ctx, raw, updatedBy); err != nil {
+	if err := s.repo.SetMultiple(ctx, values, updatedBy); err != nil {
 		return err
 	}
 

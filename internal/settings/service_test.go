@@ -39,22 +39,22 @@ func batchOfKeys(want ...config.SiteSettingKey) any {
 
 func primeValidCache(repo *repository.MockSettingsRepository) {
 	m := validBaseSettings()
-	m[string(config.SettingMaxBodySize.Key)] = "104857600"
-	m[string(config.SettingMaxImageSize.Key)] = "10485760"
-	m[string(config.SettingMaxVideoSize.Key)] = "52428800"
-	m[string(config.SettingMaxGeneralSize.Key)] = "52428800"
-	m[string(config.SettingMinPasswordLength.Key)] = "8"
-	m[string(config.SettingSessionDurationDays.Key)] = "30"
-	m[string(config.SettingMaxTheoriesPerDay.Key)] = "0"
-	m[string(config.SettingMaxResponsesPerDay.Key)] = "0"
-	m[string(config.SettingRegistrationType.Key)] = "open"
+	m[config.SettingMaxBodySize.Key] = "104857600"
+	m[config.SettingMaxImageSize.Key] = "10485760"
+	m[config.SettingMaxVideoSize.Key] = "52428800"
+	m[config.SettingMaxGeneralSize.Key] = "52428800"
+	m[config.SettingMinPasswordLength.Key] = "8"
+	m[config.SettingSessionDurationDays.Key] = "30"
+	m[config.SettingMaxTheoriesPerDay.Key] = "0"
+	m[config.SettingMaxResponsesPerDay.Key] = "0"
+	m[config.SettingRegistrationType.Key] = "open"
 	repo.EXPECT().GetAll(mock.Anything).Return(m, nil).Maybe()
 }
 
-func validBaseSettings() map[string]string {
-	out := make(map[string]string)
+func validBaseSettings() map[config.SiteSettingKey]string {
+	out := make(map[config.SiteSettingKey]string)
 	for _, def := range config.AllSiteSettings {
-		out[string(def.Key)] = def.Default
+		out[def.Key] = def.Default
 	}
 	return out
 }
@@ -62,7 +62,7 @@ func validBaseSettings() map[string]string {
 func TestGet_ReturnsDefaultWhenCacheEmpty(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingSiteName.Key)).Return("", errors.New("not found"))
+	repo.EXPECT().Get(mock.Anything, config.SettingSiteName.Key).Return("", errors.New("not found"))
 
 	// when
 	got := svc.Get(context.Background(), config.SettingSiteName)
@@ -74,7 +74,7 @@ func TestGet_ReturnsDefaultWhenCacheEmpty(t *testing.T) {
 func TestGet_ReturnsCachedValue(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingSiteName.Key)).Return("Cached Name", nil)
+	repo.EXPECT().Get(mock.Anything, config.SettingSiteName.Key).Return("Cached Name", nil)
 
 	// when
 	got := svc.Get(context.Background(), config.SettingSiteName)
@@ -86,7 +86,7 @@ func TestGet_ReturnsCachedValue(t *testing.T) {
 func TestGetInt_ParsesCachedValue(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingMaxBodySize.Key)).Return("4096", nil)
+	repo.EXPECT().Get(mock.Anything, config.SettingMaxBodySize.Key).Return("4096", nil)
 
 	// when
 	got := svc.GetInt(context.Background(), config.SettingMaxBodySize)
@@ -98,7 +98,7 @@ func TestGetInt_ParsesCachedValue(t *testing.T) {
 func TestGetInt_ReturnsZeroOnParseFailure(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingMaxBodySize.Key)).Return("not-a-number", nil)
+	repo.EXPECT().Get(mock.Anything, config.SettingMaxBodySize.Key).Return("not-a-number", nil)
 
 	// when
 	got := svc.GetInt(context.Background(), config.SettingMaxBodySize)
@@ -110,7 +110,7 @@ func TestGetInt_ReturnsZeroOnParseFailure(t *testing.T) {
 func TestGetInt_UsesDefaultWhenMissing(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingMaxBodySize.Key)).Return("", errors.New("not found"))
+	repo.EXPECT().Get(mock.Anything, config.SettingMaxBodySize.Key).Return("", errors.New("not found"))
 
 	// when
 	got := svc.GetInt(context.Background(), config.SettingMaxBodySize)
@@ -122,7 +122,7 @@ func TestGetInt_UsesDefaultWhenMissing(t *testing.T) {
 func TestGetBool_TrueWhenValueIsTrue(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingMaintenanceMode.Key)).Return("true", nil)
+	repo.EXPECT().Get(mock.Anything, config.SettingMaintenanceMode.Key).Return("true", nil)
 
 	// when
 	got := svc.GetBool(context.Background(), config.SettingMaintenanceMode)
@@ -146,7 +146,7 @@ func TestGetBool_FalseForOtherValues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, repo := newTestService(t)
-			repo.EXPECT().Get(mock.Anything, string(config.SettingMaintenanceMode.Key)).Return(tc.value, nil)
+			repo.EXPECT().Get(mock.Anything, config.SettingMaintenanceMode.Key).Return(tc.value, nil)
 
 			// when
 			got := svc.GetBool(context.Background(), config.SettingMaintenanceMode)
@@ -160,7 +160,7 @@ func TestGetBool_FalseForOtherValues(t *testing.T) {
 func TestGetAll_ReturnsDefaultsWhenCacheEmpty(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().GetAll(mock.Anything).Return(map[string]string{}, nil)
+	repo.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{}, nil)
 
 	// when
 	got := svc.GetAll(context.Background())
@@ -175,9 +175,9 @@ func TestGetAll_ReturnsDefaultsWhenCacheEmpty(t *testing.T) {
 func TestGetAll_OverlaysCachedValues(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().GetAll(mock.Anything).Return(map[string]string{
-		string(config.SettingSiteName.Key):        "Overlay",
-		string(config.SettingMaintenanceMode.Key): "true",
+	repo.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{
+		config.SettingSiteName.Key:        "Overlay",
+		config.SettingMaintenanceMode.Key: "true",
 	}, nil)
 
 	// when
@@ -205,20 +205,20 @@ func TestRefresh_RepoGetAllError(t *testing.T) {
 func TestRefresh_SeedsMissingDefaults(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	existing := map[string]string{}
+	existing := map[config.SiteSettingKey]string{}
 	for _, def := range config.AllSiteSettings {
-		existing[string(def.Key)] = def.Default
+		existing[def.Key] = def.Default
 	}
-	delete(existing, string(config.SettingSiteName.Key))
-	delete(existing, string(config.SettingBaseURL.Key))
+	delete(existing, config.SettingSiteName.Key)
+	delete(existing, config.SettingBaseURL.Key)
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
 	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(spec repository.SettingsReconcile) bool {
 		if len(spec.Missing) != 2 || len(spec.Stale) != 0 || spec.UpdatedBy != uuid.Nil {
 			return false
 		}
-		_, okName := spec.Missing[string(config.SettingSiteName.Key)]
-		_, okURL := spec.Missing[string(config.SettingBaseURL.Key)]
+		_, okName := spec.Missing[config.SettingSiteName.Key]
+		_, okURL := spec.Missing[config.SettingBaseURL.Key]
 		return okName && okURL
 	})).Return(nil)
 
@@ -232,7 +232,7 @@ func TestRefresh_SeedsMissingDefaults(t *testing.T) {
 func TestRefresh_SeedErrorBubbles(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
-	repo.EXPECT().GetAll(mock.Anything).Return(map[string]string{}, nil)
+	repo.EXPECT().GetAll(mock.Anything).Return(map[config.SiteSettingKey]string{}, nil)
 	repo.EXPECT().Reconcile(mock.Anything, mock.Anything).Return(errors.New("seed failed"))
 
 	// when
@@ -286,11 +286,11 @@ func TestRefresh_PopulatesCacheFromRepo(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	existing := validBaseSettings()
-	existing[string(config.SettingSiteName.Key)] = "Loaded Site"
-	existing[string(config.SettingMaintenanceMode.Key)] = "true"
+	existing[config.SettingSiteName.Key] = "Loaded Site"
+	existing[config.SettingMaintenanceMode.Key] = "true"
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
-	repo.EXPECT().Get(mock.Anything, string(config.SettingMaintenanceMode.Key)).Return("true", nil)
+	repo.EXPECT().Get(mock.Anything, config.SettingMaintenanceMode.Key).Return("true", nil)
 
 	// when
 	err := svc.Refresh(context.Background())
@@ -309,7 +309,7 @@ func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
 
-	repo.EXPECT().Set(mock.Anything, string(config.SettingSiteName.Key), "New Name", updatedBy).Return(nil)
+	repo.EXPECT().Set(mock.Anything, config.SettingSiteName.Key, "New Name", updatedBy).Return(nil)
 
 	// when
 	err := svc.Set(context.Background(), config.SettingSiteName, "New Name", updatedBy)
@@ -341,7 +341,7 @@ func TestSet_RepoErrorBubblesAndSkipsCache(t *testing.T) {
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
 
-	repo.EXPECT().Set(mock.Anything, string(config.SettingSiteName.Key), "Attempt", updatedBy).Return(errors.New("db down"))
+	repo.EXPECT().Set(mock.Anything, config.SettingSiteName.Key, "Attempt", updatedBy).Return(errors.New("db down"))
 
 	// when
 	err := svc.Set(context.Background(), config.SettingSiteName, "Attempt", updatedBy)
@@ -372,9 +372,9 @@ func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 		config.SettingMaintenanceMode.Key: "true",
 	}
 
-	repo.EXPECT().SetMultiple(mock.Anything, mock.MatchedBy(func(m map[string]string) bool {
-		return m[string(config.SettingSiteName.Key)] == "Multi Name" &&
-			m[string(config.SettingMaintenanceMode.Key)] == "true" &&
+	repo.EXPECT().SetMultiple(mock.Anything, mock.MatchedBy(func(m map[config.SiteSettingKey]string) bool {
+		return m[config.SettingSiteName.Key] == "Multi Name" &&
+			m[config.SettingMaintenanceMode.Key] == "true" &&
 			len(m) == 2
 	}), updatedBy).Return(nil)
 
@@ -459,7 +459,7 @@ func TestSubscribe_MultipleListenersAllNotified(t *testing.T) {
 	svc.Subscribe(l2)
 	updatedBy := uuid.New()
 
-	repo.EXPECT().Set(mock.Anything, string(config.SettingSiteName.Key), "Hello", updatedBy).Return(nil)
+	repo.EXPECT().Set(mock.Anything, config.SettingSiteName.Key, "Hello", updatedBy).Return(nil)
 
 	// when
 	err := svc.Set(context.Background(), config.SettingSiteName, "Hello", updatedBy)
@@ -575,7 +575,7 @@ func TestSet_ValidatorSkippedWhenValueUnchanged(t *testing.T) {
 		return errors.New("should not run")
 	})
 
-	repo.EXPECT().Set(mock.Anything, string(config.SettingValkeyURL.Key), config.SettingValkeyURL.Default, updatedBy).Return(nil)
+	repo.EXPECT().Set(mock.Anything, config.SettingValkeyURL.Key, config.SettingValkeyURL.Default, updatedBy).Return(nil)
 
 	// when
 	err := svc.Set(context.Background(), config.SettingValkeyURL, config.SettingValkeyURL.Default, updatedBy)
