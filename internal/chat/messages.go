@@ -308,7 +308,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
 
 		if m.botObserver != nil && !sender.IsBot {
-			m.botObserver.ObserveMessage(BotMessageEvent{
+			botEvent := BotMessageEvent{
 				RoomID:        roomID,
 				RoomType:      string(roomRow.Type),
 				SenderID:      senderID,
@@ -320,7 +320,14 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 				MentionedIDs:  mentionedIDs,
 				ReplyToID:     replyToID,
 				ReplyToAuthor: replyToAuthor,
-			})
+			}
+
+			m.sideEffectsWG.Add(1)
+			go func() {
+				defer m.sideEffectsWG.Done()
+
+				m.botObserver.ObserveMessage(botEvent)
+			}()
 		}
 	}
 

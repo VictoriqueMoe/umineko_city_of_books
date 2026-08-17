@@ -72,6 +72,18 @@ func TestOverQuota(t *testing.T) {
 	}
 }
 
+func TestQuotaClearsAt(t *testing.T) {
+	// given
+	oldest := time.Date(2026, 8, 9, 10, 0, 0, 0, time.UTC)
+
+	// when
+	got := quotaClearsAt(oldest)
+
+	// then
+	assert.Equal(t, oldest.Add(24*time.Hour), got)
+	assert.True(t, quotaClearsAt(time.Time{}).IsZero(), "an unknown oldest invocation must not invent a clearing time")
+}
+
 func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 	cases := []struct {
 		name       string

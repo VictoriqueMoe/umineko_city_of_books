@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,36 +16,11 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *service) worker(id int) {
-	defer s.wg.Done()
-
-	for {
-		select {
-		case <-s.quit:
-			return
-		default:
-		}
-
-		select {
-		case <-s.quit:
-			return
-		case j := <-s.jobs:
-			s.run(id, j)
-		}
-	}
-}
-
 func (s *service) run(id int, j job) {
 	defer s.inScope.Delete(j.ev.scopeKey())
 
 	ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 	defer cancel()
-
-	if j.notice.reason != reasonNone {
-		s.settle(ctx, j, j.notice)
-
-		return
-	}
 
 	tune, _ := s.snapshot()
 
@@ -211,21 +184,6 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 	return outcome{status: repository.InvocationReplied}
 }
 
-func emptyReplyMessage(reason string) string {
-	switch reason {
-	case openai.IncompleteContentFilter:
-		return "I began an answer to that and thought better of it. Try asking me another way."
-	case openai.IncompleteMaxOutputTokens:
-		return "I ran out of room before I got a word out. Ask me something narrower and I will manage it."
-	default:
-		return "I have nothing to say to that, which is unlike me. Try me again."
-	}
-}
-
-func trimBase(raw string) string {
-	return strings.TrimSuffix(strings.TrimSpace(raw), "/")
-}
-
 func (s *service) deliver(ctx context.Context, j job, body string) error {
 	if j.ev.Surface.gameBoard() {
 		var parentID *uuid.UUID
@@ -286,39 +244,6 @@ func quotaClearsAt(oldest time.Time) time.Time {
 	return oldest.Add(quotaWindow)
 }
 
-func (s *service) quotaMessage(q quotaState) string {
-	wait := humaniseWait(time.Until(q.clearsAt))
-
-	if q.global {
-		return fmt.Sprintf("Everyone has been keeping me busy and the whole site has reached its message limit. Try me again %s.", wait)
-	}
-
-	return fmt.Sprintf("You have reached your message limit for the moment. Try me again %s.", wait)
-}
-
-func humaniseWait(d time.Duration) string {
-	switch {
-	case d <= 0:
-		return "shortly"
-	case d < time.Minute:
-		return "in less than a minute"
-	case d < time.Hour:
-		minutes := int(d.Round(time.Minute).Minutes())
-		if minutes == 1 {
-			return "in about a minute"
-		}
-
-		return fmt.Sprintf("in about %d minutes", minutes)
-	default:
-		hours := int(d.Round(time.Hour).Hours())
-		if hours <= 1 {
-			return "in about an hour"
-		}
-
-		return fmt.Sprintf("in about %d hours", hours)
-	}
-}
-
 func (s *service) startTyping(ev botEvent, botUserID uuid.UUID) func() {
 	if ev.Surface != SurfaceChat || len(ev.Audience) == 0 {
 		return func() {}
@@ -327,18 +252,10 @@ func (s *service) startTyping(ev botEvent, botUserID uuid.UUID) func() {
 	stop := make(chan struct{})
 	var once sync.Once
 
-	msg := ws.Message{
-		Type: "typing",
-		Data: map[string]any{
-			"room_id": ev.ScopeID.String(),
-			"user_id": botUserID.String(),
-		},
-	}
+	msg := ws.TypingMessage(ev.ScopeID, botUserID)
 
 	send := func() {
-		for _, memberID := range ev.Audience {
-			s.hub.SendToUser(memberID, msg)
-		}
+		s.hub.SendToUsers(ev.Audience, msg)
 	}
 
 	send()

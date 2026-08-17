@@ -1,6 +1,7 @@
 package chatbot
 
 import (
+	"context"
 	"testing"
 
 	"umineko_city_of_books/internal/openai"
@@ -8,7 +9,47 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestShutdown_DrainsTheBacklogItCanAndStopsAtTheDeadline(t *testing.T) {
+	// given a worker that is already past its quit check, with a backlog it must not start
+	svc := &service{
+		jobs: make(chan job, 4),
+		quit: make(chan struct{}),
+	}
+
+	for range 3 {
+		svc.jobs <- job{}
+	}
+
+	expired, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	svc.deadline = expired.Done()
+
+	// when the deadline has already passed
+	svc.drain(0)
+
+	// then not one queued job was started, so shutdown cannot overrun the budget it shares
+	assert.Len(t, svc.jobs, 3, "an expired deadline must stop the drain before it starts new work")
+}
+
+func TestShutdown_IsIdempotent(t *testing.T) {
+	// given
+	svc := &service{
+		jobs: make(chan job, 1),
+		quit: make(chan struct{}),
+	}
+
+	// when
+	first := svc.Shutdown(context.Background())
+	second := svc.Shutdown(context.Background())
+
+	// then the second call must not panic on a second close of quit
+	require.NoError(t, first)
+	require.NoError(t, second)
+}
 
 func TestListing_OnlyExposesBotsWhenTheFeatureIsUsable(t *testing.T) {
 	botA := repository.Chatbot{UserID: uuid.New(), Username: "bern", DisplayName: "Bernkastel"}

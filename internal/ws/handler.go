@@ -338,7 +338,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 	defer span.End()
 
 	switch msg.Type {
-	case "typing":
+	case TypingMessageType:
 		var data typingData
 		if err := json.Unmarshal(msg.Data, &data); err != nil {
 			return
@@ -350,13 +350,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 		if !hub.IsUserInRoom(roomID, userID) {
 			return
 		}
-		hub.BroadcastToRoom(roomID, Message{
-			Type: "typing",
-			Data: map[string]any{
-				"room_id": data.RoomID,
-				"user_id": userID.String(),
-			},
-		}, userID)
+		hub.BroadcastToRoom(roomID, TypingMessage(roomID, userID), userID)
 
 	case "join_room":
 		var data roomActionData
