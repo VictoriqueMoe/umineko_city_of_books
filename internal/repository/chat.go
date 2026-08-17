@@ -288,7 +288,7 @@ func (r *chatRepository) CreateSystemRoom(ctx context.Context, spec NewChatSyste
 func (r *chatRepository) CreateGroupRoom(ctx context.Context, spec NewChatGroupRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
 	var created *ChatRoomRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateRoom(ctx, NewChatRoom{
@@ -329,7 +329,7 @@ func (r *chatRepository) CreateGroupRoom(ctx context.Context, spec NewChatGroupR
 }
 
 func (r *chatRepository) UpdateGroupRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.UpdateRoom(ctx, spec, tx); err != nil {
 			return fmt.Errorf("update group room: %w", err)
 		}
@@ -345,7 +345,7 @@ func (r *chatRepository) UpdateGroupRoom(ctx context.Context, spec UpdateChatRoo
 func (r *chatRepository) CreateSystemRoomWithHost(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
 	var created *ChatRoomRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateSystemRoom(ctx, spec, tx)
@@ -367,7 +367,7 @@ func (r *chatRepository) CreateSystemRooms(ctx context.Context, specs []NewChatS
 		return nil
 	}
 
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		for i := range specs {
 			if _, err := r.dao.CreateSystemRoom(ctx, specs[i], tx); err != nil {
 				return err
@@ -381,7 +381,7 @@ func (r *chatRepository) CreateSystemRooms(ctx context.Context, specs []NewChatS
 func (r *chatRepository) SyncSystemRoomMembership(ctx context.Context, targets []SystemRoomMembership, tx ...*sql.Tx) ([]SystemRoomMembershipChange, error) {
 	var changes []SystemRoomMembershipChange
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		changes = nil
 
 		for i := range targets {
@@ -431,7 +431,7 @@ func (r *chatRepository) SyncSystemRoomMembership(ctx context.Context, targets [
 func (r *chatRepository) AddMemberWithSystemMessage(ctx context.Context, member NewChatRoomMember, message NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error) {
 	var created *ChatMessageRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.AddMemberWithRole(ctx, member.RoomID, member.UserID, member.Role, member.Ghost, tx); err != nil {
 			return err
 		}
@@ -463,7 +463,7 @@ func (r *chatRepository) AddMemberWithSystemMessage(ctx context.Context, member 
 func (r *chatRepository) DeleteRoomWithMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		paths = nil
 
 		mediaURLs, err := r.dao.ListRoomMediaURLs(ctx, roomID, tx)
@@ -499,7 +499,7 @@ func (r *chatRepository) DeleteRoomWithMessages(ctx context.Context, roomID uuid
 func (r *chatRepository) DeleteMessageWithMedia(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		paths, err = r.dao.ListMessageMediaURLs(ctx, messageID, tx)
@@ -527,7 +527,7 @@ func (r *chatRepository) GetSystemRoomID(ctx context.Context, systemKind string,
 func (r *chatRepository) CreateDMRoomAtomic(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error) {
 	var result *ChatRoomRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		existing, err := r.dao.FindDMRoomByPair(ctx, userA, userB, tx)
 		if err != nil {
 			return err
@@ -714,7 +714,7 @@ func (r *chatRepository) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UU
 func (r *chatRepository) InsertMessageAndMarkRead(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error) {
 	var result *ChatMessageRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		msg, err := r.insertMessage(ctx, spec, tx)
 		if err != nil {
 			return fmt.Errorf("insert message: %w", err)
@@ -740,7 +740,7 @@ func (r *chatRepository) InsertSystemMessage(ctx context.Context, roomID, sender
 
 	var result *ChatMessageRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		msg, err := r.insertMessage(ctx, spec, tx)
 		if err != nil {
 			return err

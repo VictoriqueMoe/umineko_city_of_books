@@ -302,7 +302,7 @@ func (r *journalRepository) Update(ctx context.Context, spec JournalUpdate, tx .
 func (r *journalRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		entryIDs, err := r.dao.ListEntryIDs(ctx, id, tx)
 		if err != nil {
 			return err
@@ -397,7 +397,7 @@ func (r *journalRepository) ListFollowedByUser(ctx context.Context, followerID u
 func (r *journalRepository) CreateEntry(ctx context.Context, spec NewJournalEntry, tx ...*sql.Tx) (*JournalEntryRow, error) {
 	var created *JournalEntryRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateEntry(ctx, spec, tx)
@@ -415,7 +415,7 @@ func (r *journalRepository) CreateEntry(ctx context.Context, spec NewJournalEntr
 }
 
 func (r *journalRepository) UpdateEntry(ctx context.Context, spec JournalEntryUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.UpdateEntry(ctx, spec, tx); err != nil {
 			return err
 		}
@@ -431,7 +431,7 @@ func (r *journalRepository) UpdateEntry(ctx context.Context, spec JournalEntryUp
 func (r *journalRepository) DeleteEntry(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		collected, err := r.dao.CollectMediaPaths(ctx, id, tx)
 		if err != nil {
 			return err
@@ -493,7 +493,7 @@ func (r *journalRepository) GetEntryAuthorID(ctx context.Context, entryID uuid.U
 func (r *journalRepository) CreateComment(ctx context.Context, spec NewJournalComment, tx ...*sql.Tx) (*CommentRow, error) {
 	var created *CommentRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateComment(ctx, spec, tx)
@@ -525,7 +525,7 @@ func (r *journalRepository) UpdateComment(ctx context.Context, spec JournalComme
 func (r *journalRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, id, tx)
 		if err != nil {
 			return err

@@ -15,7 +15,7 @@ const (
 	httpShutdownTimeout = 8 * time.Second
 )
 
-func StartServerWithGracefulShutdown(app *fiber.App, addr string) {
+func StartServerWithGracefulShutdown(app *fiber.App, addr string) error {
 	idleConnsClosed := make(chan struct{})
 
 	go func() {
@@ -31,8 +31,10 @@ func StartServerWithGracefulShutdown(app *fiber.App, addr string) {
 	}()
 
 	if err := app.Listen(addr); err != nil {
-		logger.Log.Error().Err(err).Msg("server error")
+		return err
 	}
 
 	<-idleConnsClosed
+
+	return nil
 }

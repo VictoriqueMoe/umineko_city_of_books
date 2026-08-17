@@ -111,7 +111,7 @@ func NewSecretRepo(database *sql.DB, dao SecretDAO, audit AuditLogRepository) Se
 }
 
 func (r *secretRepository) UpdateCommentBody(ctx context.Context, spec SecretCommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
 		if err != nil {
 			return err

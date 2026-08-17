@@ -49,7 +49,7 @@ func NewPasswordResetRepo(database *sql.DB, dao PasswordResetDAO) PasswordResetR
 }
 
 func (r *passwordResetRepository) Issue(ctx context.Context, spec NewPasswordReset, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.DeleteUnusedForUser(ctx, spec.UserID, tx); err != nil {
 			return err
 		}

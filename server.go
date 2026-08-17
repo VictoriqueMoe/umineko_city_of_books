@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
@@ -161,6 +162,8 @@ func initServer() (*fiber.App, func()) {
 }
 
 func initApp(svc *services, repos *repository.Repositories, settingsSvc settings.Service) *fiber.App {
+	siteName := settingsSvc.Get(context.Background(), config.SettingSiteName)
+
 	app := fiber.New(fiber.Config{
 		ProxyHeader: "CF-Connecting-IP",
 		TrustProxy:  true,
@@ -168,6 +171,8 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 			Loopback: true,
 			Private:  true,
 		},
+		EnableIPValidation: true,
+		AppName:            siteName,
 	})
 
 	middleware.Setup(app, settingsSvc, svc.session, svc.authz)

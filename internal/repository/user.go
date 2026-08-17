@@ -142,7 +142,7 @@ func NewUserRepo(database *sql.DB, dao UserDAO, c *cache.Manager, roles RoleRepo
 func (r *userRepository) RegisterAccount(ctx context.Context, spec NewRegistration, tx ...*sql.Tx) (*model.User, error) {
 	var created *model.User
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.Create(ctx, spec.Account.User, tx)
@@ -203,7 +203,7 @@ func (r *userRepository) RegisterAccount(ctx context.Context, spec NewRegistrati
 }
 
 func (r *userRepository) ResetPassword(ctx context.Context, spec PasswordUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.SetPasswordHash(ctx, spec.UserID, spec.PasswordHash, tx); err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}
@@ -233,7 +233,7 @@ func (r *userRepository) ResetPassword(ctx context.Context, spec PasswordUpdate,
 }
 
 func (r *userRepository) SetEmailVerified(ctx context.Context, userID uuid.UUID, verified bool, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if verified {
 			if err := r.dao.MarkEmailVerified(ctx, userID, tx); err != nil {
 				return fmt.Errorf("mark email verified: %w", err)
@@ -253,7 +253,7 @@ func (r *userRepository) SetEmailVerified(ctx context.Context, userID uuid.UUID,
 }
 
 func (r *userRepository) ConfirmEmailVerification(ctx context.Context, userID uuid.UUID, tokenHash string, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.MarkEmailVerified(ctx, userID, tx); err != nil {
 			return fmt.Errorf("mark email verified: %w", err)
 		}

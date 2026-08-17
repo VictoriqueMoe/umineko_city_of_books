@@ -71,7 +71,7 @@ func NewChatBannedWordRepo(database *sql.DB, dao ChatBannedWordDAO, audit AuditL
 func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
 	var created *ChatBannedWordRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.Create(ctx, spec, tx)
@@ -93,7 +93,7 @@ func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec Cha
 }
 
 func (r *chatBannedWordRepository) DeleteWithAudit(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.Delete(ctx, id, tx); err != nil {
 			return err
 		}

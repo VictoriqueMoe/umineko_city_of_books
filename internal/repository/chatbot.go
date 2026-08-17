@@ -135,7 +135,7 @@ func NewChatbotRepo(database *sql.DB, dao ChatbotDAO, users UserRepository, vani
 func (r *chatbotRepository) CreateBotWithAccount(ctx context.Context, account NewUser, bot Chatbot, vanityRoleID string, tx ...*sql.Tx) (*Chatbot, error) {
 	var created *Chatbot
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		user, err := r.users.Create(ctx, account, tx)
 		if err != nil {
 			return fmt.Errorf("create bot account: %w", err)
@@ -166,7 +166,7 @@ func (r *chatbotRepository) CreateBotWithAccount(ctx context.Context, account Ne
 func (r *chatbotRepository) UpdateBotWithAccount(ctx context.Context, bot Chatbot, displayName, avatarURL string, tx ...*sql.Tx) (*Chatbot, error) {
 	var updated *Chatbot
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.users.SetDisplayName(ctx, bot.UserID, displayName, tx); err != nil {
 			return fmt.Errorf("update bot display name: %w", err)
 		}

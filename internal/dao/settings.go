@@ -58,7 +58,7 @@ func (r *settingsDAO) SetMultiple(ctx context.Context, settings map[string]strin
 	if updatedBy != uuid.Nil {
 		actor = updatedBy
 	}
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		for key, value := range settings {
 			_, err := tx.ExecContext(ctx,
 				`INSERT INTO site_settings (key, value, updated_by, updated_at) VALUES ($1, $2, $3, NOW())

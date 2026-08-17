@@ -95,7 +95,7 @@ func NewAnnouncementRepo(database *sql.DB, dao AnnouncementDAO, audit AuditLogRe
 }
 
 func (r *announcementRepository) UpdateCommentBody(ctx context.Context, spec AnnouncementCommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
 		if err != nil {
 			return err
@@ -145,7 +145,7 @@ func (r *announcementRepository) DeleteCommentWithAudit(ctx context.Context, spe
 func (r *announcementRepository) DeleteWithMedia(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		mediaPaths, err := r.dao.CollectCommentMediaPaths(ctx, id, tx)
 		if err != nil {
 			return err

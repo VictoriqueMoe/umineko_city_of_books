@@ -31,7 +31,7 @@ type (
 func deleteCommentWithAudit(ctx context.Context, database *sql.DB, dao commentDeleteDAO, audit AuditLogRepository, spec commentDeleteSpec, tx []*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, database, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, database, tx, func(tx *sql.Tx) error {
 		authorID, err := dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
 		if err != nil {
 			return err

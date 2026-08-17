@@ -78,7 +78,7 @@ func (r *ocDAO) Create(ctx context.Context, spec repository.NewOC, tx ...*sql.Tx
 }
 
 func (r *ocDAO) Update(ctx context.Context, spec repository.OCUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var res sql.Result
 		var err error
 		if spec.AsAdmin {

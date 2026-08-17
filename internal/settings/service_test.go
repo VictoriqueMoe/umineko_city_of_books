@@ -17,7 +17,7 @@ import (
 
 func newTestService(t *testing.T) (*service, *repository.MockSettingsRepository) {
 	repo := repository.NewMockSettingsRepository(t)
-	svc := NewService(repo, nil).(*service)
+	svc := NewService(repo).(*service)
 	return svc, repo
 }
 

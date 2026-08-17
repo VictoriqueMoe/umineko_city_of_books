@@ -86,7 +86,7 @@ func NewLiveStreamRepo(database *sql.DB, dao LiveStreamDAO) LiveStreamRepository
 }
 
 func (r *liveStreamRepository) Activate(ctx context.Context, spec LiveStreamActivation, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.SetIngress(ctx, spec.Ingress, tx); err != nil {
 			return err
 		}

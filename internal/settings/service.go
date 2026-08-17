@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"sync"
 
-	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
@@ -41,7 +40,6 @@ type (
 
 	service struct {
 		repo           repository.SettingsRepository
-		cache          *cache.Manager
 		listeners      []Listener
 		batchListeners []BatchListener
 		listenerMu     sync.RWMutex
@@ -50,8 +48,8 @@ type (
 	}
 )
 
-func NewService(repo repository.SettingsRepository, cacheMgr *cache.Manager) Service {
-	return &service{repo: repo, cache: cacheMgr}
+func NewService(repo repository.SettingsRepository) Service {
+	return &service{repo: repo}
 }
 
 func (s *service) Subscribe(listener Listener) {
@@ -163,18 +161,11 @@ func (s *service) Refresh(ctx context.Context) error {
 }
 
 func (s *service) Get(ctx context.Context, def *config.SiteSettingDef) string {
-	key := cache.Setting.Key(string(def.Key))
-
-	if v, err := cache.Get[string](ctx, s.cache, key); err == nil {
-		return v
-	}
-
 	v, err := s.repo.Get(ctx, string(def.Key))
 	if err != nil {
 		return def.Default
 	}
 
-	_ = cache.Set(ctx, s.cache, key, v, cache.Setting.TTL)
 	return v
 }
 
@@ -225,7 +216,6 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 		return err
 	}
 
-	_ = s.cache.Del(ctx, cache.Setting.Key(string(setting.Key)))
 	s.notify(setting.Key, value)
 	logger.Log.Info().Str("key", string(setting.Key)).Str("updated_by", updatedBy.String()).Msg("setting updated")
 	return nil
@@ -235,7 +225,6 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	merged := s.GetAll(ctx)
 
 	raw := make(map[string]string, len(values))
-	cacheKeys := make([]string, 0, len(values))
 	keys := make([]config.SiteSettingKey, 0, len(values))
 	changed := make(map[config.SiteSettingKey]string)
 
@@ -245,7 +234,6 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		}
 
 		raw[string(k)] = v
-		cacheKeys = append(cacheKeys, cache.Setting.Key(string(k)))
 		keys = append(keys, k)
 
 		if merged[k] != v {
@@ -266,8 +254,6 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	if err := s.repo.SetMultiple(ctx, raw, updatedBy); err != nil {
 		return err
 	}
-
-	_ = s.cache.Del(ctx, cacheKeys...)
 
 	for k, v := range values {
 		s.notify(k, v)

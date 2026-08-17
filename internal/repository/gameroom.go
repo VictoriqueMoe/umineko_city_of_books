@@ -120,7 +120,7 @@ func NewGameRoomRepo(database *sql.DB, dao GameRoomDAO, c *cache.Manager) GameRo
 func (r *gameRoomRepository) CreateInvite(ctx context.Context, spec NewGameRoomInvite, tx ...*sql.Tx) (*GameRoomRow, error) {
 	var created *GameRoomRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateRoom(ctx, spec.GameType, spec.InitialStateJSON, spec.InviterID, tx)
@@ -142,7 +142,7 @@ func (r *gameRoomRepository) CreateInvite(ctx context.Context, spec NewGameRoomI
 }
 
 func (r *gameRoomRepository) Start(ctx context.Context, spec GameRoomStart, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.SetPlayerJoined(ctx, spec.RoomID, spec.UserID, tx); err != nil {
 			return err
 		}

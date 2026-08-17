@@ -290,7 +290,7 @@ func (r *mysteryRepository) Create(ctx context.Context, userID uuid.UUID, title 
 func (r *mysteryRepository) CreateWithClues(ctx context.Context, spec NewMystery, tx ...*sql.Tx) (*MysteryRow, error) {
 	var created *MysteryRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.Create(ctx, spec.UserID, spec.Title, spec.Body, spec.Difficulty, spec.FreeForAll, spec.KeepOpenAfterSolve, spec.Knox, tx)
@@ -308,7 +308,7 @@ func (r *mysteryRepository) CreateWithClues(ctx context.Context, spec NewMystery
 }
 
 func (r *mysteryRepository) UpdateWithClues(ctx context.Context, spec MysteryUpdate, tx ...*sql.Tx) error {
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.UpdateAsAdmin(ctx, spec.ID, spec.Title, spec.Body, spec.Difficulty, spec.FreeForAll, spec.KeepOpenAfterSolve, spec.Knox, tx); err != nil {
 			return err
 		}
@@ -385,7 +385,7 @@ func (r *mysteryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx 
 func (r *mysteryRepository) DeleteWithFiles(ctx context.Context, spec MysteryDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		row, err := r.dao.GetByID(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -554,7 +554,7 @@ func (r *mysteryRepository) VoteAttempt(ctx context.Context, userID uuid.UUID, a
 }
 
 func (r *mysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool, tx ...*sql.Tx) error {
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		attemptUserID, attemptMysteryID, err := r.dao.GetAttemptOwner(ctx, attemptID, tx)
 		if err != nil {
 			return err
@@ -686,7 +686,7 @@ func (r *mysteryRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UU
 func (r *mysteryRepository) DeleteCommentWithAudit(ctx context.Context, spec MysteryCommentDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.ID, tx)
 		if err != nil {
 			return err

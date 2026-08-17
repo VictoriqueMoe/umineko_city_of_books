@@ -29,7 +29,7 @@ func (r *permissionDAO) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (
 }
 
 func (r *permissionDAO) SetRolePermissions(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM role_permissions WHERE role = $1`, roleName); err != nil {
 			return fmt.Errorf("clear role permissions: %w", err)
 		}
@@ -63,7 +63,7 @@ func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context, tx ...*sql
 }
 
 func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if _, err := tx.ExecContext(ctx, `DELETE FROM vanity_role_permissions WHERE vanity_role_id = $1`, vanityRoleID); err != nil {
 			return fmt.Errorf("clear vanity role permissions: %w", err)
 		}

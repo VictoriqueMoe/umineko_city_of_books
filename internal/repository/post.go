@@ -199,7 +199,7 @@ func NewPostRepo(database *sql.DB, dao PostDAO, audit AuditLogRepository) PostRe
 func (r *postRepository) CreateWithDetails(ctx context.Context, spec NewPost, tx ...*sql.Tx) (*model.PostRow, error) {
 	var created *model.PostRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.Create(ctx, spec, tx)
@@ -223,7 +223,7 @@ func (r *postRepository) CreateWithDetails(ctx context.Context, spec NewPost, tx
 }
 
 func (r *postRepository) UpdateWithDetails(ctx context.Context, spec PostUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		if spec.AsAdmin {
@@ -245,7 +245,7 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, spec PostD
 		paths  []string
 	)
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		contentID, contentType, err := r.dao.GetSharedContentFields(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -290,7 +290,7 @@ func (r *postRepository) DeleteWithSharedContent(ctx context.Context, spec PostD
 }
 
 func (r *postRepository) UpdateCommentWithDetails(ctx context.Context, spec PostCommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		if spec.AsAdmin {
@@ -309,7 +309,7 @@ func (r *postRepository) UpdateCommentWithDetails(ctx context.Context, spec Post
 func (r *postRepository) DeleteCommentWithAudit(ctx context.Context, spec PostCommentDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -544,7 +544,7 @@ func (r *postRepository) CreatePollWithOptions(ctx context.Context, postID uuid.
 
 	spec := NewPoll{DurationSeconds: durationSeconds, ExpiresAt: expiresAt, Options: options}
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.createPoll(ctx, postID, spec, tx)

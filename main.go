@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/telemetry"
@@ -8,6 +10,12 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	logger.Init(config.SettingLogLevel.Default)
 	defer logger.Shutdown()
 	defer telemetry.Shutdown()
@@ -22,5 +30,11 @@ func main() {
 	defer cleanup()
 
 	logger.Log.Info().Str("addr", ":4323").Msg("starting server")
-	utils.StartServerWithGracefulShutdown(app, ":4323")
+
+	err := utils.StartServerWithGracefulShutdown(app, ":4323")
+	if err != nil {
+		logger.Log.Err(err).Msg("server error")
+	}
+
+	return err
 }

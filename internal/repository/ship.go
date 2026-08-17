@@ -121,7 +121,7 @@ func NewShipRepo(database *sql.DB, dao ShipDAO, audit AuditLogRepository) ShipRe
 func (r *shipRepository) CreateWithCharacters(ctx context.Context, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var created *model.ShipRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.Create(ctx, userID, title, description, tx)
@@ -139,7 +139,7 @@ func (r *shipRepository) CreateWithCharacters(ctx context.Context, userID uuid.U
 }
 
 func (r *shipRepository) UpdateWithCharacters(ctx context.Context, spec ShipUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		details := ShipDetailsUpdate{
 			ID:          spec.ID,
 			UserID:      spec.UserID,
@@ -163,7 +163,7 @@ func (r *shipRepository) UpdateWithCharacters(ctx context.Context, spec ShipUpda
 func (r *shipRepository) DeleteShip(ctx context.Context, spec ShipDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		imagePaths, err := r.dao.GetImagePaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -198,7 +198,7 @@ func (r *shipRepository) DeleteShip(ctx context.Context, spec ShipDeletion, tx .
 }
 
 func (r *shipRepository) UpdateCommentBody(ctx context.Context, spec ShipCommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		authorID, err := r.dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
 		if err != nil {
 			return err

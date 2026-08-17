@@ -49,7 +49,7 @@ func NewEmailVerificationRepo(database *sql.DB, dao EmailVerificationDAO) EmailV
 }
 
 func (r *emailVerificationRepository) Issue(ctx context.Context, spec NewEmailVerification, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.DeleteUnusedForUser(ctx, spec.UserID, tx); err != nil {
 			return err
 		}

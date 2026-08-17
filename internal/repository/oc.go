@@ -109,7 +109,7 @@ func NewOCRepo(database *sql.DB, dao OCDAO, audit AuditLogRepository) OCReposito
 func (r *ocRepository) DeleteOC(ctx context.Context, spec OCDeletion, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		imagePaths, err := r.dao.GetImagePaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err

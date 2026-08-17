@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"time"
-
 	"umineko_city_of_books/internal/cache/engine"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -48,8 +47,8 @@ func (m *Manager) Del(ctx context.Context, keys ...string) error {
 	}
 
 	var firstErr error
-	for i := range m.engines {
-		err := m.engines[i].Del(ctx, keys...)
+	for _, candidate := range m.engines {
+		err := candidate.Del(ctx, keys...)
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -73,8 +72,8 @@ func (m *Manager) Close() error {
 	}
 
 	var firstErr error
-	for i := range m.engines {
-		err := m.engines[i].Close()
+	for _, candidate := range m.engines {
+		err := candidate.Close()
 		if err != nil && firstErr == nil {
 			firstErr = err
 		}
@@ -126,9 +125,9 @@ func (m *Manager) current() engine.Engine {
 		return nil
 	}
 
-	for i := range m.engines {
-		if m.engines[i].Enabled() {
-			return m.engines[i]
+	for _, candidate := range m.engines {
+		if candidate.Enabled() {
+			return candidate
 		}
 	}
 

@@ -76,7 +76,7 @@ func NewVanityRoleRepo(database *sql.DB, dao VanityRoleDAO, c *cache.Manager) Va
 }
 
 func (r *vanityRoleRepository) MoveUserRole(ctx context.Context, spec VanityRoleMove, tx ...*sql.Tx) error {
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.AssignToUser(ctx, spec.UserID, spec.ToRoleID, tx); err != nil {
 			return err
 		}

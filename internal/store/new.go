@@ -14,7 +14,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.Session = repository.NewSessionRepo(dao.NewSession(db))
 	repos.Notification = repository.NewNotificationRepo(dao.NewNotification(db))
 	repos.Role = repository.NewRoleRepo(dao.NewRole(db), c)
-	repos.Settings = repository.NewSettingsRepo(db, dao.NewSettings(db))
+	repos.Settings = repository.NewSettingsRepo(db, dao.NewSettings(db), c)
 	repos.AuditLog = repository.NewAuditLogRepo(dao.NewAuditLog(db))
 	repos.Theory = repository.NewTheoryRepo(db, dao.NewTheory(db), repos.AuditLog)
 	repos.Stats = repository.NewStatsRepo(dao.NewStats(db))
