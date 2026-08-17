@@ -91,7 +91,7 @@ func NewChatWatchPartyRepo(database *sql.DB, dao ChatWatchPartyDAO, chat ChatRep
 func (r *chatWatchPartyRepository) StartSession(ctx context.Context, spec NewWatchPartySession, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error) {
 	var created *ChatWatchPartySessionRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateSession(ctx, spec.Session, tx)
@@ -130,7 +130,7 @@ func (r *chatWatchPartyRepository) StartSession(ctx context.Context, spec NewWat
 }
 
 func (r *chatWatchPartyRepository) RemoveParticipant(ctx context.Context, sessionID, userID uuid.UUID, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.MarkParticipantLeft(ctx, sessionID, userID, tx); err != nil {
 			return err
 		}
@@ -140,7 +140,7 @@ func (r *chatWatchPartyRepository) RemoveParticipant(ctx context.Context, sessio
 }
 
 func (r *chatWatchPartyRepository) TransferControl(ctx context.Context, sessionID uuid.UUID, demoteIDs []uuid.UUID, targetID uuid.UUID, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		for i := range demoteIDs {
 			if err := r.dao.SetParticipantControl(ctx, sessionID, demoteIDs[i], false, tx); err != nil {
 				return err

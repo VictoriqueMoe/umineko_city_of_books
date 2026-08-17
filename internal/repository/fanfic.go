@@ -191,7 +191,7 @@ func NewFanficRepo(database *sql.DB, dao FanficDAO, audit AuditLogRepository) Fa
 func (r *fanficRepository) CreateWithDetails(ctx context.Context, spec NewFanfic, tx ...*sql.Tx) (*model.FanficRow, error) {
 	var created *model.FanficRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.RegisterSeries(ctx, spec.Series, tx); err != nil {
 			return err
 		}
@@ -256,7 +256,7 @@ func (r *fanficRepository) registerOCCharacters(ctx context.Context, userID uuid
 }
 
 func (r *fanficRepository) UpdateWithDetails(ctx context.Context, spec FanficUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.RegisterSeries(ctx, spec.Series, tx); err != nil {
 			return err
 		}
@@ -300,7 +300,7 @@ func (r *fanficRepository) UpdateWithDetails(ctx context.Context, spec FanficUpd
 func (r *fanficRepository) DeleteFanfic(ctx context.Context, spec FanficDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		coverPaths, err := r.dao.GetCoverImagePaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -336,7 +336,7 @@ func (r *fanficRepository) DeleteFanfic(ctx context.Context, spec FanficDelete, 
 func (r *fanficRepository) CreateChapterWithCount(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
 	var created *model.FanficChapterRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateChapter(ctx, fanficID, spec, tx)
@@ -354,7 +354,7 @@ func (r *fanficRepository) CreateChapterWithCount(ctx context.Context, fanficID 
 }
 
 func (r *fanficRepository) UpdateChapterWithCount(ctx context.Context, spec ChapterUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.UpdateChapter(ctx, spec.ID, spec.Title, spec.Body, spec.WordCount, tx); err != nil {
 			return err
 		}
@@ -369,7 +369,7 @@ func (r *fanficRepository) UpdateChapterWithCount(ctx context.Context, spec Chap
 }
 
 func (r *fanficRepository) DeleteChapterWithCount(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		fanficID, err := r.dao.GetChapterFanficID(ctx, id, tx)
 		if err != nil {
 			return err
@@ -394,7 +394,7 @@ func (r *fanficRepository) UpdateCommentBody(ctx context.Context, spec FanficCom
 func (r *fanficRepository) DeleteCommentWithAudit(ctx context.Context, spec FanficCommentDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err

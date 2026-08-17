@@ -23,7 +23,7 @@ func withTx(ctx context.Context, db *sql.DB, fn func(*sql.Tx) error) error {
 	return nil
 }
 
-func WithTxOrJoin(ctx context.Context, db *sql.DB, tx []*sql.Tx, fn func(*sql.Tx) error) error {
+func WithTx(ctx context.Context, db *sql.DB, tx []*sql.Tx, fn func(*sql.Tx) error) error {
 	if len(tx) > 0 && tx[0] != nil {
 		return fn(tx[0])
 	}

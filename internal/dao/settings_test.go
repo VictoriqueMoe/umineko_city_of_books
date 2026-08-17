@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dao/daotest"
 
 	"github.com/google/uuid"
@@ -93,7 +94,7 @@ func TestSettingsDAO_GetAll(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{
+	assert.Equal(t, map[config.SiteSettingKey]string{
 		"alpha": "1",
 		"beta":  "2",
 		"gamma": "3",
@@ -104,7 +105,7 @@ func TestSettingsDAO_SetMultiple(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	settings := map[string]string{
+	settings := map[config.SiteSettingKey]string{
 		"colour":   "blue",
 		"language": "en-GB",
 		"timezone": "UTC",
@@ -126,7 +127,7 @@ func TestSettingsDAO_SetMultiple_Empty(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), map[string]string{}, user.ID)
+	err := repos.Settings.SetMultiple(context.Background(), map[config.SiteSettingKey]string{}, user.ID)
 
 	// then
 	require.NoError(t, err)
@@ -143,7 +144,7 @@ func TestSettingsDAO_SetMultiple_Upsert(t *testing.T) {
 	require.NoError(t, repos.Settings.Set(context.Background(), "extra", "keep", user.ID))
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), map[string]string{
+	err := repos.Settings.SetMultiple(context.Background(), map[config.SiteSettingKey]string{
 		"colour": "green",
 		"size":   "large",
 	}, user.ID)
@@ -152,7 +153,7 @@ func TestSettingsDAO_SetMultiple_Upsert(t *testing.T) {
 	require.NoError(t, err)
 	got, err := repos.Settings.GetAll(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{
+	assert.Equal(t, map[config.SiteSettingKey]string{
 		"colour": "green",
 		"extra":  "keep",
 		"size":   "large",
@@ -164,7 +165,7 @@ func TestSettingsDAO_SetMultiple_NilUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), map[string]string{
+	err := repos.Settings.SetMultiple(context.Background(), map[config.SiteSettingKey]string{
 		"a": "1",
 		"b": "2",
 	}, uuid.Nil)
@@ -173,7 +174,7 @@ func TestSettingsDAO_SetMultiple_NilUser(t *testing.T) {
 	require.NoError(t, err)
 	got, err := repos.Settings.GetAll(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, map[string]string{"a": "1", "b": "2"}, got)
+	assert.Equal(t, map[config.SiteSettingKey]string{"a": "1", "b": "2"}, got)
 }
 
 func TestSettingsDAO_Delete(t *testing.T) {

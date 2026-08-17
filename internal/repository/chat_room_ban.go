@@ -51,7 +51,7 @@ func NewChatRoomBanRepo(database *sql.DB, dao ChatRoomBanDAO, audit AuditLogRepo
 }
 
 func (r *chatRoomBanRepository) UnbanWithAudit(ctx context.Context, roomID, userID, actorID uuid.UUID, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.Unban(ctx, roomID, userID, tx); err != nil {
 			return err
 		}

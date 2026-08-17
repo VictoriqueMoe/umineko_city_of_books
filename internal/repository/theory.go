@@ -108,7 +108,7 @@ func NewTheoryRepo(database *sql.DB, dao TheoryDAO, audit AuditLogRepository) Th
 func (r *theoryRepository) Create(ctx context.Context, spec NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {
 	var created *dto.TheoryDetailResponse
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 		created, err = r.dao.InsertTheory(ctx, spec, tx)
 		if err != nil {
@@ -150,7 +150,7 @@ func (r *theoryRepository) List(ctx context.Context, p params.ListParams, userID
 }
 
 func (r *theoryRepository) Update(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.UpdateTheory(ctx, spec, tx); err != nil {
 			return err
 		}
@@ -182,7 +182,7 @@ func (r *theoryRepository) GetEvidence(ctx context.Context, theoryID uuid.UUID, 
 func (r *theoryRepository) CreateResponse(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx) (*dto.ResponseResponse, error) {
 	var created *dto.ResponseResponse
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 		created, err = r.dao.InsertResponse(ctx, spec, tx)
 		if err != nil {

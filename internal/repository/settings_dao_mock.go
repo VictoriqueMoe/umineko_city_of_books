@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/config"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -40,7 +41,7 @@ func (_m *MockSettingsDAO) EXPECT() *MockSettingsDAO_Expecter {
 }
 
 // Delete provides a mock function for the type MockSettingsDAO
-func (_mock *MockSettingsDAO) Delete(ctx context.Context, key string, tx ...*sql.Tx) error {
+func (_mock *MockSettingsDAO) Delete(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, key, tx)
@@ -54,7 +55,7 @@ func (_mock *MockSettingsDAO) Delete(ctx context.Context, key string, tx ...*sql
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, config.SiteSettingKey, ...*sql.Tx) error); ok {
 		r0 = returnFunc(ctx, key, tx...)
 	} else {
 		r0 = ret.Error(0)
@@ -69,22 +70,22 @@ type MockSettingsDAO_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - key string
+//   - key config.SiteSettingKey
 //   - tx ...*sql.Tx
 func (_e *MockSettingsDAO_Expecter) Delete(ctx any, key any, tx ...any) *MockSettingsDAO_Delete_Call {
 	return &MockSettingsDAO_Delete_Call{Call: _e.mock.On("Delete",
 		append([]any{ctx, key}, tx...)...)}
 }
 
-func (_c *MockSettingsDAO_Delete_Call) Run(run func(ctx context.Context, key string, tx ...*sql.Tx)) *MockSettingsDAO_Delete_Call {
+func (_c *MockSettingsDAO_Delete_Call) Run(run func(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx)) *MockSettingsDAO_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 config.SiteSettingKey
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(config.SiteSettingKey)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -106,13 +107,13 @@ func (_c *MockSettingsDAO_Delete_Call) Return(err error) *MockSettingsDAO_Delete
 	return _c
 }
 
-func (_c *MockSettingsDAO_Delete_Call) RunAndReturn(run func(ctx context.Context, key string, tx ...*sql.Tx) error) *MockSettingsDAO_Delete_Call {
+func (_c *MockSettingsDAO_Delete_Call) RunAndReturn(run func(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) error) *MockSettingsDAO_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Get provides a mock function for the type MockSettingsDAO
-func (_mock *MockSettingsDAO) Get(ctx context.Context, key string, tx ...*sql.Tx) (string, error) {
+func (_mock *MockSettingsDAO) Get(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, key, tx)
@@ -127,15 +128,15 @@ func (_mock *MockSettingsDAO) Get(ctx context.Context, key string, tx ...*sql.Tx
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, config.SiteSettingKey, ...*sql.Tx) (string, error)); ok {
 		return returnFunc(ctx, key, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, config.SiteSettingKey, ...*sql.Tx) string); ok {
 		r0 = returnFunc(ctx, key, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, config.SiteSettingKey, ...*sql.Tx) error); ok {
 		r1 = returnFunc(ctx, key, tx...)
 	} else {
 		r1 = ret.Error(1)
@@ -150,22 +151,22 @@ type MockSettingsDAO_Get_Call struct {
 
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
-//   - key string
+//   - key config.SiteSettingKey
 //   - tx ...*sql.Tx
 func (_e *MockSettingsDAO_Expecter) Get(ctx any, key any, tx ...any) *MockSettingsDAO_Get_Call {
 	return &MockSettingsDAO_Get_Call{Call: _e.mock.On("Get",
 		append([]any{ctx, key}, tx...)...)}
 }
 
-func (_c *MockSettingsDAO_Get_Call) Run(run func(ctx context.Context, key string, tx ...*sql.Tx)) *MockSettingsDAO_Get_Call {
+func (_c *MockSettingsDAO_Get_Call) Run(run func(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx)) *MockSettingsDAO_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 config.SiteSettingKey
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(config.SiteSettingKey)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -187,13 +188,13 @@ func (_c *MockSettingsDAO_Get_Call) Return(s string, err error) *MockSettingsDAO
 	return _c
 }
 
-func (_c *MockSettingsDAO_Get_Call) RunAndReturn(run func(ctx context.Context, key string, tx ...*sql.Tx) (string, error)) *MockSettingsDAO_Get_Call {
+func (_c *MockSettingsDAO_Get_Call) RunAndReturn(run func(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error)) *MockSettingsDAO_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetAll provides a mock function for the type MockSettingsDAO
-func (_mock *MockSettingsDAO) GetAll(ctx context.Context, tx ...*sql.Tx) (map[string]string, error) {
+func (_mock *MockSettingsDAO) GetAll(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -206,16 +207,16 @@ func (_mock *MockSettingsDAO) GetAll(ctx context.Context, tx ...*sql.Tx) (map[st
 		panic("no return value specified for GetAll")
 	}
 
-	var r0 map[string]string
+	var r0 map[config.SiteSettingKey]string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[string]string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (map[config.SiteSettingKey]string, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[string]string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) map[config.SiteSettingKey]string); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[string]string)
+			r0 = ret.Get(0).(map[config.SiteSettingKey]string)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -259,18 +260,18 @@ func (_c *MockSettingsDAO_GetAll_Call) Run(run func(ctx context.Context, tx ...*
 	return _c
 }
 
-func (_c *MockSettingsDAO_GetAll_Call) Return(stringToString map[string]string, err error) *MockSettingsDAO_GetAll_Call {
-	_c.Call.Return(stringToString, err)
+func (_c *MockSettingsDAO_GetAll_Call) Return(siteSettingKeyToString map[config.SiteSettingKey]string, err error) *MockSettingsDAO_GetAll_Call {
+	_c.Call.Return(siteSettingKeyToString, err)
 	return _c
 }
 
-func (_c *MockSettingsDAO_GetAll_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[string]string, error)) *MockSettingsDAO_GetAll_Call {
+func (_c *MockSettingsDAO_GetAll_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error)) *MockSettingsDAO_GetAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Set provides a mock function for the type MockSettingsDAO
-func (_mock *MockSettingsDAO) Set(ctx context.Context, key string, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockSettingsDAO) Set(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, key, value, updatedBy, tx)
@@ -284,7 +285,7 @@ func (_mock *MockSettingsDAO) Set(ctx context.Context, key string, value string,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, uuid.UUID, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, config.SiteSettingKey, string, uuid.UUID, ...*sql.Tx) error); ok {
 		r0 = returnFunc(ctx, key, value, updatedBy, tx...)
 	} else {
 		r0 = ret.Error(0)
@@ -299,7 +300,7 @@ type MockSettingsDAO_Set_Call struct {
 
 // Set is a helper method to define mock.On call
 //   - ctx context.Context
-//   - key string
+//   - key config.SiteSettingKey
 //   - value string
 //   - updatedBy uuid.UUID
 //   - tx ...*sql.Tx
@@ -308,15 +309,15 @@ func (_e *MockSettingsDAO_Expecter) Set(ctx any, key any, value any, updatedBy a
 		append([]any{ctx, key, value, updatedBy}, tx...)...)}
 }
 
-func (_c *MockSettingsDAO_Set_Call) Run(run func(ctx context.Context, key string, value string, updatedBy uuid.UUID, tx ...*sql.Tx)) *MockSettingsDAO_Set_Call {
+func (_c *MockSettingsDAO_Set_Call) Run(run func(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx)) *MockSettingsDAO_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 config.SiteSettingKey
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(config.SiteSettingKey)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -348,13 +349,13 @@ func (_c *MockSettingsDAO_Set_Call) Return(err error) *MockSettingsDAO_Set_Call 
 	return _c
 }
 
-func (_c *MockSettingsDAO_Set_Call) RunAndReturn(run func(ctx context.Context, key string, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error) *MockSettingsDAO_Set_Call {
+func (_c *MockSettingsDAO_Set_Call) RunAndReturn(run func(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error) *MockSettingsDAO_Set_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMultiple provides a mock function for the type MockSettingsDAO
-func (_mock *MockSettingsDAO) SetMultiple(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockSettingsDAO) SetMultiple(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, settings, updatedBy, tx)
@@ -368,7 +369,7 @@ func (_mock *MockSettingsDAO) SetMultiple(ctx context.Context, settings map[stri
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, map[string]string, uuid.UUID, ...*sql.Tx) error); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, map[config.SiteSettingKey]string, uuid.UUID, ...*sql.Tx) error); ok {
 		r0 = returnFunc(ctx, settings, updatedBy, tx...)
 	} else {
 		r0 = ret.Error(0)
@@ -383,7 +384,7 @@ type MockSettingsDAO_SetMultiple_Call struct {
 
 // SetMultiple is a helper method to define mock.On call
 //   - ctx context.Context
-//   - settings map[string]string
+//   - settings map[config.SiteSettingKey]string
 //   - updatedBy uuid.UUID
 //   - tx ...*sql.Tx
 func (_e *MockSettingsDAO_Expecter) SetMultiple(ctx any, settings any, updatedBy any, tx ...any) *MockSettingsDAO_SetMultiple_Call {
@@ -391,15 +392,15 @@ func (_e *MockSettingsDAO_Expecter) SetMultiple(ctx any, settings any, updatedBy
 		append([]any{ctx, settings, updatedBy}, tx...)...)}
 }
 
-func (_c *MockSettingsDAO_SetMultiple_Call) Run(run func(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx)) *MockSettingsDAO_SetMultiple_Call {
+func (_c *MockSettingsDAO_SetMultiple_Call) Run(run func(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx)) *MockSettingsDAO_SetMultiple_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 map[string]string
+		var arg1 map[config.SiteSettingKey]string
 		if args[1] != nil {
-			arg1 = args[1].(map[string]string)
+			arg1 = args[1].(map[config.SiteSettingKey]string)
 		}
 		var arg2 uuid.UUID
 		if args[2] != nil {
@@ -426,7 +427,7 @@ func (_c *MockSettingsDAO_SetMultiple_Call) Return(err error) *MockSettingsDAO_S
 	return _c
 }
 
-func (_c *MockSettingsDAO_SetMultiple_Call) RunAndReturn(run func(ctx context.Context, settings map[string]string, updatedBy uuid.UUID, tx ...*sql.Tx) error) *MockSettingsDAO_SetMultiple_Call {
+func (_c *MockSettingsDAO_SetMultiple_Call) RunAndReturn(run func(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx) error) *MockSettingsDAO_SetMultiple_Call {
 	_c.Call.Return(run)
 	return _c
 }

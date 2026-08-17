@@ -41,7 +41,7 @@ func initDatabase(cacheMgr *cache.Manager) (*repository.Repositories, settings.S
 
 	repos := store.New(database, cacheMgr)
 
-	settingsSvc := settings.NewService(repos.Settings, cacheMgr)
+	settingsSvc := settings.NewService(repos.Settings)
 	if err := settingsSvc.Refresh(context.Background()); err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load settings")
 	}

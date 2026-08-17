@@ -173,7 +173,7 @@ func NewArtRepo(database *sql.DB, dao ArtDAO, posts PostRepository, audit AuditL
 func (r *artRepository) CreateWithTags(ctx context.Context, spec NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error) {
 	var created *model.ArtRow
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		created, err = r.dao.CreateArt(ctx, spec.NewArt, tx)
@@ -191,7 +191,7 @@ func (r *artRepository) CreateWithTags(ctx context.Context, spec NewArtWithTags,
 }
 
 func (r *artRepository) UpdateWithTags(ctx context.Context, spec ArtUpdateWithTags, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		if err := r.dao.UpdateArt(ctx, spec.ArtUpdate, tx); err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (r *artRepository) UpdateWithTags(ctx context.Context, spec ArtUpdateWithTa
 func (r *artRepository) DeleteWithImage(ctx context.Context, spec ArtDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		imagePaths, err := r.dao.GetArtImagePaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -243,7 +243,7 @@ func (r *artRepository) DeleteWithImage(ctx context.Context, spec ArtDelete, tx 
 }
 
 func (r *artRepository) UpdateCommentWithDetails(ctx context.Context, spec ArtCommentUpdate, tx ...*sql.Tx) error {
-	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		var err error
 
 		if spec.AsAdmin {
@@ -262,7 +262,7 @@ func (r *artRepository) UpdateCommentWithDetails(ctx context.Context, spec ArtCo
 func (r *artRepository) DeleteCommentWithAudit(ctx context.Context, spec ArtCommentDelete, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		mediaPaths, err := r.dao.CollectSingleCommentMediaPaths(ctx, spec.ID, tx)
 		if err != nil {
 			return err
@@ -475,7 +475,7 @@ func (r *artRepository) DeleteGalleryRow(ctx context.Context, id uuid.UUID, user
 func (r *artRepository) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
 	var paths []string
 
-	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
 		images, err := r.dao.ListGalleryArtImages(ctx, id, userID, tx)
 		if err != nil {
 			return err
