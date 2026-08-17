@@ -21,11 +21,11 @@ func TestNotificationDAO_Create(t *testing.T) {
 	refID := uuid.New()
 
 	// when
-	id, err := repos.Notification.Create(context.Background(), user.ID, dto.NotifTheoryUpvote, refID, "theory", actor.ID, "Liked your theory")
+	created, err := repos.Notification.Create(context.Background(), user.ID, dto.NotifTheoryUpvote, refID, "theory", actor.ID, "Liked your theory")
 
 	// then
 	require.NoError(t, err)
-	assert.Greater(t, id, int64(0))
+	assert.Greater(t, created.ID, 0)
 }
 
 func TestNotificationDAO_ListByUser_Empty(t *testing.T) {
@@ -100,11 +100,11 @@ func TestNotificationDAO_ListByUser_OrderedDesc(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	actor := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	ids := make([]int64, 3)
+	ids := make([]int, 3)
 	for i := range 3 {
-		id, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
+		created, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
 		require.NoError(t, err)
-		ids[i] = id
+		ids[i] = created.ID
 	}
 
 	// when
@@ -159,8 +159,9 @@ func TestNotificationDAO_MarkRead(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	actor := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	id, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
+	created, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
 	require.NoError(t, err)
+	id := created.ID
 
 	// when
 	err = repos.Notification.MarkRead(ctx, int(id), user.ID)
@@ -180,8 +181,9 @@ func TestNotificationDAO_MarkRead_OnlyOwner(t *testing.T) {
 	other := daotest.CreateUser(t, repos)
 	actor := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	id, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
+	created, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "msg")
 	require.NoError(t, err)
+	id := created.ID
 
 	// when
 	err = repos.Notification.MarkRead(ctx, int(id), other.ID)
@@ -293,8 +295,9 @@ func TestNotificationDAO_UnreadCount(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	actor := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	id1, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "a")
+	id1Row, err := repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "a")
 	require.NoError(t, err)
+	id1 := id1Row.ID
 	_, err = repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "b")
 	require.NoError(t, err)
 	_, err = repos.Notification.Create(ctx, user.ID, dto.NotifMention, uuid.New(), "theory", actor.ID, "c")
@@ -456,11 +459,11 @@ func TestNotificationDAO_ListByUser_ReadChatMessagesNotGrouped(t *testing.T) {
 	roomID := uuid.New()
 	ctx := context.Background()
 
-	ids := make([]int64, 3)
+	ids := make([]int, 3)
 	for i := range 3 {
-		id, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
+		created, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
 		require.NoError(t, err)
-		ids[i] = id
+		ids[i] = created.ID
 	}
 
 	require.NoError(t, repos.Notification.MarkAllRead(ctx, user.ID))
@@ -531,11 +534,11 @@ func TestNotificationDAO_MarkRead_ChatRoomMessageMarksEntireGroup(t *testing.T) 
 	roomID := uuid.New()
 	ctx := context.Background()
 
-	ids := make([]int64, 4)
+	ids := make([]int, 4)
 	for i := range 4 {
-		id, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
+		created, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomMessage, roomID, "chat_message:x", actor.ID, "sent a message in General")
 		require.NoError(t, err)
-		ids[i] = id
+		ids[i] = created.ID
 	}
 
 	rows, _, err := repos.Notification.ListByUser(ctx, user.ID, 10, 0)

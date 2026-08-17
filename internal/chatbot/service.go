@@ -69,7 +69,6 @@ type (
 		ev       botEvent
 		bot      repository.Chatbot
 		useChain bool
-		notice   outcome
 	}
 
 	noticeKey struct {
@@ -90,6 +89,7 @@ type (
 		chatRepo    repository.ChatRepository
 		postRepo    repository.PostRepository
 		botRepo     repository.ChatbotRepository
+		auditRepo   repository.AuditLogRepository
 		authzSvc    authz.Service
 		settingsSvc settings.Service
 		hub         *ws.Hub
@@ -102,10 +102,11 @@ type (
 		lastNotice sync.Map
 		inScope    sync.Map
 
-		jobs    chan job
-		quit    chan struct{}
-		wg      sync.WaitGroup
-		closing atomic.Bool
+		jobs     chan job
+		quit     chan struct{}
+		deadline <-chan struct{}
+		wg       sync.WaitGroup
+		closing  atomic.Bool
 	}
 )
 
@@ -116,6 +117,7 @@ func NewService(
 	chatRepo repository.ChatRepository,
 	postRepo repository.PostRepository,
 	botRepo repository.ChatbotRepository,
+	auditRepo repository.AuditLogRepository,
 	authzSvc authz.Service,
 	settingsSvc settings.Service,
 	hub *ws.Hub,
@@ -127,6 +129,7 @@ func NewService(
 		chatRepo:    chatRepo,
 		postRepo:    postRepo,
 		botRepo:     botRepo,
+		auditRepo:   auditRepo,
 		authzSvc:    authzSvc,
 		settingsSvc: settingsSvc,
 		hub:         hub,
@@ -254,11 +257,54 @@ func (s *service) snapshot() (tuning, map[uuid.UUID]repository.Chatbot) {
 	return s.tune, s.bots
 }
 
+func (s *service) worker(id int) {
+	defer s.wg.Done()
+
+	for {
+		select {
+		case <-s.quit:
+			s.drain(id)
+
+			return
+		default:
+		}
+
+		select {
+		case <-s.quit:
+			s.drain(id)
+
+			return
+		case j := <-s.jobs:
+			queueDepth.Set(float64(len(s.jobs)))
+			s.run(id, j)
+		}
+	}
+}
+
+func (s *service) drain(id int) {
+	for {
+		select {
+		case <-s.deadline:
+			return
+		default:
+		}
+
+		select {
+		case j := <-s.jobs:
+			queueDepth.Set(float64(len(s.jobs)))
+			s.run(id, j)
+		default:
+			return
+		}
+	}
+}
+
 func (s *service) Shutdown(ctx context.Context) error {
 	if !s.closing.CompareAndSwap(false, true) {
 		return nil
 	}
 
+	s.deadline = ctx.Done()
 	close(s.quit)
 
 	done := make(chan struct{})

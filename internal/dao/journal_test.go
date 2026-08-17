@@ -18,19 +18,24 @@ import (
 
 func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title, _body, work string) uuid.UUID {
 	t.Helper()
-	id, err := repos.Journal.Create(context.Background(), userID, dto.CreateJournalRequest{
+	created, err := repos.Journal.Create(context.Background(), userID, dto.CreateJournalRequest{
 		Title: title,
 		Work:  work,
 	})
 	require.NoError(t, err)
-	return id
+	return created.ID
 }
 
 func createJournalComment(t *testing.T, repos *repository.Repositories, journalID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	require.NoError(t, repos.Journal.CreateComment(context.Background(), id, journalID, nil, parentID, userID, body))
-	return id
+	created, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{
+		JournalID: journalID,
+		ParentID:  parentID,
+		UserID:    userID,
+		Body:      body,
+	})
+	require.NoError(t, err)
+	return created.ID
 }
 
 func defaultJournalListParams() params.ListParams {
@@ -43,14 +48,14 @@ func TestJournalDAO_Create_AssignsDefaultWork(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	id, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{
+	created, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{
 		Title: "Hello",
 		Work:  "",
 	})
 
 	// then
 	require.NoError(t, err)
-	got, err := repos.Journal.GetByID(context.Background(), id, uuid.Nil)
+	got, err := repos.Journal.GetByID(context.Background(), created.ID, uuid.Nil)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "general", got.Work)
@@ -304,7 +309,8 @@ func TestJournalDAO_List_TruncatesLatestEntryExcerpt(t *testing.T) {
 	for range 400 {
 		longBody.WriteString("a")
 	}
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), id, 1, nil, longBody.String(), 1, false))
+	_, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: id, EntryNumber: 1, Body: longBody.String(), WordCount: 1})
+	require.NoError(t, err)
 
 	// when
 	journals, _, err := repos.Journal.List(context.Background(), defaultJournalListParams(), uuid.Nil, nil)
@@ -340,9 +346,11 @@ func TestJournalDAO_Update_Owned(t *testing.T) {
 	id := createJournal(t, repos, user.ID, "Old", "OldBody", "general")
 
 	// when
-	err := repos.Journal.Update(context.Background(), id, user.ID, dto.CreateJournalRequest{
-		Title: "New",
-		Work:  "higurashi",
+	err := repos.Journal.Update(context.Background(), repository.JournalUpdate{
+		ID:     id,
+		UserID: user.ID,
+		Title:  "New",
+		Work:   "higurashi",
 	})
 
 	// then
@@ -363,9 +371,11 @@ func TestJournalDAO_Update_NotOwned(t *testing.T) {
 	id := createJournal(t, repos, owner.ID, "T", "B", "general")
 
 	// when
-	err := repos.Journal.Update(context.Background(), id, other.ID, dto.CreateJournalRequest{
-		Title: "Hacked",
-		Work:  "general",
+	err := repos.Journal.Update(context.Background(), repository.JournalUpdate{
+		ID:     id,
+		UserID: other.ID,
+		Title:  "Hacked",
+		Work:   "general",
 	})
 
 	// then
@@ -381,9 +391,11 @@ func TestJournalDAO_Update_UnarchivesJournal(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	err = repos.Journal.Update(context.Background(), id, user.ID, dto.CreateJournalRequest{
-		Title: "T2",
-		Work:  "general",
+	err = repos.Journal.Update(context.Background(), repository.JournalUpdate{
+		ID:     id,
+		UserID: user.ID,
+		Title:  "T2",
+		Work:   "general",
 	})
 
 	// then
@@ -400,9 +412,11 @@ func TestJournalDAO_UpdateAsAdmin(t *testing.T) {
 	id := createJournal(t, repos, user.ID, "T", "B", "general")
 
 	// when
-	err := repos.Journal.UpdateAsAdmin(context.Background(), id, dto.CreateJournalRequest{
-		Title: "Admin Title",
-		Work:  "general",
+	err := repos.Journal.Update(context.Background(), repository.JournalUpdate{
+		ID:      id,
+		Title:   "Admin Title",
+		Work:    "general",
+		AsAdmin: true,
 	})
 
 	// then
@@ -420,10 +434,11 @@ func TestJournalDAO_Delete_Owned(t *testing.T) {
 	id := createJournal(t, repos, user.ID, "T", "B", "general")
 
 	// when
-	err := repos.Journal.Delete(context.Background(), id, user.ID)
+	paths, err := repos.Journal.Delete(context.Background(), id, user.ID, false)
 
 	// then
 	require.NoError(t, err)
+	assert.Empty(t, paths)
 	got, err := repos.Journal.GetByID(context.Background(), id, uuid.Nil)
 	require.NoError(t, err)
 	assert.Nil(t, got)
@@ -437,10 +452,11 @@ func TestJournalDAO_Delete_NotOwned(t *testing.T) {
 	id := createJournal(t, repos, owner.ID, "T", "B", "general")
 
 	// when
-	err := repos.Journal.Delete(context.Background(), id, other.ID)
+	paths, err := repos.Journal.Delete(context.Background(), id, other.ID, false)
 
 	// then
 	require.Error(t, err)
+	assert.Nil(t, paths)
 	got, err := repos.Journal.GetByID(context.Background(), id, uuid.Nil)
 	require.NoError(t, err)
 	require.NotNil(t, got)
@@ -453,10 +469,11 @@ func TestJournalDAO_DeleteAsAdmin(t *testing.T) {
 	id := createJournal(t, repos, user.ID, "T", "B", "general")
 
 	// when
-	err := repos.Journal.DeleteAsAdmin(context.Background(), id)
+	paths, err := repos.Journal.Delete(context.Background(), id, uuid.Nil, true)
 
 	// then
 	require.NoError(t, err)
+	assert.Empty(t, paths)
 	got, err := repos.Journal.GetByID(context.Background(), id, uuid.Nil)
 	require.NoError(t, err)
 	assert.Nil(t, got)
@@ -801,8 +818,8 @@ func TestJournalDAO_UpdateComment_OwnedAndNotOwned(t *testing.T) {
 	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "old")
 
 	// when
-	ownErr := repos.Journal.UpdateComment(context.Background(), commentID, author.ID, "new")
-	notOwnedErr := repos.Journal.UpdateComment(context.Background(), commentID, other.ID, "evil")
+	ownErr := repos.Journal.UpdateComment(context.Background(), repository.JournalCommentUpdate{ID: commentID, UserID: author.ID, Body: "new"})
+	notOwnedErr := repos.Journal.UpdateComment(context.Background(), repository.JournalCommentUpdate{ID: commentID, UserID: other.ID, Body: "evil"})
 
 	// then
 	require.NoError(t, ownErr)
@@ -822,7 +839,7 @@ func TestJournalDAO_UpdateCommentAsAdmin(t *testing.T) {
 	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "original")
 
 	// when
-	err := repos.Journal.UpdateCommentAsAdmin(context.Background(), commentID, "admin-edit")
+	err := repos.Journal.UpdateComment(context.Background(), repository.JournalCommentUpdate{ID: commentID, Body: "admin-edit", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -841,8 +858,8 @@ func TestJournalDAO_DeleteComment_OwnedAndNotOwned(t *testing.T) {
 	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "x")
 
 	// when
-	notOwnedErr := repos.Journal.DeleteComment(context.Background(), commentID, other.ID)
-	ownedErr := repos.Journal.DeleteComment(context.Background(), commentID, author.ID)
+	_, notOwnedErr := repos.Journal.DeleteComment(context.Background(), commentID, other.ID, false)
+	_, ownedErr := repos.Journal.DeleteComment(context.Background(), commentID, author.ID, false)
 
 	// then
 	require.Error(t, notOwnedErr)
@@ -852,21 +869,48 @@ func TestJournalDAO_DeleteComment_OwnedAndNotOwned(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
-func TestJournalDAO_DeleteCommentAsAdmin(t *testing.T) {
+func TestJournalDAO_DeleteComment_NotOwnedLeavesNoAuditRow(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	author := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
 	journalID := createJournal(t, repos, author.ID, "T", "B", "general")
 	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "x")
 
 	// when
-	err := repos.Journal.DeleteCommentAsAdmin(context.Background(), commentID)
+	_, err := repos.Journal.DeleteComment(context.Background(), commentID, other.ID, false)
+
+	// then
+	require.Error(t, err)
+	entries, total, listErr := repos.AuditLog.List(context.Background(), repository.AuditActionJournalCommentDelete, 10, 0)
+	require.NoError(t, listErr)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, entries)
+}
+
+func TestJournalDAO_DeleteComment_AsAdminWritesAuditRow(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	admin := daotest.CreateUser(t, repos)
+	journalID := createJournal(t, repos, author.ID, "T", "B", "general")
+	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "x")
+
+	// when
+	_, err := repos.Journal.DeleteComment(context.Background(), commentID, admin.ID, true)
 
 	// then
 	require.NoError(t, err)
 	_, total, err := repos.Journal.GetComments(context.Background(), journalID, author.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
+	entries, auditTotal, auditErr := repos.AuditLog.List(context.Background(), repository.AuditActionJournalCommentDeleteAdmin, 10, 0)
+	require.NoError(t, auditErr)
+	assert.Equal(t, 1, auditTotal)
+	require.Len(t, entries, 1)
+	assert.Equal(t, admin.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetJournalComment, entries[0].TargetType)
+	assert.Equal(t, commentID.String(), entries[0].TargetID)
 }
 
 func TestJournalDAO_GetComments_PaginationOrderingAndExclusion(t *testing.T) {
@@ -994,11 +1038,11 @@ func TestJournalDAO_AddCommentMedia_AndBatch(t *testing.T) {
 	commentC := createJournalComment(t, repos, journalID, author.ID, nil, "c")
 
 	// when
-	idA0, err := repos.Journal.AddCommentMedia(context.Background(), commentA, "url-a-0", "image", "thumb-a-0", 0)
+	idA0, err := repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: commentA, MediaURL: "url-a-0", MediaType: "image", ThumbnailURL: "thumb-a-0"})
 	require.NoError(t, err)
-	idA1, err := repos.Journal.AddCommentMedia(context.Background(), commentA, "url-a-1", "image", "thumb-a-1", 0)
+	idA1, err := repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: commentA, MediaURL: "url-a-1", MediaType: "image", ThumbnailURL: "thumb-a-1"})
 	require.NoError(t, err)
-	idB, err := repos.Journal.AddCommentMedia(context.Background(), commentB, "url-b", "video", "thumb-b", 0)
+	idB, err := repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: commentB, MediaURL: "url-b", MediaType: "video", ThumbnailURL: "thumb-b"})
 	require.NoError(t, err)
 	batch, batchErr := repos.Journal.GetCommentMediaBatch(context.Background(), []uuid.UUID{commentA, commentB, commentC})
 
@@ -1034,7 +1078,7 @@ func TestJournalDAO_UpdateCommentMediaURLAndThumbnail(t *testing.T) {
 	author := daotest.CreateUser(t, repos)
 	journalID := createJournal(t, repos, author.ID, "T", "B", "general")
 	commentID := createJournalComment(t, repos, journalID, author.ID, nil, "x")
-	mediaID, err := repos.Journal.AddCommentMedia(context.Background(), commentID, "old-url", "image", "old-thumb", 0)
+	mediaID, err := repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: commentID, MediaURL: "old-url", MediaType: "image", ThumbnailURL: "old-thumb"})
 	require.NoError(t, err)
 
 	// when
@@ -1071,8 +1115,9 @@ func TestJournalDAO_CreateAndGetEntry(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
-	entryID := uuid.New()
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, new("Day 1"), "the body", 2, false))
+	entry, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: 1, Title: new("Day 1"), Body: "the body", WordCount: 2})
+	require.NoError(t, err)
+	entryID := entry.ID
 
 	// when
 	got, err := repos.Journal.GetEntry(context.Background(), jid, 1)
@@ -1095,7 +1140,8 @@ func TestJournalDAO_GetEntry_PrevNext(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	for i := 1; i <= 3; i++ {
-		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "body", 1, false))
+		_, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: i, Body: "body", WordCount: 1})
+		require.NoError(t, err)
 	}
 
 	// when
@@ -1118,7 +1164,8 @@ func TestJournalDAO_ListEntries_NewestFirst(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
 	for i := 1; i <= 3; i++ {
-		require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, i, nil, "b", 1, false))
+		_, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: i, Body: "b", WordCount: 1})
+		require.NoError(t, err)
 	}
 
 	// when
@@ -1141,8 +1188,10 @@ func TestJournalDAO_GetNextEntryNumber(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, next)
 
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "b", 1, false))
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, nil, "b", 1, false))
+	_, err = repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: 1, Body: "b", WordCount: 1})
+	require.NoError(t, err)
+	_, err = repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: 2, Body: "b", WordCount: 1})
+	require.NoError(t, err)
 
 	// when
 	next, err = repos.Journal.GetNextEntryNumber(context.Background(), jid)
@@ -1157,8 +1206,10 @@ func TestJournalDAO_GetByID_PopulatesLatestEntry(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 1, nil, "first body", 2, false))
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), uuid.New(), jid, 2, new("Latest"), "newest body", 2, false))
+	_, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: 1, Body: "first body", WordCount: 2})
+	require.NoError(t, err)
+	_, err = repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: 2, Title: new("Latest"), Body: "newest body", WordCount: 2})
+	require.NoError(t, err)
 
 	// when
 	got, err := repos.Journal.GetByID(context.Background(), jid, uuid.Nil)
@@ -1178,14 +1229,17 @@ func TestJournalDAO_EntryComments_ScopedSeparately(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	jid := createJournal(t, repos, user.ID, "Title", "", "general")
-	entryID := uuid.New()
-	require.NoError(t, repos.Journal.CreateEntry(context.Background(), entryID, jid, 1, nil, "b", 1, false))
+	entry, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: jid, EntryNumber: 1, Body: "b", WordCount: 1})
+	require.NoError(t, err)
+	entryID := entry.ID
 
 	// when
-	topLevelComment := uuid.New()
-	require.NoError(t, repos.Journal.CreateComment(context.Background(), topLevelComment, jid, nil, nil, user.ID, "on journal"))
-	entryComment := uuid.New()
-	require.NoError(t, repos.Journal.CreateComment(context.Background(), entryComment, jid, &entryID, nil, user.ID, "on entry"))
+	topLevelCommentRow, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: jid, UserID: user.ID, Body: "on journal"})
+	require.NoError(t, err)
+	topLevelComment := topLevelCommentRow.ID
+	entryCommentRow, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: jid, EntryID: &entryID, UserID: user.ID, Body: "on entry"})
+	require.NoError(t, err)
+	entryComment := entryCommentRow.ID
 
 	jrComments, _, err := repos.Journal.GetComments(context.Background(), jid, uuid.Nil, 100, 0, nil)
 	require.NoError(t, err)
@@ -1200,4 +1254,115 @@ func TestJournalDAO_EntryComments_ScopedSeparately(t *testing.T) {
 	assert.Equal(t, entryComment, enComments[0].ID)
 	require.NotNil(t, enComments[0].EntryID)
 	assert.Equal(t, entryID, *enComments[0].EntryID)
+}
+
+func TestJournalDAO_Delete_ReturnsEveryEntryAndCommentMediaPath(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	journalID := createJournal(t, repos, user.ID, "T", "B", "general")
+	entry, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddMedia(context.Background(), repository.NewJournalEntryMedia{EntryID: entry.ID, MediaURL: "/uploads/journal/entry.png", MediaType: "image", ThumbnailURL: "/uploads/journal/entry_thumb.png"})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddMedia(context.Background(), repository.NewJournalEntryMedia{EntryID: entry.ID, MediaURL: "/uploads/journal/entry_no_thumb.gif", MediaType: "image"})
+	require.NoError(t, err)
+	journalComment := createJournalComment(t, repos, journalID, user.ID, nil, "on journal")
+	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: journalComment, MediaURL: "/uploads/journal/comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/comment_thumb.png"})
+	require.NoError(t, err)
+	entryComment, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, EntryID: &entry.ID, UserID: user.ID, Body: "on entry"})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: entryComment.ID, MediaURL: "/uploads/journal/entry_comment.png", MediaType: "image"})
+	require.NoError(t, err)
+
+	// when
+	paths, err := repos.Journal.Delete(context.Background(), journalID, user.ID, false)
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/journal/entry.png",
+		"/uploads/journal/entry_thumb.png",
+		"/uploads/journal/entry_no_thumb.gif",
+		"/uploads/journal/comment.png",
+		"/uploads/journal/comment_thumb.png",
+		"/uploads/journal/entry_comment.png",
+	}, paths)
+	assert.NotContains(t, paths, "")
+	got, err := repos.Journal.GetByID(context.Background(), journalID, uuid.Nil)
+	require.NoError(t, err)
+	assert.Nil(t, got)
+}
+
+func TestJournalDAO_DeleteEntry_ReturnsOnlyThatEntrysMediaPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	journalID := createJournal(t, repos, user.ID, "T", "B", "general")
+	entry, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: journalID, EntryNumber: 1, Body: "b", WordCount: 1})
+	require.NoError(t, err)
+	survivingEntry, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: journalID, EntryNumber: 2, Body: "b", WordCount: 1})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddMedia(context.Background(), repository.NewJournalEntryMedia{EntryID: entry.ID, MediaURL: "/uploads/journal/entry.png", MediaType: "image", ThumbnailURL: "/uploads/journal/entry_thumb.png"})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddMedia(context.Background(), repository.NewJournalEntryMedia{EntryID: survivingEntry.ID, MediaURL: "/uploads/journal/kept_entry.png", MediaType: "image"})
+	require.NoError(t, err)
+	entryComment, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, EntryID: &entry.ID, UserID: user.ID, Body: "on entry"})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: entryComment.ID, MediaURL: "/uploads/journal/entry_comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/entry_comment_thumb.png"})
+	require.NoError(t, err)
+	reply, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, ParentID: &entryComment.ID, UserID: user.ID, Body: "reply"})
+	require.NoError(t, err)
+	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: reply.ID, MediaURL: "/uploads/journal/reply.png", MediaType: "image"})
+	require.NoError(t, err)
+	journalComment := createJournalComment(t, repos, journalID, user.ID, nil, "on journal")
+	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: journalComment, MediaURL: "/uploads/journal/kept_comment.png", MediaType: "image"})
+	require.NoError(t, err)
+
+	// when
+	paths, err := repos.Journal.DeleteEntry(context.Background(), entry.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/journal/entry.png",
+		"/uploads/journal/entry_thumb.png",
+		"/uploads/journal/entry_comment.png",
+		"/uploads/journal/entry_comment_thumb.png",
+		"/uploads/journal/reply.png",
+	}, paths)
+	assert.NotContains(t, paths, "")
+	keptEntryMedia, err := repos.Journal.GetMediaBatch(context.Background(), []uuid.UUID{survivingEntry.ID})
+	require.NoError(t, err)
+	require.Len(t, keptEntryMedia[survivingEntry.ID], 1)
+	assert.Equal(t, "/uploads/journal/kept_entry.png", keptEntryMedia[survivingEntry.ID][0].MediaURL)
+	keptCommentMedia, err := repos.Journal.GetCommentMediaBatch(context.Background(), []uuid.UUID{journalComment})
+	require.NoError(t, err)
+	require.Len(t, keptCommentMedia[journalComment], 1)
+	assert.Equal(t, "/uploads/journal/kept_comment.png", keptCommentMedia[journalComment][0].MediaURL)
+}
+
+func TestJournalDAO_DeleteComment_ReturnsOnlyThatCommentsMediaPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	journalID := createJournal(t, repos, user.ID, "T", "B", "general")
+	commentID := createJournalComment(t, repos, journalID, user.ID, nil, "mine")
+	_, err := repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: commentID, MediaURL: "/uploads/journal/comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/comment_thumb.png"})
+	require.NoError(t, err)
+	otherCommentID := createJournalComment(t, repos, journalID, user.ID, nil, "theirs")
+	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: otherCommentID, MediaURL: "/uploads/journal/kept.png", MediaType: "image"})
+	require.NoError(t, err)
+
+	// when
+	paths, err := repos.Journal.DeleteComment(context.Background(), commentID, user.ID, false)
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"/uploads/journal/comment.png", "/uploads/journal/comment_thumb.png"}, paths)
+	assert.NotContains(t, paths, "")
+	keptMedia, err := repos.Journal.GetCommentMediaBatch(context.Background(), []uuid.UUID{otherCommentID})
+	require.NoError(t, err)
+	require.Len(t, keptMedia[otherCommentID], 1)
+	assert.Equal(t, "/uploads/journal/kept.png", keptMedia[otherCommentID][0].MediaURL)
 }

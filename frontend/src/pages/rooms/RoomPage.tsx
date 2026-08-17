@@ -1,4 +1,4 @@
-import { Fragment, lazy, Suspense } from "react";
+import { Fragment, lazy, Suspense, useMemo } from "react";
 import { isSiteStaff } from "../../utils/permissions";
 import { effectiveMemberUser, memberModPermissions } from "../../utils/chatMembers";
 import { useRoomController } from "../../hooks/useRoomController";
@@ -72,6 +72,7 @@ export function RoomPage() {
         setModerationDialogOpen,
         openMemberMenu,
         setOpenMemberMenu,
+        setRoom,
         setMembers,
         nicknameDialogTarget,
         setNicknameDialogTarget,
@@ -104,6 +105,9 @@ export function RoomPage() {
         handleJumpToMessage,
         handleEditLast,
     } = controller;
+
+    const mentionPool = useMemo(() => members.map(m => m.user), [members]);
+    const existingMemberIds = useMemo(() => new Set(members.map(m => m.user.id)), [members]);
 
     if (!user) {
         return null;
@@ -487,7 +491,7 @@ export function RoomPage() {
                         roomId={room.id}
                         draftRecipientId={null}
                         onSent={handleSentMessage}
-                        mentionPool={members.map(m => m.user)}
+                        mentionPool={mentionPool}
                         replyingTo={replyingTo}
                         onCancelReply={() => setReplyingTo(null)}
                         onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
@@ -564,8 +568,9 @@ export function RoomPage() {
 
             <RoomModerationDialog
                 isOpen={moderationDialogOpen}
-                roomId={room.id}
+                room={room}
                 onClose={() => setModerationDialogOpen(false)}
+                onSaved={updated => setRoom(updated)}
             />
 
             {watchParty.activeSession && user && (
@@ -591,7 +596,7 @@ export function RoomPage() {
             <InviteMembersModal
                 isOpen={inviteModalOpen}
                 roomId={room.id}
-                existingMemberIds={new Set(members.map(m => m.user.id))}
+                existingMemberIds={existingMemberIds}
                 onClose={() => setInviteModalOpen(false)}
                 onInvited={result => {
                     if (result.invited_count > 0) {

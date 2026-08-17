@@ -4,8 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -18,43 +16,17 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *service) worker(id int) {
-	defer s.wg.Done()
-
-	for {
-		select {
-		case <-s.quit:
-			return
-		default:
-		}
-
-		select {
-		case <-s.quit:
-			return
-		case j := <-s.jobs:
-			s.run(id, j)
-		}
-	}
-}
-
 func (s *service) run(id int, j job) {
 	defer s.inScope.Delete(j.ev.scopeKey())
 
 	ctx, cancel := context.WithTimeout(context.Background(), jobTimeout)
 	defer cancel()
 
-	if j.notice.reason != reasonNone {
-		s.settle(ctx, j, j.notice)
-
-		return
-	}
-
 	tune, _ := s.snapshot()
 
-	invocationID := uuid.New()
 	model := firstNonBlank(j.bot.Model, tune.model)
 
-	out := s.reply(ctx, j, tune, invocationID, model)
+	out := s.reply(ctx, j, tune, model)
 
 	invocationsTotal.WithLabelValues(string(out.status), string(j.ev.channel())).Inc()
 
@@ -112,7 +84,7 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 	noticesTotal.WithLabelValues(string(out.reason), "delivered").Inc()
 }
 
-func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uuid.UUID, model string) outcome {
+func (s *service) reply(ctx context.Context, j job, tune tuning, model string) outcome {
 	quota, err := s.overQuota(ctx, j.ev.SenderID, tune)
 	if err != nil {
 		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
@@ -131,7 +103,15 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 		roomID = new(j.ev.ScopeID)
 	}
 
-	if err := s.botRepo.CreateInvocation(ctx, invocationID, j.bot.UserID, j.ev.SenderID, roomID, j.ev.ItemID, string(j.ev.channel()), model); err != nil {
+	inv, err := s.botRepo.CreateInvocation(ctx, repository.NewInvocation{
+		BotUserID: j.bot.UserID,
+		UserID:    j.ev.SenderID,
+		RoomID:    roomID,
+		MessageID: j.ev.ItemID,
+		Channel:   string(j.ev.channel()),
+		Model:     model,
+	})
+	if err != nil {
 		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
 	}
 
@@ -151,7 +131,10 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 
 	result, err := s.openaiSvc.Complete(ctx, req)
 	if err != nil {
-		_ = s.botRepo.CompleteInvocation(ctx, invocationID, repository.InvocationUsage{}, repository.InvocationFailed)
+		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, repository.InvocationUsage{}, repository.InvocationFailed); closeErr != nil {
+			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the failed invocation")
+		}
+
 		stopTyping()
 
 		return classifyProvider(ctx, err)
@@ -161,7 +144,10 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 
 	body := stripSelfLabel(result.Text, j.bot)
 	if body == "" {
-		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
+		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
+			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the refused invocation")
+		}
+
 		stopTyping()
 
 		return outcome{
@@ -184,31 +170,18 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, invocationID uu
 	stopTyping()
 
 	if sendErr := s.deliver(ctx, j, body); sendErr != nil {
-		_ = s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationRefused)
+		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
+			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the undelivered invocation")
+		}
 
 		return classifyDelivery(sendErr)
 	}
 
-	if err := s.botRepo.CompleteInvocation(ctx, invocationID, usageOf(result), repository.InvocationReplied); err != nil {
+	if err := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationReplied); err != nil {
 		logger.Log.Error().Err(err).Str("bot", j.bot.Username).Msg("chatbot answered but the invocation could not be closed")
 	}
 
 	return outcome{status: repository.InvocationReplied}
-}
-
-func emptyReplyMessage(reason string) string {
-	switch reason {
-	case openai.IncompleteContentFilter:
-		return "I began an answer to that and thought better of it. Try asking me another way."
-	case openai.IncompleteMaxOutputTokens:
-		return "I ran out of room before I got a word out. Ask me something narrower and I will manage it."
-	default:
-		return "I have nothing to say to that, which is unlike me. Try me again."
-	}
-}
-
-func trimBase(raw string) string {
-	return strings.TrimSuffix(strings.TrimSpace(raw), "/")
 }
 
 func (s *service) deliver(ctx context.Context, j job, body string) error {
@@ -271,39 +244,6 @@ func quotaClearsAt(oldest time.Time) time.Time {
 	return oldest.Add(quotaWindow)
 }
 
-func (s *service) quotaMessage(q quotaState) string {
-	wait := humaniseWait(time.Until(q.clearsAt))
-
-	if q.global {
-		return fmt.Sprintf("Everyone has been keeping me busy and the whole site has reached its message limit. Try me again %s.", wait)
-	}
-
-	return fmt.Sprintf("You have reached your message limit for the moment. Try me again %s.", wait)
-}
-
-func humaniseWait(d time.Duration) string {
-	switch {
-	case d <= 0:
-		return "shortly"
-	case d < time.Minute:
-		return "in less than a minute"
-	case d < time.Hour:
-		minutes := int(d.Round(time.Minute).Minutes())
-		if minutes == 1 {
-			return "in about a minute"
-		}
-
-		return fmt.Sprintf("in about %d minutes", minutes)
-	default:
-		hours := int(d.Round(time.Hour).Hours())
-		if hours <= 1 {
-			return "in about an hour"
-		}
-
-		return fmt.Sprintf("in about %d hours", hours)
-	}
-}
-
 func (s *service) startTyping(ev botEvent, botUserID uuid.UUID) func() {
 	if ev.Surface != SurfaceChat || len(ev.Audience) == 0 {
 		return func() {}
@@ -312,18 +252,10 @@ func (s *service) startTyping(ev botEvent, botUserID uuid.UUID) func() {
 	stop := make(chan struct{})
 	var once sync.Once
 
-	msg := ws.Message{
-		Type: "typing",
-		Data: map[string]any{
-			"room_id": ev.ScopeID.String(),
-			"user_id": botUserID.String(),
-		},
-	}
+	msg := ws.TypingMessage(ev.ScopeID, botUserID)
 
 	send := func() {
-		for _, memberID := range ev.Audience {
-			s.hub.SendToUser(memberID, msg)
-		}
+		s.hub.SendToUsers(ev.Audience, msg)
 	}
 
 	send()

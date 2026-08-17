@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/model"
 
@@ -41,8 +42,14 @@ func (_m *MockMysteryRepository) EXPECT() *MockMysteryRepository_Expecter {
 }
 
 // AddAttachment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int) (int64, error) {
-	ret := _mock.Called(ctx, mysteryID, fileURL, fileName, fileSize)
+func (_mock *MockMysteryRepository) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, fileURL, fileName, fileSize, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, fileURL, fileName, fileSize)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddAttachment")
@@ -50,16 +57,16 @@ func (_mock *MockMysteryRepository) AddAttachment(ctx context.Context, mysteryID
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, int) (int64, error)); ok {
-		return returnFunc(ctx, mysteryID, fileURL, fileName, fileSize)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, int, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, mysteryID, fileURL, fileName, fileSize, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, int) int64); ok {
-		r0 = returnFunc(ctx, mysteryID, fileURL, fileName, fileSize)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, int, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, mysteryID, fileURL, fileName, fileSize, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, int) error); ok {
-		r1 = returnFunc(ctx, mysteryID, fileURL, fileName, fileSize)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, fileURL, fileName, fileSize, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -77,11 +84,13 @@ type MockMysteryRepository_AddAttachment_Call struct {
 //   - fileURL string
 //   - fileName string
 //   - fileSize int
-func (_e *MockMysteryRepository_Expecter) AddAttachment(ctx any, mysteryID any, fileURL any, fileName any, fileSize any) *MockMysteryRepository_AddAttachment_Call {
-	return &MockMysteryRepository_AddAttachment_Call{Call: _e.mock.On("AddAttachment", ctx, mysteryID, fileURL, fileName, fileSize)}
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) AddAttachment(ctx any, mysteryID any, fileURL any, fileName any, fileSize any, tx ...any) *MockMysteryRepository_AddAttachment_Call {
+	return &MockMysteryRepository_AddAttachment_Call{Call: _e.mock.On("AddAttachment",
+		append([]any{ctx, mysteryID, fileURL, fileName, fileSize}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_AddAttachment_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int)) *MockMysteryRepository_AddAttachment_Call {
+func (_c *MockMysteryRepository_AddAttachment_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int, tx ...*sql.Tx)) *MockMysteryRepository_AddAttachment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -103,12 +112,19 @@ func (_c *MockMysteryRepository_AddAttachment_Call) Run(run func(ctx context.Con
 		if args[4] != nil {
 			arg4 = args[4].(int)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -119,26 +135,43 @@ func (_c *MockMysteryRepository_AddAttachment_Call) Return(n int64, err error) *
 	return _c
 }
 
-func (_c *MockMysteryRepository_AddAttachment_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int) (int64, error)) *MockMysteryRepository_AddAttachment_Call {
+func (_c *MockMysteryRepository_AddAttachment_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int, tx ...*sql.Tx) (int64, error)) *MockMysteryRepository_AddAttachment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddClue provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) AddClue(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error {
-	ret := _mock.Called(ctx, mysteryID, body, truthType, sortOrder, playerID)
+func (_mock *MockMysteryRepository) AddClue(ctx context.Context, mysteryID uuid.UUID, spec NewClue, tx ...*sql.Tx) (*dto.MysteryClue, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddClue")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, int, *uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, mysteryID, body, truthType, sortOrder, playerID)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *dto.MysteryClue
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewClue, ...*sql.Tx) (*dto.MysteryClue, error)); ok {
+		return returnFunc(ctx, mysteryID, spec, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewClue, ...*sql.Tx) *dto.MysteryClue); ok {
+		r0 = returnFunc(ctx, mysteryID, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.MysteryClue)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, NewClue, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockMysteryRepository_AddClue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddClue'
@@ -149,15 +182,14 @@ type MockMysteryRepository_AddClue_Call struct {
 // AddClue is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-//   - body string
-//   - truthType string
-//   - sortOrder int
-//   - playerID *uuid.UUID
-func (_e *MockMysteryRepository_Expecter) AddClue(ctx any, mysteryID any, body any, truthType any, sortOrder any, playerID any) *MockMysteryRepository_AddClue_Call {
-	return &MockMysteryRepository_AddClue_Call{Call: _e.mock.On("AddClue", ctx, mysteryID, body, truthType, sortOrder, playerID)}
+//   - spec NewClue
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) AddClue(ctx any, mysteryID any, spec any, tx ...any) *MockMysteryRepository_AddClue_Call {
+	return &MockMysteryRepository_AddClue_Call{Call: _e.mock.On("AddClue",
+		append([]any{ctx, mysteryID, spec}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_AddClue_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID)) *MockMysteryRepository_AddClue_Call {
+func (_c *MockMysteryRepository_AddClue_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, spec NewClue, tx ...*sql.Tx)) *MockMysteryRepository_AddClue_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -167,47 +199,45 @@ func (_c *MockMysteryRepository_AddClue_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
+		var arg2 NewClue
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(NewClue)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
 		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 *uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].(*uuid.UUID)
-		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg3...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockMysteryRepository_AddClue_Call) Return(err error) *MockMysteryRepository_AddClue_Call {
-	_c.Call.Return(err)
+func (_c *MockMysteryRepository_AddClue_Call) Return(mysteryClue *dto.MysteryClue, err error) *MockMysteryRepository_AddClue_Call {
+	_c.Call.Return(mysteryClue, err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_AddClue_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, body string, truthType string, sortOrder int, playerID *uuid.UUID) error) *MockMysteryRepository_AddClue_Call {
+func (_c *MockMysteryRepository_AddClue_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, spec NewClue, tx ...*sql.Tx) (*dto.MysteryClue, error)) *MockMysteryRepository_AddClue_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddCommentMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	ret := _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+func (_mock *MockMysteryRepository) AddCommentMedia(ctx context.Context, spec NewMysteryCommentMedia, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddCommentMedia")
@@ -215,16 +245,16 @@ func (_mock *MockMysteryRepository) AddCommentMedia(ctx context.Context, comment
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) (int64, error)); ok {
-		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewMysteryCommentMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) int64); ok {
-		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewMysteryCommentMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int) error); ok {
-		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewMysteryCommentMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -238,48 +268,33 @@ type MockMysteryRepository_AddCommentMedia_Call struct {
 
 // AddCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - commentID uuid.UUID
-//   - mediaURL string
-//   - mediaType string
-//   - thumbnailURL string
-//   - sortOrder int
-func (_e *MockMysteryRepository_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockMysteryRepository_AddCommentMedia_Call {
-	return &MockMysteryRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia", ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder)}
+//   - spec NewMysteryCommentMedia
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) AddCommentMedia(ctx any, spec any, tx ...any) *MockMysteryRepository_AddCommentMedia_Call {
+	return &MockMysteryRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int)) *MockMysteryRepository_AddCommentMedia_Call {
+func (_c *MockMysteryRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, spec NewMysteryCommentMedia, tx ...*sql.Tx)) *MockMysteryRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewMysteryCommentMedia
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewMysteryCommentMedia)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 int
-		if args[5] != nil {
-			arg5 = args[5].(int)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
@@ -290,14 +305,20 @@ func (_c *MockMysteryRepository_AddCommentMedia_Call) Return(n int64, err error)
 	return _c
 }
 
-func (_c *MockMysteryRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)) *MockMysteryRepository_AddCommentMedia_Call {
+func (_c *MockMysteryRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewMysteryCommentMedia, tx ...*sql.Tx) (int64, error)) *MockMysteryRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) AddMedia(ctx context.Context, mysteryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	ret := _mock.Called(ctx, mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder)
+func (_mock *MockMysteryRepository) AddMedia(ctx context.Context, spec NewMysteryMedia, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddMedia")
@@ -305,16 +326,16 @@ func (_mock *MockMysteryRepository) AddMedia(ctx context.Context, mysteryID uuid
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) (int64, error)); ok {
-		return returnFunc(ctx, mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewMysteryMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) int64); ok {
-		r0 = returnFunc(ctx, mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewMysteryMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int) error); ok {
-		r1 = returnFunc(ctx, mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewMysteryMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -328,48 +349,33 @@ type MockMysteryRepository_AddMedia_Call struct {
 
 // AddMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - mediaURL string
-//   - mediaType string
-//   - thumbnailURL string
-//   - sortOrder int
-func (_e *MockMysteryRepository_Expecter) AddMedia(ctx any, mysteryID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockMysteryRepository_AddMedia_Call {
-	return &MockMysteryRepository_AddMedia_Call{Call: _e.mock.On("AddMedia", ctx, mysteryID, mediaURL, mediaType, thumbnailURL, sortOrder)}
+//   - spec NewMysteryMedia
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) AddMedia(ctx any, spec any, tx ...any) *MockMysteryRepository_AddMedia_Call {
+	return &MockMysteryRepository_AddMedia_Call{Call: _e.mock.On("AddMedia",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_AddMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int)) *MockMysteryRepository_AddMedia_Call {
+func (_c *MockMysteryRepository_AddMedia_Call) Run(run func(ctx context.Context, spec NewMysteryMedia, tx ...*sql.Tx)) *MockMysteryRepository_AddMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewMysteryMedia
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewMysteryMedia)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 int
-		if args[5] != nil {
-			arg5 = args[5].(int)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
@@ -380,14 +386,269 @@ func (_c *MockMysteryRepository_AddMedia_Call) Return(n int64, err error) *MockM
 	return _c
 }
 
-func (_c *MockMysteryRepository_AddMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)) *MockMysteryRepository_AddMedia_Call {
+func (_c *MockMysteryRepository_AddMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewMysteryMedia, tx ...*sql.Tx) (int64, error)) *MockMysteryRepository_AddMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CollectCommentMediaPaths provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, entityID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, entityID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CollectCommentMediaPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, entityID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, entityID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, entityID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_CollectCommentMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectCommentMediaPaths'
+type MockMysteryRepository_CollectCommentMediaPaths_Call struct {
+	*mock.Call
+}
+
+// CollectCommentMediaPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entityID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CollectCommentMediaPaths(ctx any, entityID any, tx ...any) *MockMysteryRepository_CollectCommentMediaPaths_Call {
+	return &MockMysteryRepository_CollectCommentMediaPaths_Call{Call: _e.mock.On("CollectCommentMediaPaths",
+		append([]any{ctx, entityID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_CollectCommentMediaPaths_Call) Run(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CollectCommentMediaPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_CollectCommentMediaPaths_Call) Return(strings []string, err error) *MockMysteryRepository_CollectCommentMediaPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_CollectCommentMediaPaths_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_CollectCommentMediaPaths_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CollectMediaPaths provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, entityID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, entityID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CollectMediaPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, entityID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, entityID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, entityID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_CollectMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectMediaPaths'
+type MockMysteryRepository_CollectMediaPaths_Call struct {
+	*mock.Call
+}
+
+// CollectMediaPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entityID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CollectMediaPaths(ctx any, entityID any, tx ...any) *MockMysteryRepository_CollectMediaPaths_Call {
+	return &MockMysteryRepository_CollectMediaPaths_Call{Call: _e.mock.On("CollectMediaPaths",
+		append([]any{ctx, entityID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_CollectMediaPaths_Call) Run(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CollectMediaPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_CollectMediaPaths_Call) Return(strings []string, err error) *MockMysteryRepository_CollectMediaPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_CollectMediaPaths_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_CollectMediaPaths_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CollectSingleCommentMediaPaths provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CollectSingleCommentMediaPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_CollectSingleCommentMediaPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CollectSingleCommentMediaPaths'
+type MockMysteryRepository_CollectSingleCommentMediaPaths_Call struct {
+	*mock.Call
+}
+
+// CollectSingleCommentMediaPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CollectSingleCommentMediaPaths(ctx any, commentID any, tx ...any) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
+	return &MockMysteryRepository_CollectSingleCommentMediaPaths_Call{Call: _e.mock.On("CollectSingleCommentMediaPaths",
+		append([]any{ctx, commentID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_CollectSingleCommentMediaPaths_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_CollectSingleCommentMediaPaths_Call) Return(strings []string, err error) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_CollectSingleCommentMediaPaths_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_CollectSingleCommentMediaPaths_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountAttempts provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, mysteryID)
+func (_mock *MockMysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountAttempts")
@@ -395,16 +656,16 @@ func (_mock *MockMysteryRepository) CountAttempts(ctx context.Context, mysteryID
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, mysteryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, mysteryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -419,11 +680,13 @@ type MockMysteryRepository_CountAttempts_Call struct {
 // CountAttempts is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) CountAttempts(ctx any, mysteryID any) *MockMysteryRepository_CountAttempts_Call {
-	return &MockMysteryRepository_CountAttempts_Call{Call: _e.mock.On("CountAttempts", ctx, mysteryID)}
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CountAttempts(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_CountAttempts_Call {
+	return &MockMysteryRepository_CountAttempts_Call{Call: _e.mock.On("CountAttempts",
+		append([]any{ctx, mysteryID}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_CountAttempts_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_CountAttempts_Call {
+func (_c *MockMysteryRepository_CountAttempts_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CountAttempts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -433,9 +696,16 @@ func (_c *MockMysteryRepository_CountAttempts_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -446,14 +716,20 @@ func (_c *MockMysteryRepository_CountAttempts_Call) Return(n int, err error) *Mo
 	return _c
 }
 
-func (_c *MockMysteryRepository_CountAttempts_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) (int, error)) *MockMysteryRepository_CountAttempts_Call {
+func (_c *MockMysteryRepository_CountAttempts_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockMysteryRepository_CountAttempts_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountClues provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CountClues(ctx context.Context, mysteryID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, mysteryID)
+func (_mock *MockMysteryRepository) CountClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountClues")
@@ -461,16 +737,16 @@ func (_mock *MockMysteryRepository) CountClues(ctx context.Context, mysteryID uu
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, mysteryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, mysteryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -485,11 +761,13 @@ type MockMysteryRepository_CountClues_Call struct {
 // CountClues is a helper method to define mock.On call
 //   - ctx context.Context
 //   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) CountClues(ctx any, mysteryID any) *MockMysteryRepository_CountClues_Call {
-	return &MockMysteryRepository_CountClues_Call{Call: _e.mock.On("CountClues", ctx, mysteryID)}
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CountClues(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_CountClues_Call {
+	return &MockMysteryRepository_CountClues_Call{Call: _e.mock.On("CountClues",
+		append([]any{ctx, mysteryID}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_CountClues_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_CountClues_Call {
+func (_c *MockMysteryRepository_CountClues_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_CountClues_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -499,9 +777,16 @@ func (_c *MockMysteryRepository_CountClues_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -512,26 +797,43 @@ func (_c *MockMysteryRepository_CountClues_Call) Return(n int, err error) *MockM
 	return _c
 }
 
-func (_c *MockMysteryRepository_CountClues_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) (int, error)) *MockMysteryRepository_CountClues_Call {
+func (_c *MockMysteryRepository_CountClues_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockMysteryRepository_CountClues_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Create provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) Create(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
-	ret := _mock.Called(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
+func (_mock *MockMysteryRepository) Create(ctx context.Context, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) (*MysteryRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract) error); ok {
-		r0 = returnFunc(ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *MysteryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract, ...*sql.Tx) (*MysteryRow, error)); ok {
+		return returnFunc(ctx, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract, ...*sql.Tx) *MysteryRow); ok {
+		r0 = returnFunc(ctx, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*MysteryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockMysteryRepository_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
@@ -541,7 +843,6 @@ type MockMysteryRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
 //   - userID uuid.UUID
 //   - title string
 //   - body string
@@ -549,2971 +850,13 @@ type MockMysteryRepository_Create_Call struct {
 //   - freeForAll bool
 //   - keepOpenAfterSolve bool
 //   - knox dto.KnoxContract
-func (_e *MockMysteryRepository_Expecter) Create(ctx any, id any, userID any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any, knox any) *MockMysteryRepository_Create_Call {
-	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create", ctx, id, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)}
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) Create(ctx any, userID any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any, knox any, tx ...any) *MockMysteryRepository_Create_Call {
+	return &MockMysteryRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, userID, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract)) *MockMysteryRepository_Create_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 bool
-		if args[6] != nil {
-			arg6 = args[6].(bool)
-		}
-		var arg7 bool
-		if args[7] != nil {
-			arg7 = args[7].(bool)
-		}
-		var arg8 dto.KnoxContract
-		if args[8] != nil {
-			arg8 = args[8].(dto.KnoxContract)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-			arg8,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_Create_Call) Return(err error) *MockMysteryRepository_Create_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error) *MockMysteryRepository_Create_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CreateAttempt provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CreateAttempt(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, mysteryID, userID, parentID, body)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateAttempt")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, *uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, mysteryID, userID, parentID, body)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_CreateAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAttempt'
-type MockMysteryRepository_CreateAttempt_Call struct {
-	*mock.Call
-}
-
-// CreateAttempt is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - mysteryID uuid.UUID
-//   - userID uuid.UUID
-//   - parentID *uuid.UUID
-//   - body string
-func (_e *MockMysteryRepository_Expecter) CreateAttempt(ctx any, id any, mysteryID any, userID any, parentID any, body any) *MockMysteryRepository_CreateAttempt_Call {
-	return &MockMysteryRepository_CreateAttempt_Call{Call: _e.mock.On("CreateAttempt", ctx, id, mysteryID, userID, parentID, body)}
-}
-
-func (_c *MockMysteryRepository_CreateAttempt_Call) Run(run func(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string)) *MockMysteryRepository_CreateAttempt_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(uuid.UUID)
-		}
-		var arg4 *uuid.UUID
-		if args[4] != nil {
-			arg4 = args[4].(*uuid.UUID)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_CreateAttempt_Call) Return(err error) *MockMysteryRepository_CreateAttempt_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_CreateAttempt_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) error) *MockMysteryRepository_CreateAttempt_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CreateComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) CreateComment(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, mysteryID, parentID, userID, body)
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, mysteryID, parentID, userID, body)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_CreateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateComment'
-type MockMysteryRepository_CreateComment_Call struct {
-	*mock.Call
-}
-
-// CreateComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - mysteryID uuid.UUID
-//   - parentID *uuid.UUID
-//   - userID uuid.UUID
-//   - body string
-func (_e *MockMysteryRepository_Expecter) CreateComment(ctx any, id any, mysteryID any, parentID any, userID any, body any) *MockMysteryRepository_CreateComment_Call {
-	return &MockMysteryRepository_CreateComment_Call{Call: _e.mock.On("CreateComment", ctx, id, mysteryID, parentID, userID, body)}
-}
-
-func (_c *MockMysteryRepository_CreateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string)) *MockMysteryRepository_CreateComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 *uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(*uuid.UUID)
-		}
-		var arg4 uuid.UUID
-		if args[4] != nil {
-			arg4 = args[4].(uuid.UUID)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_CreateComment_Call) Return(err error) *MockMysteryRepository_CreateComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) error) *MockMysteryRepository_CreateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Delete provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Delete")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
-type MockMysteryRepository_Delete_Call struct {
-	*mock.Call
-}
-
-// Delete is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) Delete(ctx any, id any, userID any) *MockMysteryRepository_Delete_Call {
-	return &MockMysteryRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
-}
-
-func (_c *MockMysteryRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockMysteryRepository_Delete_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_Delete_Call) Return(err error) *MockMysteryRepository_Delete_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockMysteryRepository_Delete_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAsAdmin'
-type MockMysteryRepository_DeleteAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockMysteryRepository_DeleteAsAdmin_Call {
-	return &MockMysteryRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
-}
-
-func (_c *MockMysteryRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockMysteryRepository_DeleteAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAsAdmin_Call) Return(err error) *MockMysteryRepository_DeleteAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockMysteryRepository_DeleteAsAdmin_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteAttachment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteAttachment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, mysteryID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteAttachment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAttachment'
-type MockMysteryRepository_DeleteAttachment_Call struct {
-	*mock.Call
-}
-
-// DeleteAttachment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAttachment(ctx any, id any, mysteryID any) *MockMysteryRepository_DeleteAttachment_Call {
-	return &MockMysteryRepository_DeleteAttachment_Call{Call: _e.mock.On("DeleteAttachment", ctx, id, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_DeleteAttachment_Call) Run(run func(ctx context.Context, id int64, mysteryID uuid.UUID)) *MockMysteryRepository_DeleteAttachment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAttachment_Call) Return(err error) *MockMysteryRepository_DeleteAttachment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAttachment_Call) RunAndReturn(run func(ctx context.Context, id int64, mysteryID uuid.UUID) error) *MockMysteryRepository_DeleteAttachment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteAttempt provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteAttempt")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAttempt'
-type MockMysteryRepository_DeleteAttempt_Call struct {
-	*mock.Call
-}
-
-// DeleteAttempt is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAttempt(ctx any, id any, userID any) *MockMysteryRepository_DeleteAttempt_Call {
-	return &MockMysteryRepository_DeleteAttempt_Call{Call: _e.mock.On("DeleteAttempt", ctx, id, userID)}
-}
-
-func (_c *MockMysteryRepository_DeleteAttempt_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockMysteryRepository_DeleteAttempt_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAttempt_Call) Return(err error) *MockMysteryRepository_DeleteAttempt_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAttempt_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockMysteryRepository_DeleteAttempt_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteAttemptAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteAttemptAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteAttemptAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAttemptAsAdmin'
-type MockMysteryRepository_DeleteAttemptAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteAttemptAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteAttemptAsAdmin(ctx any, id any) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
-	return &MockMysteryRepository_DeleteAttemptAsAdmin_Call{Call: _e.mock.On("DeleteAttemptAsAdmin", ctx, id)}
-}
-
-func (_c *MockMysteryRepository_DeleteAttemptAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAttemptAsAdmin_Call) Return(err error) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteAttemptAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteClue provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteClue(ctx context.Context, clueID int) error {
-	ret := _mock.Called(ctx, clueID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteClue")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) error); ok {
-		r0 = returnFunc(ctx, clueID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteClue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteClue'
-type MockMysteryRepository_DeleteClue_Call struct {
-	*mock.Call
-}
-
-// DeleteClue is a helper method to define mock.On call
-//   - ctx context.Context
-//   - clueID int
-func (_e *MockMysteryRepository_Expecter) DeleteClue(ctx any, clueID any) *MockMysteryRepository_DeleteClue_Call {
-	return &MockMysteryRepository_DeleteClue_Call{Call: _e.mock.On("DeleteClue", ctx, clueID)}
-}
-
-func (_c *MockMysteryRepository_DeleteClue_Call) Run(run func(ctx context.Context, clueID int)) *MockMysteryRepository_DeleteClue_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int
-		if args[1] != nil {
-			arg1 = args[1].(int)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteClue_Call) Return(err error) *MockMysteryRepository_DeleteClue_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteClue_Call) RunAndReturn(run func(ctx context.Context, clueID int) error) *MockMysteryRepository_DeleteClue_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteClues provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteClues(ctx context.Context, mysteryID uuid.UUID) error {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteClues")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteClues'
-type MockMysteryRepository_DeleteClues_Call struct {
-	*mock.Call
-}
-
-// DeleteClues is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteClues(ctx any, mysteryID any) *MockMysteryRepository_DeleteClues_Call {
-	return &MockMysteryRepository_DeleteClues_Call{Call: _e.mock.On("DeleteClues", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_DeleteClues_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_DeleteClues_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteClues_Call) Return(err error) *MockMysteryRepository_DeleteClues_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteClues_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) error) *MockMysteryRepository_DeleteClues_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteComment'
-type MockMysteryRepository_DeleteComment_Call struct {
-	*mock.Call
-}
-
-// DeleteComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteComment(ctx any, id any, userID any) *MockMysteryRepository_DeleteComment_Call {
-	return &MockMysteryRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment", ctx, id, userID)}
-}
-
-func (_c *MockMysteryRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockMysteryRepository_DeleteComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteComment_Call) Return(err error) *MockMysteryRepository_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockMysteryRepository_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
-type MockMysteryRepository_DeleteCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
-	return &MockMysteryRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin", ctx, id)}
-}
-
-func (_c *MockMysteryRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) DeleteMedia(ctx context.Context, id int64, mysteryID uuid.UUID) (string, error) {
-	ret := _mock.Called(ctx, id, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteMedia")
-	}
-
-	var r0 string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID) (string, error)); ok {
-		return returnFunc(ctx, id, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, id, mysteryID)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int64, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_DeleteMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMedia'
-type MockMysteryRepository_DeleteMedia_Call struct {
-	*mock.Call
-}
-
-// DeleteMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) DeleteMedia(ctx any, id any, mysteryID any) *MockMysteryRepository_DeleteMedia_Call {
-	return &MockMysteryRepository_DeleteMedia_Call{Call: _e.mock.On("DeleteMedia", ctx, id, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_DeleteMedia_Call) Run(run func(ctx context.Context, id int64, mysteryID uuid.UUID)) *MockMysteryRepository_DeleteMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteMedia_Call) Return(s string, err error) *MockMysteryRepository_DeleteMedia_Call {
-	_c.Call.Return(s, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_DeleteMedia_Call) RunAndReturn(run func(ctx context.Context, id int64, mysteryID uuid.UUID) (string, error)) *MockMysteryRepository_DeleteMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAttachments provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetAttachments(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryAttachment, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAttachments")
-	}
-
-	var r0 []dto.MysteryAttachment
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]dto.MysteryAttachment, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []dto.MysteryAttachment); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]dto.MysteryAttachment)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetAttachments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttachments'
-type MockMysteryRepository_GetAttachments_Call struct {
-	*mock.Call
-}
-
-// GetAttachments is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttachments(ctx any, mysteryID any) *MockMysteryRepository_GetAttachments_Call {
-	return &MockMysteryRepository_GetAttachments_Call{Call: _e.mock.On("GetAttachments", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_GetAttachments_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetAttachments_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttachments_Call) Return(mysteryAttachments []dto.MysteryAttachment, err error) *MockMysteryRepository_GetAttachments_Call {
-	_c.Call.Return(mysteryAttachments, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttachments_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryAttachment, error)) *MockMysteryRepository_GetAttachments_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAttemptAuthorID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, attemptID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAttemptAuthorID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, attemptID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, attemptID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, attemptID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetAttemptAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttemptAuthorID'
-type MockMysteryRepository_GetAttemptAuthorID_Call struct {
-	*mock.Call
-}
-
-// GetAttemptAuthorID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - attemptID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttemptAuthorID(ctx any, attemptID any) *MockMysteryRepository_GetAttemptAuthorID_Call {
-	return &MockMysteryRepository_GetAttemptAuthorID_Call{Call: _e.mock.On("GetAttemptAuthorID", ctx, attemptID)}
-}
-
-func (_c *MockMysteryRepository_GetAttemptAuthorID_Call) Run(run func(ctx context.Context, attemptID uuid.UUID)) *MockMysteryRepository_GetAttemptAuthorID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttemptAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetAttemptAuthorID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttemptAuthorID_Call) RunAndReturn(run func(ctx context.Context, attemptID uuid.UUID) (uuid.UUID, error)) *MockMysteryRepository_GetAttemptAuthorID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAttemptMysteryID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, attemptID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAttemptMysteryID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, attemptID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, attemptID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, attemptID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetAttemptMysteryID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttemptMysteryID'
-type MockMysteryRepository_GetAttemptMysteryID_Call struct {
-	*mock.Call
-}
-
-// GetAttemptMysteryID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - attemptID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttemptMysteryID(ctx any, attemptID any) *MockMysteryRepository_GetAttemptMysteryID_Call {
-	return &MockMysteryRepository_GetAttemptMysteryID_Call{Call: _e.mock.On("GetAttemptMysteryID", ctx, attemptID)}
-}
-
-func (_c *MockMysteryRepository_GetAttemptMysteryID_Call) Run(run func(ctx context.Context, attemptID uuid.UUID)) *MockMysteryRepository_GetAttemptMysteryID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttemptMysteryID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetAttemptMysteryID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttemptMysteryID_Call) RunAndReturn(run func(ctx context.Context, attemptID uuid.UUID) (uuid.UUID, error)) *MockMysteryRepository_GetAttemptMysteryID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAttempts provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID) ([]MysteryAttemptRow, error) {
-	ret := _mock.Called(ctx, mysteryID, viewerID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAttempts")
-	}
-
-	var r0 []MysteryAttemptRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) ([]MysteryAttemptRow, error)); ok {
-		return returnFunc(ctx, mysteryID, viewerID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) []MysteryAttemptRow); ok {
-		r0 = returnFunc(ctx, mysteryID, viewerID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]MysteryAttemptRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID, viewerID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetAttempts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttempts'
-type MockMysteryRepository_GetAttempts_Call struct {
-	*mock.Call
-}
-
-// GetAttempts is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - viewerID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAttempts(ctx any, mysteryID any, viewerID any) *MockMysteryRepository_GetAttempts_Call {
-	return &MockMysteryRepository_GetAttempts_Call{Call: _e.mock.On("GetAttempts", ctx, mysteryID, viewerID)}
-}
-
-func (_c *MockMysteryRepository_GetAttempts_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID)) *MockMysteryRepository_GetAttempts_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttempts_Call) Return(mysteryAttemptRows []MysteryAttemptRow, err error) *MockMysteryRepository_GetAttempts_Call {
-	_c.Call.Return(mysteryAttemptRows, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAttempts_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID) ([]MysteryAttemptRow, error)) *MockMysteryRepository_GetAttempts_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetAuthorID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetAuthorID(ctx context.Context, mysteryID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetAuthorID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAuthorID'
-type MockMysteryRepository_GetAuthorID_Call struct {
-	*mock.Call
-}
-
-// GetAuthorID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetAuthorID(ctx any, mysteryID any) *MockMysteryRepository_GetAuthorID_Call {
-	return &MockMysteryRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_GetAuthorID_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetAuthorID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetAuthorID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetAuthorID_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) (uuid.UUID, error)) *MockMysteryRepository_GetAuthorID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetByID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetByID(ctx context.Context, id uuid.UUID) (*MysteryRow, error) {
-	ret := _mock.Called(ctx, id)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetByID")
-	}
-
-	var r0 *MysteryRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*MysteryRow, error)); ok {
-		return returnFunc(ctx, id)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *MysteryRow); ok {
-		r0 = returnFunc(ctx, id)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*MysteryRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
-type MockMysteryRepository_GetByID_Call struct {
-	*mock.Call
-}
-
-// GetByID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetByID(ctx any, id any) *MockMysteryRepository_GetByID_Call {
-	return &MockMysteryRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
-}
-
-func (_c *MockMysteryRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockMysteryRepository_GetByID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetByID_Call) Return(mysteryRow *MysteryRow, err error) *MockMysteryRepository_GetByID_Call {
-	_c.Call.Return(mysteryRow, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*MysteryRow, error)) *MockMysteryRepository_GetByID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetClues provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetClues(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryClue, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetClues")
-	}
-
-	var r0 []dto.MysteryClue
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]dto.MysteryClue, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []dto.MysteryClue); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]dto.MysteryClue)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClues'
-type MockMysteryRepository_GetClues_Call struct {
-	*mock.Call
-}
-
-// GetClues is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetClues(ctx any, mysteryID any) *MockMysteryRepository_GetClues_Call {
-	return &MockMysteryRepository_GetClues_Call{Call: _e.mock.On("GetClues", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_GetClues_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetClues_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetClues_Call) Return(mysteryClues []dto.MysteryClue, err error) *MockMysteryRepository_GetClues_Call {
-	_c.Call.Return(mysteryClues, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetClues_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) ([]dto.MysteryClue, error)) *MockMysteryRepository_GetClues_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentAuthorID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentAuthorID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentAuthorID'
-type MockMysteryRepository_GetCommentAuthorID_Call struct {
-	*mock.Call
-}
-
-// GetCommentAuthorID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentAuthorID(ctx any, commentID any) *MockMysteryRepository_GetCommentAuthorID_Call {
-	return &MockMysteryRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID", ctx, commentID)}
-}
-
-func (_c *MockMysteryRepository_GetCommentAuthorID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockMysteryRepository_GetCommentAuthorID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetCommentAuthorID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockMysteryRepository_GetCommentAuthorID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentEntityID provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentEntityID")
-	}
-
-	var r0 uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
-type MockMysteryRepository_GetCommentEntityID_Call struct {
-	*mock.Call
-}
-
-// GetCommentEntityID is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentEntityID(ctx any, commentID any) *MockMysteryRepository_GetCommentEntityID_Call {
-	return &MockMysteryRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID", ctx, commentID)}
-}
-
-func (_c *MockMysteryRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockMysteryRepository_GetCommentEntityID_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetCommentEntityID_Call {
-	_c.Call.Return(uUID, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) (uuid.UUID, error)) *MockMysteryRepository_GetCommentEntityID_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error) {
-	ret := _mock.Called(ctx, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentMedia")
-	}
-
-	var r0 []model.PostMediaRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, commentID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, commentID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.PostMediaRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentMedia'
-type MockMysteryRepository_GetCommentMedia_Call struct {
-	*mock.Call
-}
-
-// GetCommentMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentMedia(ctx any, commentID any) *MockMysteryRepository_GetCommentMedia_Call {
-	return &MockMysteryRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia", ctx, commentID)}
-}
-
-func (_c *MockMysteryRepository_GetCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID)) *MockMysteryRepository_GetCommentMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMedia_Call) Return(postMediaRows []model.PostMediaRow, err error) *MockMysteryRepository_GetCommentMedia_Call {
-	_c.Call.Return(postMediaRows, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID) ([]model.PostMediaRow, error)) *MockMysteryRepository_GetCommentMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetCommentMediaBatch provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error) {
-	ret := _mock.Called(ctx, commentIDs)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetCommentMediaBatch")
-	}
-
-	var r0 map[uuid.UUID][]model.PostMediaRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, commentIDs)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, commentIDs)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, commentIDs)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetCommentMediaBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentMediaBatch'
-type MockMysteryRepository_GetCommentMediaBatch_Call struct {
-	*mock.Call
-}
-
-// GetCommentMediaBatch is a helper method to define mock.On call
-//   - ctx context.Context
-//   - commentIDs []uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	return &MockMysteryRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch", ctx, commentIDs)}
-}
-
-func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) Run(run func(ctx context.Context, commentIDs []uuid.UUID)) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].([]uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) Return(uUIDToPostMediaRows map[uuid.UUID][]model.PostMediaRow, err error) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(uUIDToPostMediaRows, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID) (map[uuid.UUID][]model.PostMediaRow, error)) *MockMysteryRepository_GetCommentMediaBatch_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetComments provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetComments(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error) {
-	ret := _mock.Called(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetComments")
-	}
-
-	var r0 []CommentRow
-	var r1 int
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) []CommentRow); ok {
-		r0 = returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) int); ok {
-		r1 = returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)
-	} else {
-		r1 = ret.Get(1).(int)
-	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// MockMysteryRepository_GetComments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetComments'
-type MockMysteryRepository_GetComments_Call struct {
-	*mock.Call
-}
-
-// GetComments is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetComments(ctx any, mysteryID any, viewerID any, limit any, offset any, excludeUserIDs any) *MockMysteryRepository_GetComments_Call {
-	return &MockMysteryRepository_GetComments_Call{Call: _e.mock.On("GetComments", ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)}
-}
-
-func (_c *MockMysteryRepository_GetComments_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID)) *MockMysteryRepository_GetComments_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockMysteryRepository_GetComments_Call {
-	_c.Call.Return(commentRows, n, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID) ([]CommentRow, int, error)) *MockMysteryRepository_GetComments_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetGMLeaderboard provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetGMLeaderboard(ctx context.Context, limit int) ([]GMLeaderboardEntry, error) {
-	ret := _mock.Called(ctx, limit)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetGMLeaderboard")
-	}
-
-	var r0 []GMLeaderboardEntry
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]GMLeaderboardEntry, error)); ok {
-		return returnFunc(ctx, limit)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []GMLeaderboardEntry); ok {
-		r0 = returnFunc(ctx, limit)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]GMLeaderboardEntry)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetGMLeaderboard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGMLeaderboard'
-type MockMysteryRepository_GetGMLeaderboard_Call struct {
-	*mock.Call
-}
-
-// GetGMLeaderboard is a helper method to define mock.On call
-//   - ctx context.Context
-//   - limit int
-func (_e *MockMysteryRepository_Expecter) GetGMLeaderboard(ctx any, limit any) *MockMysteryRepository_GetGMLeaderboard_Call {
-	return &MockMysteryRepository_GetGMLeaderboard_Call{Call: _e.mock.On("GetGMLeaderboard", ctx, limit)}
-}
-
-func (_c *MockMysteryRepository_GetGMLeaderboard_Call) Run(run func(ctx context.Context, limit int)) *MockMysteryRepository_GetGMLeaderboard_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int
-		if args[1] != nil {
-			arg1 = args[1].(int)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetGMLeaderboard_Call) Return(gMLeaderboardEntrys []GMLeaderboardEntry, err error) *MockMysteryRepository_GetGMLeaderboard_Call {
-	_c.Call.Return(gMLeaderboardEntrys, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetGMLeaderboard_Call) RunAndReturn(run func(ctx context.Context, limit int) ([]GMLeaderboardEntry, error)) *MockMysteryRepository_GetGMLeaderboard_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetLeaderboard provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetLeaderboard(ctx context.Context, limit int) ([]LeaderboardEntry, error) {
-	ret := _mock.Called(ctx, limit)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetLeaderboard")
-	}
-
-	var r0 []LeaderboardEntry
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) ([]LeaderboardEntry, error)); ok {
-		return returnFunc(ctx, limit)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int) []LeaderboardEntry); ok {
-		r0 = returnFunc(ctx, limit)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]LeaderboardEntry)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int) error); ok {
-		r1 = returnFunc(ctx, limit)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetLeaderboard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLeaderboard'
-type MockMysteryRepository_GetLeaderboard_Call struct {
-	*mock.Call
-}
-
-// GetLeaderboard is a helper method to define mock.On call
-//   - ctx context.Context
-//   - limit int
-func (_e *MockMysteryRepository_Expecter) GetLeaderboard(ctx any, limit any) *MockMysteryRepository_GetLeaderboard_Call {
-	return &MockMysteryRepository_GetLeaderboard_Call{Call: _e.mock.On("GetLeaderboard", ctx, limit)}
-}
-
-func (_c *MockMysteryRepository_GetLeaderboard_Call) Run(run func(ctx context.Context, limit int)) *MockMysteryRepository_GetLeaderboard_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int
-		if args[1] != nil {
-			arg1 = args[1].(int)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetLeaderboard_Call) Return(leaderboardEntrys []LeaderboardEntry, err error) *MockMysteryRepository_GetLeaderboard_Call {
-	_c.Call.Return(leaderboardEntrys, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetLeaderboard_Call) RunAndReturn(run func(ctx context.Context, limit int) ([]LeaderboardEntry, error)) *MockMysteryRepository_GetLeaderboard_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetMedia provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetMedia(ctx context.Context, mysteryID uuid.UUID) ([]model.PostMediaRow, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetMedia")
-	}
-
-	var r0 []model.PostMediaRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.PostMediaRow, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.PostMediaRow); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]model.PostMediaRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMedia'
-type MockMysteryRepository_GetMedia_Call struct {
-	*mock.Call
-}
-
-// GetMedia is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetMedia(ctx any, mysteryID any) *MockMysteryRepository_GetMedia_Call {
-	return &MockMysteryRepository_GetMedia_Call{Call: _e.mock.On("GetMedia", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_GetMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetMedia_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetMedia_Call) Return(postMediaRows []model.PostMediaRow, err error) *MockMysteryRepository_GetMedia_Call {
-	_c.Call.Return(postMediaRows, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) ([]model.PostMediaRow, error)) *MockMysteryRepository_GetMedia_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetPlayerIDs provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetPlayerIDs")
-	}
-
-	var r0 []uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetPlayerIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPlayerIDs'
-type MockMysteryRepository_GetPlayerIDs_Call struct {
-	*mock.Call
-}
-
-// GetPlayerIDs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetPlayerIDs(ctx any, mysteryID any) *MockMysteryRepository_GetPlayerIDs_Call {
-	return &MockMysteryRepository_GetPlayerIDs_Call{Call: _e.mock.On("GetPlayerIDs", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_GetPlayerIDs_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetPlayerIDs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetPlayerIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockMysteryRepository_GetPlayerIDs_Call {
-	_c.Call.Return(uUIDs, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetPlayerIDs_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error)) *MockMysteryRepository_GetPlayerIDs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetSolverIDs provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetSolverIDs")
-	}
-
-	var r0 []uuid.UUID
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]uuid.UUID)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetSolverIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSolverIDs'
-type MockMysteryRepository_GetSolverIDs_Call struct {
-	*mock.Call
-}
-
-// GetSolverIDs is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) GetSolverIDs(ctx any, mysteryID any) *MockMysteryRepository_GetSolverIDs_Call {
-	return &MockMysteryRepository_GetSolverIDs_Call{Call: _e.mock.On("GetSolverIDs", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_GetSolverIDs_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_GetSolverIDs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetSolverIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockMysteryRepository_GetSolverIDs_Call {
-	_c.Call.Return(uUIDs, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetSolverIDs_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) ([]uuid.UUID, error)) *MockMysteryRepository_GetSolverIDs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetTopDetectiveIDs provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetTopDetectiveIDs(ctx context.Context) ([]string, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetTopDetectiveIDs")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetTopDetectiveIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTopDetectiveIDs'
-type MockMysteryRepository_GetTopDetectiveIDs_Call struct {
-	*mock.Call
-}
-
-// GetTopDetectiveIDs is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockMysteryRepository_Expecter) GetTopDetectiveIDs(ctx any) *MockMysteryRepository_GetTopDetectiveIDs_Call {
-	return &MockMysteryRepository_GetTopDetectiveIDs_Call{Call: _e.mock.On("GetTopDetectiveIDs", ctx)}
-}
-
-func (_c *MockMysteryRepository_GetTopDetectiveIDs_Call) Run(run func(ctx context.Context)) *MockMysteryRepository_GetTopDetectiveIDs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetTopDetectiveIDs_Call) Return(strings []string, err error) *MockMysteryRepository_GetTopDetectiveIDs_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetTopDetectiveIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *MockMysteryRepository_GetTopDetectiveIDs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// GetTopGMIDs provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) GetTopGMIDs(ctx context.Context) ([]string, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for GetTopGMIDs")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_GetTopGMIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTopGMIDs'
-type MockMysteryRepository_GetTopGMIDs_Call struct {
-	*mock.Call
-}
-
-// GetTopGMIDs is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *MockMysteryRepository_Expecter) GetTopGMIDs(ctx any) *MockMysteryRepository_GetTopGMIDs_Call {
-	return &MockMysteryRepository_GetTopGMIDs_Call{Call: _e.mock.On("GetTopGMIDs", ctx)}
-}
-
-func (_c *MockMysteryRepository_GetTopGMIDs_Call) Run(run func(ctx context.Context)) *MockMysteryRepository_GetTopGMIDs_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetTopGMIDs_Call) Return(strings []string, err error) *MockMysteryRepository_GetTopGMIDs_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_GetTopGMIDs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *MockMysteryRepository_GetTopGMIDs_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IsPaused provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) IsPaused(ctx context.Context, mysteryID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsPaused")
-	}
-
-	var r0 bool
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_IsPaused_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsPaused'
-type MockMysteryRepository_IsPaused_Call struct {
-	*mock.Call
-}
-
-// IsPaused is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) IsPaused(ctx any, mysteryID any) *MockMysteryRepository_IsPaused_Call {
-	return &MockMysteryRepository_IsPaused_Call{Call: _e.mock.On("IsPaused", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_IsPaused_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_IsPaused_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_IsPaused_Call) Return(b bool, err error) *MockMysteryRepository_IsPaused_Call {
-	_c.Call.Return(b, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_IsPaused_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) (bool, error)) *MockMysteryRepository_IsPaused_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IsSolved provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) IsSolved(ctx context.Context, mysteryID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsSolved")
-	}
-
-	var r0 bool
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, mysteryID)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockMysteryRepository_IsSolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsSolved'
-type MockMysteryRepository_IsSolved_Call struct {
-	*mock.Call
-}
-
-// IsSolved is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) IsSolved(ctx any, mysteryID any) *MockMysteryRepository_IsSolved_Call {
-	return &MockMysteryRepository_IsSolved_Call{Call: _e.mock.On("IsSolved", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_IsSolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_IsSolved_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_IsSolved_Call) Return(b bool, err error) *MockMysteryRepository_IsSolved_Call {
-	_c.Call.Return(b, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_IsSolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) (bool, error)) *MockMysteryRepository_IsSolved_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// LikeComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for LikeComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, commentID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_LikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LikeComment'
-type MockMysteryRepository_LikeComment_Call struct {
-	*mock.Call
-}
-
-// LikeComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) LikeComment(ctx any, userID any, commentID any) *MockMysteryRepository_LikeComment_Call {
-	return &MockMysteryRepository_LikeComment_Call{Call: _e.mock.On("LikeComment", ctx, userID, commentID)}
-}
-
-func (_c *MockMysteryRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID)) *MockMysteryRepository_LikeComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_LikeComment_Call) Return(err error) *MockMysteryRepository_LikeComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error) *MockMysteryRepository_LikeComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// List provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) List(ctx context.Context, sort string, solved *bool, limit int, offset int, excludeUserIDs []uuid.UUID) ([]MysteryRow, int, error) {
-	ret := _mock.Called(ctx, sort, solved, limit, offset, excludeUserIDs)
-
-	if len(ret) == 0 {
-		panic("no return value specified for List")
-	}
-
-	var r0 []MysteryRow
-	var r1 int
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, int, int, []uuid.UUID) ([]MysteryRow, int, error)); ok {
-		return returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, int, int, []uuid.UUID) []MysteryRow); ok {
-		r0 = returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]MysteryRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *bool, int, int, []uuid.UUID) int); ok {
-		r1 = returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs)
-	} else {
-		r1 = ret.Get(1).(int)
-	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, *bool, int, int, []uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// MockMysteryRepository_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
-type MockMysteryRepository_List_Call struct {
-	*mock.Call
-}
-
-// List is a helper method to define mock.On call
-//   - ctx context.Context
-//   - sort string
-//   - solved *bool
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
-func (_e *MockMysteryRepository_Expecter) List(ctx any, sort any, solved any, limit any, offset any, excludeUserIDs any) *MockMysteryRepository_List_Call {
-	return &MockMysteryRepository_List_Call{Call: _e.mock.On("List", ctx, sort, solved, limit, offset, excludeUserIDs)}
-}
-
-func (_c *MockMysteryRepository_List_Call) Run(run func(ctx context.Context, sort string, solved *bool, limit int, offset int, excludeUserIDs []uuid.UUID)) *MockMysteryRepository_List_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 *bool
-		if args[2] != nil {
-			arg2 = args[2].(*bool)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_List_Call) Return(mysteryRows []MysteryRow, n int, err error) *MockMysteryRepository_List_Call {
-	_c.Call.Return(mysteryRows, n, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_List_Call) RunAndReturn(run func(ctx context.Context, sort string, solved *bool, limit int, offset int, excludeUserIDs []uuid.UUID) ([]MysteryRow, int, error)) *MockMysteryRepository_List_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// ListByUser provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]MysteryRow, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
-
-	if len(ret) == 0 {
-		panic("no return value specified for ListByUser")
-	}
-
-	var r0 []MysteryRow
-	var r1 int
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]MysteryRow, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []MysteryRow); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]MysteryRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
-	} else {
-		r1 = ret.Get(1).(int)
-	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// MockMysteryRepository_ListByUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListByUser'
-type MockMysteryRepository_ListByUser_Call struct {
-	*mock.Call
-}
-
-// ListByUser is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - limit int
-//   - offset int
-func (_e *MockMysteryRepository_Expecter) ListByUser(ctx any, userID any, limit any, offset any) *MockMysteryRepository_ListByUser_Call {
-	return &MockMysteryRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, limit, offset)}
-}
-
-func (_c *MockMysteryRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockMysteryRepository_ListByUser_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_ListByUser_Call) Return(mysteryRows []MysteryRow, n int, err error) *MockMysteryRepository_ListByUser_Call {
-	_c.Call.Return(mysteryRows, n, err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]MysteryRow, int, error)) *MockMysteryRepository_ListByUser_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// MarkPermanentlySolved provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID) error {
-	ret := _mock.Called(ctx, mysteryID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for MarkPermanentlySolved")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, mysteryID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_MarkPermanentlySolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPermanentlySolved'
-type MockMysteryRepository_MarkPermanentlySolved_Call struct {
-	*mock.Call
-}
-
-// MarkPermanentlySolved is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) MarkPermanentlySolved(ctx any, mysteryID any) *MockMysteryRepository_MarkPermanentlySolved_Call {
-	return &MockMysteryRepository_MarkPermanentlySolved_Call{Call: _e.mock.On("MarkPermanentlySolved", ctx, mysteryID)}
-}
-
-func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID)) *MockMysteryRepository_MarkPermanentlySolved_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) Return(err error) *MockMysteryRepository_MarkPermanentlySolved_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID) error) *MockMysteryRepository_MarkPermanentlySolved_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// MarkSolved provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool) error {
-	ret := _mock.Called(ctx, mysteryID, attemptID, lockMystery)
-
-	if len(ret) == 0 {
-		panic("no return value specified for MarkSolved")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, mysteryID, attemptID, lockMystery)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_MarkSolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkSolved'
-type MockMysteryRepository_MarkSolved_Call struct {
-	*mock.Call
-}
-
-// MarkSolved is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - attemptID uuid.UUID
-//   - lockMystery bool
-func (_e *MockMysteryRepository_Expecter) MarkSolved(ctx any, mysteryID any, attemptID any, lockMystery any) *MockMysteryRepository_MarkSolved_Call {
-	return &MockMysteryRepository_MarkSolved_Call{Call: _e.mock.On("MarkSolved", ctx, mysteryID, attemptID, lockMystery)}
-}
-
-func (_c *MockMysteryRepository_MarkSolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool)) *MockMysteryRepository_MarkSolved_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 bool
-		if args[3] != nil {
-			arg3 = args[3].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_MarkSolved_Call) Return(err error) *MockMysteryRepository_MarkSolved_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_MarkSolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool) error) *MockMysteryRepository_MarkSolved_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SetGmAway provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bool) error {
-	ret := _mock.Called(ctx, mysteryID, away)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetGmAway")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, mysteryID, away)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_SetGmAway_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetGmAway'
-type MockMysteryRepository_SetGmAway_Call struct {
-	*mock.Call
-}
-
-// SetGmAway is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - away bool
-func (_e *MockMysteryRepository_Expecter) SetGmAway(ctx any, mysteryID any, away any) *MockMysteryRepository_SetGmAway_Call {
-	return &MockMysteryRepository_SetGmAway_Call{Call: _e.mock.On("SetGmAway", ctx, mysteryID, away)}
-}
-
-func (_c *MockMysteryRepository_SetGmAway_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, away bool)) *MockMysteryRepository_SetGmAway_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_SetGmAway_Call) Return(err error) *MockMysteryRepository_SetGmAway_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_SetGmAway_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, away bool) error) *MockMysteryRepository_SetGmAway_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// SetPaused provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused bool) error {
-	ret := _mock.Called(ctx, mysteryID, paused)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SetPaused")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, mysteryID, paused)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_SetPaused_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPaused'
-type MockMysteryRepository_SetPaused_Call struct {
-	*mock.Call
-}
-
-// SetPaused is a helper method to define mock.On call
-//   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - paused bool
-func (_e *MockMysteryRepository_Expecter) SetPaused(ctx any, mysteryID any, paused any) *MockMysteryRepository_SetPaused_Call {
-	return &MockMysteryRepository_SetPaused_Call{Call: _e.mock.On("SetPaused", ctx, mysteryID, paused)}
-}
-
-func (_c *MockMysteryRepository_SetPaused_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, paused bool)) *MockMysteryRepository_SetPaused_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_SetPaused_Call) Return(err error) *MockMysteryRepository_SetPaused_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_SetPaused_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, paused bool) error) *MockMysteryRepository_SetPaused_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UnlikeComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID, commentID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UnlikeComment")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID, commentID)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UnlikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnlikeComment'
-type MockMysteryRepository_UnlikeComment_Call struct {
-	*mock.Call
-}
-
-// UnlikeComment is a helper method to define mock.On call
-//   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any) *MockMysteryRepository_UnlikeComment_Call {
-	return &MockMysteryRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment", ctx, userID, commentID)}
-}
-
-func (_c *MockMysteryRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID)) *MockMysteryRepository_UnlikeComment_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UnlikeComment_Call) Return(err error) *MockMysteryRepository_UnlikeComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error) *MockMysteryRepository_UnlikeComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Update provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error {
-	ret := _mock.Called(ctx, id, userID, title, body, difficulty)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Update")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string) error); ok {
-		r0 = returnFunc(ctx, id, userID, title, body, difficulty)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
-type MockMysteryRepository_Update_Call struct {
-	*mock.Call
-}
-
-// Update is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - title string
-//   - body string
-//   - difficulty string
-func (_e *MockMysteryRepository_Expecter) Update(ctx any, id any, userID any, title any, body any, difficulty any) *MockMysteryRepository_Update_Call {
-	return &MockMysteryRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, title, body, difficulty)}
-}
-
-func (_c *MockMysteryRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string)) *MockMysteryRepository_Update_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_Update_Call) Return(err error) *MockMysteryRepository_Update_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string) error) *MockMysteryRepository_Update_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error {
-	ret := _mock.Called(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract) error); ok {
-		r0 = returnFunc(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAsAdmin'
-type MockMysteryRepository_UpdateAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - title string
-//   - body string
-//   - difficulty string
-//   - freeForAll bool
-//   - keepOpenAfterSolve bool
-//   - knox dto.KnoxContract
-func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx any, id any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any, knox any) *MockMysteryRepository_UpdateAsAdmin_Call {
-	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)}
-}
-
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract)) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_c *MockMysteryRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx)) *MockMysteryRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3547,6 +890,12 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Con
 		if args[7] != nil {
 			arg7 = args[7].(dto.KnoxContract)
 		}
+		var arg8 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 8 {
+			variadicArgs = args[8].([]*sql.Tx)
+		}
+		arg8 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -3556,52 +905,723 @@ func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Con
 			arg5,
 			arg6,
 			arg7,
+			arg8...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Return(err error) *MockMysteryRepository_UpdateAsAdmin_Call {
-	_c.Call.Return(err)
+func (_c *MockMysteryRepository_Create_Call) Return(mysteryRow *MysteryRow, err error) *MockMysteryRepository_Create_Call {
+	_c.Call.Return(mysteryRow, err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract) error) *MockMysteryRepository_UpdateAsAdmin_Call {
+func (_c *MockMysteryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) (*MysteryRow, error)) *MockMysteryRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateClue provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateClue(ctx context.Context, clueID int, body string) error {
-	ret := _mock.Called(ctx, clueID, body)
+// CreateAttempt provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string, tx ...*sql.Tx) (*MysteryAttemptRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, userID, parentID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, userID, parentID, body)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateClue")
+		panic("no return value specified for CreateAttempt")
+	}
+
+	var r0 *MysteryAttemptRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string, ...*sql.Tx) (*MysteryAttemptRow, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, parentID, body, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string, ...*sql.Tx) *MysteryAttemptRow); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, parentID, body, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*MysteryAttemptRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, parentID, body, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_CreateAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateAttempt'
+type MockMysteryRepository_CreateAttempt_Call struct {
+	*mock.Call
+}
+
+// CreateAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+//   - parentID *uuid.UUID
+//   - body string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CreateAttempt(ctx any, mysteryID any, userID any, parentID any, body any, tx ...any) *MockMysteryRepository_CreateAttempt_Call {
+	return &MockMysteryRepository_CreateAttempt_Call{Call: _e.mock.On("CreateAttempt",
+		append([]any{ctx, mysteryID, userID, parentID, body}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_CreateAttempt_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string, tx ...*sql.Tx)) *MockMysteryRepository_CreateAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 *uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(*uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_CreateAttempt_Call) Return(mysteryAttemptRow *MysteryAttemptRow, err error) *MockMysteryRepository_CreateAttempt_Call {
+	_c.Call.Return(mysteryAttemptRow, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_CreateAttempt_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string, tx ...*sql.Tx) (*MysteryAttemptRow, error)) *MockMysteryRepository_CreateAttempt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateComment provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) CreateComment(ctx context.Context, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, parentID, userID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, parentID, userID, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateComment")
+	}
+
+	var r0 *CommentRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *uuid.UUID, uuid.UUID, string, ...*sql.Tx) (*CommentRow, error)); ok {
+		return returnFunc(ctx, mysteryID, parentID, userID, body, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, *uuid.UUID, uuid.UUID, string, ...*sql.Tx) *CommentRow); ok {
+		r0 = returnFunc(ctx, mysteryID, parentID, userID, body, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*CommentRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, *uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, parentID, userID, body, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_CreateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateComment'
+type MockMysteryRepository_CreateComment_Call struct {
+	*mock.Call
+}
+
+// CreateComment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - parentID *uuid.UUID
+//   - userID uuid.UUID
+//   - body string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CreateComment(ctx any, mysteryID any, parentID any, userID any, body any, tx ...any) *MockMysteryRepository_CreateComment_Call {
+	return &MockMysteryRepository_CreateComment_Call{Call: _e.mock.On("CreateComment",
+		append([]any{ctx, mysteryID, parentID, userID, body}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_CreateComment_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockMysteryRepository_CreateComment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 *uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(*uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_CreateComment_Call) Return(commentRow *CommentRow, err error) *MockMysteryRepository_CreateComment_Call {
+	_c.Call.Return(commentRow, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)) *MockMysteryRepository_CreateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateWithClues provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) CreateWithClues(ctx context.Context, spec NewMystery, tx ...*sql.Tx) (*MysteryRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateWithClues")
+	}
+
+	var r0 *MysteryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewMystery, ...*sql.Tx) (*MysteryRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewMystery, ...*sql.Tx) *MysteryRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*MysteryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewMystery, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_CreateWithClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateWithClues'
+type MockMysteryRepository_CreateWithClues_Call struct {
+	*mock.Call
+}
+
+// CreateWithClues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewMystery
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) CreateWithClues(ctx any, spec any, tx ...any) *MockMysteryRepository_CreateWithClues_Call {
+	return &MockMysteryRepository_CreateWithClues_Call{Call: _e.mock.On("CreateWithClues",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_CreateWithClues_Call) Run(run func(ctx context.Context, spec NewMystery, tx ...*sql.Tx)) *MockMysteryRepository_CreateWithClues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewMystery
+		if args[1] != nil {
+			arg1 = args[1].(NewMystery)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_CreateWithClues_Call) Return(mysteryRow *MysteryRow, err error) *MockMysteryRepository_CreateWithClues_Call {
+	_c.Call.Return(mysteryRow, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_CreateWithClues_Call) RunAndReturn(run func(ctx context.Context, spec NewMystery, tx ...*sql.Tx) (*MysteryRow, error)) *MockMysteryRepository_CreateWithClues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Delete provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, string) error); ok {
-		r0 = returnFunc(ctx, clueID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockMysteryRepository_UpdateClue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateClue'
-type MockMysteryRepository_UpdateClue_Call struct {
+// MockMysteryRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
+type MockMysteryRepository_Delete_Call struct {
 	*mock.Call
 }
 
-// UpdateClue is a helper method to define mock.On call
+// Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - clueID int
-//   - body string
-func (_e *MockMysteryRepository_Expecter) UpdateClue(ctx any, clueID any, body any) *MockMysteryRepository_UpdateClue_Call {
-	return &MockMysteryRepository_UpdateClue_Call{Call: _e.mock.On("UpdateClue", ctx, clueID, body)}
+//   - id uuid.UUID
+//   - userID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) Delete(ctx any, id any, userID any, tx ...any) *MockMysteryRepository_Delete_Call {
+	return &MockMysteryRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_UpdateClue_Call) Run(run func(ctx context.Context, clueID int, body string)) *MockMysteryRepository_UpdateClue_Call {
+func (_c *MockMysteryRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_Delete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_Delete_Call) Return(err error) *MockMysteryRepository_Delete_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAsAdmin provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAsAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_DeleteAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAsAdmin'
+type MockMysteryRepository_DeleteAsAdmin_Call struct {
+	*mock.Call
+}
+
+// DeleteAsAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteAsAdmin(ctx any, id any, tx ...any) *MockMysteryRepository_DeleteAsAdmin_Call {
+	return &MockMysteryRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteAsAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAsAdmin_Call) Return(err error) *MockMysteryRepository_DeleteAsAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteAsAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAttachment provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAttachment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, mysteryID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_DeleteAttachment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAttachment'
+type MockMysteryRepository_DeleteAttachment_Call struct {
+	*mock.Call
+}
+
+// DeleteAttachment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteAttachment(ctx any, id any, mysteryID any, tx ...any) *MockMysteryRepository_DeleteAttachment_Call {
+	return &MockMysteryRepository_DeleteAttachment_Call{Call: _e.mock.On("DeleteAttachment",
+		append([]any{ctx, id, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteAttachment_Call) Run(run func(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteAttachment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAttachment_Call) Return(err error) *MockMysteryRepository_DeleteAttachment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAttachment_Call) RunAndReturn(run func(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteAttachment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAttempt provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAttempt")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_DeleteAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAttempt'
+type MockMysteryRepository_DeleteAttempt_Call struct {
+	*mock.Call
+}
+
+// DeleteAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - userID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteAttempt(ctx any, id any, userID any, tx ...any) *MockMysteryRepository_DeleteAttempt_Call {
+	return &MockMysteryRepository_DeleteAttempt_Call{Call: _e.mock.On("DeleteAttempt",
+		append([]any{ctx, id, userID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteAttempt_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAttempt_Call) Return(err error) *MockMysteryRepository_DeleteAttempt_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAttempt_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteAttempt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAttemptAsAdmin provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAttemptAsAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_DeleteAttemptAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAttemptAsAdmin'
+type MockMysteryRepository_DeleteAttemptAsAdmin_Call struct {
+	*mock.Call
+}
+
+// DeleteAttemptAsAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteAttemptAsAdmin(ctx any, id any, tx ...any) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
+	return &MockMysteryRepository_DeleteAttemptAsAdmin_Call{Call: _e.mock.On("DeleteAttemptAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteAttemptAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAttemptAsAdmin_Call) Return(err error) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteAttemptAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteAttemptAsAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteClue provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, clueID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, clueID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteClue")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, clueID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_DeleteClue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteClue'
+type MockMysteryRepository_DeleteClue_Call struct {
+	*mock.Call
+}
+
+// DeleteClue is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clueID int
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteClue(ctx any, clueID any, tx ...any) *MockMysteryRepository_DeleteClue_Call {
+	return &MockMysteryRepository_DeleteClue_Call{Call: _e.mock.On("DeleteClue",
+		append([]any{ctx, clueID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteClue_Call) Run(run func(ctx context.Context, clueID int, tx ...*sql.Tx)) *MockMysteryRepository_DeleteClue_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3611,61 +1631,142 @@ func (_c *MockMysteryRepository_UpdateClue_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(int)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateClue_Call) Return(err error) *MockMysteryRepository_UpdateClue_Call {
+func (_c *MockMysteryRepository_DeleteClue_Call) Return(err error) *MockMysteryRepository_DeleteClue_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateClue_Call) RunAndReturn(run func(ctx context.Context, clueID int, body string) error) *MockMysteryRepository_UpdateClue_Call {
+func (_c *MockMysteryRepository_DeleteClue_Call) RunAndReturn(run func(ctx context.Context, clueID int, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteClue_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateComment provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, userID, body)
+// DeleteClues provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateComment")
+		panic("no return value specified for DeleteClues")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, userID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockMysteryRepository_UpdateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateComment'
-type MockMysteryRepository_UpdateComment_Call struct {
+// MockMysteryRepository_DeleteClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteClues'
+type MockMysteryRepository_DeleteClues_Call struct {
 	*mock.Call
 }
 
-// UpdateComment is a helper method to define mock.On call
+// DeleteClues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteClues(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_DeleteClues_Call {
+	return &MockMysteryRepository_DeleteClues_Call{Call: _e.mock.On("DeleteClues",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteClues_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteClues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteClues_Call) Return(err error) *MockMysteryRepository_DeleteClues_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteClues_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteClues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteComment provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteComment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_DeleteComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteComment'
+type MockMysteryRepository_DeleteComment_Call struct {
+	*mock.Call
+}
+
+// DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-//   - body string
-func (_e *MockMysteryRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any) *MockMysteryRepository_UpdateComment_Call {
-	return &MockMysteryRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment", ctx, id, userID, body)}
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *MockMysteryRepository_DeleteComment_Call {
+	return &MockMysteryRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string)) *MockMysteryRepository_UpdateComment_Call {
+func (_c *MockMysteryRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3679,61 +1780,70 @@ func (_c *MockMysteryRepository_UpdateComment_Call) Run(run func(ctx context.Con
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
 		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
+			arg3...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateComment_Call) Return(err error) *MockMysteryRepository_UpdateComment_Call {
+func (_c *MockMysteryRepository_DeleteComment_Call) Return(err error) *MockMysteryRepository_DeleteComment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string) error) *MockMysteryRepository_UpdateComment_Call {
+func (_c *MockMysteryRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateCommentAsAdmin provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, body)
+// DeleteCommentAsAdmin provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentAsAdmin")
+		panic("no return value specified for DeleteCommentAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockMysteryRepository_UpdateCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentAsAdmin'
-type MockMysteryRepository_UpdateCommentAsAdmin_Call struct {
+// MockMysteryRepository_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
+type MockMysteryRepository_DeleteCommentAsAdmin_Call struct {
 	*mock.Call
 }
 
-// UpdateCommentAsAdmin is a helper method to define mock.On call
+// DeleteCommentAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-//   - body string
-func (_e *MockMysteryRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
-	return &MockMysteryRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin", ctx, id, body)}
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
+	return &MockMysteryRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string)) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockMysteryRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3743,321 +1853,757 @@ func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockMysteryRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string) error) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockMysteryRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_DeleteCommentAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateCommentMediaThumbnail provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, thumbnailURL)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL)
+// DeleteCommentWithAudit provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteCommentWithAudit(ctx context.Context, spec MysteryCommentDelete, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
 	} else {
-		r0 = ret.Error(0)
+		tmpRet = _mock.Called(ctx, spec)
 	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateCommentMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentMediaThumbnail'
-type MockMysteryRepository_UpdateCommentMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
-func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	return &MockMysteryRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail", ctx, id, thumbnailURL)}
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) Return(err error) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentMediaURL provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	ret := _mock.Called(ctx, id, mediaURL)
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentMediaURL")
+		panic("no return value specified for DeleteCommentWithAudit")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateCommentMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentMediaURL'
-type MockMysteryRepository_UpdateCommentMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - mediaURL string
-func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	return &MockMysteryRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL", ctx, id, mediaURL)}
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string)) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Return(err error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMediaThumbnail provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, thumbnailURL)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMediaThumbnail")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaThumbnail'
-type MockMysteryRepository_UpdateMediaThumbnail_Call struct {
-	*mock.Call
-}
-
-// UpdateMediaThumbnail is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
-func (_e *MockMysteryRepository_Expecter) UpdateMediaThumbnail(ctx any, id any, thumbnailURL any) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	return &MockMysteryRepository_UpdateMediaThumbnail_Call{Call: _e.mock.On("UpdateMediaThumbnail", ctx, id, thumbnailURL)}
-}
-
-func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) Return(err error) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockMysteryRepository_UpdateMediaThumbnail_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateMediaURL provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UpdateMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	ret := _mock.Called(ctx, id, mediaURL)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateMediaURL")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockMysteryRepository_UpdateMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaURL'
-type MockMysteryRepository_UpdateMediaURL_Call struct {
-	*mock.Call
-}
-
-// UpdateMediaURL is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id int64
-//   - mediaURL string
-func (_e *MockMysteryRepository_Expecter) UpdateMediaURL(ctx any, id any, mediaURL any) *MockMysteryRepository_UpdateMediaURL_Call {
-	return &MockMysteryRepository_UpdateMediaURL_Call{Call: _e.mock.On("UpdateMediaURL", ctx, id, mediaURL)}
-}
-
-func (_c *MockMysteryRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string)) *MockMysteryRepository_UpdateMediaURL_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 int64
-		if args[1] != nil {
-			arg1 = args[1].(int64)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaURL_Call) Return(err error) *MockMysteryRepository_UpdateMediaURL_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockMysteryRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockMysteryRepository_UpdateMediaURL_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UserHasWinningAttempt provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) UserHasWinningAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, mysteryID, userID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UserHasWinningAttempt")
-	}
-
-	var r0 bool
+	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, mysteryID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, MysteryCommentDelete, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, mysteryID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, MysteryCommentDelete, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
-		r0 = ret.Get(0).(bool)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, mysteryID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, MysteryCommentDelete, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockMysteryRepository_UserHasWinningAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserHasWinningAttempt'
-type MockMysteryRepository_UserHasWinningAttempt_Call struct {
+// MockMysteryRepository_DeleteCommentWithAudit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentWithAudit'
+type MockMysteryRepository_DeleteCommentWithAudit_Call struct {
 	*mock.Call
 }
 
-// UserHasWinningAttempt is a helper method to define mock.On call
+// DeleteCommentWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - mysteryID uuid.UUID
-//   - userID uuid.UUID
-func (_e *MockMysteryRepository_Expecter) UserHasWinningAttempt(ctx any, mysteryID any, userID any) *MockMysteryRepository_UserHasWinningAttempt_Call {
-	return &MockMysteryRepository_UserHasWinningAttempt_Call{Call: _e.mock.On("UserHasWinningAttempt", ctx, mysteryID, userID)}
+//   - spec MysteryCommentDelete
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteCommentWithAudit(ctx any, spec any, tx ...any) *MockMysteryRepository_DeleteCommentWithAudit_Call {
+	return &MockMysteryRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID)) *MockMysteryRepository_UserHasWinningAttempt_Call {
+func (_c *MockMysteryRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, spec MysteryCommentDelete, tx ...*sql.Tx)) *MockMysteryRepository_DeleteCommentWithAudit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 MysteryCommentDelete
+		if args[1] != nil {
+			arg1 = args[1].(MysteryCommentDelete)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteCommentWithAudit_Call) Return(strings []string, err error) *MockMysteryRepository_DeleteCommentWithAudit_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, spec MysteryCommentDelete, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_DeleteCommentWithAudit_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteMedia provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteMedia(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteMedia")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, id, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, id, mysteryID, tx...)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_DeleteMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMedia'
+type MockMysteryRepository_DeleteMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteMedia(ctx any, id any, mysteryID any, tx ...any) *MockMysteryRepository_DeleteMedia_Call {
+	return &MockMysteryRepository_DeleteMedia_Call{Call: _e.mock.On("DeleteMedia",
+		append([]any{ctx, id, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteMedia_Call) Run(run func(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_DeleteMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteMedia_Call) Return(s string, err error) *MockMysteryRepository_DeleteMedia_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteMedia_Call) RunAndReturn(run func(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockMysteryRepository_DeleteMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteWithFiles provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) DeleteWithFiles(ctx context.Context, spec MysteryDelete, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteWithFiles")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, MysteryDelete, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, MysteryDelete, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, MysteryDelete, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_DeleteWithFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteWithFiles'
+type MockMysteryRepository_DeleteWithFiles_Call struct {
+	*mock.Call
+}
+
+// DeleteWithFiles is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec MysteryDelete
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) DeleteWithFiles(ctx any, spec any, tx ...any) *MockMysteryRepository_DeleteWithFiles_Call {
+	return &MockMysteryRepository_DeleteWithFiles_Call{Call: _e.mock.On("DeleteWithFiles",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_DeleteWithFiles_Call) Run(run func(ctx context.Context, spec MysteryDelete, tx ...*sql.Tx)) *MockMysteryRepository_DeleteWithFiles_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 MysteryDelete
+		if args[1] != nil {
+			arg1 = args[1].(MysteryDelete)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteWithFiles_Call) Return(strings []string, err error) *MockMysteryRepository_DeleteWithFiles_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_DeleteWithFiles_Call) RunAndReturn(run func(ctx context.Context, spec MysteryDelete, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_DeleteWithFiles_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAttachmentPaths provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAttachmentPaths")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetAttachmentPaths_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttachmentPaths'
+type MockMysteryRepository_GetAttachmentPaths_Call struct {
+	*mock.Call
+}
+
+// GetAttachmentPaths is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAttachmentPaths(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetAttachmentPaths_Call {
+	return &MockMysteryRepository_GetAttachmentPaths_Call{Call: _e.mock.On("GetAttachmentPaths",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetAttachmentPaths_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAttachmentPaths_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttachmentPaths_Call) Return(strings []string, err error) *MockMysteryRepository_GetAttachmentPaths_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttachmentPaths_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_GetAttachmentPaths_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAttachments provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryAttachment, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAttachments")
+	}
+
+	var r0 []dto.MysteryAttachment
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]dto.MysteryAttachment, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []dto.MysteryAttachment); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.MysteryAttachment)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetAttachments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttachments'
+type MockMysteryRepository_GetAttachments_Call struct {
+	*mock.Call
+}
+
+// GetAttachments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAttachments(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetAttachments_Call {
+	return &MockMysteryRepository_GetAttachments_Call{Call: _e.mock.On("GetAttachments",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetAttachments_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAttachments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttachments_Call) Return(mysteryAttachments []dto.MysteryAttachment, err error) *MockMysteryRepository_GetAttachments_Call {
+	_c.Call.Return(mysteryAttachments, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttachments_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryAttachment, error)) *MockMysteryRepository_GetAttachments_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAttemptAuthorID provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, attemptID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, attemptID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAttemptAuthorID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, attemptID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetAttemptAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttemptAuthorID'
+type MockMysteryRepository_GetAttemptAuthorID_Call struct {
+	*mock.Call
+}
+
+// GetAttemptAuthorID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - attemptID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAttemptAuthorID(ctx any, attemptID any, tx ...any) *MockMysteryRepository_GetAttemptAuthorID_Call {
+	return &MockMysteryRepository_GetAttemptAuthorID_Call{Call: _e.mock.On("GetAttemptAuthorID",
+		append([]any{ctx, attemptID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetAttemptAuthorID_Call) Run(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAttemptAuthorID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttemptAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetAttemptAuthorID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttemptAuthorID_Call) RunAndReturn(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetAttemptAuthorID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAttemptMysteryID provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, attemptID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, attemptID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAttemptMysteryID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, attemptID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetAttemptMysteryID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttemptMysteryID'
+type MockMysteryRepository_GetAttemptMysteryID_Call struct {
+	*mock.Call
+}
+
+// GetAttemptMysteryID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - attemptID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAttemptMysteryID(ctx any, attemptID any, tx ...any) *MockMysteryRepository_GetAttemptMysteryID_Call {
+	return &MockMysteryRepository_GetAttemptMysteryID_Call{Call: _e.mock.On("GetAttemptMysteryID",
+		append([]any{ctx, attemptID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetAttemptMysteryID_Call) Run(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAttemptMysteryID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttemptMysteryID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetAttemptMysteryID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttemptMysteryID_Call) RunAndReturn(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetAttemptMysteryID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAttemptOwner provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, attemptID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, attemptID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAttemptOwner")
+	}
+
+	var r0 uuid.UUID
+	var r1 uuid.UUID
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, uuid.UUID, error)); ok {
+		return returnFunc(ctx, attemptID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r1 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockMysteryRepository_GetAttemptOwner_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttemptOwner'
+type MockMysteryRepository_GetAttemptOwner_Call struct {
+	*mock.Call
+}
+
+// GetAttemptOwner is a helper method to define mock.On call
+//   - ctx context.Context
+//   - attemptID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAttemptOwner(ctx any, attemptID any, tx ...any) *MockMysteryRepository_GetAttemptOwner_Call {
+	return &MockMysteryRepository_GetAttemptOwner_Call{Call: _e.mock.On("GetAttemptOwner",
+		append([]any{ctx, attemptID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetAttemptOwner_Call) Run(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAttemptOwner_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttemptOwner_Call) Return(uUID uuid.UUID, uUID1 uuid.UUID, err error) *MockMysteryRepository_GetAttemptOwner_Call {
+	_c.Call.Return(uUID, uUID1, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAttemptOwner_Call) RunAndReturn(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error)) *MockMysteryRepository_GetAttemptOwner_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetAttempts provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) ([]MysteryAttemptRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, viewerID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, viewerID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetAttempts")
+	}
+
+	var r0 []MysteryAttemptRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) ([]MysteryAttemptRow, error)); ok {
+		return returnFunc(ctx, mysteryID, viewerID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) []MysteryAttemptRow); ok {
+		r0 = returnFunc(ctx, mysteryID, viewerID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]MysteryAttemptRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, viewerID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetAttempts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAttempts'
+type MockMysteryRepository_GetAttempts_Call struct {
+	*mock.Call
+}
+
+// GetAttempts is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - viewerID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAttempts(ctx any, mysteryID any, viewerID any, tx ...any) *MockMysteryRepository_GetAttempts_Call {
+	return &MockMysteryRepository_GetAttempts_Call{Call: _e.mock.On("GetAttempts",
+		append([]any{ctx, mysteryID, viewerID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetAttempts_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAttempts_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4071,57 +2617,672 @@ func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Run(run func(ctx con
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Return(b bool, err error) *MockMysteryRepository_UserHasWinningAttempt_Call {
-	_c.Call.Return(b, err)
+func (_c *MockMysteryRepository_GetAttempts_Call) Return(mysteryAttemptRows []MysteryAttemptRow, err error) *MockMysteryRepository_GetAttempts_Call {
+	_c.Call.Return(mysteryAttemptRows, err)
 	return _c
 }
 
-func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID) (bool, error)) *MockMysteryRepository_UserHasWinningAttempt_Call {
+func (_c *MockMysteryRepository_GetAttempts_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) ([]MysteryAttemptRow, error)) *MockMysteryRepository_GetAttempts_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// VoteAttempt provides a mock function for the type MockMysteryRepository
-func (_mock *MockMysteryRepository) VoteAttempt(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int) error {
-	ret := _mock.Called(ctx, userID, attemptID, value)
+// GetAuthorID provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetAuthorID(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for VoteAttempt")
+		panic("no return value specified for GetAuthorID")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, userID, attemptID, value)
-	} else {
-		r0 = ret.Error(0)
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockMysteryRepository_VoteAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoteAttempt'
-type MockMysteryRepository_VoteAttempt_Call struct {
+// MockMysteryRepository_GetAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAuthorID'
+type MockMysteryRepository_GetAuthorID_Call struct {
 	*mock.Call
 }
 
-// VoteAttempt is a helper method to define mock.On call
+// GetAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - attemptID uuid.UUID
-//   - value int
-func (_e *MockMysteryRepository_Expecter) VoteAttempt(ctx any, userID any, attemptID any, value any) *MockMysteryRepository_VoteAttempt_Call {
-	return &MockMysteryRepository_VoteAttempt_Call{Call: _e.mock.On("VoteAttempt", ctx, userID, attemptID, value)}
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetAuthorID(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetAuthorID_Call {
+	return &MockMysteryRepository_GetAuthorID_Call{Call: _e.mock.On("GetAuthorID",
+		append([]any{ctx, mysteryID}, tx...)...)}
 }
 
-func (_c *MockMysteryRepository_VoteAttempt_Call) Run(run func(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int)) *MockMysteryRepository_VoteAttempt_Call {
+func (_c *MockMysteryRepository_GetAuthorID_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetAuthorID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetAuthorID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetAuthorID_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetAuthorID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetByID provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*MysteryRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetByID")
+	}
+
+	var r0 *MysteryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*MysteryRow, error)); ok {
+		return returnFunc(ctx, id, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *MysteryRow); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*MysteryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetByID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByID'
+type MockMysteryRepository_GetByID_Call struct {
+	*mock.Call
+}
+
+// GetByID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetByID(ctx any, id any, tx ...any) *MockMysteryRepository_GetByID_Call {
+	return &MockMysteryRepository_GetByID_Call{Call: _e.mock.On("GetByID",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetByID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetByID_Call) Return(mysteryRow *MysteryRow, err error) *MockMysteryRepository_GetByID_Call {
+	_c.Call.Return(mysteryRow, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*MysteryRow, error)) *MockMysteryRepository_GetByID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetClues provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryClue, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClues")
+	}
+
+	var r0 []dto.MysteryClue
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]dto.MysteryClue, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []dto.MysteryClue); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]dto.MysteryClue)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClues'
+type MockMysteryRepository_GetClues_Call struct {
+	*mock.Call
+}
+
+// GetClues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetClues(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetClues_Call {
+	return &MockMysteryRepository_GetClues_Call{Call: _e.mock.On("GetClues",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetClues_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetClues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetClues_Call) Return(mysteryClues []dto.MysteryClue, err error) *MockMysteryRepository_GetClues_Call {
+	_c.Call.Return(mysteryClues, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetClues_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryClue, error)) *MockMysteryRepository_GetClues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommentAuthorID provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentAuthorID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetCommentAuthorID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentAuthorID'
+type MockMysteryRepository_GetCommentAuthorID_Call struct {
+	*mock.Call
+}
+
+// GetCommentAuthorID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetCommentAuthorID(ctx any, commentID any, tx ...any) *MockMysteryRepository_GetCommentAuthorID_Call {
+	return &MockMysteryRepository_GetCommentAuthorID_Call{Call: _e.mock.On("GetCommentAuthorID",
+		append([]any{ctx, commentID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetCommentAuthorID_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentAuthorID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentAuthorID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetCommentAuthorID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentAuthorID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetCommentAuthorID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommentEntityID provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentEntityID")
+	}
+
+	var r0 uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetCommentEntityID_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentEntityID'
+type MockMysteryRepository_GetCommentEntityID_Call struct {
+	*mock.Call
+}
+
+// GetCommentEntityID is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetCommentEntityID(ctx any, commentID any, tx ...any) *MockMysteryRepository_GetCommentEntityID_Call {
+	return &MockMysteryRepository_GetCommentEntityID_Call{Call: _e.mock.On("GetCommentEntityID",
+		append([]any{ctx, commentID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetCommentEntityID_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentEntityID_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentEntityID_Call) Return(uUID uuid.UUID, err error) *MockMysteryRepository_GetCommentEntityID_Call {
+	_c.Call.Return(uUID, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentEntityID_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockMysteryRepository_GetCommentEntityID_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommentMedia provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentMedia")
+	}
+
+	var r0 []model.PostMediaRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, commentID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, commentID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.PostMediaRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetCommentMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentMedia'
+type MockMysteryRepository_GetCommentMedia_Call struct {
+	*mock.Call
+}
+
+// GetCommentMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetCommentMedia(ctx any, commentID any, tx ...any) *MockMysteryRepository_GetCommentMedia_Call {
+	return &MockMysteryRepository_GetCommentMedia_Call{Call: _e.mock.On("GetCommentMedia",
+		append([]any{ctx, commentID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentMedia_Call) Return(postMediaRows []model.PostMediaRow, err error) *MockMysteryRepository_GetCommentMedia_Call {
+	_c.Call.Return(postMediaRows, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)) *MockMysteryRepository_GetCommentMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetCommentMediaBatch provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, commentIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, commentIDs)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetCommentMediaBatch")
+	}
+
+	var r0 map[uuid.UUID][]model.PostMediaRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, commentIDs, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, commentIDs, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[uuid.UUID][]model.PostMediaRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentIDs, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetCommentMediaBatch_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetCommentMediaBatch'
+type MockMysteryRepository_GetCommentMediaBatch_Call struct {
+	*mock.Call
+}
+
+// GetCommentMediaBatch is a helper method to define mock.On call
+//   - ctx context.Context
+//   - commentIDs []uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetCommentMediaBatch(ctx any, commentIDs any, tx ...any) *MockMysteryRepository_GetCommentMediaBatch_Call {
+	return &MockMysteryRepository_GetCommentMediaBatch_Call{Call: _e.mock.On("GetCommentMediaBatch",
+		append([]any{ctx, commentIDs}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) Run(run func(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetCommentMediaBatch_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].([]uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) Return(uUIDToPostMediaRows map[uuid.UUID][]model.PostMediaRow, err error) *MockMysteryRepository_GetCommentMediaBatch_Call {
+	_c.Call.Return(uUIDToPostMediaRows, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)) *MockMysteryRepository_GetCommentMediaBatch_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetComments provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetComments(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetComments")
+	}
+
+	var r0 []CommentRow
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
+		return returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
+		r0 = returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]CommentRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, mysteryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockMysteryRepository_GetComments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetComments'
+type MockMysteryRepository_GetComments_Call struct {
+	*mock.Call
+}
+
+// GetComments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - viewerID uuid.UUID
+//   - limit int
+//   - offset int
+//   - excludeUserIDs []uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetComments(ctx any, mysteryID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockMysteryRepository_GetComments_Call {
+	return &MockMysteryRepository_GetComments_Call{Call: _e.mock.On("GetComments",
+		append([]any{ctx, mysteryID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetComments_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4139,11 +3300,2590 @@ func (_c *MockMysteryRepository_VoteAttempt_Call) Run(run func(ctx context.Conte
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		var arg5 []uuid.UUID
+		if args[5] != nil {
+			arg5 = args[5].([]uuid.UUID)
+		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockMysteryRepository_GetComments_Call {
+	_c.Call.Return(commentRows, n, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockMysteryRepository_GetComments_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetGMLeaderboard provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]GMLeaderboardEntry, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetGMLeaderboard")
+	}
+
+	var r0 []GMLeaderboardEntry
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]GMLeaderboardEntry, error)); ok {
+		return returnFunc(ctx, limit, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []GMLeaderboardEntry); ok {
+		r0 = returnFunc(ctx, limit, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]GMLeaderboardEntry)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, limit, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetGMLeaderboard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetGMLeaderboard'
+type MockMysteryRepository_GetGMLeaderboard_Call struct {
+	*mock.Call
+}
+
+// GetGMLeaderboard is a helper method to define mock.On call
+//   - ctx context.Context
+//   - limit int
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetGMLeaderboard(ctx any, limit any, tx ...any) *MockMysteryRepository_GetGMLeaderboard_Call {
+	return &MockMysteryRepository_GetGMLeaderboard_Call{Call: _e.mock.On("GetGMLeaderboard",
+		append([]any{ctx, limit}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetGMLeaderboard_Call) Run(run func(ctx context.Context, limit int, tx ...*sql.Tx)) *MockMysteryRepository_GetGMLeaderboard_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetGMLeaderboard_Call) Return(gMLeaderboardEntrys []GMLeaderboardEntry, err error) *MockMysteryRepository_GetGMLeaderboard_Call {
+	_c.Call.Return(gMLeaderboardEntrys, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetGMLeaderboard_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]GMLeaderboardEntry, error)) *MockMysteryRepository_GetGMLeaderboard_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetLeaderboard provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]LeaderboardEntry, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetLeaderboard")
+	}
+
+	var r0 []LeaderboardEntry
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]LeaderboardEntry, error)); ok {
+		return returnFunc(ctx, limit, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []LeaderboardEntry); ok {
+		r0 = returnFunc(ctx, limit, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]LeaderboardEntry)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, limit, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetLeaderboard_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetLeaderboard'
+type MockMysteryRepository_GetLeaderboard_Call struct {
+	*mock.Call
+}
+
+// GetLeaderboard is a helper method to define mock.On call
+//   - ctx context.Context
+//   - limit int
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetLeaderboard(ctx any, limit any, tx ...any) *MockMysteryRepository_GetLeaderboard_Call {
+	return &MockMysteryRepository_GetLeaderboard_Call{Call: _e.mock.On("GetLeaderboard",
+		append([]any{ctx, limit}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetLeaderboard_Call) Run(run func(ctx context.Context, limit int, tx ...*sql.Tx)) *MockMysteryRepository_GetLeaderboard_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetLeaderboard_Call) Return(leaderboardEntrys []LeaderboardEntry, err error) *MockMysteryRepository_GetLeaderboard_Call {
+	_c.Call.Return(leaderboardEntrys, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetLeaderboard_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]LeaderboardEntry, error)) *MockMysteryRepository_GetLeaderboard_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetMedia provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetMedia(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetMedia")
+	}
+
+	var r0 []model.PostMediaRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.PostMediaRow, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.PostMediaRow); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]model.PostMediaRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetMedia'
+type MockMysteryRepository_GetMedia_Call struct {
+	*mock.Call
+}
+
+// GetMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetMedia(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetMedia_Call {
+	return &MockMysteryRepository_GetMedia_Call{Call: _e.mock.On("GetMedia",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetMedia_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetMedia_Call) Return(postMediaRows []model.PostMediaRow, err error) *MockMysteryRepository_GetMedia_Call {
+	_c.Call.Return(postMediaRows, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetMedia_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)) *MockMysteryRepository_GetMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetPlayerIDs provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetPlayerIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetPlayerIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetPlayerIDs'
+type MockMysteryRepository_GetPlayerIDs_Call struct {
+	*mock.Call
+}
+
+// GetPlayerIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetPlayerIDs(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetPlayerIDs_Call {
+	return &MockMysteryRepository_GetPlayerIDs_Call{Call: _e.mock.On("GetPlayerIDs",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetPlayerIDs_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetPlayerIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetPlayerIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockMysteryRepository_GetPlayerIDs_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetPlayerIDs_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockMysteryRepository_GetPlayerIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetSolverIDs provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetSolverIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetSolverIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetSolverIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSolverIDs'
+type MockMysteryRepository_GetSolverIDs_Call struct {
+	*mock.Call
+}
+
+// GetSolverIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetSolverIDs(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_GetSolverIDs_Call {
+	return &MockMysteryRepository_GetSolverIDs_Call{Call: _e.mock.On("GetSolverIDs",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetSolverIDs_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_GetSolverIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetSolverIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockMysteryRepository_GetSolverIDs_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetSolverIDs_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockMysteryRepository_GetSolverIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTopDetectiveIDs provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetTopDetectiveIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTopDetectiveIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetTopDetectiveIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTopDetectiveIDs'
+type MockMysteryRepository_GetTopDetectiveIDs_Call struct {
+	*mock.Call
+}
+
+// GetTopDetectiveIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetTopDetectiveIDs(ctx any, tx ...any) *MockMysteryRepository_GetTopDetectiveIDs_Call {
+	return &MockMysteryRepository_GetTopDetectiveIDs_Call{Call: _e.mock.On("GetTopDetectiveIDs",
+		append([]any{ctx}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetTopDetectiveIDs_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockMysteryRepository_GetTopDetectiveIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetTopDetectiveIDs_Call) Return(strings []string, err error) *MockMysteryRepository_GetTopDetectiveIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetTopDetectiveIDs_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_GetTopDetectiveIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetTopGMIDs provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetTopGMIDs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_GetTopGMIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetTopGMIDs'
+type MockMysteryRepository_GetTopGMIDs_Call struct {
+	*mock.Call
+}
+
+// GetTopGMIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) GetTopGMIDs(ctx any, tx ...any) *MockMysteryRepository_GetTopGMIDs_Call {
+	return &MockMysteryRepository_GetTopGMIDs_Call{Call: _e.mock.On("GetTopGMIDs",
+		append([]any{ctx}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_GetTopGMIDs_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockMysteryRepository_GetTopGMIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
+		run(
+			arg0,
+			arg1...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetTopGMIDs_Call) Return(strings []string, err error) *MockMysteryRepository_GetTopGMIDs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_GetTopGMIDs_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]string, error)) *MockMysteryRepository_GetTopGMIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsPaused provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) IsPaused(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsPaused")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_IsPaused_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsPaused'
+type MockMysteryRepository_IsPaused_Call struct {
+	*mock.Call
+}
+
+// IsPaused is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) IsPaused(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_IsPaused_Call {
+	return &MockMysteryRepository_IsPaused_Call{Call: _e.mock.On("IsPaused",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_IsPaused_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_IsPaused_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_IsPaused_Call) Return(b bool, err error) *MockMysteryRepository_IsPaused_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_IsPaused_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockMysteryRepository_IsPaused_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IsSolved provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsSolved")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, mysteryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_IsSolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsSolved'
+type MockMysteryRepository_IsSolved_Call struct {
+	*mock.Call
+}
+
+// IsSolved is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) IsSolved(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_IsSolved_Call {
+	return &MockMysteryRepository_IsSolved_Call{Call: _e.mock.On("IsSolved",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_IsSolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_IsSolved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_IsSolved_Call) Return(b bool, err error) *MockMysteryRepository_IsSolved_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_IsSolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockMysteryRepository_IsSolved_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LikeComment provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for LikeComment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, commentID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_LikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LikeComment'
+type MockMysteryRepository_LikeComment_Call struct {
+	*mock.Call
+}
+
+// LikeComment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockMysteryRepository_LikeComment_Call {
+	return &MockMysteryRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
+		append([]any{ctx, userID, commentID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_LikeComment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_LikeComment_Call) Return(err error) *MockMysteryRepository_LikeComment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_LikeComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// List provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) List(ctx context.Context, sort string, solved *bool, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]MysteryRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sort, solved, limit, offset, excludeUserIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sort, solved, limit, offset, excludeUserIDs)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for List")
+	}
+
+	var r0 []MysteryRow
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, int, int, []uuid.UUID, ...*sql.Tx) ([]MysteryRow, int, error)); ok {
+		return returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, *bool, int, int, []uuid.UUID, ...*sql.Tx) []MysteryRow); ok {
+		r0 = returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]MysteryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, *bool, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs, tx...)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, *bool, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, sort, solved, limit, offset, excludeUserIDs, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockMysteryRepository_List_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'List'
+type MockMysteryRepository_List_Call struct {
+	*mock.Call
+}
+
+// List is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sort string
+//   - solved *bool
+//   - limit int
+//   - offset int
+//   - excludeUserIDs []uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) List(ctx any, sort any, solved any, limit any, offset any, excludeUserIDs any, tx ...any) *MockMysteryRepository_List_Call {
+	return &MockMysteryRepository_List_Call{Call: _e.mock.On("List",
+		append([]any{ctx, sort, solved, limit, offset, excludeUserIDs}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_List_Call) Run(run func(ctx context.Context, sort string, solved *bool, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_List_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 *bool
+		if args[2] != nil {
+			arg2 = args[2].(*bool)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 int
+		if args[4] != nil {
+			arg4 = args[4].(int)
+		}
+		var arg5 []uuid.UUID
+		if args[5] != nil {
+			arg5 = args[5].([]uuid.UUID)
+		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_List_Call) Return(mysteryRows []MysteryRow, n int, err error) *MockMysteryRepository_List_Call {
+	_c.Call.Return(mysteryRows, n, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_List_Call) RunAndReturn(run func(ctx context.Context, sort string, solved *bool, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]MysteryRow, int, error)) *MockMysteryRepository_List_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListByUser provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]MysteryRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, limit, offset)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListByUser")
+	}
+
+	var r0 []MysteryRow
+	var r1 int
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]MysteryRow, int, error)); ok {
+		return returnFunc(ctx, userID, limit, offset, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []MysteryRow); ok {
+		r0 = returnFunc(ctx, userID, limit, offset, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]MysteryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, limit, offset, tx...)
+	} else {
+		r1 = ret.Get(1).(int)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, limit, offset, tx...)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// MockMysteryRepository_ListByUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListByUser'
+type MockMysteryRepository_ListByUser_Call struct {
+	*mock.Call
+}
+
+// ListByUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - limit int
+//   - offset int
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) ListByUser(ctx any, userID any, limit any, offset any, tx ...any) *MockMysteryRepository_ListByUser_Call {
+	return &MockMysteryRepository_ListByUser_Call{Call: _e.mock.On("ListByUser",
+		append([]any{ctx, userID, limit, offset}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockMysteryRepository_ListByUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 int
+		if args[2] != nil {
+			arg2 = args[2].(int)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_ListByUser_Call) Return(mysteryRows []MysteryRow, n int, err error) *MockMysteryRepository_ListByUser_Call {
+	_c.Call.Return(mysteryRows, n, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]MysteryRow, int, error)) *MockMysteryRepository_ListByUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkPermanentlySolved provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkPermanentlySolved")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, mysteryID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_MarkPermanentlySolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkPermanentlySolved'
+type MockMysteryRepository_MarkPermanentlySolved_Call struct {
+	*mock.Call
+}
+
+// MarkPermanentlySolved is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) MarkPermanentlySolved(ctx any, mysteryID any, tx ...any) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	return &MockMysteryRepository_MarkPermanentlySolved_Call{Call: _e.mock.On("MarkPermanentlySolved",
+		append([]any{ctx, mysteryID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) Return(err error) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_MarkPermanentlySolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_MarkPermanentlySolved_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MarkSolved provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) MarkSolved(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, attemptID, lockMystery, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, attemptID, lockMystery)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkSolved")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, mysteryID, attemptID, lockMystery, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_MarkSolved_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkSolved'
+type MockMysteryRepository_MarkSolved_Call struct {
+	*mock.Call
+}
+
+// MarkSolved is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - attemptID uuid.UUID
+//   - lockMystery bool
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) MarkSolved(ctx any, mysteryID any, attemptID any, lockMystery any, tx ...any) *MockMysteryRepository_MarkSolved_Call {
+	return &MockMysteryRepository_MarkSolved_Call{Call: _e.mock.On("MarkSolved",
+		append([]any{ctx, mysteryID, attemptID, lockMystery}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_MarkSolved_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool, tx ...*sql.Tx)) *MockMysteryRepository_MarkSolved_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_MarkSolved_Call) Return(err error) *MockMysteryRepository_MarkSolved_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_MarkSolved_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, attemptID uuid.UUID, lockMystery bool, tx ...*sql.Tx) error) *MockMysteryRepository_MarkSolved_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetAttemptWinner provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) SetAttemptWinner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, attemptID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, attemptID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetAttemptWinner")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, attemptID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_SetAttemptWinner_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetAttemptWinner'
+type MockMysteryRepository_SetAttemptWinner_Call struct {
+	*mock.Call
+}
+
+// SetAttemptWinner is a helper method to define mock.On call
+//   - ctx context.Context
+//   - attemptID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) SetAttemptWinner(ctx any, attemptID any, tx ...any) *MockMysteryRepository_SetAttemptWinner_Call {
+	return &MockMysteryRepository_SetAttemptWinner_Call{Call: _e.mock.On("SetAttemptWinner",
+		append([]any{ctx, attemptID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_SetAttemptWinner_Call) Run(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_SetAttemptWinner_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetAttemptWinner_Call) Return(err error) *MockMysteryRepository_SetAttemptWinner_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetAttemptWinner_Call) RunAndReturn(run func(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_SetAttemptWinner_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetGmAway provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, away, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, away)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetGmAway")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, mysteryID, away, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_SetGmAway_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetGmAway'
+type MockMysteryRepository_SetGmAway_Call struct {
+	*mock.Call
+}
+
+// SetGmAway is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - away bool
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) SetGmAway(ctx any, mysteryID any, away any, tx ...any) *MockMysteryRepository_SetGmAway_Call {
+	return &MockMysteryRepository_SetGmAway_Call{Call: _e.mock.On("SetGmAway",
+		append([]any{ctx, mysteryID, away}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_SetGmAway_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, away bool, tx ...*sql.Tx)) *MockMysteryRepository_SetGmAway_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetGmAway_Call) Return(err error) *MockMysteryRepository_SetGmAway_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetGmAway_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, away bool, tx ...*sql.Tx) error) *MockMysteryRepository_SetGmAway_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetMysteryWinner provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) SetMysteryWinner(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, winnerID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, winnerID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetMysteryWinner")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, mysteryID, winnerID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_SetMysteryWinner_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetMysteryWinner'
+type MockMysteryRepository_SetMysteryWinner_Call struct {
+	*mock.Call
+}
+
+// SetMysteryWinner is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - winnerID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) SetMysteryWinner(ctx any, mysteryID any, winnerID any, tx ...any) *MockMysteryRepository_SetMysteryWinner_Call {
+	return &MockMysteryRepository_SetMysteryWinner_Call{Call: _e.mock.On("SetMysteryWinner",
+		append([]any{ctx, mysteryID, winnerID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_SetMysteryWinner_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_SetMysteryWinner_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetMysteryWinner_Call) Return(err error) *MockMysteryRepository_SetMysteryWinner_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetMysteryWinner_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_SetMysteryWinner_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SetPaused provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, paused, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, paused)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetPaused")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, mysteryID, paused, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_SetPaused_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPaused'
+type MockMysteryRepository_SetPaused_Call struct {
+	*mock.Call
+}
+
+// SetPaused is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - paused bool
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) SetPaused(ctx any, mysteryID any, paused any, tx ...any) *MockMysteryRepository_SetPaused_Call {
+	return &MockMysteryRepository_SetPaused_Call{Call: _e.mock.On("SetPaused",
+		append([]any{ctx, mysteryID, paused}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_SetPaused_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, paused bool, tx ...*sql.Tx)) *MockMysteryRepository_SetPaused_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetPaused_Call) Return(err error) *MockMysteryRepository_SetPaused_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_SetPaused_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, paused bool, tx ...*sql.Tx) error) *MockMysteryRepository_SetPaused_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnlikeComment provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, commentID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnlikeComment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, commentID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UnlikeComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnlikeComment'
+type MockMysteryRepository_UnlikeComment_Call struct {
+	*mock.Call
+}
+
+// UnlikeComment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - commentID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockMysteryRepository_UnlikeComment_Call {
+	return &MockMysteryRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
+		append([]any{ctx, userID, commentID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_UnlikeComment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UnlikeComment_Call) Return(err error) *MockMysteryRepository_UnlikeComment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockMysteryRepository_UnlikeComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Update provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, title, body, difficulty, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID, title, body, difficulty)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Update")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, title, body, difficulty, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_Update_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Update'
+type MockMysteryRepository_Update_Call struct {
+	*mock.Call
+}
+
+// Update is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - userID uuid.UUID
+//   - title string
+//   - body string
+//   - difficulty string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) Update(ctx any, id any, userID any, title any, body any, difficulty any, tx ...any) *MockMysteryRepository_Update_Call {
+	return &MockMysteryRepository_Update_Call{Call: _e.mock.On("Update",
+		append([]any{ctx, id, userID, title, body, difficulty}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, tx ...*sql.Tx)) *MockMysteryRepository_Update_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 string
+		if args[5] != nil {
+			arg5 = args[5].(string)
+		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_Update_Call) Return(err error) *MockMysteryRepository_Update_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, tx ...*sql.Tx) error) *MockMysteryRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAsAdmin provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAsAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool, dto.KnoxContract, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAsAdmin'
+type MockMysteryRepository_UpdateAsAdmin_Call struct {
+	*mock.Call
+}
+
+// UpdateAsAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - title string
+//   - body string
+//   - difficulty string
+//   - freeForAll bool
+//   - keepOpenAfterSolve bool
+//   - knox dto.KnoxContract
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateAsAdmin(ctx any, id any, title any, body any, difficulty any, freeForAll any, keepOpenAfterSolve any, knox any, tx ...any) *MockMysteryRepository_UpdateAsAdmin_Call {
+	return &MockMysteryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin",
+		append([]any{ctx, id, title, body, difficulty, freeForAll, keepOpenAfterSolve, knox}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx)) *MockMysteryRepository_UpdateAsAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 bool
+		if args[5] != nil {
+			arg5 = args[5].(bool)
+		}
+		var arg6 bool
+		if args[6] != nil {
+			arg6 = args[6].(bool)
+		}
+		var arg7 dto.KnoxContract
+		if args[7] != nil {
+			arg7 = args[7].(dto.KnoxContract)
+		}
+		var arg8 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 8 {
+			variadicArgs = args[8].([]*sql.Tx)
+		}
+		arg8 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+			arg7,
+			arg8...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) Return(err error) *MockMysteryRepository_UpdateAsAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateAsAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateClue provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateClue(ctx context.Context, clueID int, body string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, clueID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, clueID, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateClue")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, clueID, body, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateClue_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateClue'
+type MockMysteryRepository_UpdateClue_Call struct {
+	*mock.Call
+}
+
+// UpdateClue is a helper method to define mock.On call
+//   - ctx context.Context
+//   - clueID int
+//   - body string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateClue(ctx any, clueID any, body any, tx ...any) *MockMysteryRepository_UpdateClue_Call {
+	return &MockMysteryRepository_UpdateClue_Call{Call: _e.mock.On("UpdateClue",
+		append([]any{ctx, clueID, body}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateClue_Call) Run(run func(ctx context.Context, clueID int, body string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateClue_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateClue_Call) Return(err error) *MockMysteryRepository_UpdateClue_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateClue_Call) RunAndReturn(run func(ctx context.Context, clueID int, body string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateClue_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateComment provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateComment")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, body, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateComment'
+type MockMysteryRepository_UpdateComment_Call struct {
+	*mock.Call
+}
+
+// UpdateComment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - userID uuid.UUID
+//   - body string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any, tx ...any) *MockMysteryRepository_UpdateComment_Call {
+	return &MockMysteryRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
+		append([]any{ctx, id, userID, body}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateComment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateComment_Call) Return(err error) *MockMysteryRepository_UpdateComment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCommentAsAdmin provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, body)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCommentAsAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, body, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentAsAdmin'
+type MockMysteryRepository_UpdateCommentAsAdmin_Call struct {
+	*mock.Call
+}
+
+// UpdateCommentAsAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - body string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any, tx ...any) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+	return &MockMysteryRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin",
+		append([]any{ctx, id, body}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateCommentAsAdmin_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCommentMediaThumbnail provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCommentMediaThumbnail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateCommentMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentMediaThumbnail'
+type MockMysteryRepository_UpdateCommentMediaThumbnail_Call struct {
+	*mock.Call
+}
+
+// UpdateCommentMediaThumbnail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - thumbnailURL string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
+	return &MockMysteryRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
+		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) Return(err error) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateCommentMediaThumbnail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateCommentMediaURL provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mediaURL)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateCommentMediaURL")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateCommentMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentMediaURL'
+type MockMysteryRepository_UpdateCommentMediaURL_Call struct {
+	*mock.Call
+}
+
+// UpdateCommentMediaURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - mediaURL string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockMysteryRepository_UpdateCommentMediaURL_Call {
+	return &MockMysteryRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
+		append([]any{ctx, id, mediaURL}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateCommentMediaURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) Return(err error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateCommentMediaURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateMediaThumbnail provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateMediaThumbnail")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateMediaThumbnail_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaThumbnail'
+type MockMysteryRepository_UpdateMediaThumbnail_Call struct {
+	*mock.Call
+}
+
+// UpdateMediaThumbnail is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - thumbnailURL string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockMysteryRepository_UpdateMediaThumbnail_Call {
+	return &MockMysteryRepository_UpdateMediaThumbnail_Call{Call: _e.mock.On("UpdateMediaThumbnail",
+		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateMediaThumbnail_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) Return(err error) *MockMysteryRepository_UpdateMediaThumbnail_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateMediaThumbnail_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateMediaURL provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mediaURL)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateMediaURL")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateMediaURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMediaURL'
+type MockMysteryRepository_UpdateMediaURL_Call struct {
+	*mock.Call
+}
+
+// UpdateMediaURL is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id int64
+//   - mediaURL string
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockMysteryRepository_UpdateMediaURL_Call {
+	return &MockMysteryRepository_UpdateMediaURL_Call{Call: _e.mock.On("UpdateMediaURL",
+		append([]any{ctx, id, mediaURL}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockMysteryRepository_UpdateMediaURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 int64
+		if args[1] != nil {
+			arg1 = args[1].(int64)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateMediaURL_Call) Return(err error) *MockMysteryRepository_UpdateMediaURL_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateMediaURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateWithClues provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UpdateWithClues(ctx context.Context, spec MysteryUpdate, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateWithClues")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, MysteryUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_UpdateWithClues_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateWithClues'
+type MockMysteryRepository_UpdateWithClues_Call struct {
+	*mock.Call
+}
+
+// UpdateWithClues is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec MysteryUpdate
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UpdateWithClues(ctx any, spec any, tx ...any) *MockMysteryRepository_UpdateWithClues_Call {
+	return &MockMysteryRepository_UpdateWithClues_Call{Call: _e.mock.On("UpdateWithClues",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UpdateWithClues_Call) Run(run func(ctx context.Context, spec MysteryUpdate, tx ...*sql.Tx)) *MockMysteryRepository_UpdateWithClues_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 MysteryUpdate
+		if args[1] != nil {
+			arg1 = args[1].(MysteryUpdate)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateWithClues_Call) Return(err error) *MockMysteryRepository_UpdateWithClues_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UpdateWithClues_Call) RunAndReturn(run func(ctx context.Context, spec MysteryUpdate, tx ...*sql.Tx) error) *MockMysteryRepository_UpdateWithClues_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UserHasWinningAttempt provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) UserHasWinningAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, mysteryID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, mysteryID, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UserHasWinningAttempt")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, mysteryID, userID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, mysteryID, userID, tx...)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, mysteryID, userID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockMysteryRepository_UserHasWinningAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserHasWinningAttempt'
+type MockMysteryRepository_UserHasWinningAttempt_Call struct {
+	*mock.Call
+}
+
+// UserHasWinningAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - mysteryID uuid.UUID
+//   - userID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) UserHasWinningAttempt(ctx any, mysteryID any, userID any, tx ...any) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	return &MockMysteryRepository_UserHasWinningAttempt_Call{Call: _e.mock.On("UserHasWinningAttempt",
+		append([]any{ctx, mysteryID, userID}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Run(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) Return(b bool, err error) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockMysteryRepository_UserHasWinningAttempt_Call) RunAndReturn(run func(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockMysteryRepository_UserHasWinningAttempt_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// VoteAttempt provides a mock function for the type MockMysteryRepository
+func (_mock *MockMysteryRepository) VoteAttempt(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, attemptID, value, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, attemptID, value)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for VoteAttempt")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, attemptID, value, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockMysteryRepository_VoteAttempt_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoteAttempt'
+type MockMysteryRepository_VoteAttempt_Call struct {
+	*mock.Call
+}
+
+// VoteAttempt is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - attemptID uuid.UUID
+//   - value int
+//   - tx ...*sql.Tx
+func (_e *MockMysteryRepository_Expecter) VoteAttempt(ctx any, userID any, attemptID any, value any, tx ...any) *MockMysteryRepository_VoteAttempt_Call {
+	return &MockMysteryRepository_VoteAttempt_Call{Call: _e.mock.On("VoteAttempt",
+		append([]any{ctx, userID, attemptID, value}, tx...)...)}
+}
+
+func (_c *MockMysteryRepository_VoteAttempt_Call) Run(run func(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int, tx ...*sql.Tx)) *MockMysteryRepository_VoteAttempt_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -4154,7 +5894,7 @@ func (_c *MockMysteryRepository_VoteAttempt_Call) Return(err error) *MockMystery
 	return _c
 }
 
-func (_c *MockMysteryRepository_VoteAttempt_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int) error) *MockMysteryRepository_VoteAttempt_Call {
+func (_c *MockMysteryRepository_VoteAttempt_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int, tx ...*sql.Tx) error) *MockMysteryRepository_VoteAttempt_Call {
 	_c.Call.Return(run)
 	return _c
 }

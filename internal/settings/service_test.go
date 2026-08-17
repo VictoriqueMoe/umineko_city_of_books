@@ -213,14 +213,14 @@ func TestRefresh_SeedsMissingDefaults(t *testing.T) {
 	delete(existing, string(config.SettingBaseURL.Key))
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
-	repo.EXPECT().SetMultiple(mock.Anything, mock.MatchedBy(func(m map[string]string) bool {
-		if len(m) != 2 {
+	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(spec repository.SettingsReconcile) bool {
+		if len(spec.Missing) != 2 || len(spec.Stale) != 0 || spec.UpdatedBy != uuid.Nil {
 			return false
 		}
-		_, okName := m[string(config.SettingSiteName.Key)]
-		_, okURL := m[string(config.SettingBaseURL.Key)]
+		_, okName := spec.Missing[string(config.SettingSiteName.Key)]
+		_, okURL := spec.Missing[string(config.SettingBaseURL.Key)]
 		return okName && okURL
-	}), uuid.Nil).Return(nil)
+	})).Return(nil)
 
 	// when
 	err := svc.Refresh(context.Background())
@@ -233,7 +233,7 @@ func TestRefresh_SeedErrorBubbles(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	repo.EXPECT().GetAll(mock.Anything).Return(map[string]string{}, nil)
-	repo.EXPECT().SetMultiple(mock.Anything, mock.Anything, uuid.Nil).Return(errors.New("seed failed"))
+	repo.EXPECT().Reconcile(mock.Anything, mock.Anything).Return(errors.New("seed failed"))
 
 	// when
 	err := svc.Refresh(context.Background())
@@ -251,8 +251,12 @@ func TestRefresh_DeletesStaleKeys(t *testing.T) {
 	existing["stale_key_2"] = "older"
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
-	repo.EXPECT().Delete(mock.Anything, "stale_key_1").Return(nil)
-	repo.EXPECT().Delete(mock.Anything, "stale_key_2").Return(nil)
+	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(spec repository.SettingsReconcile) bool {
+		return len(spec.Missing) == 0 &&
+			slices.Contains(spec.Stale, "stale_key_1") &&
+			slices.Contains(spec.Stale, "stale_key_2") &&
+			len(spec.Stale) == 2
+	})).Return(nil)
 
 	// when
 	err := svc.Refresh(context.Background())
@@ -261,20 +265,21 @@ func TestRefresh_DeletesStaleKeys(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestRefresh_DeleteErrorLoggedNotFatal(t *testing.T) {
+func TestRefresh_StaleDeleteErrorBubbles(t *testing.T) {
 	// given
 	svc, repo := newTestService(t)
 	existing := validBaseSettings()
 	existing["stale"] = "v"
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
-	repo.EXPECT().Delete(mock.Anything, "stale").Return(errors.New("delete failed"))
+	repo.EXPECT().Reconcile(mock.Anything, mock.Anything).Return(errors.New("delete failed"))
 
 	// when
 	err := svc.Refresh(context.Background())
 
 	// then
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.EqualError(t, err, "delete failed")
 }
 
 func TestRefresh_PopulatesCacheFromRepo(t *testing.T) {

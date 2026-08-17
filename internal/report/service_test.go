@@ -2,6 +2,7 @@ package report
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -84,8 +85,14 @@ func TestCreate_RepoErrorBubbles(t *testing.T) {
 	svc, reportRepo, _, _, _, _ := newTestService(t)
 	reporterID := uuid.New()
 	req := CreateReportRequest{TargetType: "post", TargetID: uuid.NewString(), Reason: "spam"}
-	reportRepo.EXPECT().Create(mock.Anything, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason).
-		Return(int64(0), errors.New("db down"))
+	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}).
+		Return(nil, errors.New("db down"))
 
 	// when
 	err := svc.Create(context.Background(), reporterID, req)
@@ -111,8 +118,14 @@ func TestCreate_OK_NotifiesModerators(t *testing.T) {
 	modB := uuid.New()
 	reporter := &model.User{ID: reporterID, DisplayName: "Alice"}
 
-	reportRepo.EXPECT().Create(mock.Anything, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason).
-		Return(int64(42), nil)
+	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}).
+		Return(&repository.ReportRow{ID: 42}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -181,8 +194,14 @@ func TestCreate_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 	mod := uuid.New()
 	reporter := &model.User{ID: reporterID, DisplayName: "Alice"}
 
-	reportRepo.EXPECT().Create(mock.Anything, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason).
-		Return(int64(1), nil)
+	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}).
+		Return(&repository.ReportRow{ID: 1}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -214,12 +233,18 @@ func TestCreate_OK_RoleRepoErrorAbortsNotifications(t *testing.T) {
 		TargetID:   uuid.NewString(),
 		Reason:     "spam",
 	}
-	reportRepo.EXPECT().Create(mock.Anything, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason).
-		Return(int64(1), nil)
+	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}).
+		Return(&repository.ReportRow{ID: 1}, nil)
 
 	done := make(chan struct{})
 	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).
-		Run(func(_ context.Context, _ []role.Role) { close(done) }).
+		Run(func(_ context.Context, _ []role.Role, _ ...*sql.Tx) { close(done) }).
 		Return(nil, errors.New("db down"))
 
 	// when
@@ -245,8 +270,14 @@ func TestCreate_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	}
 	mod := uuid.New()
 
-	reportRepo.EXPECT().Create(mock.Anything, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason).
-		Return(int64(1), nil)
+	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}).
+		Return(&repository.ReportRow{ID: 1}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -275,8 +306,14 @@ func TestCreate_OK_NoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 	}
 	reporter := &model.User{ID: reporterID, DisplayName: "Alice"}
 
-	reportRepo.EXPECT().Create(mock.Anything, reporterID, req.TargetType, req.TargetID, req.ContextID, req.Reason).
-		Return(int64(1), nil)
+	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+		ReporterID: reporterID,
+		TargetType: req.TargetType,
+		TargetID:   req.TargetID,
+		ContextID:  req.ContextID,
+		Reason:     req.Reason,
+	}).
+		Return(&repository.ReportRow{ID: 1}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)

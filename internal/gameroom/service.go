@@ -243,18 +243,17 @@ func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, g
 		return nil, fmt.Errorf("inviter not found")
 	}
 
-	roomID := uuid.New()
-	if err := s.repo.CreateRoom(ctx, roomID, string(gameType), "{}", inviterID); err != nil {
-		return nil, err
-	}
-	if err := s.repo.AddPlayer(ctx, roomID, inviterID, 0, true); err != nil {
-		return nil, err
-	}
-	if err := s.repo.AddPlayer(ctx, roomID, opponentID, 1, false); err != nil {
+	created, err := s.repo.CreateInvite(ctx, repository.NewGameRoomInvite{
+		GameType:         string(gameType),
+		InitialStateJSON: "{}",
+		InviterID:        inviterID,
+		OpponentID:       opponentID,
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	room, err := s.loadRoom(ctx, roomID)
+	room, err := s.hydrateRoom(ctx, created)
 	if err != nil {
 		return nil, err
 	}
@@ -263,7 +262,7 @@ func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, g
 		_ = s.notifSvc.Notify(ctx, dto.NotifyParams{
 			RecipientID:   opponentID,
 			Type:          dto.NotifGameInvite,
-			ReferenceID:   roomID,
+			ReferenceID:   created.ID,
 			ReferenceType: string(gameType),
 			ActorID:       inviterID,
 			Message:       inviter.DisplayName + " invited you to a " + string(gameType) + " game",
@@ -311,27 +310,20 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 		return nil, ErrUnknownGameType
 	}
 
-	if err := s.repo.SetPlayerJoined(ctx, roomID, userID); err != nil {
-		return nil, err
-	}
-
 	stateJSON, firstTurnSlot, err := handler.InitialState(roomID, players)
 	if err != nil {
 		return nil, err
 	}
 
-	var firstTurnUser *uuid.UUID
-	for i := range players {
-		if players[i].Slot == firstTurnSlot {
-			firstTurnUser = new(players[i].UserID)
-			break
-		}
-	}
+	firstTurnUser := winnerUserID(&firstTurnSlot, players)
 
-	if err := s.repo.SetState(ctx, roomID, stateJSON, firstTurnUser); err != nil {
-		return nil, err
-	}
-	if err := s.repo.SetStatus(ctx, roomID, string(dto.GameStatusActive)); err != nil {
+	if err := s.repo.Start(ctx, repository.GameRoomStart{
+		RoomID:     roomID,
+		UserID:     userID,
+		StateJSON:  stateJSON,
+		TurnUserID: firstTurnUser,
+		Status:     string(dto.GameStatusActive),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -493,15 +485,7 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 		return s.finishAndBroadcast(ctx, roomID, winner, result.Result, result.NewStateJSON, nil, userID)
 	}
 
-	var nextTurn *uuid.UUID
-	if result.NextTurnSlot != nil {
-		for i := range players {
-			if players[i].Slot == *result.NextTurnSlot {
-				nextTurn = new(players[i].UserID)
-				break
-			}
-		}
-	}
+	nextTurn := winnerUserID(result.NextTurnSlot, players)
 	if err := s.repo.SetState(ctx, roomID, result.NewStateJSON, nextTurn); err != nil {
 		return nil, err
 	}
@@ -625,12 +609,23 @@ func (s *service) Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.G
 	if err != nil {
 		return nil, err
 	}
+
+	ids := make([]uuid.UUID, len(rows))
+	for i := range rows {
+		ids[i] = rows[i].UserID
+	}
+	byID, err := s.usersByID(ctx, ids)
+	if err != nil {
+		logger.Log.Warn().Err(err).Str("game_type", string(gameType)).Msg("load scoreboard users")
+	}
+
 	out := make([]dto.GameScoreboardRow, 0, len(rows))
 	for _, r := range rows {
-		u, err := s.userRepo.GetByID(ctx, r.UserID)
-		if err != nil || u == nil {
+		u := byID[r.UserID]
+		if u == nil {
 			continue
 		}
+
 		games := r.Wins + r.Losses + r.Draws
 		var winRate float64
 		if games > 0 {
@@ -1078,20 +1073,12 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 		}
 		watchers = len(st.spectators)
 		if st.draw != nil {
-			for i := range players {
-				if players[i].Slot == st.draw.fromSlot {
-					drawOfferFrom = new(players[i].UserID)
-					break
-				}
-			}
+			drawOfferFrom = winnerUserID(&st.draw.fromSlot, players)
 		}
 	}
 	s.mu.Unlock()
 
-	var finishedAt *string
-	if row.FinishedAt != nil {
-		finishedAt = row.FinishedAt
-	}
+	finishedAt := row.FinishedAt
 
 	var stats json.RawMessage
 	projectedState := row.StateJSON
@@ -1132,6 +1119,20 @@ func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) 
 	}, nil
 }
 
+func (s *service) usersByID(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]*model.User, error) {
+	users, err := s.userRepo.GetByIDs(ctx, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	byID := make(map[uuid.UUID]*model.User, len(users))
+	for i := range users {
+		byID[users[i].ID] = &users[i]
+	}
+
+	return byID, nil
+}
+
 func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.GameRoomPlayer, error) {
 	rows, err := s.repo.GetPlayers(ctx, roomID)
 	if err != nil {
@@ -1145,13 +1146,9 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 	for i := range rows {
 		ids[i] = rows[i].UserID
 	}
-	users, err := s.userRepo.GetByIDs(ctx, ids)
+	byID, err := s.usersByID(ctx, ids)
 	if err != nil {
 		return nil, err
-	}
-	byID := make(map[uuid.UUID]*model.User, len(users))
-	for i := range users {
-		byID[users[i].ID] = &users[i]
 	}
 
 	out := make([]dto.GameRoomPlayer, 0, len(rows))
@@ -1162,7 +1159,7 @@ func (s *service) loadPlayers(ctx context.Context, roomID uuid.UUID) ([]dto.Game
 			Joined: row.Joined,
 		}
 		if u := byID[row.UserID]; u != nil {
-			resp := userToResponse(u)
+			resp := u.ToResponse()
 			player.User = *resp
 			player.Username = resp.Username
 			player.DisplayName = resp.DisplayName
@@ -1266,9 +1263,3 @@ func winnerUserID(slot *int, players []dto.GameRoomPlayer) *uuid.UUID {
 	}
 	return nil
 }
-
-func userToResponse(u *model.User) *dto.UserResponse {
-	return u.ToResponse()
-}
-
-var _ = errors.New

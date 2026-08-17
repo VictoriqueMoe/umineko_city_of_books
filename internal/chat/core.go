@@ -28,6 +28,16 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	moderatorKindHost  = "host"
+	moderatorKindStaff = "staff"
+
+	wsChatRoomUpdated = "chat_room_updated"
+
+	maxRoomNameLength        = 80
+	maxRoomDescriptionLength = 500
+)
+
 var (
 	tagAllowedRegex  = regexp.MustCompile(`[^a-z0-9-]+`)
 	timeoutUnitYears = map[string]int{
@@ -115,28 +125,17 @@ func (c *core) dropFromLiveKitRoom(ctx context.Context, roomName, identity strin
 }
 
 func (c *core) deleteRoomWithMedia(ctx context.Context, roomID uuid.UUID) error {
-	urls, err := c.chatRepo.ListRoomMediaURLs(ctx, roomID)
-	if err != nil {
-		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room chat media for cleanup failed")
-	}
-
-	for i := range urls {
-		if urls[i] == "" {
-			continue
-		}
-		if delErr := c.uploadSvc.Delete(urls[i]); delErr != nil {
-			logger.Log.Warn().Err(delErr).Str("media_url", urls[i]).Msg("delete room chat media file failed")
-		}
-	}
-
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
 		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room members for hub cleanup failed")
 	}
 
-	if err := c.chatRepo.DeleteRoom(ctx, roomID); err != nil {
+	paths, err := c.chatRepo.DeleteRoomWithMessages(ctx, roomID)
+	if err != nil {
 		return fmt.Errorf("delete room: %w", err)
 	}
+
+	c.uploadSvc.Delete(paths...)
 
 	for i := range members {
 		c.hub.LeaveRoom(roomID, members[i])
@@ -221,16 +220,13 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 			continue
 		}
 
-		if err := c.watchPartyRepo.MarkParticipantLeft(ctx, sessionID, userID); err != nil {
+		if err := c.watchPartyRepo.RemoveParticipant(ctx, sessionID, userID); err != nil {
 			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: mark watch party participant left failed")
 			continue
 		}
 
 		c.dropFromLiveKitRoom(ctx, voiceSessionRoomPrefix+sessionID.String(), userID.String())
 
-		if err := c.chatRepo.RemoveMember(ctx, sessionID, userID); err != nil {
-			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: remove watch party chat member failed")
-		}
 		c.hub.LeaveRoom(sessionID, userID)
 
 		c.hub.BroadcastToRoom(roomID, ws.Message{
@@ -301,19 +297,147 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 	return ErrLockedNonStaffDM
 }
 
-func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+func (c *core) moderatorKind(ctx context.Context, roomID, userID uuid.UUID) (string, error) {
 	memberRole, err := c.chatRepo.GetMemberRole(ctx, roomID, userID)
 	if err != nil {
-		return false, fmt.Errorf("get member role: %w", err)
+		return "", fmt.Errorf("get member role: %w", err)
 	}
 	if memberRole == "host" {
-		return true, nil
+		return moderatorKindHost, nil
 	}
+
 	siteRole, err := c.authzSvc.GetRole(ctx, userID)
 	if err != nil {
-		return false, fmt.Errorf("get site role: %w", err)
+		return "", fmt.Errorf("get site role: %w", err)
 	}
-	return siteRole.IsSiteStaff(), nil
+	if siteRole.IsSiteStaff() {
+		return moderatorKindStaff, nil
+	}
+
+	return "", nil
+}
+
+func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	kind, err := c.moderatorKind(ctx, roomID, userID)
+	if err != nil {
+		return false, err
+	}
+
+	return kind != "", nil
+}
+
+func (c *core) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
+	members, _ := c.chatRepo.GetRoomMembers(ctx, roomID)
+
+	if err := c.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
+		return fmt.Errorf("remove member: %w", err)
+	}
+
+	c.clearWatchPartyParticipation(ctx, roomID, targetID)
+	c.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
+
+	c.hub.LeaveRoom(roomID, targetID)
+
+	leftEvent := ws.Message{
+		Type: "chat_member_left",
+		Data: map[string]any{
+			"room_id": roomID,
+			"user_id": targetID,
+		},
+	}
+	for _, mid := range members {
+		if mid == targetID {
+			continue
+		}
+		c.hub.SendToUser(mid, leftEvent)
+	}
+
+	kickData := map[string]any{
+		"room_id": roomID,
+	}
+	if reason != "" {
+		kickData["reason"] = reason
+	}
+	c.hub.SendToUser(targetID, ws.Message{Type: "chat_kicked", Data: kickData})
+
+	return nil
+}
+
+func (c *core) normaliseRoomInput(ctx context.Context, rawName, rawDescription string, rawTags []string) (string, string, []string, error) {
+	name := strings.TrimSpace(rawName)
+	if name == "" {
+		return "", "", nil, ErrMissingFields
+	}
+
+	if err := c.filterTexts(ctx, name, rawDescription); err != nil {
+		return "", "", nil, err
+	}
+
+	if len(name) > maxRoomNameLength {
+		name = name[:maxRoomNameLength]
+	}
+
+	description := strings.TrimSpace(rawDescription)
+	if len(description) > maxRoomDescriptionLength {
+		description = description[:maxRoomDescriptionLength]
+	}
+
+	return name, description, sanitizeTags(rawTags), nil
+}
+
+func (c *core) broadcastRoomUpdated(ctx context.Context, roomID uuid.UUID, name, description string, tags []string, isPublic, isRP bool) {
+	c.broadcastToRoomMembers(ctx, roomID, ws.Message{
+		Type: wsChatRoomUpdated,
+		Data: map[string]any{
+			"room_id":     roomID,
+			"name":        name,
+			"description": description,
+			"tags":        tags,
+			"is_public":   isPublic,
+			"is_rp":       isRP,
+		},
+	})
+}
+
+func (c *core) rejectBotsOutsideRP(ctx context.Context, isRP bool, userIDs []uuid.UUID) error {
+	if isRP || len(userIDs) == 0 {
+		return nil
+	}
+
+	users, err := c.userRepo.GetByIDs(ctx, userIDs)
+	if err != nil {
+		return fmt.Errorf("get invited users: %w", err)
+	}
+
+	for _, user := range users {
+		if user.IsBot {
+			return ErrBotsRPRoomsOnly
+		}
+	}
+
+	return nil
+}
+
+func isAuditableRoom(row *repository.ChatRoomRow) bool {
+	if row == nil {
+		return false
+	}
+
+	return row.Type == dto.RoomTypeGroup && !row.IsSystem && row.IsPublic
+}
+
+func isAuditableSendContext(row *repository.ChatRoomSendContext) bool {
+	if row == nil {
+		return false
+	}
+
+	return row.Type == dto.RoomTypeGroup && !row.IsSystem && row.IsPublic
+}
+
+func (c *core) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := c.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func (c *core) toVanityRoleResponses(rows []repository.VanityRoleRow) []dto.VanityRoleResponse {
@@ -385,24 +509,33 @@ func (c *core) nameAndPossessive(ctx context.Context, userID uuid.UUID) (string,
 }
 
 func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, body string) {
-	actionBody := strings.TrimSpace(body)
+	actionBody := c.roomActionMessageBody(ctx, roomID, actorID, body)
 	if actionBody == "" {
 		return
 	}
 
-	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, roomID, actorID); timedOut {
-		return
-	}
-
-	messageID := uuid.New()
-	if err := c.chatRepo.InsertSystemMessage(ctx, messageID, roomID, actorID, actionBody); err != nil {
-		return
-	}
-
-	row, err := c.chatRepo.GetMessageByID(ctx, messageID)
+	row, err := c.chatRepo.InsertSystemMessage(ctx, roomID, actorID, actionBody)
 	if err != nil {
 		return
 	}
+
+	c.broadcastRoomActionMessage(ctx, roomID, actorID, row)
+}
+
+func (c *core) roomActionMessageBody(ctx context.Context, roomID, actorID uuid.UUID, body string) string {
+	actionBody := strings.TrimSpace(body)
+	if actionBody == "" {
+		return ""
+	}
+
+	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, roomID, actorID); timedOut {
+		return ""
+	}
+
+	return actionBody
+}
+
+func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, row *repository.ChatMessageRow) {
 	if row == nil {
 		return
 	}
@@ -414,10 +547,9 @@ func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.U
 	if err != nil {
 		return
 	}
+
 	event := ws.Message{Type: "chat_message", Data: msg}
-	for i := range members {
-		c.hub.SendToUser(members[i], event)
-	}
+	c.hub.SendToUsers(members, event)
 }
 
 func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []repository.ChatMessageRow) []dto.ChatMessageResponse {
@@ -718,9 +850,7 @@ func (c *core) broadcastToRoomMembers(ctx context.Context, roomID uuid.UUID, msg
 		return
 	}
 
-	for i := range members {
-		c.hub.SendToUser(members[i], msg)
-	}
+	c.hub.SendToUsers(members, msg)
 }
 
 func (c *core) checkSenderTimeout(ctx context.Context, roomID, senderID uuid.UUID) error {

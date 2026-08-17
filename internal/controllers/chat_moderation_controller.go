@@ -8,35 +8,34 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 )
 
 func (s *Service) setupListRoomBansRoute(r fiber.Router) {
-	r.Get("/chat/rooms/:roomID/bans", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listRoomBans)
+	r.Get("/chat/rooms/:roomID/bans", s.requireAuth(), s.listRoomBans)
 }
 
 func (s *Service) setupBanMemberRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/bans/:userID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.banMember)
+	r.Post("/chat/rooms/:roomID/bans/:userID", s.requireAuth(), s.banMember)
 }
 
 func (s *Service) setupUnbanMemberRoute(r fiber.Router) {
-	r.Delete("/chat/rooms/:roomID/bans/:userID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unbanMember)
+	r.Delete("/chat/rooms/:roomID/bans/:userID", s.requireAuth(), s.unbanMember)
 }
 
 func (s *Service) setupListRoomBannedWordsRoute(r fiber.Router) {
-	r.Get("/chat/rooms/:roomID/banned-words", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listRoomBannedWords)
+	r.Get("/chat/rooms/:roomID/banned-words", s.requireAuth(), s.listRoomBannedWords)
 }
 
 func (s *Service) setupCreateRoomBannedWordRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/banned-words", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createRoomBannedWord)
+	r.Post("/chat/rooms/:roomID/banned-words", s.requireAuth(), s.createRoomBannedWord)
 }
 
 func (s *Service) setupUpdateRoomBannedWordRoute(r fiber.Router) {
-	r.Put("/chat/rooms/:roomID/banned-words/:ruleID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateRoomBannedWord)
+	r.Put("/chat/rooms/:roomID/banned-words/:ruleID", s.requireAuth(), s.updateRoomBannedWord)
 }
 
 func (s *Service) setupDeleteRoomBannedWordRoute(r fiber.Router) {
-	r.Delete("/chat/rooms/:roomID/banned-words/:ruleID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteRoomBannedWord)
+	r.Delete("/chat/rooms/:roomID/banned-words/:ruleID", s.requireAuth(), s.deleteRoomBannedWord)
 }
 
 func mapBanError(ctx fiber.Ctx, err error) error {

@@ -6,6 +6,8 @@ import { GameOverPanel } from "../GameOverPanel.tsx";
 import { GamePlayerBar } from "../GamePlayerBar.tsx";
 import { GameStatsGrid } from "../GameStatsGrid.tsx";
 import { gameResultLabel, getMySlot, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers.ts";
+import shell from "../boardShell.module.css";
+import { DrawOfferBanner } from "../DrawOfferBanner";
 import styles from "./CheckersBoardView.module.css";
 
 const BOARD_SIZE = 8;
@@ -541,20 +543,20 @@ export function CheckersBoardView({
     }
 
     return (
-        <div className={styles.wrapper}>
+        <div className={shell.wrapper}>
             <GamePlayerBar room={room} slot0Label="Red" slot1Label="Black" liveDurationSeconds={liveDurationSeconds} />
 
             <DisconnectBanner offlinePlayer={offlinePlayer} forfeitRemaining={forfeitRemaining} />
 
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={shell.error}>{error}</div>}
             {inProgressJump && !error && (
-                <div className={styles.info}>Keep jumping - another capture is required before your turn ends.</div>
+                <div className={shell.info}>Keep jumping - another capture is required before your turn ends.</div>
             )}
             {availableTargets.mustJump && !inProgressJump && isMyTurn && (
-                <div className={styles.info}>Capture is mandatory this turn.</div>
+                <div className={shell.info}>Capture is mandatory this turn.</div>
             )}
 
-            <div className={styles.boardContainer}>
+            <div className={shell.boardContainer}>
                 <div className={styles.board}>
                     {displayRows.map(r => (
                         <div className={styles.boardRow} key={r}>
@@ -640,42 +642,16 @@ export function CheckersBoardView({
             </GameOverPanel>
 
             {room.status === "active" && !isSpectator && room.draw_offer_from_user_id && (
-                <>
-                    {room.draw_offer_from_user_id !== viewerId ? (
-                        <div className={styles.drawBanner}>
-                            <span className={styles.drawBannerText}>
-                                Your opponent has offered a draw. Accept to end the game as a draw, or decline to keep
-                                playing.
-                            </span>
-                            <div className={styles.drawBannerActions}>
-                                <Button
-                                    variant="primary"
-                                    size="small"
-                                    onClick={() => handleDrawAction(onAcceptDraw)}
-                                    disabled={submitting}
-                                >
-                                    Accept draw
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="small"
-                                    onClick={() => handleDrawAction(onDeclineDraw)}
-                                    disabled={submitting}
-                                >
-                                    Decline
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className={styles.drawPending}>
-                            Draw offered. Waiting for your opponent to respond. It is withdrawn if you make a move.
-                        </div>
-                    )}
-                </>
+                <DrawOfferBanner
+                    offeredByViewer={room.draw_offer_from_user_id === viewerId}
+                    submitting={submitting}
+                    onAccept={() => handleDrawAction(onAcceptDraw)}
+                    onDecline={() => handleDrawAction(onDeclineDraw)}
+                />
             )}
 
             {room.status === "active" && !isSpectator && (
-                <div className={styles.controls}>
+                <div className={shell.controls}>
                     {!room.draw_offer_from_user_id && (
                         <Button variant="ghost" onClick={() => handleDrawAction(onOfferDraw)} disabled={submitting}>
                             Offer draw

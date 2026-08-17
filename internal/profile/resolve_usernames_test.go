@@ -2,6 +2,7 @@ package profile
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 	"testing"
@@ -97,7 +98,7 @@ func TestResolveUsernames_CapsBatchSize(t *testing.T) {
 	}
 	var captured []string
 	userRepo.EXPECT().GetByUsernames(mock.Anything, mock.Anything).RunAndReturn(
-		func(_ context.Context, names []string) ([]model.User, error) {
+		func(_ context.Context, names []string, _ ...*sql.Tx) ([]model.User, error) {
 			captured = names
 			return nil, nil
 		},

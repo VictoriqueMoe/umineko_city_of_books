@@ -44,8 +44,9 @@ func TestSitemapDAO_ListJournalRows_NullUpdatedAt(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	journalID, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{Title: "Reading Umineko"})
+	journal, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{Title: "Reading Umineko"})
 	require.NoError(t, err)
+	journalID := journal.ID
 
 	// when
 	rows, err := repos.Sitemap.ListJournalRows(context.Background())

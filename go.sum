@@ -460,6 +460,8 @@ github.com/valyala/fasthttp v1.73.0 h1:ocTOORnBWtJ+P8t/6wAjdkchMzdfHmWx2VD/DPbgZ
 github.com/valyala/fasthttp v1.73.0/go.mod h1:EtXQDHaR+5P18p8wqDRFpUhxr108Ga9mXvVJXHRrN2k=
 github.com/vektra/mockery/v3 v3.7.2 h1:x4r2DwXSdOZdrs89+IKX4VS1dfJySc/YbZsrW80zMBY=
 github.com/vektra/mockery/v3 v3.7.2/go.mod h1:fbChccNiUvQaUVaCHS6/7OL5/D65KljJVk31LuPPUjY=
+github.com/vektra/mockery/v3 v3.7.3 h1:xL6MqWo4yDgiueMDsggt1eTNoDEkwYNQeVXN5vyaJG0=
+github.com/vektra/mockery/v3 v3.7.3/go.mod h1:fbChccNiUvQaUVaCHS6/7OL5/D65KljJVk31LuPPUjY=
 github.com/wlynxg/anet v0.0.5 h1:J3VJGi1gvo0JwZ/P1/Yc/8p63SoW98B5dHkYDmpgvvU=
 github.com/wlynxg/anet v0.0.5/go.mod h1:eay5PRQr7fIVAMbTbchTnO9gG65Hg/uYGdc7mguHxoA=
 github.com/wneessen/go-mail v0.8.1 h1:tVcncj02/QySVFw3zr/kXOzZcuFQqBNT6K+Rbgm/pcM=

@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -38,8 +39,14 @@ func (_m *MockSearchRepository) EXPECT() *MockSearchRepository_Expecter {
 }
 
 // QuickSearch provides a mock function for the type MockSearchRepository
-func (_mock *MockSearchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error) {
-	ret := _mock.Called(ctx, query, perTypeLimit)
+func (_mock *MockSearchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]SearchResult, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, query, perTypeLimit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, query, perTypeLimit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for QuickSearch")
@@ -47,18 +54,18 @@ func (_mock *MockSearchRepository) QuickSearch(ctx context.Context, query string
 
 	var r0 []SearchResult
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) ([]SearchResult, error)); ok {
-		return returnFunc(ctx, query, perTypeLimit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) ([]SearchResult, error)); ok {
+		return returnFunc(ctx, query, perTypeLimit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int) []SearchResult); ok {
-		r0 = returnFunc(ctx, query, perTypeLimit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) []SearchResult); ok {
+		r0 = returnFunc(ctx, query, perTypeLimit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]SearchResult)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int) error); ok {
-		r1 = returnFunc(ctx, query, perTypeLimit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, query, perTypeLimit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,11 +81,13 @@ type MockSearchRepository_QuickSearch_Call struct {
 //   - ctx context.Context
 //   - query string
 //   - perTypeLimit int
-func (_e *MockSearchRepository_Expecter) QuickSearch(ctx any, query any, perTypeLimit any) *MockSearchRepository_QuickSearch_Call {
-	return &MockSearchRepository_QuickSearch_Call{Call: _e.mock.On("QuickSearch", ctx, query, perTypeLimit)}
+//   - tx ...*sql.Tx
+func (_e *MockSearchRepository_Expecter) QuickSearch(ctx any, query any, perTypeLimit any, tx ...any) *MockSearchRepository_QuickSearch_Call {
+	return &MockSearchRepository_QuickSearch_Call{Call: _e.mock.On("QuickSearch",
+		append([]any{ctx, query, perTypeLimit}, tx...)...)}
 }
 
-func (_c *MockSearchRepository_QuickSearch_Call) Run(run func(ctx context.Context, query string, perTypeLimit int)) *MockSearchRepository_QuickSearch_Call {
+func (_c *MockSearchRepository_QuickSearch_Call) Run(run func(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx)) *MockSearchRepository_QuickSearch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -92,10 +101,17 @@ func (_c *MockSearchRepository_QuickSearch_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(int)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -106,14 +122,20 @@ func (_c *MockSearchRepository_QuickSearch_Call) Return(searchResults []SearchRe
 	return _c
 }
 
-func (_c *MockSearchRepository_QuickSearch_Call) RunAndReturn(run func(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error)) *MockSearchRepository_QuickSearch_Call {
+func (_c *MockSearchRepository_QuickSearch_Call) RunAndReturn(run func(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]SearchResult, error)) *MockSearchRepository_QuickSearch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Search provides a mock function for the type MockSearchRepository
-func (_mock *MockSearchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit int, offset int) ([]SearchResult, int, error) {
-	ret := _mock.Called(ctx, query, types, limit, offset)
+func (_mock *MockSearchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit int, offset int, tx ...*sql.Tx) ([]SearchResult, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, query, types, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, query, types, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Search")
@@ -122,23 +144,23 @@ func (_mock *MockSearchRepository) Search(ctx context.Context, query string, typ
 	var r0 []SearchResult
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []SearchEntityType, int, int) ([]SearchResult, int, error)); ok {
-		return returnFunc(ctx, query, types, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []SearchEntityType, int, int, ...*sql.Tx) ([]SearchResult, int, error)); ok {
+		return returnFunc(ctx, query, types, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []SearchEntityType, int, int) []SearchResult); ok {
-		r0 = returnFunc(ctx, query, types, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []SearchEntityType, int, int, ...*sql.Tx) []SearchResult); ok {
+		r0 = returnFunc(ctx, query, types, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]SearchResult)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []SearchEntityType, int, int) int); ok {
-		r1 = returnFunc(ctx, query, types, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []SearchEntityType, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, query, types, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, []SearchEntityType, int, int) error); ok {
-		r2 = returnFunc(ctx, query, types, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, []SearchEntityType, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, query, types, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -156,11 +178,13 @@ type MockSearchRepository_Search_Call struct {
 //   - types []SearchEntityType
 //   - limit int
 //   - offset int
-func (_e *MockSearchRepository_Expecter) Search(ctx any, query any, types any, limit any, offset any) *MockSearchRepository_Search_Call {
-	return &MockSearchRepository_Search_Call{Call: _e.mock.On("Search", ctx, query, types, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockSearchRepository_Expecter) Search(ctx any, query any, types any, limit any, offset any, tx ...any) *MockSearchRepository_Search_Call {
+	return &MockSearchRepository_Search_Call{Call: _e.mock.On("Search",
+		append([]any{ctx, query, types, limit, offset}, tx...)...)}
 }
 
-func (_c *MockSearchRepository_Search_Call) Run(run func(ctx context.Context, query string, types []SearchEntityType, limit int, offset int)) *MockSearchRepository_Search_Call {
+func (_c *MockSearchRepository_Search_Call) Run(run func(ctx context.Context, query string, types []SearchEntityType, limit int, offset int, tx ...*sql.Tx)) *MockSearchRepository_Search_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -182,12 +206,19 @@ func (_c *MockSearchRepository_Search_Call) Run(run func(ctx context.Context, qu
 		if args[4] != nil {
 			arg4 = args[4].(int)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -198,7 +229,7 @@ func (_c *MockSearchRepository_Search_Call) Return(searchResults []SearchResult,
 	return _c
 }
 
-func (_c *MockSearchRepository_Search_Call) RunAndReturn(run func(ctx context.Context, query string, types []SearchEntityType, limit int, offset int) ([]SearchResult, int, error)) *MockSearchRepository_Search_Call {
+func (_c *MockSearchRepository_Search_Call) RunAndReturn(run func(ctx context.Context, query string, types []SearchEntityType, limit int, offset int, tx ...*sql.Tx) ([]SearchResult, int, error)) *MockSearchRepository_Search_Call {
 	_c.Call.Return(run)
 	return _c
 }

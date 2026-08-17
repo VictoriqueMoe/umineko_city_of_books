@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 	"umineko_city_of_books/internal/dto"
 
@@ -41,16 +42,22 @@ func (_m *MockGameRoomRepository) EXPECT() *MockGameRoomRepository_Expecter {
 }
 
 // AddPlayer provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) AddPlayer(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, slot int, joined bool) error {
-	ret := _mock.Called(ctx, roomID, userID, slot, joined)
+func (_mock *MockGameRoomRepository) AddPlayer(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, slot int, joined bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, slot, joined, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, slot, joined)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddPlayer")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, bool) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, slot, joined)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, slot, joined, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -68,11 +75,13 @@ type MockGameRoomRepository_AddPlayer_Call struct {
 //   - userID uuid.UUID
 //   - slot int
 //   - joined bool
-func (_e *MockGameRoomRepository_Expecter) AddPlayer(ctx any, roomID any, userID any, slot any, joined any) *MockGameRoomRepository_AddPlayer_Call {
-	return &MockGameRoomRepository_AddPlayer_Call{Call: _e.mock.On("AddPlayer", ctx, roomID, userID, slot, joined)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) AddPlayer(ctx any, roomID any, userID any, slot any, joined any, tx ...any) *MockGameRoomRepository_AddPlayer_Call {
+	return &MockGameRoomRepository_AddPlayer_Call{Call: _e.mock.On("AddPlayer",
+		append([]any{ctx, roomID, userID, slot, joined}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_AddPlayer_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, slot int, joined bool)) *MockGameRoomRepository_AddPlayer_Call {
+func (_c *MockGameRoomRepository_AddPlayer_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, slot int, joined bool, tx ...*sql.Tx)) *MockGameRoomRepository_AddPlayer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -94,12 +103,19 @@ func (_c *MockGameRoomRepository_AddPlayer_Call) Run(run func(ctx context.Contex
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -110,22 +126,28 @@ func (_c *MockGameRoomRepository_AddPlayer_Call) Return(err error) *MockGameRoom
 	return _c
 }
 
-func (_c *MockGameRoomRepository_AddPlayer_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, slot int, joined bool) error) *MockGameRoomRepository_AddPlayer_Call {
+func (_c *MockGameRoomRepository_AddPlayer_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, slot int, joined bool, tx ...*sql.Tx) error) *MockGameRoomRepository_AddPlayer_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AppendMove provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) AppendMove(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string) error {
-	ret := _mock.Called(ctx, roomID, ply, userID, actionJSON)
+func (_mock *MockGameRoomRepository) AppendMove(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, ply, userID, actionJSON, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, ply, userID, actionJSON)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AppendMove")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, ply, userID, actionJSON)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, ply, userID, actionJSON, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -143,11 +165,13 @@ type MockGameRoomRepository_AppendMove_Call struct {
 //   - ply int
 //   - userID uuid.UUID
 //   - actionJSON string
-func (_e *MockGameRoomRepository_Expecter) AppendMove(ctx any, roomID any, ply any, userID any, actionJSON any) *MockGameRoomRepository_AppendMove_Call {
-	return &MockGameRoomRepository_AppendMove_Call{Call: _e.mock.On("AppendMove", ctx, roomID, ply, userID, actionJSON)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) AppendMove(ctx any, roomID any, ply any, userID any, actionJSON any, tx ...any) *MockGameRoomRepository_AppendMove_Call {
+	return &MockGameRoomRepository_AppendMove_Call{Call: _e.mock.On("AppendMove",
+		append([]any{ctx, roomID, ply, userID, actionJSON}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_AppendMove_Call) Run(run func(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string)) *MockGameRoomRepository_AppendMove_Call {
+func (_c *MockGameRoomRepository_AppendMove_Call) Run(run func(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string, tx ...*sql.Tx)) *MockGameRoomRepository_AppendMove_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -169,12 +193,19 @@ func (_c *MockGameRoomRepository_AppendMove_Call) Run(run func(ctx context.Conte
 		if args[4] != nil {
 			arg4 = args[4].(string)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -185,14 +216,20 @@ func (_c *MockGameRoomRepository_AppendMove_Call) Return(err error) *MockGameRoo
 	return _c
 }
 
-func (_c *MockGameRoomRepository_AppendMove_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string) error) *MockGameRoomRepository_AppendMove_Call {
+func (_c *MockGameRoomRepository_AppendMove_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string, tx ...*sql.Tx) error) *MockGameRoomRepository_AppendMove_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CancelIdleRoom provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time) (bool, error) {
-	ret := _mock.Called(ctx, roomID, idleSince)
+func (_mock *MockGameRoomRepository) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, idleSince, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, idleSince)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CancelIdleRoom")
@@ -200,16 +237,16 @@ func (_mock *MockGameRoomRepository) CancelIdleRoom(ctx context.Context, roomID 
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) (bool, error)); ok {
-		return returnFunc(ctx, roomID, idleSince)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, idleSince, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time) bool); ok {
-		r0 = returnFunc(ctx, roomID, idleSince)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, time.Time, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, idleSince, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time) error); ok {
-		r1 = returnFunc(ctx, roomID, idleSince)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, time.Time, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, idleSince, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -225,11 +262,13 @@ type MockGameRoomRepository_CancelIdleRoom_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - idleSince time.Time
-func (_e *MockGameRoomRepository_Expecter) CancelIdleRoom(ctx any, roomID any, idleSince any) *MockGameRoomRepository_CancelIdleRoom_Call {
-	return &MockGameRoomRepository_CancelIdleRoom_Call{Call: _e.mock.On("CancelIdleRoom", ctx, roomID, idleSince)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) CancelIdleRoom(ctx any, roomID any, idleSince any, tx ...any) *MockGameRoomRepository_CancelIdleRoom_Call {
+	return &MockGameRoomRepository_CancelIdleRoom_Call{Call: _e.mock.On("CancelIdleRoom",
+		append([]any{ctx, roomID, idleSince}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_CancelIdleRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, idleSince time.Time)) *MockGameRoomRepository_CancelIdleRoom_Call {
+func (_c *MockGameRoomRepository_CancelIdleRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, idleSince time.Time, tx ...*sql.Tx)) *MockGameRoomRepository_CancelIdleRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -243,10 +282,17 @@ func (_c *MockGameRoomRepository_CancelIdleRoom_Call) Run(run func(ctx context.C
 		if args[2] != nil {
 			arg2 = args[2].(time.Time)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -257,14 +303,20 @@ func (_c *MockGameRoomRepository_CancelIdleRoom_Call) Return(b bool, err error) 
 	return _c
 }
 
-func (_c *MockGameRoomRepository_CancelIdleRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, idleSince time.Time) (bool, error)) *MockGameRoomRepository_CancelIdleRoom_Call {
+func (_c *MockGameRoomRepository_CancelIdleRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, idleSince time.Time, tx ...*sql.Tx) (bool, error)) *MockGameRoomRepository_CancelIdleRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountLive provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) CountLive(ctx context.Context) (int, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockGameRoomRepository) CountLive(ctx context.Context, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountLive")
@@ -272,16 +324,16 @@ func (_mock *MockGameRoomRepository) CountLive(ctx context.Context) (int, error)
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -295,18 +347,27 @@ type MockGameRoomRepository_CountLive_Call struct {
 
 // CountLive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockGameRoomRepository_Expecter) CountLive(ctx any) *MockGameRoomRepository_CountLive_Call {
-	return &MockGameRoomRepository_CountLive_Call{Call: _e.mock.On("CountLive", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) CountLive(ctx any, tx ...any) *MockGameRoomRepository_CountLive_Call {
+	return &MockGameRoomRepository_CountLive_Call{Call: _e.mock.On("CountLive",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_CountLive_Call) Run(run func(ctx context.Context)) *MockGameRoomRepository_CountLive_Call {
+func (_c *MockGameRoomRepository_CountLive_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockGameRoomRepository_CountLive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -317,26 +378,126 @@ func (_c *MockGameRoomRepository_CountLive_Call) Return(n int, err error) *MockG
 	return _c
 }
 
-func (_c *MockGameRoomRepository_CountLive_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockGameRoomRepository_CountLive_Call {
+func (_c *MockGameRoomRepository_CountLive_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (int, error)) *MockGameRoomRepository_CountLive_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateInvite provides a mock function for the type MockGameRoomRepository
+func (_mock *MockGameRoomRepository) CreateInvite(ctx context.Context, spec NewGameRoomInvite, tx ...*sql.Tx) (*GameRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateInvite")
+	}
+
+	var r0 *GameRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewGameRoomInvite, ...*sql.Tx) (*GameRoomRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewGameRoomInvite, ...*sql.Tx) *GameRoomRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*GameRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewGameRoomInvite, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockGameRoomRepository_CreateInvite_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateInvite'
+type MockGameRoomRepository_CreateInvite_Call struct {
+	*mock.Call
+}
+
+// CreateInvite is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewGameRoomInvite
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) CreateInvite(ctx any, spec any, tx ...any) *MockGameRoomRepository_CreateInvite_Call {
+	return &MockGameRoomRepository_CreateInvite_Call{Call: _e.mock.On("CreateInvite",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockGameRoomRepository_CreateInvite_Call) Run(run func(ctx context.Context, spec NewGameRoomInvite, tx ...*sql.Tx)) *MockGameRoomRepository_CreateInvite_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewGameRoomInvite
+		if args[1] != nil {
+			arg1 = args[1].(NewGameRoomInvite)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGameRoomRepository_CreateInvite_Call) Return(gameRoomRow *GameRoomRow, err error) *MockGameRoomRepository_CreateInvite_Call {
+	_c.Call.Return(gameRoomRow, err)
+	return _c
+}
+
+func (_c *MockGameRoomRepository_CreateInvite_Call) RunAndReturn(run func(ctx context.Context, spec NewGameRoomInvite, tx ...*sql.Tx) (*GameRoomRow, error)) *MockGameRoomRepository_CreateInvite_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateRoom provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) CreateRoom(ctx context.Context, id uuid.UUID, gameType string, initialStateJSON string, createdBy uuid.UUID) error {
-	ret := _mock.Called(ctx, id, gameType, initialStateJSON, createdBy)
+func (_mock *MockGameRoomRepository) CreateRoom(ctx context.Context, gameType string, initialStateJSON string, createdBy uuid.UUID, tx ...*sql.Tx) (*GameRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, gameType, initialStateJSON, createdBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, gameType, initialStateJSON, createdBy)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateRoom")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, gameType, initialStateJSON, createdBy)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *GameRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, uuid.UUID, ...*sql.Tx) (*GameRoomRow, error)); ok {
+		return returnFunc(ctx, gameType, initialStateJSON, createdBy, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, uuid.UUID, ...*sql.Tx) *GameRoomRow); ok {
+		r0 = returnFunc(ctx, gameType, initialStateJSON, createdBy, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*GameRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, gameType, initialStateJSON, createdBy, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockGameRoomRepository_CreateRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateRoom'
@@ -346,68 +507,77 @@ type MockGameRoomRepository_CreateRoom_Call struct {
 
 // CreateRoom is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
 //   - gameType string
 //   - initialStateJSON string
 //   - createdBy uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) CreateRoom(ctx any, id any, gameType any, initialStateJSON any, createdBy any) *MockGameRoomRepository_CreateRoom_Call {
-	return &MockGameRoomRepository_CreateRoom_Call{Call: _e.mock.On("CreateRoom", ctx, id, gameType, initialStateJSON, createdBy)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) CreateRoom(ctx any, gameType any, initialStateJSON any, createdBy any, tx ...any) *MockGameRoomRepository_CreateRoom_Call {
+	return &MockGameRoomRepository_CreateRoom_Call{Call: _e.mock.On("CreateRoom",
+		append([]any{ctx, gameType, initialStateJSON, createdBy}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_CreateRoom_Call) Run(run func(ctx context.Context, id uuid.UUID, gameType string, initialStateJSON string, createdBy uuid.UUID)) *MockGameRoomRepository_CreateRoom_Call {
+func (_c *MockGameRoomRepository_CreateRoom_Call) Run(run func(ctx context.Context, gameType string, initialStateJSON string, createdBy uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_CreateRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 string
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(string)
 		}
 		var arg2 string
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
-		var arg3 string
+		var arg3 uuid.UUID
 		if args[3] != nil {
-			arg3 = args[3].(string)
+			arg3 = args[3].(uuid.UUID)
 		}
-		var arg4 uuid.UUID
-		if args[4] != nil {
-			arg4 = args[4].(uuid.UUID)
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
 		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
+			arg4...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockGameRoomRepository_CreateRoom_Call) Return(err error) *MockGameRoomRepository_CreateRoom_Call {
-	_c.Call.Return(err)
+func (_c *MockGameRoomRepository_CreateRoom_Call) Return(gameRoomRow *GameRoomRow, err error) *MockGameRoomRepository_CreateRoom_Call {
+	_c.Call.Return(gameRoomRow, err)
 	return _c
 }
 
-func (_c *MockGameRoomRepository_CreateRoom_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, gameType string, initialStateJSON string, createdBy uuid.UUID) error) *MockGameRoomRepository_CreateRoom_Call {
+func (_c *MockGameRoomRepository_CreateRoom_Call) RunAndReturn(run func(ctx context.Context, gameType string, initialStateJSON string, createdBy uuid.UUID, tx ...*sql.Tx) (*GameRoomRow, error)) *MockGameRoomRepository_CreateRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // FinishRoom provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result string, stateJSON string) error {
-	ret := _mock.Called(ctx, roomID, status, winner, result, stateJSON)
+func (_mock *MockGameRoomRepository) FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result string, stateJSON string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, status, winner, result, stateJSON, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, status, winner, result, stateJSON)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for FinishRoom")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, *uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, roomID, status, winner, result, stateJSON)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, *uuid.UUID, string, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, status, winner, result, stateJSON, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -426,11 +596,13 @@ type MockGameRoomRepository_FinishRoom_Call struct {
 //   - winner *uuid.UUID
 //   - result string
 //   - stateJSON string
-func (_e *MockGameRoomRepository_Expecter) FinishRoom(ctx any, roomID any, status any, winner any, result any, stateJSON any) *MockGameRoomRepository_FinishRoom_Call {
-	return &MockGameRoomRepository_FinishRoom_Call{Call: _e.mock.On("FinishRoom", ctx, roomID, status, winner, result, stateJSON)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) FinishRoom(ctx any, roomID any, status any, winner any, result any, stateJSON any, tx ...any) *MockGameRoomRepository_FinishRoom_Call {
+	return &MockGameRoomRepository_FinishRoom_Call{Call: _e.mock.On("FinishRoom",
+		append([]any{ctx, roomID, status, winner, result, stateJSON}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_FinishRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result string, stateJSON string)) *MockGameRoomRepository_FinishRoom_Call {
+func (_c *MockGameRoomRepository_FinishRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result string, stateJSON string, tx ...*sql.Tx)) *MockGameRoomRepository_FinishRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -456,6 +628,12 @@ func (_c *MockGameRoomRepository_FinishRoom_Call) Run(run func(ctx context.Conte
 		if args[5] != nil {
 			arg5 = args[5].(string)
 		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -463,6 +641,7 @@ func (_c *MockGameRoomRepository_FinishRoom_Call) Run(run func(ctx context.Conte
 			arg3,
 			arg4,
 			arg5,
+			arg6...,
 		)
 	})
 	return _c
@@ -473,14 +652,20 @@ func (_c *MockGameRoomRepository_FinishRoom_Call) Return(err error) *MockGameRoo
 	return _c
 }
 
-func (_c *MockGameRoomRepository_FinishRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result string, stateJSON string) error) *MockGameRoomRepository_FinishRoom_Call {
+func (_c *MockGameRoomRepository_FinishRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result string, stateJSON string, tx ...*sql.Tx) error) *MockGameRoomRepository_FinishRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetPlayerSlot provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) GetPlayerSlot(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockGameRoomRepository) GetPlayerSlot(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPlayerSlot")
@@ -488,16 +673,16 @@ func (_mock *MockGameRoomRepository) GetPlayerSlot(ctx context.Context, roomID u
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -513,11 +698,13 @@ type MockGameRoomRepository_GetPlayerSlot_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) GetPlayerSlot(ctx any, roomID any, userID any) *MockGameRoomRepository_GetPlayerSlot_Call {
-	return &MockGameRoomRepository_GetPlayerSlot_Call{Call: _e.mock.On("GetPlayerSlot", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) GetPlayerSlot(ctx any, roomID any, userID any, tx ...any) *MockGameRoomRepository_GetPlayerSlot_Call {
+	return &MockGameRoomRepository_GetPlayerSlot_Call{Call: _e.mock.On("GetPlayerSlot",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_GetPlayerSlot_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockGameRoomRepository_GetPlayerSlot_Call {
+func (_c *MockGameRoomRepository_GetPlayerSlot_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_GetPlayerSlot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -531,10 +718,17 @@ func (_c *MockGameRoomRepository_GetPlayerSlot_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -545,14 +739,20 @@ func (_c *MockGameRoomRepository_GetPlayerSlot_Call) Return(n int, err error) *M
 	return _c
 }
 
-func (_c *MockGameRoomRepository_GetPlayerSlot_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (int, error)) *MockGameRoomRepository_GetPlayerSlot_Call {
+func (_c *MockGameRoomRepository_GetPlayerSlot_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockGameRoomRepository_GetPlayerSlot_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetPlayers provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) GetPlayers(ctx context.Context, roomID uuid.UUID) ([]GameRoomPlayerRow, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockGameRoomRepository) GetPlayers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]GameRoomPlayerRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetPlayers")
@@ -560,18 +760,18 @@ func (_mock *MockGameRoomRepository) GetPlayers(ctx context.Context, roomID uuid
 
 	var r0 []GameRoomPlayerRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]GameRoomPlayerRow, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]GameRoomPlayerRow, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []GameRoomPlayerRow); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []GameRoomPlayerRow); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GameRoomPlayerRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -586,11 +786,13 @@ type MockGameRoomRepository_GetPlayers_Call struct {
 // GetPlayers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) GetPlayers(ctx any, roomID any) *MockGameRoomRepository_GetPlayers_Call {
-	return &MockGameRoomRepository_GetPlayers_Call{Call: _e.mock.On("GetPlayers", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) GetPlayers(ctx any, roomID any, tx ...any) *MockGameRoomRepository_GetPlayers_Call {
+	return &MockGameRoomRepository_GetPlayers_Call{Call: _e.mock.On("GetPlayers",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_GetPlayers_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockGameRoomRepository_GetPlayers_Call {
+func (_c *MockGameRoomRepository_GetPlayers_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_GetPlayers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -600,9 +802,16 @@ func (_c *MockGameRoomRepository_GetPlayers_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -613,14 +822,20 @@ func (_c *MockGameRoomRepository_GetPlayers_Call) Return(gameRoomPlayerRows []Ga
 	return _c
 }
 
-func (_c *MockGameRoomRepository_GetPlayers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]GameRoomPlayerRow, error)) *MockGameRoomRepository_GetPlayers_Call {
+func (_c *MockGameRoomRepository_GetPlayers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]GameRoomPlayerRow, error)) *MockGameRoomRepository_GetPlayers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoom provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) GetRoom(ctx context.Context, id uuid.UUID) (*GameRoomRow, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockGameRoomRepository) GetRoom(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*GameRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoom")
@@ -628,18 +843,18 @@ func (_mock *MockGameRoomRepository) GetRoom(ctx context.Context, id uuid.UUID) 
 
 	var r0 *GameRoomRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*GameRoomRow, error)); ok {
-		return returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*GameRoomRow, error)); ok {
+		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *GameRoomRow); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *GameRoomRow); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*GameRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -654,11 +869,13 @@ type MockGameRoomRepository_GetRoom_Call struct {
 // GetRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) GetRoom(ctx any, id any) *MockGameRoomRepository_GetRoom_Call {
-	return &MockGameRoomRepository_GetRoom_Call{Call: _e.mock.On("GetRoom", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) GetRoom(ctx any, id any, tx ...any) *MockGameRoomRepository_GetRoom_Call {
+	return &MockGameRoomRepository_GetRoom_Call{Call: _e.mock.On("GetRoom",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_GetRoom_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockGameRoomRepository_GetRoom_Call {
+func (_c *MockGameRoomRepository_GetRoom_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_GetRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -668,9 +885,16 @@ func (_c *MockGameRoomRepository_GetRoom_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -681,14 +905,20 @@ func (_c *MockGameRoomRepository_GetRoom_Call) Return(gameRoomRow *GameRoomRow, 
 	return _c
 }
 
-func (_c *MockGameRoomRepository_GetRoom_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*GameRoomRow, error)) *MockGameRoomRepository_GetRoom_Call {
+func (_c *MockGameRoomRepository_GetRoom_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*GameRoomRow, error)) *MockGameRoomRepository_GetRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTopWinnerIDs provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType string) ([]string, error) {
-	ret := _mock.Called(ctx, gameType)
+func (_mock *MockGameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType string, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, gameType, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, gameType)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTopWinnerIDs")
@@ -696,18 +926,18 @@ func (_mock *MockGameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameTy
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]string, error)); ok {
-		return returnFunc(ctx, gameType)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, gameType, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []string); ok {
-		r0 = returnFunc(ctx, gameType)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, gameType, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, gameType)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, gameType, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -722,11 +952,13 @@ type MockGameRoomRepository_GetTopWinnerIDs_Call struct {
 // GetTopWinnerIDs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType string
-func (_e *MockGameRoomRepository_Expecter) GetTopWinnerIDs(ctx any, gameType any) *MockGameRoomRepository_GetTopWinnerIDs_Call {
-	return &MockGameRoomRepository_GetTopWinnerIDs_Call{Call: _e.mock.On("GetTopWinnerIDs", ctx, gameType)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) GetTopWinnerIDs(ctx any, gameType any, tx ...any) *MockGameRoomRepository_GetTopWinnerIDs_Call {
+	return &MockGameRoomRepository_GetTopWinnerIDs_Call{Call: _e.mock.On("GetTopWinnerIDs",
+		append([]any{ctx, gameType}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) Run(run func(ctx context.Context, gameType string)) *MockGameRoomRepository_GetTopWinnerIDs_Call {
+func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) Run(run func(ctx context.Context, gameType string, tx ...*sql.Tx)) *MockGameRoomRepository_GetTopWinnerIDs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -736,9 +968,16 @@ func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -749,14 +988,20 @@ func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) Return(strings []string, 
 	return _c
 }
 
-func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) RunAndReturn(run func(ctx context.Context, gameType string) ([]string, error)) *MockGameRoomRepository_GetTopWinnerIDs_Call {
+func (_c *MockGameRoomRepository_GetTopWinnerIDs_Call) RunAndReturn(run func(ctx context.Context, gameType string, tx ...*sql.Tx) ([]string, error)) *MockGameRoomRepository_GetTopWinnerIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsParticipant provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) IsParticipant(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockGameRoomRepository) IsParticipant(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsParticipant")
@@ -764,16 +1009,16 @@ func (_mock *MockGameRoomRepository) IsParticipant(ctx context.Context, roomID u
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -789,11 +1034,13 @@ type MockGameRoomRepository_IsParticipant_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) IsParticipant(ctx any, roomID any, userID any) *MockGameRoomRepository_IsParticipant_Call {
-	return &MockGameRoomRepository_IsParticipant_Call{Call: _e.mock.On("IsParticipant", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) IsParticipant(ctx any, roomID any, userID any, tx ...any) *MockGameRoomRepository_IsParticipant_Call {
+	return &MockGameRoomRepository_IsParticipant_Call{Call: _e.mock.On("IsParticipant",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_IsParticipant_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockGameRoomRepository_IsParticipant_Call {
+func (_c *MockGameRoomRepository_IsParticipant_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_IsParticipant_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -807,10 +1054,17 @@ func (_c *MockGameRoomRepository_IsParticipant_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -821,14 +1075,20 @@ func (_c *MockGameRoomRepository_IsParticipant_Call) Return(b bool, err error) *
 	return _c
 }
 
-func (_c *MockGameRoomRepository_IsParticipant_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockGameRoomRepository_IsParticipant_Call {
+func (_c *MockGameRoomRepository_IsParticipant_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockGameRoomRepository_IsParticipant_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListFinished provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) ListFinished(ctx context.Context, gameType string, limit int, offset int) ([]GameRoomRow, int, error) {
-	ret := _mock.Called(ctx, gameType, limit, offset)
+func (_mock *MockGameRoomRepository) ListFinished(ctx context.Context, gameType string, limit int, offset int, tx ...*sql.Tx) ([]GameRoomRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, gameType, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, gameType, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListFinished")
@@ -837,23 +1097,23 @@ func (_mock *MockGameRoomRepository) ListFinished(ctx context.Context, gameType 
 	var r0 []GameRoomRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) ([]GameRoomRow, int, error)); ok {
-		return returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) ([]GameRoomRow, int, error)); ok {
+		return returnFunc(ctx, gameType, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) []GameRoomRow); ok {
-		r0 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) []GameRoomRow); ok {
+		r0 = returnFunc(ctx, gameType, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GameRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) int); ok {
-		r1 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, gameType, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int, int) error); ok {
-		r2 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, gameType, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -870,11 +1130,13 @@ type MockGameRoomRepository_ListFinished_Call struct {
 //   - gameType string
 //   - limit int
 //   - offset int
-func (_e *MockGameRoomRepository_Expecter) ListFinished(ctx any, gameType any, limit any, offset any) *MockGameRoomRepository_ListFinished_Call {
-	return &MockGameRoomRepository_ListFinished_Call{Call: _e.mock.On("ListFinished", ctx, gameType, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) ListFinished(ctx any, gameType any, limit any, offset any, tx ...any) *MockGameRoomRepository_ListFinished_Call {
+	return &MockGameRoomRepository_ListFinished_Call{Call: _e.mock.On("ListFinished",
+		append([]any{ctx, gameType, limit, offset}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_ListFinished_Call) Run(run func(ctx context.Context, gameType string, limit int, offset int)) *MockGameRoomRepository_ListFinished_Call {
+func (_c *MockGameRoomRepository_ListFinished_Call) Run(run func(ctx context.Context, gameType string, limit int, offset int, tx ...*sql.Tx)) *MockGameRoomRepository_ListFinished_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -892,11 +1154,18 @@ func (_c *MockGameRoomRepository_ListFinished_Call) Run(run func(ctx context.Con
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -907,14 +1176,20 @@ func (_c *MockGameRoomRepository_ListFinished_Call) Return(gameRoomRows []GameRo
 	return _c
 }
 
-func (_c *MockGameRoomRepository_ListFinished_Call) RunAndReturn(run func(ctx context.Context, gameType string, limit int, offset int) ([]GameRoomRow, int, error)) *MockGameRoomRepository_ListFinished_Call {
+func (_c *MockGameRoomRepository_ListFinished_Call) RunAndReturn(run func(ctx context.Context, gameType string, limit int, offset int, tx ...*sql.Tx) ([]GameRoomRow, int, error)) *MockGameRoomRepository_ListFinished_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListForUser provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) ListForUser(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit int, offset int) ([]GameRoomRow, int, error) {
-	ret := _mock.Called(ctx, userID, gameType, statuses, limit, offset)
+func (_mock *MockGameRoomRepository) ListForUser(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit int, offset int, tx ...*sql.Tx) ([]GameRoomRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, gameType, statuses, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, gameType, statuses, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListForUser")
@@ -923,23 +1198,23 @@ func (_mock *MockGameRoomRepository) ListForUser(ctx context.Context, userID uui
 	var r0 []GameRoomRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int) ([]GameRoomRow, int, error)); ok {
-		return returnFunc(ctx, userID, gameType, statuses, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int, ...*sql.Tx) ([]GameRoomRow, int, error)); ok {
+		return returnFunc(ctx, userID, gameType, statuses, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int) []GameRoomRow); ok {
-		r0 = returnFunc(ctx, userID, gameType, statuses, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int, ...*sql.Tx) []GameRoomRow); ok {
+		r0 = returnFunc(ctx, userID, gameType, statuses, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GameRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, gameType, statuses, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, gameType, statuses, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, gameType, statuses, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, []dto.GameStatus, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, gameType, statuses, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -958,11 +1233,13 @@ type MockGameRoomRepository_ListForUser_Call struct {
 //   - statuses []dto.GameStatus
 //   - limit int
 //   - offset int
-func (_e *MockGameRoomRepository_Expecter) ListForUser(ctx any, userID any, gameType any, statuses any, limit any, offset any) *MockGameRoomRepository_ListForUser_Call {
-	return &MockGameRoomRepository_ListForUser_Call{Call: _e.mock.On("ListForUser", ctx, userID, gameType, statuses, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) ListForUser(ctx any, userID any, gameType any, statuses any, limit any, offset any, tx ...any) *MockGameRoomRepository_ListForUser_Call {
+	return &MockGameRoomRepository_ListForUser_Call{Call: _e.mock.On("ListForUser",
+		append([]any{ctx, userID, gameType, statuses, limit, offset}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_ListForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit int, offset int)) *MockGameRoomRepository_ListForUser_Call {
+func (_c *MockGameRoomRepository_ListForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit int, offset int, tx ...*sql.Tx)) *MockGameRoomRepository_ListForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -988,6 +1265,12 @@ func (_c *MockGameRoomRepository_ListForUser_Call) Run(run func(ctx context.Cont
 		if args[5] != nil {
 			arg5 = args[5].(int)
 		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -995,6 +1278,7 @@ func (_c *MockGameRoomRepository_ListForUser_Call) Run(run func(ctx context.Cont
 			arg3,
 			arg4,
 			arg5,
+			arg6...,
 		)
 	})
 	return _c
@@ -1005,14 +1289,20 @@ func (_c *MockGameRoomRepository_ListForUser_Call) Return(gameRoomRows []GameRoo
 	return _c
 }
 
-func (_c *MockGameRoomRepository_ListForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit int, offset int) ([]GameRoomRow, int, error)) *MockGameRoomRepository_ListForUser_Call {
+func (_c *MockGameRoomRepository_ListForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit int, offset int, tx ...*sql.Tx) ([]GameRoomRow, int, error)) *MockGameRoomRepository_ListForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListIdleActive provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) ListIdleActive(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error) {
-	ret := _mock.Called(ctx, idleSince)
+func (_mock *MockGameRoomRepository) ListIdleActive(ctx context.Context, idleSince time.Time, tx ...*sql.Tx) ([]GameRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, idleSince, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, idleSince)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListIdleActive")
@@ -1020,18 +1310,18 @@ func (_mock *MockGameRoomRepository) ListIdleActive(ctx context.Context, idleSin
 
 	var r0 []GameRoomRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]GameRoomRow, error)); ok {
-		return returnFunc(ctx, idleSince)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, ...*sql.Tx) ([]GameRoomRow, error)); ok {
+		return returnFunc(ctx, idleSince, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []GameRoomRow); ok {
-		r0 = returnFunc(ctx, idleSince)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, ...*sql.Tx) []GameRoomRow); ok {
+		r0 = returnFunc(ctx, idleSince, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GameRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
-		r1 = returnFunc(ctx, idleSince)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, idleSince, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1046,11 +1336,13 @@ type MockGameRoomRepository_ListIdleActive_Call struct {
 // ListIdleActive is a helper method to define mock.On call
 //   - ctx context.Context
 //   - idleSince time.Time
-func (_e *MockGameRoomRepository_Expecter) ListIdleActive(ctx any, idleSince any) *MockGameRoomRepository_ListIdleActive_Call {
-	return &MockGameRoomRepository_ListIdleActive_Call{Call: _e.mock.On("ListIdleActive", ctx, idleSince)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) ListIdleActive(ctx any, idleSince any, tx ...any) *MockGameRoomRepository_ListIdleActive_Call {
+	return &MockGameRoomRepository_ListIdleActive_Call{Call: _e.mock.On("ListIdleActive",
+		append([]any{ctx, idleSince}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_ListIdleActive_Call) Run(run func(ctx context.Context, idleSince time.Time)) *MockGameRoomRepository_ListIdleActive_Call {
+func (_c *MockGameRoomRepository_ListIdleActive_Call) Run(run func(ctx context.Context, idleSince time.Time, tx ...*sql.Tx)) *MockGameRoomRepository_ListIdleActive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1060,9 +1352,16 @@ func (_c *MockGameRoomRepository_ListIdleActive_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(time.Time)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1073,14 +1372,20 @@ func (_c *MockGameRoomRepository_ListIdleActive_Call) Return(gameRoomRows []Game
 	return _c
 }
 
-func (_c *MockGameRoomRepository_ListIdleActive_Call) RunAndReturn(run func(ctx context.Context, idleSince time.Time) ([]GameRoomRow, error)) *MockGameRoomRepository_ListIdleActive_Call {
+func (_c *MockGameRoomRepository_ListIdleActive_Call) RunAndReturn(run func(ctx context.Context, idleSince time.Time, tx ...*sql.Tx) ([]GameRoomRow, error)) *MockGameRoomRepository_ListIdleActive_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListLive provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) ListLive(ctx context.Context, gameType string, limit int, offset int) ([]GameRoomRow, int, error) {
-	ret := _mock.Called(ctx, gameType, limit, offset)
+func (_mock *MockGameRoomRepository) ListLive(ctx context.Context, gameType string, limit int, offset int, tx ...*sql.Tx) ([]GameRoomRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, gameType, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, gameType, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListLive")
@@ -1089,23 +1394,23 @@ func (_mock *MockGameRoomRepository) ListLive(ctx context.Context, gameType stri
 	var r0 []GameRoomRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) ([]GameRoomRow, int, error)); ok {
-		return returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) ([]GameRoomRow, int, error)); ok {
+		return returnFunc(ctx, gameType, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int) []GameRoomRow); ok {
-		r0 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) []GameRoomRow); ok {
+		r0 = returnFunc(ctx, gameType, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GameRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int) int); ok {
-		r1 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, gameType, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int, int) error); ok {
-		r2 = returnFunc(ctx, gameType, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, gameType, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1122,11 +1427,13 @@ type MockGameRoomRepository_ListLive_Call struct {
 //   - gameType string
 //   - limit int
 //   - offset int
-func (_e *MockGameRoomRepository_Expecter) ListLive(ctx any, gameType any, limit any, offset any) *MockGameRoomRepository_ListLive_Call {
-	return &MockGameRoomRepository_ListLive_Call{Call: _e.mock.On("ListLive", ctx, gameType, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) ListLive(ctx any, gameType any, limit any, offset any, tx ...any) *MockGameRoomRepository_ListLive_Call {
+	return &MockGameRoomRepository_ListLive_Call{Call: _e.mock.On("ListLive",
+		append([]any{ctx, gameType, limit, offset}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_ListLive_Call) Run(run func(ctx context.Context, gameType string, limit int, offset int)) *MockGameRoomRepository_ListLive_Call {
+func (_c *MockGameRoomRepository_ListLive_Call) Run(run func(ctx context.Context, gameType string, limit int, offset int, tx ...*sql.Tx)) *MockGameRoomRepository_ListLive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1144,11 +1451,18 @@ func (_c *MockGameRoomRepository_ListLive_Call) Run(run func(ctx context.Context
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -1159,14 +1473,20 @@ func (_c *MockGameRoomRepository_ListLive_Call) Return(gameRoomRows []GameRoomRo
 	return _c
 }
 
-func (_c *MockGameRoomRepository_ListLive_Call) RunAndReturn(run func(ctx context.Context, gameType string, limit int, offset int) ([]GameRoomRow, int, error)) *MockGameRoomRepository_ListLive_Call {
+func (_c *MockGameRoomRepository_ListLive_Call) RunAndReturn(run func(ctx context.Context, gameType string, limit int, offset int, tx ...*sql.Tx) ([]GameRoomRow, int, error)) *MockGameRoomRepository_ListLive_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListMoves provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) ListMoves(ctx context.Context, roomID uuid.UUID) ([]GameRoomMoveRow, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockGameRoomRepository) ListMoves(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]GameRoomMoveRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListMoves")
@@ -1174,18 +1494,18 @@ func (_mock *MockGameRoomRepository) ListMoves(ctx context.Context, roomID uuid.
 
 	var r0 []GameRoomMoveRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]GameRoomMoveRow, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]GameRoomMoveRow, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []GameRoomMoveRow); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []GameRoomMoveRow); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]GameRoomMoveRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1200,11 +1520,13 @@ type MockGameRoomRepository_ListMoves_Call struct {
 // ListMoves is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) ListMoves(ctx any, roomID any) *MockGameRoomRepository_ListMoves_Call {
-	return &MockGameRoomRepository_ListMoves_Call{Call: _e.mock.On("ListMoves", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) ListMoves(ctx any, roomID any, tx ...any) *MockGameRoomRepository_ListMoves_Call {
+	return &MockGameRoomRepository_ListMoves_Call{Call: _e.mock.On("ListMoves",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_ListMoves_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockGameRoomRepository_ListMoves_Call {
+func (_c *MockGameRoomRepository_ListMoves_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_ListMoves_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1214,9 +1536,16 @@ func (_c *MockGameRoomRepository_ListMoves_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1227,14 +1556,20 @@ func (_c *MockGameRoomRepository_ListMoves_Call) Return(gameRoomMoveRows []GameR
 	return _c
 }
 
-func (_c *MockGameRoomRepository_ListMoves_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]GameRoomMoveRow, error)) *MockGameRoomRepository_ListMoves_Call {
+func (_c *MockGameRoomRepository_ListMoves_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]GameRoomMoveRow, error)) *MockGameRoomRepository_ListMoves_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // NextPly provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) NextPly(ctx context.Context, roomID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockGameRoomRepository) NextPly(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for NextPly")
@@ -1242,16 +1577,16 @@ func (_mock *MockGameRoomRepository) NextPly(ctx context.Context, roomID uuid.UU
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1266,11 +1601,13 @@ type MockGameRoomRepository_NextPly_Call struct {
 // NextPly is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) NextPly(ctx any, roomID any) *MockGameRoomRepository_NextPly_Call {
-	return &MockGameRoomRepository_NextPly_Call{Call: _e.mock.On("NextPly", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) NextPly(ctx any, roomID any, tx ...any) *MockGameRoomRepository_NextPly_Call {
+	return &MockGameRoomRepository_NextPly_Call{Call: _e.mock.On("NextPly",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_NextPly_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockGameRoomRepository_NextPly_Call {
+func (_c *MockGameRoomRepository_NextPly_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_NextPly_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1280,9 +1617,16 @@ func (_c *MockGameRoomRepository_NextPly_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1293,14 +1637,20 @@ func (_c *MockGameRoomRepository_NextPly_Call) Return(n int, err error) *MockGam
 	return _c
 }
 
-func (_c *MockGameRoomRepository_NextPly_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) (int, error)) *MockGameRoomRepository_NextPly_Call {
+func (_c *MockGameRoomRepository_NextPly_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockGameRoomRepository_NextPly_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Scoreboard provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) Scoreboard(ctx context.Context, gameType string) ([]ScoreboardRow, error) {
-	ret := _mock.Called(ctx, gameType)
+func (_mock *MockGameRoomRepository) Scoreboard(ctx context.Context, gameType string, tx ...*sql.Tx) ([]ScoreboardRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, gameType, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, gameType)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Scoreboard")
@@ -1308,18 +1658,18 @@ func (_mock *MockGameRoomRepository) Scoreboard(ctx context.Context, gameType st
 
 	var r0 []ScoreboardRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]ScoreboardRow, error)); ok {
-		return returnFunc(ctx, gameType)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) ([]ScoreboardRow, error)); ok {
+		return returnFunc(ctx, gameType, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []ScoreboardRow); ok {
-		r0 = returnFunc(ctx, gameType)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) []ScoreboardRow); ok {
+		r0 = returnFunc(ctx, gameType, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ScoreboardRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, gameType)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, gameType, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1334,11 +1684,13 @@ type MockGameRoomRepository_Scoreboard_Call struct {
 // Scoreboard is a helper method to define mock.On call
 //   - ctx context.Context
 //   - gameType string
-func (_e *MockGameRoomRepository_Expecter) Scoreboard(ctx any, gameType any) *MockGameRoomRepository_Scoreboard_Call {
-	return &MockGameRoomRepository_Scoreboard_Call{Call: _e.mock.On("Scoreboard", ctx, gameType)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) Scoreboard(ctx any, gameType any, tx ...any) *MockGameRoomRepository_Scoreboard_Call {
+	return &MockGameRoomRepository_Scoreboard_Call{Call: _e.mock.On("Scoreboard",
+		append([]any{ctx, gameType}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_Scoreboard_Call) Run(run func(ctx context.Context, gameType string)) *MockGameRoomRepository_Scoreboard_Call {
+func (_c *MockGameRoomRepository_Scoreboard_Call) Run(run func(ctx context.Context, gameType string, tx ...*sql.Tx)) *MockGameRoomRepository_Scoreboard_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1348,9 +1700,16 @@ func (_c *MockGameRoomRepository_Scoreboard_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1361,22 +1720,28 @@ func (_c *MockGameRoomRepository_Scoreboard_Call) Return(scoreboardRows []Scoreb
 	return _c
 }
 
-func (_c *MockGameRoomRepository_Scoreboard_Call) RunAndReturn(run func(ctx context.Context, gameType string) ([]ScoreboardRow, error)) *MockGameRoomRepository_Scoreboard_Call {
+func (_c *MockGameRoomRepository_Scoreboard_Call) RunAndReturn(run func(ctx context.Context, gameType string, tx ...*sql.Tx) ([]ScoreboardRow, error)) *MockGameRoomRepository_Scoreboard_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetPlayerJoined provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) SetPlayerJoined(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockGameRoomRepository) SetPlayerJoined(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetPlayerJoined")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1392,11 +1757,13 @@ type MockGameRoomRepository_SetPlayerJoined_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) SetPlayerJoined(ctx any, roomID any, userID any) *MockGameRoomRepository_SetPlayerJoined_Call {
-	return &MockGameRoomRepository_SetPlayerJoined_Call{Call: _e.mock.On("SetPlayerJoined", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) SetPlayerJoined(ctx any, roomID any, userID any, tx ...any) *MockGameRoomRepository_SetPlayerJoined_Call {
+	return &MockGameRoomRepository_SetPlayerJoined_Call{Call: _e.mock.On("SetPlayerJoined",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_SetPlayerJoined_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockGameRoomRepository_SetPlayerJoined_Call {
+func (_c *MockGameRoomRepository_SetPlayerJoined_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_SetPlayerJoined_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1410,10 +1777,17 @@ func (_c *MockGameRoomRepository_SetPlayerJoined_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1424,22 +1798,28 @@ func (_c *MockGameRoomRepository_SetPlayerJoined_Call) Return(err error) *MockGa
 	return _c
 }
 
-func (_c *MockGameRoomRepository_SetPlayerJoined_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockGameRoomRepository_SetPlayerJoined_Call {
+func (_c *MockGameRoomRepository_SetPlayerJoined_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockGameRoomRepository_SetPlayerJoined_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetState provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) SetState(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, stateJSON, turnUserID)
+func (_mock *MockGameRoomRepository) SetState(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, stateJSON, turnUserID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, stateJSON, turnUserID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetState")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, *uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, stateJSON, turnUserID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, *uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, stateJSON, turnUserID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1456,11 +1836,13 @@ type MockGameRoomRepository_SetState_Call struct {
 //   - roomID uuid.UUID
 //   - stateJSON string
 //   - turnUserID *uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) SetState(ctx any, roomID any, stateJSON any, turnUserID any) *MockGameRoomRepository_SetState_Call {
-	return &MockGameRoomRepository_SetState_Call{Call: _e.mock.On("SetState", ctx, roomID, stateJSON, turnUserID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) SetState(ctx any, roomID any, stateJSON any, turnUserID any, tx ...any) *MockGameRoomRepository_SetState_Call {
+	return &MockGameRoomRepository_SetState_Call{Call: _e.mock.On("SetState",
+		append([]any{ctx, roomID, stateJSON, turnUserID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_SetState_Call) Run(run func(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID)) *MockGameRoomRepository_SetState_Call {
+func (_c *MockGameRoomRepository_SetState_Call) Run(run func(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_SetState_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1478,11 +1860,18 @@ func (_c *MockGameRoomRepository_SetState_Call) Run(run func(ctx context.Context
 		if args[3] != nil {
 			arg3 = args[3].(*uuid.UUID)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -1493,22 +1882,28 @@ func (_c *MockGameRoomRepository_SetState_Call) Return(err error) *MockGameRoomR
 	return _c
 }
 
-func (_c *MockGameRoomRepository_SetState_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID) error) *MockGameRoomRepository_SetState_Call {
+func (_c *MockGameRoomRepository_SetState_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID, tx ...*sql.Tx) error) *MockGameRoomRepository_SetState_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetStatus provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) SetStatus(ctx context.Context, roomID uuid.UUID, status string) error {
-	ret := _mock.Called(ctx, roomID, status)
+func (_mock *MockGameRoomRepository) SetStatus(ctx context.Context, roomID uuid.UUID, status string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, status, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, status)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetStatus")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, status)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, status, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1524,11 +1919,13 @@ type MockGameRoomRepository_SetStatus_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - status string
-func (_e *MockGameRoomRepository_Expecter) SetStatus(ctx any, roomID any, status any) *MockGameRoomRepository_SetStatus_Call {
-	return &MockGameRoomRepository_SetStatus_Call{Call: _e.mock.On("SetStatus", ctx, roomID, status)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) SetStatus(ctx any, roomID any, status any, tx ...any) *MockGameRoomRepository_SetStatus_Call {
+	return &MockGameRoomRepository_SetStatus_Call{Call: _e.mock.On("SetStatus",
+		append([]any{ctx, roomID, status}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_SetStatus_Call) Run(run func(ctx context.Context, roomID uuid.UUID, status string)) *MockGameRoomRepository_SetStatus_Call {
+func (_c *MockGameRoomRepository_SetStatus_Call) Run(run func(ctx context.Context, roomID uuid.UUID, status string, tx ...*sql.Tx)) *MockGameRoomRepository_SetStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1542,10 +1939,17 @@ func (_c *MockGameRoomRepository_SetStatus_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1556,22 +1960,100 @@ func (_c *MockGameRoomRepository_SetStatus_Call) Return(err error) *MockGameRoom
 	return _c
 }
 
-func (_c *MockGameRoomRepository_SetStatus_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, status string) error) *MockGameRoomRepository_SetStatus_Call {
+func (_c *MockGameRoomRepository_SetStatus_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, status string, tx ...*sql.Tx) error) *MockGameRoomRepository_SetStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Start provides a mock function for the type MockGameRoomRepository
+func (_mock *MockGameRoomRepository) Start(ctx context.Context, spec GameRoomStart, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Start")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, GameRoomStart, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockGameRoomRepository_Start_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Start'
+type MockGameRoomRepository_Start_Call struct {
+	*mock.Call
+}
+
+// Start is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec GameRoomStart
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) Start(ctx any, spec any, tx ...any) *MockGameRoomRepository_Start_Call {
+	return &MockGameRoomRepository_Start_Call{Call: _e.mock.On("Start",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockGameRoomRepository_Start_Call) Run(run func(ctx context.Context, spec GameRoomStart, tx ...*sql.Tx)) *MockGameRoomRepository_Start_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 GameRoomStart
+		if args[1] != nil {
+			arg1 = args[1].(GameRoomStart)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockGameRoomRepository_Start_Call) Return(err error) *MockGameRoomRepository_Start_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockGameRoomRepository_Start_Call) RunAndReturn(run func(ctx context.Context, spec GameRoomStart, tx ...*sql.Tx) error) *MockGameRoomRepository_Start_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // TouchPlayerSeen provides a mock function for the type MockGameRoomRepository
-func (_mock *MockGameRoomRepository) TouchPlayerSeen(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockGameRoomRepository) TouchPlayerSeen(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for TouchPlayerSeen")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1587,11 +2069,13 @@ type MockGameRoomRepository_TouchPlayerSeen_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockGameRoomRepository_Expecter) TouchPlayerSeen(ctx any, roomID any, userID any) *MockGameRoomRepository_TouchPlayerSeen_Call {
-	return &MockGameRoomRepository_TouchPlayerSeen_Call{Call: _e.mock.On("TouchPlayerSeen", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockGameRoomRepository_Expecter) TouchPlayerSeen(ctx any, roomID any, userID any, tx ...any) *MockGameRoomRepository_TouchPlayerSeen_Call {
+	return &MockGameRoomRepository_TouchPlayerSeen_Call{Call: _e.mock.On("TouchPlayerSeen",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockGameRoomRepository_TouchPlayerSeen_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockGameRoomRepository_TouchPlayerSeen_Call {
+func (_c *MockGameRoomRepository_TouchPlayerSeen_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockGameRoomRepository_TouchPlayerSeen_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1605,10 +2089,17 @@ func (_c *MockGameRoomRepository_TouchPlayerSeen_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1619,7 +2110,7 @@ func (_c *MockGameRoomRepository_TouchPlayerSeen_Call) Return(err error) *MockGa
 	return _c
 }
 
-func (_c *MockGameRoomRepository_TouchPlayerSeen_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockGameRoomRepository_TouchPlayerSeen_Call {
+func (_c *MockGameRoomRepository_TouchPlayerSeen_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockGameRoomRepository_TouchPlayerSeen_Call {
 	_c.Call.Return(run)
 	return _c
 }

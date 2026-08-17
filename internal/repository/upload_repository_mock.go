@@ -5,6 +5,8 @@
 package repository
 
 import (
+	"database/sql"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -36,8 +38,14 @@ func (_m *MockUploadRepository) EXPECT() *MockUploadRepository_Expecter {
 }
 
 // GetAllReferencedFiles provides a mock function for the type MockUploadRepository
-func (_mock *MockUploadRepository) GetAllReferencedFiles() ([]string, error) {
-	ret := _mock.Called()
+func (_mock *MockUploadRepository) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(tx)
+	} else {
+		tmpRet = _mock.Called()
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetAllReferencedFiles")
@@ -45,18 +53,18 @@ func (_mock *MockUploadRepository) GetAllReferencedFiles() ([]string, error) {
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() ([]string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func() []string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(...*sql.Tx) []string); ok {
+		r0 = returnFunc(tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(...*sql.Tx) error); ok {
+		r1 = returnFunc(tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -69,13 +77,23 @@ type MockUploadRepository_GetAllReferencedFiles_Call struct {
 }
 
 // GetAllReferencedFiles is a helper method to define mock.On call
-func (_e *MockUploadRepository_Expecter) GetAllReferencedFiles() *MockUploadRepository_GetAllReferencedFiles_Call {
-	return &MockUploadRepository_GetAllReferencedFiles_Call{Call: _e.mock.On("GetAllReferencedFiles")}
+//   - tx ...*sql.Tx
+func (_e *MockUploadRepository_Expecter) GetAllReferencedFiles(tx ...any) *MockUploadRepository_GetAllReferencedFiles_Call {
+	return &MockUploadRepository_GetAllReferencedFiles_Call{Call: _e.mock.On("GetAllReferencedFiles",
+		append([]any{}, tx...)...)}
 }
 
-func (_c *MockUploadRepository_GetAllReferencedFiles_Call) Run(run func()) *MockUploadRepository_GetAllReferencedFiles_Call {
+func (_c *MockUploadRepository_GetAllReferencedFiles_Call) Run(run func(tx ...*sql.Tx)) *MockUploadRepository_GetAllReferencedFiles_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 0 {
+			variadicArgs = args[0].([]*sql.Tx)
+		}
+		arg0 = variadicArgs
+		run(
+			arg0...,
+		)
 	})
 	return _c
 }
@@ -85,7 +103,7 @@ func (_c *MockUploadRepository_GetAllReferencedFiles_Call) Return(strings []stri
 	return _c
 }
 
-func (_c *MockUploadRepository_GetAllReferencedFiles_Call) RunAndReturn(run func() ([]string, error)) *MockUploadRepository_GetAllReferencedFiles_Call {
+func (_c *MockUploadRepository_GetAllReferencedFiles_Call) RunAndReturn(run func(tx ...*sql.Tx) ([]string, error)) *MockUploadRepository_GetAllReferencedFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }

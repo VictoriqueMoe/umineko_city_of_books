@@ -24,8 +24,8 @@ func hashSessionToken(token string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (r *sessionDAO) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *sessionDAO) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO sessions (token, user_id, expires_at) VALUES ($1, $2, $3)`,
 		hashSessionToken(token), userID, expiresAt,
 	)
@@ -35,11 +35,11 @@ func (r *sessionDAO) Create(ctx context.Context, token string, userID uuid.UUID,
 	return nil
 }
 
-func (r *sessionDAO) GetUserID(ctx context.Context, token string) (uuid.UUID, time.Time, error) {
+func (r *sessionDAO) GetUserID(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, time.Time, error) {
 	var userID uuid.UUID
 	var expiresAt time.Time
 
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, expires_at FROM sessions WHERE token = $1`, hashSessionToken(token),
 	).Scan(&userID, &expiresAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -52,23 +52,23 @@ func (r *sessionDAO) GetUserID(ctx context.Context, token string) (uuid.UUID, ti
 	return userID, expiresAt, nil
 }
 
-func (r *sessionDAO) Delete(ctx context.Context, token string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE token = $1`, hashSessionToken(token))
+func (r *sessionDAO) Delete(ctx context.Context, token string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE token = $1`, hashSessionToken(token))
 	return err
 }
 
-func (r *sessionDAO) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
+func (r *sessionDAO) DeleteAllForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
 	return err
 }
 
-func (r *sessionDAO) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1 AND token <> $2`, userID, hashSessionToken(keepToken))
+func (r *sessionDAO) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1 AND token <> $2`, userID, hashSessionToken(keepToken))
 	return err
 }
 
-func (r *sessionDAO) CleanExpired(ctx context.Context) (int, error) {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < $1`, time.Now())
+func (r *sessionDAO) CleanExpired(ctx context.Context, tx ...*sql.Tx) (int, error) {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM sessions WHERE expires_at < $1`, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("clean expired sessions: %w", err)
 	}

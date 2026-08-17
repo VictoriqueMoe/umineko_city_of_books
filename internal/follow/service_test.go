@@ -2,6 +2,7 @@ package follow
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -126,7 +127,7 @@ func TestFollow_OK_UserLookupErrorSwallowed(t *testing.T) {
 
 	done := make(chan struct{})
 	userRepo.EXPECT().GetByID(mock.Anything, follower).
-		Run(func(_ context.Context, _ uuid.UUID) { close(done) }).
+		Run(func(_ context.Context, _ uuid.UUID, _ ...*sql.Tx) { close(done) }).
 		Return(nil, errors.New("missing"))
 
 	// when
@@ -151,7 +152,7 @@ func TestFollow_OK_NilUserSwallowed(t *testing.T) {
 
 	done := make(chan struct{})
 	userRepo.EXPECT().GetByID(mock.Anything, follower).
-		Run(func(_ context.Context, _ uuid.UUID) { close(done) }).
+		Run(func(_ context.Context, _ uuid.UUID, _ ...*sql.Tx) { close(done) }).
 		Return(nil, nil)
 
 	// when

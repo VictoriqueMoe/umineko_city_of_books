@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/chatbot"
 	"umineko_city_of_books/internal/config"
@@ -86,7 +87,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
 	}
-	giphySvc := giphy.NewService(giphyBanlist)
+	giphySvc := giphy.NewService(giphyBanlist, cacheManager)
 	if !giphySvc.Enabled() {
 		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
 	}
@@ -94,7 +95,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		slursrule.New(),
 		bannedgiphyrule.New(giphyBanlist, giphySvc),
 	)
-	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, authzSvc, settingsSvc)
+	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.AuditLog, authzSvc, settingsSvc)
 	hub := ws.NewHub("main")
 	sessionMgr.SetDisconnector(hub)
 	quoteClient := quotefinder.NewClient()
@@ -116,30 +117,30 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
 
 	openaiSvc := openai.NewService(settingsSvc)
-	chatbotSvc := chatbot.NewService(openaiSvc, chatSvc, postSvc, repos.Chat, repos.Post, repos.Chatbot, authzSvc, settingsSvc, hub)
+	chatbotSvc := chatbot.NewService(openaiSvc, chatSvc, postSvc, repos.Chat, repos.Post, repos.Chatbot, repos.AuditLog, authzSvc, settingsSvc, hub)
 	chatSvc.SetMessageObserver(chatbotSvc)
 	postSvc.SetCommentObserver(chatbotSvc)
-	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.ChatbotBasePrompt, repos.VanityRole, userSvc, openaiSvc, chatbotSvc)
+	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.ChatbotBasePrompt, repos.AuditLog, userSvc, openaiSvc, chatbotSvc)
 	settingsSvc.RegisterValidator(config.SettingChatbotModel, chatbot.ModelValidator(openaiSvc))
 	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
-	ocSvc := ocsvc.NewService(repos.OC, repos.User, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
+	ocSvc := ocsvc.NewService(repos.OC, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
 	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
+	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler(), minesweeper.NewHandler(), snakesandladders.NewHandler()})
 	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
-	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader)
+	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader, uploadSvc)
 	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub, cacheManager)
 	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
 	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
 	userSecretSvc := usersecret.NewService(repos.UserSecret)
 	searchSvc := searchsvc.NewService(repos.Search, repos.Chat)
 
-	authSvc := auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.AuditLog, repos.PasswordReset, repos.EmailVerification, emailSvc, contentFilter)
+	authSvc := auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.PasswordReset, repos.EmailVerification, repos.AuditLog, emailSvc, contentFilter)
 
 	healthSvc, err := health.NewService(repos.DB(), config.Version, settingsSvc, livekitSvc)
 	if err != nil {
@@ -184,8 +185,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settings:        settingsSvc,
 		cache:           cacheManager,
 		auth:            authSvc,
-		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr, userSvc),
-		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
+		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, repos.AuditLog, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr, userSvc),
+		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
 		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, repos.Permission, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
 		authz:           authzSvc,
@@ -235,10 +236,18 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 }
 
 func initCache(manager *cache.Manager, settingsSvc settings.Service) {
-	settingsSvc.RegisterValidator(config.SettingValkeyURL, cache.ProbeURL)
+	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
 
-	err := manager.Reconfigure(settingsSvc.Get(context.Background(), config.SettingValkeyURL))
-	if err != nil {
-		logger.Log.Warn().Err(err).Msg("valkey cache reconfigure failed at startup")
+	url := settingsSvc.Get(context.Background(), config.SettingValkeyURL)
+
+	for _, candidate := range manager.Engines() {
+		configurable, ok := candidate.(interface{ Reconfigure(string) error })
+		if !ok {
+			continue
+		}
+
+		if err := configurable.Reconfigure(url); err != nil {
+			logger.Log.Warn().Err(err).Str("engine", candidate.Name()).Msg("cache engine reconfigure failed at startup")
+		}
 	}
 }

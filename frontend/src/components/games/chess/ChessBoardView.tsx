@@ -9,6 +9,8 @@ import { GameOverPanel } from "../GameOverPanel.tsx";
 import { GamePlayerBar } from "../GamePlayerBar.tsx";
 import { GameStatsGrid } from "../GameStatsGrid.tsx";
 import { gameResultLabel, getMySlot, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers.ts";
+import shell from "../boardShell.module.css";
+import { DrawOfferBanner } from "../DrawOfferBanner";
 import styles from "./ChessBoardView.module.css";
 
 const UCI_RE = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/;
@@ -305,7 +307,7 @@ export function ChessBoardView({
     const reasonText = statsAvailable && room.stats ? formatReason((room.stats as ChessStats).result_reason) : "";
 
     return (
-        <div className={styles.wrapper}>
+        <div className={shell.wrapper}>
             <GamePlayerBar
                 room={room}
                 slot0Label="White"
@@ -315,9 +317,9 @@ export function ChessBoardView({
 
             <DisconnectBanner offlinePlayer={offlinePlayer} forfeitRemaining={forfeitRemaining} />
 
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={shell.error}>{error}</div>}
 
-            <div className={styles.boardContainer}>
+            <div className={shell.boardContainer}>
                 <Chessboard
                     options={{
                         position: state?.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
@@ -385,38 +387,12 @@ export function ChessBoardView({
             </GameOverPanel>
 
             {room.status === "active" && !isSpectator && room.draw_offer_from_user_id && (
-                <>
-                    {room.draw_offer_from_user_id !== viewerId ? (
-                        <div className={styles.drawBanner}>
-                            <span className={styles.drawBannerText}>
-                                Your opponent has offered a draw. Accept to end the game as a draw, or decline to keep
-                                playing.
-                            </span>
-                            <div className={styles.drawBannerActions}>
-                                <Button
-                                    variant="primary"
-                                    size="small"
-                                    onClick={() => handleDrawAction(onAcceptDraw)}
-                                    disabled={submitting}
-                                >
-                                    Accept draw
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="small"
-                                    onClick={() => handleDrawAction(onDeclineDraw)}
-                                    disabled={submitting}
-                                >
-                                    Decline
-                                </Button>
-                            </div>
-                        </div>
-                    ) : (
-                        <div className={styles.drawPending}>
-                            Draw offered. Waiting for your opponent to respond. It is withdrawn if you make a move.
-                        </div>
-                    )}
-                </>
+                <DrawOfferBanner
+                    offeredByViewer={room.draw_offer_from_user_id === viewerId}
+                    submitting={submitting}
+                    onAccept={() => handleDrawAction(onAcceptDraw)}
+                    onDecline={() => handleDrawAction(onDeclineDraw)}
+                />
             )}
 
             {room.status === "active" && !isSpectator && (
@@ -447,7 +423,7 @@ export function ChessBoardView({
                             Play
                         </Button>
                     </form>
-                    <div className={styles.controls}>
+                    <div className={shell.controls}>
                         {!room.draw_offer_from_user_id && (
                             <Button variant="ghost" onClick={() => handleDrawAction(onOfferDraw)} disabled={submitting}>
                                 Offer draw

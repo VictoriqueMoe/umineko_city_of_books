@@ -143,55 +143,37 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		embedURL = vm.EmbedURL
 	}
 
-	sessionID, err := s.watchPartyRepo.CreateSession(ctx, sessionRow)
-	if err != nil {
-		if sessionRow.HyperbeamSessionID != "" {
-			s.terminateHyperbeam(sessionRow.HyperbeamSessionID)
-		}
-		return nil, err
-	}
-
-	abandonSession := func(reason string, roomCreated bool) {
-		if sessionRow.HyperbeamSessionID != "" {
-			s.terminateHyperbeam(sessionRow.HyperbeamSessionID)
-		}
-		if roomCreated {
-			if err := s.deleteRoomWithMedia(ctx, sessionID); err != nil {
-				logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party chat room failed")
-			}
-		}
-		_ = s.watchPartyRepo.MarkAllParticipantsLeft(ctx, sessionID)
-		_ = s.watchPartyRepo.EndSession(ctx, sessionID, reason)
-	}
-
-	if err := s.createWatchPartyRoom(ctx, sessionID, actorID, trimmedTitle); err != nil {
-		abandonSession("chat_room_setup_failed", false)
-		return nil, err
-	}
-
-	if err := s.watchPartyRepo.UpsertParticipant(ctx, sessionID, actorID, true, ""); err != nil {
-		abandonSession("controller_setup_failed", true)
-		return nil, err
+	roomName := trimmedTitle
+	if roomName == "" {
+		roomName = "Watch party"
 	}
 
 	details := mustJSON(map[string]any{"room_id": roomID, "start_url": startURL, "title": trimmedTitle, "type": partyType})
-	if err := s.auditRepo.Create(ctx, actorID, "watch_party.start", "chat_watch_party_session", sessionID.String(), details); err != nil {
-		logger.Log.Warn().Err(err).Msg("audit watch_party.start failed")
-	}
 
-	stored, err := s.watchPartyRepo.GetByID(ctx, sessionID)
-	if err != nil || stored == nil {
-		abandonSession("session_reload_failed", true)
-		return nil, fmt.Errorf("reload watch party session: %w", err)
-	}
-
-	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, stored, actorID, embedURL, true)
+	created, err := s.watchPartyRepo.StartSession(ctx, repository.NewWatchPartySession{
+		Session:        sessionRow,
+		RoomName:       roomName,
+		RoomSystemKind: SystemKindWatchParty,
+		AuditDetails:   details,
+	})
 	if err != nil {
-		abandonSession("session_build_failed", true)
+		if sessionRow.HyperbeamSessionID != "" {
+			s.terminateHyperbeam(sessionRow.HyperbeamSessionID)
+		}
 		return nil, err
 	}
 
-	broadcast := s.buildWatchPartySessionDTOForBroadcast(ctx, stored)
+	sessionID := created.ID
+
+	s.hub.JoinRoom(sessionID, actorID)
+
+	sessionDTO, err := s.buildWatchPartySessionDTO(ctx, created, actorID, embedURL, true)
+	if err != nil {
+		s.abandonSession(ctx, sessionID, sessionRow.HyperbeamSessionID, "session_build_failed")
+		return nil, err
+	}
+
+	broadcast := s.buildWatchPartySessionDTOForBroadcast(ctx, created)
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyStarted,
 		Data: dto.WatchPartyStartedEvent{Session: broadcast},
@@ -306,11 +288,11 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 		}
 	}
 
-	if err := s.watchPartyRepo.MarkParticipantLeft(ctx, session.ID, actorID); err != nil {
+	if err := s.watchPartyRepo.RemoveParticipant(ctx, session.ID, actorID); err != nil {
 		return err
 	}
 
-	s.evictFromWatchPartyRoom(ctx, session.ID, actorID)
+	s.hub.LeaveRoom(session.ID, actorID)
 
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyParticipantLeft,
@@ -363,11 +345,11 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 	body := fmt.Sprintf("%s was kicked by %s.", s.displayNameFor(ctx, targetID, roomID), s.displayNameFor(ctx, callerID, roomID))
 	s.postRoomActionMessage(ctx, session.ID, callerID, body)
 
-	if err := s.watchPartyRepo.MarkParticipantLeft(ctx, session.ID, targetID); err != nil {
+	if err := s.watchPartyRepo.RemoveParticipant(ctx, session.ID, targetID); err != nil {
 		return err
 	}
 
-	s.evictFromWatchPartyRoom(ctx, session.ID, targetID)
+	s.hub.LeaveRoom(session.ID, targetID)
 
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyParticipantLeft,
@@ -388,7 +370,14 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 	})
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.CreateForSubject(ctx, callerID, "watch_party.kick", "chat_watch_party_session", session.ID.String(), details, targetID); err != nil {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    callerID,
+		Action:     repository.AuditActionWatchPartyKick,
+		TargetType: repository.AuditTargetChatWatchPartySession,
+		TargetID:   session.ID.String(),
+		Details:    details,
+		SubjectID:  targetID,
+	}); err != nil {
 		logger.Log.Warn().Err(err).Msg("audit watch_party.kick failed")
 	}
 
@@ -489,7 +478,14 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 	s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, targetID, reason)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.CreateForSubject(ctx, callerID, "watch_party.grant_control", "chat_watch_party_session", session.ID.String(), details, targetID); err != nil {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    callerID,
+		Action:     repository.AuditActionWatchPartyGrantControl,
+		TargetType: repository.AuditTargetChatWatchPartySession,
+		TargetID:   session.ID.String(),
+		Details:    details,
+		SubjectID:  targetID,
+	}); err != nil {
 		logger.Log.Warn().Err(err).Msg("audit watch_party.grant_control failed")
 	}
 
@@ -505,48 +501,53 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 	if err != nil {
 		return err
 	}
+
+	demotedIDs := make([]uuid.UUID, 0, len(participants))
+	demotedIdentifiers := make([]string, 0, len(participants))
+	var targetIdentifier string
+
 	for i := range participants {
 		p := participants[i]
-		if !p.HasControl || p.UserID == targetID {
+		if p.UserID == targetID {
+			targetIdentifier = p.HyperbeamIdentifier
 			continue
 		}
-		if p.HyperbeamIdentifier != "" && session.VMBaseURL != "" {
-			if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, p.HyperbeamIdentifier, false); err != nil {
-				logger.Log.Warn().Err(err).Str("user_id", p.UserID.String()).Msg("transfer: demote previous controller failed")
+		if !p.HasControl {
+			continue
+		}
+
+		demotedIDs = append(demotedIDs, p.UserID)
+		demotedIdentifiers = append(demotedIdentifiers, p.HyperbeamIdentifier)
+	}
+
+	if err := s.watchPartyRepo.TransferControl(ctx, session.ID, demotedIDs, targetID); err != nil {
+		return err
+	}
+
+	for i := range demotedIDs {
+		if demotedIdentifiers[i] != "" && session.VMBaseURL != "" {
+			if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, demotedIdentifiers[i], false); err != nil {
+				logger.Log.Warn().Err(err).Str("user_id", demotedIDs[i].String()).Msg("transfer: demote previous controller failed")
 			}
 		}
-		if err := s.watchPartyRepo.SetParticipantControl(ctx, session.ID, p.UserID, false); err != nil {
-			return err
-		}
+
 		s.hub.BroadcastToRoom(roomID, ws.Message{
 			Type: wsWatchPartyControlChanged,
 			Data: dto.WatchPartyControlChangedEvent{
 				SessionID:  session.ID,
 				RoomID:     roomID,
-				UserID:     p.UserID,
+				UserID:     demotedIDs[i],
 				HasControl: false,
 			},
 		}, uuid.Nil)
 	}
 
-	var targetIdentifier string
-	for i := range participants {
-		if participants[i].UserID == targetID {
-			targetIdentifier = participants[i].HyperbeamIdentifier
-			break
-		}
-	}
 	if targetIdentifier != "" && session.VMBaseURL != "" {
 		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, targetIdentifier, true); err != nil {
 			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("transfer: promote target permissions failed (continuing)")
 		}
 	}
-	if err := s.watchPartyRepo.SetParticipantControl(ctx, session.ID, targetID, true); err != nil {
-		return err
-	}
-	if err := s.watchPartyRepo.SetControllerID(ctx, session.ID, targetID); err != nil {
-		logger.Log.Warn().Err(err).Msg("transfer: update controller_id failed")
-	}
+
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyControlChanged,
 		Data: dto.WatchPartyControlChangedEvent{
@@ -556,6 +557,7 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 			HasControl: true,
 		},
 	}, uuid.Nil)
+
 	return nil
 }
 
@@ -598,7 +600,13 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 
 	if actorID != uuid.Nil {
 		details := mustJSON(map[string]any{"room_id": roomID, "reason": reason})
-		if err := s.auditRepo.Create(ctx, actorID, "watch_party.end", "chat_watch_party_session", session.ID.String(), details); err != nil {
+		if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+			ActorID:    actorID,
+			Action:     repository.AuditActionWatchPartyEnd,
+			TargetType: repository.AuditTargetChatWatchPartySession,
+			TargetID:   session.ID.String(),
+			Details:    details,
+		}); err != nil {
 			logger.Log.Warn().Err(err).Msg("audit watch_party.end failed")
 		}
 
@@ -808,23 +816,22 @@ func (s *watchPartyService) StartWatchPartyReconcileLoop(ctx context.Context) {
 	}()
 }
 
-func (s *watchPartyService) createWatchPartyRoom(ctx context.Context, sessionID, hostID uuid.UUID, title string) error {
-	name := title
-	if name == "" {
-		name = "Watch party"
+func (s *watchPartyService) abandonSession(ctx context.Context, sessionID uuid.UUID, hyperbeamSessionID, reason string) {
+	if hyperbeamSessionID != "" {
+		s.terminateHyperbeam(hyperbeamSessionID)
 	}
 
-	if err := s.chatRepo.CreateSystemRoom(ctx, sessionID, name, "", SystemKindWatchParty, hostID); err != nil {
-		return fmt.Errorf("create watch party chat room: %w", err)
+	if err := s.deleteRoomWithMedia(ctx, sessionID); err != nil {
+		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party chat room failed")
 	}
 
-	if err := s.chatRepo.AddMemberWithRole(ctx, sessionID, hostID, "host", false); err != nil {
-		return fmt.Errorf("add host to watch party chat room: %w", err)
+	if err := s.watchPartyRepo.MarkAllParticipantsLeft(ctx, sessionID); err != nil {
+		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party participants failed")
 	}
 
-	s.hub.JoinRoom(sessionID, hostID)
-
-	return nil
+	if err := s.watchPartyRepo.EndSession(ctx, sessionID, reason); err != nil {
+		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party session failed")
+	}
 }
 
 func (s *watchPartyService) admitToWatchPartyRoom(ctx context.Context, sessionID, userID uuid.UUID) {
@@ -842,14 +849,6 @@ func (s *watchPartyService) admitToWatchPartyRoom(ctx context.Context, sessionID
 	}
 
 	s.hub.JoinRoom(sessionID, userID)
-}
-
-func (s *watchPartyService) evictFromWatchPartyRoom(ctx context.Context, sessionID, userID uuid.UUID) {
-	if err := s.chatRepo.RemoveMember(ctx, sessionID, userID); err != nil {
-		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("remove participant from watch party chat room failed")
-	}
-
-	s.hub.LeaveRoom(sessionID, userID)
 }
 
 func (s *watchPartyService) assertActiveRoomMember(ctx context.Context, roomID, userID uuid.UUID) error {

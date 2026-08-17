@@ -40,6 +40,7 @@ type (
 		repo           repository.TheoryRepository
 		userRepo       repository.UserRepository
 		followRepo     repository.FollowRepository
+		auditRepo      repository.AuditLogRepository
 		authz          authz.Service
 		blockSvc       block.Service
 		notifService   notification.Service
@@ -54,6 +55,7 @@ func NewService(
 	repo repository.TheoryRepository,
 	userRepo repository.UserRepository,
 	followRepo repository.FollowRepository,
+	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -66,6 +68,7 @@ func NewService(
 		repo:           repo,
 		userRepo:       userRepo,
 		followRepo:     followRepo,
+		auditRepo:      auditRepo,
 		authz:          authzService,
 		blockSvc:       blockSvc,
 		notifService:   notifService,
@@ -81,6 +84,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func evidenceNotes(evidence []dto.EvidenceInput) []string {
@@ -117,23 +126,30 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		}
 	}
 
-	id, err := s.repo.Create(ctx, userID, req)
+	created, err := s.repo.Create(ctx, repository.NewTheory{
+		UserID:   userID,
+		Title:    req.Title,
+		Body:     req.Body,
+		Episode:  req.Episode,
+		Series:   req.Series,
+		Evidence: req.Evidence,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, id, "theory", fmt.Sprintf("/theory/%s", id))
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, created.ID, "theory", fmt.Sprintf("/theory/%s", created.ID))
 
 	go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifService, notification.FollowerNotifyParams{
 		ActorID:       userID,
 		Type:          dto.NotifTheoryCreated,
-		ReferenceID:   id,
+		ReferenceID:   created.ID,
 		ReferenceType: "theory",
 		Action:        "posted a new theory",
 		Title:         req.Title,
 	})
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*dto.TheoryDetailResponse, error) {
@@ -183,14 +199,40 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
-		if err := s.repo.UpdateAsAdmin(ctx, id, req); err != nil {
-			return err
-		}
-		go s.notifyContentEdited(ctx, id, "theory", id, userID)
-		return nil
+
+	authorID, err := s.repo.GetTheoryAuthorID(ctx, id)
+	if err != nil {
+		return err
 	}
-	return s.repo.Update(ctx, id, userID, req)
+
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyTheory)
+
+	if err := s.repo.Update(ctx, repository.TheoryUpdate{
+		ID:       id,
+		UserID:   userID,
+		Title:    req.Title,
+		Body:     req.Body,
+		Episode:  req.Episode,
+		AsAdmin:  asAdmin,
+		Evidence: req.Evidence,
+	}); err != nil {
+		return err
+	}
+
+	if asAdmin {
+		go s.notifyContentEdited(ctx, id, "theory", id, userID)
+
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionTheoryUpdateAdmin,
+			TargetType: repository.AuditTargetTheory,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("title=%q", req.Title),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, contentType string, referenceID uuid.UUID, editorID uuid.UUID) {
@@ -209,10 +251,40 @@ func (s *service) notifyContentEdited(ctx context.Context, contentID uuid.UUID, 
 }
 
 func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory) {
-		return s.repo.DeleteAsAdmin(ctx, id)
+	authorID, err := s.repo.GetTheoryAuthorID(ctx, id)
+	if err != nil {
+		return err
 	}
-	return s.repo.Delete(ctx, id, userID)
+
+	title, err := s.repo.GetTheoryTitle(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory) {
+		err = s.repo.DeleteAsAdmin(ctx, id)
+	} else {
+		err = s.repo.Delete(ctx, id, userID)
+	}
+	if err != nil {
+		return err
+	}
+
+	action := repository.AuditActionTheoryDelete
+	if authorID != userID {
+		action = repository.AuditActionTheoryDeleteAdmin
+	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("title=%q", title),
+		SubjectID:  authorID,
+	})
+
+	return nil
 }
 
 func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
@@ -247,29 +319,32 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 		}
 	}
 
-	id, err := s.repo.CreateResponse(ctx, theoryID, userID, req)
+	created, err := s.repo.CreateResponse(ctx, repository.NewTheoryResponse{
+		TheoryID: theoryID,
+		UserID:   userID,
+		ParentID: req.ParentID,
+		Side:     req.Side,
+		Body:     req.Body,
+		Evidence: req.Evidence,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
 
 	go func() {
-		s.resolveEvidenceWeights(ctx, theoryID, id)
+		s.resolveEvidenceWeights(ctx, theoryID, created.ID)
 		s.credibilitySvc.Recalculate(ctx, theoryID)
 		if err := s.repo.RecomputeStatus(ctx, theoryID); err != nil {
 			logger.Log.Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
 		}
 	}()
 
-	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, theoryID, fmt.Sprintf("theory_response:%s", id), fmt.Sprintf("/theory/%s#response-%s", theoryID, id))
+	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, req.Body, theoryID, fmt.Sprintf("theory_response:%s", created.ID), fmt.Sprintf("/theory/%s#response-%s", theoryID, created.ID))
 
 	go func() {
-		authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
-		if err != nil {
-			return
-		}
 		title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 		if err := s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
+			RecipientID:   theoryAuthorID,
 			Type:          dto.NotifTheoryResponse,
 			ReferenceID:   theoryID,
 			ReferenceType: "theory",
@@ -277,7 +352,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 			EmailActor:    s.actorName(ctx, userID),
 			EmailAction:   "responded to your theory",
 			EmailTitle:    title,
-			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, id),
+			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, created.ID),
 		}); err != nil {
 			logger.Log.Warn().Err(err).Msg("notify theory response failed")
 		}
@@ -299,14 +374,14 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 				EmailActor:    s.actorName(ctx, userID),
 				EmailAction:   "replied to your response",
 				EmailTitle:    title,
-				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, id),
+				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, created.ID),
 			}); err != nil {
 				logger.Log.Warn().Err(err).Msg("notify response reply failed")
 			}
 		}()
 	}
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) {
@@ -350,7 +425,7 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID
 }
 
 func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	_, theoryID, _ := s.repo.GetResponseInfo(ctx, id)
+	responseAuthorID, theoryID, _ := s.repo.GetResponseInfo(ctx, id)
 
 	var err error
 	if s.authz.Can(ctx, userID, authz.PermDeleteAnyResponse) {
@@ -358,8 +433,22 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 	} else {
 		err = s.repo.DeleteResponse(ctx, id, userID)
 	}
+	if err != nil {
+		return err
+	}
 
-	if err == nil && theoryID != uuid.Nil {
+	if responseAuthorID != uuid.Nil && responseAuthorID != userID {
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionTheoryResponseDeleteAdmin,
+			TargetType: repository.AuditTargetTheoryResponse,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("theory=%s", theoryID),
+			SubjectID:  responseAuthorID,
+		})
+	}
+
+	if theoryID != uuid.Nil {
 		go func() {
 			s.credibilitySvc.Recalculate(ctx, theoryID)
 			if err := s.repo.RecomputeStatus(ctx, theoryID); err != nil {
@@ -368,7 +457,7 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 		}()
 	}
 
-	return err
+	return nil
 }
 
 func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, responseID uuid.UUID) error {
@@ -408,6 +497,20 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 		return err
 	}
 
+	by := "author"
+	if theory.Author.ID != userID {
+		by = "staff"
+	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionTheoryRefuted,
+		TargetType: repository.AuditTargetTheory,
+		TargetID:   theoryID.String(),
+		Details:    fmt.Sprintf("response=%s by=%s", responseID, by),
+		SubjectID:  meta.AuthorID,
+	})
+
 	go func() {
 		bgCtx := context.Background()
 		title, _ := s.repo.GetTheoryTitle(bgCtx, theoryID)
@@ -444,10 +547,6 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 
 	if value == 1 {
 		go func() {
-			authorID, err := s.repo.GetTheoryAuthorID(ctx, theoryID)
-			if err != nil {
-				return
-			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
 				RecipientID:   authorID,
@@ -469,7 +568,7 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 }
 
 func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
-	respAuthorID, _, err := s.repo.GetResponseInfo(ctx, responseID)
+	respAuthorID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
 	if err != nil {
 		return err
 	}
@@ -483,13 +582,9 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 
 	if value == 1 {
 		go func() {
-			recipientID, theoryID, err := s.repo.GetResponseInfo(ctx, responseID)
-			if err != nil {
-				return
-			}
 			title, _ := s.repo.GetTheoryTitle(ctx, theoryID)
 			if err := s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   recipientID,
+				RecipientID:   respAuthorID,
 				Type:          dto.NotifResponseUpvote,
 				ReferenceID:   theoryID,
 				ReferenceType: "theory",

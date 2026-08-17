@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockOverlayTokenRepository) EXPECT() *MockOverlayTokenRepository_Expec
 }
 
 // Delete provides a mock function for the type MockOverlayTokenRepository
-func (_mock *MockOverlayTokenRepository) Delete(ctx context.Context, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockOverlayTokenRepository) Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -63,11 +70,13 @@ type MockOverlayTokenRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockOverlayTokenRepository_Expecter) Delete(ctx any, userID any) *MockOverlayTokenRepository_Delete_Call {
-	return &MockOverlayTokenRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockOverlayTokenRepository_Expecter) Delete(ctx any, userID any, tx ...any) *MockOverlayTokenRepository_Delete_Call {
+	return &MockOverlayTokenRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockOverlayTokenRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockOverlayTokenRepository_Delete_Call {
+func (_c *MockOverlayTokenRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockOverlayTokenRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -77,9 +86,16 @@ func (_c *MockOverlayTokenRepository_Delete_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -90,14 +106,20 @@ func (_c *MockOverlayTokenRepository_Delete_Call) Return(err error) *MockOverlay
 	return _c
 }
 
-func (_c *MockOverlayTokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockOverlayTokenRepository_Delete_Call {
+func (_c *MockOverlayTokenRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error) *MockOverlayTokenRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByUser provides a mock function for the type MockOverlayTokenRepository
-func (_mock *MockOverlayTokenRepository) GetByUser(ctx context.Context, userID uuid.UUID) (string, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockOverlayTokenRepository) GetByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByUser")
@@ -105,16 +127,16 @@ func (_mock *MockOverlayTokenRepository) GetByUser(ctx context.Context, userID u
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -129,11 +151,13 @@ type MockOverlayTokenRepository_GetByUser_Call struct {
 // GetByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockOverlayTokenRepository_Expecter) GetByUser(ctx any, userID any) *MockOverlayTokenRepository_GetByUser_Call {
-	return &MockOverlayTokenRepository_GetByUser_Call{Call: _e.mock.On("GetByUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockOverlayTokenRepository_Expecter) GetByUser(ctx any, userID any, tx ...any) *MockOverlayTokenRepository_GetByUser_Call {
+	return &MockOverlayTokenRepository_GetByUser_Call{Call: _e.mock.On("GetByUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockOverlayTokenRepository_GetByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockOverlayTokenRepository_GetByUser_Call {
+func (_c *MockOverlayTokenRepository_GetByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockOverlayTokenRepository_GetByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -143,9 +167,16 @@ func (_c *MockOverlayTokenRepository_GetByUser_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -156,14 +187,20 @@ func (_c *MockOverlayTokenRepository_GetByUser_Call) Return(s string, err error)
 	return _c
 }
 
-func (_c *MockOverlayTokenRepository_GetByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (string, error)) *MockOverlayTokenRepository_GetByUser_Call {
+func (_c *MockOverlayTokenRepository_GetByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockOverlayTokenRepository_GetByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUserByToken provides a mock function for the type MockOverlayTokenRepository
-func (_mock *MockOverlayTokenRepository) GetUserByToken(ctx context.Context, token string) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, token)
+func (_mock *MockOverlayTokenRepository) GetUserByToken(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, token, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, token)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUserByToken")
@@ -171,18 +208,18 @@ func (_mock *MockOverlayTokenRepository) GetUserByToken(ctx context.Context, tok
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, token, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) uuid.UUID); ok {
-		r0 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, token, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, token)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, token, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -197,11 +234,13 @@ type MockOverlayTokenRepository_GetUserByToken_Call struct {
 // GetUserByToken is a helper method to define mock.On call
 //   - ctx context.Context
 //   - token string
-func (_e *MockOverlayTokenRepository_Expecter) GetUserByToken(ctx any, token any) *MockOverlayTokenRepository_GetUserByToken_Call {
-	return &MockOverlayTokenRepository_GetUserByToken_Call{Call: _e.mock.On("GetUserByToken", ctx, token)}
+//   - tx ...*sql.Tx
+func (_e *MockOverlayTokenRepository_Expecter) GetUserByToken(ctx any, token any, tx ...any) *MockOverlayTokenRepository_GetUserByToken_Call {
+	return &MockOverlayTokenRepository_GetUserByToken_Call{Call: _e.mock.On("GetUserByToken",
+		append([]any{ctx, token}, tx...)...)}
 }
 
-func (_c *MockOverlayTokenRepository_GetUserByToken_Call) Run(run func(ctx context.Context, token string)) *MockOverlayTokenRepository_GetUserByToken_Call {
+func (_c *MockOverlayTokenRepository_GetUserByToken_Call) Run(run func(ctx context.Context, token string, tx ...*sql.Tx)) *MockOverlayTokenRepository_GetUserByToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -211,9 +250,16 @@ func (_c *MockOverlayTokenRepository_GetUserByToken_Call) Run(run func(ctx conte
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -224,22 +270,28 @@ func (_c *MockOverlayTokenRepository_GetUserByToken_Call) Return(uUID uuid.UUID,
 	return _c
 }
 
-func (_c *MockOverlayTokenRepository_GetUserByToken_Call) RunAndReturn(run func(ctx context.Context, token string) (uuid.UUID, error)) *MockOverlayTokenRepository_GetUserByToken_Call {
+func (_c *MockOverlayTokenRepository_GetUserByToken_Call) RunAndReturn(run func(ctx context.Context, token string, tx ...*sql.Tx) (uuid.UUID, error)) *MockOverlayTokenRepository_GetUserByToken_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Upsert provides a mock function for the type MockOverlayTokenRepository
-func (_mock *MockOverlayTokenRepository) Upsert(ctx context.Context, userID uuid.UUID, token string) error {
-	ret := _mock.Called(ctx, userID, token)
+func (_mock *MockOverlayTokenRepository) Upsert(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, token, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, token)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Upsert")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, userID, token)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, token, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -255,11 +307,13 @@ type MockOverlayTokenRepository_Upsert_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - token string
-func (_e *MockOverlayTokenRepository_Expecter) Upsert(ctx any, userID any, token any) *MockOverlayTokenRepository_Upsert_Call {
-	return &MockOverlayTokenRepository_Upsert_Call{Call: _e.mock.On("Upsert", ctx, userID, token)}
+//   - tx ...*sql.Tx
+func (_e *MockOverlayTokenRepository_Expecter) Upsert(ctx any, userID any, token any, tx ...any) *MockOverlayTokenRepository_Upsert_Call {
+	return &MockOverlayTokenRepository_Upsert_Call{Call: _e.mock.On("Upsert",
+		append([]any{ctx, userID, token}, tx...)...)}
 }
 
-func (_c *MockOverlayTokenRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string)) *MockOverlayTokenRepository_Upsert_Call {
+func (_c *MockOverlayTokenRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx)) *MockOverlayTokenRepository_Upsert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -273,10 +327,17 @@ func (_c *MockOverlayTokenRepository_Upsert_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -287,7 +348,7 @@ func (_c *MockOverlayTokenRepository_Upsert_Call) Return(err error) *MockOverlay
 	return _c
 }
 
-func (_c *MockOverlayTokenRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string) error) *MockOverlayTokenRepository_Upsert_Call {
+func (_c *MockOverlayTokenRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error) *MockOverlayTokenRepository_Upsert_Call {
 	_c.Call.Return(run)
 	return _c
 }

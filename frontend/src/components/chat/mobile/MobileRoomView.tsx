@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { isSiteStaff } from "../../../utils/permissions";
 import { effectiveMemberUser, memberModPermissions } from "../../../utils/chatMembers";
 import { forceMuteVoiceParticipant } from "../../../api/endpoints";
@@ -61,6 +61,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
         setModerationDialogOpen,
         openMemberMenu,
         setOpenMemberMenu,
+        setRoom,
         setMembers,
         nicknameDialogTarget,
         setNicknameDialogTarget,
@@ -93,6 +94,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
     } = controller;
 
     useChatViewport({ scrollToBottom });
+
+    const mentionPool = useMemo(() => members.map(m => m.user), [members]);
+    const existingMemberIds = useMemo(() => new Set(members.map(m => m.user.id)), [members]);
 
     if (!user || !room) {
         return null;
@@ -137,8 +141,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
 
             <RoomModerationDialog
                 isOpen={moderationDialogOpen}
-                roomId={room.id}
+                room={room}
                 onClose={() => setModerationDialogOpen(false)}
+                onSaved={updated => setRoom(updated)}
             />
 
             {watchParty.activeSession && user && (
@@ -164,7 +169,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
             <InviteMembersModal
                 isOpen={inviteModalOpen}
                 roomId={room.id}
-                existingMemberIds={new Set(members.map(m => m.user.id))}
+                existingMemberIds={existingMemberIds}
                 onClose={() => setInviteModalOpen(false)}
                 onInvited={result => {
                     if (result.invited_count > 0) {
@@ -507,7 +512,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                     roomId={room.id}
                     draftRecipientId={null}
                     onSent={handleSentMessage}
-                    mentionPool={members.map(m => m.user)}
+                    mentionPool={mentionPool}
                     replyingTo={replyingTo}
                     onCancelReply={() => setReplyingTo(null)}
                     onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}

@@ -32,6 +32,7 @@ type (
 		ResolveDMRoom(ctx context.Context, senderID, recipientID uuid.UUID) (*dto.ResolveDMResponse, error)
 		SendDMMessage(ctx context.Context, senderID, recipientID uuid.UUID, body string, files []FileUpload) (*dto.SendDMResponse, error)
 		CreateGroupRoom(ctx context.Context, creatorID uuid.UUID, req dto.CreateGroupRoomRequest) (*dto.ChatRoomResponse, error)
+		UpdateGroupRoom(ctx context.Context, roomID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error)
 		ListRooms(ctx context.Context, userID uuid.UUID) (*dto.ChatRoomListResponse, error)
 		ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error)
 		ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error)
@@ -100,7 +101,6 @@ type (
 		ForceMuteVoice(ctx context.Context, roomID, actorID, targetID uuid.UUID, muted bool) error
 		HandleVoiceWebhook(ctx context.Context, authHeader string, body []byte) error
 		VoiceParticipants(roomID uuid.UUID) []uuid.UUID
-		VoiceCount(roomID uuid.UUID) int
 		ReconcilePresence(ctx context.Context) (int, error)
 		SetMessageObserver(obs MessageObserver)
 	}

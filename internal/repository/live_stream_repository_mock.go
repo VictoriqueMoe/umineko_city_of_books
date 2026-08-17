@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -38,9 +39,87 @@ func (_m *MockLiveStreamRepository) EXPECT() *MockLiveStreamRepository_Expecter 
 	return &MockLiveStreamRepository_Expecter{mock: &_m.Mock}
 }
 
+// Activate provides a mock function for the type MockLiveStreamRepository
+func (_mock *MockLiveStreamRepository) Activate(ctx context.Context, spec LiveStreamActivation, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for Activate")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, LiveStreamActivation, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockLiveStreamRepository_Activate_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Activate'
+type MockLiveStreamRepository_Activate_Call struct {
+	*mock.Call
+}
+
+// Activate is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec LiveStreamActivation
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) Activate(ctx any, spec any, tx ...any) *MockLiveStreamRepository_Activate_Call {
+	return &MockLiveStreamRepository_Activate_Call{Call: _e.mock.On("Activate",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockLiveStreamRepository_Activate_Call) Run(run func(ctx context.Context, spec LiveStreamActivation, tx ...*sql.Tx)) *MockLiveStreamRepository_Activate_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 LiveStreamActivation
+		if args[1] != nil {
+			arg1 = args[1].(LiveStreamActivation)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_Activate_Call) Return(err error) *MockLiveStreamRepository_Activate_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_Activate_Call) RunAndReturn(run func(ctx context.Context, spec LiveStreamActivation, tx ...*sql.Tx) error) *MockLiveStreamRepository_Activate_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AdjustViewerCount provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) AdjustViewerCount(ctx context.Context, id uuid.UUID, delta int) (int, bool, error) {
-	ret := _mock.Called(ctx, id, delta)
+func (_mock *MockLiveStreamRepository) AdjustViewerCount(ctx context.Context, id uuid.UUID, delta int, tx ...*sql.Tx) (int, bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, delta, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, delta)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AdjustViewerCount")
@@ -49,21 +128,21 @@ func (_mock *MockLiveStreamRepository) AdjustViewerCount(ctx context.Context, id
 	var r0 int
 	var r1 bool
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) (int, bool, error)); ok {
-		return returnFunc(ctx, id, delta)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) (int, bool, error)); ok {
+		return returnFunc(ctx, id, delta, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) int); ok {
-		r0 = returnFunc(ctx, id, delta)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, id, delta, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int) bool); ok {
-		r1 = returnFunc(ctx, id, delta)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, ...*sql.Tx) bool); ok {
+		r1 = returnFunc(ctx, id, delta, tx...)
 	} else {
 		r1 = ret.Get(1).(bool)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int) error); ok {
-		r2 = returnFunc(ctx, id, delta)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, id, delta, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -79,11 +158,13 @@ type MockLiveStreamRepository_AdjustViewerCount_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - delta int
-func (_e *MockLiveStreamRepository_Expecter) AdjustViewerCount(ctx any, id any, delta any) *MockLiveStreamRepository_AdjustViewerCount_Call {
-	return &MockLiveStreamRepository_AdjustViewerCount_Call{Call: _e.mock.On("AdjustViewerCount", ctx, id, delta)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) AdjustViewerCount(ctx any, id any, delta any, tx ...any) *MockLiveStreamRepository_AdjustViewerCount_Call {
+	return &MockLiveStreamRepository_AdjustViewerCount_Call{Call: _e.mock.On("AdjustViewerCount",
+		append([]any{ctx, id, delta}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_AdjustViewerCount_Call) Run(run func(ctx context.Context, id uuid.UUID, delta int)) *MockLiveStreamRepository_AdjustViewerCount_Call {
+func (_c *MockLiveStreamRepository_AdjustViewerCount_Call) Run(run func(ctx context.Context, id uuid.UUID, delta int, tx ...*sql.Tx)) *MockLiveStreamRepository_AdjustViewerCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -97,10 +178,17 @@ func (_c *MockLiveStreamRepository_AdjustViewerCount_Call) Run(run func(ctx cont
 		if args[2] != nil {
 			arg2 = args[2].(int)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -111,14 +199,20 @@ func (_c *MockLiveStreamRepository_AdjustViewerCount_Call) Return(n int, b bool,
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_AdjustViewerCount_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, delta int) (int, bool, error)) *MockLiveStreamRepository_AdjustViewerCount_Call {
+func (_c *MockLiveStreamRepository_AdjustViewerCount_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, delta int, tx ...*sql.Tx) (int, bool, error)) *MockLiveStreamRepository_AdjustViewerCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountActive provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) CountActive(ctx context.Context) (int, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockLiveStreamRepository) CountActive(ctx context.Context, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountActive")
@@ -126,16 +220,16 @@ func (_mock *MockLiveStreamRepository) CountActive(ctx context.Context) (int, er
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -149,18 +243,27 @@ type MockLiveStreamRepository_CountActive_Call struct {
 
 // CountActive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockLiveStreamRepository_Expecter) CountActive(ctx any) *MockLiveStreamRepository_CountActive_Call {
-	return &MockLiveStreamRepository_CountActive_Call{Call: _e.mock.On("CountActive", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) CountActive(ctx any, tx ...any) *MockLiveStreamRepository_CountActive_Call {
+	return &MockLiveStreamRepository_CountActive_Call{Call: _e.mock.On("CountActive",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_CountActive_Call) Run(run func(ctx context.Context)) *MockLiveStreamRepository_CountActive_Call {
+func (_c *MockLiveStreamRepository_CountActive_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockLiveStreamRepository_CountActive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -171,33 +274,39 @@ func (_c *MockLiveStreamRepository_CountActive_Call) Return(n int, err error) *M
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_CountActive_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockLiveStreamRepository_CountActive_Call {
+func (_c *MockLiveStreamRepository_CountActive_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (int, error)) *MockLiveStreamRepository_CountActive_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Create provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) Create(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, userID, title, maxConcurrent)
+func (_mock *MockLiveStreamRepository) Create(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int, tx ...*sql.Tx) (*LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, title, maxConcurrent, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, title, maxConcurrent)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 uuid.UUID
+	var r0 *LiveStreamRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, int) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, userID, title, maxConcurrent)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, int, ...*sql.Tx) (*LiveStreamRow, error)); ok {
+		return returnFunc(ctx, userID, title, maxConcurrent, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, int) uuid.UUID); ok {
-		r0 = returnFunc(ctx, userID, title, maxConcurrent)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, int, ...*sql.Tx) *LiveStreamRow); ok {
+		r0 = returnFunc(ctx, userID, title, maxConcurrent, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
+			r0 = ret.Get(0).(*LiveStreamRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, int) error); ok {
-		r1 = returnFunc(ctx, userID, title, maxConcurrent)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, title, maxConcurrent, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -214,11 +323,13 @@ type MockLiveStreamRepository_Create_Call struct {
 //   - userID uuid.UUID
 //   - title string
 //   - maxConcurrent int
-func (_e *MockLiveStreamRepository_Expecter) Create(ctx any, userID any, title any, maxConcurrent any) *MockLiveStreamRepository_Create_Call {
-	return &MockLiveStreamRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, title, maxConcurrent)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) Create(ctx any, userID any, title any, maxConcurrent any, tx ...any) *MockLiveStreamRepository_Create_Call {
+	return &MockLiveStreamRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, userID, title, maxConcurrent}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int)) *MockLiveStreamRepository_Create_Call {
+func (_c *MockLiveStreamRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int, tx ...*sql.Tx)) *MockLiveStreamRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -236,29 +347,42 @@ func (_c *MockLiveStreamRepository_Create_Call) Run(run func(ctx context.Context
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_Create_Call) Return(uUID uuid.UUID, err error) *MockLiveStreamRepository_Create_Call {
-	_c.Call.Return(uUID, err)
+func (_c *MockLiveStreamRepository_Create_Call) Return(liveStreamRow *LiveStreamRow, err error) *MockLiveStreamRepository_Create_Call {
+	_c.Call.Return(liveStreamRow, err)
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int) (uuid.UUID, error)) *MockLiveStreamRepository_Create_Call {
+func (_c *MockLiveStreamRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, maxConcurrent int, tx ...*sql.Tx) (*LiveStreamRow, error)) *MockLiveStreamRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetActiveByUser provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) GetActiveByUser(ctx context.Context, userID uuid.UUID) (*LiveStreamRow, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockLiveStreamRepository) GetActiveByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetActiveByUser")
@@ -266,18 +390,18 @@ func (_mock *MockLiveStreamRepository) GetActiveByUser(ctx context.Context, user
 
 	var r0 *LiveStreamRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*LiveStreamRow, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*LiveStreamRow, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *LiveStreamRow); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *LiveStreamRow); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*LiveStreamRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -292,11 +416,13 @@ type MockLiveStreamRepository_GetActiveByUser_Call struct {
 // GetActiveByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) GetActiveByUser(ctx any, userID any) *MockLiveStreamRepository_GetActiveByUser_Call {
-	return &MockLiveStreamRepository_GetActiveByUser_Call{Call: _e.mock.On("GetActiveByUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) GetActiveByUser(ctx any, userID any, tx ...any) *MockLiveStreamRepository_GetActiveByUser_Call {
+	return &MockLiveStreamRepository_GetActiveByUser_Call{Call: _e.mock.On("GetActiveByUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_GetActiveByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockLiveStreamRepository_GetActiveByUser_Call {
+func (_c *MockLiveStreamRepository_GetActiveByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockLiveStreamRepository_GetActiveByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -306,9 +432,16 @@ func (_c *MockLiveStreamRepository_GetActiveByUser_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -319,14 +452,20 @@ func (_c *MockLiveStreamRepository_GetActiveByUser_Call) Return(liveStreamRow *L
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_GetActiveByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetActiveByUser_Call {
+func (_c *MockLiveStreamRepository_GetActiveByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetActiveByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) GetByID(ctx context.Context, id uuid.UUID) (*LiveStreamRow, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockLiveStreamRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -334,18 +473,18 @@ func (_mock *MockLiveStreamRepository) GetByID(ctx context.Context, id uuid.UUID
 
 	var r0 *LiveStreamRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*LiveStreamRow, error)); ok {
-		return returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*LiveStreamRow, error)); ok {
+		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *LiveStreamRow); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *LiveStreamRow); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*LiveStreamRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -360,11 +499,13 @@ type MockLiveStreamRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) GetByID(ctx any, id any) *MockLiveStreamRepository_GetByID_Call {
-	return &MockLiveStreamRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) GetByID(ctx any, id any, tx ...any) *MockLiveStreamRepository_GetByID_Call {
+	return &MockLiveStreamRepository_GetByID_Call{Call: _e.mock.On("GetByID",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockLiveStreamRepository_GetByID_Call {
+func (_c *MockLiveStreamRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockLiveStreamRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -374,9 +515,16 @@ func (_c *MockLiveStreamRepository_GetByID_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -387,14 +535,20 @@ func (_c *MockLiveStreamRepository_GetByID_Call) Return(liveStreamRow *LiveStrea
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetByID_Call {
+func (_c *MockLiveStreamRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByRoom provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) GetByRoom(ctx context.Context, room string) (*LiveStreamRow, error) {
-	ret := _mock.Called(ctx, room)
+func (_mock *MockLiveStreamRepository) GetByRoom(ctx context.Context, room string, tx ...*sql.Tx) (*LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, room, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, room)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByRoom")
@@ -402,18 +556,18 @@ func (_mock *MockLiveStreamRepository) GetByRoom(ctx context.Context, room strin
 
 	var r0 *LiveStreamRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*LiveStreamRow, error)); ok {
-		return returnFunc(ctx, room)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*LiveStreamRow, error)); ok {
+		return returnFunc(ctx, room, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *LiveStreamRow); ok {
-		r0 = returnFunc(ctx, room)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *LiveStreamRow); ok {
+		r0 = returnFunc(ctx, room, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*LiveStreamRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, room)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, room, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -428,11 +582,13 @@ type MockLiveStreamRepository_GetByRoom_Call struct {
 // GetByRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - room string
-func (_e *MockLiveStreamRepository_Expecter) GetByRoom(ctx any, room any) *MockLiveStreamRepository_GetByRoom_Call {
-	return &MockLiveStreamRepository_GetByRoom_Call{Call: _e.mock.On("GetByRoom", ctx, room)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) GetByRoom(ctx any, room any, tx ...any) *MockLiveStreamRepository_GetByRoom_Call {
+	return &MockLiveStreamRepository_GetByRoom_Call{Call: _e.mock.On("GetByRoom",
+		append([]any{ctx, room}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_GetByRoom_Call) Run(run func(ctx context.Context, room string)) *MockLiveStreamRepository_GetByRoom_Call {
+func (_c *MockLiveStreamRepository_GetByRoom_Call) Run(run func(ctx context.Context, room string, tx ...*sql.Tx)) *MockLiveStreamRepository_GetByRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -442,9 +598,16 @@ func (_c *MockLiveStreamRepository_GetByRoom_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -455,14 +618,20 @@ func (_c *MockLiveStreamRepository_GetByRoom_Call) Return(liveStreamRow *LiveStr
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_GetByRoom_Call) RunAndReturn(run func(ctx context.Context, room string) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetByRoom_Call {
+func (_c *MockLiveStreamRepository_GetByRoom_Call) RunAndReturn(run func(ctx context.Context, room string, tx ...*sql.Tx) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetByRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListLive provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) ListLive(ctx context.Context) ([]LiveStreamRow, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockLiveStreamRepository) ListLive(ctx context.Context, tx ...*sql.Tx) ([]LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListLive")
@@ -470,18 +639,18 @@ func (_mock *MockLiveStreamRepository) ListLive(ctx context.Context) ([]LiveStre
 
 	var r0 []LiveStreamRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]LiveStreamRow, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]LiveStreamRow, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []LiveStreamRow); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []LiveStreamRow); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]LiveStreamRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -495,18 +664,27 @@ type MockLiveStreamRepository_ListLive_Call struct {
 
 // ListLive is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockLiveStreamRepository_Expecter) ListLive(ctx any) *MockLiveStreamRepository_ListLive_Call {
-	return &MockLiveStreamRepository_ListLive_Call{Call: _e.mock.On("ListLive", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) ListLive(ctx any, tx ...any) *MockLiveStreamRepository_ListLive_Call {
+	return &MockLiveStreamRepository_ListLive_Call{Call: _e.mock.On("ListLive",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_ListLive_Call) Run(run func(ctx context.Context)) *MockLiveStreamRepository_ListLive_Call {
+func (_c *MockLiveStreamRepository_ListLive_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockLiveStreamRepository_ListLive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -517,14 +695,20 @@ func (_c *MockLiveStreamRepository_ListLive_Call) Return(liveStreamRows []LiveSt
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_ListLive_Call) RunAndReturn(run func(ctx context.Context) ([]LiveStreamRow, error)) *MockLiveStreamRepository_ListLive_Call {
+func (_c *MockLiveStreamRepository_ListLive_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]LiveStreamRow, error)) *MockLiveStreamRepository_ListLive_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListStartingBefore provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) ListStartingBefore(ctx context.Context, cutoff string) ([]LiveStreamRow, error) {
-	ret := _mock.Called(ctx, cutoff)
+func (_mock *MockLiveStreamRepository) ListStartingBefore(ctx context.Context, cutoff string, tx ...*sql.Tx) ([]LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, cutoff, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, cutoff)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListStartingBefore")
@@ -532,18 +716,18 @@ func (_mock *MockLiveStreamRepository) ListStartingBefore(ctx context.Context, c
 
 	var r0 []LiveStreamRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]LiveStreamRow, error)); ok {
-		return returnFunc(ctx, cutoff)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) ([]LiveStreamRow, error)); ok {
+		return returnFunc(ctx, cutoff, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []LiveStreamRow); ok {
-		r0 = returnFunc(ctx, cutoff)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) []LiveStreamRow); ok {
+		r0 = returnFunc(ctx, cutoff, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]LiveStreamRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, cutoff)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, cutoff, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -558,11 +742,13 @@ type MockLiveStreamRepository_ListStartingBefore_Call struct {
 // ListStartingBefore is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cutoff string
-func (_e *MockLiveStreamRepository_Expecter) ListStartingBefore(ctx any, cutoff any) *MockLiveStreamRepository_ListStartingBefore_Call {
-	return &MockLiveStreamRepository_ListStartingBefore_Call{Call: _e.mock.On("ListStartingBefore", ctx, cutoff)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) ListStartingBefore(ctx any, cutoff any, tx ...any) *MockLiveStreamRepository_ListStartingBefore_Call {
+	return &MockLiveStreamRepository_ListStartingBefore_Call{Call: _e.mock.On("ListStartingBefore",
+		append([]any{ctx, cutoff}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_ListStartingBefore_Call) Run(run func(ctx context.Context, cutoff string)) *MockLiveStreamRepository_ListStartingBefore_Call {
+func (_c *MockLiveStreamRepository_ListStartingBefore_Call) Run(run func(ctx context.Context, cutoff string, tx ...*sql.Tx)) *MockLiveStreamRepository_ListStartingBefore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -572,9 +758,16 @@ func (_c *MockLiveStreamRepository_ListStartingBefore_Call) Run(run func(ctx con
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -585,22 +778,28 @@ func (_c *MockLiveStreamRepository_ListStartingBefore_Call) Return(liveStreamRow
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_ListStartingBefore_Call) RunAndReturn(run func(ctx context.Context, cutoff string) ([]LiveStreamRow, error)) *MockLiveStreamRepository_ListStartingBefore_Call {
+func (_c *MockLiveStreamRepository_ListStartingBefore_Call) RunAndReturn(run func(ctx context.Context, cutoff string, tx ...*sql.Tx) ([]LiveStreamRow, error)) *MockLiveStreamRepository_ListStartingBefore_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkLive provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) MarkLive(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockLiveStreamRepository) MarkLive(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkLive")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -615,11 +814,13 @@ type MockLiveStreamRepository_MarkLive_Call struct {
 // MarkLive is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) MarkLive(ctx any, id any) *MockLiveStreamRepository_MarkLive_Call {
-	return &MockLiveStreamRepository_MarkLive_Call{Call: _e.mock.On("MarkLive", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) MarkLive(ctx any, id any, tx ...any) *MockLiveStreamRepository_MarkLive_Call {
+	return &MockLiveStreamRepository_MarkLive_Call{Call: _e.mock.On("MarkLive",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_MarkLive_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockLiveStreamRepository_MarkLive_Call {
+func (_c *MockLiveStreamRepository_MarkLive_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockLiveStreamRepository_MarkLive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -629,9 +830,16 @@ func (_c *MockLiveStreamRepository_MarkLive_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -642,14 +850,20 @@ func (_c *MockLiveStreamRepository_MarkLive_Call) Return(err error) *MockLiveStr
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_MarkLive_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockLiveStreamRepository_MarkLive_Call {
+func (_c *MockLiveStreamRepository_MarkLive_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockLiveStreamRepository_MarkLive_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkOffline provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) MarkOffline(ctx context.Context, id uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockLiveStreamRepository) MarkOffline(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkOffline")
@@ -657,16 +871,16 @@ func (_mock *MockLiveStreamRepository) MarkOffline(ctx context.Context, id uuid.
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -681,11 +895,13 @@ type MockLiveStreamRepository_MarkOffline_Call struct {
 // MarkOffline is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockLiveStreamRepository_Expecter) MarkOffline(ctx any, id any) *MockLiveStreamRepository_MarkOffline_Call {
-	return &MockLiveStreamRepository_MarkOffline_Call{Call: _e.mock.On("MarkOffline", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) MarkOffline(ctx any, id any, tx ...any) *MockLiveStreamRepository_MarkOffline_Call {
+	return &MockLiveStreamRepository_MarkOffline_Call{Call: _e.mock.On("MarkOffline",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_MarkOffline_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockLiveStreamRepository_MarkOffline_Call {
+func (_c *MockLiveStreamRepository_MarkOffline_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockLiveStreamRepository_MarkOffline_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -695,9 +911,16 @@ func (_c *MockLiveStreamRepository_MarkOffline_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -708,22 +931,28 @@ func (_c *MockLiveStreamRepository_MarkOffline_Call) Return(b bool, err error) *
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_MarkOffline_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (bool, error)) *MockLiveStreamRepository_MarkOffline_Call {
+func (_c *MockLiveStreamRepository_MarkOffline_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockLiveStreamRepository_MarkOffline_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetDefaultMode provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) SetDefaultMode(ctx context.Context, id uuid.UUID, mode string) error {
-	ret := _mock.Called(ctx, id, mode)
+func (_mock *MockLiveStreamRepository) SetDefaultMode(ctx context.Context, id uuid.UUID, mode string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mode, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mode)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetDefaultMode")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, mode)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, mode, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -739,11 +968,13 @@ type MockLiveStreamRepository_SetDefaultMode_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - mode string
-func (_e *MockLiveStreamRepository_Expecter) SetDefaultMode(ctx any, id any, mode any) *MockLiveStreamRepository_SetDefaultMode_Call {
-	return &MockLiveStreamRepository_SetDefaultMode_Call{Call: _e.mock.On("SetDefaultMode", ctx, id, mode)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) SetDefaultMode(ctx any, id any, mode any, tx ...any) *MockLiveStreamRepository_SetDefaultMode_Call {
+	return &MockLiveStreamRepository_SetDefaultMode_Call{Call: _e.mock.On("SetDefaultMode",
+		append([]any{ctx, id, mode}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_SetDefaultMode_Call) Run(run func(ctx context.Context, id uuid.UUID, mode string)) *MockLiveStreamRepository_SetDefaultMode_Call {
+func (_c *MockLiveStreamRepository_SetDefaultMode_Call) Run(run func(ctx context.Context, id uuid.UUID, mode string, tx ...*sql.Tx)) *MockLiveStreamRepository_SetDefaultMode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -757,10 +988,17 @@ func (_c *MockLiveStreamRepository_SetDefaultMode_Call) Run(run func(ctx context
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -771,22 +1009,28 @@ func (_c *MockLiveStreamRepository_SetDefaultMode_Call) Return(err error) *MockL
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_SetDefaultMode_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, mode string) error) *MockLiveStreamRepository_SetDefaultMode_Call {
+func (_c *MockLiveStreamRepository_SetDefaultMode_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, mode string, tx ...*sql.Tx) error) *MockLiveStreamRepository_SetDefaultMode_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetEgress provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) SetEgress(ctx context.Context, id uuid.UUID, egressID string, hlsURL string) error {
-	ret := _mock.Called(ctx, id, egressID, hlsURL)
+func (_mock *MockLiveStreamRepository) SetEgress(ctx context.Context, id uuid.UUID, egressID string, hlsURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, egressID, hlsURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, egressID, hlsURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetEgress")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, id, egressID, hlsURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, egressID, hlsURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -803,11 +1047,13 @@ type MockLiveStreamRepository_SetEgress_Call struct {
 //   - id uuid.UUID
 //   - egressID string
 //   - hlsURL string
-func (_e *MockLiveStreamRepository_Expecter) SetEgress(ctx any, id any, egressID any, hlsURL any) *MockLiveStreamRepository_SetEgress_Call {
-	return &MockLiveStreamRepository_SetEgress_Call{Call: _e.mock.On("SetEgress", ctx, id, egressID, hlsURL)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) SetEgress(ctx any, id any, egressID any, hlsURL any, tx ...any) *MockLiveStreamRepository_SetEgress_Call {
+	return &MockLiveStreamRepository_SetEgress_Call{Call: _e.mock.On("SetEgress",
+		append([]any{ctx, id, egressID, hlsURL}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_SetEgress_Call) Run(run func(ctx context.Context, id uuid.UUID, egressID string, hlsURL string)) *MockLiveStreamRepository_SetEgress_Call {
+func (_c *MockLiveStreamRepository_SetEgress_Call) Run(run func(ctx context.Context, id uuid.UUID, egressID string, hlsURL string, tx ...*sql.Tx)) *MockLiveStreamRepository_SetEgress_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -825,11 +1071,18 @@ func (_c *MockLiveStreamRepository_SetEgress_Call) Run(run func(ctx context.Cont
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -840,22 +1093,28 @@ func (_c *MockLiveStreamRepository_SetEgress_Call) Return(err error) *MockLiveSt
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_SetEgress_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, egressID string, hlsURL string) error) *MockLiveStreamRepository_SetEgress_Call {
+func (_c *MockLiveStreamRepository_SetEgress_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, egressID string, hlsURL string, tx ...*sql.Tx) error) *MockLiveStreamRepository_SetEgress_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetIngress provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) SetIngress(ctx context.Context, id uuid.UUID, ingressID string, room string, whipURL string, streamKey string) error {
-	ret := _mock.Called(ctx, id, ingressID, room, whipURL, streamKey)
+func (_mock *MockLiveStreamRepository) SetIngress(ctx context.Context, spec LiveStreamIngressUpdate, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetIngress")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string) error); ok {
-		r0 = returnFunc(ctx, id, ingressID, room, whipURL, streamKey)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, LiveStreamIngressUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -869,48 +1128,33 @@ type MockLiveStreamRepository_SetIngress_Call struct {
 
 // SetIngress is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - ingressID string
-//   - room string
-//   - whipURL string
-//   - streamKey string
-func (_e *MockLiveStreamRepository_Expecter) SetIngress(ctx any, id any, ingressID any, room any, whipURL any, streamKey any) *MockLiveStreamRepository_SetIngress_Call {
-	return &MockLiveStreamRepository_SetIngress_Call{Call: _e.mock.On("SetIngress", ctx, id, ingressID, room, whipURL, streamKey)}
+//   - spec LiveStreamIngressUpdate
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) SetIngress(ctx any, spec any, tx ...any) *MockLiveStreamRepository_SetIngress_Call {
+	return &MockLiveStreamRepository_SetIngress_Call{Call: _e.mock.On("SetIngress",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_SetIngress_Call) Run(run func(ctx context.Context, id uuid.UUID, ingressID string, room string, whipURL string, streamKey string)) *MockLiveStreamRepository_SetIngress_Call {
+func (_c *MockLiveStreamRepository_SetIngress_Call) Run(run func(ctx context.Context, spec LiveStreamIngressUpdate, tx ...*sql.Tx)) *MockLiveStreamRepository_SetIngress_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 LiveStreamIngressUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(LiveStreamIngressUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
@@ -921,22 +1165,28 @@ func (_c *MockLiveStreamRepository_SetIngress_Call) Return(err error) *MockLiveS
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_SetIngress_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, ingressID string, room string, whipURL string, streamKey string) error) *MockLiveStreamRepository_SetIngress_Call {
+func (_c *MockLiveStreamRepository_SetIngress_Call) RunAndReturn(run func(ctx context.Context, spec LiveStreamIngressUpdate, tx ...*sql.Tx) error) *MockLiveStreamRepository_SetIngress_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetThumbnail provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) SetThumbnail(ctx context.Context, id uuid.UUID, url string) error {
-	ret := _mock.Called(ctx, id, url)
+func (_mock *MockLiveStreamRepository) SetThumbnail(ctx context.Context, id uuid.UUID, url string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, url, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, url)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetThumbnail")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, url)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, url, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -952,11 +1202,13 @@ type MockLiveStreamRepository_SetThumbnail_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - url string
-func (_e *MockLiveStreamRepository_Expecter) SetThumbnail(ctx any, id any, url any) *MockLiveStreamRepository_SetThumbnail_Call {
-	return &MockLiveStreamRepository_SetThumbnail_Call{Call: _e.mock.On("SetThumbnail", ctx, id, url)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) SetThumbnail(ctx any, id any, url any, tx ...any) *MockLiveStreamRepository_SetThumbnail_Call {
+	return &MockLiveStreamRepository_SetThumbnail_Call{Call: _e.mock.On("SetThumbnail",
+		append([]any{ctx, id, url}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_SetThumbnail_Call) Run(run func(ctx context.Context, id uuid.UUID, url string)) *MockLiveStreamRepository_SetThumbnail_Call {
+func (_c *MockLiveStreamRepository_SetThumbnail_Call) Run(run func(ctx context.Context, id uuid.UUID, url string, tx ...*sql.Tx)) *MockLiveStreamRepository_SetThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -970,10 +1222,17 @@ func (_c *MockLiveStreamRepository_SetThumbnail_Call) Run(run func(ctx context.C
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -984,22 +1243,28 @@ func (_c *MockLiveStreamRepository_SetThumbnail_Call) Return(err error) *MockLiv
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_SetThumbnail_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, url string) error) *MockLiveStreamRepository_SetThumbnail_Call {
+func (_c *MockLiveStreamRepository_SetThumbnail_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, url string, tx ...*sql.Tx) error) *MockLiveStreamRepository_SetThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetTitle provides a mock function for the type MockLiveStreamRepository
-func (_mock *MockLiveStreamRepository) SetTitle(ctx context.Context, id uuid.UUID, title string) error {
-	ret := _mock.Called(ctx, id, title)
+func (_mock *MockLiveStreamRepository) SetTitle(ctx context.Context, id uuid.UUID, title string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, title, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, title)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetTitle")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, title)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, title, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1015,11 +1280,13 @@ type MockLiveStreamRepository_SetTitle_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - title string
-func (_e *MockLiveStreamRepository_Expecter) SetTitle(ctx any, id any, title any) *MockLiveStreamRepository_SetTitle_Call {
-	return &MockLiveStreamRepository_SetTitle_Call{Call: _e.mock.On("SetTitle", ctx, id, title)}
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) SetTitle(ctx any, id any, title any, tx ...any) *MockLiveStreamRepository_SetTitle_Call {
+	return &MockLiveStreamRepository_SetTitle_Call{Call: _e.mock.On("SetTitle",
+		append([]any{ctx, id, title}, tx...)...)}
 }
 
-func (_c *MockLiveStreamRepository_SetTitle_Call) Run(run func(ctx context.Context, id uuid.UUID, title string)) *MockLiveStreamRepository_SetTitle_Call {
+func (_c *MockLiveStreamRepository_SetTitle_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, tx ...*sql.Tx)) *MockLiveStreamRepository_SetTitle_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1033,10 +1300,17 @@ func (_c *MockLiveStreamRepository_SetTitle_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1047,7 +1321,7 @@ func (_c *MockLiveStreamRepository_SetTitle_Call) Return(err error) *MockLiveStr
 	return _c
 }
 
-func (_c *MockLiveStreamRepository_SetTitle_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string) error) *MockLiveStreamRepository_SetTitle_Call {
+func (_c *MockLiveStreamRepository_SetTitle_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, tx ...*sql.Tx) error) *MockLiveStreamRepository_SetTitle_Call {
 	_c.Call.Return(run)
 	return _c
 }

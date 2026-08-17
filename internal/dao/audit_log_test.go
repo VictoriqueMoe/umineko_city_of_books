@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,13 @@ func TestAuditLogDAO_Create(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.AuditLog.Create(context.Background(), user.ID, "user.ban", "user", "target-1", "reason: spam")
+	err := repos.AuditLog.Create(context.Background(), repository.NewAuditEntry{
+		ActorID:    user.ID,
+		Action:     "user.ban",
+		TargetType: repository.AuditTargetUser,
+		TargetID:   "target-1",
+		Details:    "reason: spam",
+	})
 
 	// then
 	require.NoError(t, err)
@@ -27,8 +34,8 @@ func TestAuditLogDAO_Create(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, user.ID, entries[0].ActorID)
 	assert.Equal(t, user.DisplayName, entries[0].ActorName)
-	assert.Equal(t, "user.ban", entries[0].Action)
-	assert.Equal(t, "user", entries[0].TargetType)
+	assert.Equal(t, repository.AuditAction("user.ban"), entries[0].Action)
+	assert.Equal(t, repository.AuditTargetUser, entries[0].TargetType)
 	assert.Equal(t, "target-1", entries[0].TargetID)
 	assert.Equal(t, "reason: spam", entries[0].Details)
 	assert.NotEmpty(t, entries[0].CreatedAt)
@@ -41,7 +48,12 @@ func TestAuditLogDAO_Create_InvalidActor_Fails(t *testing.T) {
 	bogus := uuid.New()
 
 	// when
-	err := repos.AuditLog.Create(context.Background(), bogus, "user.ban", "user", "target-1", "")
+	err := repos.AuditLog.Create(context.Background(), repository.NewAuditEntry{
+		ActorID:    bogus,
+		Action:     "user.ban",
+		TargetType: repository.AuditTargetUser,
+		TargetID:   "target-1",
+	})
 
 	// then
 	require.Error(t, err)
@@ -65,9 +77,9 @@ func TestAuditLogDAO_List_FilterByAction(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	require.NoError(t, repos.AuditLog.Create(ctx, user.ID, "user.ban", "user", "t1", ""))
-	require.NoError(t, repos.AuditLog.Create(ctx, user.ID, "user.ban", "user", "t2", ""))
-	require.NoError(t, repos.AuditLog.Create(ctx, user.ID, "user.unban", "user", "t3", ""))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: user.ID, Action: "user.ban", TargetType: repository.AuditTargetUser, TargetID: "t1"}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: user.ID, Action: "user.ban", TargetType: repository.AuditTargetUser, TargetID: "t2"}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: user.ID, Action: "user.unban", TargetType: repository.AuditTargetUser, TargetID: "t3"}))
 
 	// when
 	entries, total, err := repos.AuditLog.List(ctx, "user.ban", 10, 0)
@@ -77,7 +89,7 @@ func TestAuditLogDAO_List_FilterByAction(t *testing.T) {
 	assert.Equal(t, 2, total)
 	require.Len(t, entries, 2)
 	for _, e := range entries {
-		assert.Equal(t, "user.ban", e.Action)
+		assert.Equal(t, repository.AuditAction("user.ban"), e.Action)
 	}
 }
 
@@ -88,10 +100,10 @@ func TestAuditLogDAO_ListForUser_ScopesToOneUser(t *testing.T) {
 	subject := daotest.CreateUser(t, repos, daotest.WithUsername("subject"))
 	other := daotest.CreateUser(t, repos, daotest.WithUsername("other"))
 	ctx := context.Background()
-	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "ban_user", "user", subject.ID.String(), ""))
-	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "lock_user", "user", subject.ID.String(), "spam"))
-	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "ban_user", "user", other.ID.String(), ""))
-	require.NoError(t, repos.AuditLog.Create(ctx, actor.ID, "update_settings", "settings", subject.ID.String(), ""))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: actor.ID, Action: repository.AuditActionBanUser, TargetType: repository.AuditTargetUser, TargetID: subject.ID.String()}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: actor.ID, Action: repository.AuditActionLockUser, TargetType: repository.AuditTargetUser, TargetID: subject.ID.String(), Details: "spam"}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: actor.ID, Action: repository.AuditActionBanUser, TargetType: repository.AuditTargetUser, TargetID: other.ID.String()}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: actor.ID, Action: repository.AuditActionUpdateSettings, TargetType: repository.AuditTargetSettings, TargetID: subject.ID.String()}))
 
 	// when
 	entries, total, err := repos.AuditLog.ListForUser(ctx, subject.ID, 10, 0)
@@ -101,7 +113,7 @@ func TestAuditLogDAO_ListForUser_ScopesToOneUser(t *testing.T) {
 	assert.Equal(t, 2, total)
 	require.Len(t, entries, 2)
 	for _, e := range entries {
-		assert.Equal(t, "user", e.TargetType)
+		assert.Equal(t, repository.AuditTargetUser, e.TargetType)
 		assert.Equal(t, subject.ID.String(), e.TargetID)
 	}
 }
@@ -114,9 +126,9 @@ func TestAuditLogDAO_ListForUser_IncludesRoomScopedEvents(t *testing.T) {
 	other := daotest.CreateUser(t, repos, daotest.WithUsername("bystander"))
 	roomID := uuid.New()
 	ctx := context.Background()
-	require.NoError(t, repos.AuditLog.CreateForSubject(ctx, actor.ID, "chat_room_ban", "chat_room", roomID.String(), "reason=spam", subject.ID))
-	require.NoError(t, repos.AuditLog.CreateSystemForSubject(ctx, "chat_word_filter_kick", "chat_room", roomID.String(), `pattern="x"`, subject.ID))
-	require.NoError(t, repos.AuditLog.CreateForSubject(ctx, actor.ID, "chat_room_ban", "chat_room", roomID.String(), "", other.ID))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: actor.ID, Action: repository.AuditActionChatRoomBan, TargetType: repository.AuditTargetChatRoom, TargetID: roomID.String(), Details: "reason=spam", SubjectID: subject.ID}))
+	require.NoError(t, repos.AuditLog.CreateSystem(ctx, repository.NewAuditEntry{Action: repository.AuditActionChatWordFilterKick, TargetType: repository.AuditTargetChatRoom, TargetID: roomID.String(), Details: `pattern="x"`, SubjectID: subject.ID}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: actor.ID, Action: repository.AuditActionChatRoomBan, TargetType: repository.AuditTargetChatRoom, TargetID: roomID.String(), SubjectID: other.ID}))
 
 	// when
 	entries, total, err := repos.AuditLog.ListForUser(ctx, subject.ID, 10, 0)
@@ -126,7 +138,7 @@ func TestAuditLogDAO_ListForUser_IncludesRoomScopedEvents(t *testing.T) {
 	assert.Equal(t, 2, total)
 	require.Len(t, entries, 2)
 	for _, e := range entries {
-		assert.Equal(t, "chat_room", e.TargetType)
+		assert.Equal(t, repository.AuditTargetChatRoom, e.TargetType)
 		assert.Equal(t, roomID.String(), e.TargetID)
 	}
 }
@@ -164,9 +176,9 @@ func TestAuditLogDAO_List_OrderedByCreatedAtDesc(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.Len(t, entries, 3)
-	assert.Equal(t, "a3", entries[0].Action)
-	assert.Equal(t, "a2", entries[1].Action)
-	assert.Equal(t, "a1", entries[2].Action)
+	assert.Equal(t, repository.AuditAction("a3"), entries[0].Action)
+	assert.Equal(t, repository.AuditAction("a2"), entries[1].Action)
+	assert.Equal(t, repository.AuditAction("a1"), entries[2].Action)
 }
 
 func TestAuditLogDAO_List_Pagination(t *testing.T) {
@@ -175,7 +187,7 @@ func TestAuditLogDAO_List_Pagination(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	for range 5 {
-		require.NoError(t, repos.AuditLog.Create(ctx, user.ID, "act", "user", "t", ""))
+		require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: user.ID, Action: "act", TargetType: repository.AuditTargetUser, TargetID: "t"}))
 	}
 
 	// when
@@ -206,8 +218,8 @@ func TestAuditLogDAO_List_JoinsActorDisplayName(t *testing.T) {
 	alice := daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
 	bob := daotest.CreateUser(t, repos, daotest.WithDisplayName("Bob"))
 	ctx := context.Background()
-	require.NoError(t, repos.AuditLog.Create(ctx, alice.ID, "act", "user", "t1", ""))
-	require.NoError(t, repos.AuditLog.Create(ctx, bob.ID, "act", "user", "t2", ""))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: alice.ID, Action: "act", TargetType: repository.AuditTargetUser, TargetID: "t1"}))
+	require.NoError(t, repos.AuditLog.Create(ctx, repository.NewAuditEntry{ActorID: bob.ID, Action: "act", TargetType: repository.AuditTargetUser, TargetID: "t2"}))
 
 	// when
 	entries, total, err := repos.AuditLog.List(ctx, "", 10, 0)

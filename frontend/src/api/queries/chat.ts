@@ -28,7 +28,7 @@ export function fetchUserRooms() {
 
 export function fetchResolveDMRoom(recipientId: string) {
     return queryClient.fetchQuery({
-        queryKey: ["chat", "dm-resolve", recipientId],
+        queryKey: queryKeys.chat.dmResolve(recipientId),
         queryFn: () => resolveDMRoom(recipientId),
     });
 }
@@ -54,7 +54,7 @@ export function useChatRoomMembers(roomId: string, enabled = true) {
 export function useChatUnreadCount() {
     const { user } = useAuth();
     const query = useQuery({
-        queryKey: ["chat", "unread-count"],
+        queryKey: queryKeys.chat.unreadCount(),
         queryFn: () => getChatUnreadCount(),
         enabled: !!user,
     });
@@ -63,7 +63,7 @@ export function useChatUnreadCount() {
 
 export function useChatRoomBans(roomId: string, enabled = true) {
     const query = useQuery({
-        queryKey: ["chat", "rooms", roomId, "bans"],
+        queryKey: queryKeys.chat.roomBans(roomId),
         queryFn: () => listChatRoomBans(roomId),
         enabled: enabled && !!roomId,
     });
@@ -72,7 +72,7 @@ export function useChatRoomBans(roomId: string, enabled = true) {
 
 export function useChatRoomBannedWords(roomId: string, enabled = true) {
     const query = useQuery({
-        queryKey: ["chat", "rooms", roomId, "banned-words"],
+        queryKey: queryKeys.chat.roomBannedWords(roomId),
         queryFn: () => listChatRoomBannedWords(roomId),
         enabled: enabled && !!roomId,
     });

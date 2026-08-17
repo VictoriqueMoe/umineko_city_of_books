@@ -4,9 +4,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/report"
 
 	"github.com/gofiber/fiber/v3"
@@ -21,7 +19,7 @@ func (s *Service) getAllReportRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupCreateReport(r fiber.Router) {
-	r.Post("/report", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createReport)
+	r.Post("/report", s.requireAuth(), s.createReport)
 }
 
 func (s *Service) setupListReports(r fiber.Router) {
@@ -52,7 +50,7 @@ func (s *Service) createReport(ctx fiber.Ctx) error {
 
 func (s *Service) listReports(ctx fiber.Ctx) error {
 	status := ctx.Query("status", "open")
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 50)
 
 	result, err := s.ReportService.List(ctx.Context(), status, page)
 	if err != nil {

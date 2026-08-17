@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/dao/utils"
+
 	"github.com/google/uuid"
 )
 
@@ -16,8 +18,8 @@ type (
 	}
 )
 
-func (r *userSecretDAO) Unlock(ctx context.Context, userID uuid.UUID, secretID string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userSecretDAO) Unlock(ctx context.Context, userID uuid.UUID, secretID string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO user_secrets (user_id, secret_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
 		userID, secretID,
 	)
@@ -27,61 +29,37 @@ func (r *userSecretDAO) Unlock(ctx context.Context, userID uuid.UUID, secretID s
 	return nil
 }
 
-func (r *userSecretDAO) ListForUser(ctx context.Context, userID uuid.UUID) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *userSecretDAO) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT secret_id FROM user_secrets WHERE user_id = $1 ORDER BY secret_id`,
 		userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list user secrets: %w", err)
 	}
-	defer rows.Close()
 
-	var result []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan user secret: %w", err)
-		}
-		result = append(result, id)
-	}
-	return result, rows.Err()
+	return utils.ScanStrings(rows, "user secret")
 }
 
-func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []string) ([]uuid.UUID, error) {
+func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]uuid.UUID, error) {
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{pieceIDs[0]}
-	for i := 1; i < len(pieceIDs); i++ {
-		args = append(args, pieceIDs[i])
-		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
-	}
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
+	placeholders, args := utils.PlaceholderArgs(pieceIDs, 1)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list piece participants: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan participant id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "participant id")
 }
 
-func (r *userSecretDAO) IsSolvedByAnyone(ctx context.Context, secretID string) (bool, error) {
+func (r *userSecretDAO) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
 	var exists int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT 1 FROM user_secrets WHERE secret_id = $1 LIMIT 1`,
 		secretID,
 	).Scan(&exists)
@@ -94,19 +72,14 @@ func (r *userSecretDAO) IsSolvedByAnyone(ctx context.Context, secretID string) (
 	return true, nil
 }
 
-func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string) error {
+func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string, tx ...*sql.Tx) error {
 	if len(secretIDs) == 0 {
 		return nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{secretIDs[0]}
-	for i := 1; i < len(secretIDs); i++ {
-		args = append(args, secretIDs[i])
-		placeholders.WriteString(fmt.Sprintf(",$%d", len(args)))
-	}
-	_, err := r.db.ExecContext(ctx,
-		`DELETE FROM user_secrets WHERE secret_id IN (`+placeholders.String()+`)`,
+	placeholders, args := utils.PlaceholderArgs(secretIDs, 1)
+
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`DELETE FROM user_secrets WHERE secret_id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
 	if err != nil {
@@ -115,23 +88,13 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string) e
 	return nil
 }
 
-func (r *userSecretDAO) GetUserIDsWithSecret(ctx context.Context, secretID string) ([]uuid.UUID, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *userSecretDAO) GetUserIDsWithSecret(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT user_id FROM user_secrets WHERE secret_id = $1`,
 		secretID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list secret holders: %w", err)
 	}
-	defer rows.Close()
-
-	var ids []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan secret holder: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanIDs(rows, "secret holder")
 }

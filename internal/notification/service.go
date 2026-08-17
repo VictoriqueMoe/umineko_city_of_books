@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
@@ -187,12 +188,12 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
 	}
 
-	id, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
+	created, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
 	if err != nil {
 		return err
 	}
 
-	s.pushNotification(ctx, int(id), params.RecipientID)
+	s.pushNotification(ctx, created, params.RecipientID)
 
 	if willConsiderEmail && !emailDupe {
 		s.sendEmail(ctx, params)
@@ -262,12 +263,7 @@ func (s *service) absoluteLink(ctx context.Context, link string) string {
 	return s.settingsSvc.Get(ctx, config.SettingBaseURL) + link
 }
 
-func (s *service) pushNotification(ctx context.Context, notifID int, recipientID uuid.UUID) {
-	row, err := s.repo.GetByID(ctx, notifID, recipientID)
-	if err != nil || row == nil {
-		return
-	}
-
+func (s *service) pushNotification(ctx context.Context, row *model.NotificationRow, recipientID uuid.UUID) {
 	resp := row.ToResponse()
 	s.hub.SendToUser(recipientID, ws.Message{
 		Type: "notification",

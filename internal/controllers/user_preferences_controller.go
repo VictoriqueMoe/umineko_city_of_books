@@ -7,7 +7,6 @@ import (
 	"github.com/gofiber/fiber/v3"
 
 	"umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/middleware"
 	usersvc "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/usersecret"
 )
@@ -22,19 +21,19 @@ func (s *Service) getAllUserPreferencesRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupUpdateGameBoardSort(r fiber.Router) {
-	r.Put("/preferences/game-board-sort", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateGameBoardSort)
+	r.Put("/preferences/game-board-sort", s.requireAuth(), s.updateGameBoardSort)
 }
 
 func (s *Service) setupUpdateAppearance(r fiber.Router) {
-	r.Put("/preferences/appearance", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateAppearance)
+	r.Put("/preferences/appearance", s.requireAuth(), s.updateAppearance)
 }
 
 func (s *Service) setupUnlockSecret(r fiber.Router) {
-	r.Put("/preferences/secret-unlock", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlockSecret)
+	r.Put("/preferences/secret-unlock", s.requireAuth(), s.unlockSecret)
 }
 
 func (s *Service) setupUpdateChatbotOptIn(r fiber.Router) {
-	r.Put("/preferences/chatbot-opt-in", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateChatbotOptIn)
+	r.Put("/preferences/chatbot-opt-in", s.requireAuth(), s.updateChatbotOptIn)
 }
 
 func (s *Service) updateGameBoardSort(ctx fiber.Ctx) error {

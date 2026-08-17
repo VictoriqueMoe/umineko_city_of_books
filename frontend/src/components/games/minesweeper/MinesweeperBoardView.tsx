@@ -16,6 +16,7 @@ import { MinesweeperBoard } from "./MinesweeperBoard";
 import { MinesweeperCharacterSelect } from "./MinesweeperCharacterSelect";
 import { MinesweeperLightningCanvas } from "./MinesweeperLightningCanvas";
 import { MinesweeperVsIntro } from "./MinesweeperVsIntro";
+import shell from "../boardShell.module.css";
 import styles from "./MinesweeperBoardView.module.css";
 
 interface MinesweeperBoardViewProps {
@@ -196,7 +197,7 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
         statsAvailable && room.stats ? formatReason((room.stats as MinesweeperStats).reason, loserName) : "";
 
     if (!state) {
-        return <div className={styles.wrapper}>Loading game...</div>;
+        return <div className={shell.wrapper}>Loading game...</div>;
     }
 
     const slotMineCount = state.mine_count ?? 0;
@@ -227,12 +228,12 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
     const rightNameplateClass = isSpectator ? styles.nameplateNeutral : styles.nameplateOpp;
 
     return (
-        <div className={styles.wrapper}>
+        <div className={shell.wrapper}>
             <GamePlayerBar room={room} slot0Label="P1" slot1Label="P2" liveDurationSeconds={liveDurationSeconds} />
 
             <DisconnectBanner offlinePlayer={offlinePlayer} forfeitRemaining={forfeitRemaining} />
 
-            {error && <div className={styles.error}>{error}</div>}
+            {error && <div className={shell.error}>{error}</div>}
 
             {clientPhase === "char_select" && (
                 <MinesweeperCharacterSelect

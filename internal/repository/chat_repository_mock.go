@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 	"umineko_city_of_books/internal/dto"
 
@@ -40,17 +41,107 @@ func (_m *MockChatRepository) EXPECT() *MockChatRepository_Expecter {
 	return &MockChatRepository_Expecter{mock: &_m.Mock}
 }
 
+// AddDMMembers provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) AddDMMembers(ctx context.Context, roomID uuid.UUID, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userA, userB, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userA, userB)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddDMMembers")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userA, userB, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_AddDMMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddDMMembers'
+type MockChatRepository_AddDMMembers_Call struct {
+	*mock.Call
+}
+
+// AddDMMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userA uuid.UUID
+//   - userB uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddDMMembers(ctx any, roomID any, userA any, userB any, tx ...any) *MockChatRepository_AddDMMembers_Call {
+	return &MockChatRepository_AddDMMembers_Call{Call: _e.mock.On("AddDMMembers",
+		append([]any{ctx, roomID, userA, userB}, tx...)...)}
+}
+
+func (_c *MockChatRepository_AddDMMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_AddDMMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_AddDMMembers_Call) Return(err error) *MockChatRepository_AddDMMembers_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_AddDMMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_AddDMMembers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AddMember provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) AddMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddMember")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,11 +157,13 @@ type MockChatRepository_AddMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) AddMember(ctx any, roomID any, userID any) *MockChatRepository_AddMember_Call {
-	return &MockChatRepository_AddMember_Call{Call: _e.mock.On("AddMember", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddMember(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_AddMember_Call {
+	return &MockChatRepository_AddMember_Call{Call: _e.mock.On("AddMember",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_AddMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_AddMember_Call {
+func (_c *MockChatRepository_AddMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_AddMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -84,10 +177,17 @@ func (_c *MockChatRepository_AddMember_Call) Run(run func(ctx context.Context, r
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -98,22 +198,28 @@ func (_c *MockChatRepository_AddMember_Call) Return(err error) *MockChatReposito
 	return _c
 }
 
-func (_c *MockChatRepository_AddMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockChatRepository_AddMember_Call {
+func (_c *MockChatRepository_AddMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_AddMember_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddMemberWithRole provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddMemberWithRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool) error {
-	ret := _mock.Called(ctx, roomID, userID, role, ghost)
+func (_mock *MockChatRepository) AddMemberWithRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, role, ghost, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, role, ghost)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddMemberWithRole")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, role, ghost)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, role, ghost, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -131,11 +237,13 @@ type MockChatRepository_AddMemberWithRole_Call struct {
 //   - userID uuid.UUID
 //   - role string
 //   - ghost bool
-func (_e *MockChatRepository_Expecter) AddMemberWithRole(ctx any, roomID any, userID any, role any, ghost any) *MockChatRepository_AddMemberWithRole_Call {
-	return &MockChatRepository_AddMemberWithRole_Call{Call: _e.mock.On("AddMemberWithRole", ctx, roomID, userID, role, ghost)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddMemberWithRole(ctx any, roomID any, userID any, role any, ghost any, tx ...any) *MockChatRepository_AddMemberWithRole_Call {
+	return &MockChatRepository_AddMemberWithRole_Call{Call: _e.mock.On("AddMemberWithRole",
+		append([]any{ctx, roomID, userID, role, ghost}, tx...)...)}
 }
 
-func (_c *MockChatRepository_AddMemberWithRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool)) *MockChatRepository_AddMemberWithRole_Call {
+func (_c *MockChatRepository_AddMemberWithRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool, tx ...*sql.Tx)) *MockChatRepository_AddMemberWithRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -157,12 +265,19 @@ func (_c *MockChatRepository_AddMemberWithRole_Call) Run(run func(ctx context.Co
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -173,14 +288,109 @@ func (_c *MockChatRepository_AddMemberWithRole_Call) Return(err error) *MockChat
 	return _c
 }
 
-func (_c *MockChatRepository_AddMemberWithRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool) error) *MockChatRepository_AddMemberWithRole_Call {
+func (_c *MockChatRepository_AddMemberWithRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, ghost bool, tx ...*sql.Tx) error) *MockChatRepository_AddMemberWithRole_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// AddMemberWithSystemMessage provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) AddMemberWithSystemMessage(ctx context.Context, member NewChatRoomMember, message NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, member, message, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, member, message)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for AddMemberWithSystemMessage")
+	}
+
+	var r0 *ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatRoomMember, NewChatMessage, ...*sql.Tx) (*ChatMessageRow, error)); ok {
+		return returnFunc(ctx, member, message, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatRoomMember, NewChatMessage, ...*sql.Tx) *ChatMessageRow); ok {
+		r0 = returnFunc(ctx, member, message, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatRoomMember, NewChatMessage, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, member, message, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_AddMemberWithSystemMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AddMemberWithSystemMessage'
+type MockChatRepository_AddMemberWithSystemMessage_Call struct {
+	*mock.Call
+}
+
+// AddMemberWithSystemMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - member NewChatRoomMember
+//   - message NewChatMessage
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddMemberWithSystemMessage(ctx any, member any, message any, tx ...any) *MockChatRepository_AddMemberWithSystemMessage_Call {
+	return &MockChatRepository_AddMemberWithSystemMessage_Call{Call: _e.mock.On("AddMemberWithSystemMessage",
+		append([]any{ctx, member, message}, tx...)...)}
+}
+
+func (_c *MockChatRepository_AddMemberWithSystemMessage_Call) Run(run func(ctx context.Context, member NewChatRoomMember, message NewChatMessage, tx ...*sql.Tx)) *MockChatRepository_AddMemberWithSystemMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewChatRoomMember
+		if args[1] != nil {
+			arg1 = args[1].(NewChatRoomMember)
+		}
+		var arg2 NewChatMessage
+		if args[2] != nil {
+			arg2 = args[2].(NewChatMessage)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_AddMemberWithSystemMessage_Call) Return(chatMessageRow *ChatMessageRow, err error) *MockChatRepository_AddMemberWithSystemMessage_Call {
+	_c.Call.Return(chatMessageRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_AddMemberWithSystemMessage_Call) RunAndReturn(run func(ctx context.Context, member NewChatRoomMember, message NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error)) *MockChatRepository_AddMemberWithSystemMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddMessageMedia provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddMessageMedia(ctx context.Context, messageID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error) {
-	ret := _mock.Called(ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)
+func (_mock *MockChatRepository) AddMessageMedia(ctx context.Context, spec NewChatMessageMedia, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddMessageMedia")
@@ -188,16 +398,16 @@ func (_mock *MockChatRepository) AddMessageMedia(ctx context.Context, messageID 
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) (int64, error)); ok {
-		return returnFunc(ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatMessageMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, int) int64); ok {
-		r0 = returnFunc(ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatMessageMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, int) error); ok {
-		r1 = returnFunc(ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatMessageMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -211,48 +421,33 @@ type MockChatRepository_AddMessageMedia_Call struct {
 
 // AddMessageMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - messageID uuid.UUID
-//   - mediaURL string
-//   - mediaType string
-//   - thumbnailURL string
-//   - sortOrder int
-func (_e *MockChatRepository_Expecter) AddMessageMedia(ctx any, messageID any, mediaURL any, mediaType any, thumbnailURL any, sortOrder any) *MockChatRepository_AddMessageMedia_Call {
-	return &MockChatRepository_AddMessageMedia_Call{Call: _e.mock.On("AddMessageMedia", ctx, messageID, mediaURL, mediaType, thumbnailURL, sortOrder)}
+//   - spec NewChatMessageMedia
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddMessageMedia(ctx any, spec any, tx ...any) *MockChatRepository_AddMessageMedia_Call {
+	return &MockChatRepository_AddMessageMedia_Call{Call: _e.mock.On("AddMessageMedia",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockChatRepository_AddMessageMedia_Call) Run(run func(ctx context.Context, messageID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int)) *MockChatRepository_AddMessageMedia_Call {
+func (_c *MockChatRepository_AddMessageMedia_Call) Run(run func(ctx context.Context, spec NewChatMessageMedia, tx ...*sql.Tx)) *MockChatRepository_AddMessageMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewChatMessageMedia
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewChatMessageMedia)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 int
-		if args[5] != nil {
-			arg5 = args[5].(int)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
@@ -263,14 +458,20 @@ func (_c *MockChatRepository_AddMessageMedia_Call) Return(n int64, err error) *M
 	return _c
 }
 
-func (_c *MockChatRepository_AddMessageMedia_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int) (int64, error)) *MockChatRepository_AddMessageMedia_Call {
+func (_c *MockChatRepository_AddMessageMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewChatMessageMedia, tx ...*sql.Tx) (int64, error)) *MockChatRepository_AddMessageMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddReaction provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error) {
-	ret := _mock.Called(ctx, messageID, userID, emoji)
+func (_mock *MockChatRepository) AddReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, userID, emoji, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID, userID, emoji)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddReaction")
@@ -278,16 +479,16 @@ func (_mock *MockChatRepository) AddReaction(ctx context.Context, messageID uuid
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (bool, error)); ok {
-		return returnFunc(ctx, messageID, userID, emoji)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, messageID, userID, emoji, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) bool); ok {
-		r0 = returnFunc(ctx, messageID, userID, emoji)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, messageID, userID, emoji, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, messageID, userID, emoji)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, userID, emoji, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -304,11 +505,13 @@ type MockChatRepository_AddReaction_Call struct {
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
 //   - emoji string
-func (_e *MockChatRepository_Expecter) AddReaction(ctx any, messageID any, userID any, emoji any) *MockChatRepository_AddReaction_Call {
-	return &MockChatRepository_AddReaction_Call{Call: _e.mock.On("AddReaction", ctx, messageID, userID, emoji)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddReaction(ctx any, messageID any, userID any, emoji any, tx ...any) *MockChatRepository_AddReaction_Call {
+	return &MockChatRepository_AddReaction_Call{Call: _e.mock.On("AddReaction",
+		append([]any{ctx, messageID, userID, emoji}, tx...)...)}
 }
 
-func (_c *MockChatRepository_AddReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string)) *MockChatRepository_AddReaction_Call {
+func (_c *MockChatRepository_AddReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string, tx ...*sql.Tx)) *MockChatRepository_AddReaction_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -326,11 +529,18 @@ func (_c *MockChatRepository_AddReaction_Call) Run(run func(ctx context.Context,
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -341,22 +551,28 @@ func (_c *MockChatRepository_AddReaction_Call) Return(b bool, err error) *MockCh
 	return _c
 }
 
-func (_c *MockChatRepository_AddReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error)) *MockChatRepository_AddReaction_Call {
+func (_c *MockChatRepository_AddReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error)) *MockChatRepository_AddReaction_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddRoomTags provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error {
-	ret := _mock.Called(ctx, roomID, tags)
+func (_mock *MockChatRepository) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tags, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, tags)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for AddRoomTags")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string) error); ok {
-		r0 = returnFunc(ctx, roomID, tags)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, tags, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -372,11 +588,13 @@ type MockChatRepository_AddRoomTags_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - tags []string
-func (_e *MockChatRepository_Expecter) AddRoomTags(ctx any, roomID any, tags any) *MockChatRepository_AddRoomTags_Call {
-	return &MockChatRepository_AddRoomTags_Call{Call: _e.mock.On("AddRoomTags", ctx, roomID, tags)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) AddRoomTags(ctx any, roomID any, tags any, tx ...any) *MockChatRepository_AddRoomTags_Call {
+	return &MockChatRepository_AddRoomTags_Call{Call: _e.mock.On("AddRoomTags",
+		append([]any{ctx, roomID, tags}, tx...)...)}
 }
 
-func (_c *MockChatRepository_AddRoomTags_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tags []string)) *MockChatRepository_AddRoomTags_Call {
+func (_c *MockChatRepository_AddRoomTags_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx)) *MockChatRepository_AddRoomTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -390,10 +608,17 @@ func (_c *MockChatRepository_AddRoomTags_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].([]string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -404,14 +629,20 @@ func (_c *MockChatRepository_AddRoomTags_Call) Return(err error) *MockChatReposi
 	return _c
 }
 
-func (_c *MockChatRepository_AddRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tags []string) error) *MockChatRepository_AddRoomTags_Call {
+func (_c *MockChatRepository_AddRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error) *MockChatRepository_AddRoomTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ArchiveStaleGroupRooms provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, cutoff)
+func (_mock *MockChatRepository) ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, cutoff, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, cutoff)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ArchiveStaleGroupRooms")
@@ -419,18 +650,18 @@ func (_mock *MockChatRepository) ArchiveStaleGroupRooms(ctx context.Context, cut
 
 	var r0 []uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, cutoff)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, cutoff, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, cutoff)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, cutoff, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
-		r1 = returnFunc(ctx, cutoff)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, cutoff, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -445,11 +676,13 @@ type MockChatRepository_ArchiveStaleGroupRooms_Call struct {
 // ArchiveStaleGroupRooms is a helper method to define mock.On call
 //   - ctx context.Context
 //   - cutoff time.Time
-func (_e *MockChatRepository_Expecter) ArchiveStaleGroupRooms(ctx any, cutoff any) *MockChatRepository_ArchiveStaleGroupRooms_Call {
-	return &MockChatRepository_ArchiveStaleGroupRooms_Call{Call: _e.mock.On("ArchiveStaleGroupRooms", ctx, cutoff)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ArchiveStaleGroupRooms(ctx any, cutoff any, tx ...any) *MockChatRepository_ArchiveStaleGroupRooms_Call {
+	return &MockChatRepository_ArchiveStaleGroupRooms_Call{Call: _e.mock.On("ArchiveStaleGroupRooms",
+		append([]any{ctx, cutoff}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ArchiveStaleGroupRooms_Call) Run(run func(ctx context.Context, cutoff time.Time)) *MockChatRepository_ArchiveStaleGroupRooms_Call {
+func (_c *MockChatRepository_ArchiveStaleGroupRooms_Call) Run(run func(ctx context.Context, cutoff time.Time, tx ...*sql.Tx)) *MockChatRepository_ArchiveStaleGroupRooms_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -459,9 +692,16 @@ func (_c *MockChatRepository_ArchiveStaleGroupRooms_Call) Run(run func(ctx conte
 		if args[1] != nil {
 			arg1 = args[1].(time.Time)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -472,22 +712,28 @@ func (_c *MockChatRepository_ArchiveStaleGroupRooms_Call) Return(uUIDs []uuid.UU
 	return _c
 }
 
-func (_c *MockChatRepository_ArchiveStaleGroupRooms_Call) RunAndReturn(run func(ctx context.Context, cutoff time.Time) ([]uuid.UUID, error)) *MockChatRepository_ArchiveStaleGroupRooms_Call {
+func (_c *MockChatRepository_ArchiveStaleGroupRooms_Call) RunAndReturn(run func(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockChatRepository_ArchiveStaleGroupRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ClearMemberTimeout provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ClearMemberTimeout(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) ClearMemberTimeout(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ClearMemberTimeout")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -503,11 +749,13 @@ type MockChatRepository_ClearMemberTimeout_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) ClearMemberTimeout(ctx any, roomID any, userID any) *MockChatRepository_ClearMemberTimeout_Call {
-	return &MockChatRepository_ClearMemberTimeout_Call{Call: _e.mock.On("ClearMemberTimeout", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ClearMemberTimeout(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_ClearMemberTimeout_Call {
+	return &MockChatRepository_ClearMemberTimeout_Call{Call: _e.mock.On("ClearMemberTimeout",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ClearMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_ClearMemberTimeout_Call {
+func (_c *MockChatRepository_ClearMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_ClearMemberTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -521,10 +769,17 @@ func (_c *MockChatRepository_ClearMemberTimeout_Call) Run(run func(ctx context.C
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -535,22 +790,28 @@ func (_c *MockChatRepository_ClearMemberTimeout_Call) Return(err error) *MockCha
 	return _c
 }
 
-func (_c *MockChatRepository_ClearMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockChatRepository_ClearMemberTimeout_Call {
+func (_c *MockChatRepository_ClearMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_ClearMemberTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ClearVoiceForceMutes provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ClearVoiceForceMutes")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -565,11 +826,13 @@ type MockChatRepository_ClearVoiceForceMutes_Call struct {
 // ClearVoiceForceMutes is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) ClearVoiceForceMutes(ctx any, roomID any) *MockChatRepository_ClearVoiceForceMutes_Call {
-	return &MockChatRepository_ClearVoiceForceMutes_Call{Call: _e.mock.On("ClearVoiceForceMutes", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ClearVoiceForceMutes(ctx any, roomID any, tx ...any) *MockChatRepository_ClearVoiceForceMutes_Call {
+	return &MockChatRepository_ClearVoiceForceMutes_Call{Call: _e.mock.On("ClearVoiceForceMutes",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ClearVoiceForceMutes_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_ClearVoiceForceMutes_Call {
+func (_c *MockChatRepository_ClearVoiceForceMutes_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_ClearVoiceForceMutes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -579,9 +842,16 @@ func (_c *MockChatRepository_ClearVoiceForceMutes_Call) Run(run func(ctx context
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -592,14 +862,20 @@ func (_c *MockChatRepository_ClearVoiceForceMutes_Call) Return(err error) *MockC
 	return _c
 }
 
-func (_c *MockChatRepository_ClearVoiceForceMutes_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) error) *MockChatRepository_ClearVoiceForceMutes_Call {
+func (_c *MockChatRepository_ClearVoiceForceMutes_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_ClearVoiceForceMutes_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountReactions provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) CountReactions(ctx context.Context, messageID uuid.UUID, emoji string) (int, error) {
-	ret := _mock.Called(ctx, messageID, emoji)
+func (_mock *MockChatRepository) CountReactions(ctx context.Context, messageID uuid.UUID, emoji string, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, emoji, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID, emoji)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountReactions")
@@ -607,16 +883,16 @@ func (_mock *MockChatRepository) CountReactions(ctx context.Context, messageID u
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) (int, error)); ok {
-		return returnFunc(ctx, messageID, emoji)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, messageID, emoji, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) int); ok {
-		r0 = returnFunc(ctx, messageID, emoji)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, messageID, emoji, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, messageID, emoji)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, emoji, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -632,11 +908,13 @@ type MockChatRepository_CountReactions_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - emoji string
-func (_e *MockChatRepository_Expecter) CountReactions(ctx any, messageID any, emoji any) *MockChatRepository_CountReactions_Call {
-	return &MockChatRepository_CountReactions_Call{Call: _e.mock.On("CountReactions", ctx, messageID, emoji)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CountReactions(ctx any, messageID any, emoji any, tx ...any) *MockChatRepository_CountReactions_Call {
+	return &MockChatRepository_CountReactions_Call{Call: _e.mock.On("CountReactions",
+		append([]any{ctx, messageID, emoji}, tx...)...)}
 }
 
-func (_c *MockChatRepository_CountReactions_Call) Run(run func(ctx context.Context, messageID uuid.UUID, emoji string)) *MockChatRepository_CountReactions_Call {
+func (_c *MockChatRepository_CountReactions_Call) Run(run func(ctx context.Context, messageID uuid.UUID, emoji string, tx ...*sql.Tx)) *MockChatRepository_CountReactions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -650,10 +928,17 @@ func (_c *MockChatRepository_CountReactions_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -664,14 +949,20 @@ func (_c *MockChatRepository_CountReactions_Call) Return(n int, err error) *Mock
 	return _c
 }
 
-func (_c *MockChatRepository_CountReactions_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, emoji string) (int, error)) *MockChatRepository_CountReactions_Call {
+func (_c *MockChatRepository_CountReactions_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, emoji string, tx ...*sql.Tx) (int, error)) *MockChatRepository_CountReactions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountRoomMembers provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) CountRoomMembers(ctx context.Context, roomID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) CountRoomMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountRoomMembers")
@@ -679,16 +970,16 @@ func (_mock *MockChatRepository) CountRoomMembers(ctx context.Context, roomID uu
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -703,11 +994,13 @@ type MockChatRepository_CountRoomMembers_Call struct {
 // CountRoomMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) CountRoomMembers(ctx any, roomID any) *MockChatRepository_CountRoomMembers_Call {
-	return &MockChatRepository_CountRoomMembers_Call{Call: _e.mock.On("CountRoomMembers", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CountRoomMembers(ctx any, roomID any, tx ...any) *MockChatRepository_CountRoomMembers_Call {
+	return &MockChatRepository_CountRoomMembers_Call{Call: _e.mock.On("CountRoomMembers",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_CountRoomMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_CountRoomMembers_Call {
+func (_c *MockChatRepository_CountRoomMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_CountRoomMembers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -717,9 +1010,16 @@ func (_c *MockChatRepository_CountRoomMembers_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -730,14 +1030,20 @@ func (_c *MockChatRepository_CountRoomMembers_Call) Return(n int, err error) *Mo
 	return _c
 }
 
-func (_c *MockChatRepository_CountRoomMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) (int, error)) *MockChatRepository_CountRoomMembers_Call {
+func (_c *MockChatRepository_CountRoomMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockChatRepository_CountRoomMembers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountUnreadRoomsForUser provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockChatRepository) CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountUnreadRoomsForUser")
@@ -745,16 +1051,16 @@ func (_mock *MockChatRepository) CountUnreadRoomsForUser(ctx context.Context, us
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -769,11 +1075,13 @@ type MockChatRepository_CountUnreadRoomsForUser_Call struct {
 // CountUnreadRoomsForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) CountUnreadRoomsForUser(ctx any, userID any) *MockChatRepository_CountUnreadRoomsForUser_Call {
-	return &MockChatRepository_CountUnreadRoomsForUser_Call{Call: _e.mock.On("CountUnreadRoomsForUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CountUnreadRoomsForUser(ctx any, userID any, tx ...any) *MockChatRepository_CountUnreadRoomsForUser_Call {
+	return &MockChatRepository_CountUnreadRoomsForUser_Call{Call: _e.mock.On("CountUnreadRoomsForUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_CountUnreadRoomsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatRepository_CountUnreadRoomsForUser_Call {
+func (_c *MockChatRepository_CountUnreadRoomsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_CountUnreadRoomsForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -783,9 +1091,16 @@ func (_c *MockChatRepository_CountUnreadRoomsForUser_Call) Run(run func(ctx cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -796,54 +1111,61 @@ func (_c *MockChatRepository_CountUnreadRoomsForUser_Call) Return(n int, err err
 	return _c
 }
 
-func (_c *MockChatRepository_CountUnreadRoomsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockChatRepository_CountUnreadRoomsForUser_Call {
+func (_c *MockChatRepository_CountUnreadRoomsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockChatRepository_CountUnreadRoomsForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// CreateDMRoomAtomic provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) CreateDMRoomAtomic(ctx context.Context, id uuid.UUID, userA uuid.UUID, userB uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, id, userA, userB)
+// CreateDMRoom provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) CreateDMRoom(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userA, userB, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userA, userB)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateDMRoomAtomic")
+		panic("no return value specified for CreateDMRoom")
 	}
 
-	var r0 uuid.UUID
+	var r0 *ChatRoomRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, id, userA, userB)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, userA, userB, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, id, userA, userB)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, userA, userB, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
+			r0 = ret.Get(0).(*ChatRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id, userA, userB)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userA, userB, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockChatRepository_CreateDMRoomAtomic_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateDMRoomAtomic'
-type MockChatRepository_CreateDMRoomAtomic_Call struct {
+// MockChatRepository_CreateDMRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateDMRoom'
+type MockChatRepository_CreateDMRoom_Call struct {
 	*mock.Call
 }
 
-// CreateDMRoomAtomic is a helper method to define mock.On call
+// CreateDMRoom is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
 //   - userA uuid.UUID
 //   - userB uuid.UUID
-func (_e *MockChatRepository_Expecter) CreateDMRoomAtomic(ctx any, id any, userA any, userB any) *MockChatRepository_CreateDMRoomAtomic_Call {
-	return &MockChatRepository_CreateDMRoomAtomic_Call{Call: _e.mock.On("CreateDMRoomAtomic", ctx, id, userA, userB)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateDMRoom(ctx any, userA any, userB any, tx ...any) *MockChatRepository_CreateDMRoom_Call {
+	return &MockChatRepository_CreateDMRoom_Call{Call: _e.mock.On("CreateDMRoom",
+		append([]any{ctx, userA, userB}, tx...)...)}
 }
 
-func (_c *MockChatRepository_CreateDMRoomAtomic_Call) Run(run func(ctx context.Context, id uuid.UUID, userA uuid.UUID, userB uuid.UUID)) *MockChatRepository_CreateDMRoomAtomic_Call {
+func (_c *MockChatRepository_CreateDMRoom_Call) Run(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_CreateDMRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -857,45 +1179,236 @@ func (_c *MockChatRepository_CreateDMRoomAtomic_Call) Run(run func(ctx context.C
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(uuid.UUID)
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
 		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
-			arg3,
+			arg3...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatRepository_CreateDMRoomAtomic_Call) Return(uUID uuid.UUID, err error) *MockChatRepository_CreateDMRoomAtomic_Call {
-	_c.Call.Return(uUID, err)
+func (_c *MockChatRepository_CreateDMRoom_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_CreateDMRoom_Call {
+	_c.Call.Return(chatRoomRow, err)
 	return _c
 }
 
-func (_c *MockChatRepository_CreateDMRoomAtomic_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userA uuid.UUID, userB uuid.UUID) (uuid.UUID, error)) *MockChatRepository_CreateDMRoomAtomic_Call {
+func (_c *MockChatRepository_CreateDMRoom_Call) RunAndReturn(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_CreateDMRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateDMRoomAtomic provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) CreateDMRoomAtomic(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userA, userB, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userA, userB)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateDMRoomAtomic")
+	}
+
+	var r0 *ChatRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, userA, userB, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, userA, userB, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userA, userB, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_CreateDMRoomAtomic_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateDMRoomAtomic'
+type MockChatRepository_CreateDMRoomAtomic_Call struct {
+	*mock.Call
+}
+
+// CreateDMRoomAtomic is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userA uuid.UUID
+//   - userB uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateDMRoomAtomic(ctx any, userA any, userB any, tx ...any) *MockChatRepository_CreateDMRoomAtomic_Call {
+	return &MockChatRepository_CreateDMRoomAtomic_Call{Call: _e.mock.On("CreateDMRoomAtomic",
+		append([]any{ctx, userA, userB}, tx...)...)}
+}
+
+func (_c *MockChatRepository_CreateDMRoomAtomic_Call) Run(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_CreateDMRoomAtomic_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_CreateDMRoomAtomic_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_CreateDMRoomAtomic_Call {
+	_c.Call.Return(chatRoomRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_CreateDMRoomAtomic_Call) RunAndReturn(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_CreateDMRoomAtomic_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateGroupRoom provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) CreateGroupRoom(ctx context.Context, spec NewChatGroupRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateGroupRoom")
+	}
+
+	var r0 *ChatRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatGroupRoom, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatGroupRoom, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatGroupRoom, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_CreateGroupRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateGroupRoom'
+type MockChatRepository_CreateGroupRoom_Call struct {
+	*mock.Call
+}
+
+// CreateGroupRoom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewChatGroupRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateGroupRoom(ctx any, spec any, tx ...any) *MockChatRepository_CreateGroupRoom_Call {
+	return &MockChatRepository_CreateGroupRoom_Call{Call: _e.mock.On("CreateGroupRoom",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockChatRepository_CreateGroupRoom_Call) Run(run func(ctx context.Context, spec NewChatGroupRoom, tx ...*sql.Tx)) *MockChatRepository_CreateGroupRoom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewChatGroupRoom
+		if args[1] != nil {
+			arg1 = args[1].(NewChatGroupRoom)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_CreateGroupRoom_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_CreateGroupRoom_Call {
+	_c.Call.Return(chatRoomRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_CreateGroupRoom_Call) RunAndReturn(run func(ctx context.Context, spec NewChatGroupRoom, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_CreateGroupRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateRoom provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) CreateRoom(ctx context.Context, id uuid.UUID, name string, description string, roomType string, isPublic bool, isRP bool, createdBy uuid.UUID) error {
-	ret := _mock.Called(ctx, id, name, description, roomType, isPublic, isRP, createdBy)
+func (_mock *MockChatRepository) CreateRoom(ctx context.Context, spec NewChatRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateRoom")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, bool, bool, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, name, description, roomType, isPublic, isRP, createdBy)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *ChatRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatRoom, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatRoom, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatRoom, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatRepository_CreateRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateRoom'
@@ -905,90 +1418,80 @@ type MockChatRepository_CreateRoom_Call struct {
 
 // CreateRoom is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - name string
-//   - description string
-//   - roomType string
-//   - isPublic bool
-//   - isRP bool
-//   - createdBy uuid.UUID
-func (_e *MockChatRepository_Expecter) CreateRoom(ctx any, id any, name any, description any, roomType any, isPublic any, isRP any, createdBy any) *MockChatRepository_CreateRoom_Call {
-	return &MockChatRepository_CreateRoom_Call{Call: _e.mock.On("CreateRoom", ctx, id, name, description, roomType, isPublic, isRP, createdBy)}
+//   - spec NewChatRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateRoom(ctx any, spec any, tx ...any) *MockChatRepository_CreateRoom_Call {
+	return &MockChatRepository_CreateRoom_Call{Call: _e.mock.On("CreateRoom",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockChatRepository_CreateRoom_Call) Run(run func(ctx context.Context, id uuid.UUID, name string, description string, roomType string, isPublic bool, isRP bool, createdBy uuid.UUID)) *MockChatRepository_CreateRoom_Call {
+func (_c *MockChatRepository_CreateRoom_Call) Run(run func(ctx context.Context, spec NewChatRoom, tx ...*sql.Tx)) *MockChatRepository_CreateRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewChatRoom
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewChatRoom)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 bool
-		if args[5] != nil {
-			arg5 = args[5].(bool)
-		}
-		var arg6 bool
-		if args[6] != nil {
-			arg6 = args[6].(bool)
-		}
-		var arg7 uuid.UUID
-		if args[7] != nil {
-			arg7 = args[7].(uuid.UUID)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatRepository_CreateRoom_Call) Return(err error) *MockChatRepository_CreateRoom_Call {
-	_c.Call.Return(err)
+func (_c *MockChatRepository_CreateRoom_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_CreateRoom_Call {
+	_c.Call.Return(chatRoomRow, err)
 	return _c
 }
 
-func (_c *MockChatRepository_CreateRoom_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, name string, description string, roomType string, isPublic bool, isRP bool, createdBy uuid.UUID) error) *MockChatRepository_CreateRoom_Call {
+func (_c *MockChatRepository_CreateRoom_Call) RunAndReturn(run func(ctx context.Context, spec NewChatRoom, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_CreateRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateSystemRoom provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) CreateSystemRoom(ctx context.Context, id uuid.UUID, name string, description string, systemKind string, createdBy uuid.UUID) error {
-	ret := _mock.Called(ctx, id, name, description, systemKind, createdBy)
+func (_mock *MockChatRepository) CreateSystemRoom(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateSystemRoom")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, name, description, systemKind, createdBy)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *ChatRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatSystemRoom, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatSystemRoom, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatSystemRoom, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatRepository_CreateSystemRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSystemRoom'
@@ -998,74 +1501,220 @@ type MockChatRepository_CreateSystemRoom_Call struct {
 
 // CreateSystemRoom is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - name string
-//   - description string
-//   - systemKind string
-//   - createdBy uuid.UUID
-func (_e *MockChatRepository_Expecter) CreateSystemRoom(ctx any, id any, name any, description any, systemKind any, createdBy any) *MockChatRepository_CreateSystemRoom_Call {
-	return &MockChatRepository_CreateSystemRoom_Call{Call: _e.mock.On("CreateSystemRoom", ctx, id, name, description, systemKind, createdBy)}
+//   - spec NewChatSystemRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateSystemRoom(ctx any, spec any, tx ...any) *MockChatRepository_CreateSystemRoom_Call {
+	return &MockChatRepository_CreateSystemRoom_Call{Call: _e.mock.On("CreateSystemRoom",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockChatRepository_CreateSystemRoom_Call) Run(run func(ctx context.Context, id uuid.UUID, name string, description string, systemKind string, createdBy uuid.UUID)) *MockChatRepository_CreateSystemRoom_Call {
+func (_c *MockChatRepository_CreateSystemRoom_Call) Run(run func(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx)) *MockChatRepository_CreateSystemRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewChatSystemRoom
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewChatSystemRoom)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].(uuid.UUID)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatRepository_CreateSystemRoom_Call) Return(err error) *MockChatRepository_CreateSystemRoom_Call {
+func (_c *MockChatRepository_CreateSystemRoom_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_CreateSystemRoom_Call {
+	_c.Call.Return(chatRoomRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_CreateSystemRoom_Call) RunAndReturn(run func(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_CreateSystemRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateSystemRoomWithHost provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) CreateSystemRoomWithHost(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSystemRoomWithHost")
+	}
+
+	var r0 *ChatRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatSystemRoom, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatSystemRoom, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatSystemRoom, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_CreateSystemRoomWithHost_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSystemRoomWithHost'
+type MockChatRepository_CreateSystemRoomWithHost_Call struct {
+	*mock.Call
+}
+
+// CreateSystemRoomWithHost is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewChatSystemRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateSystemRoomWithHost(ctx any, spec any, tx ...any) *MockChatRepository_CreateSystemRoomWithHost_Call {
+	return &MockChatRepository_CreateSystemRoomWithHost_Call{Call: _e.mock.On("CreateSystemRoomWithHost",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockChatRepository_CreateSystemRoomWithHost_Call) Run(run func(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx)) *MockChatRepository_CreateSystemRoomWithHost_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewChatSystemRoom
+		if args[1] != nil {
+			arg1 = args[1].(NewChatSystemRoom)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_CreateSystemRoomWithHost_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_CreateSystemRoomWithHost_Call {
+	_c.Call.Return(chatRoomRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_CreateSystemRoomWithHost_Call) RunAndReturn(run func(ctx context.Context, spec NewChatSystemRoom, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_CreateSystemRoomWithHost_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateSystemRooms provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) CreateSystemRooms(ctx context.Context, specs []NewChatSystemRoom, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, specs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, specs)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateSystemRooms")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []NewChatSystemRoom, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, specs, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_CreateSystemRooms_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateSystemRooms'
+type MockChatRepository_CreateSystemRooms_Call struct {
+	*mock.Call
+}
+
+// CreateSystemRooms is a helper method to define mock.On call
+//   - ctx context.Context
+//   - specs []NewChatSystemRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) CreateSystemRooms(ctx any, specs any, tx ...any) *MockChatRepository_CreateSystemRooms_Call {
+	return &MockChatRepository_CreateSystemRooms_Call{Call: _e.mock.On("CreateSystemRooms",
+		append([]any{ctx, specs}, tx...)...)}
+}
+
+func (_c *MockChatRepository_CreateSystemRooms_Call) Run(run func(ctx context.Context, specs []NewChatSystemRoom, tx ...*sql.Tx)) *MockChatRepository_CreateSystemRooms_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []NewChatSystemRoom
+		if args[1] != nil {
+			arg1 = args[1].([]NewChatSystemRoom)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_CreateSystemRooms_Call) Return(err error) *MockChatRepository_CreateSystemRooms_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockChatRepository_CreateSystemRoom_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, name string, description string, systemKind string, createdBy uuid.UUID) error) *MockChatRepository_CreateSystemRoom_Call {
+func (_c *MockChatRepository_CreateSystemRooms_Call) RunAndReturn(run func(ctx context.Context, specs []NewChatSystemRoom, tx ...*sql.Tx) error) *MockChatRepository_CreateSystemRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteMessage provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) DeleteMessage(ctx context.Context, messageID uuid.UUID) error {
-	ret := _mock.Called(ctx, messageID)
+func (_mock *MockChatRepository) DeleteMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteMessage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1080,11 +1729,13 @@ type MockChatRepository_DeleteMessage_Call struct {
 // DeleteMessage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) DeleteMessage(ctx any, messageID any) *MockChatRepository_DeleteMessage_Call {
-	return &MockChatRepository_DeleteMessage_Call{Call: _e.mock.On("DeleteMessage", ctx, messageID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) DeleteMessage(ctx any, messageID any, tx ...any) *MockChatRepository_DeleteMessage_Call {
+	return &MockChatRepository_DeleteMessage_Call{Call: _e.mock.On("DeleteMessage",
+		append([]any{ctx, messageID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_DeleteMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID)) *MockChatRepository_DeleteMessage_Call {
+func (_c *MockChatRepository_DeleteMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_DeleteMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1094,9 +1745,16 @@ func (_c *MockChatRepository_DeleteMessage_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1107,22 +1765,111 @@ func (_c *MockChatRepository_DeleteMessage_Call) Return(err error) *MockChatRepo
 	return _c
 }
 
-func (_c *MockChatRepository_DeleteMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID) error) *MockChatRepository_DeleteMessage_Call {
+func (_c *MockChatRepository_DeleteMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_DeleteMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteMessageWithMedia provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) DeleteMessageWithMedia(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteMessageWithMedia")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, messageID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_DeleteMessageWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteMessageWithMedia'
+type MockChatRepository_DeleteMessageWithMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteMessageWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) DeleteMessageWithMedia(ctx any, messageID any, tx ...any) *MockChatRepository_DeleteMessageWithMedia_Call {
+	return &MockChatRepository_DeleteMessageWithMedia_Call{Call: _e.mock.On("DeleteMessageWithMedia",
+		append([]any{ctx, messageID}, tx...)...)}
+}
+
+func (_c *MockChatRepository_DeleteMessageWithMedia_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_DeleteMessageWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_DeleteMessageWithMedia_Call) Return(strings []string, err error) *MockChatRepository_DeleteMessageWithMedia_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockChatRepository_DeleteMessageWithMedia_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockChatRepository_DeleteMessageWithMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteMessages provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) DeleteMessages(ctx context.Context, roomID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) DeleteMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteMessages")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1137,11 +1884,13 @@ type MockChatRepository_DeleteMessages_Call struct {
 // DeleteMessages is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) DeleteMessages(ctx any, roomID any) *MockChatRepository_DeleteMessages_Call {
-	return &MockChatRepository_DeleteMessages_Call{Call: _e.mock.On("DeleteMessages", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) DeleteMessages(ctx any, roomID any, tx ...any) *MockChatRepository_DeleteMessages_Call {
+	return &MockChatRepository_DeleteMessages_Call{Call: _e.mock.On("DeleteMessages",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_DeleteMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_DeleteMessages_Call {
+func (_c *MockChatRepository_DeleteMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_DeleteMessages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1151,9 +1900,16 @@ func (_c *MockChatRepository_DeleteMessages_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1164,22 +1920,28 @@ func (_c *MockChatRepository_DeleteMessages_Call) Return(err error) *MockChatRep
 	return _c
 }
 
-func (_c *MockChatRepository_DeleteMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) error) *MockChatRepository_DeleteMessages_Call {
+func (_c *MockChatRepository_DeleteMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_DeleteMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteRoom provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) DeleteRoom(ctx context.Context, roomID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) DeleteRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteRoom")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1194,11 +1956,13 @@ type MockChatRepository_DeleteRoom_Call struct {
 // DeleteRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) DeleteRoom(ctx any, roomID any) *MockChatRepository_DeleteRoom_Call {
-	return &MockChatRepository_DeleteRoom_Call{Call: _e.mock.On("DeleteRoom", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) DeleteRoom(ctx any, roomID any, tx ...any) *MockChatRepository_DeleteRoom_Call {
+	return &MockChatRepository_DeleteRoom_Call{Call: _e.mock.On("DeleteRoom",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_DeleteRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_DeleteRoom_Call {
+func (_c *MockChatRepository_DeleteRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_DeleteRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1208,9 +1972,16 @@ func (_c *MockChatRepository_DeleteRoom_Call) Run(run func(ctx context.Context, 
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1221,22 +1992,111 @@ func (_c *MockChatRepository_DeleteRoom_Call) Return(err error) *MockChatReposit
 	return _c
 }
 
-func (_c *MockChatRepository_DeleteRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) error) *MockChatRepository_DeleteRoom_Call {
+func (_c *MockChatRepository_DeleteRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_DeleteRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteRoomWithMessages provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) DeleteRoomWithMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteRoomWithMessages")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_DeleteRoomWithMessages_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteRoomWithMessages'
+type MockChatRepository_DeleteRoomWithMessages_Call struct {
+	*mock.Call
+}
+
+// DeleteRoomWithMessages is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) DeleteRoomWithMessages(ctx any, roomID any, tx ...any) *MockChatRepository_DeleteRoomWithMessages_Call {
+	return &MockChatRepository_DeleteRoomWithMessages_Call{Call: _e.mock.On("DeleteRoomWithMessages",
+		append([]any{ctx, roomID}, tx...)...)}
+}
+
+func (_c *MockChatRepository_DeleteRoomWithMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_DeleteRoomWithMessages_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_DeleteRoomWithMessages_Call) Return(strings []string, err error) *MockChatRepository_DeleteRoomWithMessages_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockChatRepository_DeleteRoomWithMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockChatRepository_DeleteRoomWithMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // EditMessage provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) EditMessage(ctx context.Context, messageID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, messageID, body)
+func (_mock *MockChatRepository) EditMessage(ctx context.Context, messageID uuid.UUID, body string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID, body)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for EditMessage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, messageID, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, messageID, body, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1252,11 +2112,13 @@ type MockChatRepository_EditMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - body string
-func (_e *MockChatRepository_Expecter) EditMessage(ctx any, messageID any, body any) *MockChatRepository_EditMessage_Call {
-	return &MockChatRepository_EditMessage_Call{Call: _e.mock.On("EditMessage", ctx, messageID, body)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) EditMessage(ctx any, messageID any, body any, tx ...any) *MockChatRepository_EditMessage_Call {
+	return &MockChatRepository_EditMessage_Call{Call: _e.mock.On("EditMessage",
+		append([]any{ctx, messageID, body}, tx...)...)}
 }
 
-func (_c *MockChatRepository_EditMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, body string)) *MockChatRepository_EditMessage_Call {
+func (_c *MockChatRepository_EditMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, body string, tx ...*sql.Tx)) *MockChatRepository_EditMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1270,10 +2132,17 @@ func (_c *MockChatRepository_EditMessage_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1284,14 +2153,20 @@ func (_c *MockChatRepository_EditMessage_Call) Return(err error) *MockChatReposi
 	return _c
 }
 
-func (_c *MockChatRepository_EditMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, body string) error) *MockChatRepository_EditMessage_Call {
+func (_c *MockChatRepository_EditMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, body string, tx ...*sql.Tx) error) *MockChatRepository_EditMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // FindDMRoom provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) FindDMRoom(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, userA, userB)
+func (_mock *MockChatRepository) FindDMRoom(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userA, userB, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userA, userB)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for FindDMRoom")
@@ -1299,18 +2174,18 @@ func (_mock *MockChatRepository) FindDMRoom(ctx context.Context, userA uuid.UUID
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, userA, userB)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, userA, userB, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, userA, userB)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, userA, userB, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userA, userB)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userA, userB, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1326,11 +2201,13 @@ type MockChatRepository_FindDMRoom_Call struct {
 //   - ctx context.Context
 //   - userA uuid.UUID
 //   - userB uuid.UUID
-func (_e *MockChatRepository_Expecter) FindDMRoom(ctx any, userA any, userB any) *MockChatRepository_FindDMRoom_Call {
-	return &MockChatRepository_FindDMRoom_Call{Call: _e.mock.On("FindDMRoom", ctx, userA, userB)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) FindDMRoom(ctx any, userA any, userB any, tx ...any) *MockChatRepository_FindDMRoom_Call {
+	return &MockChatRepository_FindDMRoom_Call{Call: _e.mock.On("FindDMRoom",
+		append([]any{ctx, userA, userB}, tx...)...)}
 }
 
-func (_c *MockChatRepository_FindDMRoom_Call) Run(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID)) *MockChatRepository_FindDMRoom_Call {
+func (_c *MockChatRepository_FindDMRoom_Call) Run(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_FindDMRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1344,10 +2221,17 @@ func (_c *MockChatRepository_FindDMRoom_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1358,14 +2242,109 @@ func (_c *MockChatRepository_FindDMRoom_Call) Return(uUID uuid.UUID, err error) 
 	return _c
 }
 
-func (_c *MockChatRepository_FindDMRoom_Call) RunAndReturn(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (uuid.UUID, error)) *MockChatRepository_FindDMRoom_Call {
+func (_c *MockChatRepository_FindDMRoom_Call) RunAndReturn(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockChatRepository_FindDMRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindDMRoomByPair provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) FindDMRoomByPair(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userA, userB, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userA, userB)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindDMRoomByPair")
+	}
+
+	var r0 *ChatRoomRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, userA, userB, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, userA, userB, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatRoomRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userA, userB, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_FindDMRoomByPair_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindDMRoomByPair'
+type MockChatRepository_FindDMRoomByPair_Call struct {
+	*mock.Call
+}
+
+// FindDMRoomByPair is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userA uuid.UUID
+//   - userB uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) FindDMRoomByPair(ctx any, userA any, userB any, tx ...any) *MockChatRepository_FindDMRoomByPair_Call {
+	return &MockChatRepository_FindDMRoomByPair_Call{Call: _e.mock.On("FindDMRoomByPair",
+		append([]any{ctx, userA, userB}, tx...)...)}
+}
+
+func (_c *MockChatRepository_FindDMRoomByPair_Call) Run(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_FindDMRoomByPair_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_FindDMRoomByPair_Call) Return(chatRoomRow *ChatRoomRow, err error) *MockChatRepository_FindDMRoomByPair_Call {
+	_c.Call.Return(chatRoomRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_FindDMRoomByPair_Call) RunAndReturn(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_FindDMRoomByPair_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMemberNickname provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMemberNickname(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) GetMemberNickname(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMemberNickname")
@@ -1373,16 +2352,16 @@ func (_mock *MockChatRepository) GetMemberNickname(ctx context.Context, roomID u
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (string, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1398,11 +2377,13 @@ type MockChatRepository_GetMemberNickname_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMemberNickname(ctx any, roomID any, userID any) *MockChatRepository_GetMemberNickname_Call {
-	return &MockChatRepository_GetMemberNickname_Call{Call: _e.mock.On("GetMemberNickname", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMemberNickname(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_GetMemberNickname_Call {
+	return &MockChatRepository_GetMemberNickname_Call{Call: _e.mock.On("GetMemberNickname",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMemberNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_GetMemberNickname_Call {
+func (_c *MockChatRepository_GetMemberNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMemberNickname_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1416,10 +2397,17 @@ func (_c *MockChatRepository_GetMemberNickname_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1430,14 +2418,20 @@ func (_c *MockChatRepository_GetMemberNickname_Call) Return(s string, err error)
 	return _c
 }
 
-func (_c *MockChatRepository_GetMemberNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, error)) *MockChatRepository_GetMemberNickname_Call {
+func (_c *MockChatRepository_GetMemberNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockChatRepository_GetMemberNickname_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMemberRole provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMemberRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) GetMemberRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMemberRole")
@@ -1445,16 +2439,16 @@ func (_mock *MockChatRepository) GetMemberRole(ctx context.Context, roomID uuid.
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (string, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1470,11 +2464,13 @@ type MockChatRepository_GetMemberRole_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMemberRole(ctx any, roomID any, userID any) *MockChatRepository_GetMemberRole_Call {
-	return &MockChatRepository_GetMemberRole_Call{Call: _e.mock.On("GetMemberRole", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMemberRole(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_GetMemberRole_Call {
+	return &MockChatRepository_GetMemberRole_Call{Call: _e.mock.On("GetMemberRole",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMemberRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_GetMemberRole_Call {
+func (_c *MockChatRepository_GetMemberRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMemberRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1488,10 +2484,17 @@ func (_c *MockChatRepository_GetMemberRole_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1502,14 +2505,20 @@ func (_c *MockChatRepository_GetMemberRole_Call) Return(s string, err error) *Mo
 	return _c
 }
 
-func (_c *MockChatRepository_GetMemberRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (string, error)) *MockChatRepository_GetMemberRole_Call {
+func (_c *MockChatRepository_GetMemberRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockChatRepository_GetMemberRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMemberTimeoutState provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMemberTimeoutState(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, string, bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) GetMemberTimeoutState(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, string, bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMemberTimeoutState")
@@ -1519,26 +2528,26 @@ func (_mock *MockChatRepository) GetMemberTimeoutState(ctx context.Context, room
 	var r1 string
 	var r2 bool
 	var r3 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, string, bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, string, bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) string); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) string); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Get(1).(string)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r2 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r2 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r2 = ret.Get(2).(bool)
 	}
-	if returnFunc, ok := ret.Get(3).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r3 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(3).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r3 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r3 = ret.Error(3)
 	}
@@ -1554,11 +2563,13 @@ type MockChatRepository_GetMemberTimeoutState_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMemberTimeoutState(ctx any, roomID any, userID any) *MockChatRepository_GetMemberTimeoutState_Call {
-	return &MockChatRepository_GetMemberTimeoutState_Call{Call: _e.mock.On("GetMemberTimeoutState", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMemberTimeoutState(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_GetMemberTimeoutState_Call {
+	return &MockChatRepository_GetMemberTimeoutState_Call{Call: _e.mock.On("GetMemberTimeoutState",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMemberTimeoutState_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_GetMemberTimeoutState_Call {
+func (_c *MockChatRepository_GetMemberTimeoutState_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMemberTimeoutState_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1572,10 +2583,17 @@ func (_c *MockChatRepository_GetMemberTimeoutState_Call) Run(run func(ctx contex
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1586,14 +2604,20 @@ func (_c *MockChatRepository_GetMemberTimeoutState_Call) Return(b bool, s string
 	return _c
 }
 
-func (_c *MockChatRepository_GetMemberTimeoutState_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, string, bool, error)) *MockChatRepository_GetMemberTimeoutState_Call {
+func (_c *MockChatRepository_GetMemberTimeoutState_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, string, bool, error)) *MockChatRepository_GetMemberTimeoutState_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessageByID provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error) {
-	ret := _mock.Called(ctx, messageID)
+func (_mock *MockChatRepository) GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessageByID")
@@ -1601,18 +2625,18 @@ func (_mock *MockChatRepository) GetMessageByID(ctx context.Context, messageID u
 
 	var r0 *ChatMessageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*ChatMessageRow, error)); ok {
-		return returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*ChatMessageRow, error)); ok {
+		return returnFunc(ctx, messageID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *ChatMessageRow); ok {
-		r0 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *ChatMessageRow); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1627,11 +2651,13 @@ type MockChatRepository_GetMessageByID_Call struct {
 // GetMessageByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageByID(ctx any, messageID any) *MockChatRepository_GetMessageByID_Call {
-	return &MockChatRepository_GetMessageByID_Call{Call: _e.mock.On("GetMessageByID", ctx, messageID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessageByID(ctx any, messageID any, tx ...any) *MockChatRepository_GetMessageByID_Call {
+	return &MockChatRepository_GetMessageByID_Call{Call: _e.mock.On("GetMessageByID",
+		append([]any{ctx, messageID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessageByID_Call) Run(run func(ctx context.Context, messageID uuid.UUID)) *MockChatRepository_GetMessageByID_Call {
+func (_c *MockChatRepository_GetMessageByID_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMessageByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1641,9 +2667,16 @@ func (_c *MockChatRepository_GetMessageByID_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1654,14 +2687,20 @@ func (_c *MockChatRepository_GetMessageByID_Call) Return(chatMessageRow *ChatMes
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessageByID_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID) (*ChatMessageRow, error)) *MockChatRepository_GetMessageByID_Call {
+func (_c *MockChatRepository_GetMessageByID_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*ChatMessageRow, error)) *MockChatRepository_GetMessageByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessageMediaBatch provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID) (map[uuid.UUID][]dto.PostMediaResponse, error) {
-	ret := _mock.Called(ctx, messageIDs)
+func (_mock *MockChatRepository) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessageMediaBatch")
@@ -1669,18 +2708,18 @@ func (_mock *MockChatRepository) GetMessageMediaBatch(ctx context.Context, messa
 
 	var r0 map[uuid.UUID][]dto.PostMediaResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]dto.PostMediaResponse, error)); ok {
-		return returnFunc(ctx, messageIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error)); ok {
+		return returnFunc(ctx, messageIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]dto.PostMediaResponse); ok {
-		r0 = returnFunc(ctx, messageIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]dto.PostMediaResponse); ok {
+		r0 = returnFunc(ctx, messageIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[uuid.UUID][]dto.PostMediaResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, messageIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageIDs, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1695,11 +2734,13 @@ type MockChatRepository_GetMessageMediaBatch_Call struct {
 // GetMessageMediaBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageIDs []uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageMediaBatch(ctx any, messageIDs any) *MockChatRepository_GetMessageMediaBatch_Call {
-	return &MockChatRepository_GetMessageMediaBatch_Call{Call: _e.mock.On("GetMessageMediaBatch", ctx, messageIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessageMediaBatch(ctx any, messageIDs any, tx ...any) *MockChatRepository_GetMessageMediaBatch_Call {
+	return &MockChatRepository_GetMessageMediaBatch_Call{Call: _e.mock.On("GetMessageMediaBatch",
+		append([]any{ctx, messageIDs}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessageMediaBatch_Call) Run(run func(ctx context.Context, messageIDs []uuid.UUID)) *MockChatRepository_GetMessageMediaBatch_Call {
+func (_c *MockChatRepository_GetMessageMediaBatch_Call) Run(run func(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMessageMediaBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1709,9 +2750,16 @@ func (_c *MockChatRepository_GetMessageMediaBatch_Call) Run(run func(ctx context
 		if args[1] != nil {
 			arg1 = args[1].([]uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1722,14 +2770,20 @@ func (_c *MockChatRepository_GetMessageMediaBatch_Call) Return(uUIDToPostMediaRe
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessageMediaBatch_Call) RunAndReturn(run func(ctx context.Context, messageIDs []uuid.UUID) (map[uuid.UUID][]dto.PostMediaResponse, error)) *MockChatRepository_GetMessageMediaBatch_Call {
+func (_c *MockChatRepository_GetMessageMediaBatch_Call) RunAndReturn(run func(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error)) *MockChatRepository_GetMessageMediaBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessageRoomID provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessageRoomID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, messageID)
+func (_mock *MockChatRepository) GetMessageRoomID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessageRoomID")
@@ -1737,18 +2791,18 @@ func (_mock *MockChatRepository) GetMessageRoomID(ctx context.Context, messageID
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, messageID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1763,11 +2817,13 @@ type MockChatRepository_GetMessageRoomID_Call struct {
 // GetMessageRoomID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageRoomID(ctx any, messageID any) *MockChatRepository_GetMessageRoomID_Call {
-	return &MockChatRepository_GetMessageRoomID_Call{Call: _e.mock.On("GetMessageRoomID", ctx, messageID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessageRoomID(ctx any, messageID any, tx ...any) *MockChatRepository_GetMessageRoomID_Call {
+	return &MockChatRepository_GetMessageRoomID_Call{Call: _e.mock.On("GetMessageRoomID",
+		append([]any{ctx, messageID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessageRoomID_Call) Run(run func(ctx context.Context, messageID uuid.UUID)) *MockChatRepository_GetMessageRoomID_Call {
+func (_c *MockChatRepository_GetMessageRoomID_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMessageRoomID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1777,9 +2833,16 @@ func (_c *MockChatRepository_GetMessageRoomID_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1790,14 +2853,20 @@ func (_c *MockChatRepository_GetMessageRoomID_Call) Return(uUID uuid.UUID, err e
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessageRoomID_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)) *MockChatRepository_GetMessageRoomID_Call {
+func (_c *MockChatRepository_GetMessageRoomID_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockChatRepository_GetMessageRoomID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessageSenderID provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessageSenderID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, messageID)
+func (_mock *MockChatRepository) GetMessageSenderID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessageSenderID")
@@ -1805,18 +2874,18 @@ func (_mock *MockChatRepository) GetMessageSenderID(ctx context.Context, message
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, messageID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1831,11 +2900,13 @@ type MockChatRepository_GetMessageSenderID_Call struct {
 // GetMessageSenderID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetMessageSenderID(ctx any, messageID any) *MockChatRepository_GetMessageSenderID_Call {
-	return &MockChatRepository_GetMessageSenderID_Call{Call: _e.mock.On("GetMessageSenderID", ctx, messageID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessageSenderID(ctx any, messageID any, tx ...any) *MockChatRepository_GetMessageSenderID_Call {
+	return &MockChatRepository_GetMessageSenderID_Call{Call: _e.mock.On("GetMessageSenderID",
+		append([]any{ctx, messageID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessageSenderID_Call) Run(run func(ctx context.Context, messageID uuid.UUID)) *MockChatRepository_GetMessageSenderID_Call {
+func (_c *MockChatRepository_GetMessageSenderID_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetMessageSenderID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1845,9 +2916,16 @@ func (_c *MockChatRepository_GetMessageSenderID_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1858,14 +2936,20 @@ func (_c *MockChatRepository_GetMessageSenderID_Call) Return(uUID uuid.UUID, err
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessageSenderID_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error)) *MockChatRepository_GetMessageSenderID_Call {
+func (_c *MockChatRepository_GetMessageSenderID_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockChatRepository_GetMessageSenderID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessages provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limit int, offset int) ([]ChatMessageRow, int, error) {
-	ret := _mock.Called(ctx, roomID, limit, offset)
+func (_mock *MockChatRepository) GetMessages(ctx context.Context, roomID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]ChatMessageRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessages")
@@ -1874,23 +2958,23 @@ func (_mock *MockChatRepository) GetMessages(ctx context.Context, roomID uuid.UU
 	var r0 []ChatMessageRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]ChatMessageRow, int, error)); ok {
-		return returnFunc(ctx, roomID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]ChatMessageRow, int, error)); ok {
+		return returnFunc(ctx, roomID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, roomID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, roomID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, roomID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, roomID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1907,11 +2991,13 @@ type MockChatRepository_GetMessages_Call struct {
 //   - roomID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) GetMessages(ctx any, roomID any, limit any, offset any) *MockChatRepository_GetMessages_Call {
-	return &MockChatRepository_GetMessages_Call{Call: _e.mock.On("GetMessages", ctx, roomID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessages(ctx any, roomID any, limit any, offset any, tx ...any) *MockChatRepository_GetMessages_Call {
+	return &MockChatRepository_GetMessages_Call{Call: _e.mock.On("GetMessages",
+		append([]any{ctx, roomID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, limit int, offset int)) *MockChatRepository_GetMessages_Call {
+func (_c *MockChatRepository_GetMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockChatRepository_GetMessages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1929,11 +3015,18 @@ func (_c *MockChatRepository_GetMessages_Call) Run(run func(ctx context.Context,
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -1944,14 +3037,20 @@ func (_c *MockChatRepository_GetMessages_Call) Return(chatMessageRows []ChatMess
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, limit int, offset int) ([]ChatMessageRow, int, error)) *MockChatRepository_GetMessages_Call {
+func (_c *MockChatRepository_GetMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]ChatMessageRow, int, error)) *MockChatRepository_GetMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessagesBefore provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int) ([]ChatMessageRow, error) {
-	ret := _mock.Called(ctx, roomID, viewerID, before, limit)
+func (_mock *MockChatRepository) GetMessagesBefore(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, before, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, before, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessagesBefore")
@@ -1959,18 +3058,18 @@ func (_mock *MockChatRepository) GetMessagesBefore(ctx context.Context, roomID u
 
 	var r0 []ChatMessageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int) ([]ChatMessageRow, error)); ok {
-		return returnFunc(ctx, roomID, viewerID, before, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, ...*sql.Tx) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, before, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID, viewerID, before, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, before, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int) error); ok {
-		r1 = returnFunc(ctx, roomID, viewerID, before, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, before, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1988,11 +3087,13 @@ type MockChatRepository_GetMessagesBefore_Call struct {
 //   - viewerID uuid.UUID
 //   - before string
 //   - limit int
-func (_e *MockChatRepository_Expecter) GetMessagesBefore(ctx any, roomID any, viewerID any, before any, limit any) *MockChatRepository_GetMessagesBefore_Call {
-	return &MockChatRepository_GetMessagesBefore_Call{Call: _e.mock.On("GetMessagesBefore", ctx, roomID, viewerID, before, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessagesBefore(ctx any, roomID any, viewerID any, before any, limit any, tx ...any) *MockChatRepository_GetMessagesBefore_Call {
+	return &MockChatRepository_GetMessagesBefore_Call{Call: _e.mock.On("GetMessagesBefore",
+		append([]any{ctx, roomID, viewerID, before, limit}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int)) *MockChatRepository_GetMessagesBefore_Call {
+func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int, tx ...*sql.Tx)) *MockChatRepository_GetMessagesBefore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2014,12 +3115,19 @@ func (_c *MockChatRepository_GetMessagesBefore_Call) Run(run func(ctx context.Co
 		if args[4] != nil {
 			arg4 = args[4].(int)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -2030,14 +3138,20 @@ func (_c *MockChatRepository_GetMessagesBefore_Call) Return(chatMessageRows []Ch
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessagesBefore_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesBefore_Call {
+func (_c *MockChatRepository_GetMessagesBefore_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, before string, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesBefore_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessagesForMember provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessagesForMember(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int) ([]ChatMessageRow, error) {
-	ret := _mock.Called(ctx, roomID, viewerID, limit)
+func (_mock *MockChatRepository) GetMessagesForMember(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessagesForMember")
@@ -2045,18 +3159,18 @@ func (_mock *MockChatRepository) GetMessagesForMember(ctx context.Context, roomI
 
 	var r0 []ChatMessageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) ([]ChatMessageRow, error)); ok {
-		return returnFunc(ctx, roomID, viewerID, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID, viewerID, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
-		r1 = returnFunc(ctx, roomID, viewerID, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2073,11 +3187,13 @@ type MockChatRepository_GetMessagesForMember_Call struct {
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
 //   - limit int
-func (_e *MockChatRepository_Expecter) GetMessagesForMember(ctx any, roomID any, viewerID any, limit any) *MockChatRepository_GetMessagesForMember_Call {
-	return &MockChatRepository_GetMessagesForMember_Call{Call: _e.mock.On("GetMessagesForMember", ctx, roomID, viewerID, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessagesForMember(ctx any, roomID any, viewerID any, limit any, tx ...any) *MockChatRepository_GetMessagesForMember_Call {
+	return &MockChatRepository_GetMessagesForMember_Call{Call: _e.mock.On("GetMessagesForMember",
+		append([]any{ctx, roomID, viewerID, limit}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessagesForMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int)) *MockChatRepository_GetMessagesForMember_Call {
+func (_c *MockChatRepository_GetMessagesForMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, tx ...*sql.Tx)) *MockChatRepository_GetMessagesForMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2095,11 +3211,18 @@ func (_c *MockChatRepository_GetMessagesForMember_Call) Run(run func(ctx context
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -2110,14 +3233,20 @@ func (_c *MockChatRepository_GetMessagesForMember_Call) Return(chatMessageRows [
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessagesForMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesForMember_Call {
+func (_c *MockChatRepository_GetMessagesForMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error)) *MockChatRepository_GetMessagesForMember_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetMessagesForViewer provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetMessagesForViewer(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]ChatMessageRow, int, error) {
-	ret := _mock.Called(ctx, roomID, viewerID, limit, offset)
+func (_mock *MockChatRepository) GetMessagesForViewer(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]ChatMessageRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetMessagesForViewer")
@@ -2126,23 +3255,23 @@ func (_mock *MockChatRepository) GetMessagesForViewer(ctx context.Context, roomI
 	var r0 []ChatMessageRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) ([]ChatMessageRow, int, error)); ok {
-		return returnFunc(ctx, roomID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]ChatMessageRow, int, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, roomID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, roomID, viewerID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, roomID, viewerID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2160,11 +3289,13 @@ type MockChatRepository_GetMessagesForViewer_Call struct {
 //   - viewerID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) GetMessagesForViewer(ctx any, roomID any, viewerID any, limit any, offset any) *MockChatRepository_GetMessagesForViewer_Call {
-	return &MockChatRepository_GetMessagesForViewer_Call{Call: _e.mock.On("GetMessagesForViewer", ctx, roomID, viewerID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetMessagesForViewer(ctx any, roomID any, viewerID any, limit any, offset any, tx ...any) *MockChatRepository_GetMessagesForViewer_Call {
+	return &MockChatRepository_GetMessagesForViewer_Call{Call: _e.mock.On("GetMessagesForViewer",
+		append([]any{ctx, roomID, viewerID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetMessagesForViewer_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int)) *MockChatRepository_GetMessagesForViewer_Call {
+func (_c *MockChatRepository_GetMessagesForViewer_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockChatRepository_GetMessagesForViewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2186,12 +3317,19 @@ func (_c *MockChatRepository_GetMessagesForViewer_Call) Run(run func(ctx context
 		if args[4] != nil {
 			arg4 = args[4].(int)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -2202,14 +3340,20 @@ func (_c *MockChatRepository_GetMessagesForViewer_Call) Return(chatMessageRows [
 	return _c
 }
 
-func (_c *MockChatRepository_GetMessagesForViewer_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int) ([]ChatMessageRow, int, error)) *MockChatRepository_GetMessagesForViewer_Call {
+func (_c *MockChatRepository_GetMessagesForViewer_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]ChatMessageRow, int, error)) *MockChatRepository_GetMessagesForViewer_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetReactionsBatch provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error) {
-	ret := _mock.Called(ctx, messageIDs, viewerID)
+func (_mock *MockChatRepository) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]ReactionGroup, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageIDs, viewerID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageIDs, viewerID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetReactionsBatch")
@@ -2217,18 +3361,18 @@ func (_mock *MockChatRepository) GetReactionsBatch(ctx context.Context, messageI
 
 	var r0 map[uuid.UUID][]ReactionGroup
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)); ok {
-		return returnFunc(ctx, messageIDs, viewerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]ReactionGroup, error)); ok {
+		return returnFunc(ctx, messageIDs, viewerID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, uuid.UUID) map[uuid.UUID][]ReactionGroup); ok {
-		r0 = returnFunc(ctx, messageIDs, viewerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, uuid.UUID, ...*sql.Tx) map[uuid.UUID][]ReactionGroup); ok {
+		r0 = returnFunc(ctx, messageIDs, viewerID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[uuid.UUID][]ReactionGroup)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, messageIDs, viewerID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageIDs, viewerID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2244,11 +3388,13 @@ type MockChatRepository_GetReactionsBatch_Call struct {
 //   - ctx context.Context
 //   - messageIDs []uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetReactionsBatch(ctx any, messageIDs any, viewerID any) *MockChatRepository_GetReactionsBatch_Call {
-	return &MockChatRepository_GetReactionsBatch_Call{Call: _e.mock.On("GetReactionsBatch", ctx, messageIDs, viewerID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetReactionsBatch(ctx any, messageIDs any, viewerID any, tx ...any) *MockChatRepository_GetReactionsBatch_Call {
+	return &MockChatRepository_GetReactionsBatch_Call{Call: _e.mock.On("GetReactionsBatch",
+		append([]any{ctx, messageIDs, viewerID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetReactionsBatch_Call) Run(run func(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID)) *MockChatRepository_GetReactionsBatch_Call {
+func (_c *MockChatRepository_GetReactionsBatch_Call) Run(run func(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetReactionsBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2262,10 +3408,17 @@ func (_c *MockChatRepository_GetReactionsBatch_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2276,14 +3429,20 @@ func (_c *MockChatRepository_GetReactionsBatch_Call) Return(uUIDToReactionGroups
 	return _c
 }
 
-func (_c *MockChatRepository_GetReactionsBatch_Call) RunAndReturn(run func(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID) (map[uuid.UUID][]ReactionGroup, error)) *MockChatRepository_GetReactionsBatch_Call {
+func (_c *MockChatRepository_GetReactionsBatch_Call) RunAndReturn(run func(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]ReactionGroup, error)) *MockChatRepository_GetReactionsBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomByID provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomByID(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*ChatRoomRow, error) {
-	ret := _mock.Called(ctx, roomID, viewerID)
+func (_mock *MockChatRepository) GetRoomByID(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, viewerID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomByID")
@@ -2291,18 +3450,18 @@ func (_mock *MockChatRepository) GetRoomByID(ctx context.Context, roomID uuid.UU
 
 	var r0 *ChatRoomRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*ChatRoomRow, error)); ok {
-		return returnFunc(ctx, roomID, viewerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*ChatRoomRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *ChatRoomRow); ok {
-		r0 = returnFunc(ctx, roomID, viewerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *ChatRoomRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ChatRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, viewerID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2318,11 +3477,13 @@ type MockChatRepository_GetRoomByID_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - viewerID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomByID(ctx any, roomID any, viewerID any) *MockChatRepository_GetRoomByID_Call {
-	return &MockChatRepository_GetRoomByID_Call{Call: _e.mock.On("GetRoomByID", ctx, roomID, viewerID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomByID(ctx any, roomID any, viewerID any, tx ...any) *MockChatRepository_GetRoomByID_Call {
+	return &MockChatRepository_GetRoomByID_Call{Call: _e.mock.On("GetRoomByID",
+		append([]any{ctx, roomID, viewerID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomByID_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID)) *MockChatRepository_GetRoomByID_Call {
+func (_c *MockChatRepository_GetRoomByID_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2336,10 +3497,17 @@ func (_c *MockChatRepository_GetRoomByID_Call) Run(run func(ctx context.Context,
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2350,14 +3518,20 @@ func (_c *MockChatRepository_GetRoomByID_Call) Return(chatRoomRow *ChatRoomRow, 
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomByID_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID) (*ChatRoomRow, error)) *MockChatRepository_GetRoomByID_Call {
+func (_c *MockChatRepository_GetRoomByID_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*ChatRoomRow, error)) *MockChatRepository_GetRoomByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomMembers provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomMembers(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) GetRoomMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomMembers")
@@ -2365,18 +3539,18 @@ func (_mock *MockChatRepository) GetRoomMembers(ctx context.Context, roomID uuid
 
 	var r0 []uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2391,11 +3565,13 @@ type MockChatRepository_GetRoomMembers_Call struct {
 // GetRoomMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomMembers(ctx any, roomID any) *MockChatRepository_GetRoomMembers_Call {
-	return &MockChatRepository_GetRoomMembers_Call{Call: _e.mock.On("GetRoomMembers", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomMembers(ctx any, roomID any, tx ...any) *MockChatRepository_GetRoomMembers_Call {
+	return &MockChatRepository_GetRoomMembers_Call{Call: _e.mock.On("GetRoomMembers",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_GetRoomMembers_Call {
+func (_c *MockChatRepository_GetRoomMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomMembers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2405,9 +3581,16 @@ func (_c *MockChatRepository_GetRoomMembers_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2418,14 +3601,20 @@ func (_c *MockChatRepository_GetRoomMembers_Call) Return(uUIDs []uuid.UUID, err 
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)) *MockChatRepository_GetRoomMembers_Call {
+func (_c *MockChatRepository_GetRoomMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockChatRepository_GetRoomMembers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomMembersDetailed provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatRoomMemberRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomMembersDetailed")
@@ -2433,18 +3622,18 @@ func (_mock *MockChatRepository) GetRoomMembersDetailed(ctx context.Context, roo
 
 	var r0 []ChatRoomMemberRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatRoomMemberRow, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatRoomMemberRow, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatRoomMemberRow); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatRoomMemberRow); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatRoomMemberRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2459,11 +3648,13 @@ type MockChatRepository_GetRoomMembersDetailed_Call struct {
 // GetRoomMembersDetailed is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomMembersDetailed(ctx any, roomID any) *MockChatRepository_GetRoomMembersDetailed_Call {
-	return &MockChatRepository_GetRoomMembersDetailed_Call{Call: _e.mock.On("GetRoomMembersDetailed", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomMembersDetailed(ctx any, roomID any, tx ...any) *MockChatRepository_GetRoomMembersDetailed_Call {
+	return &MockChatRepository_GetRoomMembersDetailed_Call{Call: _e.mock.On("GetRoomMembersDetailed",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomMembersDetailed_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_GetRoomMembersDetailed_Call {
+func (_c *MockChatRepository_GetRoomMembersDetailed_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomMembersDetailed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2473,9 +3664,16 @@ func (_c *MockChatRepository_GetRoomMembersDetailed_Call) Run(run func(ctx conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2486,14 +3684,20 @@ func (_c *MockChatRepository_GetRoomMembersDetailed_Call) Return(chatRoomMemberR
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomMembersDetailed_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]ChatRoomMemberRow, error)) *MockChatRepository_GetRoomMembersDetailed_Call {
+func (_c *MockChatRepository_GetRoomMembersDetailed_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatRoomMemberRow, error)) *MockChatRepository_GetRoomMembersDetailed_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomMembersUnmuted provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomMembersUnmuted")
@@ -2501,18 +3705,18 @@ func (_mock *MockChatRepository) GetRoomMembersUnmuted(ctx context.Context, room
 
 	var r0 []uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]uuid.UUID, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []uuid.UUID); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2527,11 +3731,13 @@ type MockChatRepository_GetRoomMembersUnmuted_Call struct {
 // GetRoomMembersUnmuted is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomMembersUnmuted(ctx any, roomID any) *MockChatRepository_GetRoomMembersUnmuted_Call {
-	return &MockChatRepository_GetRoomMembersUnmuted_Call{Call: _e.mock.On("GetRoomMembersUnmuted", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomMembersUnmuted(ctx any, roomID any, tx ...any) *MockChatRepository_GetRoomMembersUnmuted_Call {
+	return &MockChatRepository_GetRoomMembersUnmuted_Call{Call: _e.mock.On("GetRoomMembersUnmuted",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_GetRoomMembersUnmuted_Call {
+func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomMembersUnmuted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2541,9 +3747,16 @@ func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2554,14 +3767,20 @@ func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) Return(uUIDs []uuid.UUI
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]uuid.UUID, error)) *MockChatRepository_GetRoomMembersUnmuted_Call {
+func (_c *MockChatRepository_GetRoomMembersUnmuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockChatRepository_GetRoomMembersUnmuted_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomSendContext provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomSendContext(ctx context.Context, roomID uuid.UUID) (*ChatRoomSendContext, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*ChatRoomSendContext, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomSendContext")
@@ -2569,18 +3788,18 @@ func (_mock *MockChatRepository) GetRoomSendContext(ctx context.Context, roomID 
 
 	var r0 *ChatRoomSendContext
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*ChatRoomSendContext, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*ChatRoomSendContext, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *ChatRoomSendContext); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *ChatRoomSendContext); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ChatRoomSendContext)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2595,11 +3814,13 @@ type MockChatRepository_GetRoomSendContext_Call struct {
 // GetRoomSendContext is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomSendContext(ctx any, roomID any) *MockChatRepository_GetRoomSendContext_Call {
-	return &MockChatRepository_GetRoomSendContext_Call{Call: _e.mock.On("GetRoomSendContext", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomSendContext(ctx any, roomID any, tx ...any) *MockChatRepository_GetRoomSendContext_Call {
+	return &MockChatRepository_GetRoomSendContext_Call{Call: _e.mock.On("GetRoomSendContext",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomSendContext_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_GetRoomSendContext_Call {
+func (_c *MockChatRepository_GetRoomSendContext_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomSendContext_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2609,9 +3830,16 @@ func (_c *MockChatRepository_GetRoomSendContext_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2622,14 +3850,20 @@ func (_c *MockChatRepository_GetRoomSendContext_Call) Return(chatRoomSendContext
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomSendContext_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) (*ChatRoomSendContext, error)) *MockChatRepository_GetRoomSendContext_Call {
+func (_c *MockChatRepository_GetRoomSendContext_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*ChatRoomSendContext, error)) *MockChatRepository_GetRoomSendContext_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomTags provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomTags(ctx context.Context, roomID uuid.UUID) ([]string, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) GetRoomTags(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomTags")
@@ -2637,18 +3871,18 @@ func (_mock *MockChatRepository) GetRoomTags(ctx context.Context, roomID uuid.UU
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]string, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []string); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2663,11 +3897,13 @@ type MockChatRepository_GetRoomTags_Call struct {
 // GetRoomTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomTags(ctx any, roomID any) *MockChatRepository_GetRoomTags_Call {
-	return &MockChatRepository_GetRoomTags_Call{Call: _e.mock.On("GetRoomTags", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomTags(ctx any, roomID any, tx ...any) *MockChatRepository_GetRoomTags_Call {
+	return &MockChatRepository_GetRoomTags_Call{Call: _e.mock.On("GetRoomTags",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomTags_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_GetRoomTags_Call {
+func (_c *MockChatRepository_GetRoomTags_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2677,9 +3913,16 @@ func (_c *MockChatRepository_GetRoomTags_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2690,14 +3933,20 @@ func (_c *MockChatRepository_GetRoomTags_Call) Return(strings []string, err erro
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]string, error)) *MockChatRepository_GetRoomTags_Call {
+func (_c *MockChatRepository_GetRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockChatRepository_GetRoomTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomTagsBatch provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
-	ret := _mock.Called(ctx, roomIDs)
+func (_mock *MockChatRepository) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomTagsBatch")
@@ -2705,18 +3954,18 @@ func (_mock *MockChatRepository) GetRoomTagsBatch(ctx context.Context, roomIDs [
 
 	var r0 map[uuid.UUID][]string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) (map[uuid.UUID][]string, error)); ok {
-		return returnFunc(ctx, roomIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]string, error)); ok {
+		return returnFunc(ctx, roomIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID) map[uuid.UUID][]string); ok {
-		r0 = returnFunc(ctx, roomIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]string); ok {
+		r0 = returnFunc(ctx, roomIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[uuid.UUID][]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomIDs, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2731,11 +3980,13 @@ type MockChatRepository_GetRoomTagsBatch_Call struct {
 // GetRoomTagsBatch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomIDs []uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomTagsBatch(ctx any, roomIDs any) *MockChatRepository_GetRoomTagsBatch_Call {
-	return &MockChatRepository_GetRoomTagsBatch_Call{Call: _e.mock.On("GetRoomTagsBatch", ctx, roomIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomTagsBatch(ctx any, roomIDs any, tx ...any) *MockChatRepository_GetRoomTagsBatch_Call {
+	return &MockChatRepository_GetRoomTagsBatch_Call{Call: _e.mock.On("GetRoomTagsBatch",
+		append([]any{ctx, roomIDs}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomTagsBatch_Call) Run(run func(ctx context.Context, roomIDs []uuid.UUID)) *MockChatRepository_GetRoomTagsBatch_Call {
+func (_c *MockChatRepository_GetRoomTagsBatch_Call) Run(run func(ctx context.Context, roomIDs []uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomTagsBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2745,9 +3996,16 @@ func (_c *MockChatRepository_GetRoomTagsBatch_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].([]uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2758,14 +4016,20 @@ func (_c *MockChatRepository_GetRoomTagsBatch_Call) Return(uUIDToStrings map[uui
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomTagsBatch_Call) RunAndReturn(run func(ctx context.Context, roomIDs []uuid.UUID) (map[uuid.UUID][]string, error)) *MockChatRepository_GetRoomTagsBatch_Call {
+func (_c *MockChatRepository_GetRoomTagsBatch_Call) RunAndReturn(run func(ctx context.Context, roomIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error)) *MockChatRepository_GetRoomTagsBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRoomsByUser provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockChatRepository) GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]ChatRoomRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRoomsByUser")
@@ -2773,18 +4037,18 @@ func (_mock *MockChatRepository) GetRoomsByUser(ctx context.Context, userID uuid
 
 	var r0 []ChatRoomRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatRoomRow, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatRoomRow, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatRoomRow); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatRoomRow); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2799,11 +4063,13 @@ type MockChatRepository_GetRoomsByUser_Call struct {
 // GetRoomsByUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) GetRoomsByUser(ctx any, userID any) *MockChatRepository_GetRoomsByUser_Call {
-	return &MockChatRepository_GetRoomsByUser_Call{Call: _e.mock.On("GetRoomsByUser", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetRoomsByUser(ctx any, userID any, tx ...any) *MockChatRepository_GetRoomsByUser_Call {
+	return &MockChatRepository_GetRoomsByUser_Call{Call: _e.mock.On("GetRoomsByUser",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetRoomsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatRepository_GetRoomsByUser_Call {
+func (_c *MockChatRepository_GetRoomsByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_GetRoomsByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2813,9 +4079,16 @@ func (_c *MockChatRepository_GetRoomsByUser_Call) Run(run func(ctx context.Conte
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2826,14 +4099,20 @@ func (_c *MockChatRepository_GetRoomsByUser_Call) Return(chatRoomRows []ChatRoom
 	return _c
 }
 
-func (_c *MockChatRepository_GetRoomsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) ([]ChatRoomRow, error)) *MockChatRepository_GetRoomsByUser_Call {
+func (_c *MockChatRepository_GetRoomsByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]ChatRoomRow, error)) *MockChatRepository_GetRoomsByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetSystemRoomID provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) GetSystemRoomID(ctx context.Context, systemKind string) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, systemKind)
+func (_mock *MockChatRepository) GetSystemRoomID(ctx context.Context, systemKind string, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, systemKind, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, systemKind)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetSystemRoomID")
@@ -2841,18 +4120,18 @@ func (_mock *MockChatRepository) GetSystemRoomID(ctx context.Context, systemKind
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, systemKind)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, systemKind, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) uuid.UUID); ok {
-		r0 = returnFunc(ctx, systemKind)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, systemKind, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, systemKind)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, systemKind, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2867,11 +4146,13 @@ type MockChatRepository_GetSystemRoomID_Call struct {
 // GetSystemRoomID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - systemKind string
-func (_e *MockChatRepository_Expecter) GetSystemRoomID(ctx any, systemKind any) *MockChatRepository_GetSystemRoomID_Call {
-	return &MockChatRepository_GetSystemRoomID_Call{Call: _e.mock.On("GetSystemRoomID", ctx, systemKind)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) GetSystemRoomID(ctx any, systemKind any, tx ...any) *MockChatRepository_GetSystemRoomID_Call {
+	return &MockChatRepository_GetSystemRoomID_Call{Call: _e.mock.On("GetSystemRoomID",
+		append([]any{ctx, systemKind}, tx...)...)}
 }
 
-func (_c *MockChatRepository_GetSystemRoomID_Call) Run(run func(ctx context.Context, systemKind string)) *MockChatRepository_GetSystemRoomID_Call {
+func (_c *MockChatRepository_GetSystemRoomID_Call) Run(run func(ctx context.Context, systemKind string, tx ...*sql.Tx)) *MockChatRepository_GetSystemRoomID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2881,9 +4162,16 @@ func (_c *MockChatRepository_GetSystemRoomID_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -2894,14 +4182,20 @@ func (_c *MockChatRepository_GetSystemRoomID_Call) Return(uUID uuid.UUID, err er
 	return _c
 }
 
-func (_c *MockChatRepository_GetSystemRoomID_Call) RunAndReturn(run func(ctx context.Context, systemKind string) (uuid.UUID, error)) *MockChatRepository_GetSystemRoomID_Call {
+func (_c *MockChatRepository_GetSystemRoomID_Call) RunAndReturn(run func(ctx context.Context, systemKind string, tx ...*sql.Tx) (uuid.UUID, error)) *MockChatRepository_GetSystemRoomID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HasActiveMemberTimeout provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) HasActiveMemberTimeout(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) HasActiveMemberTimeout(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasActiveMemberTimeout")
@@ -2909,16 +4203,16 @@ func (_mock *MockChatRepository) HasActiveMemberTimeout(ctx context.Context, roo
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2934,11 +4228,13 @@ type MockChatRepository_HasActiveMemberTimeout_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) HasActiveMemberTimeout(ctx any, roomID any, userID any) *MockChatRepository_HasActiveMemberTimeout_Call {
-	return &MockChatRepository_HasActiveMemberTimeout_Call{Call: _e.mock.On("HasActiveMemberTimeout", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) HasActiveMemberTimeout(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_HasActiveMemberTimeout_Call {
+	return &MockChatRepository_HasActiveMemberTimeout_Call{Call: _e.mock.On("HasActiveMemberTimeout",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_HasActiveMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_HasActiveMemberTimeout_Call {
+func (_c *MockChatRepository_HasActiveMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_HasActiveMemberTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -2952,10 +4248,17 @@ func (_c *MockChatRepository_HasActiveMemberTimeout_Call) Run(run func(ctx conte
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -2966,14 +4269,20 @@ func (_c *MockChatRepository_HasActiveMemberTimeout_Call) Return(b bool, err err
 	return _c
 }
 
-func (_c *MockChatRepository_HasActiveMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_HasActiveMemberTimeout_Call {
+func (_c *MockChatRepository_HasActiveMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_HasActiveMemberTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HasGhostMembers provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) HasGhostMembers(ctx context.Context, roomID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) HasGhostMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasGhostMembers")
@@ -2981,16 +4290,16 @@ func (_mock *MockChatRepository) HasGhostMembers(ctx context.Context, roomID uui
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3005,11 +4314,13 @@ type MockChatRepository_HasGhostMembers_Call struct {
 // HasGhostMembers is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) HasGhostMembers(ctx any, roomID any) *MockChatRepository_HasGhostMembers_Call {
-	return &MockChatRepository_HasGhostMembers_Call{Call: _e.mock.On("HasGhostMembers", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) HasGhostMembers(ctx any, roomID any, tx ...any) *MockChatRepository_HasGhostMembers_Call {
+	return &MockChatRepository_HasGhostMembers_Call{Call: _e.mock.On("HasGhostMembers",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_HasGhostMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_HasGhostMembers_Call {
+func (_c *MockChatRepository_HasGhostMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_HasGhostMembers_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3019,9 +4330,16 @@ func (_c *MockChatRepository_HasGhostMembers_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -3032,107 +4350,209 @@ func (_c *MockChatRepository_HasGhostMembers_Call) Return(b bool, err error) *Mo
 	return _c
 }
 
-func (_c *MockChatRepository_HasGhostMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) (bool, error)) *MockChatRepository_HasGhostMembers_Call {
+func (_c *MockChatRepository_HasGhostMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_HasGhostMembers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// InsertMessage provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) InsertMessage(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error {
-	ret := _mock.Called(ctx, id, roomID, senderID, body, replyToID)
+// InsertMessageAndMarkRead provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) InsertMessageAndMarkRead(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for InsertMessage")
+		panic("no return value specified for InsertMessageAndMarkRead")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string, *uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, roomID, senderID, body, replyToID)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatMessage, ...*sql.Tx) (*ChatMessageRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatMessage, ...*sql.Tx) *ChatMessageRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatMessage, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockChatRepository_InsertMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertMessage'
-type MockChatRepository_InsertMessage_Call struct {
+// MockChatRepository_InsertMessageAndMarkRead_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertMessageAndMarkRead'
+type MockChatRepository_InsertMessageAndMarkRead_Call struct {
 	*mock.Call
 }
 
-// InsertMessage is a helper method to define mock.On call
+// InsertMessageAndMarkRead is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - roomID uuid.UUID
-//   - senderID uuid.UUID
-//   - body string
-//   - replyToID *uuid.UUID
-func (_e *MockChatRepository_Expecter) InsertMessage(ctx any, id any, roomID any, senderID any, body any, replyToID any) *MockChatRepository_InsertMessage_Call {
-	return &MockChatRepository_InsertMessage_Call{Call: _e.mock.On("InsertMessage", ctx, id, roomID, senderID, body, replyToID)}
+//   - spec NewChatMessage
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) InsertMessageAndMarkRead(ctx any, spec any, tx ...any) *MockChatRepository_InsertMessageAndMarkRead_Call {
+	return &MockChatRepository_InsertMessageAndMarkRead_Call{Call: _e.mock.On("InsertMessageAndMarkRead",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockChatRepository_InsertMessage_Call) Run(run func(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string, replyToID *uuid.UUID)) *MockChatRepository_InsertMessage_Call {
+func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) Run(run func(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx)) *MockChatRepository_InsertMessageAndMarkRead_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewChatMessage
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewChatMessage)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(uuid.UUID)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 *uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].(*uuid.UUID)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatRepository_InsertMessage_Call) Return(err error) *MockChatRepository_InsertMessage_Call {
-	_c.Call.Return(err)
+func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) Return(chatMessageRow *ChatMessageRow, err error) *MockChatRepository_InsertMessageAndMarkRead_Call {
+	_c.Call.Return(chatMessageRow, err)
 	return _c
 }
 
-func (_c *MockChatRepository_InsertMessage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string, replyToID *uuid.UUID) error) *MockChatRepository_InsertMessage_Call {
+func (_c *MockChatRepository_InsertMessageAndMarkRead_Call) RunAndReturn(run func(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error)) *MockChatRepository_InsertMessageAndMarkRead_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertMessageRow provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) InsertMessageRow(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertMessageRow")
+	}
+
+	var r0 *ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatMessage, ...*sql.Tx) (*ChatMessageRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewChatMessage, ...*sql.Tx) *ChatMessageRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewChatMessage, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_InsertMessageRow_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertMessageRow'
+type MockChatRepository_InsertMessageRow_Call struct {
+	*mock.Call
+}
+
+// InsertMessageRow is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewChatMessage
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) InsertMessageRow(ctx any, spec any, tx ...any) *MockChatRepository_InsertMessageRow_Call {
+	return &MockChatRepository_InsertMessageRow_Call{Call: _e.mock.On("InsertMessageRow",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockChatRepository_InsertMessageRow_Call) Run(run func(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx)) *MockChatRepository_InsertMessageRow_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewChatMessage
+		if args[1] != nil {
+			arg1 = args[1].(NewChatMessage)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_InsertMessageRow_Call) Return(chatMessageRow *ChatMessageRow, err error) *MockChatRepository_InsertMessageRow_Call {
+	_c.Call.Return(chatMessageRow, err)
+	return _c
+}
+
+func (_c *MockChatRepository_InsertMessageRow_Call) RunAndReturn(run func(ctx context.Context, spec NewChatMessage, tx ...*sql.Tx) (*ChatMessageRow, error)) *MockChatRepository_InsertMessageRow_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // InsertSystemMessage provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) InsertSystemMessage(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string) error {
-	ret := _mock.Called(ctx, id, roomID, senderID, body)
+func (_mock *MockChatRepository) InsertSystemMessage(ctx context.Context, roomID uuid.UUID, senderID uuid.UUID, body string, tx ...*sql.Tx) (*ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, senderID, body, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, senderID, body)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for InsertSystemMessage")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, id, roomID, senderID, body)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) (*ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, senderID, body, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) *ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, senderID, body, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, senderID, body, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatRepository_InsertSystemMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertSystemMessage'
@@ -3142,15 +4562,16 @@ type MockChatRepository_InsertSystemMessage_Call struct {
 
 // InsertSystemMessage is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
 //   - roomID uuid.UUID
 //   - senderID uuid.UUID
 //   - body string
-func (_e *MockChatRepository_Expecter) InsertSystemMessage(ctx any, id any, roomID any, senderID any, body any) *MockChatRepository_InsertSystemMessage_Call {
-	return &MockChatRepository_InsertSystemMessage_Call{Call: _e.mock.On("InsertSystemMessage", ctx, id, roomID, senderID, body)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) InsertSystemMessage(ctx any, roomID any, senderID any, body any, tx ...any) *MockChatRepository_InsertSystemMessage_Call {
+	return &MockChatRepository_InsertSystemMessage_Call{Call: _e.mock.On("InsertSystemMessage",
+		append([]any{ctx, roomID, senderID, body}, tx...)...)}
 }
 
-func (_c *MockChatRepository_InsertSystemMessage_Call) Run(run func(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string)) *MockChatRepository_InsertSystemMessage_Call {
+func (_c *MockChatRepository_InsertSystemMessage_Call) Run(run func(ctx context.Context, roomID uuid.UUID, senderID uuid.UUID, body string, tx ...*sql.Tx)) *MockChatRepository_InsertSystemMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3164,38 +4585,46 @@ func (_c *MockChatRepository_InsertSystemMessage_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 uuid.UUID
+		var arg3 string
 		if args[3] != nil {
-			arg3 = args[3].(uuid.UUID)
+			arg3 = args[3].(string)
 		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
 		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
+			arg4...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatRepository_InsertSystemMessage_Call) Return(err error) *MockChatRepository_InsertSystemMessage_Call {
-	_c.Call.Return(err)
+func (_c *MockChatRepository_InsertSystemMessage_Call) Return(chatMessageRow *ChatMessageRow, err error) *MockChatRepository_InsertSystemMessage_Call {
+	_c.Call.Return(chatMessageRow, err)
 	return _c
 }
 
-func (_c *MockChatRepository_InsertSystemMessage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, roomID uuid.UUID, senderID uuid.UUID, body string) error) *MockChatRepository_InsertSystemMessage_Call {
+func (_c *MockChatRepository_InsertSystemMessage_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, senderID uuid.UUID, body string, tx ...*sql.Tx) (*ChatMessageRow, error)) *MockChatRepository_InsertSystemMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsGhostMember provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) IsGhostMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) IsGhostMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsGhostMember")
@@ -3203,16 +4632,16 @@ func (_mock *MockChatRepository) IsGhostMember(ctx context.Context, roomID uuid.
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3228,11 +4657,13 @@ type MockChatRepository_IsGhostMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsGhostMember(ctx any, roomID any, userID any) *MockChatRepository_IsGhostMember_Call {
-	return &MockChatRepository_IsGhostMember_Call{Call: _e.mock.On("IsGhostMember", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) IsGhostMember(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_IsGhostMember_Call {
+	return &MockChatRepository_IsGhostMember_Call{Call: _e.mock.On("IsGhostMember",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_IsGhostMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsGhostMember_Call {
+func (_c *MockChatRepository_IsGhostMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_IsGhostMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3246,10 +4677,17 @@ func (_c *MockChatRepository_IsGhostMember_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -3260,14 +4698,20 @@ func (_c *MockChatRepository_IsGhostMember_Call) Return(b bool, err error) *Mock
 	return _c
 }
 
-func (_c *MockChatRepository_IsGhostMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsGhostMember_Call {
+func (_c *MockChatRepository_IsGhostMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_IsGhostMember_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsMember provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) IsMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) IsMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsMember")
@@ -3275,16 +4719,16 @@ func (_mock *MockChatRepository) IsMember(ctx context.Context, roomID uuid.UUID,
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3300,11 +4744,13 @@ type MockChatRepository_IsMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsMember(ctx any, roomID any, userID any) *MockChatRepository_IsMember_Call {
-	return &MockChatRepository_IsMember_Call{Call: _e.mock.On("IsMember", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) IsMember(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_IsMember_Call {
+	return &MockChatRepository_IsMember_Call{Call: _e.mock.On("IsMember",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_IsMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsMember_Call {
+func (_c *MockChatRepository_IsMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_IsMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3318,10 +4764,17 @@ func (_c *MockChatRepository_IsMember_Call) Run(run func(ctx context.Context, ro
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -3332,14 +4785,20 @@ func (_c *MockChatRepository_IsMember_Call) Return(b bool, err error) *MockChatR
 	return _c
 }
 
-func (_c *MockChatRepository_IsMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsMember_Call {
+func (_c *MockChatRepository_IsMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_IsMember_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsMemberNicknameLocked provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) IsMemberNicknameLocked(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) IsMemberNicknameLocked(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsMemberNicknameLocked")
@@ -3347,16 +4806,16 @@ func (_mock *MockChatRepository) IsMemberNicknameLocked(ctx context.Context, roo
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3372,11 +4831,13 @@ type MockChatRepository_IsMemberNicknameLocked_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsMemberNicknameLocked(ctx any, roomID any, userID any) *MockChatRepository_IsMemberNicknameLocked_Call {
-	return &MockChatRepository_IsMemberNicknameLocked_Call{Call: _e.mock.On("IsMemberNicknameLocked", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) IsMemberNicknameLocked(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_IsMemberNicknameLocked_Call {
+	return &MockChatRepository_IsMemberNicknameLocked_Call{Call: _e.mock.On("IsMemberNicknameLocked",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_IsMemberNicknameLocked_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsMemberNicknameLocked_Call {
+func (_c *MockChatRepository_IsMemberNicknameLocked_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_IsMemberNicknameLocked_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3390,10 +4851,17 @@ func (_c *MockChatRepository_IsMemberNicknameLocked_Call) Run(run func(ctx conte
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -3404,14 +4872,20 @@ func (_c *MockChatRepository_IsMemberNicknameLocked_Call) Return(b bool, err err
 	return _c
 }
 
-func (_c *MockChatRepository_IsMemberNicknameLocked_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsMemberNicknameLocked_Call {
+func (_c *MockChatRepository_IsMemberNicknameLocked_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_IsMemberNicknameLocked_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsMuted provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) IsMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) IsMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsMuted")
@@ -3419,16 +4893,16 @@ func (_mock *MockChatRepository) IsMuted(ctx context.Context, roomID uuid.UUID, 
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3444,11 +4918,13 @@ type MockChatRepository_IsMuted_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsMuted(ctx any, roomID any, userID any) *MockChatRepository_IsMuted_Call {
-	return &MockChatRepository_IsMuted_Call{Call: _e.mock.On("IsMuted", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) IsMuted(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_IsMuted_Call {
+	return &MockChatRepository_IsMuted_Call{Call: _e.mock.On("IsMuted",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_IsMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsMuted_Call {
+func (_c *MockChatRepository_IsMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_IsMuted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3462,10 +4938,17 @@ func (_c *MockChatRepository_IsMuted_Call) Run(run func(ctx context.Context, roo
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -3476,14 +4959,20 @@ func (_c *MockChatRepository_IsMuted_Call) Return(b bool, err error) *MockChatRe
 	return _c
 }
 
-func (_c *MockChatRepository_IsMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsMuted_Call {
+func (_c *MockChatRepository_IsMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_IsMuted_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsVoiceForceMuted provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) IsVoiceForceMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) IsVoiceForceMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsVoiceForceMuted")
@@ -3491,16 +4980,16 @@ func (_mock *MockChatRepository) IsVoiceForceMuted(ctx context.Context, roomID u
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, roomID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3516,11 +5005,13 @@ type MockChatRepository_IsVoiceForceMuted_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) IsVoiceForceMuted(ctx any, roomID any, userID any) *MockChatRepository_IsVoiceForceMuted_Call {
-	return &MockChatRepository_IsVoiceForceMuted_Call{Call: _e.mock.On("IsVoiceForceMuted", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) IsVoiceForceMuted(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_IsVoiceForceMuted_Call {
+	return &MockChatRepository_IsVoiceForceMuted_Call{Call: _e.mock.On("IsVoiceForceMuted",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_IsVoiceForceMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_IsVoiceForceMuted_Call {
+func (_c *MockChatRepository_IsVoiceForceMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_IsVoiceForceMuted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3534,10 +5025,17 @@ func (_c *MockChatRepository_IsVoiceForceMuted_Call) Run(run func(ctx context.Co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -3548,14 +5046,103 @@ func (_c *MockChatRepository_IsVoiceForceMuted_Call) Return(b bool, err error) *
 	return _c
 }
 
-func (_c *MockChatRepository_IsVoiceForceMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) (bool, error)) *MockChatRepository_IsVoiceForceMuted_Call {
+func (_c *MockChatRepository_IsVoiceForceMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockChatRepository_IsVoiceForceMuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListMessageMediaURLs provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) ListMessageMediaURLs(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListMessageMediaURLs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, messageID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_ListMessageMediaURLs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListMessageMediaURLs'
+type MockChatRepository_ListMessageMediaURLs_Call struct {
+	*mock.Call
+}
+
+// ListMessageMediaURLs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - messageID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ListMessageMediaURLs(ctx any, messageID any, tx ...any) *MockChatRepository_ListMessageMediaURLs_Call {
+	return &MockChatRepository_ListMessageMediaURLs_Call{Call: _e.mock.On("ListMessageMediaURLs",
+		append([]any{ctx, messageID}, tx...)...)}
+}
+
+func (_c *MockChatRepository_ListMessageMediaURLs_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_ListMessageMediaURLs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_ListMessageMediaURLs_Call) Return(strings []string, err error) *MockChatRepository_ListMessageMediaURLs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockChatRepository_ListMessageMediaURLs_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockChatRepository_ListMessageMediaURLs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListPinnedMessages provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPinnedMessages")
@@ -3563,18 +5150,18 @@ func (_mock *MockChatRepository) ListPinnedMessages(ctx context.Context, roomID 
 
 	var r0 []ChatMessageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatMessageRow, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3589,11 +5176,13 @@ type MockChatRepository_ListPinnedMessages_Call struct {
 // ListPinnedMessages is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) ListPinnedMessages(ctx any, roomID any) *MockChatRepository_ListPinnedMessages_Call {
-	return &MockChatRepository_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ListPinnedMessages(ctx any, roomID any, tx ...any) *MockChatRepository_ListPinnedMessages_Call {
+	return &MockChatRepository_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ListPinnedMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_ListPinnedMessages_Call {
+func (_c *MockChatRepository_ListPinnedMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_ListPinnedMessages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3603,9 +5192,16 @@ func (_c *MockChatRepository_ListPinnedMessages_Call) Run(run func(ctx context.C
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -3616,14 +5212,20 @@ func (_c *MockChatRepository_ListPinnedMessages_Call) Return(chatMessageRows []C
 	return _c
 }
 
-func (_c *MockChatRepository_ListPinnedMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]ChatMessageRow, error)) *MockChatRepository_ListPinnedMessages_Call {
+func (_c *MockChatRepository_ListPinnedMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error)) *MockChatRepository_ListPinnedMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListPublicRooms provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int) ([]ChatRoomRow, int, error) {
-	ret := _mock.Called(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
+func (_mock *MockChatRepository) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int, tx ...*sql.Tx) ([]ChatRoomRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListPublicRooms")
@@ -3632,23 +5234,23 @@ func (_mock *MockChatRepository) ListPublicRooms(ctx context.Context, search str
 	var r0 []ChatRoomRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int) ([]ChatRoomRow, int, error)); ok {
-		return returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int, ...*sql.Tx) ([]ChatRoomRow, int, error)); ok {
+		return returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int) []ChatRoomRow); ok {
-		r0 = returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int, ...*sql.Tx) []ChatRoomRow); ok {
+		r0 = returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int) int); ok {
-		r1 = returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int) error); ok {
-		r2 = returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, bool, string, uuid.UUID, []uuid.UUID, bool, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3670,11 +5272,13 @@ type MockChatRepository_ListPublicRooms_Call struct {
 //   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) ListPublicRooms(ctx any, search any, isRPOnly any, tag any, viewerID any, excludeUserIDs any, includeArchived any, limit any, offset any) *MockChatRepository_ListPublicRooms_Call {
-	return &MockChatRepository_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms", ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ListPublicRooms(ctx any, search any, isRPOnly any, tag any, viewerID any, excludeUserIDs any, includeArchived any, limit any, offset any, tx ...any) *MockChatRepository_ListPublicRooms_Call {
+	return &MockChatRepository_ListPublicRooms_Call{Call: _e.mock.On("ListPublicRooms",
+		append([]any{ctx, search, isRPOnly, tag, viewerID, excludeUserIDs, includeArchived, limit, offset}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ListPublicRooms_Call) Run(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int)) *MockChatRepository_ListPublicRooms_Call {
+func (_c *MockChatRepository_ListPublicRooms_Call) Run(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int, tx ...*sql.Tx)) *MockChatRepository_ListPublicRooms_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3712,6 +5316,12 @@ func (_c *MockChatRepository_ListPublicRooms_Call) Run(run func(ctx context.Cont
 		if args[8] != nil {
 			arg8 = args[8].(int)
 		}
+		var arg9 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 9 {
+			variadicArgs = args[9].([]*sql.Tx)
+		}
+		arg9 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -3722,6 +5332,7 @@ func (_c *MockChatRepository_ListPublicRooms_Call) Run(run func(ctx context.Cont
 			arg6,
 			arg7,
 			arg8,
+			arg9...,
 		)
 	})
 	return _c
@@ -3732,14 +5343,20 @@ func (_c *MockChatRepository_ListPublicRooms_Call) Return(chatRoomRows []ChatRoo
 	return _c
 }
 
-func (_c *MockChatRepository_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int) ([]ChatRoomRow, int, error)) *MockChatRepository_ListPublicRooms_Call {
+func (_c *MockChatRepository_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int, tx ...*sql.Tx) ([]ChatRoomRow, int, error)) *MockChatRepository_ListPublicRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListRoomMediaURLs provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ListRoomMediaURLs(ctx context.Context, roomID uuid.UUID) ([]string, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) ListRoomMediaURLs(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListRoomMediaURLs")
@@ -3747,18 +5364,18 @@ func (_mock *MockChatRepository) ListRoomMediaURLs(ctx context.Context, roomID u
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]string, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []string); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3773,11 +5390,13 @@ type MockChatRepository_ListRoomMediaURLs_Call struct {
 // ListRoomMediaURLs is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) ListRoomMediaURLs(ctx any, roomID any) *MockChatRepository_ListRoomMediaURLs_Call {
-	return &MockChatRepository_ListRoomMediaURLs_Call{Call: _e.mock.On("ListRoomMediaURLs", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ListRoomMediaURLs(ctx any, roomID any, tx ...any) *MockChatRepository_ListRoomMediaURLs_Call {
+	return &MockChatRepository_ListRoomMediaURLs_Call{Call: _e.mock.On("ListRoomMediaURLs",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ListRoomMediaURLs_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_ListRoomMediaURLs_Call {
+func (_c *MockChatRepository_ListRoomMediaURLs_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_ListRoomMediaURLs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3787,9 +5406,16 @@ func (_c *MockChatRepository_ListRoomMediaURLs_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -3800,14 +5426,103 @@ func (_c *MockChatRepository_ListRoomMediaURLs_Call) Return(strings []string, er
 	return _c
 }
 
-func (_c *MockChatRepository_ListRoomMediaURLs_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]string, error)) *MockChatRepository_ListRoomMediaURLs_Call {
+func (_c *MockChatRepository_ListRoomMediaURLs_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockChatRepository_ListRoomMediaURLs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListRoomMemberAvatarURLs provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) ListRoomMemberAvatarURLs(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRoomMemberAvatarURLs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_ListRoomMemberAvatarURLs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRoomMemberAvatarURLs'
+type MockChatRepository_ListRoomMemberAvatarURLs_Call struct {
+	*mock.Call
+}
+
+// ListRoomMemberAvatarURLs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ListRoomMemberAvatarURLs(ctx any, roomID any, tx ...any) *MockChatRepository_ListRoomMemberAvatarURLs_Call {
+	return &MockChatRepository_ListRoomMemberAvatarURLs_Call{Call: _e.mock.On("ListRoomMemberAvatarURLs",
+		append([]any{ctx, roomID}, tx...)...)}
+}
+
+func (_c *MockChatRepository_ListRoomMemberAvatarURLs_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_ListRoomMemberAvatarURLs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_ListRoomMemberAvatarURLs_Call) Return(strings []string, err error) *MockChatRepository_ListRoomMemberAvatarURLs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockChatRepository_ListRoomMemberAvatarURLs_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockChatRepository_ListRoomMemberAvatarURLs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListUserGroupRooms provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int) ([]ChatRoomRow, int, error) {
-	ret := _mock.Called(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
+func (_mock *MockChatRepository) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int, tx ...*sql.Tx) ([]ChatRoomRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListUserGroupRooms")
@@ -3816,23 +5531,23 @@ func (_mock *MockChatRepository) ListUserGroupRooms(ctx context.Context, userID 
 	var r0 []ChatRoomRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) ([]ChatRoomRow, int, error)); ok {
-		return returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int, ...*sql.Tx) ([]ChatRoomRow, int, error)); ok {
+		return returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) []ChatRoomRow); ok {
-		r0 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int, ...*sql.Tx) []ChatRoomRow); ok {
+		r0 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatRoomRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, bool, string, string, bool, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3854,11 +5569,13 @@ type MockChatRepository_ListUserGroupRooms_Call struct {
 //   - includeArchived bool
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) ListUserGroupRooms(ctx any, userID any, search any, isRPOnly any, tag any, role any, includeArchived any, limit any, offset any) *MockChatRepository_ListUserGroupRooms_Call {
-	return &MockChatRepository_ListUserGroupRooms_Call{Call: _e.mock.On("ListUserGroupRooms", ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ListUserGroupRooms(ctx any, userID any, search any, isRPOnly any, tag any, role any, includeArchived any, limit any, offset any, tx ...any) *MockChatRepository_ListUserGroupRooms_Call {
+	return &MockChatRepository_ListUserGroupRooms_Call{Call: _e.mock.On("ListUserGroupRooms",
+		append([]any{ctx, userID, search, isRPOnly, tag, role, includeArchived, limit, offset}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ListUserGroupRooms_Call) Run(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int)) *MockChatRepository_ListUserGroupRooms_Call {
+func (_c *MockChatRepository_ListUserGroupRooms_Call) Run(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int, tx ...*sql.Tx)) *MockChatRepository_ListUserGroupRooms_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3896,6 +5613,12 @@ func (_c *MockChatRepository_ListUserGroupRooms_Call) Run(run func(ctx context.C
 		if args[8] != nil {
 			arg8 = args[8].(int)
 		}
+		var arg9 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 9 {
+			variadicArgs = args[9].([]*sql.Tx)
+		}
+		arg9 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -3906,6 +5629,7 @@ func (_c *MockChatRepository_ListUserGroupRooms_Call) Run(run func(ctx context.C
 			arg6,
 			arg7,
 			arg8,
+			arg9...,
 		)
 	})
 	return _c
@@ -3916,22 +5640,28 @@ func (_c *MockChatRepository_ListUserGroupRooms_Call) Return(chatRoomRows []Chat
 	return _c
 }
 
-func (_c *MockChatRepository_ListUserGroupRooms_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int) ([]ChatRoomRow, int, error)) *MockChatRepository_ListUserGroupRooms_Call {
+func (_c *MockChatRepository_ListUserGroupRooms_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag string, role string, includeArchived bool, limit int, offset int, tx ...*sql.Tx) ([]ChatRoomRow, int, error)) *MockChatRepository_ListUserGroupRooms_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkRoomRead provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) MarkRoomRead(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) MarkRoomRead(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkRoomRead")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3947,11 +5677,13 @@ type MockChatRepository_MarkRoomRead_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) MarkRoomRead(ctx any, roomID any, userID any) *MockChatRepository_MarkRoomRead_Call {
-	return &MockChatRepository_MarkRoomRead_Call{Call: _e.mock.On("MarkRoomRead", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) MarkRoomRead(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_MarkRoomRead_Call {
+	return &MockChatRepository_MarkRoomRead_Call{Call: _e.mock.On("MarkRoomRead",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_MarkRoomRead_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_MarkRoomRead_Call {
+func (_c *MockChatRepository_MarkRoomRead_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_MarkRoomRead_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3965,10 +5697,17 @@ func (_c *MockChatRepository_MarkRoomRead_Call) Run(run func(ctx context.Context
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -3979,22 +5718,28 @@ func (_c *MockChatRepository_MarkRoomRead_Call) Return(err error) *MockChatRepos
 	return _c
 }
 
-func (_c *MockChatRepository_MarkRoomRead_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockChatRepository_MarkRoomRead_Call {
+func (_c *MockChatRepository_MarkRoomRead_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_MarkRoomRead_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // PinMessage provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) PinMessage(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID) error {
-	ret := _mock.Called(ctx, messageID, pinnedBy)
+func (_mock *MockChatRepository) PinMessage(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, pinnedBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID, pinnedBy)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for PinMessage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, messageID, pinnedBy)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, messageID, pinnedBy, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4010,11 +5755,13 @@ type MockChatRepository_PinMessage_Call struct {
 //   - ctx context.Context
 //   - messageID uuid.UUID
 //   - pinnedBy uuid.UUID
-func (_e *MockChatRepository_Expecter) PinMessage(ctx any, messageID any, pinnedBy any) *MockChatRepository_PinMessage_Call {
-	return &MockChatRepository_PinMessage_Call{Call: _e.mock.On("PinMessage", ctx, messageID, pinnedBy)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) PinMessage(ctx any, messageID any, pinnedBy any, tx ...any) *MockChatRepository_PinMessage_Call {
+	return &MockChatRepository_PinMessage_Call{Call: _e.mock.On("PinMessage",
+		append([]any{ctx, messageID, pinnedBy}, tx...)...)}
 }
 
-func (_c *MockChatRepository_PinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID)) *MockChatRepository_PinMessage_Call {
+func (_c *MockChatRepository_PinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_PinMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4028,10 +5775,17 @@ func (_c *MockChatRepository_PinMessage_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -4042,22 +5796,112 @@ func (_c *MockChatRepository_PinMessage_Call) Return(err error) *MockChatReposit
 	return _c
 }
 
-func (_c *MockChatRepository_PinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID) error) *MockChatRepository_PinMessage_Call {
+func (_c *MockChatRepository_PinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, pinnedBy uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_PinMessage_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RejoinDMMembers provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) RejoinDMMembers(ctx context.Context, roomID uuid.UUID, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userA, userB, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userA, userB)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for RejoinDMMembers")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userA, userB, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_RejoinDMMembers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RejoinDMMembers'
+type MockChatRepository_RejoinDMMembers_Call struct {
+	*mock.Call
+}
+
+// RejoinDMMembers is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - userA uuid.UUID
+//   - userB uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) RejoinDMMembers(ctx any, roomID any, userA any, userB any, tx ...any) *MockChatRepository_RejoinDMMembers_Call {
+	return &MockChatRepository_RejoinDMMembers_Call{Call: _e.mock.On("RejoinDMMembers",
+		append([]any{ctx, roomID, userA, userB}, tx...)...)}
+}
+
+func (_c *MockChatRepository_RejoinDMMembers_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_RejoinDMMembers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_RejoinDMMembers_Call) Return(err error) *MockChatRepository_RejoinDMMembers_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_RejoinDMMembers_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_RejoinDMMembers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RemoveMember provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) RemoveMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID, userID)
+func (_mock *MockChatRepository) RemoveMember(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveMember")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4073,11 +5917,13 @@ type MockChatRepository_RemoveMember_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatRepository_Expecter) RemoveMember(ctx any, roomID any, userID any) *MockChatRepository_RemoveMember_Call {
-	return &MockChatRepository_RemoveMember_Call{Call: _e.mock.On("RemoveMember", ctx, roomID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) RemoveMember(ctx any, roomID any, userID any, tx ...any) *MockChatRepository_RemoveMember_Call {
+	return &MockChatRepository_RemoveMember_Call{Call: _e.mock.On("RemoveMember",
+		append([]any{ctx, roomID, userID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_RemoveMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID)) *MockChatRepository_RemoveMember_Call {
+func (_c *MockChatRepository_RemoveMember_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_RemoveMember_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4091,10 +5937,17 @@ func (_c *MockChatRepository_RemoveMember_Call) Run(run func(ctx context.Context
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -4105,14 +5958,20 @@ func (_c *MockChatRepository_RemoveMember_Call) Return(err error) *MockChatRepos
 	return _c
 }
 
-func (_c *MockChatRepository_RemoveMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID) error) *MockChatRepository_RemoveMember_Call {
+func (_c *MockChatRepository_RemoveMember_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_RemoveMember_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RemoveReaction provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) RemoveReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error) {
-	ret := _mock.Called(ctx, messageID, userID, emoji)
+func (_mock *MockChatRepository) RemoveReaction(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, userID, emoji, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID, userID, emoji)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for RemoveReaction")
@@ -4120,16 +5979,16 @@ func (_mock *MockChatRepository) RemoveReaction(ctx context.Context, messageID u
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) (bool, error)); ok {
-		return returnFunc(ctx, messageID, userID, emoji)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, messageID, userID, emoji, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) bool); ok {
-		r0 = returnFunc(ctx, messageID, userID, emoji)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, messageID, userID, emoji, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, messageID, userID, emoji)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, messageID, userID, emoji, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4146,11 +6005,13 @@ type MockChatRepository_RemoveReaction_Call struct {
 //   - messageID uuid.UUID
 //   - userID uuid.UUID
 //   - emoji string
-func (_e *MockChatRepository_Expecter) RemoveReaction(ctx any, messageID any, userID any, emoji any) *MockChatRepository_RemoveReaction_Call {
-	return &MockChatRepository_RemoveReaction_Call{Call: _e.mock.On("RemoveReaction", ctx, messageID, userID, emoji)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) RemoveReaction(ctx any, messageID any, userID any, emoji any, tx ...any) *MockChatRepository_RemoveReaction_Call {
+	return &MockChatRepository_RemoveReaction_Call{Call: _e.mock.On("RemoveReaction",
+		append([]any{ctx, messageID, userID, emoji}, tx...)...)}
 }
 
-func (_c *MockChatRepository_RemoveReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string)) *MockChatRepository_RemoveReaction_Call {
+func (_c *MockChatRepository_RemoveReaction_Call) Run(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string, tx ...*sql.Tx)) *MockChatRepository_RemoveReaction_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4168,11 +6029,18 @@ func (_c *MockChatRepository_RemoveReaction_Call) Run(run func(ctx context.Conte
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -4183,22 +6051,28 @@ func (_c *MockChatRepository_RemoveReaction_Call) Return(b bool, err error) *Moc
 	return _c
 }
 
-func (_c *MockChatRepository_RemoveReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string) (bool, error)) *MockChatRepository_RemoveReaction_Call {
+func (_c *MockChatRepository_RemoveReaction_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error)) *MockChatRepository_RemoveReaction_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ReplaceRoomTags provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) ReplaceRoomTags(ctx context.Context, roomID uuid.UUID, tags []string) error {
-	ret := _mock.Called(ctx, roomID, tags)
+func (_mock *MockChatRepository) ReplaceRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tags, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, tags)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReplaceRoomTags")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string) error); ok {
-		r0 = returnFunc(ctx, roomID, tags)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, tags, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4214,11 +6088,13 @@ type MockChatRepository_ReplaceRoomTags_Call struct {
 //   - ctx context.Context
 //   - roomID uuid.UUID
 //   - tags []string
-func (_e *MockChatRepository_Expecter) ReplaceRoomTags(ctx any, roomID any, tags any) *MockChatRepository_ReplaceRoomTags_Call {
-	return &MockChatRepository_ReplaceRoomTags_Call{Call: _e.mock.On("ReplaceRoomTags", ctx, roomID, tags)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) ReplaceRoomTags(ctx any, roomID any, tags any, tx ...any) *MockChatRepository_ReplaceRoomTags_Call {
+	return &MockChatRepository_ReplaceRoomTags_Call{Call: _e.mock.On("ReplaceRoomTags",
+		append([]any{ctx, roomID, tags}, tx...)...)}
 }
 
-func (_c *MockChatRepository_ReplaceRoomTags_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tags []string)) *MockChatRepository_ReplaceRoomTags_Call {
+func (_c *MockChatRepository_ReplaceRoomTags_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx)) *MockChatRepository_ReplaceRoomTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4232,10 +6108,17 @@ func (_c *MockChatRepository_ReplaceRoomTags_Call) Run(run func(ctx context.Cont
 		if args[2] != nil {
 			arg2 = args[2].([]string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -4246,14 +6129,20 @@ func (_c *MockChatRepository_ReplaceRoomTags_Call) Return(err error) *MockChatRe
 	return _c
 }
 
-func (_c *MockChatRepository_ReplaceRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tags []string) error) *MockChatRepository_ReplaceRoomTags_Call {
+func (_c *MockChatRepository_ReplaceRoomTags_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error) *MockChatRepository_ReplaceRoomTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SearchMessagesForViewer provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SearchMessagesForViewer(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int) ([]SearchResult, int, error) {
-	ret := _mock.Called(ctx, viewerID, roomID, query, limit, offset)
+func (_mock *MockChatRepository) SearchMessagesForViewer(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int, tx ...*sql.Tx) ([]SearchResult, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, viewerID, roomID, query, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, viewerID, roomID, query, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SearchMessagesForViewer")
@@ -4262,23 +6151,23 @@ func (_mock *MockChatRepository) SearchMessagesForViewer(ctx context.Context, vi
 	var r0 []SearchResult
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) ([]SearchResult, int, error)); ok {
-		return returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int, ...*sql.Tx) ([]SearchResult, int, error)); ok {
+		return returnFunc(ctx, viewerID, roomID, query, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) []SearchResult); ok {
-		r0 = returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int, ...*sql.Tx) []SearchResult); ok {
+		r0 = returnFunc(ctx, viewerID, roomID, query, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]SearchResult)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) int); ok {
-		r1 = returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, viewerID, roomID, query, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int) error); ok {
-		r2 = returnFunc(ctx, viewerID, roomID, query, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, string, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, viewerID, roomID, query, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -4297,11 +6186,13 @@ type MockChatRepository_SearchMessagesForViewer_Call struct {
 //   - query string
 //   - limit int
 //   - offset int
-func (_e *MockChatRepository_Expecter) SearchMessagesForViewer(ctx any, viewerID any, roomID any, query any, limit any, offset any) *MockChatRepository_SearchMessagesForViewer_Call {
-	return &MockChatRepository_SearchMessagesForViewer_Call{Call: _e.mock.On("SearchMessagesForViewer", ctx, viewerID, roomID, query, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SearchMessagesForViewer(ctx any, viewerID any, roomID any, query any, limit any, offset any, tx ...any) *MockChatRepository_SearchMessagesForViewer_Call {
+	return &MockChatRepository_SearchMessagesForViewer_Call{Call: _e.mock.On("SearchMessagesForViewer",
+		append([]any{ctx, viewerID, roomID, query, limit, offset}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SearchMessagesForViewer_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int)) *MockChatRepository_SearchMessagesForViewer_Call {
+func (_c *MockChatRepository_SearchMessagesForViewer_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int, tx ...*sql.Tx)) *MockChatRepository_SearchMessagesForViewer_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4327,6 +6218,12 @@ func (_c *MockChatRepository_SearchMessagesForViewer_Call) Run(run func(ctx cont
 		if args[5] != nil {
 			arg5 = args[5].(int)
 		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -4334,6 +6231,7 @@ func (_c *MockChatRepository_SearchMessagesForViewer_Call) Run(run func(ctx cont
 			arg3,
 			arg4,
 			arg5,
+			arg6...,
 		)
 	})
 	return _c
@@ -4344,22 +6242,28 @@ func (_c *MockChatRepository_SearchMessagesForViewer_Call) Return(searchResults 
 	return _c
 }
 
-func (_c *MockChatRepository_SearchMessagesForViewer_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int) ([]SearchResult, int, error)) *MockChatRepository_SearchMessagesForViewer_Call {
+func (_c *MockChatRepository_SearchMessagesForViewer_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, roomID uuid.UUID, query string, limit int, offset int, tx ...*sql.Tx) ([]SearchResult, int, error)) *MockChatRepository_SearchMessagesForViewer_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMemberAvatar provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetMemberAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string) error {
-	ret := _mock.Called(ctx, roomID, userID, avatarURL)
+func (_mock *MockChatRepository) SetMemberAvatar(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, avatarURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, avatarURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMemberAvatar")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, avatarURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, avatarURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4376,11 +6280,13 @@ type MockChatRepository_SetMemberAvatar_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - avatarURL string
-func (_e *MockChatRepository_Expecter) SetMemberAvatar(ctx any, roomID any, userID any, avatarURL any) *MockChatRepository_SetMemberAvatar_Call {
-	return &MockChatRepository_SetMemberAvatar_Call{Call: _e.mock.On("SetMemberAvatar", ctx, roomID, userID, avatarURL)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetMemberAvatar(ctx any, roomID any, userID any, avatarURL any, tx ...any) *MockChatRepository_SetMemberAvatar_Call {
+	return &MockChatRepository_SetMemberAvatar_Call{Call: _e.mock.On("SetMemberAvatar",
+		append([]any{ctx, roomID, userID, avatarURL}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetMemberAvatar_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string)) *MockChatRepository_SetMemberAvatar_Call {
+func (_c *MockChatRepository_SetMemberAvatar_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string, tx ...*sql.Tx)) *MockChatRepository_SetMemberAvatar_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4398,11 +6304,18 @@ func (_c *MockChatRepository_SetMemberAvatar_Call) Run(run func(ctx context.Cont
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -4413,22 +6326,28 @@ func (_c *MockChatRepository_SetMemberAvatar_Call) Return(err error) *MockChatRe
 	return _c
 }
 
-func (_c *MockChatRepository_SetMemberAvatar_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string) error) *MockChatRepository_SetMemberAvatar_Call {
+func (_c *MockChatRepository_SetMemberAvatar_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, avatarURL string, tx ...*sql.Tx) error) *MockChatRepository_SetMemberAvatar_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMemberNickname provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetMemberNickname(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) error {
-	ret := _mock.Called(ctx, roomID, userID, nickname)
+func (_mock *MockChatRepository) SetMemberNickname(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, nickname, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, nickname)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMemberNickname")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, nickname)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, nickname, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4445,11 +6364,13 @@ type MockChatRepository_SetMemberNickname_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - nickname string
-func (_e *MockChatRepository_Expecter) SetMemberNickname(ctx any, roomID any, userID any, nickname any) *MockChatRepository_SetMemberNickname_Call {
-	return &MockChatRepository_SetMemberNickname_Call{Call: _e.mock.On("SetMemberNickname", ctx, roomID, userID, nickname)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetMemberNickname(ctx any, roomID any, userID any, nickname any, tx ...any) *MockChatRepository_SetMemberNickname_Call {
+	return &MockChatRepository_SetMemberNickname_Call{Call: _e.mock.On("SetMemberNickname",
+		append([]any{ctx, roomID, userID, nickname}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetMemberNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string)) *MockChatRepository_SetMemberNickname_Call {
+func (_c *MockChatRepository_SetMemberNickname_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, tx ...*sql.Tx)) *MockChatRepository_SetMemberNickname_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4467,11 +6388,18 @@ func (_c *MockChatRepository_SetMemberNickname_Call) Run(run func(ctx context.Co
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -4482,22 +6410,28 @@ func (_c *MockChatRepository_SetMemberNickname_Call) Return(err error) *MockChat
 	return _c
 }
 
-func (_c *MockChatRepository_SetMemberNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string) error) *MockChatRepository_SetMemberNickname_Call {
+func (_c *MockChatRepository_SetMemberNickname_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, tx ...*sql.Tx) error) *MockChatRepository_SetMemberNickname_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMemberNicknameWithLock provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetMemberNicknameWithLock(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool) error {
-	ret := _mock.Called(ctx, roomID, userID, nickname, locked)
+func (_mock *MockChatRepository) SetMemberNicknameWithLock(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, nickname, locked, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, nickname, locked)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMemberNicknameWithLock")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, nickname, locked)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, nickname, locked, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4515,11 +6449,13 @@ type MockChatRepository_SetMemberNicknameWithLock_Call struct {
 //   - userID uuid.UUID
 //   - nickname string
 //   - locked bool
-func (_e *MockChatRepository_Expecter) SetMemberNicknameWithLock(ctx any, roomID any, userID any, nickname any, locked any) *MockChatRepository_SetMemberNicknameWithLock_Call {
-	return &MockChatRepository_SetMemberNicknameWithLock_Call{Call: _e.mock.On("SetMemberNicknameWithLock", ctx, roomID, userID, nickname, locked)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetMemberNicknameWithLock(ctx any, roomID any, userID any, nickname any, locked any, tx ...any) *MockChatRepository_SetMemberNicknameWithLock_Call {
+	return &MockChatRepository_SetMemberNicknameWithLock_Call{Call: _e.mock.On("SetMemberNicknameWithLock",
+		append([]any{ctx, roomID, userID, nickname, locked}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool)) *MockChatRepository_SetMemberNicknameWithLock_Call {
+func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool, tx ...*sql.Tx)) *MockChatRepository_SetMemberNicknameWithLock_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4541,12 +6477,19 @@ func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) Run(run func(ctx co
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -4557,22 +6500,28 @@ func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool) error) *MockChatRepository_SetMemberNicknameWithLock_Call {
+func (_c *MockChatRepository_SetMemberNicknameWithLock_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, nickname string, locked bool, tx ...*sql.Tx) error) *MockChatRepository_SetMemberNicknameWithLock_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMemberRole provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetMemberRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string) error {
-	ret := _mock.Called(ctx, roomID, userID, role)
+func (_mock *MockChatRepository) SetMemberRole(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, role, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, role)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMemberRole")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, role)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, role, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4589,11 +6538,13 @@ type MockChatRepository_SetMemberRole_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - role string
-func (_e *MockChatRepository_Expecter) SetMemberRole(ctx any, roomID any, userID any, role any) *MockChatRepository_SetMemberRole_Call {
-	return &MockChatRepository_SetMemberRole_Call{Call: _e.mock.On("SetMemberRole", ctx, roomID, userID, role)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetMemberRole(ctx any, roomID any, userID any, role any, tx ...any) *MockChatRepository_SetMemberRole_Call {
+	return &MockChatRepository_SetMemberRole_Call{Call: _e.mock.On("SetMemberRole",
+		append([]any{ctx, roomID, userID, role}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetMemberRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string)) *MockChatRepository_SetMemberRole_Call {
+func (_c *MockChatRepository_SetMemberRole_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, tx ...*sql.Tx)) *MockChatRepository_SetMemberRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4611,11 +6562,18 @@ func (_c *MockChatRepository_SetMemberRole_Call) Run(run func(ctx context.Contex
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -4626,22 +6584,28 @@ func (_c *MockChatRepository_SetMemberRole_Call) Return(err error) *MockChatRepo
 	return _c
 }
 
-func (_c *MockChatRepository_SetMemberRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string) error) *MockChatRepository_SetMemberRole_Call {
+func (_c *MockChatRepository_SetMemberRole_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, role string, tx ...*sql.Tx) error) *MockChatRepository_SetMemberRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMemberTimeout provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetMemberTimeout(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, until string, byStaff bool) error {
-	ret := _mock.Called(ctx, roomID, userID, until, byStaff)
+func (_mock *MockChatRepository) SetMemberTimeout(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, until string, byStaff bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, until, byStaff, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, until, byStaff)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMemberTimeout")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, until, byStaff)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, until, byStaff, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4659,11 +6623,13 @@ type MockChatRepository_SetMemberTimeout_Call struct {
 //   - userID uuid.UUID
 //   - until string
 //   - byStaff bool
-func (_e *MockChatRepository_Expecter) SetMemberTimeout(ctx any, roomID any, userID any, until any, byStaff any) *MockChatRepository_SetMemberTimeout_Call {
-	return &MockChatRepository_SetMemberTimeout_Call{Call: _e.mock.On("SetMemberTimeout", ctx, roomID, userID, until, byStaff)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetMemberTimeout(ctx any, roomID any, userID any, until any, byStaff any, tx ...any) *MockChatRepository_SetMemberTimeout_Call {
+	return &MockChatRepository_SetMemberTimeout_Call{Call: _e.mock.On("SetMemberTimeout",
+		append([]any{ctx, roomID, userID, until, byStaff}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, until string, byStaff bool)) *MockChatRepository_SetMemberTimeout_Call {
+func (_c *MockChatRepository_SetMemberTimeout_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, until string, byStaff bool, tx ...*sql.Tx)) *MockChatRepository_SetMemberTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4685,12 +6651,19 @@ func (_c *MockChatRepository_SetMemberTimeout_Call) Run(run func(ctx context.Con
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -4701,22 +6674,28 @@ func (_c *MockChatRepository_SetMemberTimeout_Call) Return(err error) *MockChatR
 	return _c
 }
 
-func (_c *MockChatRepository_SetMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, until string, byStaff bool) error) *MockChatRepository_SetMemberTimeout_Call {
+func (_c *MockChatRepository_SetMemberTimeout_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, until string, byStaff bool, tx ...*sql.Tx) error) *MockChatRepository_SetMemberTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetMuted provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool) error {
-	ret := _mock.Called(ctx, roomID, userID, muted)
+func (_mock *MockChatRepository) SetMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, muted, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, muted)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetMuted")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, muted)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, muted, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4733,11 +6712,13 @@ type MockChatRepository_SetMuted_Call struct {
 //   - roomID uuid.UUID
 //   - userID uuid.UUID
 //   - muted bool
-func (_e *MockChatRepository_Expecter) SetMuted(ctx any, roomID any, userID any, muted any) *MockChatRepository_SetMuted_Call {
-	return &MockChatRepository_SetMuted_Call{Call: _e.mock.On("SetMuted", ctx, roomID, userID, muted)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetMuted(ctx any, roomID any, userID any, muted any, tx ...any) *MockChatRepository_SetMuted_Call {
+	return &MockChatRepository_SetMuted_Call{Call: _e.mock.On("SetMuted",
+		append([]any{ctx, roomID, userID, muted}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool)) *MockChatRepository_SetMuted_Call {
+func (_c *MockChatRepository_SetMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool, tx ...*sql.Tx)) *MockChatRepository_SetMuted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4755,11 +6736,18 @@ func (_c *MockChatRepository_SetMuted_Call) Run(run func(ctx context.Context, ro
 		if args[3] != nil {
 			arg3 = args[3].(bool)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -4770,22 +6758,28 @@ func (_c *MockChatRepository_SetMuted_Call) Return(err error) *MockChatRepositor
 	return _c
 }
 
-func (_c *MockChatRepository_SetMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool) error) *MockChatRepository_SetMuted_Call {
+func (_c *MockChatRepository_SetMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, muted bool, tx ...*sql.Tx) error) *MockChatRepository_SetMuted_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetVoiceForceMuted provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) SetVoiceForceMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool) error {
-	ret := _mock.Called(ctx, roomID, userID, mutedBy, muted)
+func (_mock *MockChatRepository) SetVoiceForceMuted(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, userID, mutedBy, muted, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, userID, mutedBy, muted)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetVoiceForceMuted")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, roomID, userID, mutedBy, muted)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, userID, mutedBy, muted, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4803,11 +6797,13 @@ type MockChatRepository_SetVoiceForceMuted_Call struct {
 //   - userID uuid.UUID
 //   - mutedBy uuid.UUID
 //   - muted bool
-func (_e *MockChatRepository_Expecter) SetVoiceForceMuted(ctx any, roomID any, userID any, mutedBy any, muted any) *MockChatRepository_SetVoiceForceMuted_Call {
-	return &MockChatRepository_SetVoiceForceMuted_Call{Call: _e.mock.On("SetVoiceForceMuted", ctx, roomID, userID, mutedBy, muted)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SetVoiceForceMuted(ctx any, roomID any, userID any, mutedBy any, muted any, tx ...any) *MockChatRepository_SetVoiceForceMuted_Call {
+	return &MockChatRepository_SetVoiceForceMuted_Call{Call: _e.mock.On("SetVoiceForceMuted",
+		append([]any{ctx, roomID, userID, mutedBy, muted}, tx...)...)}
 }
 
-func (_c *MockChatRepository_SetVoiceForceMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool)) *MockChatRepository_SetVoiceForceMuted_Call {
+func (_c *MockChatRepository_SetVoiceForceMuted_Call) Run(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool, tx ...*sql.Tx)) *MockChatRepository_SetVoiceForceMuted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4829,12 +6825,19 @@ func (_c *MockChatRepository_SetVoiceForceMuted_Call) Run(run func(ctx context.C
 		if args[4] != nil {
 			arg4 = args[4].(bool)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -4845,22 +6848,111 @@ func (_c *MockChatRepository_SetVoiceForceMuted_Call) Return(err error) *MockCha
 	return _c
 }
 
-func (_c *MockChatRepository_SetVoiceForceMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool) error) *MockChatRepository_SetVoiceForceMuted_Call {
+func (_c *MockChatRepository_SetVoiceForceMuted_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, userID uuid.UUID, mutedBy uuid.UUID, muted bool, tx ...*sql.Tx) error) *MockChatRepository_SetVoiceForceMuted_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SyncSystemRoomMembership provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) SyncSystemRoomMembership(ctx context.Context, targets []SystemRoomMembership, tx ...*sql.Tx) ([]SystemRoomMembershipChange, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, targets, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, targets)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SyncSystemRoomMembership")
+	}
+
+	var r0 []SystemRoomMembershipChange
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []SystemRoomMembership, ...*sql.Tx) ([]SystemRoomMembershipChange, error)); ok {
+		return returnFunc(ctx, targets, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []SystemRoomMembership, ...*sql.Tx) []SystemRoomMembershipChange); ok {
+		r0 = returnFunc(ctx, targets, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]SystemRoomMembershipChange)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []SystemRoomMembership, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, targets, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatRepository_SyncSystemRoomMembership_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SyncSystemRoomMembership'
+type MockChatRepository_SyncSystemRoomMembership_Call struct {
+	*mock.Call
+}
+
+// SyncSystemRoomMembership is a helper method to define mock.On call
+//   - ctx context.Context
+//   - targets []SystemRoomMembership
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) SyncSystemRoomMembership(ctx any, targets any, tx ...any) *MockChatRepository_SyncSystemRoomMembership_Call {
+	return &MockChatRepository_SyncSystemRoomMembership_Call{Call: _e.mock.On("SyncSystemRoomMembership",
+		append([]any{ctx, targets}, tx...)...)}
+}
+
+func (_c *MockChatRepository_SyncSystemRoomMembership_Call) Run(run func(ctx context.Context, targets []SystemRoomMembership, tx ...*sql.Tx)) *MockChatRepository_SyncSystemRoomMembership_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 []SystemRoomMembership
+		if args[1] != nil {
+			arg1 = args[1].([]SystemRoomMembership)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_SyncSystemRoomMembership_Call) Return(systemRoomMembershipChanges []SystemRoomMembershipChange, err error) *MockChatRepository_SyncSystemRoomMembership_Call {
+	_c.Call.Return(systemRoomMembershipChanges, err)
+	return _c
+}
+
+func (_c *MockChatRepository_SyncSystemRoomMembership_Call) RunAndReturn(run func(ctx context.Context, targets []SystemRoomMembership, tx ...*sql.Tx) ([]SystemRoomMembershipChange, error)) *MockChatRepository_SyncSystemRoomMembership_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // TouchRoomActivity provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) TouchRoomActivity(ctx context.Context, roomID uuid.UUID) error {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatRepository) TouchRoomActivity(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for TouchRoomActivity")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4875,11 +6967,13 @@ type MockChatRepository_TouchRoomActivity_Call struct {
 // TouchRoomActivity is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatRepository_Expecter) TouchRoomActivity(ctx any, roomID any) *MockChatRepository_TouchRoomActivity_Call {
-	return &MockChatRepository_TouchRoomActivity_Call{Call: _e.mock.On("TouchRoomActivity", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) TouchRoomActivity(ctx any, roomID any, tx ...any) *MockChatRepository_TouchRoomActivity_Call {
+	return &MockChatRepository_TouchRoomActivity_Call{Call: _e.mock.On("TouchRoomActivity",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_TouchRoomActivity_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatRepository_TouchRoomActivity_Call {
+func (_c *MockChatRepository_TouchRoomActivity_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_TouchRoomActivity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4889,9 +6983,16 @@ func (_c *MockChatRepository_TouchRoomActivity_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -4902,22 +7003,106 @@ func (_c *MockChatRepository_TouchRoomActivity_Call) Return(err error) *MockChat
 	return _c
 }
 
-func (_c *MockChatRepository_TouchRoomActivity_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) error) *MockChatRepository_TouchRoomActivity_Call {
+func (_c *MockChatRepository_TouchRoomActivity_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_TouchRoomActivity_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TouchRoomActivityForMessage provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) TouchRoomActivityForMessage(ctx context.Context, roomID uuid.UUID, isSystem bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, isSystem, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, isSystem)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TouchRoomActivityForMessage")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, roomID, isSystem, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_TouchRoomActivityForMessage_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TouchRoomActivityForMessage'
+type MockChatRepository_TouchRoomActivityForMessage_Call struct {
+	*mock.Call
+}
+
+// TouchRoomActivityForMessage is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - isSystem bool
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) TouchRoomActivityForMessage(ctx any, roomID any, isSystem any, tx ...any) *MockChatRepository_TouchRoomActivityForMessage_Call {
+	return &MockChatRepository_TouchRoomActivityForMessage_Call{Call: _e.mock.On("TouchRoomActivityForMessage",
+		append([]any{ctx, roomID, isSystem}, tx...)...)}
+}
+
+func (_c *MockChatRepository_TouchRoomActivityForMessage_Call) Run(run func(ctx context.Context, roomID uuid.UUID, isSystem bool, tx ...*sql.Tx)) *MockChatRepository_TouchRoomActivityForMessage_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 bool
+		if args[2] != nil {
+			arg2 = args[2].(bool)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_TouchRoomActivityForMessage_Call) Return(err error) *MockChatRepository_TouchRoomActivityForMessage_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_TouchRoomActivityForMessage_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, isSystem bool, tx ...*sql.Tx) error) *MockChatRepository_TouchRoomActivityForMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnpinMessage provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) UnpinMessage(ctx context.Context, messageID uuid.UUID) error {
-	ret := _mock.Called(ctx, messageID)
+func (_mock *MockChatRepository) UnpinMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, messageID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, messageID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UnpinMessage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, messageID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, messageID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4932,11 +7117,13 @@ type MockChatRepository_UnpinMessage_Call struct {
 // UnpinMessage is a helper method to define mock.On call
 //   - ctx context.Context
 //   - messageID uuid.UUID
-func (_e *MockChatRepository_Expecter) UnpinMessage(ctx any, messageID any) *MockChatRepository_UnpinMessage_Call {
-	return &MockChatRepository_UnpinMessage_Call{Call: _e.mock.On("UnpinMessage", ctx, messageID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) UnpinMessage(ctx any, messageID any, tx ...any) *MockChatRepository_UnpinMessage_Call {
+	return &MockChatRepository_UnpinMessage_Call{Call: _e.mock.On("UnpinMessage",
+		append([]any{ctx, messageID}, tx...)...)}
 }
 
-func (_c *MockChatRepository_UnpinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID)) *MockChatRepository_UnpinMessage_Call {
+func (_c *MockChatRepository_UnpinMessage_Call) Run(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx)) *MockChatRepository_UnpinMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4946,9 +7133,16 @@ func (_c *MockChatRepository_UnpinMessage_Call) Run(run func(ctx context.Context
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -4959,91 +7153,100 @@ func (_c *MockChatRepository_UnpinMessage_Call) Return(err error) *MockChatRepos
 	return _c
 }
 
-func (_c *MockChatRepository_UnpinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID) error) *MockChatRepository_UnpinMessage_Call {
+func (_c *MockChatRepository_UnpinMessage_Call) RunAndReturn(run func(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error) *MockChatRepository_UnpinMessage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateMessageMediaDimensions provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) UpdateMessageMediaDimensions(ctx context.Context, id int64, width int, height int) error {
-	ret := _mock.Called(ctx, id, width, height)
+// UpdateGroupRoom provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) UpdateGroupRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateMessageMediaDimensions")
+		panic("no return value specified for UpdateGroupRoom")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, int, int) error); ok {
-		r0 = returnFunc(ctx, id, width, height)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, UpdateChatRoom, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
 	return r0
 }
 
-// MockChatRepository_UpdateMessageMediaDimensions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateMessageMediaDimensions'
-type MockChatRepository_UpdateMessageMediaDimensions_Call struct {
+// MockChatRepository_UpdateGroupRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGroupRoom'
+type MockChatRepository_UpdateGroupRoom_Call struct {
 	*mock.Call
 }
 
-// UpdateMessageMediaDimensions is a helper method to define mock.On call
+// UpdateGroupRoom is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - width int
-//   - height int
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaDimensions(ctx any, id any, width any, height any) *MockChatRepository_UpdateMessageMediaDimensions_Call {
-	return &MockChatRepository_UpdateMessageMediaDimensions_Call{Call: _e.mock.On("UpdateMessageMediaDimensions", ctx, id, width, height)}
+//   - spec UpdateChatRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) UpdateGroupRoom(ctx any, spec any, tx ...any) *MockChatRepository_UpdateGroupRoom_Call {
+	return &MockChatRepository_UpdateGroupRoom_Call{Call: _e.mock.On("UpdateGroupRoom",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaDimensions_Call) Run(run func(ctx context.Context, id int64, width int, height int)) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+func (_c *MockChatRepository_UpdateGroupRoom_Call) Run(run func(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx)) *MockChatRepository_UpdateGroupRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 UpdateChatRoom
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(UpdateChatRoom)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaDimensions_Call) Return(err error) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+func (_c *MockChatRepository_UpdateGroupRoom_Call) Return(err error) *MockChatRepository_UpdateGroupRoom_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaDimensions_Call) RunAndReturn(run func(ctx context.Context, id int64, width int, height int) error) *MockChatRepository_UpdateMessageMediaDimensions_Call {
+func (_c *MockChatRepository_UpdateGroupRoom_Call) RunAndReturn(run func(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error) *MockChatRepository_UpdateGroupRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateMessageMediaThumbnail provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) UpdateMessageMediaThumbnail(ctx context.Context, id int64, thumbnailURL string) error {
-	ret := _mock.Called(ctx, id, thumbnailURL)
+func (_mock *MockChatRepository) UpdateMessageMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateMessageMediaThumbnail")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5059,11 +7262,13 @@ type MockChatRepository_UpdateMessageMediaThumbnail_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - thumbnailURL string
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaThumbnail(ctx any, id any, thumbnailURL any) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
-	return &MockChatRepository_UpdateMessageMediaThumbnail_Call{Call: _e.mock.On("UpdateMessageMediaThumbnail", ctx, id, thumbnailURL)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) UpdateMessageMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
+	return &MockChatRepository_UpdateMessageMediaThumbnail_Call{Call: _e.mock.On("UpdateMessageMediaThumbnail",
+		append([]any{ctx, id, thumbnailURL}, tx...)...)}
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string)) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
+func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -5077,10 +7282,17 @@ func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) Run(run func(ctx 
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -5091,22 +7303,28 @@ func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) Return(err error)
 	return _c
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string) error) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
+func (_c *MockChatRepository_UpdateMessageMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockChatRepository_UpdateMessageMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateMessageMediaURL provides a mock function for the type MockChatRepository
-func (_mock *MockChatRepository) UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL string) error {
-	ret := _mock.Called(ctx, id, mediaURL)
+func (_mock *MockChatRepository) UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, mediaURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateMessageMediaURL")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, mediaURL, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5122,11 +7340,13 @@ type MockChatRepository_UpdateMessageMediaURL_Call struct {
 //   - ctx context.Context
 //   - id int64
 //   - mediaURL string
-func (_e *MockChatRepository_Expecter) UpdateMessageMediaURL(ctx any, id any, mediaURL any) *MockChatRepository_UpdateMessageMediaURL_Call {
-	return &MockChatRepository_UpdateMessageMediaURL_Call{Call: _e.mock.On("UpdateMessageMediaURL", ctx, id, mediaURL)}
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) UpdateMessageMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockChatRepository_UpdateMessageMediaURL_Call {
+	return &MockChatRepository_UpdateMessageMediaURL_Call{Call: _e.mock.On("UpdateMessageMediaURL",
+		append([]any{ctx, id, mediaURL}, tx...)...)}
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string)) *MockChatRepository_UpdateMessageMediaURL_Call {
+func (_c *MockChatRepository_UpdateMessageMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockChatRepository_UpdateMessageMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -5140,10 +7360,17 @@ func (_c *MockChatRepository_UpdateMessageMediaURL_Call) Run(run func(ctx contex
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -5154,7 +7381,79 @@ func (_c *MockChatRepository_UpdateMessageMediaURL_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockChatRepository_UpdateMessageMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string) error) *MockChatRepository_UpdateMessageMediaURL_Call {
+func (_c *MockChatRepository_UpdateMessageMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockChatRepository_UpdateMessageMediaURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateRoom provides a mock function for the type MockChatRepository
+func (_mock *MockChatRepository) UpdateRoom(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateRoom")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, UpdateChatRoom, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatRepository_UpdateRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateRoom'
+type MockChatRepository_UpdateRoom_Call struct {
+	*mock.Call
+}
+
+// UpdateRoom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec UpdateChatRoom
+//   - tx ...*sql.Tx
+func (_e *MockChatRepository_Expecter) UpdateRoom(ctx any, spec any, tx ...any) *MockChatRepository_UpdateRoom_Call {
+	return &MockChatRepository_UpdateRoom_Call{Call: _e.mock.On("UpdateRoom",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockChatRepository_UpdateRoom_Call) Run(run func(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx)) *MockChatRepository_UpdateRoom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 UpdateChatRoom
+		if args[1] != nil {
+			arg1 = args[1].(UpdateChatRoom)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatRepository_UpdateRoom_Call) Return(err error) *MockChatRepository_UpdateRoom_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatRepository_UpdateRoom_Call) RunAndReturn(run func(ctx context.Context, spec UpdateChatRoom, tx ...*sql.Tx) error) *MockChatRepository_UpdateRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }

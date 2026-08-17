@@ -7,7 +7,6 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/theory/params"
@@ -32,43 +31,43 @@ func (s *Service) getAllTheoryRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListTheoriesRoute(r fiber.Router) {
-	r.Get("/theories", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listTheories)
+	r.Get("/theories", s.optionalAuth(), s.listTheories)
 }
 
 func (s *Service) setupCreateTheoryRoute(r fiber.Router) {
-	r.Post("/theories", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createTheory)
+	r.Post("/theories", s.requireAuth(), s.createTheory)
 }
 
 func (s *Service) setupGetTheoryRoute(r fiber.Router) {
-	r.Get("/theories/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getTheory)
+	r.Get("/theories/:id", s.optionalAuth(), s.getTheory)
 }
 
 func (s *Service) setupUpdateTheoryRoute(r fiber.Router) {
-	r.Put("/theories/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateTheory)
+	r.Put("/theories/:id", s.requireAuth(), s.updateTheory)
 }
 
 func (s *Service) setupDeleteTheoryRoute(r fiber.Router) {
-	r.Delete("/theories/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteTheory)
+	r.Delete("/theories/:id", s.requireAuth(), s.deleteTheory)
 }
 
 func (s *Service) setupVoteTheoryRoute(r fiber.Router) {
-	r.Post("/theories/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteTheory)
+	r.Post("/theories/:id/vote", s.requireAuth(), s.voteTheory)
 }
 
 func (s *Service) setupRefuteTheoryRoute(r fiber.Router) {
-	r.Post("/theories/:id/refute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.refuteTheory)
+	r.Post("/theories/:id/refute", s.requireAuth(), s.refuteTheory)
 }
 
 func (s *Service) setupCreateResponseRoute(r fiber.Router) {
-	r.Post("/theories/:id/responses", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createResponse)
+	r.Post("/theories/:id/responses", s.requireAuth(), s.createResponse)
 }
 
 func (s *Service) setupDeleteResponseRoute(r fiber.Router) {
-	r.Delete("/responses/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteResponse)
+	r.Delete("/responses/:id", s.requireAuth(), s.deleteResponse)
 }
 
 func (s *Service) setupVoteResponseRoute(r fiber.Router) {
-	r.Post("/responses/:id/vote", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voteResponse)
+	r.Post("/responses/:id/vote", s.requireAuth(), s.voteResponse)
 }
 
 func (s *Service) listTheories(ctx fiber.Ctx) error {

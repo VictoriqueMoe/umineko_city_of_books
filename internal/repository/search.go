@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 )
@@ -46,8 +47,8 @@ type (
 	}
 
 	SearchRepository interface {
-		Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error)
-		QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error)
+		Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int, tx ...*sql.Tx) ([]SearchResult, int, error)
+		QuickSearch(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]SearchResult, error)
 	}
 )
 
@@ -397,7 +398,8 @@ func (s SearchSource) BuildSubquery() string {
 		parentTitleExpr = "NULL::text"
 	}
 
-	rankExpr := "ts_rank_cd(" + s.SearchVector + ", q.tsq)"
+	var rankExpr strings.Builder
+	rankExpr.WriteString("ts_rank_cd(" + s.SearchVector + ", q.tsq)")
 	matchExpr := s.SearchVector + " @@ q.tsq"
 
 	trigramExprs := append([]string(nil), s.TrigramExprs...)
@@ -405,7 +407,7 @@ func (s SearchSource) BuildSubquery() string {
 		trigramExprs = append([]string{s.TitleExpr}, trigramExprs...)
 	}
 	for _, expr := range trigramExprs {
-		rankExpr += " + COALESCE(similarity(" + expr + ", q.qstr), 0)"
+		rankExpr.WriteString(" + COALESCE(similarity(" + expr + ", q.qstr), 0)")
 		matchExpr += " OR " + expr + " % q.qstr"
 	}
 	if len(trigramExprs) > 0 {
@@ -440,7 +442,7 @@ func (s SearchSource) BuildSubquery() string {
 		s.TitleExpr,
 		s.BodyExpr, SearchHeadlineOptions,
 		s.CreatedAt,
-		rankExpr,
+		rankExpr.String(),
 		strings.Join(parts, "\n        "),
 		strings.Join(whereParts, "\n          AND "),
 	)
@@ -454,10 +456,10 @@ func NewSearchRepo(dao SearchRepository) SearchRepository {
 	return &searchRepository{dao: dao}
 }
 
-func (r *searchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int) ([]SearchResult, int, error) {
-	return r.dao.Search(ctx, query, types, limit, offset)
+func (r *searchRepository) Search(ctx context.Context, query string, types []SearchEntityType, limit, offset int, tx ...*sql.Tx) ([]SearchResult, int, error) {
+	return r.dao.Search(ctx, query, types, limit, offset, tx...)
 }
 
-func (r *searchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int) ([]SearchResult, error) {
-	return r.dao.QuickSearch(ctx, query, perTypeLimit)
+func (r *searchRepository) QuickSearch(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]SearchResult, error) {
+	return r.dao.QuickSearch(ctx, query, perTypeLimit, tx...)
 }

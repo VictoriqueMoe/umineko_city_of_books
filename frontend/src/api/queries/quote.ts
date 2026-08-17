@@ -1,5 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { browseQuotes, searchQuotes, type Series } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 
 export function useSearchQuotes(
     params: {
@@ -17,7 +18,7 @@ export function useSearchQuotes(
     enabled = true,
 ) {
     const q = useQuery({
-        queryKey: ["quotes", "search", params],
+        queryKey: queryKeys.quotes.search(params),
         queryFn: () => searchQuotes(params),
         enabled,
     });
@@ -39,7 +40,7 @@ export function useBrowseQuotes(
     enabled = true,
 ) {
     const q = useQuery({
-        queryKey: ["quotes", "browse", params],
+        queryKey: queryKeys.quotes.browse(params),
         queryFn: () => browseQuotes(params),
         enabled,
     });

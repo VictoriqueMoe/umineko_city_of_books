@@ -3,6 +3,8 @@ package chat
 import (
 	"errors"
 	"fmt"
+
+	"umineko_city_of_books/internal/dto"
 )
 
 var (
@@ -41,6 +43,7 @@ var (
 	ErrInvalidBannedWordRegex   = errors.New("invalid regex pattern")
 	ErrBannedWordRuleMismatch   = errors.New("banned word rule does not belong to this room")
 	ErrLockedNonStaffDM         = errors.New("locked accounts can only message site staff")
+	ErrBotsRPRoomsOnly          = errors.New("bots can only be added to roleplay rooms")
 
 	ErrWatchPartyDisabled       = errors.New("watch parties are not configured")
 	ErrWatchPartyNotActive      = errors.New("no such active watch party")
@@ -65,4 +68,15 @@ type ErrBannedWordMatch struct {
 
 func (e *ErrBannedWordMatch) Error() string {
 	return fmt.Sprintf("message blocked by banned word rule %q (%s)", e.Pattern, e.Action)
+}
+
+type ErrBotsWillBeKicked struct {
+	Bots []dto.UserResponse
+}
+
+func (e *ErrBotsWillBeKicked) Error() string {
+	if len(e.Bots) == 1 {
+		return "turning roleplay off will remove 1 bot from this room"
+	}
+	return fmt.Sprintf("turning roleplay off will remove %d bots from this room", len(e.Bots))
 }

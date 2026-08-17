@@ -25,6 +25,7 @@ import {
     voteMysteryAttempt,
 } from "../endpoints";
 import { queryKeys } from "../queryKeys";
+import { commentMutations } from "./commentMutations";
 
 export function useCreateMystery() {
     const qc = useQueryClient();
@@ -141,46 +142,19 @@ export function useCreateMysteryComment(mysteryId: string) {
     });
 }
 
-export function useUpdateMysteryComment(_mysteryId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, body }: { id: string; body: string }) => updateMysteryComment(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
-    });
-}
+const mysteryCommentMutations = commentMutations(queryKeys.mystery.all, {
+    update: (id, body) => updateMysteryComment(id, body),
+    remove: id => deleteMysteryComment(id),
+    like: id => likeMysteryComment(id),
+    unlike: id => unlikeMysteryComment(id),
+    uploadMedia: (commentId, file) => uploadMysteryCommentMedia(commentId, file),
+});
 
-export function useDeleteMysteryComment(_mysteryId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => deleteMysteryComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
-    });
-}
-
-export function useLikeMysteryComment(_mysteryId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => likeMysteryComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
-    });
-}
-
-export function useUnlikeMysteryComment(_mysteryId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => unlikeMysteryComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
-    });
-}
-
-export function useUploadMysteryCommentMedia(_mysteryId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) =>
-            uploadMysteryCommentMedia(commentId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
-    });
-}
+export const useUpdateMysteryComment = mysteryCommentMutations.useUpdate;
+export const useDeleteMysteryComment = mysteryCommentMutations.useDelete;
+export const useLikeMysteryComment = mysteryCommentMutations.useLike;
+export const useUnlikeMysteryComment = mysteryCommentMutations.useUnlike;
+export const useUploadMysteryCommentMedia = mysteryCommentMutations.useUploadMedia;
 
 export function useUploadMysteryAttachment(mysteryId: string) {
     const qc = useQueryClient();

@@ -1,10 +1,11 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { quickSearch, searchSite } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 
 export function useQuickSearch(query: string, enabled: boolean) {
     const trimmed = query.trim();
     const q = useQuery({
-        queryKey: ["search", "quick", trimmed],
+        queryKey: queryKeys.search.quick(trimmed),
         queryFn: () => quickSearch(trimmed, 3),
         enabled: enabled && trimmed.length >= 2,
         staleTime: 30_000,
@@ -18,7 +19,7 @@ export function useQuickSearch(query: string, enabled: boolean) {
 export function useRoomMessageSearch(roomId: string, query: string, limit: number, offset: number, enabled: boolean) {
     const trimmed = query.trim();
     const q = useQuery({
-        queryKey: ["search", "room", roomId, trimmed, limit, offset],
+        queryKey: queryKeys.search.room(roomId, trimmed, limit, offset),
         queryFn: () => searchSite(trimmed, "chat_message", limit, offset, roomId),
         enabled: enabled && !!roomId && trimmed.length >= 2,
         placeholderData: keepPreviousData,
@@ -34,7 +35,7 @@ export function useRoomMessageSearch(roomId: string, query: string, limit: numbe
 export function useSiteSearch(query: string, types: string, limit: number, offset: number) {
     const trimmed = query.trim();
     const q = useQuery({
-        queryKey: ["search", "full", trimmed, types, limit, offset],
+        queryKey: queryKeys.search.full(trimmed, types, limit, offset),
         queryFn: () => searchSite(trimmed, types, limit, offset),
         enabled: trimmed.length >= 2,
         placeholderData: keepPreviousData,

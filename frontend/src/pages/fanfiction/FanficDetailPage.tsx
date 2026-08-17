@@ -24,6 +24,7 @@ import { CommentsSection } from "../../components/post/CommentsSection/CommentsS
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
+import { renderRich } from "../../utils/richText";
 import styles from "./FanficPages.module.css";
 
 function ratingBadgeClass(rating: string): string {
@@ -279,7 +280,7 @@ export function FanficDetailPage() {
                     </div>
                 )}
 
-                {fanfic.summary && <p className={styles.summary}>{fanfic.summary}</p>}
+                {fanfic.summary && <div className={styles.summary}>{renderRich(fanfic.summary)}</div>}
 
                 <div className={styles.tocSection}>
                     {fanfic.is_oneshot ? (

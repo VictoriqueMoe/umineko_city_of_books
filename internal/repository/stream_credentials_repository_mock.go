@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockStreamCredentialsRepository) EXPECT() *MockStreamCredentialsReposi
 }
 
 // Delete provides a mock function for the type MockStreamCredentialsRepository
-func (_mock *MockStreamCredentialsRepository) Delete(ctx context.Context, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockStreamCredentialsRepository) Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -63,11 +70,13 @@ type MockStreamCredentialsRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockStreamCredentialsRepository_Expecter) Delete(ctx any, userID any) *MockStreamCredentialsRepository_Delete_Call {
-	return &MockStreamCredentialsRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockStreamCredentialsRepository_Expecter) Delete(ctx any, userID any, tx ...any) *MockStreamCredentialsRepository_Delete_Call {
+	return &MockStreamCredentialsRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockStreamCredentialsRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockStreamCredentialsRepository_Delete_Call {
+func (_c *MockStreamCredentialsRepository_Delete_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockStreamCredentialsRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -77,9 +86,16 @@ func (_c *MockStreamCredentialsRepository_Delete_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -90,14 +106,20 @@ func (_c *MockStreamCredentialsRepository_Delete_Call) Return(err error) *MockSt
 	return _c
 }
 
-func (_c *MockStreamCredentialsRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockStreamCredentialsRepository_Delete_Call {
+func (_c *MockStreamCredentialsRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error) *MockStreamCredentialsRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Get provides a mock function for the type MockStreamCredentialsRepository
-func (_mock *MockStreamCredentialsRepository) Get(ctx context.Context, userID uuid.UUID) (*StreamCredentialsRow, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockStreamCredentialsRepository) Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*StreamCredentialsRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -105,18 +127,18 @@ func (_mock *MockStreamCredentialsRepository) Get(ctx context.Context, userID uu
 
 	var r0 *StreamCredentialsRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*StreamCredentialsRow, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*StreamCredentialsRow, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *StreamCredentialsRow); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *StreamCredentialsRow); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*StreamCredentialsRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -131,11 +153,13 @@ type MockStreamCredentialsRepository_Get_Call struct {
 // Get is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockStreamCredentialsRepository_Expecter) Get(ctx any, userID any) *MockStreamCredentialsRepository_Get_Call {
-	return &MockStreamCredentialsRepository_Get_Call{Call: _e.mock.On("Get", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockStreamCredentialsRepository_Expecter) Get(ctx any, userID any, tx ...any) *MockStreamCredentialsRepository_Get_Call {
+	return &MockStreamCredentialsRepository_Get_Call{Call: _e.mock.On("Get",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockStreamCredentialsRepository_Get_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockStreamCredentialsRepository_Get_Call {
+func (_c *MockStreamCredentialsRepository_Get_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockStreamCredentialsRepository_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -145,9 +169,16 @@ func (_c *MockStreamCredentialsRepository_Get_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -158,22 +189,28 @@ func (_c *MockStreamCredentialsRepository_Get_Call) Return(streamCredentialsRow 
 	return _c
 }
 
-func (_c *MockStreamCredentialsRepository_Get_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*StreamCredentialsRow, error)) *MockStreamCredentialsRepository_Get_Call {
+func (_c *MockStreamCredentialsRepository_Get_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*StreamCredentialsRow, error)) *MockStreamCredentialsRepository_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Upsert provides a mock function for the type MockStreamCredentialsRepository
-func (_mock *MockStreamCredentialsRepository) Upsert(ctx context.Context, userID uuid.UUID, ingressID string, whipURL string, streamKey string, room string) error {
-	ret := _mock.Called(ctx, userID, ingressID, whipURL, streamKey, room)
+func (_mock *MockStreamCredentialsRepository) Upsert(ctx context.Context, spec NewStreamCredentials, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Upsert")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string) error); ok {
-		r0 = returnFunc(ctx, userID, ingressID, whipURL, streamKey, room)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewStreamCredentials, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -187,48 +224,33 @@ type MockStreamCredentialsRepository_Upsert_Call struct {
 
 // Upsert is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - ingressID string
-//   - whipURL string
-//   - streamKey string
-//   - room string
-func (_e *MockStreamCredentialsRepository_Expecter) Upsert(ctx any, userID any, ingressID any, whipURL any, streamKey any, room any) *MockStreamCredentialsRepository_Upsert_Call {
-	return &MockStreamCredentialsRepository_Upsert_Call{Call: _e.mock.On("Upsert", ctx, userID, ingressID, whipURL, streamKey, room)}
+//   - spec NewStreamCredentials
+//   - tx ...*sql.Tx
+func (_e *MockStreamCredentialsRepository_Expecter) Upsert(ctx any, spec any, tx ...any) *MockStreamCredentialsRepository_Upsert_Call {
+	return &MockStreamCredentialsRepository_Upsert_Call{Call: _e.mock.On("Upsert",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockStreamCredentialsRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, ingressID string, whipURL string, streamKey string, room string)) *MockStreamCredentialsRepository_Upsert_Call {
+func (_c *MockStreamCredentialsRepository_Upsert_Call) Run(run func(ctx context.Context, spec NewStreamCredentials, tx ...*sql.Tx)) *MockStreamCredentialsRepository_Upsert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewStreamCredentials
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewStreamCredentials)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
+			arg2...,
 		)
 	})
 	return _c
@@ -239,7 +261,7 @@ func (_c *MockStreamCredentialsRepository_Upsert_Call) Return(err error) *MockSt
 	return _c
 }
 
-func (_c *MockStreamCredentialsRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ingressID string, whipURL string, streamKey string, room string) error) *MockStreamCredentialsRepository_Upsert_Call {
+func (_c *MockStreamCredentialsRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, spec NewStreamCredentials, tx ...*sql.Tx) error) *MockStreamCredentialsRepository_Upsert_Call {
 	_c.Call.Return(run)
 	return _c
 }

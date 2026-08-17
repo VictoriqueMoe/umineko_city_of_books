@@ -40,20 +40,14 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 }
 
 // Delete provides a mock function for the type MockService
-func (_mock *MockService) Delete(urlPath string) error {
-	ret := _mock.Called(urlPath)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Delete")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(string) error); ok {
-		r0 = returnFunc(urlPath)
+func (_mock *MockService) Delete(urlPaths ...string) {
+	if len(urlPaths) > 0 {
+		_mock.Called(urlPaths)
 	} else {
-		r0 = ret.Error(0)
+		_mock.Called()
 	}
-	return r0
+
+	return
 }
 
 // MockService_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
@@ -62,31 +56,34 @@ type MockService_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - urlPath string
-func (_e *MockService_Expecter) Delete(urlPath any) *MockService_Delete_Call {
-	return &MockService_Delete_Call{Call: _e.mock.On("Delete", urlPath)}
+//   - urlPaths ...string
+func (_e *MockService_Expecter) Delete(urlPaths ...any) *MockService_Delete_Call {
+	return &MockService_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{}, urlPaths...)...)}
 }
 
-func (_c *MockService_Delete_Call) Run(run func(urlPath string)) *MockService_Delete_Call {
+func (_c *MockService_Delete_Call) Run(run func(urlPaths ...string)) *MockService_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
-		if args[0] != nil {
-			arg0 = args[0].(string)
+		var arg0 []string
+		var variadicArgs []string
+		if len(args) > 0 {
+			variadicArgs = args[0].([]string)
 		}
+		arg0 = variadicArgs
 		run(
-			arg0,
+			arg0...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockService_Delete_Call) Return(err error) *MockService_Delete_Call {
-	_c.Call.Return(err)
+func (_c *MockService_Delete_Call) Return() *MockService_Delete_Call {
+	_c.Call.Return()
 	return _c
 }
 
-func (_c *MockService_Delete_Call) RunAndReturn(run func(urlPath string) error) *MockService_Delete_Call {
-	_c.Call.Return(run)
+func (_c *MockService_Delete_Call) RunAndReturn(run func(urlPaths ...string)) *MockService_Delete_Call {
+	_c.Run(run)
 	return _c
 }
 

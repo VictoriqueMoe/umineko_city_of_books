@@ -41,7 +41,7 @@ func (m *Manager) SetDisconnector(d Disconnector) {
 	m.disconnector = d
 }
 
-func (m *Manager) disconnect(userID uuid.UUID) {
+func (m *Manager) Disconnect(userID uuid.UUID) {
 	if m.disconnector == nil {
 		return
 	}
@@ -49,10 +49,10 @@ func (m *Manager) disconnect(userID uuid.UUID) {
 	m.disconnector.DisconnectUser(userID)
 }
 
-func (m *Manager) Create(ctx context.Context, userID uuid.UUID) (string, error) {
+func (m *Manager) Issue(ctx context.Context) (string, time.Time, error) {
 	token, err := generateToken()
 	if err != nil {
-		return "", fmt.Errorf("generate token: %w", err)
+		return "", time.Time{}, fmt.Errorf("generate token: %w", err)
 	}
 
 	days := m.settingsSvc.GetInt(ctx, config.SettingSessionDurationDays)
@@ -61,7 +61,15 @@ func (m *Manager) Create(ctx context.Context, userID uuid.UUID) (string, error) 
 		duration = time.Duration(days) * 24 * time.Hour
 	}
 
-	expiresAt := time.Now().Add(duration)
+	return token, time.Now().Add(duration), nil
+}
+
+func (m *Manager) Create(ctx context.Context, userID uuid.UUID) (string, error) {
+	token, expiresAt, err := m.Issue(ctx)
+	if err != nil {
+		return "", err
+	}
+
 	if err := m.repo.Create(ctx, token, userID, expiresAt); err != nil {
 		return "", err
 	}
@@ -92,7 +100,7 @@ func (m *Manager) DeleteAllForUser(ctx context.Context, userID uuid.UUID) error 
 		return err
 	}
 
-	m.disconnect(userID)
+	m.Disconnect(userID)
 
 	return nil
 }
@@ -110,7 +118,7 @@ func (m *Manager) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, 
 		return err
 	}
 
-	m.disconnect(userID)
+	m.Disconnect(userID)
 
 	return nil
 }

@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,8 +40,14 @@ func (_m *MockChatWatchPartyRepository) EXPECT() *MockChatWatchPartyRepository_E
 }
 
 // CountActiveParticipants provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) CountActiveParticipants(ctx context.Context, sessionID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, sessionID)
+func (_mock *MockChatWatchPartyRepository) CountActiveParticipants(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountActiveParticipants")
@@ -48,16 +55,16 @@ func (_mock *MockChatWatchPartyRepository) CountActiveParticipants(ctx context.C
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, sessionID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -72,11 +79,13 @@ type MockChatWatchPartyRepository_CountActiveParticipants_Call struct {
 // CountActiveParticipants is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) CountActiveParticipants(ctx any, sessionID any) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
-	return &MockChatWatchPartyRepository_CountActiveParticipants_Call{Call: _e.mock.On("CountActiveParticipants", ctx, sessionID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) CountActiveParticipants(ctx any, sessionID any, tx ...any) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
+	return &MockChatWatchPartyRepository_CountActiveParticipants_Call{Call: _e.mock.On("CountActiveParticipants",
+		append([]any{ctx, sessionID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_CountActiveParticipants_Call) Run(run func(ctx context.Context, sessionID uuid.UUID)) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
+func (_c *MockChatWatchPartyRepository_CountActiveParticipants_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -86,9 +95,16 @@ func (_c *MockChatWatchPartyRepository_CountActiveParticipants_Call) Run(run fun
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -99,33 +115,39 @@ func (_c *MockChatWatchPartyRepository_CountActiveParticipants_Call) Return(n in
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_CountActiveParticipants_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID) (int, error)) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
+func (_c *MockChatWatchPartyRepository_CountActiveParticipants_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockChatWatchPartyRepository_CountActiveParticipants_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateSession provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) CreateSession(ctx context.Context, row ChatWatchPartySessionRow) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, row)
+func (_mock *MockChatWatchPartyRepository) CreateSession(ctx context.Context, row ChatWatchPartySessionRow, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, row, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, row)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateSession")
 	}
 
-	var r0 uuid.UUID
+	var r0 *ChatWatchPartySessionRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatWatchPartySessionRow) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, row)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatWatchPartySessionRow, ...*sql.Tx) (*ChatWatchPartySessionRow, error)); ok {
+		return returnFunc(ctx, row, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatWatchPartySessionRow) uuid.UUID); ok {
-		r0 = returnFunc(ctx, row)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatWatchPartySessionRow, ...*sql.Tx) *ChatWatchPartySessionRow); ok {
+		r0 = returnFunc(ctx, row, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
+			r0 = ret.Get(0).(*ChatWatchPartySessionRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ChatWatchPartySessionRow) error); ok {
-		r1 = returnFunc(ctx, row)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ChatWatchPartySessionRow, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, row, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -140,11 +162,13 @@ type MockChatWatchPartyRepository_CreateSession_Call struct {
 // CreateSession is a helper method to define mock.On call
 //   - ctx context.Context
 //   - row ChatWatchPartySessionRow
-func (_e *MockChatWatchPartyRepository_Expecter) CreateSession(ctx any, row any) *MockChatWatchPartyRepository_CreateSession_Call {
-	return &MockChatWatchPartyRepository_CreateSession_Call{Call: _e.mock.On("CreateSession", ctx, row)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) CreateSession(ctx any, row any, tx ...any) *MockChatWatchPartyRepository_CreateSession_Call {
+	return &MockChatWatchPartyRepository_CreateSession_Call{Call: _e.mock.On("CreateSession",
+		append([]any{ctx, row}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_CreateSession_Call) Run(run func(ctx context.Context, row ChatWatchPartySessionRow)) *MockChatWatchPartyRepository_CreateSession_Call {
+func (_c *MockChatWatchPartyRepository_CreateSession_Call) Run(run func(ctx context.Context, row ChatWatchPartySessionRow, tx ...*sql.Tx)) *MockChatWatchPartyRepository_CreateSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -154,35 +178,48 @@ func (_c *MockChatWatchPartyRepository_CreateSession_Call) Run(run func(ctx cont
 		if args[1] != nil {
 			arg1 = args[1].(ChatWatchPartySessionRow)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_CreateSession_Call) Return(uUID uuid.UUID, err error) *MockChatWatchPartyRepository_CreateSession_Call {
-	_c.Call.Return(uUID, err)
+func (_c *MockChatWatchPartyRepository_CreateSession_Call) Return(chatWatchPartySessionRow *ChatWatchPartySessionRow, err error) *MockChatWatchPartyRepository_CreateSession_Call {
+	_c.Call.Return(chatWatchPartySessionRow, err)
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_CreateSession_Call) RunAndReturn(run func(ctx context.Context, row ChatWatchPartySessionRow) (uuid.UUID, error)) *MockChatWatchPartyRepository_CreateSession_Call {
+func (_c *MockChatWatchPartyRepository_CreateSession_Call) RunAndReturn(run func(ctx context.Context, row ChatWatchPartySessionRow, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_CreateSession_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // EndSession provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) EndSession(ctx context.Context, sessionID uuid.UUID, reason string) error {
-	ret := _mock.Called(ctx, sessionID, reason)
+func (_mock *MockChatWatchPartyRepository) EndSession(ctx context.Context, sessionID uuid.UUID, reason string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, reason, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, reason)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for EndSession")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, sessionID, reason)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, reason, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -198,11 +235,13 @@ type MockChatWatchPartyRepository_EndSession_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - reason string
-func (_e *MockChatWatchPartyRepository_Expecter) EndSession(ctx any, sessionID any, reason any) *MockChatWatchPartyRepository_EndSession_Call {
-	return &MockChatWatchPartyRepository_EndSession_Call{Call: _e.mock.On("EndSession", ctx, sessionID, reason)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) EndSession(ctx any, sessionID any, reason any, tx ...any) *MockChatWatchPartyRepository_EndSession_Call {
+	return &MockChatWatchPartyRepository_EndSession_Call{Call: _e.mock.On("EndSession",
+		append([]any{ctx, sessionID, reason}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_EndSession_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, reason string)) *MockChatWatchPartyRepository_EndSession_Call {
+func (_c *MockChatWatchPartyRepository_EndSession_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, reason string, tx ...*sql.Tx)) *MockChatWatchPartyRepository_EndSession_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -216,10 +255,17 @@ func (_c *MockChatWatchPartyRepository_EndSession_Call) Run(run func(ctx context
 		if args[2] != nil {
 			arg2 = args[2].(string)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -230,14 +276,20 @@ func (_c *MockChatWatchPartyRepository_EndSession_Call) Return(err error) *MockC
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_EndSession_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, reason string) error) *MockChatWatchPartyRepository_EndSession_Call {
+func (_c *MockChatWatchPartyRepository_EndSession_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, reason string, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_EndSession_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetActiveParticipants provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) GetActiveParticipants(ctx context.Context, sessionID uuid.UUID) ([]ChatWatchPartyParticipantRow, error) {
-	ret := _mock.Called(ctx, sessionID)
+func (_mock *MockChatWatchPartyRepository) GetActiveParticipants(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) ([]ChatWatchPartyParticipantRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetActiveParticipants")
@@ -245,18 +297,18 @@ func (_mock *MockChatWatchPartyRepository) GetActiveParticipants(ctx context.Con
 
 	var r0 []ChatWatchPartyParticipantRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatWatchPartyParticipantRow, error)); ok {
-		return returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatWatchPartyParticipantRow, error)); ok {
+		return returnFunc(ctx, sessionID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatWatchPartyParticipantRow); ok {
-		r0 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatWatchPartyParticipantRow); ok {
+		r0 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatWatchPartyParticipantRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -271,11 +323,13 @@ type MockChatWatchPartyRepository_GetActiveParticipants_Call struct {
 // GetActiveParticipants is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetActiveParticipants(ctx any, sessionID any) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
-	return &MockChatWatchPartyRepository_GetActiveParticipants_Call{Call: _e.mock.On("GetActiveParticipants", ctx, sessionID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) GetActiveParticipants(ctx any, sessionID any, tx ...any) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
+	return &MockChatWatchPartyRepository_GetActiveParticipants_Call{Call: _e.mock.On("GetActiveParticipants",
+		append([]any{ctx, sessionID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_GetActiveParticipants_Call) Run(run func(ctx context.Context, sessionID uuid.UUID)) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
+func (_c *MockChatWatchPartyRepository_GetActiveParticipants_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -285,9 +339,16 @@ func (_c *MockChatWatchPartyRepository_GetActiveParticipants_Call) Run(run func(
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -298,14 +359,20 @@ func (_c *MockChatWatchPartyRepository_GetActiveParticipants_Call) Return(chatWa
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_GetActiveParticipants_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID) ([]ChatWatchPartyParticipantRow, error)) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
+func (_c *MockChatWatchPartyRepository_GetActiveParticipants_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) ([]ChatWatchPartyParticipantRow, error)) *MockChatWatchPartyRepository_GetActiveParticipants_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) GetByID(ctx context.Context, sessionID uuid.UUID) (*ChatWatchPartySessionRow, error) {
-	ret := _mock.Called(ctx, sessionID)
+func (_mock *MockChatWatchPartyRepository) GetByID(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -313,18 +380,18 @@ func (_mock *MockChatWatchPartyRepository) GetByID(ctx context.Context, sessionI
 
 	var r0 *ChatWatchPartySessionRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*ChatWatchPartySessionRow, error)); ok {
-		return returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*ChatWatchPartySessionRow, error)); ok {
+		return returnFunc(ctx, sessionID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *ChatWatchPartySessionRow); ok {
-		r0 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *ChatWatchPartySessionRow); ok {
+		r0 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ChatWatchPartySessionRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -339,11 +406,13 @@ type MockChatWatchPartyRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetByID(ctx any, sessionID any) *MockChatWatchPartyRepository_GetByID_Call {
-	return &MockChatWatchPartyRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, sessionID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) GetByID(ctx any, sessionID any, tx ...any) *MockChatWatchPartyRepository_GetByID_Call {
+	return &MockChatWatchPartyRepository_GetByID_Call{Call: _e.mock.On("GetByID",
+		append([]any{ctx, sessionID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_GetByID_Call) Run(run func(ctx context.Context, sessionID uuid.UUID)) *MockChatWatchPartyRepository_GetByID_Call {
+func (_c *MockChatWatchPartyRepository_GetByID_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -353,9 +422,16 @@ func (_c *MockChatWatchPartyRepository_GetByID_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -366,14 +442,20 @@ func (_c *MockChatWatchPartyRepository_GetByID_Call) Return(chatWatchPartySessio
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID) (*ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_GetByID_Call {
+func (_c *MockChatWatchPartyRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetParticipant provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) GetParticipant(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID) (*ChatWatchPartyParticipantRow, error) {
-	ret := _mock.Called(ctx, sessionID, userID)
+func (_mock *MockChatWatchPartyRepository) GetParticipant(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (*ChatWatchPartyParticipantRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetParticipant")
@@ -381,18 +463,18 @@ func (_mock *MockChatWatchPartyRepository) GetParticipant(ctx context.Context, s
 
 	var r0 *ChatWatchPartyParticipantRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (*ChatWatchPartyParticipantRow, error)); ok {
-		return returnFunc(ctx, sessionID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*ChatWatchPartyParticipantRow, error)); ok {
+		return returnFunc(ctx, sessionID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) *ChatWatchPartyParticipantRow); ok {
-		r0 = returnFunc(ctx, sessionID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *ChatWatchPartyParticipantRow); ok {
+		r0 = returnFunc(ctx, sessionID, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ChatWatchPartyParticipantRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, sessionID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, sessionID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -408,11 +490,13 @@ type MockChatWatchPartyRepository_GetParticipant_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) GetParticipant(ctx any, sessionID any, userID any) *MockChatWatchPartyRepository_GetParticipant_Call {
-	return &MockChatWatchPartyRepository_GetParticipant_Call{Call: _e.mock.On("GetParticipant", ctx, sessionID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) GetParticipant(ctx any, sessionID any, userID any, tx ...any) *MockChatWatchPartyRepository_GetParticipant_Call {
+	return &MockChatWatchPartyRepository_GetParticipant_Call{Call: _e.mock.On("GetParticipant",
+		append([]any{ctx, sessionID, userID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_GetParticipant_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID)) *MockChatWatchPartyRepository_GetParticipant_Call {
+func (_c *MockChatWatchPartyRepository_GetParticipant_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_GetParticipant_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -426,10 +510,17 @@ func (_c *MockChatWatchPartyRepository_GetParticipant_Call) Run(run func(ctx con
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -440,14 +531,20 @@ func (_c *MockChatWatchPartyRepository_GetParticipant_Call) Return(chatWatchPart
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_GetParticipant_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID) (*ChatWatchPartyParticipantRow, error)) *MockChatWatchPartyRepository_GetParticipant_Call {
+func (_c *MockChatWatchPartyRepository_GetParticipant_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (*ChatWatchPartyParticipantRow, error)) *MockChatWatchPartyRepository_GetParticipant_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListActiveByRoom provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) ListActiveByRoom(ctx context.Context, roomID uuid.UUID) ([]ChatWatchPartySessionRow, error) {
-	ret := _mock.Called(ctx, roomID)
+func (_mock *MockChatWatchPartyRepository) ListActiveByRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatWatchPartySessionRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListActiveByRoom")
@@ -455,18 +552,18 @@ func (_mock *MockChatWatchPartyRepository) ListActiveByRoom(ctx context.Context,
 
 	var r0 []ChatWatchPartySessionRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]ChatWatchPartySessionRow, error)); ok {
-		return returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatWatchPartySessionRow, error)); ok {
+		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []ChatWatchPartySessionRow); ok {
-		r0 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatWatchPartySessionRow); ok {
+		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatWatchPartySessionRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, roomID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -481,11 +578,13 @@ type MockChatWatchPartyRepository_ListActiveByRoom_Call struct {
 // ListActiveByRoom is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) ListActiveByRoom(ctx any, roomID any) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
-	return &MockChatWatchPartyRepository_ListActiveByRoom_Call{Call: _e.mock.On("ListActiveByRoom", ctx, roomID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) ListActiveByRoom(ctx any, roomID any, tx ...any) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
+	return &MockChatWatchPartyRepository_ListActiveByRoom_Call{Call: _e.mock.On("ListActiveByRoom",
+		append([]any{ctx, roomID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_ListActiveByRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID)) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
+func (_c *MockChatWatchPartyRepository_ListActiveByRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -495,9 +594,16 @@ func (_c *MockChatWatchPartyRepository_ListActiveByRoom_Call) Run(run func(ctx c
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -508,14 +614,20 @@ func (_c *MockChatWatchPartyRepository_ListActiveByRoom_Call) Return(chatWatchPa
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_ListActiveByRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID) ([]ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
+func (_c *MockChatWatchPartyRepository_ListActiveByRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_ListActiveByRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListIdleActiveSessions provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) ListIdleActiveSessions(ctx context.Context, idleBefore string) ([]ChatWatchPartySessionRow, error) {
-	ret := _mock.Called(ctx, idleBefore)
+func (_mock *MockChatWatchPartyRepository) ListIdleActiveSessions(ctx context.Context, idleBefore string, tx ...*sql.Tx) ([]ChatWatchPartySessionRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, idleBefore, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, idleBefore)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListIdleActiveSessions")
@@ -523,18 +635,18 @@ func (_mock *MockChatWatchPartyRepository) ListIdleActiveSessions(ctx context.Co
 
 	var r0 []ChatWatchPartySessionRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) ([]ChatWatchPartySessionRow, error)); ok {
-		return returnFunc(ctx, idleBefore)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) ([]ChatWatchPartySessionRow, error)); ok {
+		return returnFunc(ctx, idleBefore, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) []ChatWatchPartySessionRow); ok {
-		r0 = returnFunc(ctx, idleBefore)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) []ChatWatchPartySessionRow); ok {
+		r0 = returnFunc(ctx, idleBefore, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatWatchPartySessionRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, idleBefore)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, idleBefore, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -549,11 +661,13 @@ type MockChatWatchPartyRepository_ListIdleActiveSessions_Call struct {
 // ListIdleActiveSessions is a helper method to define mock.On call
 //   - ctx context.Context
 //   - idleBefore string
-func (_e *MockChatWatchPartyRepository_Expecter) ListIdleActiveSessions(ctx any, idleBefore any) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
-	return &MockChatWatchPartyRepository_ListIdleActiveSessions_Call{Call: _e.mock.On("ListIdleActiveSessions", ctx, idleBefore)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) ListIdleActiveSessions(ctx any, idleBefore any, tx ...any) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
+	return &MockChatWatchPartyRepository_ListIdleActiveSessions_Call{Call: _e.mock.On("ListIdleActiveSessions",
+		append([]any{ctx, idleBefore}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_ListIdleActiveSessions_Call) Run(run func(ctx context.Context, idleBefore string)) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
+func (_c *MockChatWatchPartyRepository_ListIdleActiveSessions_Call) Run(run func(ctx context.Context, idleBefore string, tx ...*sql.Tx)) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -563,9 +677,16 @@ func (_c *MockChatWatchPartyRepository_ListIdleActiveSessions_Call) Run(run func
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -576,22 +697,28 @@ func (_c *MockChatWatchPartyRepository_ListIdleActiveSessions_Call) Return(chatW
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_ListIdleActiveSessions_Call) RunAndReturn(run func(ctx context.Context, idleBefore string) ([]ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
+func (_c *MockChatWatchPartyRepository_ListIdleActiveSessions_Call) RunAndReturn(run func(ctx context.Context, idleBefore string, tx ...*sql.Tx) ([]ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_ListIdleActiveSessions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkAllParticipantsLeft provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) MarkAllParticipantsLeft(ctx context.Context, sessionID uuid.UUID) error {
-	ret := _mock.Called(ctx, sessionID)
+func (_mock *MockChatWatchPartyRepository) MarkAllParticipantsLeft(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkAllParticipantsLeft")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, sessionID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -606,11 +733,13 @@ type MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call struct {
 // MarkAllParticipantsLeft is a helper method to define mock.On call
 //   - ctx context.Context
 //   - sessionID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) MarkAllParticipantsLeft(ctx any, sessionID any) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
-	return &MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call{Call: _e.mock.On("MarkAllParticipantsLeft", ctx, sessionID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) MarkAllParticipantsLeft(ctx any, sessionID any, tx ...any) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
+	return &MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call{Call: _e.mock.On("MarkAllParticipantsLeft",
+		append([]any{ctx, sessionID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call) Run(run func(ctx context.Context, sessionID uuid.UUID)) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
+func (_c *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -620,9 +749,16 @@ func (_c *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call) Run(run fun
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -633,22 +769,28 @@ func (_c *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call) Return(err 
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID) error) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
+func (_c *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_MarkAllParticipantsLeft_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkParticipantLeft provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) MarkParticipantLeft(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, sessionID, userID)
+func (_mock *MockChatWatchPartyRepository) MarkParticipantLeft(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkParticipantLeft")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, sessionID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -664,11 +806,13 @@ type MockChatWatchPartyRepository_MarkParticipantLeft_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) MarkParticipantLeft(ctx any, sessionID any, userID any) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
-	return &MockChatWatchPartyRepository_MarkParticipantLeft_Call{Call: _e.mock.On("MarkParticipantLeft", ctx, sessionID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) MarkParticipantLeft(ctx any, sessionID any, userID any, tx ...any) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
+	return &MockChatWatchPartyRepository_MarkParticipantLeft_Call{Call: _e.mock.On("MarkParticipantLeft",
+		append([]any{ctx, sessionID, userID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_MarkParticipantLeft_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID)) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
+func (_c *MockChatWatchPartyRepository_MarkParticipantLeft_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -682,10 +826,17 @@ func (_c *MockChatWatchPartyRepository_MarkParticipantLeft_Call) Run(run func(ct
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -696,22 +847,106 @@ func (_c *MockChatWatchPartyRepository_MarkParticipantLeft_Call) Return(err erro
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_MarkParticipantLeft_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID) error) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
+func (_c *MockChatWatchPartyRepository_MarkParticipantLeft_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_MarkParticipantLeft_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RemoveParticipant provides a mock function for the type MockChatWatchPartyRepository
+func (_mock *MockChatWatchPartyRepository) RemoveParticipant(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for RemoveParticipant")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, userID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatWatchPartyRepository_RemoveParticipant_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveParticipant'
+type MockChatWatchPartyRepository_RemoveParticipant_Call struct {
+	*mock.Call
+}
+
+// RemoveParticipant is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sessionID uuid.UUID
+//   - userID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) RemoveParticipant(ctx any, sessionID any, userID any, tx ...any) *MockChatWatchPartyRepository_RemoveParticipant_Call {
+	return &MockChatWatchPartyRepository_RemoveParticipant_Call{Call: _e.mock.On("RemoveParticipant",
+		append([]any{ctx, sessionID, userID}, tx...)...)}
+}
+
+func (_c *MockChatWatchPartyRepository_RemoveParticipant_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_RemoveParticipant_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_RemoveParticipant_Call) Return(err error) *MockChatWatchPartyRepository_RemoveParticipant_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_RemoveParticipant_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_RemoveParticipant_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetControllerID provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) SetControllerID(ctx context.Context, sessionID uuid.UUID, controllerID uuid.UUID) error {
-	ret := _mock.Called(ctx, sessionID, controllerID)
+func (_mock *MockChatWatchPartyRepository) SetControllerID(ctx context.Context, sessionID uuid.UUID, controllerID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, controllerID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, controllerID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetControllerID")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, sessionID, controllerID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, controllerID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -727,11 +962,13 @@ type MockChatWatchPartyRepository_SetControllerID_Call struct {
 //   - ctx context.Context
 //   - sessionID uuid.UUID
 //   - controllerID uuid.UUID
-func (_e *MockChatWatchPartyRepository_Expecter) SetControllerID(ctx any, sessionID any, controllerID any) *MockChatWatchPartyRepository_SetControllerID_Call {
-	return &MockChatWatchPartyRepository_SetControllerID_Call{Call: _e.mock.On("SetControllerID", ctx, sessionID, controllerID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) SetControllerID(ctx any, sessionID any, controllerID any, tx ...any) *MockChatWatchPartyRepository_SetControllerID_Call {
+	return &MockChatWatchPartyRepository_SetControllerID_Call{Call: _e.mock.On("SetControllerID",
+		append([]any{ctx, sessionID, controllerID}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_SetControllerID_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, controllerID uuid.UUID)) *MockChatWatchPartyRepository_SetControllerID_Call {
+func (_c *MockChatWatchPartyRepository_SetControllerID_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, controllerID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_SetControllerID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -745,10 +982,17 @@ func (_c *MockChatWatchPartyRepository_SetControllerID_Call) Run(run func(ctx co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -759,22 +1003,28 @@ func (_c *MockChatWatchPartyRepository_SetControllerID_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_SetControllerID_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, controllerID uuid.UUID) error) *MockChatWatchPartyRepository_SetControllerID_Call {
+func (_c *MockChatWatchPartyRepository_SetControllerID_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, controllerID uuid.UUID, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_SetControllerID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetParticipantControl provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) SetParticipantControl(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool) error {
-	ret := _mock.Called(ctx, sessionID, userID, hasControl)
+func (_mock *MockChatWatchPartyRepository) SetParticipantControl(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, userID, hasControl, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, userID, hasControl)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetParticipantControl")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, sessionID, userID, hasControl)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, userID, hasControl, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -791,11 +1041,13 @@ type MockChatWatchPartyRepository_SetParticipantControl_Call struct {
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
 //   - hasControl bool
-func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantControl(ctx any, sessionID any, userID any, hasControl any) *MockChatWatchPartyRepository_SetParticipantControl_Call {
-	return &MockChatWatchPartyRepository_SetParticipantControl_Call{Call: _e.mock.On("SetParticipantControl", ctx, sessionID, userID, hasControl)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantControl(ctx any, sessionID any, userID any, hasControl any, tx ...any) *MockChatWatchPartyRepository_SetParticipantControl_Call {
+	return &MockChatWatchPartyRepository_SetParticipantControl_Call{Call: _e.mock.On("SetParticipantControl",
+		append([]any{ctx, sessionID, userID, hasControl}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_SetParticipantControl_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool)) *MockChatWatchPartyRepository_SetParticipantControl_Call {
+func (_c *MockChatWatchPartyRepository_SetParticipantControl_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, tx ...*sql.Tx)) *MockChatWatchPartyRepository_SetParticipantControl_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -813,11 +1065,18 @@ func (_c *MockChatWatchPartyRepository_SetParticipantControl_Call) Run(run func(
 		if args[3] != nil {
 			arg3 = args[3].(bool)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -828,22 +1087,28 @@ func (_c *MockChatWatchPartyRepository_SetParticipantControl_Call) Return(err er
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_SetParticipantControl_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool) error) *MockChatWatchPartyRepository_SetParticipantControl_Call {
+func (_c *MockChatWatchPartyRepository_SetParticipantControl_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_SetParticipantControl_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetParticipantIdentifier provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) SetParticipantIdentifier(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, identifier string) error {
-	ret := _mock.Called(ctx, sessionID, userID, identifier)
+func (_mock *MockChatWatchPartyRepository) SetParticipantIdentifier(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, identifier string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, userID, identifier, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, userID, identifier)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetParticipantIdentifier")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string) error); ok {
-		r0 = returnFunc(ctx, sessionID, userID, identifier)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, userID, identifier, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -860,11 +1125,13 @@ type MockChatWatchPartyRepository_SetParticipantIdentifier_Call struct {
 //   - sessionID uuid.UUID
 //   - userID uuid.UUID
 //   - identifier string
-func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantIdentifier(ctx any, sessionID any, userID any, identifier any) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
-	return &MockChatWatchPartyRepository_SetParticipantIdentifier_Call{Call: _e.mock.On("SetParticipantIdentifier", ctx, sessionID, userID, identifier)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) SetParticipantIdentifier(ctx any, sessionID any, userID any, identifier any, tx ...any) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
+	return &MockChatWatchPartyRepository_SetParticipantIdentifier_Call{Call: _e.mock.On("SetParticipantIdentifier",
+		append([]any{ctx, sessionID, userID, identifier}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_SetParticipantIdentifier_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, identifier string)) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
+func (_c *MockChatWatchPartyRepository_SetParticipantIdentifier_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, identifier string, tx ...*sql.Tx)) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -882,11 +1149,18 @@ func (_c *MockChatWatchPartyRepository_SetParticipantIdentifier_Call) Run(run fu
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -897,22 +1171,195 @@ func (_c *MockChatWatchPartyRepository_SetParticipantIdentifier_Call) Return(err
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_SetParticipantIdentifier_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, identifier string) error) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
+func (_c *MockChatWatchPartyRepository_SetParticipantIdentifier_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, identifier string, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_SetParticipantIdentifier_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StartSession provides a mock function for the type MockChatWatchPartyRepository
+func (_mock *MockChatWatchPartyRepository) StartSession(ctx context.Context, spec NewWatchPartySession, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for StartSession")
+	}
+
+	var r0 *ChatWatchPartySessionRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewWatchPartySession, ...*sql.Tx) (*ChatWatchPartySessionRow, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewWatchPartySession, ...*sql.Tx) *ChatWatchPartySessionRow); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatWatchPartySessionRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewWatchPartySession, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatWatchPartyRepository_StartSession_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StartSession'
+type MockChatWatchPartyRepository_StartSession_Call struct {
+	*mock.Call
+}
+
+// StartSession is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewWatchPartySession
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) StartSession(ctx any, spec any, tx ...any) *MockChatWatchPartyRepository_StartSession_Call {
+	return &MockChatWatchPartyRepository_StartSession_Call{Call: _e.mock.On("StartSession",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockChatWatchPartyRepository_StartSession_Call) Run(run func(ctx context.Context, spec NewWatchPartySession, tx ...*sql.Tx)) *MockChatWatchPartyRepository_StartSession_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewWatchPartySession
+		if args[1] != nil {
+			arg1 = args[1].(NewWatchPartySession)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_StartSession_Call) Return(chatWatchPartySessionRow *ChatWatchPartySessionRow, err error) *MockChatWatchPartyRepository_StartSession_Call {
+	_c.Call.Return(chatWatchPartySessionRow, err)
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_StartSession_Call) RunAndReturn(run func(ctx context.Context, spec NewWatchPartySession, tx ...*sql.Tx) (*ChatWatchPartySessionRow, error)) *MockChatWatchPartyRepository_StartSession_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// TransferControl provides a mock function for the type MockChatWatchPartyRepository
+func (_mock *MockChatWatchPartyRepository) TransferControl(ctx context.Context, sessionID uuid.UUID, demoteIDs []uuid.UUID, targetID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, demoteIDs, targetID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, demoteIDs, targetID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for TransferControl")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, demoteIDs, targetID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockChatWatchPartyRepository_TransferControl_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TransferControl'
+type MockChatWatchPartyRepository_TransferControl_Call struct {
+	*mock.Call
+}
+
+// TransferControl is a helper method to define mock.On call
+//   - ctx context.Context
+//   - sessionID uuid.UUID
+//   - demoteIDs []uuid.UUID
+//   - targetID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) TransferControl(ctx any, sessionID any, demoteIDs any, targetID any, tx ...any) *MockChatWatchPartyRepository_TransferControl_Call {
+	return &MockChatWatchPartyRepository_TransferControl_Call{Call: _e.mock.On("TransferControl",
+		append([]any{ctx, sessionID, demoteIDs, targetID}, tx...)...)}
+}
+
+func (_c *MockChatWatchPartyRepository_TransferControl_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, demoteIDs []uuid.UUID, targetID uuid.UUID, tx ...*sql.Tx)) *MockChatWatchPartyRepository_TransferControl_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].([]uuid.UUID)
+		}
+		var arg3 uuid.UUID
+		if args[3] != nil {
+			arg3 = args[3].(uuid.UUID)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_TransferControl_Call) Return(err error) *MockChatWatchPartyRepository_TransferControl_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockChatWatchPartyRepository_TransferControl_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, demoteIDs []uuid.UUID, targetID uuid.UUID, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_TransferControl_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpsertParticipant provides a mock function for the type MockChatWatchPartyRepository
-func (_mock *MockChatWatchPartyRepository) UpsertParticipant(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, identifier string) error {
-	ret := _mock.Called(ctx, sessionID, userID, hasControl, identifier)
+func (_mock *MockChatWatchPartyRepository) UpsertParticipant(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, identifier string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, sessionID, userID, hasControl, identifier, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, sessionID, userID, hasControl, identifier)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpsertParticipant")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, string) error); ok {
-		r0 = returnFunc(ctx, sessionID, userID, hasControl, identifier)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, sessionID, userID, hasControl, identifier, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -930,11 +1377,13 @@ type MockChatWatchPartyRepository_UpsertParticipant_Call struct {
 //   - userID uuid.UUID
 //   - hasControl bool
 //   - identifier string
-func (_e *MockChatWatchPartyRepository_Expecter) UpsertParticipant(ctx any, sessionID any, userID any, hasControl any, identifier any) *MockChatWatchPartyRepository_UpsertParticipant_Call {
-	return &MockChatWatchPartyRepository_UpsertParticipant_Call{Call: _e.mock.On("UpsertParticipant", ctx, sessionID, userID, hasControl, identifier)}
+//   - tx ...*sql.Tx
+func (_e *MockChatWatchPartyRepository_Expecter) UpsertParticipant(ctx any, sessionID any, userID any, hasControl any, identifier any, tx ...any) *MockChatWatchPartyRepository_UpsertParticipant_Call {
+	return &MockChatWatchPartyRepository_UpsertParticipant_Call{Call: _e.mock.On("UpsertParticipant",
+		append([]any{ctx, sessionID, userID, hasControl, identifier}, tx...)...)}
 }
 
-func (_c *MockChatWatchPartyRepository_UpsertParticipant_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, identifier string)) *MockChatWatchPartyRepository_UpsertParticipant_Call {
+func (_c *MockChatWatchPartyRepository_UpsertParticipant_Call) Run(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, identifier string, tx ...*sql.Tx)) *MockChatWatchPartyRepository_UpsertParticipant_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -956,12 +1405,19 @@ func (_c *MockChatWatchPartyRepository_UpsertParticipant_Call) Run(run func(ctx 
 		if args[4] != nil {
 			arg4 = args[4].(string)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -972,7 +1428,7 @@ func (_c *MockChatWatchPartyRepository_UpsertParticipant_Call) Return(err error)
 	return _c
 }
 
-func (_c *MockChatWatchPartyRepository_UpsertParticipant_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, identifier string) error) *MockChatWatchPartyRepository_UpsertParticipant_Call {
+func (_c *MockChatWatchPartyRepository_UpsertParticipant_Call) RunAndReturn(run func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, hasControl bool, identifier string, tx ...*sql.Tx) error) *MockChatWatchPartyRepository_UpsertParticipant_Call {
 	_c.Call.Return(run)
 	return _c
 }

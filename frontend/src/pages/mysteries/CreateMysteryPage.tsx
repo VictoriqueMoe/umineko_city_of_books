@@ -19,6 +19,7 @@ import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
 import { ALL_KNOX_RULES_ON, KNOX_RULES } from "./knoxRules";
 import type { KnoxContract } from "../../types/api";
+import { ExistingMediaGrid } from "../../components/ExistingMediaGrid/ExistingMediaGrid";
 import styles from "./MysteryPages.module.css";
 
 interface ClueInput {
@@ -334,34 +335,14 @@ export function CreateMysteryPage() {
                         Attach images or videos. They render as a gallery on the mystery page.
                     </p>
                     {existingMedia.length > 0 && (
-                        <div className={styles.existingMediaRow}>
-                            {existingMedia.map(m => {
-                                const marked = pendingMediaDeletions.includes(m.id);
-                                const itemClass = `${styles.existingMediaItem}${marked ? ` ${styles.existingMediaItemPending}` : ""}`;
-                                return (
-                                    <div key={m.id} className={itemClass}>
-                                        {m.media_type === "video" ? (
-                                            <video src={m.media_url} className={styles.existingMediaThumb} />
-                                        ) : (
-                                            <img
-                                                src={m.thumbnail_url || m.media_url}
-                                                alt=""
-                                                className={styles.existingMediaThumb}
-                                            />
-                                        )}
-                                        <button
-                                            type="button"
-                                            className={styles.existingMediaRemove}
-                                            onClick={() => togglePendingMediaDeletion(m.id)}
-                                            aria-label={marked ? "Undo remove" : "Remove on save"}
-                                            title={marked ? "Undo remove" : "Remove on save"}
-                                        >
-                                            {marked ? "↺" : "×"}
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                        <ExistingMediaGrid
+                            media={existingMedia}
+                            pendingIds={pendingMediaDeletions}
+                            onToggle={togglePendingMediaDeletion}
+                            removeLabel="Remove on save"
+                            preferThumbnail
+                            className={styles.existingMediaRow}
+                        />
                     )}
                     <MediaPreviews
                         files={mediaFiles}

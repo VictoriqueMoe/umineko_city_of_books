@@ -1,9 +1,18 @@
 package utils
 
 import (
+	"crypto/sha256"
+	"fmt"
+
+	"umineko_city_of_books/internal/bounds"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
+
+func Page(ctx fiber.Ctx, defaultLimit int) bounds.Page {
+	return bounds.NewPage(fiber.Query[int](ctx, "limit", defaultLimit), fiber.Query[int](ctx, "offset", 0))
+}
 
 // ParseIDParam parses the named route param as a UUID. On failure it writes a
 // 400 response and returns uuid.Nil + false; callers should then `return nil`.
@@ -36,4 +45,18 @@ func ActorAndTarget(ctx fiber.Ctx) (uuid.UUID, uuid.UUID, bool) {
 		return uuid.Nil, uuid.Nil, false
 	}
 	return UserID(ctx), targetID, true
+}
+
+func ViewerHash(ctx fiber.Ctx) string {
+	userID, ok := OptionalUserID(ctx)
+
+	var raw string
+	if ok && userID != uuid.Nil {
+		raw = userID.String()
+	} else {
+		raw = ctx.IP()
+	}
+
+	h := sha256.Sum256([]byte(raw))
+	return fmt.Sprintf("%x", h[:16])
 }

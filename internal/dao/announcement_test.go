@@ -14,16 +14,27 @@ import (
 
 func createAnnouncement(t *testing.T, repos *repository.Repositories, authorID uuid.UUID, title, body string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	require.NoError(t, repos.Announcement.Create(context.Background(), id, authorID, title, body))
-	return id
+	created, err := repos.Announcement.Create(context.Background(), authorID, title, body)
+	require.NoError(t, err)
+	return created.ID
 }
 
 func createAnnouncementComment(t *testing.T, repos *repository.Repositories, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	require.NoError(t, repos.Announcement.CreateComment(context.Background(), id, announcementID, parentID, userID, body))
-	return id
+	created, err := repos.Announcement.CreateComment(context.Background(), announcementID, parentID, userID, body)
+	require.NoError(t, err)
+	return created.ID
+}
+
+func addAnnouncementCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) {
+	t.Helper()
+	_, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{
+		CommentID:    commentID,
+		MediaURL:     mediaURL,
+		MediaType:    "image",
+		ThumbnailURL: thumbnailURL,
+	})
+	require.NoError(t, err)
 }
 
 func TestAnnouncementDAO_CreateAndGetByID(t *testing.T) {
@@ -287,6 +298,189 @@ func TestAnnouncementDAO_DeleteCommentAsAdmin(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
+func TestAnnouncementDAO_UpdateCommentBody_OwnedAndNotOwned(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "old")
+
+	// when
+	ownErr := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: author.ID, Body: "new"})
+	notOwnedErr := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: other.ID, Body: "evil"})
+
+	// then
+	require.NoError(t, ownErr)
+	require.Error(t, notOwnedErr)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	require.NoError(t, err)
+	require.Len(t, comments, 1)
+	assert.Equal(t, "new", comments[0].Body)
+}
+
+func TestAnnouncementDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
+
+	// when
+	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	require.NoError(t, err)
+	require.Len(t, comments, 1)
+	assert.Equal(t, "admin-edit", comments[0].Body)
+}
+
+func TestAnnouncementDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
+
+	// when
+	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetAnnouncementComment, entries[0].TargetType)
+	assert.Equal(t, commentID.String(), entries[0].TargetID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, author.ID, *entries[0].SubjectID)
+	assert.Empty(t, entries[0].Details)
+}
+
+func TestAnnouncementDAO_UpdateCommentBody_OwnEditWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
+
+	// when
+	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: author.ID, Body: "mine", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestAnnouncementDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
+
+	// when
+	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), repository.AnnouncementCommentDeletion{CommentID: commentID, UserID: moderator.ID, AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, paths)
+	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentDeleteAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetAnnouncementComment, entries[0].TargetType)
+	assert.Equal(t, commentID.String(), entries[0].TargetID)
+}
+
+func TestAnnouncementDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
+
+	// when
+	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), repository.AnnouncementCommentDeletion{CommentID: commentID, UserID: other.ID})
+
+	// then
+	require.Error(t, err)
+	assert.Empty(t, paths)
+	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	require.NoError(t, err)
+	assert.Equal(t, 1, total)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentDelete, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestAnnouncementDAO_DeleteWithMedia_ReturnsEveryCommentMediaPath(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	commenter := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	firstComment := createAnnouncementComment(t, repos, annID, author.ID, nil, "first")
+	secondComment := createAnnouncementComment(t, repos, annID, commenter.ID, nil, "second")
+	addAnnouncementCommentMedia(t, repos, firstComment, "/uploads/announcements/one.png", "/uploads/announcements/one-thumb.png")
+	addAnnouncementCommentMedia(t, repos, firstComment, "/uploads/announcements/two.mp4", "")
+	addAnnouncementCommentMedia(t, repos, secondComment, "/uploads/announcements/three.png", "/uploads/announcements/three-thumb.png")
+
+	otherAnnID := createAnnouncement(t, repos, author.ID, "Other", "B")
+	otherComment := createAnnouncementComment(t, repos, otherAnnID, author.ID, nil, "elsewhere")
+	addAnnouncementCommentMedia(t, repos, otherComment, "/uploads/announcements/untouched.png", "")
+
+	// when
+	paths, err := repos.Announcement.DeleteWithMedia(context.Background(), annID)
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/announcements/one.png",
+		"/uploads/announcements/one-thumb.png",
+		"/uploads/announcements/two.mp4",
+		"/uploads/announcements/three.png",
+		"/uploads/announcements/three-thumb.png",
+	}, paths)
+
+	row, err := repos.Announcement.GetByID(context.Background(), annID)
+	require.NoError(t, err)
+	assert.Nil(t, row)
+}
+
+func TestAnnouncementDAO_DeleteCommentWithAudit_ReturnsThatCommentsMediaPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	annID := createAnnouncement(t, repos, author.ID, "T", "B")
+	target := createAnnouncementComment(t, repos, annID, author.ID, nil, "goodbye")
+	survivor := createAnnouncementComment(t, repos, annID, author.ID, nil, "stays")
+	addAnnouncementCommentMedia(t, repos, target, "/uploads/announcements/doomed.png", "/uploads/announcements/doomed-thumb.png")
+	addAnnouncementCommentMedia(t, repos, survivor, "/uploads/announcements/kept.png", "/uploads/announcements/kept-thumb.png")
+
+	// when
+	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), repository.AnnouncementCommentDeletion{CommentID: target, UserID: author.ID})
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/announcements/doomed.png",
+		"/uploads/announcements/doomed-thumb.png",
+	}, paths)
+}
+
 func TestAnnouncementDAO_GetComments_PaginationOrderingAndExclusion(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -387,11 +581,11 @@ func TestAnnouncementDAO_AddCommentMedia_AndBatch(t *testing.T) {
 	commentC := createAnnouncementComment(t, repos, annID, author.ID, nil, "c")
 
 	// when
-	idA0, err := repos.Announcement.AddCommentMedia(context.Background(), commentA, "url-a-0", "image", "thumb-a-0", 0)
+	idA0, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentA, MediaURL: "url-a-0", MediaType: "image", ThumbnailURL: "thumb-a-0"})
 	require.NoError(t, err)
-	idA1, err := repos.Announcement.AddCommentMedia(context.Background(), commentA, "url-a-1", "image", "thumb-a-1", 0)
+	idA1, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentA, MediaURL: "url-a-1", MediaType: "image", ThumbnailURL: "thumb-a-1"})
 	require.NoError(t, err)
-	idB, err := repos.Announcement.AddCommentMedia(context.Background(), commentB, "url-b", "video", "thumb-b", 0)
+	idB, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentB, MediaURL: "url-b", MediaType: "video", ThumbnailURL: "thumb-b"})
 	require.NoError(t, err)
 	batch, batchErr := repos.Announcement.GetCommentMediaBatch(context.Background(), []uuid.UUID{commentA, commentB, commentC})
 
@@ -427,7 +621,7 @@ func TestAnnouncementDAO_UpdateCommentMediaURLAndThumbnail(t *testing.T) {
 	author := daotest.CreateUser(t, repos)
 	annID := createAnnouncement(t, repos, author.ID, "T", "B")
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
-	mediaID, err := repos.Announcement.AddCommentMedia(context.Background(), commentID, "old-url", "image", "old-thumb", 0)
+	mediaID, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentID, MediaURL: "old-url", MediaType: "image", ThumbnailURL: "old-thumb"})
 	require.NoError(t, err)
 
 	// when

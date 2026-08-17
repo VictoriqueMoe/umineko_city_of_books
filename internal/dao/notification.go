@@ -31,25 +31,47 @@ func (r *notificationDAO) Create(
 	referenceType string,
 	actorID uuid.UUID,
 	message string,
-) (int64, error) {
+	tx ...*sql.Tx,
+) (*model.NotificationRow, error) {
 	var actorArg any = actorID
 	if actorID == uuid.Nil {
 		actorArg = nil
 	}
-	var id int64
-	err := r.db.QueryRowContext(ctx,
-		`INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+
+	var n model.NotificationRow
+	var createdActorID *uuid.UUID
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
+		`WITH n AS (
+		     INSERT INTO notifications (user_id, type, reference_id, reference_type, actor_id, message)
+		     VALUES ($1, $2, $3, $4, $5, $6)
+		     RETURNING id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at
+		 )
+		 SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
+		        COALESCE(n.message, ''), n.read, n.created_at,
+		        COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(ur.role, '')
+		 FROM n
+		 LEFT JOIN users u ON n.actor_id = u.id
+		 LEFT JOIN user_roles ur ON n.actor_id = ur.user_id`,
 		userID, notifType, referenceID, referenceType, actorArg, message,
-	).Scan(&id)
+	).Scan(
+		&n.ID, &n.UserID, &n.Type, &n.ReferenceID, &n.ReferenceType, &createdActorID, &n.Message, &n.Read, &n.CreatedAt,
+		&n.ActorUsername, &n.ActorDisplayName, &n.ActorAvatarURL, &n.ActorRole,
+	)
 	if err != nil {
-		return 0, fmt.Errorf("insert notification: %w", err)
+		return nil, fmt.Errorf("insert notification: %w", err)
 	}
-	return id, nil
+
+	if createdActorID != nil {
+		n.ActorID = *createdActorID
+	}
+	n.Count = 1
+
+	return &n, nil
 }
 
-func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]model.NotificationRow, int, error) {
+func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.NotificationRow, int, error) {
 	var total int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT
 		   (SELECT COUNT(DISTINCT reference_id) FROM notifications
 		      WHERE user_id = $1 AND type = $2 AND read = FALSE) +
@@ -61,7 +83,7 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		return nil, 0, fmt.Errorf("count notifications: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`WITH chat_grouped AS (
 		   SELECT
 		     id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at,
@@ -109,24 +131,20 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		if actorID != nil {
 			n.ActorID = *actorID
 		}
-		notifications = append(notifications, n)
-	}
-
-	for i := range notifications {
-		n := &notifications[i]
 		if n.Type == dto.NotifChatRoomMessage && n.Count > 1 {
 			roomName := strings.TrimPrefix(n.Message, chatRoomMessagePrefix)
 			n.Message = fmt.Sprintf("%d messages sent in %s", n.Count, roomName)
 		}
+		notifications = append(notifications, n)
 	}
 
 	return notifications, total, rows.Err()
 }
 
-func (r *notificationDAO) GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error) {
+func (r *notificationDAO) GetByID(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) (*model.NotificationRow, error) {
 	var n model.NotificationRow
 	var actorID *uuid.UUID
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT n.id, n.user_id, n.type, n.reference_id, n.reference_type, n.actor_id,
 		        COALESCE(n.message, ''), n.read, n.created_at,
 		        COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(ur.role, '')
@@ -152,11 +170,11 @@ func (r *notificationDAO) GetByID(ctx context.Context, id int, userID uuid.UUID)
 	return &n, nil
 }
 
-func (r *notificationDAO) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
+func (r *notificationDAO) MarkRead(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) error {
 	var notifType dto.NotificationType
 	var referenceID uuid.UUID
 	var read bool
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT type, reference_id, read FROM notifications WHERE id = $1 AND user_id = $2`,
 		id, userID,
 	).Scan(&notifType, &referenceID, &read)
@@ -168,7 +186,7 @@ func (r *notificationDAO) MarkRead(ctx context.Context, id int, userID uuid.UUID
 	}
 
 	if notifType == dto.NotifChatRoomMessage && !read {
-		_, err = r.db.ExecContext(ctx,
+		_, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE notifications SET read = TRUE
 			 WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND read = FALSE`,
 			userID, notifType, referenceID,
@@ -179,7 +197,7 @@ func (r *notificationDAO) MarkRead(ctx context.Context, id int, userID uuid.UUID
 		return nil
 	}
 
-	_, err = r.db.ExecContext(ctx,
+	_, err = txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE notifications SET read = TRUE WHERE id = $1 AND user_id = $2`, id, userID,
 	)
 	if err != nil {
@@ -188,8 +206,8 @@ func (r *notificationDAO) MarkRead(ctx context.Context, id int, userID uuid.UUID
 	return nil
 }
 
-func (r *notificationDAO) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *notificationDAO) MarkAllRead(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE`, userID,
 	)
 	if err != nil {
@@ -198,8 +216,8 @@ func (r *notificationDAO) MarkAllRead(ctx context.Context, userID uuid.UUID) err
 	return nil
 }
 
-func (r *notificationDAO) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int) (int64, error) {
-	res, err := r.db.ExecContext(ctx,
+func (r *notificationDAO) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int, tx ...*sql.Tx) (int64, error) {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM notifications
 		 WHERE id IN (
 		     SELECT id FROM notifications
@@ -220,9 +238,9 @@ func (r *notificationDAO) DeleteOlderThanBatch(ctx context.Context, cutoff time.
 	return affected, nil
 }
 
-func (r *notificationDAO) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *notificationDAO) UnreadCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications WHERE user_id = $1 AND read = FALSE`, userID,
 	).Scan(&count)
 	if err != nil {
@@ -237,9 +255,10 @@ func (r *notificationDAO) HasRecentDuplicate(
 	notifType dto.NotificationType,
 	referenceID uuid.UUID,
 	actorID uuid.UUID,
+	tx ...*sql.Tx,
 ) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications
 		 WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND actor_id = $4
 		 AND created_at > NOW() - INTERVAL '1 hour'`,
@@ -256,9 +275,10 @@ func (r *notificationDAO) HasRecentFromActor(
 	notifType dto.NotificationType,
 	actorID uuid.UUID,
 	within time.Duration,
+	tx ...*sql.Tx,
 ) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM notifications
 		 WHERE type = $1 AND actor_id = $2
 		 AND created_at > NOW() - make_interval(secs => $3)`,

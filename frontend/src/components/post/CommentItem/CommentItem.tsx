@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { PostComment } from "../../../types/api";
 import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } from "../../../api/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
@@ -92,6 +92,15 @@ function SingleComment({
     const [editBody, setEditBody] = useState(comment.body);
     const [saving, setSaving] = useState(false);
 
+    const bodyContent = useMemo(() => {
+        const gifURL = extractGif(comment.body);
+        if (gifURL) {
+            return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
+        }
+
+        return <div className={styles.body}>{renderRich(comment.body)}</div>;
+    }, [comment.body]);
+
     async function handleLike() {
         if (!user) {
             return;
@@ -174,13 +183,7 @@ function SingleComment({
                 </div>
             ) : (
                 <>
-                    {(() => {
-                        const gifURL = extractGif(comment.body);
-                        if (gifURL) {
-                            return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
-                        }
-                        return <div className={styles.body}>{renderRich(comment.body)}</div>;
-                    })()}
+                    {bodyContent}
                     <MediaGallery media={comment.media} />
                     {comment.embeds && <PostEmbeds embeds={comment.embeds} />}
                 </>

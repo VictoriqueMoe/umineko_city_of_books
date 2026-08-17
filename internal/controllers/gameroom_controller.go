@@ -1,15 +1,16 @@
 package controllers
 
 import (
+	"context"
 	"errors"
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 )
 
 func (s *Service) getAllGameRoomRoutes() []FSetupRoute {
@@ -36,11 +37,11 @@ func (s *Service) getAllGameRoomRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupInviteGameRoute(r fiber.Router) {
-	r.Post("/game-rooms", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.inviteGame)
+	r.Post("/game-rooms", s.requireAuth(), s.inviteGame)
 }
 
 func (s *Service) setupListGameRoomsRoute(r fiber.Router) {
-	r.Get("/game-rooms", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listGameRooms)
+	r.Get("/game-rooms", s.requireAuth(), s.listGameRooms)
 }
 
 func (s *Service) setupListLiveGameRoomsRoute(r fiber.Router) {
@@ -52,39 +53,39 @@ func (s *Service) setupListFinishedGameRoomsRoute(r fiber.Router) {
 }
 
 func (s *Service) setupGetGameRoomRoute(r fiber.Router) {
-	r.Get("/game-rooms/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getGameRoom)
+	r.Get("/game-rooms/:id", s.requireAuth(), s.getGameRoom)
 }
 
 func (s *Service) setupAcceptGameRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/accept", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.acceptGame)
+	r.Post("/game-rooms/:id/accept", s.requireAuth(), s.acceptGame)
 }
 
 func (s *Service) setupDeclineGameRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/decline", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.declineGame)
+	r.Post("/game-rooms/:id/decline", s.requireAuth(), s.declineGame)
 }
 
 func (s *Service) setupCancelGameRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/cancel", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.cancelGame)
+	r.Post("/game-rooms/:id/cancel", s.requireAuth(), s.cancelGame)
 }
 
 func (s *Service) setupGameActionRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/action", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.gameAction)
+	r.Post("/game-rooms/:id/action", s.requireAuth(), s.gameAction)
 }
 
 func (s *Service) setupResignGameRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/resign", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.resignGame)
+	r.Post("/game-rooms/:id/resign", s.requireAuth(), s.resignGame)
 }
 
 func (s *Service) setupOfferDrawRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/offer-draw", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.offerDraw)
+	r.Post("/game-rooms/:id/offer-draw", s.requireAuth(), s.offerDraw)
 }
 
 func (s *Service) setupAcceptDrawRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/accept-draw", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.acceptDraw)
+	r.Post("/game-rooms/:id/accept-draw", s.requireAuth(), s.acceptDraw)
 }
 
 func (s *Service) setupDeclineDrawRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/decline-draw", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.declineDraw)
+	r.Post("/game-rooms/:id/decline-draw", s.requireAuth(), s.declineDraw)
 }
 
 func (s *Service) setupGameScoreboardRoute(r fiber.Router) {
@@ -96,15 +97,15 @@ func (s *Service) setupGetSpectatorChatRoute(r fiber.Router) {
 }
 
 func (s *Service) setupPostSpectatorChatRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/chat", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.postSpectatorChat)
+	r.Post("/game-rooms/:id/chat", s.requireAuth(), s.postSpectatorChat)
 }
 
 func (s *Service) setupGetPlayerChatRoute(r fiber.Router) {
-	r.Get("/game-rooms/:id/player-chat", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.getPlayerChat)
+	r.Get("/game-rooms/:id/player-chat", s.requireAuth(), s.getPlayerChat)
 }
 
 func (s *Service) setupPostPlayerChatRoute(r fiber.Router) {
-	r.Post("/game-rooms/:id/player-chat", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.postPlayerChat)
+	r.Post("/game-rooms/:id/player-chat", s.requireAuth(), s.postPlayerChat)
 }
 
 func gameRoomError(ctx fiber.Ctx, err error) error {
@@ -205,7 +206,7 @@ func (s *Service) listLiveGameRooms(ctx fiber.Ctx) error {
 
 func (s *Service) listFinishedGameRooms(ctx fiber.Ctx) error {
 	gameType := dto.GameType(ctx.Query("game_type"))
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	resp, err := s.GameRoomService.ListFinished(ctx.Context(), gameType, page)
 	if err != nil {
@@ -281,40 +282,15 @@ func (s *Service) postPlayerChat(ctx fiber.Ctx) error {
 }
 
 func (s *Service) acceptGame(ctx fiber.Ctx) error {
-	userID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-	room, err := s.GameRoomService.Accept(ctx.Context(), roomID, userID)
-	if err != nil {
-		return gameRoomError(ctx, err)
-	}
-	return ctx.JSON(room)
+	return s.gameRoomAction(ctx, s.GameRoomService.Accept)
 }
 
 func (s *Service) declineGame(ctx fiber.Ctx) error {
-	userID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-	if err := s.GameRoomService.Decline(ctx.Context(), roomID, userID); err != nil {
-		return gameRoomError(ctx, err)
-	}
-	return utils.OK(ctx)
+	return s.gameRoomCommand(ctx, s.GameRoomService.Decline)
 }
 
 func (s *Service) cancelGame(ctx fiber.Ctx) error {
-	userID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-	if err := s.GameRoomService.Cancel(ctx.Context(), roomID, userID); err != nil {
-		return gameRoomError(ctx, err)
-	}
-	return utils.OK(ctx)
+	return s.gameRoomCommand(ctx, s.GameRoomService.Cancel)
 }
 
 func (s *Service) gameAction(ctx fiber.Ctx) error {
@@ -350,53 +326,48 @@ func (s *Service) getGameScoreboard(ctx fiber.Ctx) error {
 }
 
 func (s *Service) resignGame(ctx fiber.Ctx) error {
-	userID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-	room, err := s.GameRoomService.Resign(ctx.Context(), roomID, userID)
-	if err != nil {
-		return gameRoomError(ctx, err)
-	}
-	return ctx.JSON(room)
+	return s.gameRoomAction(ctx, s.GameRoomService.Resign)
 }
 
 func (s *Service) offerDraw(ctx fiber.Ctx) error {
-	userID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-	room, err := s.GameRoomService.OfferDraw(ctx.Context(), roomID, userID)
-	if err != nil {
-		return gameRoomError(ctx, err)
-	}
-	return ctx.JSON(room)
+	return s.gameRoomAction(ctx, s.GameRoomService.OfferDraw)
 }
 
 func (s *Service) acceptDraw(ctx fiber.Ctx) error {
-	userID := utils.UserID(ctx)
-	roomID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-	room, err := s.GameRoomService.AcceptDraw(ctx.Context(), roomID, userID)
-	if err != nil {
-		return gameRoomError(ctx, err)
-	}
-	return ctx.JSON(room)
+	return s.gameRoomAction(ctx, s.GameRoomService.AcceptDraw)
 }
 
 func (s *Service) declineDraw(ctx fiber.Ctx) error {
+	return s.gameRoomAction(ctx, s.GameRoomService.DeclineDraw)
+}
+
+func (s *Service) gameRoomAction(ctx fiber.Ctx, action func(context.Context, uuid.UUID, uuid.UUID) (*dto.GameRoom, error)) error {
 	userID := utils.UserID(ctx)
+
 	roomID, ok := utils.ParseIDParam(ctx, "id")
 	if !ok {
 		return nil
 	}
-	room, err := s.GameRoomService.DeclineDraw(ctx.Context(), roomID, userID)
+
+	room, err := action(ctx.Context(), roomID, userID)
 	if err != nil {
 		return gameRoomError(ctx, err)
 	}
+
 	return ctx.JSON(room)
+}
+
+func (s *Service) gameRoomCommand(ctx fiber.Ctx, command func(context.Context, uuid.UUID, uuid.UUID) error) error {
+	userID := utils.UserID(ctx)
+
+	roomID, ok := utils.ParseIDParam(ctx, "id")
+	if !ok {
+		return nil
+	}
+
+	if err := command(ctx.Context(), roomID, userID); err != nil {
+		return gameRoomError(ctx, err)
+	}
+
+	return utils.OK(ctx)
 }

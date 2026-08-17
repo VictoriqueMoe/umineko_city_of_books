@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -19,6 +20,8 @@ import (
 
 const (
 	botVanityRoleID = "bot"
+	botPasswordHash = "!"
+	botHomePage     = "landing"
 
 	testSystemPrompt    = "You are a connectivity probe. Reply with a single word."
 	testUserMessage     = "ping"
@@ -28,34 +31,41 @@ const (
 type (
 	AdminService interface {
 		List(ctx context.Context) ([]dto.ChatbotResponse, error)
-		Create(ctx context.Context, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
-		Update(ctx context.Context, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
-		Delete(ctx context.Context, id uuid.UUID) error
+		Create(ctx context.Context, actorID uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
+		Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error)
+		Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error
 		Usage(ctx context.Context, since time.Time) (*dto.ChatbotUsageResponse, error)
 		Models(ctx context.Context) ([]string, error)
 		Test(ctx context.Context, model string) (bool, string, error)
 
 		ListBasePrompts(ctx context.Context) ([]dto.ChatbotBasePromptResponse, error)
-		CreateBasePrompt(ctx context.Context, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
-		UpdateBasePrompt(ctx context.Context, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
-		DeleteBasePrompt(ctx context.Context, id uuid.UUID) error
+		CreateBasePrompt(ctx context.Context, actorID uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
+		UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotBasePromptUpsertRequest) (*dto.ChatbotBasePromptResponse, error)
+		DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error
 	}
 
 	adminService struct {
 		botRepo        repository.ChatbotRepository
 		basePromptRepo repository.ChatbotBasePromptRepository
-		vanityRepo     repository.VanityRoleRepository
+		auditRepo      repository.AuditLogRepository
 		userSvc        user.Service
 		openaiSvc      openai.Service
 		reloader       Service
 	}
 )
 
-func NewAdminService(botRepo repository.ChatbotRepository, basePromptRepo repository.ChatbotBasePromptRepository, vanityRepo repository.VanityRoleRepository, userSvc user.Service, openaiSvc openai.Service, reloader Service) AdminService {
+func NewAdminService(
+	botRepo repository.ChatbotRepository,
+	basePromptRepo repository.ChatbotBasePromptRepository,
+	auditRepo repository.AuditLogRepository,
+	userSvc user.Service,
+	openaiSvc openai.Service,
+	reloader Service,
+) AdminService {
 	return &adminService{
 		botRepo:        botRepo,
 		basePromptRepo: basePromptRepo,
-		vanityRepo:     vanityRepo,
+		auditRepo:      auditRepo,
 		userSvc:        userSvc,
 		openaiSvc:      openaiSvc,
 		reloader:       reloader,
@@ -76,7 +86,7 @@ func (a *adminService) List(ctx context.Context) ([]dto.ChatbotResponse, error) 
 	return out, nil
 }
 
-func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
+func (a *adminService) Create(ctx context.Context, actorID uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
 	if err := a.validateUpsert(ctx, req); err != nil {
 		return nil, err
 	}
@@ -94,18 +104,18 @@ func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest)
 		return nil, fmt.Errorf("check username: %w", err)
 	}
 
-	userID := uuid.New()
-	if err := a.botRepo.CreateBotAccount(ctx, userID, req.Username, displayName, req.AvatarURL); err != nil {
-		return nil, fmt.Errorf("create bot account: %w", err)
-	}
-
-	if err := a.vanityRepo.AssignToUser(ctx, userID, botVanityRoleID); err != nil {
-		return nil, fmt.Errorf("assign bot badge: %w", err)
+	account := repository.NewUser{
+		Username:      strings.TrimSpace(req.Username),
+		PasswordHash:  botPasswordHash,
+		DisplayName:   displayName,
+		AvatarURL:     req.AvatarURL,
+		HomePage:      botHomePage,
+		IsBot:         true,
+		DMsEnabled:    true,
+		EmailVerified: true,
 	}
 
 	bot := repository.Chatbot{
-		ID:              uuid.New(),
-		UserID:          userID,
 		SystemPrompt:    req.SystemPrompt,
 		BasePromptID:    req.BasePromptID,
 		Model:           req.Model,
@@ -115,16 +125,28 @@ func (a *adminService) Create(ctx context.Context, req dto.ChatbotUpsertRequest)
 		Enabled:         req.Enabled,
 	}
 
-	if err := a.botRepo.CreateBot(ctx, bot); err != nil {
+	created, err := a.botRepo.CreateBotWithAccount(ctx, account, bot, botVanityRoleID)
+	if err != nil {
 		return nil, fmt.Errorf("create chatbot: %w", err)
 	}
 
 	a.reloader.Reload()
 
-	return a.byUser(ctx, userID)
+	a.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotCreate,
+		TargetType: repository.AuditTargetChatbot,
+		TargetID:   created.ID.String(),
+		Details:    fmt.Sprintf("username=%s name=%s model=%s enabled=%t", created.Username, created.DisplayName, created.Model, created.Enabled),
+		SubjectID:  created.UserID,
+	})
+
+	response := toResponse(*created)
+
+	return &response, nil
 }
 
-func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
+func (a *adminService) Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, req dto.ChatbotUpsertRequest) (*dto.ChatbotResponse, error) {
 	if err := a.validateUpsert(ctx, req); err != nil {
 		return nil, err
 	}
@@ -134,46 +156,47 @@ func (a *adminService) Update(ctx context.Context, id uuid.UUID, req dto.Chatbot
 		return nil, ErrBotInvalid
 	}
 
-	bots, err := a.botRepo.ListBots(ctx)
+	current, err := a.findBot(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("list chatbots: %w", err)
+		return nil, err
 	}
 
-	var current *repository.Chatbot
-	for i := range bots {
-		if bots[i].ID == id {
-			current = &bots[i]
+	spec := *current
+	spec.SystemPrompt = req.SystemPrompt
+	spec.BasePromptID = req.BasePromptID
+	spec.Model = req.Model
+	spec.ReasoningEffort = req.ReasoningEffort
+	spec.Verbosity = req.Verbosity
+	spec.MaxOutputTokens = req.MaxOutputTokens
+	spec.Enabled = req.Enabled
 
-			break
-		}
-	}
-	if current == nil {
-		return nil, ErrBotNotFound
-	}
-
-	updated := *current
-	updated.SystemPrompt = req.SystemPrompt
-	updated.BasePromptID = req.BasePromptID
-	updated.Model = req.Model
-	updated.ReasoningEffort = req.ReasoningEffort
-	updated.Verbosity = req.Verbosity
-	updated.MaxOutputTokens = req.MaxOutputTokens
-	updated.Enabled = req.Enabled
-
-	if err := a.botRepo.UpdateBot(ctx, updated); err != nil {
+	updated, err := a.botRepo.UpdateBotWithAccount(ctx, spec, displayName, req.AvatarURL)
+	if err != nil {
 		return nil, fmt.Errorf("update chatbot: %w", err)
-	}
-
-	if err := a.botRepo.UpdateBotAccount(ctx, current.UserID, displayName, req.AvatarURL); err != nil {
-		return nil, fmt.Errorf("update bot profile: %w", err)
 	}
 
 	a.reloader.Reload()
 
-	return a.byUser(ctx, current.UserID)
+	a.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotUpdate,
+		TargetType: repository.AuditTargetChatbot,
+		TargetID:   id.String(),
+		Details:    chatbotChanges(*current, req, displayName),
+		SubjectID:  current.UserID,
+	})
+
+	response := toResponse(*updated)
+
+	return &response, nil
 }
 
-func (a *adminService) Delete(ctx context.Context, id uuid.UUID) error {
+func (a *adminService) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
+	doomed, lookupErr := a.findBot(ctx, id)
+	if lookupErr != nil && !errors.Is(lookupErr, ErrBotNotFound) {
+		logger.Log.Error().Err(lookupErr).Str("chatbot_id", id.String()).Msg("failed to read the chatbot before deleting it")
+	}
+
 	if err := a.botRepo.DeleteBot(ctx, id); err != nil {
 		if errors.Is(err, repository.ErrBotNotFound) {
 			return ErrBotNotFound
@@ -184,7 +207,96 @@ func (a *adminService) Delete(ctx context.Context, id uuid.UUID) error {
 
 	a.reloader.Reload()
 
+	entry := repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatbotDelete,
+		TargetType: repository.AuditTargetChatbot,
+		TargetID:   id.String(),
+	}
+
+	if doomed != nil {
+		entry.Details = fmt.Sprintf("username=%s name=%s", doomed.Username, doomed.DisplayName)
+		entry.SubjectID = doomed.UserID
+	}
+
+	a.audit(ctx, entry)
+
 	return nil
+}
+
+func (a *adminService) findBot(ctx context.Context, id uuid.UUID) (*repository.Chatbot, error) {
+	bots, err := a.botRepo.ListBots(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list chatbots: %w", err)
+	}
+
+	for i := range bots {
+		if bots[i].ID == id {
+			return &bots[i], nil
+		}
+	}
+
+	return nil, ErrBotNotFound
+}
+
+func (a *adminService) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := a.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
+func sameBasePrompt(current, next *uuid.UUID) bool {
+	if current == nil || next == nil {
+		return current == next
+	}
+
+	return *current == *next
+}
+
+func chatbotChanges(current repository.Chatbot, req dto.ChatbotUpsertRequest, displayName string) string {
+	changed := make([]string, 0, 9)
+
+	if current.SystemPrompt != req.SystemPrompt {
+		changed = append(changed, "system_prompt")
+	}
+
+	if !sameBasePrompt(current.BasePromptID, req.BasePromptID) {
+		changed = append(changed, "base_prompt")
+	}
+
+	if current.Model != req.Model {
+		changed = append(changed, fmt.Sprintf("model=%s", req.Model))
+	}
+
+	if current.ReasoningEffort != req.ReasoningEffort {
+		changed = append(changed, fmt.Sprintf("reasoning_effort=%s", req.ReasoningEffort))
+	}
+
+	if current.Verbosity != req.Verbosity {
+		changed = append(changed, fmt.Sprintf("verbosity=%s", req.Verbosity))
+	}
+
+	if current.MaxOutputTokens != req.MaxOutputTokens {
+		changed = append(changed, fmt.Sprintf("max_output_tokens=%d", req.MaxOutputTokens))
+	}
+
+	if current.Enabled != req.Enabled {
+		changed = append(changed, fmt.Sprintf("enabled=%t", req.Enabled))
+	}
+
+	if current.DisplayName != displayName {
+		changed = append(changed, fmt.Sprintf("display_name=%s", displayName))
+	}
+
+	if current.AvatarURL != req.AvatarURL {
+		changed = append(changed, "avatar")
+	}
+
+	if len(changed) == 0 {
+		return "unchanged"
+	}
+
+	return strings.Join(changed, " ")
 }
 
 func (a *adminService) Usage(ctx context.Context, since time.Time) (*dto.ChatbotUsageResponse, error) {
@@ -263,20 +375,6 @@ func providerMessage(err error) string {
 	}
 
 	return err.Error()
-}
-
-func (a *adminService) byUser(ctx context.Context, userID uuid.UUID) (*dto.ChatbotResponse, error) {
-	bot, err := a.botRepo.GetBotByUserID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("get chatbot: %w", err)
-	}
-	if bot == nil {
-		return nil, ErrBotNotFound
-	}
-
-	resp := toResponse(*bot)
-
-	return &resp, nil
 }
 
 func toResponse(bot repository.Chatbot) dto.ChatbotResponse {

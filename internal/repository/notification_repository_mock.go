@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository/model"
@@ -42,25 +43,33 @@ func (_m *MockNotificationRepository) EXPECT() *MockNotificationRepository_Expec
 }
 
 // Create provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) Create(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, referenceType string, actorID uuid.UUID, message string) (int64, error) {
-	ret := _mock.Called(ctx, userID, notifType, referenceID, referenceType, actorID, message)
+func (_mock *MockNotificationRepository) Create(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, referenceType string, actorID uuid.UUID, message string, tx ...*sql.Tx) (*model.NotificationRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, notifType, referenceID, referenceType, actorID, message, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, notifType, referenceID, referenceType, actorID, message)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 int64
+	var r0 *model.NotificationRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, string, uuid.UUID, string) (int64, error)); ok {
-		return returnFunc(ctx, userID, notifType, referenceID, referenceType, actorID, message)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, string, uuid.UUID, string, ...*sql.Tx) (*model.NotificationRow, error)); ok {
+		return returnFunc(ctx, userID, notifType, referenceID, referenceType, actorID, message, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, string, uuid.UUID, string) int64); ok {
-		r0 = returnFunc(ctx, userID, notifType, referenceID, referenceType, actorID, message)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, string, uuid.UUID, string, ...*sql.Tx) *model.NotificationRow); ok {
+		r0 = returnFunc(ctx, userID, notifType, referenceID, referenceType, actorID, message, tx...)
 	} else {
-		r0 = ret.Get(0).(int64)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.NotificationRow)
+		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, string, uuid.UUID, string) error); ok {
-		r1 = returnFunc(ctx, userID, notifType, referenceID, referenceType, actorID, message)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, string, uuid.UUID, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, notifType, referenceID, referenceType, actorID, message, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,11 +89,13 @@ type MockNotificationRepository_Create_Call struct {
 //   - referenceType string
 //   - actorID uuid.UUID
 //   - message string
-func (_e *MockNotificationRepository_Expecter) Create(ctx any, userID any, notifType any, referenceID any, referenceType any, actorID any, message any) *MockNotificationRepository_Create_Call {
-	return &MockNotificationRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, notifType, referenceID, referenceType, actorID, message)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) Create(ctx any, userID any, notifType any, referenceID any, referenceType any, actorID any, message any, tx ...any) *MockNotificationRepository_Create_Call {
+	return &MockNotificationRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, userID, notifType, referenceID, referenceType, actorID, message}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, referenceType string, actorID uuid.UUID, message string)) *MockNotificationRepository_Create_Call {
+func (_c *MockNotificationRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, referenceType string, actorID uuid.UUID, message string, tx ...*sql.Tx)) *MockNotificationRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -114,6 +125,12 @@ func (_c *MockNotificationRepository_Create_Call) Run(run func(ctx context.Conte
 		if args[6] != nil {
 			arg6 = args[6].(string)
 		}
+		var arg7 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 7 {
+			variadicArgs = args[7].([]*sql.Tx)
+		}
+		arg7 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -122,24 +139,31 @@ func (_c *MockNotificationRepository_Create_Call) Run(run func(ctx context.Conte
 			arg4,
 			arg5,
 			arg6,
+			arg7...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockNotificationRepository_Create_Call) Return(n int64, err error) *MockNotificationRepository_Create_Call {
-	_c.Call.Return(n, err)
+func (_c *MockNotificationRepository_Create_Call) Return(notificationRow *model.NotificationRow, err error) *MockNotificationRepository_Create_Call {
+	_c.Call.Return(notificationRow, err)
 	return _c
 }
 
-func (_c *MockNotificationRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, referenceType string, actorID uuid.UUID, message string) (int64, error)) *MockNotificationRepository_Create_Call {
+func (_c *MockNotificationRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, referenceType string, actorID uuid.UUID, message string, tx ...*sql.Tx) (*model.NotificationRow, error)) *MockNotificationRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteOlderThanBatch provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int) (int64, error) {
-	ret := _mock.Called(ctx, cutoff, limit)
+func (_mock *MockNotificationRepository) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int, tx ...*sql.Tx) (int64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, cutoff, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, cutoff, limit)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteOlderThanBatch")
@@ -147,16 +171,16 @@ func (_mock *MockNotificationRepository) DeleteOlderThanBatch(ctx context.Contex
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, int) (int64, error)); ok {
-		return returnFunc(ctx, cutoff, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, int, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, cutoff, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, int) int64); ok {
-		r0 = returnFunc(ctx, cutoff, limit)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, int, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, cutoff, limit, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, int) error); ok {
-		r1 = returnFunc(ctx, cutoff, limit)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, cutoff, limit, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -172,11 +196,13 @@ type MockNotificationRepository_DeleteOlderThanBatch_Call struct {
 //   - ctx context.Context
 //   - cutoff time.Time
 //   - limit int
-func (_e *MockNotificationRepository_Expecter) DeleteOlderThanBatch(ctx any, cutoff any, limit any) *MockNotificationRepository_DeleteOlderThanBatch_Call {
-	return &MockNotificationRepository_DeleteOlderThanBatch_Call{Call: _e.mock.On("DeleteOlderThanBatch", ctx, cutoff, limit)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) DeleteOlderThanBatch(ctx any, cutoff any, limit any, tx ...any) *MockNotificationRepository_DeleteOlderThanBatch_Call {
+	return &MockNotificationRepository_DeleteOlderThanBatch_Call{Call: _e.mock.On("DeleteOlderThanBatch",
+		append([]any{ctx, cutoff, limit}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_DeleteOlderThanBatch_Call) Run(run func(ctx context.Context, cutoff time.Time, limit int)) *MockNotificationRepository_DeleteOlderThanBatch_Call {
+func (_c *MockNotificationRepository_DeleteOlderThanBatch_Call) Run(run func(ctx context.Context, cutoff time.Time, limit int, tx ...*sql.Tx)) *MockNotificationRepository_DeleteOlderThanBatch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -190,10 +216,17 @@ func (_c *MockNotificationRepository_DeleteOlderThanBatch_Call) Run(run func(ctx
 		if args[2] != nil {
 			arg2 = args[2].(int)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -204,14 +237,20 @@ func (_c *MockNotificationRepository_DeleteOlderThanBatch_Call) Return(n int64, 
 	return _c
 }
 
-func (_c *MockNotificationRepository_DeleteOlderThanBatch_Call) RunAndReturn(run func(ctx context.Context, cutoff time.Time, limit int) (int64, error)) *MockNotificationRepository_DeleteOlderThanBatch_Call {
+func (_c *MockNotificationRepository_DeleteOlderThanBatch_Call) RunAndReturn(run func(ctx context.Context, cutoff time.Time, limit int, tx ...*sql.Tx) (int64, error)) *MockNotificationRepository_DeleteOlderThanBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) GetByID(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error) {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockNotificationRepository) GetByID(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) (*model.NotificationRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -219,18 +258,18 @@ func (_mock *MockNotificationRepository) GetByID(ctx context.Context, id int, us
 
 	var r0 *model.NotificationRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID) (*model.NotificationRow, error)); ok {
-		return returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID, ...*sql.Tx) (*model.NotificationRow, error)); ok {
+		return returnFunc(ctx, id, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID) *model.NotificationRow); ok {
-		r0 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID, ...*sql.Tx) *model.NotificationRow); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.NotificationRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -246,11 +285,13 @@ type MockNotificationRepository_GetByID_Call struct {
 //   - ctx context.Context
 //   - id int
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) GetByID(ctx any, id any, userID any) *MockNotificationRepository_GetByID_Call {
-	return &MockNotificationRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) GetByID(ctx any, id any, userID any, tx ...any) *MockNotificationRepository_GetByID_Call {
+	return &MockNotificationRepository_GetByID_Call{Call: _e.mock.On("GetByID",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_GetByID_Call) Run(run func(ctx context.Context, id int, userID uuid.UUID)) *MockNotificationRepository_GetByID_Call {
+func (_c *MockNotificationRepository_GetByID_Call) Run(run func(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx)) *MockNotificationRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -264,10 +305,17 @@ func (_c *MockNotificationRepository_GetByID_Call) Run(run func(ctx context.Cont
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -278,14 +326,20 @@ func (_c *MockNotificationRepository_GetByID_Call) Return(notificationRow *model
 	return _c
 }
 
-func (_c *MockNotificationRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id int, userID uuid.UUID) (*model.NotificationRow, error)) *MockNotificationRepository_GetByID_Call {
+func (_c *MockNotificationRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) (*model.NotificationRow, error)) *MockNotificationRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HasRecentDuplicate provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID) (bool, error) {
-	ret := _mock.Called(ctx, userID, notifType, referenceID, actorID)
+func (_mock *MockNotificationRepository) HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, notifType, referenceID, actorID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, notifType, referenceID, actorID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasRecentDuplicate")
@@ -293,16 +347,16 @@ func (_mock *MockNotificationRepository) HasRecentDuplicate(ctx context.Context,
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, uuid.UUID) (bool, error)); ok {
-		return returnFunc(ctx, userID, notifType, referenceID, actorID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, userID, notifType, referenceID, actorID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, uuid.UUID) bool); ok {
-		r0 = returnFunc(ctx, userID, notifType, referenceID, actorID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, userID, notifType, referenceID, actorID, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID, notifType, referenceID, actorID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.NotificationType, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, notifType, referenceID, actorID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -320,11 +374,13 @@ type MockNotificationRepository_HasRecentDuplicate_Call struct {
 //   - notifType dto.NotificationType
 //   - referenceID uuid.UUID
 //   - actorID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) HasRecentDuplicate(ctx any, userID any, notifType any, referenceID any, actorID any) *MockNotificationRepository_HasRecentDuplicate_Call {
-	return &MockNotificationRepository_HasRecentDuplicate_Call{Call: _e.mock.On("HasRecentDuplicate", ctx, userID, notifType, referenceID, actorID)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) HasRecentDuplicate(ctx any, userID any, notifType any, referenceID any, actorID any, tx ...any) *MockNotificationRepository_HasRecentDuplicate_Call {
+	return &MockNotificationRepository_HasRecentDuplicate_Call{Call: _e.mock.On("HasRecentDuplicate",
+		append([]any{ctx, userID, notifType, referenceID, actorID}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_HasRecentDuplicate_Call) Run(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID)) *MockNotificationRepository_HasRecentDuplicate_Call {
+func (_c *MockNotificationRepository_HasRecentDuplicate_Call) Run(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx)) *MockNotificationRepository_HasRecentDuplicate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -346,12 +402,19 @@ func (_c *MockNotificationRepository_HasRecentDuplicate_Call) Run(run func(ctx c
 		if args[4] != nil {
 			arg4 = args[4].(uuid.UUID)
 		}
+		var arg5 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 5 {
+			variadicArgs = args[5].([]*sql.Tx)
+		}
+		arg5 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
 			arg4,
+			arg5...,
 		)
 	})
 	return _c
@@ -362,14 +425,20 @@ func (_c *MockNotificationRepository_HasRecentDuplicate_Call) Return(b bool, err
 	return _c
 }
 
-func (_c *MockNotificationRepository_HasRecentDuplicate_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID) (bool, error)) *MockNotificationRepository_HasRecentDuplicate_Call {
+func (_c *MockNotificationRepository_HasRecentDuplicate_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockNotificationRepository_HasRecentDuplicate_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HasRecentFromActor provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) (bool, error) {
-	ret := _mock.Called(ctx, notifType, actorID, within)
+func (_mock *MockNotificationRepository) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration, tx ...*sql.Tx) (bool, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, notifType, actorID, within, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, notifType, actorID, within)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for HasRecentFromActor")
@@ -377,16 +446,16 @@ func (_mock *MockNotificationRepository) HasRecentFromActor(ctx context.Context,
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration) (bool, error)); ok {
-		return returnFunc(ctx, notifType, actorID, within)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, notifType, actorID, within, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration) bool); ok {
-		r0 = returnFunc(ctx, notifType, actorID, within)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, notifType, actorID, within, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration) error); ok {
-		r1 = returnFunc(ctx, notifType, actorID, within)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, dto.NotificationType, uuid.UUID, time.Duration, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, notifType, actorID, within, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -403,11 +472,13 @@ type MockNotificationRepository_HasRecentFromActor_Call struct {
 //   - notifType dto.NotificationType
 //   - actorID uuid.UUID
 //   - within time.Duration
-func (_e *MockNotificationRepository_Expecter) HasRecentFromActor(ctx any, notifType any, actorID any, within any) *MockNotificationRepository_HasRecentFromActor_Call {
-	return &MockNotificationRepository_HasRecentFromActor_Call{Call: _e.mock.On("HasRecentFromActor", ctx, notifType, actorID, within)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) HasRecentFromActor(ctx any, notifType any, actorID any, within any, tx ...any) *MockNotificationRepository_HasRecentFromActor_Call {
+	return &MockNotificationRepository_HasRecentFromActor_Call{Call: _e.mock.On("HasRecentFromActor",
+		append([]any{ctx, notifType, actorID, within}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_HasRecentFromActor_Call) Run(run func(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration)) *MockNotificationRepository_HasRecentFromActor_Call {
+func (_c *MockNotificationRepository_HasRecentFromActor_Call) Run(run func(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration, tx ...*sql.Tx)) *MockNotificationRepository_HasRecentFromActor_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -425,11 +496,18 @@ func (_c *MockNotificationRepository_HasRecentFromActor_Call) Run(run func(ctx c
 		if args[3] != nil {
 			arg3 = args[3].(time.Duration)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -440,14 +518,20 @@ func (_c *MockNotificationRepository_HasRecentFromActor_Call) Return(b bool, err
 	return _c
 }
 
-func (_c *MockNotificationRepository_HasRecentFromActor_Call) RunAndReturn(run func(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) (bool, error)) *MockNotificationRepository_HasRecentFromActor_Call {
+func (_c *MockNotificationRepository_HasRecentFromActor_Call) RunAndReturn(run func(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration, tx ...*sql.Tx) (bool, error)) *MockNotificationRepository_HasRecentFromActor_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListByUser provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]model.NotificationRow, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockNotificationRepository) ListByUser(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.NotificationRow, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListByUser")
@@ -456,23 +540,23 @@ func (_mock *MockNotificationRepository) ListByUser(ctx context.Context, userID 
 	var r0 []model.NotificationRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]model.NotificationRow, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]model.NotificationRow, int, error)); ok {
+		return returnFunc(ctx, userID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []model.NotificationRow); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []model.NotificationRow); ok {
+		r0 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.NotificationRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -489,11 +573,13 @@ type MockNotificationRepository_ListByUser_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockNotificationRepository_Expecter) ListByUser(ctx any, userID any, limit any, offset any) *MockNotificationRepository_ListByUser_Call {
-	return &MockNotificationRepository_ListByUser_Call{Call: _e.mock.On("ListByUser", ctx, userID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) ListByUser(ctx any, userID any, limit any, offset any, tx ...any) *MockNotificationRepository_ListByUser_Call {
+	return &MockNotificationRepository_ListByUser_Call{Call: _e.mock.On("ListByUser",
+		append([]any{ctx, userID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockNotificationRepository_ListByUser_Call {
+func (_c *MockNotificationRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockNotificationRepository_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -511,11 +597,18 @@ func (_c *MockNotificationRepository_ListByUser_Call) Run(run func(ctx context.C
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -526,22 +619,28 @@ func (_c *MockNotificationRepository_ListByUser_Call) Return(notificationRows []
 	return _c
 }
 
-func (_c *MockNotificationRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]model.NotificationRow, int, error)) *MockNotificationRepository_ListByUser_Call {
+func (_c *MockNotificationRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.NotificationRow, int, error)) *MockNotificationRepository_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkAllRead provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockNotificationRepository) MarkAllRead(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkAllRead")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -556,11 +655,13 @@ type MockNotificationRepository_MarkAllRead_Call struct {
 // MarkAllRead is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) MarkAllRead(ctx any, userID any) *MockNotificationRepository_MarkAllRead_Call {
-	return &MockNotificationRepository_MarkAllRead_Call{Call: _e.mock.On("MarkAllRead", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) MarkAllRead(ctx any, userID any, tx ...any) *MockNotificationRepository_MarkAllRead_Call {
+	return &MockNotificationRepository_MarkAllRead_Call{Call: _e.mock.On("MarkAllRead",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_MarkAllRead_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockNotificationRepository_MarkAllRead_Call {
+func (_c *MockNotificationRepository_MarkAllRead_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockNotificationRepository_MarkAllRead_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -570,9 +671,16 @@ func (_c *MockNotificationRepository_MarkAllRead_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -583,22 +691,28 @@ func (_c *MockNotificationRepository_MarkAllRead_Call) Return(err error) *MockNo
 	return _c
 }
 
-func (_c *MockNotificationRepository_MarkAllRead_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) error) *MockNotificationRepository_MarkAllRead_Call {
+func (_c *MockNotificationRepository_MarkAllRead_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error) *MockNotificationRepository_MarkAllRead_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkRead provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockNotificationRepository) MarkRead(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkRead")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -614,11 +728,13 @@ type MockNotificationRepository_MarkRead_Call struct {
 //   - ctx context.Context
 //   - id int
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) MarkRead(ctx any, id any, userID any) *MockNotificationRepository_MarkRead_Call {
-	return &MockNotificationRepository_MarkRead_Call{Call: _e.mock.On("MarkRead", ctx, id, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) MarkRead(ctx any, id any, userID any, tx ...any) *MockNotificationRepository_MarkRead_Call {
+	return &MockNotificationRepository_MarkRead_Call{Call: _e.mock.On("MarkRead",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_MarkRead_Call) Run(run func(ctx context.Context, id int, userID uuid.UUID)) *MockNotificationRepository_MarkRead_Call {
+func (_c *MockNotificationRepository_MarkRead_Call) Run(run func(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx)) *MockNotificationRepository_MarkRead_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -632,10 +748,17 @@ func (_c *MockNotificationRepository_MarkRead_Call) Run(run func(ctx context.Con
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -646,14 +769,20 @@ func (_c *MockNotificationRepository_MarkRead_Call) Return(err error) *MockNotif
 	return _c
 }
 
-func (_c *MockNotificationRepository_MarkRead_Call) RunAndReturn(run func(ctx context.Context, id int, userID uuid.UUID) error) *MockNotificationRepository_MarkRead_Call {
+func (_c *MockNotificationRepository_MarkRead_Call) RunAndReturn(run func(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) error) *MockNotificationRepository_MarkRead_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnreadCount provides a mock function for the type MockNotificationRepository
-func (_mock *MockNotificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockNotificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UnreadCount")
@@ -661,16 +790,16 @@ func (_mock *MockNotificationRepository) UnreadCount(ctx context.Context, userID
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -685,11 +814,13 @@ type MockNotificationRepository_UnreadCount_Call struct {
 // UnreadCount is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockNotificationRepository_Expecter) UnreadCount(ctx any, userID any) *MockNotificationRepository_UnreadCount_Call {
-	return &MockNotificationRepository_UnreadCount_Call{Call: _e.mock.On("UnreadCount", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) UnreadCount(ctx any, userID any, tx ...any) *MockNotificationRepository_UnreadCount_Call {
+	return &MockNotificationRepository_UnreadCount_Call{Call: _e.mock.On("UnreadCount",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockNotificationRepository_UnreadCount_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockNotificationRepository_UnreadCount_Call {
+func (_c *MockNotificationRepository_UnreadCount_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockNotificationRepository_UnreadCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -699,9 +830,16 @@ func (_c *MockNotificationRepository_UnreadCount_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -712,7 +850,7 @@ func (_c *MockNotificationRepository_UnreadCount_Call) Return(n int, err error) 
 	return _c
 }
 
-func (_c *MockNotificationRepository_UnreadCount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockNotificationRepository_UnreadCount_Call {
+func (_c *MockNotificationRepository_UnreadCount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockNotificationRepository_UnreadCount_Call {
 	_c.Call.Return(run)
 	return _c
 }

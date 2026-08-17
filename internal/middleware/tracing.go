@@ -12,9 +12,10 @@ import (
 const tracerName = "umineko_city_of_books"
 
 func Tracing() fiber.Handler {
+	tracer := otel.Tracer(tracerName)
+	propagator := otel.GetTextMapPropagator()
+
 	return func(ctx fiber.Ctx) error {
-		tracer := otel.Tracer(tracerName)
-		propagator := otel.GetTextMapPropagator()
 		carrier := fiberHeaderCarrier{ctx: ctx}
 		parentCtx := propagator.Extract(ctx.Context(), carrier)
 

@@ -1,4 +1,4 @@
-package cache
+package observability
 
 import (
 	"context"
@@ -22,12 +22,14 @@ const (
 )
 
 type (
-	observabilityHook struct {
+	ClientFunc func() valkey.Client
+
+	Hook struct {
 		tracer trace.Tracer
 	}
 
 	statsCollector struct {
-		manager *Manager
+		client ClientFunc
 
 		up          *prometheus.Desc
 		serverKeys  *prometheus.Desc
@@ -44,14 +46,6 @@ type (
 )
 
 var (
-	cacheHits = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "cache_hits_total",
-		Help: "Number of Valkey cache lookups that returned a value.",
-	})
-	cacheMisses = prometheus.NewCounter(prometheus.CounterOpts{
-		Name: "cache_misses_total",
-		Help: "Number of Valkey cache lookups that found no value.",
-	})
 	commandDuration = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "cache_command_duration_seconds",
@@ -70,14 +64,18 @@ var (
 )
 
 func init() {
-	prometheus.MustRegister(cacheHits, cacheMisses, commandDuration, commandErrors)
+	prometheus.MustRegister(commandDuration, commandErrors)
 }
 
-func newObservabilityHook() *observabilityHook {
-	return &observabilityHook{tracer: otel.Tracer(tracerName)}
+func NewHook() *Hook {
+	return &Hook{tracer: otel.Tracer(tracerName)}
 }
 
-func (h *observabilityHook) Do(client valkey.Client, ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
+func RegisterStats(client ClientFunc) {
+	_ = prometheus.Register(newStatsCollector(client))
+}
+
+func (h *Hook) Do(client valkey.Client, ctx context.Context, cmd valkey.Completed) valkey.ValkeyResult {
 	name := commandName(cmd.Commands())
 
 	ctx, span := h.tracer.Start(ctx, "valkey "+name, trace.WithSpanKind(trace.SpanKindClient))
@@ -90,7 +88,7 @@ func (h *observabilityHook) Do(client valkey.Client, ctx context.Context, cmd va
 	return resp
 }
 
-func (h *observabilityHook) DoMulti(client valkey.Client, ctx context.Context, multi ...valkey.Completed) []valkey.ValkeyResult {
+func (h *Hook) DoMulti(client valkey.Client, ctx context.Context, multi ...valkey.Completed) []valkey.ValkeyResult {
 	ctx, span := h.tracer.Start(ctx, "valkey "+pipelineCommand, trace.WithSpanKind(trace.SpanKindClient))
 	start := time.Now()
 
@@ -101,7 +99,7 @@ func (h *observabilityHook) DoMulti(client valkey.Client, ctx context.Context, m
 	return resps
 }
 
-func (h *observabilityHook) DoCache(client valkey.Client, ctx context.Context, cmd valkey.Cacheable, ttl time.Duration) valkey.ValkeyResult {
+func (h *Hook) DoCache(client valkey.Client, ctx context.Context, cmd valkey.Cacheable, ttl time.Duration) valkey.ValkeyResult {
 	name := commandName(cmd.Commands())
 
 	ctx, span := h.tracer.Start(ctx, "valkey "+name, trace.WithSpanKind(trace.SpanKindClient))
@@ -114,7 +112,7 @@ func (h *observabilityHook) DoCache(client valkey.Client, ctx context.Context, c
 	return resp
 }
 
-func (h *observabilityHook) DoMultiCache(client valkey.Client, ctx context.Context, multi ...valkey.CacheableTTL) []valkey.ValkeyResult {
+func (h *Hook) DoMultiCache(client valkey.Client, ctx context.Context, multi ...valkey.CacheableTTL) []valkey.ValkeyResult {
 	ctx, span := h.tracer.Start(ctx, "valkey "+pipelineCommand, trace.WithSpanKind(trace.SpanKindClient))
 	start := time.Now()
 
@@ -125,15 +123,15 @@ func (h *observabilityHook) DoMultiCache(client valkey.Client, ctx context.Conte
 	return resps
 }
 
-func (h *observabilityHook) Receive(client valkey.Client, ctx context.Context, subscribe valkey.Completed, fn func(msg valkey.PubSubMessage)) error {
+func (h *Hook) Receive(client valkey.Client, ctx context.Context, subscribe valkey.Completed, fn func(msg valkey.PubSubMessage)) error {
 	return client.Receive(ctx, subscribe, fn)
 }
 
-func (h *observabilityHook) DoStream(client valkey.Client, ctx context.Context, cmd valkey.Completed) valkey.ValkeyResultStream {
+func (h *Hook) DoStream(client valkey.Client, ctx context.Context, cmd valkey.Completed) valkey.ValkeyResultStream {
 	return client.DoStream(ctx, cmd)
 }
 
-func (h *observabilityHook) DoMultiStream(client valkey.Client, ctx context.Context, multi ...valkey.Completed) valkey.MultiValkeyResultStream {
+func (h *Hook) DoMultiStream(client valkey.Client, ctx context.Context, multi ...valkey.Completed) valkey.MultiValkeyResultStream {
 	return client.DoMultiStream(ctx, multi...)
 }
 
@@ -168,13 +166,9 @@ func observe(span trace.Span, command string, start time.Time, err error) {
 	span.End()
 }
 
-func registerStatsCollector(m *Manager) {
-	_ = prometheus.Register(newStatsCollector(m))
-}
-
-func newStatsCollector(m *Manager) *statsCollector {
+func newStatsCollector(client ClientFunc) *statsCollector {
 	return &statsCollector{
-		manager:     m,
+		client:      client,
 		up:          prometheus.NewDesc("cache_up", "Whether the Valkey cache is configured and reachable (1) or not (0).", nil, nil),
 		serverKeys:  prometheus.NewDesc("cache_server_keys", "Number of keys stored in the Valkey cache database.", nil, nil),
 		memoryUsed:  prometheus.NewDesc("cache_server_memory_used_bytes", "Bytes of memory used by the Valkey server.", nil, nil),
@@ -203,7 +197,7 @@ func (c *statsCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (c *statsCollector) Collect(ch chan<- prometheus.Metric) {
-	client := c.manager.current()
+	client := c.client()
 	if client == nil {
 		ch <- prometheus.MustNewConstMetric(c.up, prometheus.GaugeValue, 0)
 		return

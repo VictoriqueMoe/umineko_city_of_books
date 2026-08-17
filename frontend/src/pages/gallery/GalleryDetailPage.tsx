@@ -9,6 +9,7 @@ import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Pagination } from "../../components/Pagination/Pagination";
+import { renderRich } from "../../utils/richText";
 import styles from "./GalleryDetailPage.module.css";
 
 export function GalleryDetailPage() {
@@ -123,7 +124,9 @@ export function GalleryDetailPage() {
                     ) : (
                         <>
                             <h1 className={styles.name}>{gallery.name}</h1>
-                            {gallery.description && <p className={styles.description}>{gallery.description}</p>}
+                            {gallery.description && (
+                                <div className={styles.description}>{renderRich(gallery.description)}</div>
+                            )}
                         </>
                     )}
                     <div className={styles.metaRow}>

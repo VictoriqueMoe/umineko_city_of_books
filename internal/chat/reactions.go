@@ -113,14 +113,9 @@ func (r *reactionsService) resolveMemberDisplayName(ctx context.Context, roomID,
 		name = user.Username
 	}
 
-	rows, _ := r.chatRepo.GetRoomMembersDetailed(ctx, roomID)
-	for _, mr := range rows {
-		if mr.UserID == userID {
-			if mr.Nickname != "" {
-				name = mr.Nickname
-			}
-			break
-		}
+	nickname, _ := r.chatRepo.GetMemberNickname(ctx, roomID, userID)
+	if nickname != "" {
+		name = nickname
 	}
 	return name
 }

@@ -23,9 +23,20 @@ func unlockSecretFor(t *testing.T, repos *repository.Repositories, userID uuid.U
 
 func createSecretComment(t *testing.T, repos *repository.Repositories, secretID string, parent *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	id := uuid.New()
-	require.NoError(t, repos.Secret.CreateComment(context.Background(), id, secretID, parent, userID, body))
-	return id
+	created, err := repos.Secret.CreateComment(context.Background(), secretID, parent, userID, body)
+	require.NoError(t, err)
+	return created.ID
+}
+
+func addSecretCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) {
+	t.Helper()
+	_, err := repos.Secret.AddCommentMedia(context.Background(), repository.NewSecretCommentMedia{
+		CommentID:    commentID,
+		MediaURL:     mediaURL,
+		MediaType:    "image/png",
+		ThumbnailURL: thumbnailURL,
+	})
+	require.NoError(t, err)
 }
 
 func TestSecretDAO_GetFirstSolver_None(t *testing.T) {
@@ -193,6 +204,173 @@ func TestSecretDAO_DeleteComment_AsAdmin(t *testing.T) {
 	assert.Nil(t, comment)
 }
 
+func TestSecretDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
+
+	// when
+	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
+	require.NoError(t, err)
+	require.NotNil(t, comment)
+	assert.Equal(t, "moderated", comment.Body)
+}
+
+func TestSecretDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
+
+	// when
+	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetSecretComment, entries[0].TargetType)
+	assert.Equal(t, id.String(), entries[0].TargetID)
+	require.NotNil(t, entries[0].SubjectID)
+	assert.Equal(t, owner.ID, *entries[0].SubjectID)
+	assert.Empty(t, entries[0].Details)
+}
+
+func TestSecretDAO_UpdateCommentBody_OwnEditWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
+
+	// when
+	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: owner.ID, Body: "mine", AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentUpdateAdmin, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestSecretDAO_UpdateCommentBody_OnlyOwner(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
+
+	// when
+	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: other.ID, Body: "hijacked"})
+
+	// then
+	assert.Error(t, err)
+}
+
+func TestSecretDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	moderator := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "bye")
+
+	// when
+	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), repository.SecretCommentDeletion{CommentID: id, UserID: moderator.ID, AsAdmin: true})
+
+	// then
+	require.NoError(t, err)
+	assert.Empty(t, paths)
+	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
+	require.NoError(t, err)
+	assert.Nil(t, comment)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentDeleteAdmin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, moderator.ID, entries[0].ActorID)
+	assert.Equal(t, repository.AuditTargetSecretComment, entries[0].TargetType)
+	assert.Equal(t, id.String(), entries[0].TargetID)
+}
+
+func TestSecretDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "mine")
+
+	// when
+	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), repository.SecretCommentDeletion{CommentID: id, UserID: stranger.ID})
+
+	// then
+	require.Error(t, err)
+	assert.Empty(t, paths)
+	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
+	require.NoError(t, err)
+	assert.NotNil(t, comment)
+	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentDelete, 10, 0)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestSecretDAO_DeleteCommentWithAudit_ReturnsThatCommentsMediaPaths(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	target := createSecretComment(t, repos, testSecretID, nil, author.ID, "goodbye")
+	survivor := createSecretComment(t, repos, testSecretID, nil, author.ID, "stays")
+	addSecretCommentMedia(t, repos, target, "/uploads/secrets/doomed.png", "/uploads/secrets/doomed-thumb.png")
+	addSecretCommentMedia(t, repos, target, "/uploads/secrets/doomed-two.mp4", "")
+	addSecretCommentMedia(t, repos, survivor, "/uploads/secrets/kept.png", "/uploads/secrets/kept-thumb.png")
+
+	// when
+	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), repository.SecretCommentDeletion{CommentID: target, UserID: author.ID})
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/secrets/doomed.png",
+		"/uploads/secrets/doomed-thumb.png",
+		"/uploads/secrets/doomed-two.mp4",
+	}, paths)
+
+	deleted, err := repos.Secret.GetCommentByID(context.Background(), target)
+	require.NoError(t, err)
+	assert.Nil(t, deleted)
+}
+
+func TestSecretDAO_CollectCommentMediaPaths_CoversEveryCommentOnTheSecret(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	commenter := daotest.CreateUser(t, repos)
+	first := createSecretComment(t, repos, testSecretID, nil, author.ID, "first")
+	second := createSecretComment(t, repos, testSecretID, nil, commenter.ID, "second")
+	addSecretCommentMedia(t, repos, first, "/uploads/secrets/one.png", "/uploads/secrets/one-thumb.png")
+	addSecretCommentMedia(t, repos, second, "/uploads/secrets/two.png", "")
+
+	elsewhere := createSecretComment(t, repos, "otherSecret", nil, author.ID, "elsewhere")
+	addSecretCommentMedia(t, repos, elsewhere, "/uploads/secrets/untouched.png", "")
+
+	// when
+	paths, err := repos.Secret.CollectCommentMediaPaths(context.Background(), testSecretID)
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{
+		"/uploads/secrets/one.png",
+		"/uploads/secrets/one-thumb.png",
+		"/uploads/secrets/two.png",
+	}, paths)
+}
+
 func TestSecretDAO_LikeComment_Idempotent(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -244,7 +422,7 @@ func TestSecretDAO_AddCommentMedia(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "with media")
 
 	// when
-	mediaID, err := repos.Secret.AddCommentMedia(context.Background(), id, "/u/a.png", "image/png", "/u/a-thumb.png", 0)
+	mediaID, err := repos.Secret.AddCommentMedia(context.Background(), repository.NewSecretCommentMedia{CommentID: id, MediaURL: "/u/a.png", MediaType: "image/png", ThumbnailURL: "/u/a-thumb.png"})
 
 	// then
 	require.NoError(t, err)

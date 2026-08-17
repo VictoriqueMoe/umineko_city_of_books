@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/logger"
 
 	"github.com/google/uuid"
@@ -32,6 +35,26 @@ type (
 		Verbosity       string
 		MaxOutputTokens int
 		Enabled         bool
+	}
+
+	ChatbotInvocation struct {
+		ID        uuid.UUID
+		BotUserID uuid.UUID
+		UserID    uuid.UUID
+		RoomID    *uuid.UUID
+		MessageID uuid.UUID
+		Channel   string
+		Model     string
+		Status    InvocationStatus
+	}
+
+	NewInvocation struct {
+		BotUserID uuid.UUID
+		UserID    uuid.UUID
+		RoomID    *uuid.UUID
+		MessageID uuid.UUID
+		Channel   string
+		Model     string
 	}
 
 	InvocationUsage struct {
@@ -64,22 +87,27 @@ type (
 		Channels           []ChatbotChannelStats
 	}
 
-	ChatbotRepository interface {
-		ListBots(ctx context.Context) ([]Chatbot, error)
-		GetBotByUserID(ctx context.Context, userID uuid.UUID) (*Chatbot, error)
-		CreateBot(ctx context.Context, bot Chatbot) error
-		UpdateBot(ctx context.Context, bot Chatbot) error
-		DeleteBot(ctx context.Context, id uuid.UUID) error
-		CreateBotAccount(ctx context.Context, userID uuid.UUID, username, displayName, avatarURL string) error
-		UpdateBotAccount(ctx context.Context, userID uuid.UUID, displayName, avatarURL string) error
+	ChatbotDAO interface {
+		ListBots(ctx context.Context, tx ...*sql.Tx) ([]Chatbot, error)
+		GetBotByUserID(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*Chatbot, error)
+		CreateBot(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error)
+		UpdateBot(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error)
+		DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
 
-		CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel, model string) error
-		CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error
-		CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error)
-		CountInvocationsToday(ctx context.Context) (int, error)
-		OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error)
-		OldestInvocationToday(ctx context.Context) (time.Time, error)
-		StatsSince(ctx context.Context, since time.Time) (*ChatbotStats, error)
+		CreateInvocation(ctx context.Context, spec NewInvocation, tx ...*sql.Tx) (*ChatbotInvocation, error)
+		CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus, tx ...*sql.Tx) error
+		CountUserInvocationsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
+		CountInvocationsToday(ctx context.Context, tx ...*sql.Tx) (int, error)
+		OldestUserInvocationToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (time.Time, error)
+		OldestInvocationToday(ctx context.Context, tx ...*sql.Tx) (time.Time, error)
+		StatsSince(ctx context.Context, since time.Time, tx ...*sql.Tx) (*ChatbotStats, error)
+	}
+
+	ChatbotRepository interface {
+		ChatbotDAO
+
+		CreateBotWithAccount(ctx context.Context, account NewUser, bot Chatbot, vanityRoleID string, tx ...*sql.Tx) (*Chatbot, error)
+		UpdateBotWithAccount(ctx context.Context, bot Chatbot, displayName, avatarURL string, tx ...*sql.Tx) (*Chatbot, error)
 	}
 )
 
@@ -92,47 +120,112 @@ const (
 )
 
 type chatbotRepository struct {
-	dao         ChatbotRepository
+	db          *sql.DB
+	dao         ChatbotDAO
+	users       UserRepository
+	vanity      VanityRoleRepository
 	basePrompts BasePromptInvalidator
 	cache       *cache.Manager
 }
 
-func NewChatbotRepo(dao ChatbotRepository, basePrompts BasePromptInvalidator, c *cache.Manager) ChatbotRepository {
-	return &chatbotRepository{dao: dao, basePrompts: basePrompts, cache: c}
+func NewChatbotRepo(database *sql.DB, dao ChatbotDAO, users UserRepository, vanity VanityRoleRepository, basePrompts BasePromptInvalidator, c *cache.Manager) ChatbotRepository {
+	return &chatbotRepository{db: database, dao: dao, users: users, vanity: vanity, basePrompts: basePrompts, cache: c}
 }
 
-func (r *chatbotRepository) ListBots(ctx context.Context) ([]Chatbot, error) {
-	return r.dao.ListBots(ctx)
-}
+func (r *chatbotRepository) CreateBotWithAccount(ctx context.Context, account NewUser, bot Chatbot, vanityRoleID string, tx ...*sql.Tx) (*Chatbot, error) {
+	var created *Chatbot
 
-func (r *chatbotRepository) GetBotByUserID(ctx context.Context, userID uuid.UUID) (*Chatbot, error) {
-	return r.dao.GetBotByUserID(ctx, userID)
-}
+	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		user, err := r.users.Create(ctx, account, tx)
+		if err != nil {
+			return fmt.Errorf("create bot account: %w", err)
+		}
 
-func (r *chatbotRepository) CreateBot(ctx context.Context, bot Chatbot) error {
-	if err := r.dao.CreateBot(ctx, bot); err != nil {
-		return err
+		if err := r.vanity.AssignToUser(ctx, user.ID, vanityRoleID, tx); err != nil {
+			return fmt.Errorf("assign bot badge: %w", err)
+		}
+
+		bot.UserID = user.ID
+
+		created, err = r.dao.CreateBot(ctx, bot, tx)
+		if err != nil {
+			return fmt.Errorf("create chatbot: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	r.basePrompts.InvalidateList(ctx)
 
-	return nil
+	return created, nil
 }
 
-func (r *chatbotRepository) UpdateBot(ctx context.Context, bot Chatbot) error {
-	if err := r.dao.UpdateBot(ctx, bot); err != nil {
-		return err
+func (r *chatbotRepository) UpdateBotWithAccount(ctx context.Context, bot Chatbot, displayName, avatarURL string, tx ...*sql.Tx) (*Chatbot, error) {
+	var updated *Chatbot
+
+	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		if err := r.users.SetDisplayName(ctx, bot.UserID, displayName, tx); err != nil {
+			return fmt.Errorf("update bot display name: %w", err)
+		}
+
+		if err := r.users.UpdateAvatarURL(ctx, bot.UserID, avatarURL, tx); err != nil {
+			return fmt.Errorf("update bot avatar: %w", err)
+		}
+
+		var err error
+		updated, err = r.dao.UpdateBot(ctx, bot, tx)
+		if err != nil {
+			return fmt.Errorf("update chatbot: %w", err)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	r.basePrompts.InvalidateList(ctx)
 
-	return nil
+	return updated, nil
 }
 
-func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID) error {
-	botUserID := r.resolveBotUserID(ctx, id)
+func (r *chatbotRepository) ListBots(ctx context.Context, tx ...*sql.Tx) ([]Chatbot, error) {
+	return r.dao.ListBots(ctx, tx...)
+}
 
-	if err := r.dao.DeleteBot(ctx, id); err != nil {
+func (r *chatbotRepository) GetBotByUserID(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*Chatbot, error) {
+	return r.dao.GetBotByUserID(ctx, userID, tx...)
+}
+
+func (r *chatbotRepository) CreateBot(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error) {
+	created, err := r.dao.CreateBot(ctx, bot, tx...)
+	if err != nil {
+		return nil, err
+	}
+
+	r.basePrompts.InvalidateList(ctx)
+
+	return created, nil
+}
+
+func (r *chatbotRepository) UpdateBot(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error) {
+	updated, err := r.dao.UpdateBot(ctx, bot, tx...)
+	if err != nil {
+		return nil, err
+	}
+
+	r.basePrompts.InvalidateList(ctx)
+
+	return updated, nil
+}
+
+func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	botUserID := r.resolveBotUserID(ctx, id, tx...)
+
+	if err := r.dao.DeleteBot(ctx, id, tx...); err != nil {
 		return err
 	}
 
@@ -150,8 +243,8 @@ func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID) error {
 	return nil
 }
 
-func (r *chatbotRepository) resolveBotUserID(ctx context.Context, id uuid.UUID) uuid.UUID {
-	bots, err := r.dao.ListBots(ctx)
+func (r *chatbotRepository) resolveBotUserID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) uuid.UUID {
+	bots, err := r.dao.ListBots(ctx, tx...)
 	if err != nil {
 		logger.Log.Error().Err(err).Str("chatbot_id", id.String()).Msg("failed to resolve bot user id before deleting a bot")
 
@@ -167,38 +260,30 @@ func (r *chatbotRepository) resolveBotUserID(ctx context.Context, id uuid.UUID) 
 	return uuid.Nil
 }
 
-func (r *chatbotRepository) CreateInvocation(ctx context.Context, id, botUserID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel, model string) error {
-	return r.dao.CreateInvocation(ctx, id, botUserID, userID, roomID, messageID, channel, model)
+func (r *chatbotRepository) CreateInvocation(ctx context.Context, spec NewInvocation, tx ...*sql.Tx) (*ChatbotInvocation, error) {
+	return r.dao.CreateInvocation(ctx, spec, tx...)
 }
 
-func (r *chatbotRepository) CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error {
-	return r.dao.CompleteInvocation(ctx, id, usage, status)
+func (r *chatbotRepository) CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus, tx ...*sql.Tx) error {
+	return r.dao.CompleteInvocation(ctx, id, usage, status, tx...)
 }
 
-func (r *chatbotRepository) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error) {
-	return r.dao.CountUserInvocationsToday(ctx, userID)
+func (r *chatbotRepository) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	return r.dao.CountUserInvocationsToday(ctx, userID, tx...)
 }
 
-func (r *chatbotRepository) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
-	return r.dao.OldestUserInvocationToday(ctx, userID)
+func (r *chatbotRepository) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (time.Time, error) {
+	return r.dao.OldestUserInvocationToday(ctx, userID, tx...)
 }
 
-func (r *chatbotRepository) OldestInvocationToday(ctx context.Context) (time.Time, error) {
-	return r.dao.OldestInvocationToday(ctx)
+func (r *chatbotRepository) OldestInvocationToday(ctx context.Context, tx ...*sql.Tx) (time.Time, error) {
+	return r.dao.OldestInvocationToday(ctx, tx...)
 }
 
-func (r *chatbotRepository) CountInvocationsToday(ctx context.Context) (int, error) {
-	return r.dao.CountInvocationsToday(ctx)
+func (r *chatbotRepository) CountInvocationsToday(ctx context.Context, tx ...*sql.Tx) (int, error) {
+	return r.dao.CountInvocationsToday(ctx, tx...)
 }
 
-func (r *chatbotRepository) StatsSince(ctx context.Context, since time.Time) (*ChatbotStats, error) {
-	return r.dao.StatsSince(ctx, since)
-}
-
-func (r *chatbotRepository) CreateBotAccount(ctx context.Context, userID uuid.UUID, username, displayName, avatarURL string) error {
-	return r.dao.CreateBotAccount(ctx, userID, username, displayName, avatarURL)
-}
-
-func (r *chatbotRepository) UpdateBotAccount(ctx context.Context, userID uuid.UUID, displayName, avatarURL string) error {
-	return r.dao.UpdateBotAccount(ctx, userID, displayName, avatarURL)
+func (r *chatbotRepository) StatsSince(ctx context.Context, since time.Time, tx ...*sql.Tx) (*ChatbotStats, error) {
+	return r.dao.StatsSince(ctx, since, tx...)
 }

@@ -10,91 +10,40 @@ export function isSiteStaff(role: SiteRole | undefined | null): boolean {
     return role === "super_admin" || role === "admin" || role === "moderator";
 }
 
-export type Permission =
-    | "delete_any_theory"
-    | "delete_any_response"
-    | "ban_user"
-    | "manage_roles"
-    | "view_admin_panel"
-    | "manage_settings"
-    | "view_audit_log"
-    | "view_stats"
-    | "view_users"
-    | "delete_any_user"
-    | "delete_any_post"
-    | "delete_any_comment"
-    | "edit_any_theory"
-    | "edit_any_post"
-    | "edit_any_comment"
-    | "resolve_suggestion"
-    | "edit_mystery_score"
-    | "edit_any_journal"
-    | "delete_any_journal"
-    | "manage_vanity_roles"
-    | "manage_banned_words"
-    | "reset_password"
-    | "manage_user_account"
-    | "manage_user_email"
-    | "set_email_verified"
-    | "use_chatbot";
+const ALL_PERMISSIONS = [
+    "delete_any_theory",
+    "delete_any_response",
+    "ban_user",
+    "manage_roles",
+    "view_admin_panel",
+    "manage_settings",
+    "view_audit_log",
+    "view_stats",
+    "view_users",
+    "delete_any_user",
+    "delete_any_post",
+    "delete_any_comment",
+    "edit_any_theory",
+    "edit_any_post",
+    "edit_any_comment",
+    "resolve_suggestion",
+    "edit_mystery_score",
+    "edit_any_journal",
+    "delete_any_journal",
+    "manage_vanity_roles",
+    "manage_banned_words",
+    "reset_password",
+    "manage_user_account",
+    "manage_user_email",
+    "set_email_verified",
+    "use_chatbot",
+] as const;
+
+export type Permission = (typeof ALL_PERMISSIONS)[number];
 
 const rolePermissions: Record<string, Permission[]> = {
-    super_admin: [
-        "delete_any_theory",
-        "delete_any_response",
-        "ban_user",
-        "manage_roles",
-        "view_admin_panel",
-        "manage_settings",
-        "view_audit_log",
-        "view_stats",
-        "view_users",
-        "delete_any_user",
-        "delete_any_post",
-        "delete_any_comment",
-        "edit_any_theory",
-        "edit_any_post",
-        "edit_any_comment",
-        "resolve_suggestion",
-        "edit_mystery_score",
-        "edit_any_journal",
-        "delete_any_journal",
-        "manage_vanity_roles",
-        "manage_banned_words",
-        "reset_password",
-        "manage_user_account",
-        "manage_user_email",
-        "set_email_verified",
-        "use_chatbot",
-    ],
-    admin: [
-        "delete_any_theory",
-        "delete_any_response",
-        "ban_user",
-        "manage_roles",
-        "view_admin_panel",
-        "manage_settings",
-        "view_audit_log",
-        "view_stats",
-        "view_users",
-        "delete_any_user",
-        "delete_any_post",
-        "delete_any_comment",
-        "edit_any_theory",
-        "edit_any_post",
-        "edit_any_comment",
-        "resolve_suggestion",
-        "edit_mystery_score",
-        "edit_any_journal",
-        "delete_any_journal",
-        "manage_vanity_roles",
-        "manage_banned_words",
-        "reset_password",
-        "manage_user_account",
-        "manage_user_email",
-        "set_email_verified",
-        "use_chatbot",
-    ],
+    super_admin: [...ALL_PERMISSIONS],
+    admin: [...ALL_PERMISSIONS],
     moderator: [
         "delete_any_theory",
         "delete_any_response",

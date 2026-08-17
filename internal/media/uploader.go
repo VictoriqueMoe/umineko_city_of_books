@@ -2,6 +2,7 @@ package media
 
 import (
 	"context"
+	"database/sql"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,7 +17,7 @@ import (
 )
 
 type (
-	UpdateURLFn func(ctx context.Context, id int64, url string) error
+	UpdateURLFn func(ctx context.Context, id int64, url string, tx ...*sql.Tx) error
 	AddFn       func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error)
 	uploadSvc   interface {
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)

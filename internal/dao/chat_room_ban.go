@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -17,8 +18,8 @@ type (
 	}
 )
 
-func (r *chatRoomBanDAO) Ban(ctx context.Context, roomID, userID uuid.UUID, bannedBy *uuid.UUID, reason string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatRoomBanDAO) Ban(ctx context.Context, roomID, userID uuid.UUID, bannedBy *uuid.UUID, reason string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_room_bans (room_id, user_id, banned_by, reason)
 		 VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (room_id, user_id) DO UPDATE SET
@@ -33,8 +34,8 @@ func (r *chatRoomBanDAO) Ban(ctx context.Context, roomID, userID uuid.UUID, bann
 	return nil
 }
 
-func (r *chatRoomBanDAO) Unban(ctx context.Context, roomID, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *chatRoomBanDAO) Unban(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM chat_room_bans WHERE room_id = $1 AND user_id = $2`,
 		roomID, userID,
 	)
@@ -44,9 +45,9 @@ func (r *chatRoomBanDAO) Unban(ctx context.Context, roomID, userID uuid.UUID) er
 	return nil
 }
 
-func (r *chatRoomBanDAO) IsBanned(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+func (r *chatRoomBanDAO) IsBanned(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var exists int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT 1 FROM chat_room_bans WHERE room_id = $1 AND user_id = $2 LIMIT 1`,
 		roomID, userID,
 	).Scan(&exists)
@@ -59,8 +60,8 @@ func (r *chatRoomBanDAO) IsBanned(ctx context.Context, roomID, userID uuid.UUID)
 	return true, nil
 }
 
-func (r *chatRoomBanDAO) ListForRoom(ctx context.Context, roomID uuid.UUID) ([]repository.ChatRoomBanRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *chatRoomBanDAO) ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatRoomBanRow, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT
 		     b.room_id, b.user_id,
 		     u.username, u.display_name, u.avatar_url, COALESCE(ur.role, ''),
@@ -97,23 +98,13 @@ func (r *chatRoomBanDAO) ListForRoom(ctx context.Context, roomID uuid.UUID) ([]r
 	return result, rows.Err()
 }
 
-func (r *chatRoomBanDAO) BannedRoomIDsForUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *chatRoomBanDAO) BannedRoomIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT room_id FROM chat_room_bans WHERE user_id = $1`,
 		userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list banned rooms for user: %w", err)
 	}
-	defer rows.Close()
-
-	var result []uuid.UUID
-	for rows.Next() {
-		var id uuid.UUID
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan banned room id: %w", err)
-		}
-		result = append(result, id)
-	}
-	return result, rows.Err()
+	return utils.ScanIDs(rows, "banned room id")
 }

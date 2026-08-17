@@ -16,7 +16,6 @@ import (
 	"github.com/gofiber/contrib/v3/websocket"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
@@ -327,7 +326,7 @@ func runAnonReader(hub *Hub, conn *websocket.Conn) {
 func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
 	userID := client.UserID
 
-	spanCtx, span := otel.Tracer(wsTracerName).Start(
+	spanCtx, span := hub.tracer.Start(
 		context.Background(),
 		"ws."+msg.Type,
 		trace.WithSpanKind(trace.SpanKindServer),
@@ -339,7 +338,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 	defer span.End()
 
 	switch msg.Type {
-	case "typing":
+	case TypingMessageType:
 		var data typingData
 		if err := json.Unmarshal(msg.Data, &data); err != nil {
 			return
@@ -351,13 +350,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 		if !hub.IsUserInRoom(roomID, userID) {
 			return
 		}
-		hub.BroadcastToRoom(roomID, Message{
-			Type: "typing",
-			Data: map[string]any{
-				"room_id": data.RoomID,
-				"user_id": userID.String(),
-			},
-		}, userID)
+		hub.BroadcastToRoom(roomID, TypingMessage(roomID, userID), userID)
 
 	case "join_room":
 		var data roomActionData

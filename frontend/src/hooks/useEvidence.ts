@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EvidenceInput, EvidenceItem, Quote } from "../types/api";
-import type { Series } from "../api/endpoints";
-
-const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
+import { type Series, tryGetQuoteByAudioId, tryGetQuoteByIndex } from "../api/endpoints";
 
 export interface SelectedEvidence {
     quote: Quote;
@@ -15,36 +13,6 @@ function quoteKey(quote: Quote): string {
         return `audio:${quote.audioId}`;
     }
     return `index:${quote.index}`;
-}
-
-async function fetchQuoteByAudioId(series: Series, audioId: string, lang?: string): Promise<Quote | null> {
-    const firstId = audioId.split(",")[0].trim();
-    if (!firstId) {
-        return null;
-    }
-    try {
-        const qs = lang ? `?lang=${lang}` : "";
-        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}${qs}`);
-        if (!response.ok) {
-            return null;
-        }
-        return response.json();
-    } catch {
-        return null;
-    }
-}
-
-async function fetchQuoteByIndex(series: Series, index: number, lang?: string): Promise<Quote | null> {
-    try {
-        const qs = lang ? `?lang=${lang}` : "";
-        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}${qs}`);
-        if (!response.ok) {
-            return null;
-        }
-        return response.json();
-    } catch {
-        return null;
-    }
 }
 
 export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "umineko") {
@@ -63,9 +31,9 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
                 let quote: Quote | null = null;
                 const evLang = ev.lang || "en";
                 if (ev.audio_id) {
-                    quote = await fetchQuoteByAudioId(series, ev.audio_id, evLang);
+                    quote = await tryGetQuoteByAudioId(series, ev.audio_id, evLang);
                 } else if (ev.quote_index !== undefined) {
-                    quote = await fetchQuoteByIndex(series, ev.quote_index, evLang);
+                    quote = await tryGetQuoteByIndex(series, ev.quote_index, evLang);
                 }
                 if (!quote) {
                     return null;

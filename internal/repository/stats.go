@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
@@ -38,8 +39,8 @@ type (
 	}
 
 	StatsRepository interface {
-		GetOverview(ctx context.Context) (*SiteStats, error)
-		GetMostActiveUsers(ctx context.Context, limit int) ([]ActiveUser, error)
+		GetOverview(ctx context.Context, tx ...*sql.Tx) (*SiteStats, error)
+		GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]ActiveUser, error)
 	}
 )
 
@@ -51,10 +52,10 @@ func NewStatsRepo(dao StatsRepository) StatsRepository {
 	return &statsRepository{dao: dao}
 }
 
-func (r *statsRepository) GetOverview(ctx context.Context) (*SiteStats, error) {
-	return r.dao.GetOverview(ctx)
+func (r *statsRepository) GetOverview(ctx context.Context, tx ...*sql.Tx) (*SiteStats, error) {
+	return r.dao.GetOverview(ctx, tx...)
 }
 
-func (r *statsRepository) GetMostActiveUsers(ctx context.Context, limit int) ([]ActiveUser, error) {
-	return r.dao.GetMostActiveUsers(ctx, limit)
+func (r *statsRepository) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]ActiveUser, error) {
+	return r.dao.GetMostActiveUsers(ctx, limit, tx...)
 }

@@ -4930,6 +4930,86 @@ func (_c *MockService_UpdateGlobalBannedWord_Call) RunAndReturn(run func(ctx con
 	return _c
 }
 
+// UpdateGroupRoom provides a mock function for the type MockService
+func (_mock *MockService) UpdateGroupRoom(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error) {
+	ret := _mock.Called(ctx, roomID, actorID, req)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateGroupRoom")
+	}
+
+	var r0 *dto.ChatRoomResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error)); ok {
+		return returnFunc(ctx, roomID, actorID, req)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateGroupRoomRequest) *dto.ChatRoomResponse); ok {
+		r0 = returnFunc(ctx, roomID, actorID, req)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ChatRoomResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.UpdateGroupRoomRequest) error); ok {
+		r1 = returnFunc(ctx, roomID, actorID, req)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_UpdateGroupRoom_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateGroupRoom'
+type MockService_UpdateGroupRoom_Call struct {
+	*mock.Call
+}
+
+// UpdateGroupRoom is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - actorID uuid.UUID
+//   - req dto.UpdateGroupRoomRequest
+func (_e *MockService_Expecter) UpdateGroupRoom(ctx any, roomID any, actorID any, req any) *MockService_UpdateGroupRoom_Call {
+	return &MockService_UpdateGroupRoom_Call{Call: _e.mock.On("UpdateGroupRoom", ctx, roomID, actorID, req)}
+}
+
+func (_c *MockService_UpdateGroupRoom_Call) Run(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest)) *MockService_UpdateGroupRoom_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 dto.UpdateGroupRoomRequest
+		if args[3] != nil {
+			arg3 = args[3].(dto.UpdateGroupRoomRequest)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_UpdateGroupRoom_Call) Return(chatRoomResponse *dto.ChatRoomResponse, err error) *MockService_UpdateGroupRoom_Call {
+	_c.Call.Return(chatRoomResponse, err)
+	return _c
+}
+
+func (_c *MockService_UpdateGroupRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, actorID uuid.UUID, req dto.UpdateGroupRoomRequest) (*dto.ChatRoomResponse, error)) *MockService_UpdateGroupRoom_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UpdateRoomBannedWord provides a mock function for the type MockService
 func (_mock *MockService) UpdateRoomBannedWord(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error) {
 	ret := _mock.Called(ctx, actorID, roomID, ruleID, req)
@@ -5012,57 +5092,6 @@ func (_c *MockService_UpdateRoomBannedWord_Call) Return(bannedWordRuleResponse *
 }
 
 func (_c *MockService_UpdateRoomBannedWord_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, roomID uuid.UUID, ruleID uuid.UUID, req dto.UpdateBannedWordRequest) (*dto.BannedWordRuleResponse, error)) *MockService_UpdateRoomBannedWord_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// VoiceCount provides a mock function for the type MockService
-func (_mock *MockService) VoiceCount(roomID uuid.UUID) int {
-	ret := _mock.Called(roomID)
-
-	if len(ret) == 0 {
-		panic("no return value specified for VoiceCount")
-	}
-
-	var r0 int
-	if returnFunc, ok := ret.Get(0).(func(uuid.UUID) int); ok {
-		r0 = returnFunc(roomID)
-	} else {
-		r0 = ret.Get(0).(int)
-	}
-	return r0
-}
-
-// MockService_VoiceCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'VoiceCount'
-type MockService_VoiceCount_Call struct {
-	*mock.Call
-}
-
-// VoiceCount is a helper method to define mock.On call
-//   - roomID uuid.UUID
-func (_e *MockService_Expecter) VoiceCount(roomID any) *MockService_VoiceCount_Call {
-	return &MockService_VoiceCount_Call{Call: _e.mock.On("VoiceCount", roomID)}
-}
-
-func (_c *MockService_VoiceCount_Call) Run(run func(roomID uuid.UUID)) *MockService_VoiceCount_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 uuid.UUID
-		if args[0] != nil {
-			arg0 = args[0].(uuid.UUID)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_VoiceCount_Call) Return(n int) *MockService_VoiceCount_Call {
-	_c.Call.Return(n)
-	return _c
-}
-
-func (_c *MockService_VoiceCount_Call) RunAndReturn(run func(roomID uuid.UUID) int) *MockService_VoiceCount_Call {
 	_c.Call.Return(run)
 	return _c
 }

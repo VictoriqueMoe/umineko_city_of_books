@@ -8,10 +8,11 @@ import (
 	"strings"
 	"umineko_city_of_books/internal/repository/model"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type (
@@ -36,32 +37,28 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 	return &u, err
 }
 
-func (r *userDAO) Create(ctx context.Context, username, email, password, displayName string) (*model.User, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
-	}
-
-	id := uuid.New()
-
-	_, err = r.db.ExecContext(ctx,
-		`INSERT INTO users (id, username, email, password_hash, display_name, home_page) VALUES ($1, $2, $3, $4, $5, $6)`,
-		id, username, email, string(hash), displayName, "landing",
+const userInsertQuery = `
+	WITH u AS (
+		INSERT INTO users (username, email, password_hash, display_name, avatar_url, home_page, is_bot, dms_enabled, email_verified)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		RETURNING *
 	)
+	SELECT ` + userColumns + ` FROM u LEFT JOIN user_roles r ON r.user_id = u.id`
+
+func (r *userDAO) Create(ctx context.Context, spec repository.NewUser, tx ...*sql.Tx) (*model.User, error) {
+	created, err := scanUser(txOrDB(r.db, tx).QueryRowContext(ctx, userInsertQuery,
+		spec.Username, spec.Email, spec.PasswordHash, spec.DisplayName, spec.AvatarURL, spec.HomePage,
+		spec.IsBot, spec.DMsEnabled, spec.EmailVerified,
+	))
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	return &model.User{
-		ID:          id,
-		Username:    username,
-		Email:       email,
-		DisplayName: displayName,
-	}, nil
+	return created, nil
 }
 
-func (r *userDAO) SetEmail(ctx context.Context, userID uuid.UUID, email string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) SetEmail(ctx context.Context, userID uuid.UUID, email string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET email = $1, email_verified = FALSE WHERE id = $2`, email, userID,
 	)
 	if err != nil {
@@ -70,8 +67,8 @@ func (r *userDAO) SetEmail(ctx context.Context, userID uuid.UUID, email string) 
 	return nil
 }
 
-func (r *userDAO) SetDisplayName(ctx context.Context, userID uuid.UUID, displayName string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) SetDisplayName(ctx context.Context, userID uuid.UUID, displayName string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET display_name = $1 WHERE id = $2`, displayName, userID,
 	)
 	if err != nil {
@@ -80,8 +77,8 @@ func (r *userDAO) SetDisplayName(ctx context.Context, userID uuid.UUID, displayN
 	return nil
 }
 
-func (r *userDAO) SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, locked bool) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, locked bool, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET display_name_locked = $1 WHERE id = $2`, locked, userID,
 	)
 	if err != nil {
@@ -90,8 +87,8 @@ func (r *userDAO) SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, lo
 	return nil
 }
 
-func (r *userDAO) ListByIP(ctx context.Context, ip string, excludeUserID uuid.UUID) ([]model.User, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *userDAO) ListByIP(ctx context.Context, ip string, excludeUserID uuid.UUID, tx ...*sql.Tx) ([]model.User, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.ip = $1 AND u.id <> $2 ORDER BY u.created_at DESC`,
 		ip, excludeUserID,
 	)
@@ -111,8 +108,8 @@ func (r *userDAO) ListByIP(ctx context.Context, ip string, excludeUserID uuid.UU
 	return users, rows.Err()
 }
 
-func (r *userDAO) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) MarkEmailVerified(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET email_verified = TRUE WHERE id = $1`, userID,
 	)
 	if err != nil {
@@ -121,8 +118,8 @@ func (r *userDAO) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
 	return nil
 }
 
-func (r *userDAO) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) MarkEmailUnverified(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET email_verified = FALSE WHERE id = $1`, userID,
 	)
 	if err != nil {
@@ -131,9 +128,9 @@ func (r *userDAO) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) err
 	return nil
 }
 
-func (r *userDAO) EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error) {
+func (r *userDAO) EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var exists bool
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) AND email <> '' AND id <> $2)`,
 		email, excludeUserID,
 	).Scan(&exists)
@@ -143,9 +140,9 @@ func (r *userDAO) EmailInUse(ctx context.Context, email string, excludeUserID uu
 	return exists, nil
 }
 
-func (r *userDAO) RequiresEmailVerification(ctx context.Context, userID uuid.UUID) (bool, error) {
+func (r *userDAO) RequiresEmailVerification(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var blocked bool
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT NOT email_verified AND NOW() >= verify_grace_until FROM users WHERE id = $1`, userID,
 	).Scan(&blocked)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -157,8 +154,8 @@ func (r *userDAO) RequiresEmailVerification(ctx context.Context, userID uuid.UUI
 	return blocked, nil
 }
 
-func (r *userDAO) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error) {
-	u, err := scanUser(r.db.QueryRowContext(ctx,
+func (r *userDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.User, error) {
+	u, err := scanUser(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id = $1`, id,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -170,17 +167,13 @@ func (r *userDAO) GetByID(ctx context.Context, id uuid.UUID) (*model.User, error
 	return u, nil
 }
 
-func (r *userDAO) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.User, error) {
+func (r *userDAO) GetByIDs(ctx context.Context, ids []uuid.UUID, tx ...*sql.Tx) ([]model.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	args := make([]any, len(ids))
-	placeholders := make([]string, len(ids))
-	for i := range ids {
-		args[i] = ids[i]
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-	}
-	rows, err := r.db.QueryContext(ctx,
+	placeholders, args := utils.PlaceholderArgs(ids, 1)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
@@ -200,8 +193,8 @@ func (r *userDAO) GetByIDs(ctx context.Context, ids []uuid.UUID) ([]model.User, 
 	return users, rows.Err()
 }
 
-func (r *userDAO) GetByUsername(ctx context.Context, username string) (*model.User, error) {
-	u, err := scanUser(r.db.QueryRowContext(ctx,
+func (r *userDAO) GetByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*model.User, error) {
+	u, err := scanUser(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE LOWER(u.username) = LOWER($1)`, username,
 	))
 	if errors.Is(err, sql.ErrNoRows) {
@@ -213,7 +206,7 @@ func (r *userDAO) GetByUsername(ctx context.Context, username string) (*model.Us
 	return u, nil
 }
 
-func (r *userDAO) GetByUsernames(ctx context.Context, usernames []string) ([]model.User, error) {
+func (r *userDAO) GetByUsernames(ctx context.Context, usernames []string, tx ...*sql.Tx) ([]model.User, error) {
 	if len(usernames) == 0 {
 		return nil, nil
 	}
@@ -223,7 +216,7 @@ func (r *userDAO) GetByUsernames(ctx context.Context, usernames []string) ([]mod
 		args[i] = strings.ToLower(usernames[i])
 		placeholders[i] = fmt.Sprintf("$%d", i+1)
 	}
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE LOWER(u.username) IN (`+strings.Join(placeholders, ",")+`)`,
 		args...,
 	)
@@ -243,9 +236,9 @@ func (r *userDAO) GetByUsernames(ctx context.Context, usernames []string) ([]mod
 	return users, rows.Err()
 }
 
-func (r *userDAO) ExistsByUsername(ctx context.Context, username string) (bool, error) {
+func (r *userDAO) ExistsByUsername(ctx context.Context, username string, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM users WHERE LOWER(username) = LOWER($1)`, username,
 	).Scan(&count)
 	if err != nil {
@@ -254,50 +247,30 @@ func (r *userDAO) ExistsByUsername(ctx context.Context, username string) (bool, 
 	return count > 0, nil
 }
 
-func (r *userDAO) Count(ctx context.Context) (int, error) {
+func (r *userDAO) Count(ctx context.Context, tx ...*sql.Tx) (int, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&count)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("count users: %w", err)
 	}
 	return count, nil
 }
 
-func (r *userDAO) ValidatePassword(ctx context.Context, username, password string) (*model.User, error) {
-	u, err := r.GetByUsername(ctx, username)
-	if err != nil {
-		return nil, err
-	}
-	if u == nil {
-		return nil, nil
-	}
-
-	if u.IsBot {
-		return nil, nil
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
-		return nil, nil
-	}
-
-	return u, nil
-}
-
-func (r *userDAO) VerifyPassword(ctx context.Context, userID uuid.UUID, password string) (bool, error) {
+func (r *userDAO) GetPasswordHash(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
 	var hash string
-	err := r.db.QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = $1`, userID).Scan(&hash)
+	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = $1`, userID).Scan(&hash)
 	if errors.Is(err, sql.ErrNoRows) {
-		return false, nil
+		return "", nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("get password hash: %w", err)
+		return "", fmt.Errorf("get password hash: %w", err)
 	}
 
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil, nil
+	return hash, nil
 }
 
-func (r *userDAO) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET display_name = $1, bio = $2, banner_position = $3, favourite_character = $4, gender = $5,
 		 pronoun_subject = $6, pronoun_possessive = $7,
 		 social_twitter = $8, social_discord = $9, social_waifulist = $10, social_tumblr = $11, social_github = $12, social_bluesky = $13,
@@ -315,8 +288,8 @@ func (r *userDAO) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	return nil
 }
 
-func (r *userDAO) UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET avatar_url = $1 WHERE id = $2`, avatarURL, userID,
 	)
 	if err != nil {
@@ -325,8 +298,8 @@ func (r *userDAO) UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarU
 	return nil
 }
 
-func (r *userDAO) UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET banner_url = $1 WHERE id = $2`, bannerURL, userID,
 	)
 	if err != nil {
@@ -335,8 +308,8 @@ func (r *userDAO) UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerU
 	return nil
 }
 
-func (r *userDAO) UpdateIP(ctx context.Context, userID uuid.UUID, ip string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateIP(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET ip = $1 WHERE id = $2`, ip, userID,
 	)
 	if err != nil {
@@ -345,8 +318,8 @@ func (r *userDAO) UpdateIP(ctx context.Context, userID uuid.UUID, ip string) err
 	return nil
 }
 
-func (r *userDAO) UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sort string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sort string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET game_board_sort = $1 WHERE id = $2`, sort, userID,
 	)
 	if err != nil {
@@ -355,8 +328,8 @@ func (r *userDAO) UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sor
 	return nil
 }
 
-func (r *userDAO) UpdateAppearance(ctx context.Context, userID uuid.UUID, theme, font string, wideLayout bool) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateAppearance(ctx context.Context, userID uuid.UUID, theme, font string, wideLayout bool, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET theme = $1, font = $2, wide_layout = $3 WHERE id = $4`, theme, font, wideLayout, userID,
 	)
 	if err != nil {
@@ -365,8 +338,8 @@ func (r *userDAO) UpdateAppearance(ctx context.Context, userID uuid.UUID, theme,
 	return nil
 }
 
-func (r *userDAO) UpdateMysteryScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateMysteryScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET mystery_score_adjustment = $1 WHERE id = $2`, adjustment, userID,
 	)
 	if err != nil {
@@ -375,9 +348,9 @@ func (r *userDAO) UpdateMysteryScoreAdjustment(ctx context.Context, userID uuid.
 	return nil
 }
 
-func (r *userDAO) GetDetectiveRawScore(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *userDAO) GetDetectiveRawScore(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var score int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(
 			CASE m.difficulty
 				WHEN 'easy' THEN 2
@@ -392,9 +365,9 @@ func (r *userDAO) GetDetectiveRawScore(ctx context.Context, userID uuid.UUID) (i
 	return score, err
 }
 
-func (r *userDAO) GetGMRawScore(ctx context.Context, userID uuid.UUID) (int, error) {
+func (r *userDAO) GetGMRawScore(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var score int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(
 			CASE m.difficulty
 				WHEN 'easy' THEN 2
@@ -410,8 +383,8 @@ func (r *userDAO) GetGMRawScore(ctx context.Context, userID uuid.UUID) (int, err
 	return score, err
 }
 
-func (r *userDAO) UpdateGMScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UpdateGMScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET gm_score_adjustment = $1 WHERE id = $2`, adjustment, userID,
 	)
 	if err != nil {
@@ -420,26 +393,9 @@ func (r *userDAO) UpdateGMScoreAdjustment(ctx context.Context, userID uuid.UUID,
 	return nil
 }
 
-func (r *userDAO) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassword, newPassword string) error {
-	u, err := r.GetByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("get user: %w", err)
-	}
-	if u == nil {
-		return fmt.Errorf("user not found")
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(oldPassword)); err != nil {
-		return fmt.Errorf("incorrect password")
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
-	}
-
-	_, err = r.db.ExecContext(ctx,
-		`UPDATE users SET password_hash = $1 WHERE id = $2`, string(hash), userID,
+func (r *userDAO) SetPasswordHash(ctx context.Context, userID uuid.UUID, passwordHash string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`UPDATE users SET password_hash = $1 WHERE id = $2`, passwordHash, userID,
 	)
 	if err != nil {
 		return fmt.Errorf("update password: %w", err)
@@ -447,35 +403,8 @@ func (r *userDAO) ChangePassword(ctx context.Context, userID uuid.UUID, oldPassw
 	return nil
 }
 
-func (r *userDAO) SetPassword(ctx context.Context, userID uuid.UUID, newPassword string) error {
-	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
-	if err != nil {
-		return fmt.Errorf("hash password: %w", err)
-	}
-
-	_, err = r.db.ExecContext(ctx,
-		`UPDATE users SET password_hash = $1 WHERE id = $2`, string(hash), userID,
-	)
-	if err != nil {
-		return fmt.Errorf("update password: %w", err)
-	}
-	return nil
-}
-
-func (r *userDAO) DeleteAccount(ctx context.Context, userID uuid.UUID, password string) error {
-	u, err := r.GetByID(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("get user: %w", err)
-	}
-	if u == nil {
-		return fmt.Errorf("user not found")
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
-		return fmt.Errorf("incorrect password")
-	}
-
-	_, err = r.db.ExecContext(ctx,
+func (r *userDAO) DeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM users WHERE id = $1`, userID,
 	)
 	if err != nil {
@@ -484,78 +413,78 @@ func (r *userDAO) DeleteAccount(ctx context.Context, userID uuid.UUID, password 
 	return nil
 }
 
-func (r *userDAO) GetProfileByUsername(ctx context.Context, username string) (*model.User, *model.UserStats, error) {
-	u, err := r.GetByUsername(ctx, username)
+func (r *userDAO) GetProfileByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*model.User, *model.UserStats, error) {
+	u, err := r.GetByUsername(ctx, username, tx...)
 	if err != nil || u == nil {
 		return u, nil, err
 	}
 
 	var stats model.UserStats
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM theories WHERE user_id = $1`, u.ID,
 	).Scan(&stats.TheoryCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM responses WHERE user_id = $1`, u.ID,
 	).Scan(&stats.ResponseCount)
 
 	var theoryVotes, responseVotes int
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(tv.value), 0) FROM theory_votes tv JOIN theories t ON tv.theory_id = t.id WHERE t.user_id = $1`, u.ID,
 	).Scan(&theoryVotes)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(SUM(rv.value), 0) FROM response_votes rv JOIN responses r ON rv.response_id = r.id WHERE r.user_id = $1`, u.ID,
 	).Scan(&responseVotes)
 
 	stats.VotesReceived = theoryVotes + responseVotes
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ships WHERE user_id = $1`, u.ID,
 	).Scan(&stats.ShipCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, u.ID,
 	).Scan(&stats.MysteryCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, u.ID,
 	).Scan(&stats.FanficCount)
 
 	return u, &stats, nil
 }
 
-func (r *userDAO) GetProfileByID(ctx context.Context, id uuid.UUID) (*model.User, *model.UserStats, error) {
-	u, err := r.GetByID(ctx, id)
+func (r *userDAO) GetProfileByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.User, *model.UserStats, error) {
+	u, err := r.GetByID(ctx, id, tx...)
 	if err != nil || u == nil {
 		return u, nil, err
 	}
 
 	var stats model.UserStats
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM theories WHERE user_id = $1`, u.ID,
 	).Scan(&stats.TheoryCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM responses WHERE user_id = $1`, u.ID,
 	).Scan(&stats.ResponseCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ships WHERE user_id = $1`, u.ID,
 	).Scan(&stats.ShipCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, u.ID,
 	).Scan(&stats.MysteryCount)
 
-	r.db.QueryRowContext(ctx,
+	txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, u.ID,
 	).Scan(&stats.FanficCount)
 
 	return u, &stats, nil
 }
 
-func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int) ([]model.User, int, error) {
+func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int, tx ...*sql.Tx) ([]model.User, int, error) {
 	where := ""
 	var args []any
 	if search != "" {
@@ -567,7 +496,7 @@ func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int)
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM users u"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
@@ -577,7 +506,7 @@ func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int)
 	limitIdx := len(args) + 1
 	offsetIdx := len(args) + 2
 	args = append(args, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		fmt.Sprintf("SELECT "+userColumns+" FROM users u LEFT JOIN user_roles r ON r.user_id = u.id"+where+" ORDER BY u.created_at DESC LIMIT $%d OFFSET $%d", limitIdx, offsetIdx), args...,
 	)
 	if err != nil {
@@ -596,8 +525,8 @@ func (r *userDAO) ListAll(ctx context.Context, search string, limit, offset int)
 	return users, total, rows.Err()
 }
 
-func (r *userDAO) ListPublic(ctx context.Context) ([]model.User, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *userDAO) ListPublic(ctx context.Context, tx ...*sql.Tx) ([]model.User, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL AND NOT u.is_bot ORDER BY LOWER(u.display_name)`,
 	)
 	if err != nil {
@@ -616,9 +545,9 @@ func (r *userDAO) ListPublic(ctx context.Context) ([]model.User, error) {
 	return users, rows.Err()
 }
 
-func (r *userDAO) SearchByName(ctx context.Context, query string, limit int) ([]model.User, error) {
+func (r *userDAO) SearchByName(ctx context.Context, query string, limit int, tx ...*sql.Tx) ([]model.User, error) {
 	like := "%" + query + "%"
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL AND (u.username ILIKE $1 OR u.display_name ILIKE $2) ORDER BY CASE WHEN u.username ILIKE $3 THEN 0 ELSE 1 END, LOWER(u.display_name) LIMIT $4`,
 		like, like, query+"%", limit,
 	)
@@ -638,8 +567,8 @@ func (r *userDAO) SearchByName(ctx context.Context, query string, limit int) ([]
 	return users, rows.Err()
 }
 
-func (r *userDAO) BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET banned_at = NOW(), banned_by = $1, ban_reason = $2 WHERE id = $3`,
 		bannedBy, reason, userID,
 	)
@@ -649,8 +578,8 @@ func (r *userDAO) BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.U
 	return nil
 }
 
-func (r *userDAO) UnbanUser(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UnbanUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET banned_at = NULL, banned_by = NULL, ban_reason = '' WHERE id = $1`, userID,
 	)
 	if err != nil {
@@ -659,9 +588,9 @@ func (r *userDAO) UnbanUser(ctx context.Context, userID uuid.UUID) error {
 	return nil
 }
 
-func (r *userDAO) IsBanned(ctx context.Context, userID uuid.UUID) (bool, error) {
+func (r *userDAO) IsBanned(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var bannedAt *string
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT banned_at FROM users WHERE id = $1`, userID,
 	).Scan(&bannedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -673,8 +602,8 @@ func (r *userDAO) IsBanned(ctx context.Context, userID uuid.UUID) (bool, error) 
 	return bannedAt != nil, nil
 }
 
-func (r *userDAO) LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET locked_at = NOW(), locked_by = $1, lock_reason = $2 WHERE id = $3`,
 		lockedBy, reason, userID,
 	)
@@ -684,8 +613,8 @@ func (r *userDAO) LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.
 	return nil
 }
 
-func (r *userDAO) UnlockUser(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *userDAO) UnlockUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE users SET locked_at = NULL, locked_by = NULL, lock_reason = '' WHERE id = $1`, userID,
 	)
 	if err != nil {
@@ -694,9 +623,9 @@ func (r *userDAO) UnlockUser(ctx context.Context, userID uuid.UUID) error {
 	return nil
 }
 
-func (r *userDAO) IsLocked(ctx context.Context, userID uuid.UUID) (bool, error) {
+func (r *userDAO) IsLocked(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var lockedAt *string
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT locked_at FROM users WHERE id = $1`, userID,
 	).Scan(&lockedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -708,8 +637,8 @@ func (r *userDAO) IsLocked(ctx context.Context, userID uuid.UUID) (bool, error) 
 	return lockedAt != nil, nil
 }
 
-func (r *userDAO) AdminDeleteAccount(ctx context.Context, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, userID)
+func (r *userDAO) AdminDeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM users WHERE id = $1`, userID)
 	if err != nil {
 		return fmt.Errorf("admin delete account: %w", err)
 	}

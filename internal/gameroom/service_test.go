@@ -2,6 +2,7 @@ package gameroom
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"testing"
@@ -63,7 +64,7 @@ func newTestService(t *testing.T) *testMocks {
 		handler:    handler,
 		seededByID: map[uuid.UUID]model.User{},
 	}
-	userRepo.EXPECT().GetByIDs(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ids []uuid.UUID) ([]model.User, error) {
+	userRepo.EXPECT().GetByIDs(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ids []uuid.UUID, _ ...*sql.Tx) ([]model.User, error) {
 		out := make([]model.User, 0, len(ids))
 		for i := range ids {
 			if u, ok := m.seededByID[ids[i]]; ok {

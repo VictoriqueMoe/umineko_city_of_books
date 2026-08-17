@@ -82,8 +82,13 @@ func TestUpdateRolePermissions_AllowsStaffPermissionsOnModerator(t *testing.T) {
 	actor := uuid.New()
 	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, string(authz.RoleModerator),
 		[]string{string(authz.PermBanUser), string(authz.PermViewAdminPanel)}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_role_permissions", "role", string(authz.RoleModerator),
-		"ban_user,view_admin_panel").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionUpdateRolePermissions,
+		TargetType: repository.AuditTargetRole,
+		TargetID:   string(authz.RoleModerator),
+		Details:    "ban_user,view_admin_panel",
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateRolePermissions(context.Background(), actor,
@@ -147,7 +152,13 @@ func TestUpdateRolePermissions_UnticksEverything(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, string(authz.RoleModerator), []string{}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_role_permissions", "role", string(authz.RoleModerator), "").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionUpdateRolePermissions,
+		TargetType: repository.AuditTargetRole,
+		TargetID:   string(authz.RoleModerator),
+		Details:    "",
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateRolePermissions(context.Background(), actor, string(authz.RoleModerator), nil)
@@ -214,7 +225,13 @@ func TestUpdateVanityRolePermissions_AcceptsAssignableSubset(t *testing.T) {
 	actor := uuid.New()
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().SetVanityRolePermissions(mock.Anything, "r1", []string{string(authz.PermUseChatbot)}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, actor, "update_vanity_role_permissions", "vanity_role", "r1", "use_chatbot").Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionUpdateVanityRolePermissions,
+		TargetType: repository.AuditTargetVanityRole,
+		TargetID:   "r1",
+		Details:    "use_chatbot",
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateVanityRolePermissions(context.Background(), actor, "r1", []string{string(authz.PermUseChatbot)})
@@ -317,7 +334,14 @@ func TestAssignVanityRole_PermissionCarryingRoleObeysRankGate(t *testing.T) {
 
 			if tc.wantErr == nil {
 				m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-				m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "assign_vanity_role", "vanity_role", "r1", "", target).Return(nil)
+				m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+					ActorID:    actor,
+					Action:     repository.AuditActionAssignVanityRole,
+					TargetType: repository.AuditTargetVanityRole,
+					TargetID:   "r1",
+					Details:    "",
+					SubjectID:  target,
+				}).Return(nil)
 			}
 
 			// when
@@ -343,7 +367,14 @@ func TestAssignVanityRole_DecorativeRoleSkipsRankGate(t *testing.T) {
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(map[string][]string{}, nil)
 	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-	m.auditRepo.EXPECT().CreateForSubject(mock.Anything, actor, "assign_vanity_role", "vanity_role", "r1", "", target).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    actor,
+		Action:     repository.AuditActionAssignVanityRole,
+		TargetType: repository.AuditTargetVanityRole,
+		TargetID:   "r1",
+		Details:    "",
+		SubjectID:  target,
+	}).Return(nil)
 
 	// when
 	err := svc.AssignVanityRole(context.Background(), actor, "r1", target)

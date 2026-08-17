@@ -50,6 +50,25 @@ func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
 }
 
+func credentialsSpec(userID uuid.UUID, ingressID, whipURL, streamKey string) any {
+	return mock.MatchedBy(func(spec repository.NewStreamCredentials) bool {
+		return spec.UserID == userID &&
+			spec.IngressID == ingressID &&
+			spec.WhipURL == whipURL &&
+			spec.StreamKey == streamKey
+	})
+}
+
+func activationSpec(streamID uuid.UUID, ingressID, whipURL, streamKey, defaultMode string) any {
+	return mock.MatchedBy(func(spec repository.LiveStreamActivation) bool {
+		return spec.Ingress.ID == streamID &&
+			spec.Ingress.IngressID == ingressID &&
+			spec.Ingress.WhipURL == whipURL &&
+			spec.Ingress.StreamKey == streamKey &&
+			spec.DefaultMode == defaultMode
+	})
+}
+
 func expectStreamingEnabled(m *streamMocks, enabled bool) {
 	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamingEnabled).Return(enabled).Maybe()
 	m.lk.EXPECT().Enabled().Return(true).Maybe()
@@ -141,8 +160,7 @@ func TestStartStream_HappyPath(t *testing.T) {
 
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
 	m.repo.EXPECT().CountActive(mock.Anything).Return(0, nil)
-	m.repo.EXPECT().Create(mock.Anything, userID, "My Stream", 3).Return(streamID, nil)
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().Create(mock.Anything, userID, "My Stream", 3).Return(&repository.LiveStreamRow{
 		ID:          streamID,
 		UserID:      userID,
 		Title:       "My Stream",
@@ -152,10 +170,9 @@ func TestStartStream_HappyPath(t *testing.T) {
 	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
 	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beatrice").
 		Return("ing_1", "https://whip.example/w", "key_123", nil)
-	m.creds.EXPECT().Upsert(mock.Anything, userID, "ing_1", "https://whip.example/w", "key_123", mock.Anything).Return(nil)
+	m.creds.EXPECT().Upsert(mock.Anything, credentialsSpec(userID, "ing_1", "https://whip.example/w", "key_123")).Return(nil)
 	m.lk.EXPECT().UpdateIngress(mock.Anything, "ing_1", mock.Anything, mock.Anything, "Beatrice").Return(nil)
-	m.repo.EXPECT().SetIngress(mock.Anything, streamID, "ing_1", mock.Anything, "https://whip.example/w", "key_123").Return(nil)
-	m.repo.EXPECT().SetDefaultMode(mock.Anything, streamID, "webrtc").Return(nil)
+	m.repo.EXPECT().Activate(mock.Anything, activationSpec(streamID, "ing_1", "https://whip.example/w", "key_123", "webrtc")).Return(nil)
 
 	// when
 	resp, err := svc.StartStream(context.Background(), userID, "My Stream", dto.StreamDefaultModeWebRTC, 6000)
@@ -189,7 +206,7 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 
 			m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
 			m.repo.EXPECT().CountActive(mock.Anything).Return(0, nil)
-			m.repo.EXPECT().Create(mock.Anything, userID, "title", 3).Return(uuid.Nil, tc.repoErr)
+			m.repo.EXPECT().Create(mock.Anything, userID, "title", 3).Return(nil, tc.repoErr)
 
 			// when
 			_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC, 6000)
@@ -238,7 +255,7 @@ func TestCredentials_CreatesIngressWhenMissing(t *testing.T) {
 	userID := uuid.New()
 	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
 	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beato").Return("ing_new", "https://whip/w", "key_new", nil)
-	m.creds.EXPECT().Upsert(mock.Anything, userID, "ing_new", "https://whip/w", "key_new", mock.Anything).Return(nil)
+	m.creds.EXPECT().Upsert(mock.Anything, credentialsSpec(userID, "ing_new", "https://whip/w", "key_new")).Return(nil)
 	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 
 	// when
@@ -276,7 +293,7 @@ func TestResetCredentials_DeletesOldIngressThenRecreates(t *testing.T) {
 	m.creds.EXPECT().Delete(mock.Anything, userID).Return(nil)
 	m.creds.EXPECT().Get(mock.Anything, userID).Return(nil, nil)
 	m.lk.EXPECT().CreateIngress(mock.Anything, mock.Anything, mock.Anything, "Beato").Return("new_ing", "https://whip/w", "new_key", nil)
-	m.creds.EXPECT().Upsert(mock.Anything, userID, "new_ing", "https://whip/w", "new_key", mock.Anything).Return(nil)
+	m.creds.EXPECT().Upsert(mock.Anything, credentialsSpec(userID, "new_ing", "https://whip/w", "new_key")).Return(nil)
 	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 
 	// when
@@ -404,7 +421,7 @@ func TestSaveThumbnail_StoresAndDeletesOldThumbnail(t *testing.T) {
 	}, nil)
 	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, int64(100), mock.Anything, mock.Anything).Return("/uploads/new.webp", nil)
 	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil)
-	m.upload.EXPECT().Delete("/uploads/old.webp").Return(nil)
+	m.upload.EXPECT().Delete([]string{"/uploads/old.webp"}).Return()
 
 	// when
 	err := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))

@@ -16,8 +16,15 @@ import (
 func createBotInvocation(t *testing.T, repos *repository.Repositories, botUserID, userID uuid.UUID, channel string, usage repository.InvocationUsage, status repository.InvocationStatus) {
 	t.Helper()
 
-	id := uuid.New()
-	require.NoError(t, repos.Chatbot.CreateInvocation(context.Background(), id, botUserID, userID, nil, uuid.New(), channel, "gpt-5.6-luna"))
+	created, err := repos.Chatbot.CreateInvocation(context.Background(), repository.NewInvocation{
+		BotUserID: botUserID,
+		UserID:    userID,
+		MessageID: uuid.New(),
+		Channel:   channel,
+		Model:     "gpt-5.6-luna",
+	})
+	require.NoError(t, err)
+	id := created.ID
 	require.NoError(t, repos.Chatbot.CompleteInvocation(context.Background(), id, usage, status))
 }
 
@@ -78,4 +85,45 @@ func TestChatbotDAO_StatsSince_IgnoresOlderInvocations(t *testing.T) {
 	assert.Equal(t, 0, stats.Invocations)
 	assert.Empty(t, stats.Channels)
 	assert.NotNil(t, stats.Channels)
+}
+
+func TestChatbotDAO_CreateBotWithAccount_RollsBackEveryTableWhenTheBotInsertFails(t *testing.T) {
+	// given a bot creation whose final write is guaranteed to fail, because
+	// chatbots.base_prompt_id carries a foreign key onto chatbot_base_prompts
+	repos := daotest.NewRepos(t)
+	missingBasePrompt := uuid.New()
+
+	account := repository.NewUser{
+		Username:      "orphanwitch",
+		PasswordHash:  "!",
+		DisplayName:   "Orphan Witch",
+		HomePage:      "landing",
+		IsBot:         true,
+		DMsEnabled:    true,
+		EmailVerified: true,
+	}
+
+	// when the bot row is rejected after the user and the vanity role have already been written
+	created, err := repos.Chatbot.CreateBotWithAccount(context.Background(), account, repository.Chatbot{
+		SystemPrompt: "you are the golden witch",
+		BasePromptID: &missingBasePrompt,
+		Model:        "gpt-5.6-luna",
+		Enabled:      true,
+	}, "bot")
+
+	// then the whole unit of work is undone, leaving no orphan in any of the three tables
+	require.Error(t, err)
+	assert.Nil(t, created)
+
+	user, err := repos.User.GetByUsername(context.Background(), account.Username)
+	require.NoError(t, err)
+	assert.Nil(t, user, "the users row must not survive a failed bot creation")
+
+	assignments, err := repos.VanityRole.GetAllAssignments(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, assignments, "the user_vanity_roles row must not survive a failed bot creation")
+
+	bots, err := repos.Chatbot.ListBots(context.Background())
+	require.NoError(t, err)
+	assert.Empty(t, bots)
 }

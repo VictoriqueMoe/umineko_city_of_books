@@ -25,6 +25,7 @@ const (
 type (
 	OptInRoleMigrator struct {
 		vanityRepo repository.VanityRoleRepository
+		auditRepo  repository.AuditLogRepository
 		mu         sync.Mutex
 		current    string
 	}
@@ -65,10 +66,10 @@ func validateOptInRole(ctx context.Context, vanityRepo repository.VanityRoleRepo
 	return nil
 }
 
-func NewOptInRoleMigrator(vanityRepo repository.VanityRoleRepository, settingsSvc settings.Service) *OptInRoleMigrator {
+func NewOptInRoleMigrator(vanityRepo repository.VanityRoleRepository, auditRepo repository.AuditLogRepository, settingsSvc settings.Service) *OptInRoleMigrator {
 	current := strings.TrimSpace(settingsSvc.Get(context.Background(), config.SettingChatbotOptInRole))
 
-	return &OptInRoleMigrator{vanityRepo: vanityRepo, current: current}
+	return &OptInRoleMigrator{vanityRepo: vanityRepo, auditRepo: auditRepo, current: current}
 }
 
 func (m *OptInRoleMigrator) OnSettingChanged(key config.SiteSettingKey, value string) {
@@ -120,16 +121,11 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 	failed := 0
 
 	for _, userID := range holders {
-		if err := m.vanityRepo.AssignToUser(ctx, userID, to); err != nil {
-			failed++
-			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("to", to).Msg("chatbot opt-in role migration could not grant the new role")
+		spec := repository.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
 
-			continue
-		}
-
-		if err := m.vanityRepo.UnassignFromUser(ctx, userID, from); err != nil {
+		if err := m.vanityRepo.MoveUserRole(ctx, spec); err != nil {
 			failed++
-			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("from", from).Msg("chatbot opt-in role migration could not revoke the old role")
+			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not move the member")
 
 			continue
 		}
@@ -138,6 +134,17 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 	}
 
 	logger.Log.Info().Str("from", from).Str("to", to).Int("holders", len(holders)).Int("moved", moved).Int("failed", failed).Msg("chatbot opt-in role migration finished")
+
+	entry := repository.NewAuditEntry{
+		Action:     repository.AuditActionChatbotOptInRoleMigrate,
+		TargetType: repository.AuditTargetVanityRole,
+		TargetID:   to,
+		Details:    fmt.Sprintf("from=%s to=%s holders=%d moved=%d failed=%d", from, to, len(holders), moved, failed),
+	}
+
+	if err := m.auditRepo.CreateSystem(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
 }
 
 func (m *OptInRoleMigrator) holders(ctx context.Context, roleID string) ([]uuid.UUID, error) {

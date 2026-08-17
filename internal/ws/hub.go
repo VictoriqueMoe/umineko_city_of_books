@@ -40,6 +40,7 @@ type (
 
 	Hub struct {
 		name         string
+		tracer       trace.Tracer
 		clients      map[uuid.UUID][]*Client
 		rooms        map[uuid.UUID]map[uuid.UUID]bool
 		viewers      map[uuid.UUID]map[uuid.UUID]*viewerInfo
@@ -134,6 +135,7 @@ func NewHub(name ...string) *Hub {
 
 	return &Hub{
 		name:         hubName,
+		tracer:       otel.Tracer(wsTracerName),
 		clients:      make(map[uuid.UUID][]*Client),
 		rooms:        make(map[uuid.UUID]map[uuid.UUID]bool),
 		viewers:      make(map[uuid.UUID]map[uuid.UUID]*viewerInfo),
@@ -327,8 +329,7 @@ func (h *Hub) reapDead(dead []*Client) {
 	}
 }
 
-func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
-	conns := h.snapshotConnsForUser(userID)
+func (h *Hub) sendToConns(conns []*Client, msg Message) {
 	if len(conns) == 0 {
 		return
 	}
@@ -344,9 +345,18 @@ func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
 			dead = append(dead, client)
 		}
 	}
+
 	if len(dead) > 0 {
 		h.reapDead(dead)
 	}
+}
+
+func (h *Hub) SendToUser(userID uuid.UUID, msg Message) {
+	h.sendToConns(h.snapshotConnsForUser(userID), msg)
+}
+
+func (h *Hub) SendToUsers(userIDs []uuid.UUID, msg Message) {
+	h.sendToConns(h.snapshotConnsForUsers(userIDs), msg)
 }
 
 func (h *Hub) Broadcast(msg Message) {
@@ -357,24 +367,7 @@ func (h *Hub) Broadcast(msg Message) {
 	}
 	h.mu.RUnlock()
 
-	if len(allConns) == 0 {
-		return
-	}
-
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return
-	}
-
-	var dead []*Client
-	for _, client := range allConns {
-		if !client.enqueue(data) {
-			dead = append(dead, client)
-		}
-	}
-	if len(dead) > 0 {
-		h.reapDead(dead)
-	}
+	h.sendToConns(allConns, msg)
 }
 
 func (h *Hub) BroadcastPublic(msg Message) {
@@ -473,7 +466,7 @@ func (h *Hub) LeaveTopic(topic string, userID uuid.UUID) {
 }
 
 func (h *Hub) BroadcastToTopic(topic string, msg Message) {
-	_, span := otel.Tracer(wsTracerName).Start(
+	_, span := h.tracer.Start(
 		context.Background(),
 		"ws.broadcast_topic",
 		trace.WithSpanKind(trace.SpanKindInternal),
@@ -527,15 +520,19 @@ func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.
 func (h *Hub) broadcastToRoomTraced(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) int {
 	h.mu.RLock()
 	members := h.rooms[roomID]
-	targetUserIDs := make([]uuid.UUID, 0, len(members))
+	recipients := 0
+	var conns []*Client
 	for uid := range members {
-		if uid != excludeUserID {
-			targetUserIDs = append(targetUserIDs, uid)
+		if uid == excludeUserID {
+			continue
 		}
+
+		recipients++
+		conns = append(conns, h.clients[uid]...)
 	}
 	h.mu.RUnlock()
 
-	if len(targetUserIDs) == 0 {
+	if recipients == 0 {
 		return 0
 	}
 
@@ -543,8 +540,6 @@ func (h *Hub) broadcastToRoomTraced(roomID uuid.UUID, msg Message, excludeUserID
 	if err != nil {
 		return 0
 	}
-
-	conns := h.snapshotConnsForUsers(targetUserIDs)
 
 	var dead []*Client
 	for _, client := range conns {
@@ -555,5 +550,5 @@ func (h *Hub) broadcastToRoomTraced(roomID uuid.UUID, msg Message, excludeUserID
 	if len(dead) > 0 {
 		h.reapDead(dead)
 	}
-	return len(targetUserIDs)
+	return recipients
 }

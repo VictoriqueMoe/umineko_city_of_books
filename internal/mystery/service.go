@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -121,11 +122,39 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 	return s.contentFilter.Check(ctx, texts...)
 }
 
+func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
 func clueBodies(clues []dto.CreateClueRequest) []string {
 	out := make([]string, 0, len(clues))
 	for _, c := range clues {
 		out = append(out, c.Body)
 	}
+	return out
+}
+
+func newClues(clues []dto.CreateClueRequest) []repository.NewClue {
+	out := make([]repository.NewClue, 0, len(clues))
+	for i, clue := range clues {
+		if strings.TrimSpace(clue.Body) == "" {
+			continue
+		}
+
+		truthType := clue.TruthType
+		if truthType == "" {
+			truthType = "red"
+		}
+
+		out = append(out, repository.NewClue{
+			Body:      clue.Body,
+			TruthType: truthType,
+			SortOrder: i,
+		})
+	}
+
 	return out
 }
 
@@ -136,6 +165,10 @@ func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, 
 		return nil, err
 	}
 
+	return s.buildMysteryList(rows, total, page.Limit(), page.Offset()), nil
+}
+
+func (s *service) buildMysteryList(rows []repository.MysteryRow, total, limit, offset int) *dto.MysteryListResponse {
 	mysteries := make([]dto.MysteryResponse, len(rows))
 	for i, r := range rows {
 		resp := r.ToResponse()
@@ -148,9 +181,9 @@ func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, 
 	return &dto.MysteryListResponse{
 		Mysteries: mysteries,
 		Total:     total,
-		Limit:     page.Limit(),
-		Offset:    page.Offset(),
-	}, nil
+		Limit:     limit,
+		Offset:    offset,
+	}
 }
 
 func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.MysteryDetailResponse, error) {
@@ -323,34 +356,30 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		contract = *req.KnoxContract
 	}
 
-	id := uuid.New()
-	if err := s.mysteryRepo.Create(ctx, id, userID, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve, contract); err != nil {
+	created, err := s.mysteryRepo.CreateWithClues(ctx, repository.NewMystery{
+		UserID:             userID,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
+	})
+	if err != nil {
 		return uuid.Nil, err
-	}
-
-	for i, clue := range req.Clues {
-		if strings.TrimSpace(clue.Body) == "" {
-			continue
-		}
-		truthType := clue.TruthType
-		if truthType == "" {
-			truthType = "red"
-		}
-		if err := s.mysteryRepo.AddClue(ctx, id, clue.Body, truthType, i, nil); err != nil {
-			return uuid.Nil, err
-		}
 	}
 
 	go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifService, notification.FollowerNotifyParams{
 		ActorID:       userID,
 		Type:          dto.NotifMysteryCreated,
-		ReferenceID:   id,
+		ReferenceID:   created.ID,
 		ReferenceType: "mystery",
 		Action:        "posted a new mystery",
 		Title:         req.Title,
 	})
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateMysteryRequest) error {
@@ -375,20 +404,17 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrContractLocked
 	}
 
-	if err := s.mysteryRepo.UpdateAsAdmin(ctx, id, req.Title, req.Body, req.Difficulty, req.FreeForAll, req.KeepOpenAfterSolve, contract); err != nil {
+	if err := s.mysteryRepo.UpdateWithClues(ctx, repository.MysteryUpdate{
+		ID:                 id,
+		Title:              req.Title,
+		Body:               req.Body,
+		Difficulty:         req.Difficulty,
+		FreeForAll:         req.FreeForAll,
+		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+		Knox:               contract,
+		Clues:              newClues(req.Clues),
+	}); err != nil {
 		return err
-	}
-
-	_ = s.mysteryRepo.DeleteClues(ctx, id)
-	for i, clue := range req.Clues {
-		if strings.TrimSpace(clue.Body) == "" {
-			continue
-		}
-		truthType := clue.TruthType
-		if truthType == "" {
-			truthType = "red"
-		}
-		_ = s.mysteryRepo.AddClue(ctx, id, clue.Body, truthType, i, nil)
 	}
 
 	if old.UserID != userID {
@@ -408,6 +434,21 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 		if contract != old.Knox {
 			changes = append(changes, "the Knox contract")
 		}
+
+		summary := "nothing"
+		if len(changes) > 0 {
+			summary = strings.Join(changes, ", ")
+		}
+
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionMysteryUpdateAdmin,
+			TargetType: repository.AuditTargetMystery,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("title=%q changed=%q clues=rewritten", old.Title, summary),
+			SubjectID:  old.UserID,
+		})
+
 		if len(changes) > 0 {
 			message := fmt.Sprintf("your mystery was edited (changed: %s)", strings.Join(changes, ", "))
 			go func() {
@@ -449,10 +490,16 @@ func cluesChanged(old []dto.MysteryClue, new []dto.CreateClueRequest) bool {
 }
 
 func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory) {
-		return s.mysteryRepo.DeleteAsAdmin(ctx, id)
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory)
+
+	paths, err := s.mysteryRepo.DeleteWithFiles(ctx, repository.MysteryDelete{ID: id, UserID: userID, AsAdmin: asAdmin})
+	if err != nil {
+		return err
 	}
-	return s.mysteryRepo.Delete(ctx, id, userID)
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateAttemptRequest) (uuid.UUID, error) {
@@ -496,22 +543,19 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		}
 	}
 
-	id := uuid.New()
-	if err := s.mysteryRepo.CreateAttempt(ctx, id, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body)); err != nil {
+	created, err := s.mysteryRepo.CreateAttempt(ctx, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body))
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	actor, _ := s.userRepo.GetByID(ctx, userID)
 	wsData := map[string]any{
-		"mystery_id": mysteryID,
-		"attempt_id": id,
-		"parent_id":  req.ParentID,
-		"author_id":  userID,
-	}
-	if actor != nil {
-		wsData["author_username"] = actor.Username
-		wsData["author_display_name"] = actor.DisplayName
-		wsData["author_avatar_url"] = actor.AvatarURL
+		"mystery_id":          mysteryID,
+		"attempt_id":          created.ID,
+		"parent_id":           req.ParentID,
+		"author_id":           userID,
+		"author_username":     created.AuthorUsername,
+		"author_display_name": created.AuthorDisplayName,
+		"author_avatar_url":   created.AuthorAvatarURL,
 	}
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_attempt_created",
@@ -520,8 +564,8 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 
 	go func() {
 		bgCtx := context.Background()
-		linkPath := fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, id)
-		attemptRef := fmt.Sprintf("mystery_attempt:%s", id)
+		linkPath := fmt.Sprintf("/mystery/%s#attempt-%s", mysteryID, created.ID)
+		attemptRef := fmt.Sprintf("mystery_attempt:%s", created.ID)
 
 		_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
 			RecipientID:   authorID,
@@ -550,14 +594,34 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		}
 	}()
 
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
-		return s.mysteryRepo.DeleteAttemptAsAdmin(ctx, id)
+	if !s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
+		return s.mysteryRepo.DeleteAttempt(ctx, id, userID)
 	}
-	return s.mysteryRepo.DeleteAttempt(ctx, id, userID)
+
+	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	if err := s.mysteryRepo.DeleteAttemptAsAdmin(ctx, id); err != nil {
+		return err
+	}
+
+	if attemptAuthorID != userID {
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionMysteryAttemptDeleteAdmin,
+			TargetType: repository.AuditTargetMysteryAttempt,
+			TargetID:   id.String(),
+			SubjectID:  attemptAuthorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID uuid.UUID, value int) error {
@@ -642,6 +706,15 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	if err := s.mysteryRepo.MarkSolved(ctx, mysteryID, attemptID, !ongoing); err != nil {
 		return err
 	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionMysterySolved,
+		TargetType: repository.AuditTargetMystery,
+		TargetID:   mysteryID.String(),
+		Details:    fmt.Sprintf("attempt=%s", attemptID),
+		SubjectID:  attemptAuthorID,
+	})
 
 	if ongoing {
 		s.hub.Broadcast(ws.Message{
@@ -736,6 +809,20 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 		return err
 	}
 
+	by := "author"
+	if authorID != userID {
+		by = "staff"
+	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionMysteryClosed,
+		TargetType: repository.AuditTargetMystery,
+		TargetID:   mysteryID.String(),
+		Details:    fmt.Sprintf("by=%s", by),
+		SubjectID:  authorID,
+	})
+
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_solved",
 		Data: map[string]any{
@@ -808,7 +895,12 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 	}
 
 	count, _ := s.mysteryRepo.CountClues(ctx, mysteryID)
-	if err := s.mysteryRepo.AddClue(ctx, mysteryID, req.Body, req.TruthType, count, req.PlayerID); err != nil {
+	if _, err := s.mysteryRepo.AddClue(ctx, mysteryID, repository.NewClue{
+		Body:      req.Body,
+		TruthType: req.TruthType,
+		SortOrder: count,
+		PlayerID:  req.PlayerID,
+	}); err != nil {
 		return err
 	}
 
@@ -910,21 +1002,7 @@ func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, page bounds.
 		return nil, err
 	}
 
-	mysteries := make([]dto.MysteryResponse, len(rows))
-	for i, r := range rows {
-		resp := r.ToResponse()
-		if len(resp.Body) > 200 {
-			resp.Body = resp.Body[:200] + "..."
-		}
-		mysteries[i] = resp
-	}
-
-	return &dto.MysteryListResponse{
-		Mysteries: mysteries,
-		Total:     total,
-		Limit:     page.Limit(),
-		Offset:    page.Offset(),
-	}, nil
+	return s.buildMysteryList(rows, total, page.Limit(), page.Offset()), nil
 }
 
 func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
@@ -952,10 +1030,12 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	id := uuid.New()
-	if err := s.mysteryRepo.CreateComment(ctx, id, mysteryID, req.ParentID, userID, body); err != nil {
+	created, err := s.mysteryRepo.CreateComment(ctx, mysteryID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()
@@ -1005,28 +1085,46 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.mysteryRepo.UpdateCommentAsAdmin(ctx, id, body)
+	if !s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
+		return s.mysteryRepo.UpdateComment(ctx, id, userID, body)
 	}
-	return s.mysteryRepo.UpdateComment(ctx, id, userID, body)
+
+	authorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	if err := s.mysteryRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
+		return err
+	}
+
+	if authorID != userID {
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionMysteryCommentUpdateAdmin,
+			TargetType: repository.AuditTargetMysteryComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "mystery_comment_delete"
-	if isAdmin {
-		if err := s.mysteryRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
-			return err
-		}
-		action = "mystery_comment_delete_admin"
-	} else {
-		if err := s.mysteryRepo.DeleteComment(ctx, id, userID); err != nil {
-			return err
-		}
+
+	paths, err := s.mysteryRepo.DeleteCommentWithAudit(ctx, repository.MysteryCommentDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: isAdmin,
+	})
+	if err != nil {
+		return err
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "mystery_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
-	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -1066,7 +1164,12 @@ func (s *service) UploadCommentMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
 		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
-			return s.mysteryRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, "", sortOrder)
+			return s.mysteryRepo.AddCommentMedia(ctx, repository.NewMysteryCommentMedia{
+				CommentID: commentID,
+				MediaURL:  mediaURL,
+				MediaType: mediaType,
+				SortOrder: sortOrder,
+			})
 		},
 		s.mysteryRepo.UpdateCommentMediaURL,
 		s.mysteryRepo.UpdateCommentMediaThumbnail,
@@ -1149,7 +1252,12 @@ func (s *service) UploadMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
 		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
-			return s.mysteryRepo.AddMedia(ctx, mysteryID, mediaURL, mediaType, "", sortOrder)
+			return s.mysteryRepo.AddMedia(ctx, repository.NewMysteryMedia{
+				MysteryID: mysteryID,
+				MediaURL:  mediaURL,
+				MediaType: mediaType,
+				SortOrder: sortOrder,
+			})
 		},
 		s.mysteryRepo.UpdateMediaURL,
 		s.mysteryRepo.UpdateMediaThumbnail,
@@ -1175,7 +1283,7 @@ func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid
 		return err
 	}
 
-	_ = s.uploadSvc.Delete(mediaURL)
+	s.uploadSvc.Delete(mediaURL)
 	return nil
 }
 
@@ -1315,6 +1423,15 @@ func (s *service) DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 	if err := s.mysteryRepo.DeleteClue(ctx, clueID); err != nil {
 		return err
 	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionMysteryClueDelete,
+		TargetType: repository.AuditTargetMystery,
+		TargetID:   mysteryID.String(),
+		Details:    fmt.Sprintf("clue=%d", clueID),
+	})
+
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_clue_updated",
 		Data: map[string]any{"mystery_id": mysteryID},
@@ -1332,6 +1449,15 @@ func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 	if err := s.mysteryRepo.UpdateClue(ctx, clueID, strings.TrimSpace(body)); err != nil {
 		return err
 	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionMysteryClueUpdate,
+		TargetType: repository.AuditTargetMystery,
+		TargetID:   mysteryID.String(),
+		Details:    fmt.Sprintf("clue=%d", clueID),
+	})
+
 	s.hub.Broadcast(ws.Message{
 		Type: "mystery_clue_updated",
 		Data: map[string]any{"mystery_id": mysteryID},

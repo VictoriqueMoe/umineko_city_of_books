@@ -10,11 +10,11 @@ import (
 	"umineko_city_of_books/internal/admin"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
 	usersvc "umineko_city_of_books/internal/user"
@@ -26,7 +26,7 @@ import (
 type (
 	roleMutation func(ctx context.Context, actorID, targetID uuid.UUID, r role.Role) error
 	scoreReader  func(ctx context.Context, userID uuid.UUID) (int, error)
-	scoreUpdater func(ctx context.Context, userID uuid.UUID, adjustment int) error
+	scoreUpdater func(ctx context.Context, actorID, userID uuid.UUID, adjustment int) error
 )
 
 func (s *Service) getAllAdminRoutes() []FSetupRoute {
@@ -211,7 +211,7 @@ func (s *Service) adminGetStats(ctx fiber.Ctx) error {
 
 func (s *Service) adminListUsers(ctx fiber.Ctx) error {
 	search := ctx.Query("search")
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.AdminService.ListUsers(ctx.Context(), search, page)
 	if err != nil {
@@ -447,7 +447,7 @@ func (s *Service) adminUserAuditLog(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.AdminService.GetUserAuditLog(ctx.Context(), targetID, page)
 	if err != nil {
@@ -522,8 +522,8 @@ func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
-	action := ctx.Query("action")
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
+	action := repository.AuditAction(ctx.Query("action"))
+	page := utils.Page(ctx, 50)
 
 	result, err := s.AdminService.GetAuditLog(ctx.Context(), action, page)
 	if err != nil {
@@ -561,7 +561,7 @@ func (s *Service) handleScoreUpdate(ctx fiber.Ctx, getRaw scoreReader, setAdjust
 		return utils.BadRequest(ctx, "invalid request")
 	}
 	rawScore, _ := getRaw(ctx.Context(), targetID)
-	if err := setAdjustment(ctx.Context(), targetID, req.DesiredScore-rawScore); err != nil {
+	if err := setAdjustment(ctx.Context(), utils.UserID(ctx), targetID, req.DesiredScore-rawScore); err != nil {
 		return utils.InternalError(ctx, "failed to update")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
@@ -586,7 +586,7 @@ func (s *Service) adminCreateInvite(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminListInvites(ctx fiber.Ctx) error {
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 50), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 50)
 
 	result, err := s.AdminService.ListInvites(ctx.Context(), page)
 	if err != nil {
@@ -793,7 +793,7 @@ func (s *Service) adminDeleteVanityRole(ctx fiber.Ctx) error {
 func (s *Service) adminGetVanityRoleUsers(ctx fiber.Ctx) error {
 	id := ctx.Params("id")
 	search := ctx.Query("search")
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.AdminService.GetVanityRoleUsers(ctx.Context(), id, search, page)
 	if err != nil {

@@ -1,4 +1,4 @@
-import { type PropsWithChildren, useCallback, useEffect, useRef, useState } from "react";
+import { type PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Notification, UserProfile, WSMessage } from "../types/api";
 import { NotificationContext, type WSMessageHandler } from "./notificationContextValue";
@@ -26,16 +26,17 @@ export function NotificationProvider({ children }: PropsWithChildren) {
     const [wsEpoch, setWsEpoch] = useState(0);
 
     const unreadCountQuery = useUnreadCount();
+    const refreshUnreadCount = unreadCountQuery.refresh;
     const chatUnreadCountQuery = useChatUnreadCount();
     const liveGamesQuery = useLiveGameRooms();
     const unreadCount = user ? unreadCountQuery.count : 0;
     const chatUnreadCount = user ? chatUnreadCountQuery.count : 0;
     const liveGamesCount = liveGamesQuery.total ?? 0;
-    const liveStreamsQuery = useQuery({ queryKey: ["streams", "live"], queryFn: listLiveStreams });
+    const liveStreamsQuery = useQuery({ queryKey: queryKeys.streams.live(), queryFn: listLiveStreams });
     const liveStreamsCount = liveStreamsQuery.data?.streams.length ?? 0;
 
-    const markReadMutation = useMarkNotificationRead();
-    const markAllReadMutation = useMarkAllNotificationsRead();
+    const { mutateAsync: markReadMutate } = useMarkNotificationRead();
+    const { mutateAsync: markAllReadMutate } = useMarkAllNotificationsRead();
 
     const wsRef = useRef<WebSocket | null>(null);
     const wantConnectionRef = useRef(false);
@@ -169,7 +170,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                 if (msg.type === "notification") {
                     const notif = msg.data as Notification;
                     bumpUnread();
-                    qc.invalidateQueries({ queryKey: ["notifications", "list"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.notifications.listAll() });
                     showDesktopNotification(notif);
                     if (userRef.current?.private?.play_notification_sound ?? true) {
                         playNotificationSound();
@@ -240,7 +241,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     window.dispatchEvent(new CustomEvent("site-info-refresh"));
                 }
                 if (msg.type === "permissions_changed" || msg.type === "vanity_roles_changed") {
-                    qc.invalidateQueries({ queryKey: ["auth", "me"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.auth.me() });
                 }
                 if (msg.type === "chatbots_changed") {
                     qc.invalidateQueries({ queryKey: queryKeys.chatbots.all });
@@ -258,7 +259,7 @@ export function NotificationProvider({ children }: PropsWithChildren) {
                     }
                 }
                 if (msg.type === "stream_live" || msg.type === "stream_offline") {
-                    qc.invalidateQueries({ queryKey: ["streams", "live"] });
+                    qc.invalidateQueries({ queryKey: queryKeys.streams.live() });
                 }
                 if (msg.type === "secret_closed") {
                     window.dispatchEvent(new CustomEvent("secret-closed", { detail: msg.data }));
@@ -334,16 +335,16 @@ export function NotificationProvider({ children }: PropsWithChildren) {
 
     const markRead = useCallback(
         async (id: number) => {
-            await markReadMutation.mutateAsync(id);
-            await unreadCountQuery.refresh();
+            await markReadMutate(id);
+            await refreshUnreadCount();
         },
-        [markReadMutation, unreadCountQuery],
+        [markReadMutate, refreshUnreadCount],
     );
 
     const markAllRead = useCallback(async () => {
-        await markAllReadMutation.mutateAsync();
+        await markAllReadMutate();
         qc.setQueryData<{ count: number }>(queryKeys.notifications.unreadCount(), { count: 0 });
-    }, [markAllReadMutation, qc]);
+    }, [markAllReadMutate, qc]);
 
     const addWSListener = useCallback((handler: WSMessageHandler) => {
         wsListenersRef.current.add(handler);
@@ -358,21 +359,30 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         }
     }, []);
 
-    return (
-        <NotificationContext.Provider
-            value={{
-                unreadCount,
-                chatUnreadCount,
-                liveGamesCount,
-                liveStreamsCount,
-                markRead,
-                markAllRead,
-                addWSListener,
-                sendWSMessage,
-                wsEpoch,
-            }}
-        >
-            {children}
-        </NotificationContext.Provider>
+    const value = useMemo(
+        () => ({
+            unreadCount,
+            chatUnreadCount,
+            liveGamesCount,
+            liveStreamsCount,
+            markRead,
+            markAllRead,
+            addWSListener,
+            sendWSMessage,
+            wsEpoch,
+        }),
+        [
+            unreadCount,
+            chatUnreadCount,
+            liveGamesCount,
+            liveStreamsCount,
+            markRead,
+            markAllRead,
+            addWSListener,
+            sendWSMessage,
+            wsEpoch,
+        ],
     );
+
+    return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }

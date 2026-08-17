@@ -106,7 +106,7 @@ func (s *Service) adminCreateChatbot(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid request body")
 	}
 
-	bot, err := s.ChatbotAdminService.Create(ctx.Context(), req)
+	bot, err := s.ChatbotAdminService.Create(ctx.Context(), utils.UserID(ctx), req)
 	if err != nil {
 		return handleChatbotError(ctx, err)
 	}
@@ -125,7 +125,7 @@ func (s *Service) adminUpdateChatbot(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid request body")
 	}
 
-	bot, updateErr := s.ChatbotAdminService.Update(ctx.Context(), id, req)
+	bot, updateErr := s.ChatbotAdminService.Update(ctx.Context(), utils.UserID(ctx), id, req)
 	if updateErr != nil {
 		return handleChatbotError(ctx, updateErr)
 	}
@@ -139,7 +139,7 @@ func (s *Service) adminDeleteChatbot(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid chatbot id")
 	}
 
-	if err := s.ChatbotAdminService.Delete(ctx.Context(), id); err != nil {
+	if err := s.ChatbotAdminService.Delete(ctx.Context(), utils.UserID(ctx), id); err != nil {
 		return handleChatbotError(ctx, err)
 	}
 
@@ -206,7 +206,7 @@ func (s *Service) adminCreateBasePrompt(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid request body")
 	}
 
-	prompt, err := s.ChatbotAdminService.CreateBasePrompt(ctx.Context(), req)
+	prompt, err := s.ChatbotAdminService.CreateBasePrompt(ctx.Context(), utils.UserID(ctx), req)
 	if err != nil {
 		return handleChatbotError(ctx, err)
 	}
@@ -225,7 +225,7 @@ func (s *Service) adminUpdateBasePrompt(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid request body")
 	}
 
-	prompt, updateErr := s.ChatbotAdminService.UpdateBasePrompt(ctx.Context(), id, req)
+	prompt, updateErr := s.ChatbotAdminService.UpdateBasePrompt(ctx.Context(), utils.UserID(ctx), id, req)
 	if updateErr != nil {
 		return handleChatbotError(ctx, updateErr)
 	}
@@ -239,7 +239,7 @@ func (s *Service) adminDeleteBasePrompt(ctx fiber.Ctx) error {
 		return utils.BadRequest(ctx, "invalid base prompt id")
 	}
 
-	if err := s.ChatbotAdminService.DeleteBasePrompt(ctx.Context(), id); err != nil {
+	if err := s.ChatbotAdminService.DeleteBasePrompt(ctx.Context(), utils.UserID(ctx), id); err != nil {
 		return handleChatbotError(ctx, err)
 	}
 

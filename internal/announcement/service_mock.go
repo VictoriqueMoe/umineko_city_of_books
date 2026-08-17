@@ -208,16 +208,16 @@ func (_c *MockService_CreateComment_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // Delete provides a mock function for the type MockService
-func (_mock *MockService) Delete(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockService) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
+	ret := _mock.Called(ctx, actorID, id)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
+		r0 = returnFunc(ctx, actorID, id)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -231,12 +231,13 @@ type MockService_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
-func (_e *MockService_Expecter) Delete(ctx any, id any) *MockService_Delete_Call {
-	return &MockService_Delete_Call{Call: _e.mock.On("Delete", ctx, id)}
+func (_e *MockService_Expecter) Delete(ctx any, actorID any, id any) *MockService_Delete_Call {
+	return &MockService_Delete_Call{Call: _e.mock.On("Delete", ctx, actorID, id)}
 }
 
-func (_c *MockService_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockService_Delete_Call {
+func (_c *MockService_Delete_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID)) *MockService_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -246,9 +247,14 @@ func (_c *MockService_Delete_Call) Run(run func(ctx context.Context, id uuid.UUI
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
@@ -259,7 +265,7 @@ func (_c *MockService_Delete_Call) Return(err error) *MockService_Delete_Call {
 	return _c
 }
 
-func (_c *MockService_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockService_Delete_Call {
+func (_c *MockService_Delete_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error) *MockService_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -595,16 +601,16 @@ func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context, page
 }
 
 // SetPinned provides a mock function for the type MockService
-func (_mock *MockService) SetPinned(ctx context.Context, id uuid.UUID, pinned bool) error {
-	ret := _mock.Called(ctx, id, pinned)
+func (_mock *MockService) SetPinned(ctx context.Context, actorID uuid.UUID, id uuid.UUID, pinned bool) error {
+	ret := _mock.Called(ctx, actorID, id, pinned)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetPinned")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool) error); ok {
-		r0 = returnFunc(ctx, id, pinned)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, actorID, id, pinned)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -618,13 +624,14 @@ type MockService_SetPinned_Call struct {
 
 // SetPinned is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
 //   - pinned bool
-func (_e *MockService_Expecter) SetPinned(ctx any, id any, pinned any) *MockService_SetPinned_Call {
-	return &MockService_SetPinned_Call{Call: _e.mock.On("SetPinned", ctx, id, pinned)}
+func (_e *MockService_Expecter) SetPinned(ctx any, actorID any, id any, pinned any) *MockService_SetPinned_Call {
+	return &MockService_SetPinned_Call{Call: _e.mock.On("SetPinned", ctx, actorID, id, pinned)}
 }
 
-func (_c *MockService_SetPinned_Call) Run(run func(ctx context.Context, id uuid.UUID, pinned bool)) *MockService_SetPinned_Call {
+func (_c *MockService_SetPinned_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, pinned bool)) *MockService_SetPinned_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -634,14 +641,19 @@ func (_c *MockService_SetPinned_Call) Run(run func(ctx context.Context, id uuid.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 bool
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(bool)
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -652,7 +664,7 @@ func (_c *MockService_SetPinned_Call) Return(err error) *MockService_SetPinned_C
 	return _c
 }
 
-func (_c *MockService_SetPinned_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, pinned bool) error) *MockService_SetPinned_Call {
+func (_c *MockService_SetPinned_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, pinned bool) error) *MockService_SetPinned_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -721,16 +733,16 @@ func (_c *MockService_UnlikeComment_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // Update provides a mock function for the type MockService
-func (_mock *MockService) Update(ctx context.Context, id uuid.UUID, title string, body string) error {
-	ret := _mock.Called(ctx, id, title, body)
+func (_mock *MockService) Update(ctx context.Context, actorID uuid.UUID, id uuid.UUID, title string, body string) error {
+	ret := _mock.Called(ctx, actorID, id, title, body)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, id, title, body)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string) error); ok {
+		r0 = returnFunc(ctx, actorID, id, title, body)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -744,14 +756,15 @@ type MockService_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
 //   - title string
 //   - body string
-func (_e *MockService_Expecter) Update(ctx any, id any, title any, body any) *MockService_Update_Call {
-	return &MockService_Update_Call{Call: _e.mock.On("Update", ctx, id, title, body)}
+func (_e *MockService_Expecter) Update(ctx any, actorID any, id any, title any, body any) *MockService_Update_Call {
+	return &MockService_Update_Call{Call: _e.mock.On("Update", ctx, actorID, id, title, body)}
 }
 
-func (_c *MockService_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string)) *MockService_Update_Call {
+func (_c *MockService_Update_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, title string, body string)) *MockService_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -761,19 +774,24 @@ func (_c *MockService_Update_Call) Run(run func(ctx context.Context, id uuid.UUI
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 string
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(uuid.UUID)
 		}
 		var arg3 string
 		if args[3] != nil {
 			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4,
 		)
 	})
 	return _c
@@ -784,7 +802,7 @@ func (_c *MockService_Update_Call) Return(err error) *MockService_Update_Call {
 	return _c
 }
 
-func (_c *MockService_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string) error) *MockService_Update_Call {
+func (_c *MockService_Update_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, title string, body string) error) *MockService_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

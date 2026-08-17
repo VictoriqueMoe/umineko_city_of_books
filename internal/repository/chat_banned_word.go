@@ -2,19 +2,29 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+
+	"umineko_city_of_books/internal/db"
 
 	"github.com/google/uuid"
 )
 
 type (
+	ChatBannedWordDAO interface {
+		Create(ctx context.Context, spec ChatBannedWordSpec, tx ...*sql.Tx) (*ChatBannedWordRow, error)
+		Update(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate, tx ...*sql.Tx) error
+		Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatBannedWordRow, error)
+		ListGlobal(ctx context.Context, tx ...*sql.Tx) ([]ChatBannedWordRow, error)
+		ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error)
+		ListApplicable(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error)
+	}
+
 	ChatBannedWordRepository interface {
-		Create(ctx context.Context, spec ChatBannedWordSpec) (uuid.UUID, error)
-		Update(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate) error
-		Delete(ctx context.Context, id uuid.UUID) error
-		GetByID(ctx context.Context, id uuid.UUID) (*ChatBannedWordRow, error)
-		ListGlobal(ctx context.Context) ([]ChatBannedWordRow, error)
-		ListForRoom(ctx context.Context, roomID uuid.UUID) ([]ChatBannedWordRow, error)
-		ListApplicable(ctx context.Context, roomID uuid.UUID) ([]ChatBannedWordRow, error)
+		ChatBannedWordDAO
+
+		CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error)
+		DeleteWithAudit(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error
 	}
 
 	ChatBannedWordSpec struct {
@@ -49,37 +59,73 @@ type (
 )
 
 type chatBannedWordRepository struct {
-	dao ChatBannedWordRepository
+	db    *sql.DB
+	dao   ChatBannedWordDAO
+	audit AuditLogRepository
 }
 
-func NewChatBannedWordRepo(dao ChatBannedWordRepository) ChatBannedWordRepository {
-	return &chatBannedWordRepository{dao: dao}
+func NewChatBannedWordRepo(database *sql.DB, dao ChatBannedWordDAO, audit AuditLogRepository) ChatBannedWordRepository {
+	return &chatBannedWordRepository{db: database, dao: dao, audit: audit}
 }
 
-func (r *chatBannedWordRepository) Create(ctx context.Context, spec ChatBannedWordSpec) (uuid.UUID, error) {
-	return r.dao.Create(ctx, spec)
+func (r *chatBannedWordRepository) CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+	var created *ChatBannedWordRow
+
+	err := db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		var err error
+
+		created, err = r.dao.Create(ctx, spec, tx)
+		if err != nil {
+			return err
+		}
+
+		if audit.TargetID == "" {
+			audit.TargetID = created.ID.String()
+		}
+
+		return r.audit.Create(ctx, audit, tx)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return created, nil
 }
 
-func (r *chatBannedWordRepository) Update(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate) error {
-	return r.dao.Update(ctx, id, spec)
+func (r *chatBannedWordRepository) DeleteWithAudit(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error {
+	return db.WithTxOrJoin(ctx, r.db, tx, func(tx *sql.Tx) error {
+		if err := r.dao.Delete(ctx, id, tx); err != nil {
+			return err
+		}
+
+		return r.audit.Create(ctx, audit, tx)
+	})
 }
 
-func (r *chatBannedWordRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.dao.Delete(ctx, id)
+func (r *chatBannedWordRepository) Create(ctx context.Context, spec ChatBannedWordSpec, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+	return r.dao.Create(ctx, spec, tx...)
 }
 
-func (r *chatBannedWordRepository) GetByID(ctx context.Context, id uuid.UUID) (*ChatBannedWordRow, error) {
-	return r.dao.GetByID(ctx, id)
+func (r *chatBannedWordRepository) Update(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate, tx ...*sql.Tx) error {
+	return r.dao.Update(ctx, id, spec, tx...)
 }
 
-func (r *chatBannedWordRepository) ListGlobal(ctx context.Context) ([]ChatBannedWordRow, error) {
-	return r.dao.ListGlobal(ctx)
+func (r *chatBannedWordRepository) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	return r.dao.Delete(ctx, id, tx...)
 }
 
-func (r *chatBannedWordRepository) ListForRoom(ctx context.Context, roomID uuid.UUID) ([]ChatBannedWordRow, error) {
-	return r.dao.ListForRoom(ctx, roomID)
+func (r *chatBannedWordRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+	return r.dao.GetByID(ctx, id, tx...)
 }
 
-func (r *chatBannedWordRepository) ListApplicable(ctx context.Context, roomID uuid.UUID) ([]ChatBannedWordRow, error) {
-	return r.dao.ListApplicable(ctx, roomID)
+func (r *chatBannedWordRepository) ListGlobal(ctx context.Context, tx ...*sql.Tx) ([]ChatBannedWordRow, error) {
+	return r.dao.ListGlobal(ctx, tx...)
+}
+
+func (r *chatBannedWordRepository) ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error) {
+	return r.dao.ListForRoom(ctx, roomID, tx...)
+}
+
+func (r *chatBannedWordRepository) ListApplicable(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error) {
+	return r.dao.ListApplicable(ctx, roomID, tx...)
 }

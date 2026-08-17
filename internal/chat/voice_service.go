@@ -217,6 +217,7 @@ func (s *voiceService) VoiceParticipants(roomID uuid.UUID) []uuid.UUID {
 		ids = append(ids, id)
 	}
 
+	// we sort UUIDs here to ensure that the response to the endpoint is the same each load, ensuring any UI caching/memos works as expected
 	slices.SortFunc(ids, func(a, b uuid.UUID) int {
 		return bytes.Compare(a[:], b[:])
 	})
@@ -354,7 +355,5 @@ func (s *voiceService) broadcastVoicePresence(ctx context.Context, roomID uuid.U
 		return
 	}
 
-	for i := range members {
-		s.hub.SendToUser(members[i], event)
-	}
+	s.hub.SendToUsers(members, event)
 }

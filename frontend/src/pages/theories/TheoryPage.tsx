@@ -17,6 +17,7 @@ import { ResponseEditor } from "../../components/theory/ResponseEditor/ResponseE
 import { CredibilityBadge } from "../../components/theory/CredibilityBadge/CredibilityBadge";
 import { TheoryStatusBadge } from "../../components/theory/TheoryStatusBadge/TheoryStatusBadge";
 import { RefutationStamp } from "../../components/theory/RefutationStamp/RefutationStamp";
+import { renderRich } from "../../utils/richText";
 import { useRefuteTheory } from "../../api/mutations/theory";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
@@ -159,7 +160,7 @@ export function TheoryPage() {
                     />
                 )}
 
-                <div className={styles.body}>{theory.body}</div>
+                <div className={styles.body}>{renderRich(theory.body)}</div>
 
                 <EvidenceList evidence={theory.evidence ?? []} series={seriesKey} />
             </div>

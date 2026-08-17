@@ -7,6 +7,7 @@ package user
 import (
 	"context"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -92,92 +93,6 @@ func (_c *MockService_CheckUsernameAvailable_Call) Return(err error) *MockServic
 }
 
 func (_c *MockService_CheckUsernameAvailable_Call) RunAndReturn(run func(ctx context.Context, username string) error) *MockService_CheckUsernameAvailable_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Create provides a mock function for the type MockService
-func (_mock *MockService) Create(ctx context.Context, username string, email string, password string, displayName string) (*dto.UserResponse, error) {
-	ret := _mock.Called(ctx, username, email, password, displayName)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Create")
-	}
-
-	var r0 *dto.UserResponse
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (*dto.UserResponse, error)); ok {
-		return returnFunc(ctx, username, email, password, displayName)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) *dto.UserResponse); ok {
-		r0 = returnFunc(ctx, username, email, password, displayName)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*dto.UserResponse)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
-		r1 = returnFunc(ctx, username, email, password, displayName)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockService_Create_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Create'
-type MockService_Create_Call struct {
-	*mock.Call
-}
-
-// Create is a helper method to define mock.On call
-//   - ctx context.Context
-//   - username string
-//   - email string
-//   - password string
-//   - displayName string
-func (_e *MockService_Expecter) Create(ctx any, username any, email any, password any, displayName any) *MockService_Create_Call {
-	return &MockService_Create_Call{Call: _e.mock.On("Create", ctx, username, email, password, displayName)}
-}
-
-func (_c *MockService_Create_Call) Run(run func(ctx context.Context, username string, email string, password string, displayName string)) *MockService_Create_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3,
-			arg4,
-		)
-	})
-	return _c
-}
-
-func (_c *MockService_Create_Call) Return(userResponse *dto.UserResponse, err error) *MockService_Create_Call {
-	_c.Call.Return(userResponse, err)
-	return _c
-}
-
-func (_c *MockService_Create_Call) RunAndReturn(run func(ctx context.Context, username string, email string, password string, displayName string) (*dto.UserResponse, error)) *MockService_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -510,6 +425,90 @@ func (_c *MockService_ListStaff_Call) RunAndReturn(run func(ctx context.Context)
 	return _c
 }
 
+// NewAccountSpec provides a mock function for the type MockService
+func (_mock *MockService) NewAccountSpec(ctx context.Context, username string, email string, password string, displayName string) (repository.NewAccount, error) {
+	ret := _mock.Called(ctx, username, email, password, displayName)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewAccountSpec")
+	}
+
+	var r0 repository.NewAccount
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) (repository.NewAccount, error)); ok {
+		return returnFunc(ctx, username, email, password, displayName)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, string) repository.NewAccount); ok {
+		r0 = returnFunc(ctx, username, email, password, displayName)
+	} else {
+		r0 = ret.Get(0).(repository.NewAccount)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, string, string) error); ok {
+		r1 = returnFunc(ctx, username, email, password, displayName)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_NewAccountSpec_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewAccountSpec'
+type MockService_NewAccountSpec_Call struct {
+	*mock.Call
+}
+
+// NewAccountSpec is a helper method to define mock.On call
+//   - ctx context.Context
+//   - username string
+//   - email string
+//   - password string
+//   - displayName string
+func (_e *MockService_Expecter) NewAccountSpec(ctx any, username any, email any, password any, displayName any) *MockService_NewAccountSpec_Call {
+	return &MockService_NewAccountSpec_Call{Call: _e.mock.On("NewAccountSpec", ctx, username, email, password, displayName)}
+}
+
+func (_c *MockService_NewAccountSpec_Call) Run(run func(ctx context.Context, username string, email string, password string, displayName string)) *MockService_NewAccountSpec_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 string
+		if args[3] != nil {
+			arg3 = args[3].(string)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_NewAccountSpec_Call) Return(newAccount repository.NewAccount, err error) *MockService_NewAccountSpec_Call {
+	_c.Call.Return(newAccount, err)
+	return _c
+}
+
+func (_c *MockService_NewAccountSpec_Call) RunAndReturn(run func(ctx context.Context, username string, email string, password string, displayName string) (repository.NewAccount, error)) *MockService_NewAccountSpec_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SetChatbotOptIn provides a mock function for the type MockService
 func (_mock *MockService) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool) error {
 	ret := _mock.Called(ctx, id, optIn)
@@ -649,16 +648,16 @@ func (_c *MockService_UpdateAppearance_Call) RunAndReturn(run func(ctx context.C
 }
 
 // UpdateGMScoreAdjustment provides a mock function for the type MockService
-func (_mock *MockService) UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
-	ret := _mock.Called(ctx, id, adjustment)
+func (_mock *MockService) UpdateGMScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error {
+	ret := _mock.Called(ctx, actorID, id, adjustment)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateGMScoreAdjustment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, id, adjustment)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r0 = returnFunc(ctx, actorID, id, adjustment)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -672,13 +671,14 @@ type MockService_UpdateGMScoreAdjustment_Call struct {
 
 // UpdateGMScoreAdjustment is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
 //   - adjustment int
-func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx any, id any, adjustment any) *MockService_UpdateGMScoreAdjustment_Call {
-	return &MockService_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, id, adjustment)}
+func (_e *MockService_Expecter) UpdateGMScoreAdjustment(ctx any, actorID any, id any, adjustment any) *MockService_UpdateGMScoreAdjustment_Call {
+	return &MockService_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment", ctx, actorID, id, adjustment)}
 }
 
-func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, id uuid.UUID, adjustment int)) *MockService_UpdateGMScoreAdjustment_Call {
+func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int)) *MockService_UpdateGMScoreAdjustment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -688,14 +688,19 @@ func (_c *MockService_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -706,7 +711,7 @@ func (_c *MockService_UpdateGMScoreAdjustment_Call) Return(err error) *MockServi
 	return _c
 }
 
-func (_c *MockService_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, adjustment int) error) *MockService_UpdateGMScoreAdjustment_Call {
+func (_c *MockService_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error) *MockService_UpdateGMScoreAdjustment_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -838,16 +843,16 @@ func (_c *MockService_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, 
 }
 
 // UpdateMysteryScoreAdjustment provides a mock function for the type MockService
-func (_mock *MockService) UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
-	ret := _mock.Called(ctx, id, adjustment)
+func (_mock *MockService) UpdateMysteryScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error {
+	ret := _mock.Called(ctx, actorID, id, adjustment)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateMysteryScoreAdjustment")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, id, adjustment)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
+		r0 = returnFunc(ctx, actorID, id, adjustment)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -861,13 +866,14 @@ type MockService_UpdateMysteryScoreAdjustment_Call struct {
 
 // UpdateMysteryScoreAdjustment is a helper method to define mock.On call
 //   - ctx context.Context
+//   - actorID uuid.UUID
 //   - id uuid.UUID
 //   - adjustment int
-func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx any, id any, adjustment any) *MockService_UpdateMysteryScoreAdjustment_Call {
-	return &MockService_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, id, adjustment)}
+func (_e *MockService_Expecter) UpdateMysteryScoreAdjustment(ctx any, actorID any, id any, adjustment any) *MockService_UpdateMysteryScoreAdjustment_Call {
+	return &MockService_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment", ctx, actorID, id, adjustment)}
 }
 
-func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, id uuid.UUID, adjustment int)) *MockService_UpdateMysteryScoreAdjustment_Call {
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int)) *MockService_UpdateMysteryScoreAdjustment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -877,14 +883,19 @@ func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 int
+		var arg2 uuid.UUID
 		if args[2] != nil {
-			arg2 = args[2].(int)
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
 		}
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3,
 		)
 	})
 	return _c
@@ -895,7 +906,7 @@ func (_c *MockService_UpdateMysteryScoreAdjustment_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockService_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, adjustment int) error) *MockService_UpdateMysteryScoreAdjustment_Call {
+func (_c *MockService_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error) *MockService_UpdateMysteryScoreAdjustment_Call {
 	_c.Call.Return(run)
 	return _c
 }

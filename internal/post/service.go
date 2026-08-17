@@ -116,6 +116,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 	return s.contentFilter.Check(ctx, texts...)
 }
 
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
 var validSharedContentTypes = map[string]bool{
 	"post": true, "art": true, "ship": true,
 	"mystery": true, "theory": true, "fanfic": true,
@@ -160,34 +166,30 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		}
 	}
 
-	id := uuid.New()
 	body := strings.TrimSpace(req.Body)
 
-	var sharedContentID, sharedContentType *string
+	spec := repository.NewPost{
+		UserID: userID,
+		Corner: corner,
+		Body:   body,
+	}
 	if isShare {
-		sharedContentID = &req.SharedContentID
-		sharedContentType = &req.SharedContentType
+		spec.SharedContent = &repository.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
+	}
+	if req.Poll != nil {
+		spec.Poll = newPollSpec(req.Poll)
 	}
 
-	if err := s.postRepo.Create(ctx, id, userID, corner, body, sharedContentID, sharedContentType); err != nil {
+	created, err := s.postRepo.CreateWithDetails(ctx, spec)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	if isShare {
 		go s.postRepo.IncrementShareCount(context.Background(), req.SharedContentID, req.SharedContentType)
 		go s.notifyContentShared(userID, id, req.SharedContentID, req.SharedContentType)
-	}
-
-	if req.Poll != nil {
-		labels := make([]string, len(req.Poll.Options))
-		for i, o := range req.Poll.Options {
-			labels[i] = strings.TrimSpace(o.Label)
-		}
-		expiresAt := time.Now().UTC().Add(time.Duration(req.Poll.DurationSeconds) * time.Second).Format(time.RFC3339)
-		pollID := uuid.New()
-		if err := s.postRepo.CreatePollWithOptions(ctx, pollID, id, req.Poll.DurationSeconds, expiresAt, labels); err != nil {
-			return uuid.Nil, err
-		}
 	}
 
 	go social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
@@ -289,39 +291,71 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	if body == "" {
 		return ErrEmptyBody
 	}
+
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
-		if err := s.postRepo.UpdatePostAsAdmin(ctx, id, body); err != nil {
-			return err
-		}
-		go s.notifyContentEdited(ctx, id, "post", userID)
-	} else if err := s.postRepo.UpdatePost(ctx, id, userID, body); err != nil {
+
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
+
+	spec := repository.PostUpdate{
+		ID:      id,
+		UserID:  userID,
+		Body:    body,
+		AsAdmin: asAdmin,
+	}
+	if err := s.postRepo.UpdateWithDetails(ctx, spec); err != nil {
 		return err
 	}
-	go func() {
-		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "post")
-		social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
-	}()
+
+	if asAdmin {
+		go s.notifyContentEdited(ctx, id, "post", userID)
+	}
+
+	go social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
+
 	return nil
 }
 
 func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	contentID, contentType, _ := s.postRepo.GetSharedContentFields(ctx, id)
-
-	var err error
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
-		err = s.postRepo.DeleteAsAdmin(ctx, id)
-	} else {
-		err = s.postRepo.Delete(ctx, id, userID)
-	}
+	authorID, err := s.postRepo.GetPostAuthorID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	if contentID != nil && contentType != nil {
-		go s.postRepo.DecrementShareCount(context.Background(), *contentID, *contentType)
+	postMedia, err := s.postRepo.GetMedia(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	action := repository.AuditActionPostDelete
+	if authorID != userID {
+		action = repository.AuditActionPostDeleteAdmin
+	}
+
+	spec := repository.PostDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyPost),
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("media=%d", len(postMedia)),
+			SubjectID:  authorID,
+		},
+	}
+
+	shared, paths, err := s.postRepo.DeleteWithSharedContent(ctx, spec)
+	if err != nil {
+		return err
+	}
+
+	s.uploadSvc.Delete(paths...)
+
+	if shared != nil {
+		go s.postRepo.DecrementShareCount(context.Background(), shared.ID, shared.Type)
 	}
 
 	return nil
@@ -417,7 +451,13 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 
 	return s.uploader.SaveAndRecord(ctx, "posts", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.postRepo.AddMedia(ctx, postID, mediaURL, mediaType, thumbURL, sortOrder)
+			return s.postRepo.AddMedia(ctx, repository.NewPostMedia{
+				PostID:       postID,
+				MediaURL:     mediaURL,
+				MediaType:    mediaType,
+				ThumbnailURL: thumbURL,
+				SortOrder:    sortOrder,
+			})
 		},
 		s.postRepo.UpdateMediaURL,
 		s.postRepo.UpdateMediaThumbnail,
@@ -438,7 +478,7 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 		return err
 	}
 
-	_ = s.uploadSvc.Delete(mediaURL)
+	s.uploadSvc.Delete(mediaURL)
 	return nil
 }
 
@@ -453,7 +493,13 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 
 	return s.uploader.SaveAndRecord(ctx, "posts", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.postRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+			return s.postRepo.AddCommentMedia(ctx, repository.NewPostCommentMedia{
+				CommentID:    commentID,
+				MediaURL:     mediaURL,
+				MediaType:    mediaType,
+				ThumbnailURL: thumbURL,
+				SortOrder:    sortOrder,
+			})
 		},
 		s.postRepo.UpdateCommentMediaURL,
 		s.postRepo.UpdateCommentMediaThumbnail,
@@ -496,10 +542,6 @@ func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UU
 	s.broadcastLikeUpdate(postID, 1)
 
 	go func() {
-		authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-		if err != nil {
-			return
-		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil || actor == nil {
 			return
@@ -543,11 +585,14 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	id := uuid.New()
 	body := strings.TrimSpace(req.Body)
-	if err := s.postRepo.CreateComment(ctx, id, postID, req.ParentID, userID, body); err != nil {
+
+	created, err := s.postRepo.CreateComment(ctx, postID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	s.broadcastCommentAdded(postID, id)
 
@@ -558,17 +603,13 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	go func() {
 		ctx := context.Background()
 
-		postAuthorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-		if err != nil {
-			return
-		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
 		if err != nil || actor == nil {
 			return
 		}
 		if req.ParentID == nil {
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   postAuthorID,
+				RecipientID:   authorID,
 				Type:          dto.NotifPostCommented,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
@@ -594,9 +635,9 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 			})
 		}
 
-		if postAuthorID != userID && postAuthorID != parentAuthorID {
+		if authorID != userID && authorID != parentAuthorID {
 			_ = s.notifService.Notify(ctx, dto.NotifyParams{
-				RecipientID:   postAuthorID,
+				RecipientID:   authorID,
 				Type:          dto.NotifPostCommented,
 				ReferenceID:   postID,
 				ReferenceType: fmt.Sprintf("post_comment:%s", id),
@@ -616,40 +657,76 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return ErrEmptyBody
 	}
+
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		if err := s.postRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
-			return err
-		}
-		go s.notifyCommentEdited(ctx, id, "post", userID)
-	} else if err := s.postRepo.UpdateComment(ctx, id, userID, body); err != nil {
+
+	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
 		return err
 	}
-	go func() {
-		_ = s.postRepo.DeleteEmbeds(context.Background(), id.String(), "comment")
-		social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
-	}()
+
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
+
+	spec := repository.PostCommentUpdate{
+		ID:      id,
+		UserID:  userID,
+		Body:    body,
+		AsAdmin: asAdmin,
+	}
+	if err := s.postRepo.UpdateCommentWithDetails(ctx, spec); err != nil {
+		return err
+	}
+
+	if authorID != userID {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionPostCommentUpdateAdmin,
+			TargetType: repository.AuditTargetPostComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		})
+	}
+
+	if asAdmin {
+		go s.notifyCommentEdited(ctx, id, "post", userID)
+	}
+
+	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
+
 	return nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "post_comment_delete"
-	if isAdmin {
-		if err := s.postRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
-			return err
-		}
-		action = "post_comment_delete_admin"
-	} else {
-		if err := s.postRepo.DeleteComment(ctx, id, userID); err != nil {
-			return err
-		}
+	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return err
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "post_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
+
+	action := repository.AuditActionPostCommentDelete
+	if authorID != userID {
+		action = repository.AuditActionPostCommentDeleteAdmin
 	}
+
+	paths, err := s.postRepo.DeleteCommentWithAudit(ctx, repository.PostCommentDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetPostComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		},
+	})
+	if err != nil {
+		return err
+	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -667,10 +744,6 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	}
 
 	go func() {
-		authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-		if err != nil {
-			return
-		}
 		postID, err := s.postRepo.GetCommentEntityID(ctx, commentID)
 		if err != nil {
 			return
@@ -680,7 +753,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 			return
 		}
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
-			RecipientID:   authorID,
+			RecipientID:   commentAuthorID,
 			Type:          dto.NotifCommentLiked,
 			ReferenceID:   postID,
 			ReferenceType: fmt.Sprintf("post_comment:%s", commentID),
@@ -820,11 +893,30 @@ func (s *service) RefreshStaleEmbeds(ctx context.Context) int {
 			continue
 		}
 		if embed.Type == "link" {
-			_ = s.postRepo.UpdateEmbed(ctx, e.ID, embed.Title, embed.Desc, embed.Image, embed.SiteName)
+			_ = s.postRepo.UpdateEmbed(ctx, repository.EmbedUpdate{
+				ID:          e.ID,
+				Title:       embed.Title,
+				Description: embed.Desc,
+				Image:       embed.Image,
+				SiteName:    embed.SiteName,
+			})
 			refreshed++
 		}
 	}
 	return refreshed
+}
+
+func newPollSpec(poll *dto.CreatePollInput) *repository.NewPoll {
+	labels := make([]string, len(poll.Options))
+	for i := range poll.Options {
+		labels[i] = strings.TrimSpace(poll.Options[i].Label)
+	}
+
+	return &repository.NewPoll{
+		DurationSeconds: poll.DurationSeconds,
+		ExpiresAt:       time.Now().UTC().Add(time.Duration(poll.DurationSeconds) * time.Second).Format(time.RFC3339),
+		Options:         labels,
+	}
 }
 
 func pollOptionLabels(poll *dto.CreatePollInput) []string {

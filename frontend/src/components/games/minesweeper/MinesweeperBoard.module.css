@@ -34,7 +34,7 @@
 
 .outcomeBadge {
     padding: 0.3rem 1.1rem;
-    font-family: var(--font-display, inherit);
+    font-family: var(--font-display);
     font-size: 0.85rem;
     letter-spacing: 0.24em;
     text-transform: uppercase;

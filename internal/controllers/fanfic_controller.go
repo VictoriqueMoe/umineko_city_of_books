@@ -4,12 +4,10 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/block"
-	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -44,79 +42,79 @@ func (s *Service) getAllFanficRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupListFanfics(r fiber.Router) {
-	r.Get("/fanfics", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listFanfics)
+	r.Get("/fanfics", s.optionalAuth(), s.listFanfics)
 }
 
 func (s *Service) setupGetFanfic(r fiber.Router) {
-	r.Get("/fanfics/:id", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getFanfic)
+	r.Get("/fanfics/:id", s.optionalAuth(), s.getFanfic)
 }
 
 func (s *Service) setupCreateFanfic(r fiber.Router) {
-	r.Post("/fanfics", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createFanfic)
+	r.Post("/fanfics", s.requireAuth(), s.createFanfic)
 }
 
 func (s *Service) setupUpdateFanfic(r fiber.Router) {
-	r.Put("/fanfics/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateFanfic)
+	r.Put("/fanfics/:id", s.requireAuth(), s.updateFanfic)
 }
 
 func (s *Service) setupDeleteFanfic(r fiber.Router) {
-	r.Delete("/fanfics/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteFanfic)
+	r.Delete("/fanfics/:id", s.requireAuth(), s.deleteFanfic)
 }
 
 func (s *Service) setupUploadFanficCover(r fiber.Router) {
-	r.Post("/fanfics/:id/cover", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadFanficCover)
+	r.Post("/fanfics/:id/cover", s.requireAuth(), s.uploadFanficCover)
 }
 
 func (s *Service) setupDeleteFanficCover(r fiber.Router) {
-	r.Delete("/fanfics/:id/cover", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteFanficCover)
+	r.Delete("/fanfics/:id/cover", s.requireAuth(), s.deleteFanficCover)
 }
 
 func (s *Service) setupGetFanficChapter(r fiber.Router) {
-	r.Get("/fanfics/:id/chapters/:number", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.getFanficChapter)
+	r.Get("/fanfics/:id/chapters/:number", s.optionalAuth(), s.getFanficChapter)
 }
 
 func (s *Service) setupCreateFanficChapter(r fiber.Router) {
-	r.Post("/fanfics/:id/chapters", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createFanficChapter)
+	r.Post("/fanfics/:id/chapters", s.requireAuth(), s.createFanficChapter)
 }
 
 func (s *Service) setupUpdateFanficChapter(r fiber.Router) {
-	r.Put("/fanfic-chapters/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateFanficChapter)
+	r.Put("/fanfic-chapters/:id", s.requireAuth(), s.updateFanficChapter)
 }
 
 func (s *Service) setupDeleteFanficChapter(r fiber.Router) {
-	r.Delete("/fanfic-chapters/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteFanficChapter)
+	r.Delete("/fanfic-chapters/:id", s.requireAuth(), s.deleteFanficChapter)
 }
 
 func (s *Service) setupFavouriteFanfic(r fiber.Router) {
-	r.Post("/fanfics/:id/favourite", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.favouriteFanfic)
+	r.Post("/fanfics/:id/favourite", s.requireAuth(), s.favouriteFanfic)
 }
 
 func (s *Service) setupUnfavouriteFanfic(r fiber.Router) {
-	r.Delete("/fanfics/:id/favourite", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unfavouriteFanfic)
+	r.Delete("/fanfics/:id/favourite", s.requireAuth(), s.unfavouriteFanfic)
 }
 
 func (s *Service) setupCreateFanficComment(r fiber.Router) {
-	r.Post("/fanfics/:id/comments", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.createFanficComment)
+	r.Post("/fanfics/:id/comments", s.requireAuth(), s.createFanficComment)
 }
 
 func (s *Service) setupUpdateFanficComment(r fiber.Router) {
-	r.Put("/fanfic-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.updateFanficComment)
+	r.Put("/fanfic-comments/:id", s.requireAuth(), s.updateFanficComment)
 }
 
 func (s *Service) setupDeleteFanficComment(r fiber.Router) {
-	r.Delete("/fanfic-comments/:id", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.deleteFanficComment)
+	r.Delete("/fanfic-comments/:id", s.requireAuth(), s.deleteFanficComment)
 }
 
 func (s *Service) setupLikeFanficComment(r fiber.Router) {
-	r.Post("/fanfic-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.likeFanficComment)
+	r.Post("/fanfic-comments/:id/like", s.requireAuth(), s.likeFanficComment)
 }
 
 func (s *Service) setupUnlikeFanficComment(r fiber.Router) {
-	r.Delete("/fanfic-comments/:id/like", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unlikeFanficComment)
+	r.Delete("/fanfic-comments/:id/like", s.requireAuth(), s.unlikeFanficComment)
 }
 
 func (s *Service) setupUploadFanficCommentMedia(r fiber.Router) {
-	r.Post("/fanfic-comments/:id/media", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.uploadFanficCommentMedia)
+	r.Post("/fanfic-comments/:id/media", s.requireAuth(), s.uploadFanficCommentMedia)
 }
 
 func (s *Service) setupGetFanficLanguages(r fiber.Router) {
@@ -132,12 +130,12 @@ func (s *Service) setupSearchOCCharacters(r fiber.Router) {
 }
 
 func (s *Service) setupListUserFanfics(r fiber.Router) {
-	r.Get("/users/:id/fanfics", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserFanfics)
+	r.Get("/users/:id/fanfics", s.optionalAuth(), s.listUserFanfics)
 }
 
 func (s *Service) listFanfics(ctx fiber.Ctx) error {
 	viewerID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 25), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 25)
 
 	params := fanficparams.NewListParams(fanficparams.ListParams{
 		Sort:       ctx.Query("sort", "updated"),
@@ -171,7 +169,7 @@ func (s *Service) getFanfic(ctx fiber.Ctx) error {
 	}
 
 	viewerID := utils.UserID(ctx)
-	result, err := s.FanficService.GetFanfic(ctx.Context(), id, viewerID, viewerHash(ctx))
+	result, err := s.FanficService.GetFanfic(ctx.Context(), id, viewerID, utils.ViewerHash(ctx))
 	if err != nil {
 		if errors.Is(err, fanficsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "fanfic not found")
@@ -464,69 +462,19 @@ func (s *Service) updateFanficComment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) deleteFanficComment(ctx fiber.Ctx) error {
-	id, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.FanficService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleDeleteComment(ctx, s.FanficService.DeleteComment)
 }
 
 func (s *Service) likeFanficComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.FanficService.LikeComment(ctx.Context(), userID, commentID); err != nil {
-		if errors.Is(err, block.ErrUserBlocked) {
-			return utils.Forbidden(ctx, "user is blocked")
-		}
-		return utils.InternalError(ctx, "failed to like comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleLikeComment(ctx, s.FanficService.LikeComment)
 }
 
 func (s *Service) unlikeFanficComment(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	if err := s.FanficService.UnlikeComment(ctx.Context(), userID, commentID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
-	}
-	return ctx.SendStatus(fiber.StatusNoContent)
+	return s.handleUnlikeComment(ctx, s.FanficService.UnlikeComment)
 }
 
 func (s *Service) uploadFanficCommentMedia(ctx fiber.Ctx) error {
-	commentID, ok := utils.ParseID(ctx)
-	if !ok {
-		return nil
-	}
-	userID := utils.UserID(ctx)
-
-	file, err := ctx.FormFile("media")
-	if err != nil {
-		return utils.BadRequest(ctx, "no media file provided")
-	}
-	reader, err := file.Open()
-	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
-	}
-	defer reader.Close()
-
-	result, err := s.FanficService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
-	if err != nil {
-		return utils.BadRequest(ctx, err.Error())
-	}
-	return ctx.Status(fiber.StatusCreated).JSON(result)
+	return handleUploadCommentMedia(ctx, s.FanficService.UploadCommentMedia)
 }
 
 func (s *Service) getFanficLanguages(ctx fiber.Ctx) error {
@@ -560,7 +508,7 @@ func (s *Service) listUserFanfics(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.FanficService.ListFanficsByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
@@ -570,7 +518,7 @@ func (s *Service) listUserFanfics(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupListUserFanficFavourites(r fiber.Router) {
-	r.Get("/users/:id/fanfic-favourites", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.listUserFanficFavourites)
+	r.Get("/users/:id/fanfic-favourites", s.optionalAuth(), s.listUserFanficFavourites)
 }
 
 func (s *Service) listUserFanficFavourites(ctx fiber.Ctx) error {
@@ -579,7 +527,7 @@ func (s *Service) listUserFanficFavourites(ctx fiber.Ctx) error {
 		return nil
 	}
 	viewerID := utils.UserID(ctx)
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := utils.Page(ctx, 20)
 
 	result, err := s.FanficService.ListFavourites(ctx.Context(), userID, viewerID, page)
 	if err != nil {

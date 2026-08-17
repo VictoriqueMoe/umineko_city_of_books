@@ -16,8 +16,7 @@ import {
     useUpdateJournalComment,
     useUploadJournalCommentMedia,
 } from "../../api/mutations/journal";
-import { linkify } from "../../utils/linkify";
-import { renderColours } from "../../utils/colours";
+import { renderRich } from "../../utils/richText";
 import { extractGif } from "../../utils/gif";
 import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
@@ -146,7 +145,7 @@ export function JournalEntryPage() {
                     if (gifURL) {
                         return <GifEmbed src={gifURL} />;
                     }
-                    return <div className={styles.body}>{renderColours(entry.body, linkify, `entry-${entry.id}`)}</div>;
+                    return <div className={styles.body}>{renderRich(entry.body)}</div>;
                 })()}
 
                 <MediaGallery media={entry.media} />

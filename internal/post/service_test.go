@@ -2,7 +2,10 @@ package post
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -94,8 +97,7 @@ func validCreatePostReq() dto.CreatePostRequest {
 }
 
 func expectBackgroundSocial(m *testMocks) {
-	m.postRepo.EXPECT().AddEmbed(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	m.postRepo.EXPECT().DeleteEmbeds(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	m.postRepo.EXPECT().AddEmbed(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().IncrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
@@ -225,7 +227,7 @@ func TestCreatePost_RepoCreateError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, "general", "hello", (*string)(nil), (*string)(nil)).Return(errors.New("boom"))
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreatePost(context.Background(), userID, validCreatePostReq())
@@ -239,7 +241,7 @@ func TestCreatePost_EmptyCornerDefaults(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, "general", "hello", (*string)(nil), (*string)(nil)).Return(nil)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	req := dto.CreatePostRequest{Body: "hello"}
@@ -257,7 +259,7 @@ func TestCreatePost_OK_Suggestions(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, "suggestions", "hello", (*string)(nil), (*string)(nil)).Return(nil)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: "suggestions", Body: "hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	req := validCreatePostReq()
@@ -276,8 +278,10 @@ func TestCreatePost_WithPollCreatesPoll(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, "general", "hello", (*string)(nil), (*string)(nil)).Return(nil)
-	m.postRepo.EXPECT().CreatePollWithOptions(mock.Anything, mock.Anything, mock.Anything, 3600, mock.Anything, []string{"a", "b"}).Return(nil)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.MatchedBy(func(spec repository.NewPost) bool {
+		return spec.UserID == userID && spec.Corner == "general" && spec.Body == "hello" &&
+			spec.Poll != nil && spec.Poll.DurationSeconds == 3600 && slices.Equal(spec.Poll.Options, []string{"a", "b"})
+	})).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	req := validCreatePostReq()
@@ -299,9 +303,9 @@ func TestCreatePost_WithPollRepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, "general", "hello", (*string)(nil), (*string)(nil)).Return(nil)
-	m.postRepo.EXPECT().CreatePollWithOptions(mock.Anything, mock.Anything, mock.Anything, 3600, mock.Anything, []string{"a", "b"}).Return(errors.New("boom"))
-	expectBackgroundSocial(m)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.MatchedBy(func(spec repository.NewPost) bool {
+		return spec.Poll != nil && spec.Poll.DurationSeconds == 3600 && slices.Equal(spec.Poll.Options, []string{"a", "b"})
+	})).Return(nil, errors.New("boom"))
 
 	req := validCreatePostReq()
 	req.Poll = &dto.CreatePollInput{
@@ -321,12 +325,18 @@ func TestCreatePost_ShareOK(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, "general", "", mock.Anything, mock.Anything).Return(nil)
+	sharedID := uuid.New().String()
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{
+		UserID:        userID,
+		Corner:        "general",
+		Body:          "",
+		SharedContent: &repository.SharedContentRef{ID: sharedID, Type: "theory"},
+	}).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	req := dto.CreatePostRequest{
 		Body:              "",
-		SharedContentID:   uuid.New().String(),
+		SharedContentID:   sharedID,
 		SharedContentType: "theory",
 	}
 
@@ -439,7 +449,7 @@ func TestUpdatePost_AsAdmin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
-	m.postRepo.EXPECT().UpdatePostAsAdmin(mock.Anything, id, "body").Return(nil)
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -455,7 +465,7 @@ func TestUpdatePost_AsAdminRepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
-	m.postRepo.EXPECT().UpdatePostAsAdmin(mock.Anything, id, "body").Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdatePost(context.Background(), id, userID, dto.UpdatePostRequest{Body: "body"})
@@ -470,7 +480,7 @@ func TestUpdatePost_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
-	m.postRepo.EXPECT().UpdatePost(mock.Anything, id, userID, "body").Return(nil)
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -486,7 +496,7 @@ func TestUpdatePost_AsOwnerRepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
-	m.postRepo.EXPECT().UpdatePost(mock.Anything, id, userID, "body").Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdatePost(context.Background(), id, userID, dto.UpdatePostRequest{Body: "body"})
@@ -495,14 +505,42 @@ func TestUpdatePost_AsOwnerRepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func expectPostDeleteLookups(m *testMocks, id uuid.UUID, authorID uuid.UUID, mediaCount int) {
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, id).Return(authorID, nil)
+	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(make([]model.PostMediaRow, mediaCount), nil)
+}
+
+func postDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool, mediaCount int) repository.PostDelete {
+	action := repository.AuditActionPostDelete
+	if authorID != userID {
+		action = repository.AuditActionPostDeleteAdmin
+	}
+
+	return repository.PostDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetPost,
+			TargetID:   id.String(),
+			Details:    fmt.Sprintf("media=%d", mediaCount),
+			SubjectID:  authorID,
+		},
+	}
+}
+
 func TestDeletePost_AsAdmin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetSharedContentFields(mock.Anything, id).Return(nil, nil, nil)
+	authorID := uuid.New()
+	expectPostDeleteLookups(m, id, authorID, 2)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
-	m.postRepo.EXPECT().DeleteAsAdmin(mock.Anything, id).Return(nil)
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, authorID, true, 2)).Return(nil, nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := svc.DeletePost(context.Background(), id, userID)
@@ -516,9 +554,10 @@ func TestDeletePost_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetSharedContentFields(mock.Anything, id).Return(nil, nil, nil)
+	expectPostDeleteLookups(m, id, userID, 0)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.postRepo.EXPECT().Delete(mock.Anything, id, userID).Return(nil)
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, false, 0)).Return(nil, nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := svc.DeletePost(context.Background(), id, userID)
@@ -527,14 +566,45 @@ func TestDeletePost_AsOwner(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeletePost_ModeratorDeletingOwnPostIsNotAdminAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	expectPostDeleteLookups(m, id, userID, 0)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, true, 0)).Return(nil, nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+
+	// when
+	err := svc.DeletePost(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeletePost_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("gone"))
+
+	// when
+	err := svc.DeletePost(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+}
+
 func TestDeletePost_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetSharedContentFields(mock.Anything, id).Return(nil, nil, nil)
+	expectPostDeleteLookups(m, id, userID, 0)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.postRepo.EXPECT().Delete(mock.Anything, id, userID).Return(errors.New("boom"))
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, false, 0)).Return(nil, nil, errors.New("boom"))
 
 	// when
 	err := svc.DeletePost(context.Background(), id, userID)
@@ -550,14 +620,16 @@ func TestDeletePost_SharedContentDecrements(t *testing.T) {
 	userID := uuid.New()
 	sharedID := "shared-abc"
 	sharedType := "theory"
-	m.postRepo.EXPECT().GetSharedContentFields(mock.Anything, id).Return(&sharedID, &sharedType, nil)
+	expectPostDeleteLookups(m, id, userID, 0)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.postRepo.EXPECT().Delete(mock.Anything, id, userID).Return(nil)
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, false, 0)).
+		Return(&repository.SharedContentRef{ID: sharedID, Type: sharedType}, nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
 	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, sharedID, sharedType).
-		Run(func(_ context.Context, _ string, _ string) { wg.Done() }).
+		Run(func(_ context.Context, _ string, _ string, _ ...*sql.Tx) { wg.Done() }).
 		Return(nil)
 
 	// when
@@ -756,7 +828,7 @@ func TestDeletePostMedia_OK(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
 	m.postRepo.EXPECT().DeleteMedia(mock.Anything, int64(1), postID).Return("/uploads/posts/a.webp", nil)
-	m.uploadSvc.EXPECT().Delete("/uploads/posts/a.webp").Return(nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/posts/a.webp"}).Return()
 
 	// when
 	err := svc.DeletePostMedia(context.Background(), postID, 1, userID)
@@ -952,7 +1024,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().CreateComment(mock.Anything, mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(errors.New("boom"))
+	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -969,7 +1041,7 @@ func TestCreateComment_OKTopLevel(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().CreateComment(mock.Anything, mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(nil)
+	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -989,7 +1061,7 @@ func TestCreateComment_OKReply(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().CreateComment(mock.Anything, mock.Anything, postID, &parentID, userID, "hi").Return(nil)
+	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1016,8 +1088,17 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.postRepo.EXPECT().UpdateCommentAsAdmin(mock.Anything, id, "body").Return(nil)
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionPostCommentUpdateAdmin,
+		TargetType: repository.AuditTargetPostComment,
+		TargetID:   id.String(),
+		SubjectID:  authorID,
+	}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1027,13 +1108,46 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateComment_ModeratorEditingOwnCommentIsNotAudited(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
+	expectBackgroundSocial(m)
+
+	// when
+	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
 func TestUpdateComment_AsAdminRepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.postRepo.EXPECT().UpdateCommentAsAdmin(mock.Anything, id, "body").Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(errors.New("boom"))
+
+	// when
+	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
+
+	// then
+	require.Error(t, err)
+}
+
+func TestUpdateComment_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("gone"))
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
@@ -1047,8 +1161,9 @@ func TestUpdateComment_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.postRepo.EXPECT().UpdateComment(mock.Anything, id, userID, "body").Return(nil)
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1063,8 +1178,9 @@ func TestUpdateComment_AsOwnerRepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.postRepo.EXPECT().UpdateComment(mock.Anything, id, userID, "body").Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
@@ -1073,14 +1189,53 @@ func TestUpdateComment_AsOwnerRepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
+func postCommentDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) repository.PostCommentDelete {
+	action := repository.AuditActionPostCommentDelete
+	if authorID != userID {
+		action = repository.AuditActionPostCommentDeleteAdmin
+	}
+
+	return repository.PostCommentDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetPostComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		},
+	}
+}
+
 func TestDeleteComment_AsAdmin(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	authorID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-	m.postRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, userID, "post_comment_delete_admin", "post_comment", id.String(), "").Return(nil)
+	m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, authorID, true)).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteComment_ModeratorDeletingOwnCommentIsNotAdminAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
+	m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, userID, true)).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -1094,9 +1249,10 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.postRepo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, userID, "post_comment_delete", "post_comment", id.String(), "").Return(nil)
+	m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, userID, false)).Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Return()
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -1105,13 +1261,28 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteComment_AuthorLookupError(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("gone"))
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+}
+
 func TestDeleteComment_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.postRepo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(errors.New("boom"))
+	m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, userID, false)).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -1652,4 +1823,76 @@ func TestCreatePost_RejectedByContentFilter(t *testing.T) {
 	var rej *contentfilter.RejectedError
 	require.ErrorAs(t, err, &rej)
 	assert.Equal(t, "xyz", rej.Rejection.Detail)
+}
+
+func TestDeletePost_UnlinksReturnedMediaPaths(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	expectPostDeleteLookups(m, id, userID, 2)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, false, 2)).
+		Return(nil, []string{"/uploads/posts/a.webp", "/uploads/posts/a_thumb.webp", "/uploads/posts/c.webp"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/posts/a.webp", "/uploads/posts/a_thumb.webp", "/uploads/posts/c.webp"}).Return()
+
+	// when
+	err := svc.DeletePost(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeletePost_RepoErrorUnlinksNothing(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	expectPostDeleteLookups(m, id, userID, 1)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, false, 1)).
+		Return(nil, []string{"/uploads/posts/a.webp"}, errors.New("boom"))
+
+	// when
+	err := svc.DeletePost(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+	m.uploadSvc.AssertNotCalled(t, "DeleteAll", mock.Anything)
+}
+
+func TestDeleteComment_UnlinksReturnedMediaPaths(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
+	m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, userID, false)).
+		Return([]string{"/uploads/posts/c.webp", "/uploads/posts/c_thumb.webp"}, nil)
+	m.uploadSvc.EXPECT().Delete([]string{"/uploads/posts/c.webp", "/uploads/posts/c_thumb.webp"}).Return()
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteComment_RepoErrorUnlinksNothing(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
+	m.postRepo.EXPECT().DeleteCommentWithAudit(mock.Anything, postCommentDeleteSpec(id, userID, userID, false)).
+		Return([]string{"/uploads/posts/c.webp"}, errors.New("boom"))
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+	m.uploadSvc.AssertNotCalled(t, "DeleteAll", mock.Anything)
 }

@@ -14,6 +14,14 @@ export const queryKeys = {
         all: ["art"] as const,
         detail: (id: string) => ["art", "detail", id] as const,
         feed: (params: Record<string, unknown> = {}) => ["art", "feed", params] as const,
+        cornerCounts: () => ["art", "corner-counts"] as const,
+        popularTags: (corner: string) => ["art", "popular-tags", corner] as const,
+    },
+    gallery: {
+        allGalleries: () => ["galleries"] as const,
+        list: (corner: string) => ["galleries", "all", corner] as const,
+        root: () => ["gallery"] as const,
+        detail: (id: string, params: Record<string, unknown>) => ["gallery", id, params] as const,
     },
     ship: {
         all: ["ship"] as const,
@@ -36,6 +44,9 @@ export const queryKeys = {
         all: ["fanfic"] as const,
         detail: (id: string) => ["fanfic", "detail", id] as const,
         feed: (params: Record<string, unknown> = {}) => ["fanfic", "feed", params] as const,
+        chapter: (fanficId: string, chapterNumber: number) => ["fanfic", fanficId, "chapter", chapterNumber] as const,
+        languages: () => ["fanfic", "languages"] as const,
+        seriesList: () => ["fanfic", "series"] as const,
     },
     mystery: {
         all: ["mystery"] as const,
@@ -59,6 +70,76 @@ export const queryKeys = {
         roomMembers: (id: string) => ["chat", "room", id, "members"] as const,
         pinned: (id: string) => ["chat", "room", id, "pinned"] as const,
         userRooms: () => ["chat", "rooms", "user"] as const,
+        rooms: () => ["chat", "rooms"] as const,
+        roomSettings: (id: string) => ["chat", "rooms", id] as const,
+        roomBans: (id: string) => ["chat", "rooms", id, "bans"] as const,
+        roomBannedWords: (id: string) => ["chat", "rooms", id, "banned-words"] as const,
+        roomsList: () => ["chat", "rooms-list"] as const,
+        roomsListJoined: () => ["chat", "rooms-list", "joined"] as const,
+        roomsListDiscover: () => ["chat", "rooms-list", "discover"] as const,
+        roomsListHosted: () => ["chat", "rooms-list", "hosted"] as const,
+        dmResolve: (recipientId: string) => ["chat", "dm-resolve", recipientId] as const,
+        unreadCount: () => ["chat", "unread-count"] as const,
+    },
+    auth: {
+        me: () => ["auth", "me"] as const,
+        siteInfo: () => ["site-info"] as const,
+        staff: () => ["staff"] as const,
+    },
+    announcements: {
+        all: ["announcements"] as const,
+        list: (params: Record<string, unknown>) => ["announcements", "list", params] as const,
+        detail: (id: string) => ["announcements", "detail", id] as const,
+        latest: () => ["announcements", "latest"] as const,
+    },
+    secrets: {
+        all: ["secrets"] as const,
+        list: () => ["secrets", "list"] as const,
+        detail: (id: string) => ["secrets", "detail", id] as const,
+    },
+    streams: {
+        live: () => ["streams", "live"] as const,
+        detail: (id: string | undefined) => ["streams", "detail", id] as const,
+    },
+    users: {
+        byId: (id: string) => ["users", id] as const,
+        mutuals: () => ["users", "mutuals"] as const,
+        search: (query: string) => ["users", "search", query] as const,
+        publicList: () => ["users", "public"] as const,
+        followers: (userId: string, params: Record<string, unknown>) => ["users", userId, "followers", params] as const,
+        following: (userId: string, params: Record<string, unknown>) => ["users", userId, "following", params] as const,
+    },
+    followStats: (userId: string) => ["follow-stats", userId] as const,
+    blockStatus: (userId: string) => ["block-status", userId] as const,
+    rules: (page: string) => ["rules", page] as const,
+    characters: {
+        all: () => ["characters", "all"] as const,
+        flat: (series: string) => ["characters", "flat", series] as const,
+        oc: (query: string) => ["characters", "oc", query] as const,
+        series: (series: string) => ["characters", "series", series] as const,
+        groups: (series: string) => ["character-groups", series] as const,
+    },
+    giphy: {
+        favourites: () => ["giphy", "favourites"] as const,
+        favouritesList: (params: Record<string, unknown>) => ["giphy", "favourites", params] as const,
+        search: (query: string, params: Record<string, unknown>) => ["giphy", "search", query, params] as const,
+        trending: (params: Record<string, unknown>) => ["giphy", "trending", params] as const,
+    },
+    quotes: {
+        search: (params: Record<string, unknown>) => ["quotes", "search", params] as const,
+        browse: (params: Record<string, unknown>) => ["quotes", "browse", params] as const,
+    },
+    search: {
+        quick: (query: string) => ["search", "quick", query] as const,
+        room: (roomId: string, query: string, limit: number, offset: number) =>
+            ["search", "room", roomId, query, limit, offset] as const,
+        full: (query: string, types: string, limit: number, offset: number) =>
+            ["search", "full", query, types, limit, offset] as const,
+    },
+    sidebar: {
+        homeActivity: () => ["home", "activity"] as const,
+        activity: () => ["sidebar", "activity"] as const,
+        lastVisited: () => ["sidebar", "last-visited"] as const,
     },
     profile: {
         all: ["profile"] as const,
@@ -68,6 +149,7 @@ export const queryKeys = {
     notifications: {
         all: ["notifications"] as const,
         list: (params: Record<string, unknown> = {}) => ["notifications", "list", params] as const,
+        listAll: () => ["notifications", "list"] as const,
         unreadCount: () => ["notifications", "unread-count"] as const,
     },
     chatbots: {
@@ -75,6 +157,18 @@ export const queryKeys = {
         list: () => ["chatbots", "list"] as const,
     },
     admin: {
+        all: ["admin"] as const,
+        user: () => ["admin", "user"] as const,
+        userDetail: (id: string) => ["admin", "user", id] as const,
+        userIpMatches: (id: string) => ["admin", "user", id, "ip-matches"] as const,
+        userAuditLog: (id: string, limit: number, offset: number) =>
+            ["admin", "user", id, "audit-log", limit, offset] as const,
+        stats: () => ["admin", "stats"] as const,
+        settings: () => ["admin", "settings"] as const,
+        reportsAll: () => ["admin", "reports"] as const,
+        vanityRoleUsers: () => ["admin", "vanity-role-users"] as const,
+        vanityRoleUserList: (id: string, search: string, limit: number, offset: number) =>
+            ["admin", "vanity-role-users", id, search, limit, offset] as const,
         announcements: () => ["admin", "announcements"] as const,
         users: (params: Record<string, unknown> = {}) => ["admin", "users", params] as const,
         invites: () => ["admin", "invites"] as const,

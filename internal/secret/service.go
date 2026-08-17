@@ -52,12 +52,12 @@ type (
 		secretRepo    repository.SecretRepository
 		userSecretSvc repository.UserSecretRepository
 		userRepo      repository.UserRepository
-		auditRepo     repository.AuditLogRepository
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
 		settingsSvc   settings.Service
 		uploader      *media.Uploader
+		uploadSvc     upload.Service
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 	}
@@ -67,7 +67,6 @@ func NewService(
 	secretRepo repository.SecretRepository,
 	userSecretRepo repository.UserSecretRepository,
 	userRepo repository.UserRepository,
-	auditRepo repository.AuditLogRepository,
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
@@ -81,12 +80,12 @@ func NewService(
 		secretRepo:    secretRepo,
 		userSecretSvc: userSecretRepo,
 		userRepo:      userRepo,
-		auditRepo:     auditRepo,
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
 		settingsSvc:   settingsSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
+		uploadSvc:     uploadSvc,
 		hub:           hub,
 		contentFilter: contentFilter,
 	}
@@ -268,10 +267,12 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 		return uuid.Nil, err
 	}
 
-	id := uuid.New()
-	if err := s.secretRepo.CreateComment(ctx, id, secretID, req.ParentID, userID, body); err != nil {
+	created, err := s.secretRepo.CreateComment(ctx, secretID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()
@@ -326,28 +327,31 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.secretRepo.UpdateCommentAsAdmin(ctx, id, body)
-	}
-	return s.secretRepo.UpdateComment(ctx, id, userID, body)
+
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
+
+	return s.secretRepo.UpdateCommentBody(ctx, repository.SecretCommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
+	})
 }
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "secret_comment_delete"
-	if isAdmin {
-		if err := s.secretRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
-			return err
-		}
-		action = "secret_comment_delete_admin"
-	} else {
-		if err := s.secretRepo.DeleteComment(ctx, id, userID); err != nil {
-			return err
-		}
+	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+
+	paths, err := s.secretRepo.DeleteCommentWithAudit(ctx, repository.SecretCommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
+	})
+	if err != nil {
+		return err
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "secret_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
-	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -415,7 +419,12 @@ func (s *service) UploadCommentMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "secrets", contentType, fileSize, reader,
 		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
-			return s.secretRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, "", sortOrder)
+			return s.secretRepo.AddCommentMedia(ctx, repository.NewSecretCommentMedia{
+				CommentID: commentID,
+				MediaURL:  mediaURL,
+				MediaType: mediaType,
+				SortOrder: sortOrder,
+			})
 		},
 		s.secretRepo.UpdateCommentMediaURL,
 		s.secretRepo.UpdateCommentMediaThumbnail,

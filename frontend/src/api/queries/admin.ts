@@ -50,7 +50,7 @@ export function useAdminUsers(search: string, limit: number, offset: number) {
 
 export function useAdminUser(id: string) {
     const query = useQuery({
-        queryKey: ["admin", "user", id],
+        queryKey: queryKeys.admin.userDetail(id),
         queryFn: () => getAdminUser(id),
         enabled: !!id,
     });
@@ -59,7 +59,7 @@ export function useAdminUser(id: string) {
 
 export function useUserIPMatches(id: string, enabled: boolean) {
     const query = useQuery({
-        queryKey: ["admin", "user", id, "ip-matches"],
+        queryKey: queryKeys.admin.userIpMatches(id),
         queryFn: () => getUserIPMatches(id),
         enabled: !!id && enabled,
     });
@@ -73,7 +73,7 @@ export function useUserIPMatches(id: string, enabled: boolean) {
 
 export function useUserAuditLog(id: string, enabled: boolean, limit: number, offset: number) {
     const query = useQuery({
-        queryKey: ["admin", "user", id, "audit-log", limit, offset],
+        queryKey: queryKeys.admin.userAuditLog(id, limit, offset),
         queryFn: () => getUserAuditLog(id, limit, offset),
         enabled: !!id && enabled,
     });
@@ -87,7 +87,7 @@ export function useUserAuditLog(id: string, enabled: boolean, limit: number, off
 
 export function useAdminStats() {
     const query = useQuery({
-        queryKey: ["admin", "stats"],
+        queryKey: queryKeys.admin.stats(),
         queryFn: () => getAdminStats(),
     });
     return { stats: query.data ?? null, loading: query.isLoading };
@@ -95,7 +95,7 @@ export function useAdminStats() {
 
 export function useAdminSettings() {
     const query = useQuery({
-        queryKey: ["admin", "settings"],
+        queryKey: queryKeys.admin.settings(),
         queryFn: () => getAdminSettings(),
     });
     return { settings: query.data ?? null, loading: query.isLoading, refresh: query.refetch };
@@ -214,7 +214,7 @@ export function useChatbotModels() {
 
 export function useVanityRoleUsers(id: string, search: string, limit: number, offset: number) {
     const query = useQuery({
-        queryKey: ["admin", "vanity-role-users", id, search, limit, offset],
+        queryKey: queryKeys.admin.vanityRoleUserList(id, search, limit, offset),
         queryFn: () => getVanityRoleUsers(id, { search: search || undefined, limit, offset }),
         enabled: !!id,
     });

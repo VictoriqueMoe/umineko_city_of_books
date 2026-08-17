@@ -54,7 +54,7 @@ export function useSetUserRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, role }: { id: string; role: string }) => setUserRole(id, role),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -63,7 +63,7 @@ export function useUpdateDetectiveScore() {
     return useMutation({
         mutationFn: ({ id, desiredScore }: { id: string; desiredScore: number }) =>
             updateDetectiveScore(id, desiredScore),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -71,7 +71,7 @@ export function useUpdateGMScore() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, desiredScore }: { id: string; desiredScore: number }) => updateGMScore(id, desiredScore),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -79,7 +79,7 @@ export function useRemoveUserRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, role }: { id: string; role: string }) => removeUserRole(id, role),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -87,7 +87,7 @@ export function useBanUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, reason }: { id: string; reason: string }) => banUser(id, reason),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -95,7 +95,7 @@ export function useUnbanUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => unbanUser(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -103,7 +103,7 @@ export function useLockUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, reason }: { id: string; reason: string }) => lockUser(id, reason),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -111,7 +111,7 @@ export function useUnlockUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => unlockUser(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -119,7 +119,7 @@ export function useAdminDeleteUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => adminDeleteUser(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }
 
@@ -133,7 +133,7 @@ export function useSetUserEmail() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, email }: { id: string; email: string }) => setUserEmail(id, email),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -141,7 +141,7 @@ export function useVerifyUserEmail() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => verifyUserEmail(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -149,7 +149,7 @@ export function useUnverifyUserEmail() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => unverifyUserEmail(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -158,8 +158,8 @@ export function useSetUserDisplayName() {
     return useMutation({
         mutationFn: ({ id, displayName }: { id: string; displayName: string }) => setUserDisplayName(id, displayName),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["admin"] });
-            qc.invalidateQueries({ queryKey: ["profile"] });
+            qc.invalidateQueries({ queryKey: queryKeys.admin.all });
+            qc.invalidateQueries({ queryKey: queryKeys.profile.all });
         },
     });
 }
@@ -168,7 +168,7 @@ export function useSetDisplayNameLock() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, locked }: { id: string; locked: boolean }) => setDisplayNameLock(id, locked),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -176,7 +176,7 @@ export function useForceLogoutUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => forceLogoutUser(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "user"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.user() }),
     });
 }
 
@@ -185,9 +185,9 @@ export function useUpdateAdminSettings() {
     return useMutation({
         mutationFn: (settings: SiteSettings) => updateAdminSettings(settings),
         onSuccess: () => {
-            qc.invalidateQueries({ queryKey: ["admin", "settings"] });
+            qc.invalidateQueries({ queryKey: queryKeys.admin.settings() });
             qc.invalidateQueries({ queryKey: queryKeys.admin.chatbotModels() });
-            qc.invalidateQueries({ queryKey: ["site-info"] });
+            qc.invalidateQueries({ queryKey: queryKeys.auth.siteInfo() });
         },
     });
 }
@@ -224,7 +224,7 @@ export function useResolveReport() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ id, comment }: { id: number; comment: string }) => resolveReport(id, comment),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "reports"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.reportsAll() }),
     });
 }
 
@@ -275,7 +275,7 @@ export function useCreateAnnouncement() {
         mutationFn: ({ title, body }: { title: string; body: string }) => createAnnouncement(title, body),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: ["announcements"] });
+            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
         },
     });
 }
@@ -287,7 +287,7 @@ export function useUpdateAnnouncement() {
             updateAnnouncement(id, title, body),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: ["announcements"] });
+            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
         },
     });
 }
@@ -298,7 +298,7 @@ export function useDeleteAnnouncement() {
         mutationFn: (id: string) => deleteAnnouncement(id),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: ["announcements"] });
+            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
         },
     });
 }
@@ -309,7 +309,7 @@ export function usePinAnnouncement() {
         mutationFn: ({ id, pinned }: { id: string; pinned: boolean }) => pinAnnouncement(id, pinned),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.admin.announcements() });
-            qc.invalidateQueries({ queryKey: ["announcements"] });
+            qc.invalidateQueries({ queryKey: queryKeys.announcements.all });
         },
     });
 }
@@ -434,7 +434,7 @@ export function useAssignVanityRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) => assignVanityRole(roleId, userId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "vanity-role-users"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.vanityRoleUsers() }),
     });
 }
 
@@ -442,6 +442,6 @@ export function useUnassignVanityRole() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: ({ roleId, userId }: { roleId: string; userId: string }) => unassignVanityRole(roleId, userId),
-        onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "vanity-role-users"] }),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.vanityRoleUsers() }),
     });
 }

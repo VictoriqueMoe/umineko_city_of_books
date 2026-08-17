@@ -1,5 +1,6 @@
 ﻿import { useQuery } from "@tanstack/react-query";
 import { getCharacterGroups, getCharacters, searchOCCharacters, type CharacterGroups, type Series } from "../endpoints";
+import { queryKeys } from "../queryKeys";
 
 const EMPTY: { umineko: Record<string, string>; higurashi: Record<string, string>; ciconia: CharacterGroups } = {
     umineko: {},
@@ -9,7 +10,7 @@ const EMPTY: { umineko: Record<string, string>; higurashi: Record<string, string
 
 export function useAllCharacters() {
     const query = useQuery({
-        queryKey: ["characters", "all"],
+        queryKey: queryKeys.characters.all(),
         queryFn: async () => {
             const [umineko, higurashi, ciconia] = await Promise.all([
                 getCharacters("umineko"),
@@ -25,7 +26,7 @@ export function useAllCharacters() {
 
 export function useCharactersFlat(series: Series) {
     const q = useQuery({
-        queryKey: ["characters", "flat", series],
+        queryKey: queryKeys.characters.flat(series),
         queryFn: () => getCharacters(series),
         staleTime: Infinity,
     });
@@ -34,7 +35,7 @@ export function useCharactersFlat(series: Series) {
 
 export function useOCCharacters(query = "") {
     const q = useQuery({
-        queryKey: ["characters", "oc", query],
+        queryKey: queryKeys.characters.oc(query),
         queryFn: () => searchOCCharacters(query),
         staleTime: Infinity,
     });
@@ -45,7 +46,7 @@ const EMPTY_GROUPS: CharacterGroups = { main: {}, additional: {} };
 
 export function useCharacterGroups(series: Series) {
     const q = useQuery({
-        queryKey: ["character-groups", series],
+        queryKey: queryKeys.characters.groups(series),
         queryFn: () => getCharacterGroups(series),
         staleTime: Infinity,
     });

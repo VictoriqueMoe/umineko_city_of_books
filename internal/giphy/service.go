@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 )
 
@@ -51,10 +52,14 @@ type (
 		apiKey             string
 		baseURL            string
 		httpClient         *http.Client
-		cache              *cache
-		userCache          *userCache
+		cache              *cache.Manager
 		rateLimitedUntilNs atomic.Int64
 		banlist            Banlist
+	}
+
+	gifUserEntry struct {
+		Username string `json:"username"`
+		Known    bool   `json:"known"`
 	}
 
 	Banlist interface {
@@ -77,22 +82,18 @@ const (
 	requestTimeout       = 10 * time.Second
 	searchTTL            = 1 * time.Hour
 	trendingTTL          = 6 * time.Hour
-	cacheMaxItems        = 500
-	userCacheMaxItems    = 4096
-	userCacheTTL         = 7 * 24 * time.Hour
 	defaultRateLimitHold = 1 * time.Hour
 )
 
-func NewService(banlist Banlist) Service {
+func NewService(banlist Banlist, cacheMgr *cache.Manager) Service {
 	return &service{
 		apiKey:  config.Cfg.GiphyAPIKey,
 		baseURL: defaultBaseURL,
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 		},
-		cache:     newCache(cacheMaxItems),
-		userCache: newUserCache(userCacheMaxItems),
-		banlist:   banlist,
+		cache:   cacheMgr,
+		banlist: banlist,
 	}
 }
 
@@ -166,20 +167,25 @@ func (s *service) fetch(ctx context.Context, path string, params url.Values, out
 }
 
 func (s *service) get(ctx context.Context, path string, params url.Values, ttl time.Duration) (*Response, error) {
-	cacheKey := cacheKeyFor(path, params)
-	if s.cache != nil && ttl > 0 {
-		if cached, ok := s.cache.get(cacheKey); ok {
-			return cached, nil
+	key := cache.GiphyResponse.Key(cacheKeyFor(path, params))
+
+	if ttl > 0 {
+		if cached, err := cache.Get[Response](ctx, s.cache, key); err == nil {
+			return &cached, nil
 		}
 	}
+
 	var out Response
 	if _, err := s.fetch(ctx, path, params, &out); err != nil {
 		return nil, err
 	}
+
 	s.filterBannedGifs(&out)
-	if s.cache != nil && ttl > 0 {
-		s.cache.set(cacheKey, &out, ttl)
+
+	if ttl > 0 {
+		_ = cache.Set(ctx, s.cache, key, out, ttl)
 	}
+
 	return &out, nil
 }
 
@@ -187,29 +193,38 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 	if gifID == "" {
 		return "", false
 	}
-	if username, known, ok := s.userCache.get(gifID); ok {
-		return username, known
+	key := cache.GiphyGifUser.Key(gifID)
+	if cached, err := cache.Get[gifUserEntry](ctx, s.cache, key); err == nil {
+		return cached.Username, cached.Known
 	}
+
 	if !s.Enabled() {
 		return "", false
 	}
+
 	params := url.Values{}
 	params.Set("api_key", s.apiKey)
+
 	var payload struct {
 		Data Gif `json:"data"`
 	}
+
 	status, err := s.fetch(ctx, "/gifs/"+gifID, params, &payload)
 	if err != nil {
 		if status == http.StatusNotFound {
-			s.userCache.set(gifID, "", false, userCacheTTL)
+			_ = cache.Set(ctx, s.cache, key, gifUserEntry{}, cache.GiphyGifUser.TTL)
 		}
+
 		return "", false
 	}
+
 	username := ""
 	if payload.Data.User != nil {
 		username = payload.Data.User.Username
 	}
-	s.userCache.set(gifID, username, username != "", userCacheTTL)
+
+	_ = cache.Set(ctx, s.cache, key, gifUserEntry{Username: username, Known: username != ""}, cache.GiphyGifUser.TTL)
+
 	return username, username != ""
 }
 

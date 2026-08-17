@@ -8,47 +8,46 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 )
 
 func (s *Service) setupListWatchPartiesRoute(r fiber.Router) {
-	r.Get("/chat/rooms/:roomID/watch-parties", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.listWatchParties)
+	r.Get("/chat/rooms/:roomID/watch-parties", s.requireAuth(), s.listWatchParties)
 }
 
 func (s *Service) setupStartWatchPartyRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/watch-parties", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.startWatchParty)
+	r.Post("/chat/rooms/:roomID/watch-parties", s.requireAuth(), s.startWatchParty)
 }
 
 func (s *Service) setupJoinWatchPartyRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/join", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.joinWatchParty)
+	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/join", s.requireAuth(), s.joinWatchParty)
 }
 
 func (s *Service) setupLeaveWatchPartyRoute(r fiber.Router) {
-	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID/participants/me", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.leaveWatchParty)
+	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID/participants/me", s.requireAuth(), s.leaveWatchParty)
 }
 
 func (s *Service) setupGrantWatchPartyControlRoute(r fiber.Router) {
-	r.Patch("/chat/rooms/:roomID/watch-parties/:sessionID/participants/:userID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.grantWatchPartyControl)
+	r.Patch("/chat/rooms/:roomID/watch-parties/:sessionID/participants/:userID", s.requireAuth(), s.grantWatchPartyControl)
 }
 
 func (s *Service) setupKickWatchPartyParticipantRoute(r fiber.Router) {
-	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID/participants/:userID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.kickWatchPartyParticipant)
+	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID/participants/:userID", s.requireAuth(), s.kickWatchPartyParticipant)
 }
 
 func (s *Service) setupEndWatchPartyRoute(r fiber.Router) {
-	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.endWatchParty)
+	r.Delete("/chat/rooms/:roomID/watch-parties/:sessionID", s.requireAuth(), s.endWatchParty)
 }
 
 func (s *Service) setupIdentifyWatchPartyRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/identify", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.identifyWatchPartyParticipant)
+	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/identify", s.requireAuth(), s.identifyWatchPartyParticipant)
 }
 
 func (s *Service) setupWatchPartyVoiceTokenRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/voice/token", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.watchPartyVoiceToken)
+	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/voice/token", s.requireAuth(), s.watchPartyVoiceToken)
 }
 
 func (s *Service) setupWatchPartyVoiceMuteRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/voice/participants/:userID/mute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.watchPartyVoiceMute)
+	r.Post("/chat/rooms/:roomID/watch-parties/:sessionID/voice/participants/:userID/mute", s.requireAuth(), s.watchPartyVoiceMute)
 }
 
 func mapWatchPartyError(ctx fiber.Ctx, err error) error {

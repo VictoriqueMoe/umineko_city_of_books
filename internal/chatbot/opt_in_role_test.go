@@ -3,6 +3,7 @@ package chatbot
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -122,12 +123,22 @@ func TestOptInRoleValidator_RepositoryErrors(t *testing.T) {
 	}
 }
 
-func newTestMigrator(t *testing.T, current string) (*OptInRoleMigrator, *repository.MockVanityRoleRepository) {
+func newTestMigrator(t *testing.T, current string) (*OptInRoleMigrator, *repository.MockVanityRoleRepository, *repository.MockAuditLogRepository) {
 	vanityRepo := repository.NewMockVanityRoleRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(current)
 
-	return NewOptInRoleMigrator(vanityRepo, settingsSvc), vanityRepo
+	return NewOptInRoleMigrator(vanityRepo, auditRepo, settingsSvc), vanityRepo, auditRepo
+}
+
+func migrationEntry(from, to string, holders, moved, failed int) repository.NewAuditEntry {
+	return repository.NewAuditEntry{
+		Action:     repository.AuditActionChatbotOptInRoleMigrate,
+		TargetType: repository.AuditTargetVanityRole,
+		TargetID:   to,
+		Details:    fmt.Sprintf("from=%s to=%s holders=%d moved=%d failed=%d", from, to, holders, moved, failed),
+	}
 }
 
 func TestOptInRoleMigrator_Plan(t *testing.T) {
@@ -151,7 +162,7 @@ func TestOptInRoleMigrator_Plan(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			migrator, _ := newTestMigrator(t, tc.current)
+			migrator, _, _ := newTestMigrator(t, tc.current)
 
 			// when
 			from, to, ok := migrator.plan(tc.key, tc.value)
@@ -166,7 +177,7 @@ func TestOptInRoleMigrator_Plan(t *testing.T) {
 
 func TestOptInRoleMigrator_PlanRemembersTheLatestRole(t *testing.T) {
 	// given
-	migrator, _ := newTestMigrator(t, "a")
+	migrator, _, _ := newTestMigrator(t, "a")
 
 	// when
 	_, _, first := migrator.plan(config.SettingChatbotOptInRole.Key, "b")
@@ -177,15 +188,19 @@ func TestOptInRoleMigrator_PlanRemembersTheLatestRole(t *testing.T) {
 	assert.False(t, second)
 }
 
+func moveSpec(userID uuid.UUID, from, to string) repository.VanityRoleMove {
+	return repository.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
+}
+
 func TestOptInRoleMigrator_MigrateMovesHolders(t *testing.T) {
 	// given
-	migrator, vanityRepo := newTestMigrator(t, "a")
+	migrator, vanityRepo, auditRepo := newTestMigrator(t, "a")
 	holders := []repository.VanityRoleUserRow{{UserID: uuid.New()}, {UserID: uuid.New()}}
 	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(holders, len(holders), nil)
 	for _, holder := range holders {
-		vanityRepo.EXPECT().AssignToUser(mock.Anything, holder.UserID, "b").Return(nil)
-		vanityRepo.EXPECT().UnassignFromUser(mock.Anything, holder.UserID, "a").Return(nil)
+		vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(holder.UserID, "a", "b")).Return(nil)
 	}
+	auditRepo.EXPECT().CreateSystem(mock.Anything, migrationEntry("a", "b", 2, 2, 0)).Return(nil)
 
 	// when
 	migrator.Migrate(context.Background(), "a", "b")
@@ -196,7 +211,7 @@ func TestOptInRoleMigrator_MigrateMovesHolders(t *testing.T) {
 
 func TestOptInRoleMigrator_MigratePagesThroughHolders(t *testing.T) {
 	// given
-	migrator, vanityRepo := newTestMigrator(t, "a")
+	migrator, vanityRepo, auditRepo := newTestMigrator(t, "a")
 	first := make([]repository.VanityRoleUserRow, optInRolePageSize)
 	for i := range first {
 		first[i] = repository.VanityRoleUserRow{UserID: uuid.New()}
@@ -205,8 +220,8 @@ func TestOptInRoleMigrator_MigratePagesThroughHolders(t *testing.T) {
 	total := len(first) + len(second)
 	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(first, total, nil)
 	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, optInRolePageSize).Return(second, total, nil)
-	vanityRepo.EXPECT().AssignToUser(mock.Anything, mock.Anything, "b").Return(nil).Times(total)
-	vanityRepo.EXPECT().UnassignFromUser(mock.Anything, mock.Anything, "a").Return(nil).Times(total)
+	vanityRepo.EXPECT().MoveUserRole(mock.Anything, mock.Anything).Return(nil).Times(total)
+	auditRepo.EXPECT().CreateSystem(mock.Anything, migrationEntry("a", "b", total, total, 0)).Return(nil)
 
 	// when
 	migrator.Migrate(context.Background(), "a", "b")
@@ -217,35 +232,32 @@ func TestOptInRoleMigrator_MigratePagesThroughHolders(t *testing.T) {
 
 func TestOptInRoleMigrator_MigrateContinuesAfterFailures(t *testing.T) {
 	// given
-	migrator, vanityRepo := newTestMigrator(t, "a")
-	grantFails := uuid.New()
-	revokeFails := uuid.New()
+	migrator, vanityRepo, auditRepo := newTestMigrator(t, "a")
+	moveFails := uuid.New()
 	succeeds := uuid.New()
-	holders := []repository.VanityRoleUserRow{{UserID: grantFails}, {UserID: revokeFails}, {UserID: succeeds}}
+	alsoSucceeds := uuid.New()
+	holders := []repository.VanityRoleUserRow{{UserID: moveFails}, {UserID: succeeds}, {UserID: alsoSucceeds}}
 	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(holders, len(holders), nil)
-	vanityRepo.EXPECT().AssignToUser(mock.Anything, grantFails, "b").Return(errors.New("boom"))
-	vanityRepo.EXPECT().AssignToUser(mock.Anything, revokeFails, "b").Return(nil)
-	vanityRepo.EXPECT().UnassignFromUser(mock.Anything, revokeFails, "a").Return(errors.New("boom"))
-	vanityRepo.EXPECT().AssignToUser(mock.Anything, succeeds, "b").Return(nil)
-	vanityRepo.EXPECT().UnassignFromUser(mock.Anything, succeeds, "a").Return(nil)
+	vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(moveFails, "a", "b")).Return(errors.New("boom"))
+	vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(succeeds, "a", "b")).Return(nil)
+	vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(alsoSucceeds, "a", "b")).Return(nil)
+	auditRepo.EXPECT().CreateSystem(mock.Anything, migrationEntry("a", "b", 3, 2, 1)).Return(nil)
 
 	// when
 	migrator.Migrate(context.Background(), "a", "b")
 
 	// then
 	vanityRepo.AssertExpectations(t)
-	vanityRepo.AssertNotCalled(t, "UnassignFromUser", mock.Anything, grantFails, "a")
 }
 
 func TestOptInRoleMigrator_MigrateStopsWhenHoldersCannotBeListed(t *testing.T) {
 	// given
-	migrator, vanityRepo := newTestMigrator(t, "a")
+	migrator, vanityRepo, _ := newTestMigrator(t, "a")
 	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(nil, 0, errors.New("boom"))
 
 	// when
 	migrator.Migrate(context.Background(), "a", "b")
 
 	// then
-	vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything, mock.Anything)
-	vanityRepo.AssertNotCalled(t, "UnassignFromUser", mock.Anything, mock.Anything, mock.Anything)
+	vanityRepo.AssertNotCalled(t, "MoveUserRole", mock.Anything, mock.Anything)
 }

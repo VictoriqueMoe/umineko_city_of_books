@@ -135,11 +135,16 @@ func TestCreateFanfic_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	req := dto.CreateFanficRequest{Title: "Title"}
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "", "Umineko", "K", "English", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false).
-		Return(errors.New("db"))
+		CreateWithDetails(mock.Anything, repository.NewFanfic{
+			UserID:   userID,
+			Title:    "Title",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		}).
+		Return(nil, errors.New("db"))
 
 	// when
 	_, err := svc.CreateFanfic(context.Background(), userID, req)
@@ -160,11 +165,18 @@ func TestCreateFanfic_OK_DefaultsApplied(t *testing.T) {
 		Status:   "garbage",
 		Tags:     []string{"a", "A", " a ", "b"},
 	}
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "My Series").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "sum", "My Series", "K", "English", "in_progress", false, false, []string(nil), []string{"a", "b"}, []dto.FanficCharacter(nil), false).
-		Return(nil)
+		CreateWithDetails(mock.Anything, repository.NewFanfic{
+			UserID:   userID,
+			Title:    "Title",
+			Summary:  "sum",
+			Series:   "My Series",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+			Tags:     []string{"a", "b"},
+		}).
+		Return(&model.FanficRow{ID: uuid.New()}, nil)
 
 	// when
 	id, err := svc.CreateFanfic(context.Background(), userID, req)
@@ -174,7 +186,7 @@ func TestCreateFanfic_OK_DefaultsApplied(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, id)
 }
 
-func TestCreateFanfic_OK_WithBodyAndOCCharacter(t *testing.T) {
+func TestCreateFanfic_OK_WithBodyAndCharacters(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -188,14 +200,18 @@ func TestCreateFanfic_OK_WithBodyAndOCCharacter(t *testing.T) {
 		},
 		Rating: "M",
 	}
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "Title", "", "Umineko", "M", "English", "draft", false, false, []string(nil), []string(nil), req.Characters, false).
-		Return(nil)
-	m.fanficRepo.EXPECT().CreateChapter(mock.Anything, mock.Anything, mock.Anything, 1, "", "<p>hello world</p>", 2).Return(nil)
-	m.fanficRepo.EXPECT().UpdateWordCount(mock.Anything, mock.Anything).Return(nil)
-	m.fanficRepo.EXPECT().RegisterOCCharacter(mock.Anything, "Piece", userID).Return(nil)
+		CreateWithDetails(mock.Anything, repository.NewFanfic{
+			UserID:       userID,
+			Title:        "Title",
+			Series:       "Umineko",
+			Rating:       "M",
+			Language:     "English",
+			Status:       "draft",
+			Characters:   req.Characters,
+			FirstChapter: &repository.NewChapter{Number: 1, Body: "<p>hello world</p>", WordCount: 2},
+		}).
+		Return(&model.FanficRow{ID: uuid.New()}, nil)
 
 	// when
 	id, err := svc.CreateFanfic(context.Background(), userID, req)
@@ -203,25 +219,6 @@ func TestCreateFanfic_OK_WithBodyAndOCCharacter(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
-}
-
-func TestCreateFanfic_ChapterCreateError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	userID := uuid.New()
-	req := dto.CreateFanficRequest{Title: "T", Body: "hi"}
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
-	m.fanficRepo.EXPECT().
-		CreateWithDetails(mock.Anything, mock.Anything, userID, "T", "", "Umineko", "K", "English", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false).
-		Return(nil)
-	m.fanficRepo.EXPECT().CreateChapter(mock.Anything, mock.Anything, mock.Anything, 1, "", "hi", 1).Return(errors.New("db"))
-
-	// when
-	_, err := svc.CreateFanfic(context.Background(), userID, req)
-
-	// then
-	require.Error(t, err)
 }
 
 func TestGetFanfic_RepoError(t *testing.T) {
@@ -384,7 +381,6 @@ func TestUpdateFanfic_EmptyTitle(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 
 	// when
 	err := svc.UpdateFanfic(context.Background(), id, userID, dto.UpdateFanficRequest{Title: "  "})
@@ -399,7 +395,6 @@ func TestUpdateFanfic_TooManyGenres(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 
 	// when
 	err := svc.UpdateFanfic(context.Background(), id, userID, dto.UpdateFanficRequest{Title: "T", Genres: []string{"a", "b", "c"}})
@@ -414,7 +409,6 @@ func TestUpdateFanfic_TooManyTags(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 	tags := make([]string, 11)
 	for i := range tags {
 		tags[i] = string(rune('a' + i))
@@ -433,7 +427,6 @@ func TestUpdateFanfic_TagTooLong(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 
 	// when
 	err := svc.UpdateFanfic(context.Background(), id, userID, dto.UpdateFanficRequest{Title: "T", Tags: []string{"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}})
@@ -448,7 +441,6 @@ func TestUpdateFanfic_InvalidRating(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 
 	// when
 	err := svc.UpdateFanfic(context.Background(), id, userID, dto.UpdateFanficRequest{Title: "T", Rating: "X"})
@@ -472,11 +464,36 @@ func TestUpdateFanfic_AsAdmin_OK(t *testing.T) {
 	}
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "ser").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "en").Return(nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, id, userID).Return(&model.FanficRow{
+		ID:       id,
+		UserID:   author,
+		Title:    "old",
+		Series:   "ser",
+		Rating:   "K",
+		Language: "en",
+		Status:   "in_progress",
+	}, nil)
 	m.fanficRepo.EXPECT().
-		UpdateWithDetails(mock.Anything, id, userID, "T", "s", "ser", "K", "en", "in_progress", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false, true).
+		UpdateWithDetails(mock.Anything, repository.FanficUpdate{
+			ID:       id,
+			UserID:   userID,
+			Title:    "T",
+			Summary:  "s",
+			Series:   "ser",
+			Rating:   "K",
+			Language: "en",
+			Status:   "in_progress",
+			AsAdmin:  true,
+		}).
 		Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficUpdateAdmin,
+		TargetType: repository.AuditTargetFanfic,
+		TargetID:   id.String(),
+		Details:    "changed=title,summary",
+		SubjectID:  author,
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateFanfic(context.Background(), id, userID, req)
@@ -485,7 +502,7 @@ func TestUpdateFanfic_AsAdmin_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUpdateFanfic_RegistersOCCharacter(t *testing.T) {
+func TestUpdateFanfic_PassesCharactersInSpec(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
@@ -497,13 +514,17 @@ func TestUpdateFanfic_RegistersOCCharacter(t *testing.T) {
 		},
 	}
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		UpdateWithDetails(mock.Anything, id, userID, "T", "", "Umineko", "K", "English", "", false, false, []string(nil), []string(nil), req.Characters, false, false).
+		UpdateWithDetails(mock.Anything, repository.FanficUpdate{
+			ID:         id,
+			UserID:     userID,
+			Title:      "T",
+			Series:     "Umineko",
+			Rating:     "K",
+			Language:   "English",
+			Characters: req.Characters,
+		}).
 		Return(nil)
-	m.fanficRepo.EXPECT().RegisterOCCharacter(mock.Anything, "Custom", userID).Return(nil)
 
 	// when
 	err := svc.UpdateFanfic(context.Background(), id, userID, req)
@@ -518,11 +539,15 @@ func TestUpdateFanfic_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
-	m.fanficRepo.EXPECT().RegisterSeries(mock.Anything, "Umineko").Return(nil)
-	m.fanficRepo.EXPECT().RegisterLanguage(mock.Anything, "English").Return(nil)
 	m.fanficRepo.EXPECT().
-		UpdateWithDetails(mock.Anything, id, userID, "T", "", "Umineko", "K", "English", "", false, false, []string(nil), []string(nil), []dto.FanficCharacter(nil), false, false).
+		UpdateWithDetails(mock.Anything, repository.FanficUpdate{
+			ID:       id,
+			UserID:   userID,
+			Title:    "T",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+		}).
 		Return(errors.New("db"))
 
 	// when
@@ -537,8 +562,20 @@ func TestDeleteFanfic_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
-	m.fanficRepo.EXPECT().DeleteAsAdmin(mock.Anything, id).Return(nil)
+	m.fanficRepo.EXPECT().
+		DeleteFanfic(mock.Anything, repository.FanficDelete{ID: id, UserID: userID, AsAdmin: true}).
+		Return(nil, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficDeleteAdmin,
+		TargetType: repository.AuditTargetFanfic,
+		TargetID:   id.String(),
+		SubjectID:  author,
+	}).Return(nil)
+	m.uploadSvc.EXPECT().Delete().Once()
 
 	// when
 	err := svc.DeleteFanfic(context.Background(), id, userID)
@@ -547,19 +584,107 @@ func TestDeleteFanfic_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestDeleteFanfic_AsOwner(t *testing.T) {
+func TestDeleteFanfic_OwnerWithPermissionIsNotAdminAction(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
-	m.fanficRepo.EXPECT().Delete(mock.Anything, id, userID).Return(errors.New("not owner"))
+	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.fanficRepo.EXPECT().
+		DeleteFanfic(mock.Anything, repository.FanficDelete{ID: id, UserID: userID}).
+		Return(nil, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficDelete,
+		TargetType: repository.AuditTargetFanfic,
+		TargetID:   id.String(),
+		SubjectID:  userID,
+	}).Return(nil)
+	m.uploadSvc.EXPECT().Delete().Once()
+
+	// when
+	err := svc.DeleteFanfic(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteFanfic_UnlinksReturnedPaths(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	paths := []string{"/uploads/images/cover.png", "/uploads/images/cover_thumb.png", "/uploads/images/comment.png"}
+	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.fanficRepo.EXPECT().
+		DeleteFanfic(mock.Anything, repository.FanficDelete{ID: id, UserID: userID}).
+		Return(paths, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficDelete,
+		TargetType: repository.AuditTargetFanfic,
+		TargetID:   id.String(),
+		SubjectID:  userID,
+	}).Return(nil)
+	m.uploadSvc.EXPECT().Delete(paths).Once()
+
+	// when
+	err := svc.DeleteFanfic(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+	m.uploadSvc.AssertExpectations(t)
+}
+
+func TestDeleteFanfic_RepoErrorUnlinksNothing(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
+	m.fanficRepo.EXPECT().
+		DeleteFanfic(mock.Anything, repository.FanficDelete{ID: id, UserID: userID}).
+		Return([]string{"/uploads/images/cover.png"}, errors.New("db"))
 
 	// when
 	err := svc.DeleteFanfic(context.Background(), id, userID)
 
 	// then
 	require.Error(t, err)
+	m.uploadSvc.AssertNotCalled(t, "DeleteAll", mock.Anything)
+}
+
+func TestDeleteFanfic_AsOwner(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(author, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
+	m.fanficRepo.EXPECT().
+		DeleteFanfic(mock.Anything, repository.FanficDelete{ID: id, UserID: userID}).
+		Return(nil, errors.New("not owner"))
+
+	// when
+	err := svc.DeleteFanfic(context.Background(), id, userID)
+
+	// then
+	require.Error(t, err)
+}
+
+func TestDeleteFanfic_NotFoundIfAuthorLookupFails(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("no row"))
+
+	// when
+	err := svc.DeleteFanfic(context.Background(), id, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestListFanfics_RepoError(t *testing.T) {
@@ -874,7 +999,9 @@ func TestCreateChapter_CreateError(t *testing.T) {
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(userID, nil)
 	m.fanficRepo.EXPECT().GetNextChapterNumber(mock.Anything, fanficID).Return(2, nil)
-	m.fanficRepo.EXPECT().CreateChapter(mock.Anything, mock.Anything, fanficID, 2, "Title", "body", 1).Return(errors.New("db"))
+	m.fanficRepo.EXPECT().
+		CreateChapterWithCount(mock.Anything, fanficID, repository.NewChapter{Number: 2, Title: "Title", Body: "body", WordCount: 1}).
+		Return(nil, errors.New("db"))
 
 	// when
 	_, err := svc.CreateChapter(context.Background(), fanficID, userID, dto.CreateChapterRequest{Title: " Title ", Body: "body"})
@@ -890,8 +1017,9 @@ func TestCreateChapter_OK(t *testing.T) {
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(userID, nil)
 	m.fanficRepo.EXPECT().GetNextChapterNumber(mock.Anything, fanficID).Return(3, nil)
-	m.fanficRepo.EXPECT().CreateChapter(mock.Anything, mock.Anything, fanficID, 3, "T", "body", 1).Return(nil)
-	m.fanficRepo.EXPECT().UpdateWordCount(mock.Anything, fanficID).Return(nil)
+	m.fanficRepo.EXPECT().
+		CreateChapterWithCount(mock.Anything, fanficID, repository.NewChapter{Number: 3, Title: "T", Body: "body", WordCount: 1}).
+		Return(&model.FanficChapterRow{ID: uuid.New()}, nil)
 
 	// when
 	id, err := svc.CreateChapter(context.Background(), fanficID, userID, dto.CreateChapterRequest{Title: "T", Body: "body"})
@@ -1024,26 +1152,12 @@ func TestUpdateChapter_UpdateError(t *testing.T) {
 	chapterID := uuid.New()
 	userID := uuid.New()
 	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(userID, nil)
-	m.fanficRepo.EXPECT().UpdateChapter(mock.Anything, chapterID, "T", "body", 1).Return(errors.New("db"))
+	m.fanficRepo.EXPECT().
+		UpdateChapterWithCount(mock.Anything, repository.ChapterUpdate{ID: chapterID, Title: "T", Body: "body", WordCount: 1}).
+		Return(errors.New("db"))
 
 	// when
 	err := svc.UpdateChapter(context.Background(), chapterID, userID, dto.UpdateChapterRequest{Title: "T", Body: "body"})
-
-	// then
-	require.Error(t, err)
-}
-
-func TestUpdateChapter_FanficIDError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	chapterID := uuid.New()
-	userID := uuid.New()
-	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(userID, nil)
-	m.fanficRepo.EXPECT().UpdateChapter(mock.Anything, chapterID, "", "b", 1).Return(nil)
-	m.fanficRepo.EXPECT().GetChapterFanficID(mock.Anything, chapterID).Return(uuid.Nil, errors.New("no row"))
-
-	// when
-	err := svc.UpdateChapter(context.Background(), chapterID, userID, dto.UpdateChapterRequest{Body: "b"})
 
 	// then
 	require.Error(t, err)
@@ -1054,12 +1168,20 @@ func TestUpdateChapter_AsAdmin_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	chapterID := uuid.New()
 	userID := uuid.New()
-	fanficID := uuid.New()
-	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(uuid.New(), nil)
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-	m.fanficRepo.EXPECT().UpdateChapter(mock.Anything, chapterID, "", "b", 1).Return(nil)
-	m.fanficRepo.EXPECT().GetChapterFanficID(mock.Anything, chapterID).Return(fanficID, nil)
-	m.fanficRepo.EXPECT().UpdateWordCount(mock.Anything, fanficID).Return(nil)
+	m.fanficRepo.EXPECT().
+		UpdateChapterWithCount(mock.Anything, repository.ChapterUpdate{ID: chapterID, Body: "b", WordCount: 1}).
+		Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficChapterUpdateAdmin,
+		TargetType: repository.AuditTargetFanficChapter,
+		TargetID:   chapterID.String(),
+		Details:    "title=,word_count=1",
+		SubjectID:  author,
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateChapter(context.Background(), chapterID, userID, dto.UpdateChapterRequest{Body: "b"})
@@ -1097,30 +1219,13 @@ func TestDeleteChapter_NotAuthor(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotAuthor)
 }
 
-func TestDeleteChapter_FanficIDError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	chapterID := uuid.New()
-	userID := uuid.New()
-	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(userID, nil)
-	m.fanficRepo.EXPECT().GetChapterFanficID(mock.Anything, chapterID).Return(uuid.Nil, errors.New("boom"))
-
-	// when
-	err := svc.DeleteChapter(context.Background(), chapterID, userID)
-
-	// then
-	require.Error(t, err)
-}
-
 func TestDeleteChapter_DeleteError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	chapterID := uuid.New()
 	userID := uuid.New()
-	fanficID := uuid.New()
 	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(userID, nil)
-	m.fanficRepo.EXPECT().GetChapterFanficID(mock.Anything, chapterID).Return(fanficID, nil)
-	m.fanficRepo.EXPECT().DeleteChapter(mock.Anything, chapterID).Return(errors.New("db"))
+	m.fanficRepo.EXPECT().DeleteChapterWithCount(mock.Anything, chapterID).Return(errors.New("db"))
 
 	// when
 	err := svc.DeleteChapter(context.Background(), chapterID, userID)
@@ -1134,12 +1239,39 @@ func TestDeleteChapter_AsAdmin_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	chapterID := uuid.New()
 	userID := uuid.New()
-	fanficID := uuid.New()
-	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(uuid.New(), nil)
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
-	m.fanficRepo.EXPECT().GetChapterFanficID(mock.Anything, chapterID).Return(fanficID, nil)
-	m.fanficRepo.EXPECT().DeleteChapter(mock.Anything, chapterID).Return(nil)
-	m.fanficRepo.EXPECT().UpdateWordCount(mock.Anything, fanficID).Return(nil)
+	m.fanficRepo.EXPECT().DeleteChapterWithCount(mock.Anything, chapterID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficChapterDeleteAdmin,
+		TargetType: repository.AuditTargetFanficChapter,
+		TargetID:   chapterID.String(),
+		SubjectID:  author,
+	}).Return(nil)
+
+	// when
+	err := svc.DeleteChapter(context.Background(), chapterID, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteChapter_AsAuthor_OK(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	chapterID := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetChapterAuthorID(mock.Anything, chapterID).Return(userID, nil)
+	m.fanficRepo.EXPECT().DeleteChapterWithCount(mock.Anything, chapterID).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficChapterDelete,
+		TargetType: repository.AuditTargetFanficChapter,
+		TargetID:   chapterID.String(),
+		SubjectID:  userID,
+	}).Return(nil)
 
 	// when
 	err := svc.DeleteChapter(context.Background(), chapterID, userID)
@@ -1359,8 +1491,8 @@ func TestCreateComment_RepoError(t *testing.T) {
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().
-		CreateComment(mock.Anything, mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
-		Return(errors.New("db"))
+		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
+		Return(nil, errors.New("db"))
 
 	// when
 	_, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -1378,8 +1510,8 @@ func TestCreateComment_OK(t *testing.T) {
 	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().
-		CreateComment(mock.Anything, mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
-		Return(nil)
+		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
+		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -1406,8 +1538,19 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.fanficRepo.EXPECT().UpdateCommentAsAdmin(mock.Anything, id, "hi").Return(nil)
+	m.fanficRepo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.FanficCommentUpdate{ID: id, UserID: userID, Body: "hi", AsAdmin: true}).
+		Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     repository.AuditActionFanficCommentUpdateAdmin,
+		TargetType: repository.AuditTargetFanficComment,
+		TargetID:   id.String(),
+		SubjectID:  author,
+	}).Return(nil)
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "hi"})
@@ -1416,13 +1559,35 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateComment_AsAuthorWritesNoAuditRow(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.fanficRepo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.FanficCommentUpdate{ID: id, UserID: userID, Body: "hi"}).
+		Return(nil)
+
+	// when
+	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "hi"})
+
+	// then
+	require.NoError(t, err)
+	m.auditRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
+}
+
 func TestUpdateComment_AsOwner(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.fanficRepo.EXPECT().UpdateComment(mock.Anything, id, userID, "hi").Return(errors.New("not owner"))
+	m.fanficRepo.EXPECT().
+		UpdateCommentBody(mock.Anything, repository.FanficCommentUpdate{ID: id, UserID: userID, Body: "hi"}).
+		Return(errors.New("not owner"))
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "hi"})
@@ -1436,9 +1601,24 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-	m.fanficRepo.EXPECT().DeleteCommentAsAdmin(mock.Anything, id).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, userID, "fanfic_comment_delete_admin", "fanfic_comment", id.String(), "").Return(nil)
+	m.fanficRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.FanficCommentDelete{
+			ID:      id,
+			UserID:  userID,
+			AsAdmin: true,
+			Audit: repository.NewAuditEntry{
+				ActorID:    userID,
+				Action:     repository.AuditActionFanficCommentDeleteAdmin,
+				TargetType: repository.AuditTargetFanficComment,
+				TargetID:   id.String(),
+				SubjectID:  author,
+			},
+		}).
+		Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Once()
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -1447,13 +1627,85 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDeleteComment_OwnCommentIsNotAdminAction(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.fanficRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.FanficCommentDelete{
+			ID:     id,
+			UserID: userID,
+			Audit: repository.NewAuditEntry{
+				ActorID:    userID,
+				Action:     repository.AuditActionFanficCommentDelete,
+				TargetType: repository.AuditTargetFanficComment,
+				TargetID:   id.String(),
+				SubjectID:  userID,
+			},
+		}).
+		Return(nil, nil)
+	m.uploadSvc.EXPECT().Delete().Once()
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestDeleteComment_UnlinksReturnedPaths(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	paths := []string{"/uploads/images/comment.png", "/uploads/images/comment_thumb.png"}
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
+	m.fanficRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.FanficCommentDelete{
+			ID:     id,
+			UserID: userID,
+			Audit: repository.NewAuditEntry{
+				ActorID:    userID,
+				Action:     repository.AuditActionFanficCommentDelete,
+				TargetType: repository.AuditTargetFanficComment,
+				TargetID:   id.String(),
+				SubjectID:  userID,
+			},
+		}).
+		Return(paths, nil)
+	m.uploadSvc.EXPECT().Delete(paths).Once()
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.NoError(t, err)
+	m.uploadSvc.AssertExpectations(t)
+}
+
 func TestDeleteComment_AsOwner(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
+	author := uuid.New()
+	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(author, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.fanficRepo.EXPECT().DeleteComment(mock.Anything, id, userID).Return(errors.New("not owner"))
+	m.fanficRepo.EXPECT().
+		DeleteCommentWithAudit(mock.Anything, repository.FanficCommentDelete{
+			ID:     id,
+			UserID: userID,
+			Audit: repository.NewAuditEntry{
+				ActorID:    userID,
+				Action:     repository.AuditActionFanficCommentDelete,
+				TargetType: repository.AuditTargetFanficComment,
+				TargetID:   id.String(),
+				SubjectID:  author,
+			},
+		}).
+		Return(nil, errors.New("not owner"))
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -1629,7 +1881,7 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().
-		AddCommentMedia(mock.Anything, commentID, "/uploads/fanfics/x.png", "image", "", 0).
+		AddCommentMedia(mock.Anything, repository.NewFanficCommentMedia{CommentID: commentID, MediaURL: "/uploads/fanfics/x.png", MediaType: "image"}).
 		Return(int64(0), errors.New("db"))
 
 	// when
@@ -1652,7 +1904,7 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().
-		AddCommentMedia(mock.Anything, commentID, "/uploads/fanfics/x.png", "image", "", 0).
+		AddCommentMedia(mock.Anything, repository.NewFanficCommentMedia{CommentID: commentID, MediaURL: "/uploads/fanfics/x.png", MediaType: "image"}).
 		Return(int64(42), nil)
 
 	// when

@@ -72,6 +72,18 @@ func TestOverQuota(t *testing.T) {
 	}
 }
 
+func TestQuotaClearsAt(t *testing.T) {
+	// given
+	oldest := time.Date(2026, 8, 9, 10, 0, 0, 0, time.UTC)
+
+	// when
+	got := quotaClearsAt(oldest)
+
+	// then
+	assert.Equal(t, oldest.Add(24*time.Hour), got)
+	assert.True(t, quotaClearsAt(time.Time{}).IsZero(), "an unknown oldest invocation must not invent a clearing time")
+}
+
 func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -114,7 +126,12 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 			}, nil).Once()
 
 			botRepo := repository.NewMockChatbotRepository(t)
-			botRepo.EXPECT().CreateInvocation(mock.Anything, invocationID, botUserID, mock.Anything, (*uuid.UUID)(nil), mock.Anything, string(SurfacePost), "gpt-5.6").Return(nil).Once()
+			botRepo.EXPECT().CreateInvocation(mock.Anything, mock.MatchedBy(func(spec repository.NewInvocation) bool {
+				return spec.BotUserID == botUserID &&
+					spec.RoomID == nil &&
+					spec.Channel == string(SurfacePost) &&
+					spec.Model == "gpt-5.6"
+			})).Return(&repository.ChatbotInvocation{ID: invocationID}, nil).Once()
 			botRepo.EXPECT().CompleteInvocation(mock.Anything, invocationID, mock.Anything, tc.wantStatus).Return(nil).Once()
 
 			postSvc := post.NewMockService(t)
@@ -129,7 +146,7 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 			}
 
 			// when
-			out := svc.reply(context.Background(), j, tuning{}, invocationID, "gpt-5.6")
+			out := svc.reply(context.Background(), j, tuning{}, "gpt-5.6")
 
 			// then
 			assert.Equal(t, tc.wantStatus, out.status)
@@ -165,7 +182,12 @@ func TestReply_EmptyTextBecomesAnExplainableOutcome(t *testing.T) {
 			}, nil).Once()
 
 			botRepo := repository.NewMockChatbotRepository(t)
-			botRepo.EXPECT().CreateInvocation(mock.Anything, invocationID, botUserID, mock.Anything, (*uuid.UUID)(nil), mock.Anything, string(SurfacePost), "gpt-5.6").Return(nil).Once()
+			botRepo.EXPECT().CreateInvocation(mock.Anything, mock.MatchedBy(func(spec repository.NewInvocation) bool {
+				return spec.BotUserID == botUserID &&
+					spec.RoomID == nil &&
+					spec.Channel == string(SurfacePost) &&
+					spec.Model == "gpt-5.6"
+			})).Return(&repository.ChatbotInvocation{ID: invocationID}, nil).Once()
 			botRepo.EXPECT().CompleteInvocation(mock.Anything, invocationID, mock.Anything, repository.InvocationRefused).Return(nil).Once()
 
 			postSvc := post.NewMockService(t)
@@ -177,7 +199,7 @@ func TestReply_EmptyTextBecomesAnExplainableOutcome(t *testing.T) {
 			}
 
 			// when
-			out := svc.reply(context.Background(), j, tuning{}, invocationID, "gpt-5.6")
+			out := svc.reply(context.Background(), j, tuning{}, "gpt-5.6")
 
 			// then
 			assert.Equal(t, reasonEmptyReply, out.reason)

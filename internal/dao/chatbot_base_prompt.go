@@ -43,8 +43,8 @@ func isForeignKeyViolation(err error) bool {
 	return false
 }
 
-func (r *chatbotBasePromptDAO) List(ctx context.Context) ([]repository.ChatbotBasePrompt, error) {
-	rows, err := r.db.QueryContext(ctx, basePromptSelectBase+` ORDER BY b.name`)
+func (r *chatbotBasePromptDAO) List(ctx context.Context, tx ...*sql.Tx) ([]repository.ChatbotBasePrompt, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, basePromptSelectBase+` ORDER BY b.name`)
 	if err != nil {
 		return nil, fmt.Errorf("list base prompts: %w", err)
 	}
@@ -66,9 +66,9 @@ func (r *chatbotBasePromptDAO) List(ctx context.Context) ([]repository.ChatbotBa
 	return prompts, nil
 }
 
-func (r *chatbotBasePromptDAO) GetByID(ctx context.Context, id uuid.UUID) (*repository.ChatbotBasePrompt, error) {
+func (r *chatbotBasePromptDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.ChatbotBasePrompt, error) {
 	var prompt repository.ChatbotBasePrompt
-	err := scanBasePrompt(r.db.QueryRowContext(ctx, basePromptSelectBase+` WHERE b.id = $1`, id), &prompt)
+	err := scanBasePrompt(txOrDB(r.db, tx).QueryRowContext(ctx, basePromptSelectBase+` WHERE b.id = $1`, id), &prompt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, repository.ErrBasePromptNotFound
 	}
@@ -79,46 +79,48 @@ func (r *chatbotBasePromptDAO) GetByID(ctx context.Context, id uuid.UUID) (*repo
 	return &prompt, nil
 }
 
-func (r *chatbotBasePromptDAO) Create(ctx context.Context, prompt repository.ChatbotBasePrompt) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO chatbot_base_prompts (id, name, prompt) VALUES ($1, $2, $3)`,
-		prompt.ID, prompt.Name, prompt.Prompt,
-	)
+func (r *chatbotBasePromptDAO) Create(ctx context.Context, name, prompt string, tx ...*sql.Tx) (*repository.ChatbotBasePrompt, error) {
+	var created repository.ChatbotBasePrompt
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO chatbot_base_prompts (id, name, prompt)
+		 VALUES (gen_random_uuid(), $1, $2)
+		 RETURNING id, name, prompt, created_at, updated_at, 0`,
+		name, prompt,
+	).Scan(&created.ID, &created.Name, &created.Prompt, &created.CreatedAt, &created.UpdatedAt, &created.BotCount)
 	if isUniqueViolation(err) {
-		return repository.ErrBasePromptNameUsed
+		return nil, repository.ErrBasePromptNameUsed
 	}
 	if err != nil {
-		return fmt.Errorf("create base prompt: %w", err)
+		return nil, fmt.Errorf("create base prompt: %w", err)
 	}
 
-	return nil
+	return &created, nil
 }
 
-func (r *chatbotBasePromptDAO) Update(ctx context.Context, prompt repository.ChatbotBasePrompt) error {
-	res, err := r.db.ExecContext(ctx,
-		`UPDATE chatbot_base_prompts SET name = $2, prompt = $3, updated_at = NOW() WHERE id = $1`,
-		prompt.ID, prompt.Name, prompt.Prompt,
-	)
+func (r *chatbotBasePromptDAO) Update(ctx context.Context, id uuid.UUID, name, prompt string, tx ...*sql.Tx) (*repository.ChatbotBasePrompt, error) {
+	var updated repository.ChatbotBasePrompt
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
+		`UPDATE chatbot_base_prompts SET name = $2, prompt = $3, updated_at = NOW()
+		 WHERE id = $1
+		 RETURNING id, name, prompt, created_at, updated_at,
+		   (SELECT COUNT(*) FROM chatbots c WHERE c.base_prompt_id = chatbot_base_prompts.id)`,
+		id, name, prompt,
+	).Scan(&updated.ID, &updated.Name, &updated.Prompt, &updated.CreatedAt, &updated.UpdatedAt, &updated.BotCount)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, repository.ErrBasePromptNotFound
+	}
 	if isUniqueViolation(err) {
-		return repository.ErrBasePromptNameUsed
+		return nil, repository.ErrBasePromptNameUsed
 	}
 	if err != nil {
-		return fmt.Errorf("update base prompt: %w", err)
+		return nil, fmt.Errorf("update base prompt: %w", err)
 	}
 
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("update base prompt rows: %w", err)
-	}
-	if affected == 0 {
-		return repository.ErrBasePromptNotFound
-	}
-
-	return nil
+	return &updated, nil
 }
 
-func (r *chatbotBasePromptDAO) Delete(ctx context.Context, id uuid.UUID) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM chatbot_base_prompts WHERE id = $1`, id)
+func (r *chatbotBasePromptDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM chatbot_base_prompts WHERE id = $1`, id)
 	if isForeignKeyViolation(err) {
 		return repository.ErrBasePromptInUse
 	}

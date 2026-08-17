@@ -2,14 +2,15 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 )
 
 type (
 	SidebarLastVisitedRepository interface {
-		Upsert(ctx context.Context, userID uuid.UUID, key string) error
-		ListForUser(ctx context.Context, userID uuid.UUID) (map[string]string, error)
+		Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error
+		ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error)
 	}
 )
 
@@ -21,10 +22,10 @@ func NewSidebarLastVisitedRepo(dao SidebarLastVisitedRepository) SidebarLastVisi
 	return &sidebarLastVisitedRepository{dao: dao}
 }
 
-func (r *sidebarLastVisitedRepository) Upsert(ctx context.Context, userID uuid.UUID, key string) error {
-	return r.dao.Upsert(ctx, userID, key)
+func (r *sidebarLastVisitedRepository) Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error {
+	return r.dao.Upsert(ctx, userID, key, tx...)
 }
 
-func (r *sidebarLastVisitedRepository) ListForUser(ctx context.Context, userID uuid.UUID) (map[string]string, error) {
-	return r.dao.ListForUser(ctx, userID)
+func (r *sidebarLastVisitedRepository) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error) {
+	return r.dao.ListForUser(ctx, userID, tx...)
 }

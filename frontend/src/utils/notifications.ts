@@ -44,129 +44,6 @@ const categoryOrder: NotificationCategory[] = [
     "moderation",
 ];
 
-function routeByReferenceType(notif: Notification): string {
-    const refType = notif.reference_type;
-    if (refType === "chat") {
-        return `/chat/${notif.reference_id}`;
-    }
-    if (refType.startsWith("post_comment:")) {
-        const commentId = refType.split(":")[1];
-        return `/game-board/${notif.reference_id}#comment-${commentId}`;
-    }
-    if (refType.startsWith("art_comment:")) {
-        const commentId = refType.split(":")[1];
-        return `/gallery/art/${notif.reference_id}#comment-${commentId}`;
-    }
-    if (refType === "post") {
-        return `/game-board/${notif.reference_id}`;
-    }
-    if (refType === "art") {
-        return `/gallery/art/${notif.reference_id}`;
-    }
-    if (refType === "mystery") {
-        return `/mystery/${notif.reference_id}`;
-    }
-    if (refType.startsWith("mystery_attempt:")) {
-        const attemptId = refType.split(":")[1];
-        return `/mystery/${notif.reference_id}#attempt-${attemptId}`;
-    }
-    if (refType.startsWith("mystery_comment:")) {
-        const commentId = refType.split(":")[1];
-        return `/mystery/${notif.reference_id}#comment-${commentId}`;
-    }
-    if (refType === "fanfic") {
-        return `/fanfiction/${notif.reference_id}`;
-    }
-    if (refType.startsWith("fanfic_comment:")) {
-        const commentId = refType.split(":")[1];
-        return `/fanfiction/${notif.reference_id}#comment-${commentId}`;
-    }
-    if (refType === "ship" || refType.startsWith("ship_comment:")) {
-        const parts = refType.split(":");
-        if (parts.length === 2) {
-            return `/ships/${notif.reference_id}#comment-${parts[1]}`;
-        }
-        return `/ships/${notif.reference_id}`;
-    }
-    if (refType === "oc" || refType.startsWith("oc_comment:")) {
-        const parts = refType.split(":");
-        if (parts.length === 2) {
-            return `/oc/${notif.reference_id}#comment-${parts[1]}`;
-        }
-        return `/oc/${notif.reference_id}`;
-    }
-    if (refType === "announcement" || refType.startsWith("announcement_comment:")) {
-        const parts = refType.split(":");
-        if (parts.length === 2) {
-            return `/announcements/${notif.reference_id}#comment-${parts[1]}`;
-        }
-        return `/announcements/${notif.reference_id}`;
-    }
-    if (refType.startsWith("journal_entry_comment:")) {
-        const parts = refType.split(":");
-        if (parts.length === 3 && parts[1] !== "" && parts[2] !== "") {
-            return `/journals/${notif.reference_id}/entry/${parts[1]}#comment-${parts[2]}`;
-        }
-        return `/journals/${notif.reference_id}`;
-    }
-    if (refType.startsWith("journal_entry:")) {
-        const parts = refType.split(":");
-        if (parts.length === 2 && parts[1] !== "") {
-            return `/journals/${notif.reference_id}/entry/${parts[1]}`;
-        }
-        return `/journals/${notif.reference_id}`;
-    }
-    if (refType === "journal" || refType.startsWith("journal_comment:")) {
-        const parts = refType.split(":");
-        if (parts.length === 2) {
-            return `/journals/${notif.reference_id}#comment-${parts[1]}`;
-        }
-        return `/journals/${notif.reference_id}`;
-    }
-    if (refType.startsWith("secret_comment:")) {
-        const parts = refType.split(":");
-        if (parts.length === 3) {
-            return `/secrets/${parts[1]}#comment-${parts[2]}`;
-        }
-        return "/secrets";
-    }
-    if (refType.startsWith("secret:")) {
-        const parts = refType.split(":");
-        if (parts.length === 2 && parts[1] !== "") {
-            return `/secrets/${parts[1]}`;
-        }
-        return "/secrets";
-    }
-    if (refType.startsWith("theory_response:")) {
-        const responseId = refType.split(":")[1];
-        return `/theory/${notif.reference_id}#response-${responseId}`;
-    }
-    return `/theory/${notif.reference_id}`;
-}
-
-function categoryFromReferenceType(notif: Notification): NotificationCategory {
-    const refType = notif.reference_type;
-    if (refType === "post" || refType.startsWith("post_comment:")) {
-        return "game_board";
-    }
-    if (refType === "art" || refType.startsWith("art_comment:")) {
-        return "gallery";
-    }
-    if (refType === "theory" || refType === "response" || refType.startsWith("theory_response:")) {
-        return "theories";
-    }
-    if (refType === "mystery") {
-        return "game_board";
-    }
-    if (refType === "ship" || refType.startsWith("ship_comment:")) {
-        return "social";
-    }
-    if (refType === "oc" || refType.startsWith("oc_comment:")) {
-        return "social";
-    }
-    return "social";
-}
-
 const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     theory_response: {
         text: "responded to your theory",
@@ -514,6 +391,107 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
         route: routeByReferenceType,
     },
 };
+
+const ANCHORED_ROUTES = [
+    { prefix: "post_comment:", base: "/game-board", anchor: "comment" },
+    { prefix: "art_comment:", base: "/gallery/art", anchor: "comment" },
+    { prefix: "mystery_attempt:", base: "/mystery", anchor: "attempt" },
+    { prefix: "mystery_comment:", base: "/mystery", anchor: "comment" },
+    { prefix: "fanfic_comment:", base: "/fanfiction", anchor: "comment" },
+    { prefix: "theory_response:", base: "/theory", anchor: "response" },
+];
+
+const ENTITY_COMMENT_ROUTES = [
+    { entity: "ship", base: "/ships" },
+    { entity: "oc", base: "/oc" },
+    { entity: "announcement", base: "/announcements" },
+    { entity: "journal", base: "/journals" },
+];
+
+function routeByReferenceType(notif: Notification): string {
+    const refType = notif.reference_type;
+
+    for (const route of ANCHORED_ROUTES) {
+        if (refType.startsWith(route.prefix)) {
+            return `${route.base}/${notif.reference_id}#${route.anchor}-${refType.split(":")[1]}`;
+        }
+    }
+
+    for (const route of ENTITY_COMMENT_ROUTES) {
+        if (refType !== route.entity && !refType.startsWith(`${route.entity}_comment:`)) {
+            continue;
+        }
+
+        const parts = refType.split(":");
+        if (parts.length === 2) {
+            return `${route.base}/${notif.reference_id}#comment-${parts[1]}`;
+        }
+
+        return `${route.base}/${notif.reference_id}`;
+    }
+
+    if (refType === "chat") {
+        return `/chat/${notif.reference_id}`;
+    }
+    if (refType === "post") {
+        return `/game-board/${notif.reference_id}`;
+    }
+    if (refType === "art") {
+        return `/gallery/art/${notif.reference_id}`;
+    }
+    if (refType === "mystery") {
+        return `/mystery/${notif.reference_id}`;
+    }
+    if (refType === "fanfic") {
+        return `/fanfiction/${notif.reference_id}`;
+    }
+    if (refType.startsWith("journal_entry_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 3 && parts[1] !== "" && parts[2] !== "") {
+            return `/journals/${notif.reference_id}/entry/${parts[1]}#comment-${parts[2]}`;
+        }
+        return `/journals/${notif.reference_id}`;
+    }
+    if (refType.startsWith("journal_entry:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2 && parts[1] !== "") {
+            return `/journals/${notif.reference_id}/entry/${parts[1]}`;
+        }
+        return `/journals/${notif.reference_id}`;
+    }
+    if (refType.startsWith("secret_comment:")) {
+        const parts = refType.split(":");
+        if (parts.length === 3) {
+            return `/secrets/${parts[1]}#comment-${parts[2]}`;
+        }
+        return "/secrets";
+    }
+    if (refType.startsWith("secret:")) {
+        const parts = refType.split(":");
+        if (parts.length === 2 && parts[1] !== "") {
+            return `/secrets/${parts[1]}`;
+        }
+        return "/secrets";
+    }
+    return `/theory/${notif.reference_id}`;
+}
+
+function categoryFromReferenceType(notif: Notification): NotificationCategory {
+    const refType = notif.reference_type;
+    if (refType === "post" || refType.startsWith("post_comment:")) {
+        return "game_board";
+    }
+    if (refType === "art" || refType.startsWith("art_comment:")) {
+        return "gallery";
+    }
+    if (refType === "theory" || refType === "response" || refType.startsWith("theory_response:")) {
+        return "theories";
+    }
+    if (refType === "mystery") {
+        return "game_board";
+    }
+    return "social";
+}
 
 function gameRoomRoute(notif: Notification): string {
     const gameType = notif.reference_type || "chess";

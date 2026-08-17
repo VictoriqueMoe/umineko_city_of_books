@@ -74,11 +74,13 @@ import type {
     OCImage,
     OCListResponse,
     OCSummary,
+    PaginationFields,
     Poll,
     PostDetail,
     PostListResponse,
     PostMedia,
     QuickSearchResponse,
+    Quote,
     QuoteBrowseResponse,
     QuoteSearchResponse,
     SearchResponse,
@@ -96,6 +98,7 @@ import type {
     TagCount,
     TheoryDetail,
     TheoryListResponse,
+    UpdateGroupRoomRequest,
     UpdateProfilePayload,
     User,
     UserProfile,
@@ -326,6 +329,36 @@ export async function browseQuotes(params: {
         throw new Error(`Quote API error: ${response.status}`);
     }
     return response.json();
+}
+
+export async function tryGetQuoteByAudioId(series: Series, audioId: string, lang?: string): Promise<Quote | null> {
+    const firstId = audioId.split(",")[0].trim();
+    if (!firstId) {
+        return null;
+    }
+    try {
+        const qs = lang ? `?lang=${lang}` : "";
+        const response = await fetch(`${QUOTE_API}/${series}/quote/${firstId}${qs}`);
+        if (!response.ok) {
+            return null;
+        }
+        return response.json();
+    } catch {
+        return null;
+    }
+}
+
+export async function tryGetQuoteByIndex(series: Series, index: number, lang?: string): Promise<Quote | null> {
+    try {
+        const qs = lang ? `?lang=${lang}` : "";
+        const response = await fetch(`${QUOTE_API}/${series}/quote/index/${index}${qs}`);
+        if (!response.ok) {
+            return null;
+        }
+        return response.json();
+    } catch {
+        return null;
+    }
 }
 
 export async function getCharacters(series: Series = "umineko"): Promise<Record<string, string>> {
@@ -602,11 +635,8 @@ export interface InviteItem {
     created_at: string;
 }
 
-export interface InviteListResponse {
+export interface InviteListResponse extends PaginationFields {
     invites: InviteItem[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export async function createInvite(): Promise<InviteItem> {
@@ -650,6 +680,10 @@ export async function createGroupRoom(payload: {
     member_ids: string[];
 }): Promise<ChatRoom> {
     return apiPost<ChatRoom, typeof payload>("/chat/rooms", payload);
+}
+
+export async function updateChatRoom(roomId: string, payload: UpdateGroupRoomRequest): Promise<ChatRoom> {
+    return apiPut<ChatRoom, UpdateGroupRoomRequest>(`/chat/rooms/${roomId}`, payload);
 }
 
 export async function listPublicChatRooms(params: {
@@ -1125,11 +1159,8 @@ export interface ReportItem {
     created_at: string;
 }
 
-export interface ReportListResponse {
+export interface ReportListResponse extends PaginationFields {
     reports: ReportItem[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export async function getReports(
@@ -1251,34 +1282,44 @@ export async function unlikePost(id: string): Promise<void> {
     await apiDelete(`/posts/${id}/like`);
 }
 
-export async function createComment(postId: string, body: string, parentId?: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/posts/${postId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
+type CommentLikeBody = undefined | Record<string, never>;
+
+function commentEndpoints(parentPath: string, commentPath: string, likeBody: CommentLikeBody) {
+    return {
+        async create(parentId: string, body: string, replyToId?: string): Promise<{ id: string }> {
+            return apiPost<{ id: string }, { body: string; parent_id?: string }>(`${parentPath}/${parentId}/comments`, {
+                body,
+                parent_id: replyToId,
+            });
+        },
+        async update(id: string, body: string): Promise<void> {
+            await apiPut<unknown, { body: string }>(`${commentPath}/${id}`, { body });
+        },
+        async remove(id: string): Promise<void> {
+            await apiDelete(`${commentPath}/${id}`);
+        },
+        async like(id: string): Promise<void> {
+            await apiPost<unknown, CommentLikeBody>(`${commentPath}/${id}/like`, likeBody);
+        },
+        async unlike(id: string): Promise<void> {
+            await apiDelete(`${commentPath}/${id}/like`);
+        },
+        async uploadMedia(commentId: string, file: File): Promise<PostMedia> {
+            const formData = new FormData();
+            formData.append("media", file);
+            return apiPostFormData<PostMedia>(`${commentPath}/${commentId}/media`, formData);
+        },
+    };
 }
 
-export async function updateComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/comments/${id}`, { body });
-}
+const postComments = commentEndpoints("/posts", "/comments", undefined);
 
-export async function deleteComment(id: string): Promise<void> {
-    await apiDelete(`/comments/${id}`);
-}
-
-export async function likeComment(id: string): Promise<void> {
-    await apiPost<unknown, undefined>(`/comments/${id}/like`, undefined);
-}
-
-export async function unlikeComment(id: string): Promise<void> {
-    await apiDelete(`/comments/${id}/like`);
-}
-
-export async function uploadCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/comments/${commentId}/media`, formData);
-}
+export const createComment = postComments.create;
+export const updateComment = postComments.update;
+export const deleteComment = postComments.remove;
+export const likeComment = postComments.like;
+export const unlikeComment = postComments.unlike;
+export const uploadCommentMedia = postComments.uploadMedia;
 
 export async function getUserPosts(userId: string, limit: number = 20, offset: number = 0): Promise<PostListResponse> {
     const qs = buildQueryString({ limit, offset });
@@ -1386,34 +1427,14 @@ export async function getPopularTags(corner?: string): Promise<TagCount[]> {
     return apiFetch<TagCount[]>(`/art/tags${qs}`);
 }
 
-export async function createArtComment(artId: string, body: string, parentId?: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/art/${artId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const artComments = commentEndpoints("/art", "/art-comments", undefined);
 
-export async function updateArtComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/art-comments/${id}`, { body });
-}
-
-export async function deleteArtComment(id: string): Promise<void> {
-    await apiDelete(`/art-comments/${id}`);
-}
-
-export async function likeArtComment(id: string): Promise<void> {
-    await apiPost<unknown, undefined>(`/art-comments/${id}/like`, undefined);
-}
-
-export async function unlikeArtComment(id: string): Promise<void> {
-    await apiDelete(`/art-comments/${id}/like`);
-}
-
-export async function uploadArtCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/art-comments/${commentId}/media`, formData);
-}
+export const createArtComment = artComments.create;
+export const updateArtComment = artComments.update;
+export const deleteArtComment = artComments.remove;
+export const likeArtComment = artComments.like;
+export const unlikeArtComment = artComments.unlike;
+export const uploadArtCommentMedia = artComments.uploadMedia;
 
 export async function createGallery(name: string, description: string = ""): Promise<{ id: string }> {
     return apiPost<{ id: string }, { name: string; description: string }>("/galleries", { name, description });
@@ -1622,38 +1643,14 @@ export async function addMysteryClue(
     });
 }
 
-export async function createMysteryComment(
-    mysteryId: string,
-    body: string,
-    parentId?: string,
-): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/mysteries/${mysteryId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const mysteryComments = commentEndpoints("/mysteries", "/mystery-comments", {});
 
-export async function updateMysteryComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/mystery-comments/${id}`, { body });
-}
-
-export async function deleteMysteryComment(id: string): Promise<void> {
-    await apiDelete(`/mystery-comments/${id}`);
-}
-
-export async function likeMysteryComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/mystery-comments/${id}/like`, {});
-}
-
-export async function unlikeMysteryComment(id: string): Promise<void> {
-    await apiDelete(`/mystery-comments/${id}/like`);
-}
-
-export async function uploadMysteryCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/mystery-comments/${commentId}/media`, formData);
-}
+export const createMysteryComment = mysteryComments.create;
+export const updateMysteryComment = mysteryComments.update;
+export const deleteMysteryComment = mysteryComments.remove;
+export const likeMysteryComment = mysteryComments.like;
+export const unlikeMysteryComment = mysteryComments.unlike;
+export const uploadMysteryCommentMedia = mysteryComments.uploadMedia;
 
 export async function listSecrets(): Promise<SecretListResponse> {
     return apiFetch<SecretListResponse>("/secrets");
@@ -1663,34 +1660,14 @@ export async function getSecret(id: string): Promise<SecretDetailResponse> {
     return apiFetch<SecretDetailResponse>(`/secrets/${id}`);
 }
 
-export async function createSecretComment(secretId: string, body: string, parentId?: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/secrets/${secretId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const secretComments = commentEndpoints("/secrets", "/secret-comments", {});
 
-export async function updateSecretComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/secret-comments/${id}`, { body });
-}
-
-export async function deleteSecretComment(id: string): Promise<void> {
-    await apiDelete(`/secret-comments/${id}`);
-}
-
-export async function likeSecretComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/secret-comments/${id}/like`, {});
-}
-
-export async function unlikeSecretComment(id: string): Promise<void> {
-    await apiDelete(`/secret-comments/${id}/like`);
-}
-
-export async function uploadSecretCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/secret-comments/${commentId}/media`, formData);
-}
+export const createSecretComment = secretComments.create;
+export const updateSecretComment = secretComments.update;
+export const deleteSecretComment = secretComments.remove;
+export const likeSecretComment = secretComments.like;
+export const unlikeSecretComment = secretComments.unlike;
+export const uploadSecretCommentMedia = secretComments.uploadMedia;
 
 export async function uploadMysteryAttachment(mysteryId: string, file: File): Promise<MysteryAttachment> {
     const formData = new FormData();
@@ -1855,34 +1832,14 @@ export async function unfavouriteFanfic(id: string): Promise<void> {
     await apiDelete(`/fanfics/${id}/favourite`);
 }
 
-export async function createFanficComment(fanficId: string, body: string, parentId?: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/fanfics/${fanficId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const fanficComments = commentEndpoints("/fanfics", "/fanfic-comments", {});
 
-export async function updateFanficComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/fanfic-comments/${id}`, { body });
-}
-
-export async function deleteFanficComment(id: string): Promise<void> {
-    await apiDelete(`/fanfic-comments/${id}`);
-}
-
-export async function likeFanficComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/fanfic-comments/${id}/like`, {});
-}
-
-export async function unlikeFanficComment(id: string): Promise<void> {
-    await apiDelete(`/fanfic-comments/${id}/like`);
-}
-
-export async function uploadFanficCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/fanfic-comments/${commentId}/media`, formData);
-}
+export const createFanficComment = fanficComments.create;
+export const updateFanficComment = fanficComments.update;
+export const deleteFanficComment = fanficComments.remove;
+export const likeFanficComment = fanficComments.like;
+export const unlikeFanficComment = fanficComments.unlike;
+export const uploadFanficCommentMedia = fanficComments.uploadMedia;
 
 export async function getFanficLanguages(): Promise<string[]> {
     const res = await apiFetch<{ languages: string[] }>("/fanfic-languages");
@@ -1912,38 +1869,14 @@ export async function getUserFanficFavourites(userId: string, limit = 20, offset
 
 // Announcements
 
-export async function createAnnouncementComment(
-    announcementId: string,
-    body: string,
-    parentId?: string,
-): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/announcements/${announcementId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const announcementComments = commentEndpoints("/announcements", "/announcement-comments", {});
 
-export async function updateAnnouncementComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/announcement-comments/${id}`, { body });
-}
-
-export async function deleteAnnouncementComment(id: string): Promise<void> {
-    await apiDelete(`/announcement-comments/${id}`);
-}
-
-export async function likeAnnouncementComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/announcement-comments/${id}/like`, {});
-}
-
-export async function unlikeAnnouncementComment(id: string): Promise<void> {
-    await apiDelete(`/announcement-comments/${id}/like`);
-}
-
-export async function uploadAnnouncementCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/announcement-comments/${commentId}/media`, formData);
-}
+export const createAnnouncementComment = announcementComments.create;
+export const updateAnnouncementComment = announcementComments.update;
+export const deleteAnnouncementComment = announcementComments.remove;
+export const likeAnnouncementComment = announcementComments.like;
+export const unlikeAnnouncementComment = announcementComments.unlike;
+export const uploadAnnouncementCommentMedia = announcementComments.uploadMedia;
 
 export async function listJournals(params: {
     sort?: string;
@@ -2029,27 +1962,13 @@ export async function deleteJournalEntry(entryId: string): Promise<void> {
     await apiDelete(`/journal-entries/${entryId}`);
 }
 
-export async function updateJournalComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/journal-comments/${id}`, { body });
-}
+const journalComments = commentEndpoints("/journals", "/journal-comments", {});
 
-export async function deleteJournalComment(id: string): Promise<void> {
-    await apiDelete(`/journal-comments/${id}`);
-}
-
-export async function likeJournalComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/journal-comments/${id}/like`, {});
-}
-
-export async function unlikeJournalComment(id: string): Promise<void> {
-    await apiDelete(`/journal-comments/${id}/like`);
-}
-
-export async function uploadJournalCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/journal-comments/${commentId}/media`, formData);
-}
+export const updateJournalComment = journalComments.update;
+export const deleteJournalComment = journalComments.remove;
+export const likeJournalComment = journalComments.like;
+export const unlikeJournalComment = journalComments.unlike;
+export const uploadJournalCommentMedia = journalComments.uploadMedia;
 
 export async function uploadJournalEntryMedia(entryId: string, file: File): Promise<PostMedia> {
     const formData = new FormData();
@@ -2127,34 +2046,14 @@ export async function voteShip(shipId: string, value: number): Promise<void> {
     await apiPost<unknown, { value: number }>(`/ships/${shipId}/vote`, { value });
 }
 
-export async function createShipComment(shipId: string, body: string, parentId?: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/ships/${shipId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const shipComments = commentEndpoints("/ships", "/ship-comments", {});
 
-export async function updateShipComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/ship-comments/${id}`, { body });
-}
-
-export async function deleteShipComment(id: string): Promise<void> {
-    await apiDelete(`/ship-comments/${id}`);
-}
-
-export async function likeShipComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/ship-comments/${id}/like`, {});
-}
-
-export async function unlikeShipComment(id: string): Promise<void> {
-    await apiDelete(`/ship-comments/${id}/like`);
-}
-
-export async function uploadShipCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/ship-comments/${commentId}/media`, formData);
-}
+export const createShipComment = shipComments.create;
+export const updateShipComment = shipComments.update;
+export const deleteShipComment = shipComments.remove;
+export const likeShipComment = shipComments.like;
+export const unlikeShipComment = shipComments.unlike;
+export const uploadShipCommentMedia = shipComments.uploadMedia;
 
 export async function listCharacters(series: string): Promise<CharacterListResponse> {
     return apiFetch<CharacterListResponse>(`/characters/${series}`);
@@ -2237,34 +2136,14 @@ export async function favouriteOC(ocId: string): Promise<{ favourited: boolean }
     return apiPost<{ favourited: boolean }, Record<string, never>>(`/ocs/${ocId}/favourite`, {});
 }
 
-export async function createOCComment(ocId: string, body: string, parentId?: string): Promise<{ id: string }> {
-    return apiPost<{ id: string }, { body: string; parent_id?: string }>(`/ocs/${ocId}/comments`, {
-        body,
-        parent_id: parentId,
-    });
-}
+const ocComments = commentEndpoints("/ocs", "/oc-comments", {});
 
-export async function updateOCComment(id: string, body: string): Promise<void> {
-    await apiPut<unknown, { body: string }>(`/oc-comments/${id}`, { body });
-}
-
-export async function deleteOCComment(id: string): Promise<void> {
-    await apiDelete(`/oc-comments/${id}`);
-}
-
-export async function likeOCComment(id: string): Promise<void> {
-    await apiPost<unknown, Record<string, never>>(`/oc-comments/${id}/like`, {});
-}
-
-export async function unlikeOCComment(id: string): Promise<void> {
-    await apiDelete(`/oc-comments/${id}/like`);
-}
-
-export async function uploadOCCommentMedia(commentId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/oc-comments/${commentId}/media`, formData);
-}
+export const createOCComment = ocComments.create;
+export const updateOCComment = ocComments.update;
+export const deleteOCComment = ocComments.remove;
+export const likeOCComment = ocComments.like;
+export const unlikeOCComment = ocComments.unlike;
+export const uploadOCCommentMedia = ocComments.uploadMedia;
 
 export async function listUserOCs(userId: string, limit = 20, offset = 0): Promise<OCListResponse> {
     const qs = buildQueryString({ limit, offset });
@@ -2318,11 +2197,8 @@ export async function deleteVanityRole(id: string): Promise<void> {
     await apiDelete(`/admin/vanity-roles/${id}`);
 }
 
-export interface VanityRoleUsersResponse {
+export interface VanityRoleUsersResponse extends PaginationFields {
     users: { id: string; username: string; display_name: string; avatar_url: string }[];
-    total: number;
-    limit: number;
-    offset: number;
 }
 
 export async function getVanityRoleUsers(

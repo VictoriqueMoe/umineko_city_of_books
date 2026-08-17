@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -39,16 +40,22 @@ func (_m *MockInviteRepository) EXPECT() *MockInviteRepository_Expecter {
 }
 
 // Create provides a mock function for the type MockInviteRepository
-func (_mock *MockInviteRepository) Create(ctx context.Context, code string, createdBy uuid.UUID) error {
-	ret := _mock.Called(ctx, code, createdBy)
+func (_mock *MockInviteRepository) Create(ctx context.Context, code string, createdBy uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, code, createdBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, code, createdBy)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, code, createdBy)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, code, createdBy, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -64,11 +71,13 @@ type MockInviteRepository_Create_Call struct {
 //   - ctx context.Context
 //   - code string
 //   - createdBy uuid.UUID
-func (_e *MockInviteRepository_Expecter) Create(ctx any, code any, createdBy any) *MockInviteRepository_Create_Call {
-	return &MockInviteRepository_Create_Call{Call: _e.mock.On("Create", ctx, code, createdBy)}
+//   - tx ...*sql.Tx
+func (_e *MockInviteRepository_Expecter) Create(ctx any, code any, createdBy any, tx ...any) *MockInviteRepository_Create_Call {
+	return &MockInviteRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, code, createdBy}, tx...)...)}
 }
 
-func (_c *MockInviteRepository_Create_Call) Run(run func(ctx context.Context, code string, createdBy uuid.UUID)) *MockInviteRepository_Create_Call {
+func (_c *MockInviteRepository_Create_Call) Run(run func(ctx context.Context, code string, createdBy uuid.UUID, tx ...*sql.Tx)) *MockInviteRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -82,10 +91,17 @@ func (_c *MockInviteRepository_Create_Call) Run(run func(ctx context.Context, co
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -96,22 +112,28 @@ func (_c *MockInviteRepository_Create_Call) Return(err error) *MockInviteReposit
 	return _c
 }
 
-func (_c *MockInviteRepository_Create_Call) RunAndReturn(run func(ctx context.Context, code string, createdBy uuid.UUID) error) *MockInviteRepository_Create_Call {
+func (_c *MockInviteRepository_Create_Call) RunAndReturn(run func(ctx context.Context, code string, createdBy uuid.UUID, tx ...*sql.Tx) error) *MockInviteRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockInviteRepository
-func (_mock *MockInviteRepository) Delete(ctx context.Context, code string) error {
-	ret := _mock.Called(ctx, code)
+func (_mock *MockInviteRepository) Delete(ctx context.Context, code string, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, code, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, code)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
-		r0 = returnFunc(ctx, code)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, code, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -126,11 +148,13 @@ type MockInviteRepository_Delete_Call struct {
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
 //   - code string
-func (_e *MockInviteRepository_Expecter) Delete(ctx any, code any) *MockInviteRepository_Delete_Call {
-	return &MockInviteRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, code)}
+//   - tx ...*sql.Tx
+func (_e *MockInviteRepository_Expecter) Delete(ctx any, code any, tx ...any) *MockInviteRepository_Delete_Call {
+	return &MockInviteRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, code}, tx...)...)}
 }
 
-func (_c *MockInviteRepository_Delete_Call) Run(run func(ctx context.Context, code string)) *MockInviteRepository_Delete_Call {
+func (_c *MockInviteRepository_Delete_Call) Run(run func(ctx context.Context, code string, tx ...*sql.Tx)) *MockInviteRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -140,9 +164,16 @@ func (_c *MockInviteRepository_Delete_Call) Run(run func(ctx context.Context, co
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -153,14 +184,20 @@ func (_c *MockInviteRepository_Delete_Call) Return(err error) *MockInviteReposit
 	return _c
 }
 
-func (_c *MockInviteRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, code string) error) *MockInviteRepository_Delete_Call {
+func (_c *MockInviteRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, code string, tx ...*sql.Tx) error) *MockInviteRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByCode provides a mock function for the type MockInviteRepository
-func (_mock *MockInviteRepository) GetByCode(ctx context.Context, code string) (*Invite, error) {
-	ret := _mock.Called(ctx, code)
+func (_mock *MockInviteRepository) GetByCode(ctx context.Context, code string, tx ...*sql.Tx) (*Invite, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, code, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, code)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByCode")
@@ -168,18 +205,18 @@ func (_mock *MockInviteRepository) GetByCode(ctx context.Context, code string) (
 
 	var r0 *Invite
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*Invite, error)); ok {
-		return returnFunc(ctx, code)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*Invite, error)); ok {
+		return returnFunc(ctx, code, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *Invite); ok {
-		r0 = returnFunc(ctx, code)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *Invite); ok {
+		r0 = returnFunc(ctx, code, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*Invite)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = returnFunc(ctx, code)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, code, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -194,11 +231,13 @@ type MockInviteRepository_GetByCode_Call struct {
 // GetByCode is a helper method to define mock.On call
 //   - ctx context.Context
 //   - code string
-func (_e *MockInviteRepository_Expecter) GetByCode(ctx any, code any) *MockInviteRepository_GetByCode_Call {
-	return &MockInviteRepository_GetByCode_Call{Call: _e.mock.On("GetByCode", ctx, code)}
+//   - tx ...*sql.Tx
+func (_e *MockInviteRepository_Expecter) GetByCode(ctx any, code any, tx ...any) *MockInviteRepository_GetByCode_Call {
+	return &MockInviteRepository_GetByCode_Call{Call: _e.mock.On("GetByCode",
+		append([]any{ctx, code}, tx...)...)}
 }
 
-func (_c *MockInviteRepository_GetByCode_Call) Run(run func(ctx context.Context, code string)) *MockInviteRepository_GetByCode_Call {
+func (_c *MockInviteRepository_GetByCode_Call) Run(run func(ctx context.Context, code string, tx ...*sql.Tx)) *MockInviteRepository_GetByCode_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -208,9 +247,16 @@ func (_c *MockInviteRepository_GetByCode_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -221,14 +267,20 @@ func (_c *MockInviteRepository_GetByCode_Call) Return(invite *Invite, err error)
 	return _c
 }
 
-func (_c *MockInviteRepository_GetByCode_Call) RunAndReturn(run func(ctx context.Context, code string) (*Invite, error)) *MockInviteRepository_GetByCode_Call {
+func (_c *MockInviteRepository_GetByCode_Call) RunAndReturn(run func(ctx context.Context, code string, tx ...*sql.Tx) (*Invite, error)) *MockInviteRepository_GetByCode_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockInviteRepository
-func (_mock *MockInviteRepository) List(ctx context.Context, limit int, offset int) ([]Invite, int, error) {
-	ret := _mock.Called(ctx, limit, offset)
+func (_mock *MockInviteRepository) List(ctx context.Context, limit int, offset int, tx ...*sql.Tx) ([]Invite, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -237,23 +289,23 @@ func (_mock *MockInviteRepository) List(ctx context.Context, limit int, offset i
 	var r0 []Invite
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) ([]Invite, int, error)); ok {
-		return returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int, ...*sql.Tx) ([]Invite, int, error)); ok {
+		return returnFunc(ctx, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int) []Invite); ok {
-		r0 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int, ...*sql.Tx) []Invite); ok {
+		r0 = returnFunc(ctx, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]Invite)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int) int); ok {
-		r1 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, int, int) error); ok {
-		r2 = returnFunc(ctx, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -269,11 +321,13 @@ type MockInviteRepository_List_Call struct {
 //   - ctx context.Context
 //   - limit int
 //   - offset int
-func (_e *MockInviteRepository_Expecter) List(ctx any, limit any, offset any) *MockInviteRepository_List_Call {
-	return &MockInviteRepository_List_Call{Call: _e.mock.On("List", ctx, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockInviteRepository_Expecter) List(ctx any, limit any, offset any, tx ...any) *MockInviteRepository_List_Call {
+	return &MockInviteRepository_List_Call{Call: _e.mock.On("List",
+		append([]any{ctx, limit, offset}, tx...)...)}
 }
 
-func (_c *MockInviteRepository_List_Call) Run(run func(ctx context.Context, limit int, offset int)) *MockInviteRepository_List_Call {
+func (_c *MockInviteRepository_List_Call) Run(run func(ctx context.Context, limit int, offset int, tx ...*sql.Tx)) *MockInviteRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -287,10 +341,17 @@ func (_c *MockInviteRepository_List_Call) Run(run func(ctx context.Context, limi
 		if args[2] != nil {
 			arg2 = args[2].(int)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -301,22 +362,28 @@ func (_c *MockInviteRepository_List_Call) Return(invites []Invite, n int, err er
 	return _c
 }
 
-func (_c *MockInviteRepository_List_Call) RunAndReturn(run func(ctx context.Context, limit int, offset int) ([]Invite, int, error)) *MockInviteRepository_List_Call {
+func (_c *MockInviteRepository_List_Call) RunAndReturn(run func(ctx context.Context, limit int, offset int, tx ...*sql.Tx) ([]Invite, int, error)) *MockInviteRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkUsed provides a mock function for the type MockInviteRepository
-func (_mock *MockInviteRepository) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID) error {
-	ret := _mock.Called(ctx, code, usedBy)
+func (_mock *MockInviteRepository) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, code, usedBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, code, usedBy)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkUsed")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, code, usedBy)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, code, usedBy, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -332,11 +399,13 @@ type MockInviteRepository_MarkUsed_Call struct {
 //   - ctx context.Context
 //   - code string
 //   - usedBy uuid.UUID
-func (_e *MockInviteRepository_Expecter) MarkUsed(ctx any, code any, usedBy any) *MockInviteRepository_MarkUsed_Call {
-	return &MockInviteRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed", ctx, code, usedBy)}
+//   - tx ...*sql.Tx
+func (_e *MockInviteRepository_Expecter) MarkUsed(ctx any, code any, usedBy any, tx ...any) *MockInviteRepository_MarkUsed_Call {
+	return &MockInviteRepository_MarkUsed_Call{Call: _e.mock.On("MarkUsed",
+		append([]any{ctx, code, usedBy}, tx...)...)}
 }
 
-func (_c *MockInviteRepository_MarkUsed_Call) Run(run func(ctx context.Context, code string, usedBy uuid.UUID)) *MockInviteRepository_MarkUsed_Call {
+func (_c *MockInviteRepository_MarkUsed_Call) Run(run func(ctx context.Context, code string, usedBy uuid.UUID, tx ...*sql.Tx)) *MockInviteRepository_MarkUsed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -350,10 +419,17 @@ func (_c *MockInviteRepository_MarkUsed_Call) Run(run func(ctx context.Context, 
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -364,7 +440,7 @@ func (_c *MockInviteRepository_MarkUsed_Call) Return(err error) *MockInviteRepos
 	return _c
 }
 
-func (_c *MockInviteRepository_MarkUsed_Call) RunAndReturn(run func(ctx context.Context, code string, usedBy uuid.UUID) error) *MockInviteRepository_MarkUsed_Call {
+func (_c *MockInviteRepository_MarkUsed_Call) RunAndReturn(run func(ctx context.Context, code string, usedBy uuid.UUID, tx ...*sql.Tx) error) *MockInviteRepository_MarkUsed_Call {
 	_c.Call.Return(run)
 	return _c
 }

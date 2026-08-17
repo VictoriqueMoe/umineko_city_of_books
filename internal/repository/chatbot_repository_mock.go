@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/google/uuid"
@@ -40,16 +41,22 @@ func (_m *MockChatbotRepository) EXPECT() *MockChatbotRepository_Expecter {
 }
 
 // CompleteInvocation provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error {
-	ret := _mock.Called(ctx, id, usage, status)
+func (_mock *MockChatbotRepository) CompleteInvocation(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, usage, status, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, usage, status)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CompleteInvocation")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, InvocationUsage, InvocationStatus) error); ok {
-		r0 = returnFunc(ctx, id, usage, status)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, InvocationUsage, InvocationStatus, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, usage, status, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -66,11 +73,13 @@ type MockChatbotRepository_CompleteInvocation_Call struct {
 //   - id uuid.UUID
 //   - usage InvocationUsage
 //   - status InvocationStatus
-func (_e *MockChatbotRepository_Expecter) CompleteInvocation(ctx any, id any, usage any, status any) *MockChatbotRepository_CompleteInvocation_Call {
-	return &MockChatbotRepository_CompleteInvocation_Call{Call: _e.mock.On("CompleteInvocation", ctx, id, usage, status)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) CompleteInvocation(ctx any, id any, usage any, status any, tx ...any) *MockChatbotRepository_CompleteInvocation_Call {
+	return &MockChatbotRepository_CompleteInvocation_Call{Call: _e.mock.On("CompleteInvocation",
+		append([]any{ctx, id, usage, status}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_CompleteInvocation_Call) Run(run func(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus)) *MockChatbotRepository_CompleteInvocation_Call {
+func (_c *MockChatbotRepository_CompleteInvocation_Call) Run(run func(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus, tx ...*sql.Tx)) *MockChatbotRepository_CompleteInvocation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -88,11 +97,18 @@ func (_c *MockChatbotRepository_CompleteInvocation_Call) Run(run func(ctx contex
 		if args[3] != nil {
 			arg3 = args[3].(InvocationStatus)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -103,14 +119,20 @@ func (_c *MockChatbotRepository_CompleteInvocation_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockChatbotRepository_CompleteInvocation_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus) error) *MockChatbotRepository_CompleteInvocation_Call {
+func (_c *MockChatbotRepository_CompleteInvocation_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, usage InvocationUsage, status InvocationStatus, tx ...*sql.Tx) error) *MockChatbotRepository_CompleteInvocation_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountInvocationsToday provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CountInvocationsToday(ctx context.Context) (int, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockChatbotRepository) CountInvocationsToday(ctx context.Context, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountInvocationsToday")
@@ -118,16 +140,16 @@ func (_mock *MockChatbotRepository) CountInvocationsToday(ctx context.Context) (
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -141,18 +163,27 @@ type MockChatbotRepository_CountInvocationsToday_Call struct {
 
 // CountInvocationsToday is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockChatbotRepository_Expecter) CountInvocationsToday(ctx any) *MockChatbotRepository_CountInvocationsToday_Call {
-	return &MockChatbotRepository_CountInvocationsToday_Call{Call: _e.mock.On("CountInvocationsToday", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) CountInvocationsToday(ctx any, tx ...any) *MockChatbotRepository_CountInvocationsToday_Call {
+	return &MockChatbotRepository_CountInvocationsToday_Call{Call: _e.mock.On("CountInvocationsToday",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_CountInvocationsToday_Call) Run(run func(ctx context.Context)) *MockChatbotRepository_CountInvocationsToday_Call {
+func (_c *MockChatbotRepository_CountInvocationsToday_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockChatbotRepository_CountInvocationsToday_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -163,14 +194,20 @@ func (_c *MockChatbotRepository_CountInvocationsToday_Call) Return(n int, err er
 	return _c
 }
 
-func (_c *MockChatbotRepository_CountInvocationsToday_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *MockChatbotRepository_CountInvocationsToday_Call {
+func (_c *MockChatbotRepository_CountInvocationsToday_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (int, error)) *MockChatbotRepository_CountInvocationsToday_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountUserInvocationsToday provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockChatbotRepository) CountUserInvocationsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountUserInvocationsToday")
@@ -178,16 +215,16 @@ func (_mock *MockChatbotRepository) CountUserInvocationsToday(ctx context.Contex
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -202,11 +239,13 @@ type MockChatbotRepository_CountUserInvocationsToday_Call struct {
 // CountUserInvocationsToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatbotRepository_Expecter) CountUserInvocationsToday(ctx any, userID any) *MockChatbotRepository_CountUserInvocationsToday_Call {
-	return &MockChatbotRepository_CountUserInvocationsToday_Call{Call: _e.mock.On("CountUserInvocationsToday", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) CountUserInvocationsToday(ctx any, userID any, tx ...any) *MockChatbotRepository_CountUserInvocationsToday_Call {
+	return &MockChatbotRepository_CountUserInvocationsToday_Call{Call: _e.mock.On("CountUserInvocationsToday",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_CountUserInvocationsToday_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatbotRepository_CountUserInvocationsToday_Call {
+func (_c *MockChatbotRepository_CountUserInvocationsToday_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockChatbotRepository_CountUserInvocationsToday_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -216,9 +255,16 @@ func (_c *MockChatbotRepository_CountUserInvocationsToday_Call) Run(run func(ctx
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -229,26 +275,43 @@ func (_c *MockChatbotRepository_CountUserInvocationsToday_Call) Return(n int, er
 	return _c
 }
 
-func (_c *MockChatbotRepository_CountUserInvocationsToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockChatbotRepository_CountUserInvocationsToday_Call {
+func (_c *MockChatbotRepository_CountUserInvocationsToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockChatbotRepository_CountUserInvocationsToday_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateBot provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CreateBot(ctx context.Context, bot Chatbot) error {
-	ret := _mock.Called(ctx, bot)
+func (_mock *MockChatbotRepository) CreateBot(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, bot, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, bot)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateBot")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot) error); ok {
-		r0 = returnFunc(ctx, bot)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *Chatbot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot, ...*sql.Tx) (*Chatbot, error)); ok {
+		return returnFunc(ctx, bot, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot, ...*sql.Tx) *Chatbot); ok {
+		r0 = returnFunc(ctx, bot, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Chatbot)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, Chatbot, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, bot, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatbotRepository_CreateBot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBot'
@@ -259,11 +322,13 @@ type MockChatbotRepository_CreateBot_Call struct {
 // CreateBot is a helper method to define mock.On call
 //   - ctx context.Context
 //   - bot Chatbot
-func (_e *MockChatbotRepository_Expecter) CreateBot(ctx any, bot any) *MockChatbotRepository_CreateBot_Call {
-	return &MockChatbotRepository_CreateBot_Call{Call: _e.mock.On("CreateBot", ctx, bot)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) CreateBot(ctx any, bot any, tx ...any) *MockChatbotRepository_CreateBot_Call {
+	return &MockChatbotRepository_CreateBot_Call{Call: _e.mock.On("CreateBot",
+		append([]any{ctx, bot}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_CreateBot_Call) Run(run func(ctx context.Context, bot Chatbot)) *MockChatbotRepository_CreateBot_Call {
+func (_c *MockChatbotRepository_CreateBot_Call) Run(run func(ctx context.Context, bot Chatbot, tx ...*sql.Tx)) *MockChatbotRepository_CreateBot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -273,114 +338,158 @@ func (_c *MockChatbotRepository_CreateBot_Call) Run(run func(ctx context.Context
 		if args[1] != nil {
 			arg1 = args[1].(Chatbot)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateBot_Call) Return(err error) *MockChatbotRepository_CreateBot_Call {
-	_c.Call.Return(err)
+func (_c *MockChatbotRepository_CreateBot_Call) Return(chatbot *Chatbot, err error) *MockChatbotRepository_CreateBot_Call {
+	_c.Call.Return(chatbot, err)
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateBot_Call) RunAndReturn(run func(ctx context.Context, bot Chatbot) error) *MockChatbotRepository_CreateBot_Call {
+func (_c *MockChatbotRepository_CreateBot_Call) RunAndReturn(run func(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error)) *MockChatbotRepository_CreateBot_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// CreateBotAccount provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CreateBotAccount(ctx context.Context, userID uuid.UUID, username string, displayName string, avatarURL string) error {
-	ret := _mock.Called(ctx, userID, username, displayName, avatarURL)
+// CreateBotWithAccount provides a mock function for the type MockChatbotRepository
+func (_mock *MockChatbotRepository) CreateBotWithAccount(ctx context.Context, account NewUser, bot Chatbot, vanityRoleID string, tx ...*sql.Tx) (*Chatbot, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, account, bot, vanityRoleID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, account, bot, vanityRoleID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for CreateBotAccount")
+		panic("no return value specified for CreateBotWithAccount")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string) error); ok {
-		r0 = returnFunc(ctx, userID, username, displayName, avatarURL)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *Chatbot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewUser, Chatbot, string, ...*sql.Tx) (*Chatbot, error)); ok {
+		return returnFunc(ctx, account, bot, vanityRoleID, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewUser, Chatbot, string, ...*sql.Tx) *Chatbot); ok {
+		r0 = returnFunc(ctx, account, bot, vanityRoleID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Chatbot)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewUser, Chatbot, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, account, bot, vanityRoleID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockChatbotRepository_CreateBotAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBotAccount'
-type MockChatbotRepository_CreateBotAccount_Call struct {
+// MockChatbotRepository_CreateBotWithAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateBotWithAccount'
+type MockChatbotRepository_CreateBotWithAccount_Call struct {
 	*mock.Call
 }
 
-// CreateBotAccount is a helper method to define mock.On call
+// CreateBotWithAccount is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - username string
-//   - displayName string
-//   - avatarURL string
-func (_e *MockChatbotRepository_Expecter) CreateBotAccount(ctx any, userID any, username any, displayName any, avatarURL any) *MockChatbotRepository_CreateBotAccount_Call {
-	return &MockChatbotRepository_CreateBotAccount_Call{Call: _e.mock.On("CreateBotAccount", ctx, userID, username, displayName, avatarURL)}
+//   - account NewUser
+//   - bot Chatbot
+//   - vanityRoleID string
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) CreateBotWithAccount(ctx any, account any, bot any, vanityRoleID any, tx ...any) *MockChatbotRepository_CreateBotWithAccount_Call {
+	return &MockChatbotRepository_CreateBotWithAccount_Call{Call: _e.mock.On("CreateBotWithAccount",
+		append([]any{ctx, account, bot, vanityRoleID}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_CreateBotAccount_Call) Run(run func(ctx context.Context, userID uuid.UUID, username string, displayName string, avatarURL string)) *MockChatbotRepository_CreateBotAccount_Call {
+func (_c *MockChatbotRepository_CreateBotWithAccount_Call) Run(run func(ctx context.Context, account NewUser, bot Chatbot, vanityRoleID string, tx ...*sql.Tx)) *MockChatbotRepository_CreateBotWithAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewUser
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewUser)
 		}
-		var arg2 string
+		var arg2 Chatbot
 		if args[2] != nil {
-			arg2 = args[2].(string)
+			arg2 = args[2].(Chatbot)
 		}
 		var arg3 string
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
 		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
-			arg4,
+			arg4...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateBotAccount_Call) Return(err error) *MockChatbotRepository_CreateBotAccount_Call {
-	_c.Call.Return(err)
+func (_c *MockChatbotRepository_CreateBotWithAccount_Call) Return(chatbot *Chatbot, err error) *MockChatbotRepository_CreateBotWithAccount_Call {
+	_c.Call.Return(chatbot, err)
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateBotAccount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, username string, displayName string, avatarURL string) error) *MockChatbotRepository_CreateBotAccount_Call {
+func (_c *MockChatbotRepository_CreateBotWithAccount_Call) RunAndReturn(run func(ctx context.Context, account NewUser, bot Chatbot, vanityRoleID string, tx ...*sql.Tx) (*Chatbot, error)) *MockChatbotRepository_CreateBotWithAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateInvocation provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) CreateInvocation(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel string, model string) error {
-	ret := _mock.Called(ctx, id, botUserID, userID, roomID, messageID, channel, model)
+func (_mock *MockChatbotRepository) CreateInvocation(ctx context.Context, spec NewInvocation, tx ...*sql.Tx) (*ChatbotInvocation, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateInvocation")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, *uuid.UUID, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, id, botUserID, userID, roomID, messageID, channel, model)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *ChatbotInvocation
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewInvocation, ...*sql.Tx) (*ChatbotInvocation, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewInvocation, ...*sql.Tx) *ChatbotInvocation); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*ChatbotInvocation)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewInvocation, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatbotRepository_CreateInvocation_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateInvocation'
@@ -390,86 +499,65 @@ type MockChatbotRepository_CreateInvocation_Call struct {
 
 // CreateInvocation is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - botUserID uuid.UUID
-//   - userID uuid.UUID
-//   - roomID *uuid.UUID
-//   - messageID uuid.UUID
-//   - channel string
-//   - model string
-func (_e *MockChatbotRepository_Expecter) CreateInvocation(ctx any, id any, botUserID any, userID any, roomID any, messageID any, channel any, model any) *MockChatbotRepository_CreateInvocation_Call {
-	return &MockChatbotRepository_CreateInvocation_Call{Call: _e.mock.On("CreateInvocation", ctx, id, botUserID, userID, roomID, messageID, channel, model)}
+//   - spec NewInvocation
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) CreateInvocation(ctx any, spec any, tx ...any) *MockChatbotRepository_CreateInvocation_Call {
+	return &MockChatbotRepository_CreateInvocation_Call{Call: _e.mock.On("CreateInvocation",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_CreateInvocation_Call) Run(run func(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel string, model string)) *MockChatbotRepository_CreateInvocation_Call {
+func (_c *MockChatbotRepository_CreateInvocation_Call) Run(run func(ctx context.Context, spec NewInvocation, tx ...*sql.Tx)) *MockChatbotRepository_CreateInvocation_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewInvocation
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewInvocation)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(uuid.UUID)
-		}
-		var arg4 *uuid.UUID
-		if args[4] != nil {
-			arg4 = args[4].(*uuid.UUID)
-		}
-		var arg5 uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].(uuid.UUID)
-		}
-		var arg6 string
-		if args[6] != nil {
-			arg6 = args[6].(string)
-		}
-		var arg7 string
-		if args[7] != nil {
-			arg7 = args[7].(string)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateInvocation_Call) Return(err error) *MockChatbotRepository_CreateInvocation_Call {
-	_c.Call.Return(err)
+func (_c *MockChatbotRepository_CreateInvocation_Call) Return(chatbotInvocation *ChatbotInvocation, err error) *MockChatbotRepository_CreateInvocation_Call {
+	_c.Call.Return(chatbotInvocation, err)
 	return _c
 }
 
-func (_c *MockChatbotRepository_CreateInvocation_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, botUserID uuid.UUID, userID uuid.UUID, roomID *uuid.UUID, messageID uuid.UUID, channel string, model string) error) *MockChatbotRepository_CreateInvocation_Call {
+func (_c *MockChatbotRepository_CreateInvocation_Call) RunAndReturn(run func(ctx context.Context, spec NewInvocation, tx ...*sql.Tx) (*ChatbotInvocation, error)) *MockChatbotRepository_CreateInvocation_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteBot provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockChatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteBot")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -484,11 +572,13 @@ type MockChatbotRepository_DeleteBot_Call struct {
 // DeleteBot is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockChatbotRepository_Expecter) DeleteBot(ctx any, id any) *MockChatbotRepository_DeleteBot_Call {
-	return &MockChatbotRepository_DeleteBot_Call{Call: _e.mock.On("DeleteBot", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) DeleteBot(ctx any, id any, tx ...any) *MockChatbotRepository_DeleteBot_Call {
+	return &MockChatbotRepository_DeleteBot_Call{Call: _e.mock.On("DeleteBot",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_DeleteBot_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockChatbotRepository_DeleteBot_Call {
+func (_c *MockChatbotRepository_DeleteBot_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockChatbotRepository_DeleteBot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -498,9 +588,16 @@ func (_c *MockChatbotRepository_DeleteBot_Call) Run(run func(ctx context.Context
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -511,14 +608,20 @@ func (_c *MockChatbotRepository_DeleteBot_Call) Return(err error) *MockChatbotRe
 	return _c
 }
 
-func (_c *MockChatbotRepository_DeleteBot_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockChatbotRepository_DeleteBot_Call {
+func (_c *MockChatbotRepository_DeleteBot_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockChatbotRepository_DeleteBot_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetBotByUserID provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) GetBotByUserID(ctx context.Context, userID uuid.UUID) (*Chatbot, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockChatbotRepository) GetBotByUserID(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*Chatbot, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBotByUserID")
@@ -526,18 +629,18 @@ func (_mock *MockChatbotRepository) GetBotByUserID(ctx context.Context, userID u
 
 	var r0 *Chatbot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*Chatbot, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*Chatbot, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *Chatbot); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *Chatbot); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*Chatbot)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -552,11 +655,13 @@ type MockChatbotRepository_GetBotByUserID_Call struct {
 // GetBotByUserID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatbotRepository_Expecter) GetBotByUserID(ctx any, userID any) *MockChatbotRepository_GetBotByUserID_Call {
-	return &MockChatbotRepository_GetBotByUserID_Call{Call: _e.mock.On("GetBotByUserID", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) GetBotByUserID(ctx any, userID any, tx ...any) *MockChatbotRepository_GetBotByUserID_Call {
+	return &MockChatbotRepository_GetBotByUserID_Call{Call: _e.mock.On("GetBotByUserID",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_GetBotByUserID_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatbotRepository_GetBotByUserID_Call {
+func (_c *MockChatbotRepository_GetBotByUserID_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockChatbotRepository_GetBotByUserID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -566,9 +671,16 @@ func (_c *MockChatbotRepository_GetBotByUserID_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -579,14 +691,20 @@ func (_c *MockChatbotRepository_GetBotByUserID_Call) Return(chatbot *Chatbot, er
 	return _c
 }
 
-func (_c *MockChatbotRepository_GetBotByUserID_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (*Chatbot, error)) *MockChatbotRepository_GetBotByUserID_Call {
+func (_c *MockChatbotRepository_GetBotByUserID_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*Chatbot, error)) *MockChatbotRepository_GetBotByUserID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListBots provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) ListBots(ctx context.Context) ([]Chatbot, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockChatbotRepository) ListBots(ctx context.Context, tx ...*sql.Tx) ([]Chatbot, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListBots")
@@ -594,18 +712,18 @@ func (_mock *MockChatbotRepository) ListBots(ctx context.Context) ([]Chatbot, er
 
 	var r0 []Chatbot
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]Chatbot, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]Chatbot, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []Chatbot); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []Chatbot); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]Chatbot)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -619,18 +737,27 @@ type MockChatbotRepository_ListBots_Call struct {
 
 // ListBots is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockChatbotRepository_Expecter) ListBots(ctx any) *MockChatbotRepository_ListBots_Call {
-	return &MockChatbotRepository_ListBots_Call{Call: _e.mock.On("ListBots", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) ListBots(ctx any, tx ...any) *MockChatbotRepository_ListBots_Call {
+	return &MockChatbotRepository_ListBots_Call{Call: _e.mock.On("ListBots",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_ListBots_Call) Run(run func(ctx context.Context)) *MockChatbotRepository_ListBots_Call {
+func (_c *MockChatbotRepository_ListBots_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockChatbotRepository_ListBots_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -641,14 +768,20 @@ func (_c *MockChatbotRepository_ListBots_Call) Return(chatbots []Chatbot, err er
 	return _c
 }
 
-func (_c *MockChatbotRepository_ListBots_Call) RunAndReturn(run func(ctx context.Context) ([]Chatbot, error)) *MockChatbotRepository_ListBots_Call {
+func (_c *MockChatbotRepository_ListBots_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]Chatbot, error)) *MockChatbotRepository_ListBots_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // OldestInvocationToday provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) OldestInvocationToday(ctx context.Context) (time.Time, error) {
-	ret := _mock.Called(ctx)
+func (_mock *MockChatbotRepository) OldestInvocationToday(ctx context.Context, tx ...*sql.Tx) (time.Time, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, tx)
+	} else {
+		tmpRet = _mock.Called(ctx)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for OldestInvocationToday")
@@ -656,16 +789,16 @@ func (_mock *MockChatbotRepository) OldestInvocationToday(ctx context.Context) (
 
 	var r0 time.Time
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Time, error)); ok {
-		return returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (time.Time, error)); ok {
+		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Time); ok {
-		r0 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) time.Time); ok {
+		r0 = returnFunc(ctx, tx...)
 	} else {
 		r0 = ret.Get(0).(time.Time)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -679,18 +812,27 @@ type MockChatbotRepository_OldestInvocationToday_Call struct {
 
 // OldestInvocationToday is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *MockChatbotRepository_Expecter) OldestInvocationToday(ctx any) *MockChatbotRepository_OldestInvocationToday_Call {
-	return &MockChatbotRepository_OldestInvocationToday_Call{Call: _e.mock.On("OldestInvocationToday", ctx)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) OldestInvocationToday(ctx any, tx ...any) *MockChatbotRepository_OldestInvocationToday_Call {
+	return &MockChatbotRepository_OldestInvocationToday_Call{Call: _e.mock.On("OldestInvocationToday",
+		append([]any{ctx}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_OldestInvocationToday_Call) Run(run func(ctx context.Context)) *MockChatbotRepository_OldestInvocationToday_Call {
+func (_c *MockChatbotRepository_OldestInvocationToday_Call) Run(run func(ctx context.Context, tx ...*sql.Tx)) *MockChatbotRepository_OldestInvocationToday_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
+		var arg1 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 1 {
+			variadicArgs = args[1].([]*sql.Tx)
+		}
+		arg1 = variadicArgs
 		run(
 			arg0,
+			arg1...,
 		)
 	})
 	return _c
@@ -701,14 +843,20 @@ func (_c *MockChatbotRepository_OldestInvocationToday_Call) Return(time1 time.Ti
 	return _c
 }
 
-func (_c *MockChatbotRepository_OldestInvocationToday_Call) RunAndReturn(run func(ctx context.Context) (time.Time, error)) *MockChatbotRepository_OldestInvocationToday_Call {
+func (_c *MockChatbotRepository_OldestInvocationToday_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (time.Time, error)) *MockChatbotRepository_OldestInvocationToday_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // OldestUserInvocationToday provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID) (time.Time, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockChatbotRepository) OldestUserInvocationToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (time.Time, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for OldestUserInvocationToday")
@@ -716,16 +864,16 @@ func (_mock *MockChatbotRepository) OldestUserInvocationToday(ctx context.Contex
 
 	var r0 time.Time
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (time.Time, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (time.Time, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) time.Time); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) time.Time); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(time.Time)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -740,11 +888,13 @@ type MockChatbotRepository_OldestUserInvocationToday_Call struct {
 // OldestUserInvocationToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockChatbotRepository_Expecter) OldestUserInvocationToday(ctx any, userID any) *MockChatbotRepository_OldestUserInvocationToday_Call {
-	return &MockChatbotRepository_OldestUserInvocationToday_Call{Call: _e.mock.On("OldestUserInvocationToday", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) OldestUserInvocationToday(ctx any, userID any, tx ...any) *MockChatbotRepository_OldestUserInvocationToday_Call {
+	return &MockChatbotRepository_OldestUserInvocationToday_Call{Call: _e.mock.On("OldestUserInvocationToday",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockChatbotRepository_OldestUserInvocationToday_Call {
+func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockChatbotRepository_OldestUserInvocationToday_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -754,9 +904,16 @@ func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) Run(run func(ctx
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -767,14 +924,20 @@ func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) Return(time1 tim
 	return _c
 }
 
-func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (time.Time, error)) *MockChatbotRepository_OldestUserInvocationToday_Call {
+func (_c *MockChatbotRepository_OldestUserInvocationToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (time.Time, error)) *MockChatbotRepository_OldestUserInvocationToday_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // StatsSince provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) StatsSince(ctx context.Context, since time.Time) (*ChatbotStats, error) {
-	ret := _mock.Called(ctx, since)
+func (_mock *MockChatbotRepository) StatsSince(ctx context.Context, since time.Time, tx ...*sql.Tx) (*ChatbotStats, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, since, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, since)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for StatsSince")
@@ -782,18 +945,18 @@ func (_mock *MockChatbotRepository) StatsSince(ctx context.Context, since time.T
 
 	var r0 *ChatbotStats
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) (*ChatbotStats, error)); ok {
-		return returnFunc(ctx, since)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, ...*sql.Tx) (*ChatbotStats, error)); ok {
+		return returnFunc(ctx, since, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time) *ChatbotStats); ok {
-		r0 = returnFunc(ctx, since)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, time.Time, ...*sql.Tx) *ChatbotStats); ok {
+		r0 = returnFunc(ctx, since, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*ChatbotStats)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time) error); ok {
-		r1 = returnFunc(ctx, since)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, time.Time, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, since, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -808,11 +971,13 @@ type MockChatbotRepository_StatsSince_Call struct {
 // StatsSince is a helper method to define mock.On call
 //   - ctx context.Context
 //   - since time.Time
-func (_e *MockChatbotRepository_Expecter) StatsSince(ctx any, since any) *MockChatbotRepository_StatsSince_Call {
-	return &MockChatbotRepository_StatsSince_Call{Call: _e.mock.On("StatsSince", ctx, since)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) StatsSince(ctx any, since any, tx ...any) *MockChatbotRepository_StatsSince_Call {
+	return &MockChatbotRepository_StatsSince_Call{Call: _e.mock.On("StatsSince",
+		append([]any{ctx, since}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_StatsSince_Call) Run(run func(ctx context.Context, since time.Time)) *MockChatbotRepository_StatsSince_Call {
+func (_c *MockChatbotRepository_StatsSince_Call) Run(run func(ctx context.Context, since time.Time, tx ...*sql.Tx)) *MockChatbotRepository_StatsSince_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -822,9 +987,16 @@ func (_c *MockChatbotRepository_StatsSince_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(time.Time)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -835,26 +1007,43 @@ func (_c *MockChatbotRepository_StatsSince_Call) Return(chatbotStats *ChatbotSta
 	return _c
 }
 
-func (_c *MockChatbotRepository_StatsSince_Call) RunAndReturn(run func(ctx context.Context, since time.Time) (*ChatbotStats, error)) *MockChatbotRepository_StatsSince_Call {
+func (_c *MockChatbotRepository_StatsSince_Call) RunAndReturn(run func(ctx context.Context, since time.Time, tx ...*sql.Tx) (*ChatbotStats, error)) *MockChatbotRepository_StatsSince_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateBot provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) UpdateBot(ctx context.Context, bot Chatbot) error {
-	ret := _mock.Called(ctx, bot)
+func (_mock *MockChatbotRepository) UpdateBot(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, bot, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, bot)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateBot")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot) error); ok {
-		r0 = returnFunc(ctx, bot)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *Chatbot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot, ...*sql.Tx) (*Chatbot, error)); ok {
+		return returnFunc(ctx, bot, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot, ...*sql.Tx) *Chatbot); ok {
+		r0 = returnFunc(ctx, bot, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Chatbot)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, Chatbot, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, bot, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockChatbotRepository_UpdateBot_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBot'
@@ -865,11 +1054,13 @@ type MockChatbotRepository_UpdateBot_Call struct {
 // UpdateBot is a helper method to define mock.On call
 //   - ctx context.Context
 //   - bot Chatbot
-func (_e *MockChatbotRepository_Expecter) UpdateBot(ctx any, bot any) *MockChatbotRepository_UpdateBot_Call {
-	return &MockChatbotRepository_UpdateBot_Call{Call: _e.mock.On("UpdateBot", ctx, bot)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) UpdateBot(ctx any, bot any, tx ...any) *MockChatbotRepository_UpdateBot_Call {
+	return &MockChatbotRepository_UpdateBot_Call{Call: _e.mock.On("UpdateBot",
+		append([]any{ctx, bot}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_UpdateBot_Call) Run(run func(ctx context.Context, bot Chatbot)) *MockChatbotRepository_UpdateBot_Call {
+func (_c *MockChatbotRepository_UpdateBot_Call) Run(run func(ctx context.Context, bot Chatbot, tx ...*sql.Tx)) *MockChatbotRepository_UpdateBot_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -879,64 +1070,90 @@ func (_c *MockChatbotRepository_UpdateBot_Call) Run(run func(ctx context.Context
 		if args[1] != nil {
 			arg1 = args[1].(Chatbot)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotRepository_UpdateBot_Call) Return(err error) *MockChatbotRepository_UpdateBot_Call {
-	_c.Call.Return(err)
+func (_c *MockChatbotRepository_UpdateBot_Call) Return(chatbot *Chatbot, err error) *MockChatbotRepository_UpdateBot_Call {
+	_c.Call.Return(chatbot, err)
 	return _c
 }
 
-func (_c *MockChatbotRepository_UpdateBot_Call) RunAndReturn(run func(ctx context.Context, bot Chatbot) error) *MockChatbotRepository_UpdateBot_Call {
+func (_c *MockChatbotRepository_UpdateBot_Call) RunAndReturn(run func(ctx context.Context, bot Chatbot, tx ...*sql.Tx) (*Chatbot, error)) *MockChatbotRepository_UpdateBot_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// UpdateBotAccount provides a mock function for the type MockChatbotRepository
-func (_mock *MockChatbotRepository) UpdateBotAccount(ctx context.Context, userID uuid.UUID, displayName string, avatarURL string) error {
-	ret := _mock.Called(ctx, userID, displayName, avatarURL)
+// UpdateBotWithAccount provides a mock function for the type MockChatbotRepository
+func (_mock *MockChatbotRepository) UpdateBotWithAccount(ctx context.Context, bot Chatbot, displayName string, avatarURL string, tx ...*sql.Tx) (*Chatbot, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, bot, displayName, avatarURL, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, bot, displayName, avatarURL)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for UpdateBotAccount")
+		panic("no return value specified for UpdateBotWithAccount")
 	}
 
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string) error); ok {
-		r0 = returnFunc(ctx, userID, displayName, avatarURL)
-	} else {
-		r0 = ret.Error(0)
+	var r0 *Chatbot
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot, string, string, ...*sql.Tx) (*Chatbot, error)); ok {
+		return returnFunc(ctx, bot, displayName, avatarURL, tx...)
 	}
-	return r0
+	if returnFunc, ok := ret.Get(0).(func(context.Context, Chatbot, string, string, ...*sql.Tx) *Chatbot); ok {
+		r0 = returnFunc(ctx, bot, displayName, avatarURL, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*Chatbot)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, Chatbot, string, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, bot, displayName, avatarURL, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
-// MockChatbotRepository_UpdateBotAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBotAccount'
-type MockChatbotRepository_UpdateBotAccount_Call struct {
+// MockChatbotRepository_UpdateBotWithAccount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateBotWithAccount'
+type MockChatbotRepository_UpdateBotWithAccount_Call struct {
 	*mock.Call
 }
 
-// UpdateBotAccount is a helper method to define mock.On call
+// UpdateBotWithAccount is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
+//   - bot Chatbot
 //   - displayName string
 //   - avatarURL string
-func (_e *MockChatbotRepository_Expecter) UpdateBotAccount(ctx any, userID any, displayName any, avatarURL any) *MockChatbotRepository_UpdateBotAccount_Call {
-	return &MockChatbotRepository_UpdateBotAccount_Call{Call: _e.mock.On("UpdateBotAccount", ctx, userID, displayName, avatarURL)}
+//   - tx ...*sql.Tx
+func (_e *MockChatbotRepository_Expecter) UpdateBotWithAccount(ctx any, bot any, displayName any, avatarURL any, tx ...any) *MockChatbotRepository_UpdateBotWithAccount_Call {
+	return &MockChatbotRepository_UpdateBotWithAccount_Call{Call: _e.mock.On("UpdateBotWithAccount",
+		append([]any{ctx, bot, displayName, avatarURL}, tx...)...)}
 }
 
-func (_c *MockChatbotRepository_UpdateBotAccount_Call) Run(run func(ctx context.Context, userID uuid.UUID, displayName string, avatarURL string)) *MockChatbotRepository_UpdateBotAccount_Call {
+func (_c *MockChatbotRepository_UpdateBotWithAccount_Call) Run(run func(ctx context.Context, bot Chatbot, displayName string, avatarURL string, tx ...*sql.Tx)) *MockChatbotRepository_UpdateBotWithAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 Chatbot
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(Chatbot)
 		}
 		var arg2 string
 		if args[2] != nil {
@@ -946,22 +1163,29 @@ func (_c *MockChatbotRepository_UpdateBotAccount_Call) Run(run func(ctx context.
 		if args[3] != nil {
 			arg3 = args[3].(string)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotRepository_UpdateBotAccount_Call) Return(err error) *MockChatbotRepository_UpdateBotAccount_Call {
-	_c.Call.Return(err)
+func (_c *MockChatbotRepository_UpdateBotWithAccount_Call) Return(chatbot *Chatbot, err error) *MockChatbotRepository_UpdateBotWithAccount_Call {
+	_c.Call.Return(chatbot, err)
 	return _c
 }
 
-func (_c *MockChatbotRepository_UpdateBotAccount_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, displayName string, avatarURL string) error) *MockChatbotRepository_UpdateBotAccount_Call {
+func (_c *MockChatbotRepository_UpdateBotWithAccount_Call) RunAndReturn(run func(ctx context.Context, bot Chatbot, displayName string, avatarURL string, tx ...*sql.Tx) (*Chatbot, error)) *MockChatbotRepository_UpdateBotWithAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }

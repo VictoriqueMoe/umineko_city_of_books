@@ -16,42 +16,48 @@ type (
 	}
 )
 
-func (r *auditLogDAO) Create(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES ($1, $2, $3, $4, $5)`,
-		actorID, action, targetType, targetID, details,
-	)
-	if err != nil {
+func (r *auditLogDAO) Create(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) error {
+	if err := r.insert(ctx, spec.ActorID, spec, tx); err != nil {
 		return fmt.Errorf("create audit log: %w", err)
 	}
 	return nil
 }
 
-func (r *auditLogDAO) CreateSystem(ctx context.Context, action, targetType, targetID, details string) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details) VALUES (NULL, $1, $2, $3, $4)`,
-		action, targetType, targetID, details,
-	)
-	if err != nil {
+func (r *auditLogDAO) CreateSystem(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) error {
+	if err := r.insert(ctx, nil, spec, tx); err != nil {
 		return fmt.Errorf("create system audit log: %w", err)
 	}
 	return nil
 }
 
-func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int) ([]repository.AuditLogEntry, int, error) {
-	const scope = `((a.target_type = 'user' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
+func (r *auditLogDAO) insert(ctx context.Context, actorID any, spec repository.NewAuditEntry, tx []*sql.Tx) error {
+	var subjectID any
+	if spec.SubjectID != uuid.Nil {
+		subjectID = spec.SubjectID
+	}
+
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
+		actorID, spec.Action, spec.TargetType, spec.TargetID, spec.Details, subjectID,
+	)
+
+	return err
+}
+
+func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
+	const scope = `((a.target_type = '` + string(repository.AuditTargetUser) + `' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
 
 	id := userID.String()
 
 	var total int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM audit_log a WHERE `+scope, id,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count audit log for user: %w", err)
 	}
 
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
 		 FROM audit_log a
 		 LEFT JOIN users u ON a.actor_id = u.id
@@ -73,28 +79,6 @@ func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, 
 	return entries, total, rows.Err()
 }
 
-func (r *auditLogDAO) CreateForSubject(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string, subjectID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
-		actorID, action, targetType, targetID, details, subjectID,
-	)
-	if err != nil {
-		return fmt.Errorf("create audit log for subject: %w", err)
-	}
-	return nil
-}
-
-func (r *auditLogDAO) CreateSystemForSubject(ctx context.Context, action, targetType, targetID, details string, subjectID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES (NULL, $1, $2, $3, $4, $5)`,
-		action, targetType, targetID, details, subjectID,
-	)
-	if err != nil {
-		return fmt.Errorf("create system audit log for subject: %w", err)
-	}
-	return nil
-}
-
 func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
 	var entries []repository.AuditLogEntry
 	for rows.Next() {
@@ -111,7 +95,7 @@ func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
 	return entries, nil
 }
 
-func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int) ([]repository.AuditLogEntry, int, error) {
+func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
 	where := ""
 	var args []any
 	if action != "" {
@@ -122,7 +106,7 @@ func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int
 	var total int
 	countArgs := make([]any, len(args))
 	copy(countArgs, args)
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		"SELECT COUNT(*) FROM audit_log a"+where, countArgs...,
 	).Scan(&total)
 	if err != nil {
@@ -132,7 +116,7 @@ func (r *auditLogDAO) List(ctx context.Context, action string, limit, offset int
 	limitPlaceholder := fmt.Sprintf("$%d", len(args)+1)
 	offsetPlaceholder := fmt.Sprintf("$%d", len(args)+2)
 	args = append(args, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
 		 FROM audit_log a
 		 LEFT JOIN users u ON a.actor_id = u.id

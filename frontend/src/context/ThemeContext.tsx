@@ -252,15 +252,15 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         }
     }, [wideLayout]);
 
-    const updateAppearanceMutation = useUpdateAppearance();
+    const { mutate: updateAppearance } = useUpdateAppearance();
     const persistAppearance = useCallback(
         (nextTheme: ThemeType, nextFont: FontType, nextWide: boolean) => {
             if (!user) {
                 return;
             }
-            updateAppearanceMutation.mutate({ theme: nextTheme, font: nextFont, wideLayout: nextWide });
+            updateAppearance({ theme: nextTheme, font: nextFont, wideLayout: nextWide });
         },
-        [user, updateAppearanceMutation],
+        [user, updateAppearance],
     );
 
     const setTheme = useCallback(
@@ -307,22 +307,32 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         [patchOverrides],
     );
 
-    return (
-        <ThemeContext.Provider
-            value={{
-                theme,
-                setTheme,
-                font,
-                setFont,
-                wideLayout,
-                setWideLayout,
-                particlesEnabled,
-                setParticlesEnabled,
-                hasSecret,
-                addSecret,
-            }}
-        >
-            {children}
-        </ThemeContext.Provider>
+    const value = useMemo(
+        () => ({
+            theme,
+            setTheme,
+            font,
+            setFont,
+            wideLayout,
+            setWideLayout,
+            particlesEnabled,
+            setParticlesEnabled,
+            hasSecret,
+            addSecret,
+        }),
+        [
+            theme,
+            setTheme,
+            font,
+            setFont,
+            wideLayout,
+            setWideLayout,
+            particlesEnabled,
+            setParticlesEnabled,
+            hasSecret,
+            addSecret,
+        ],
     );
+
+    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 }

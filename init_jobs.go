@@ -22,16 +22,7 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	stop := make(chan struct{})
 	wg := new(sync.WaitGroup)
 
-	settingsSvc.Subscribe(logger.NewSettingsListener())
-	settingsSvc.Subscribe(telemetry.NewSettingsListener())
-	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
-	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
-	settingsSvc.Subscribe(push.NewSettingListener(svc.push))
-	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, settingsSvc))
-	settingsSvc.Subscribe(svc.cache)
-	settingsSvc.SubscribeBatch(email.NewMailSettingListener(svc.email))
-	settingsSvc.SubscribeBatch(svc.chatbot)
-	settingsSvc.SubscribeBatch(svc.openai)
+	subscribeToSettingsEvents(settingsSvc, app, svc, repos)
 
 	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
 		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")
@@ -112,4 +103,22 @@ func scheduleJob(stop <-chan struct{}, wg *sync.WaitGroup, name string, successM
 			}
 		}
 	})
+}
+
+func subscribeToSettingsEvents(settingsSvc settings.Service, app *fiber.App, svc *services, repos *repository.Repositories) {
+	settingsSvc.Subscribe(logger.NewSettingsListener())
+	settingsSvc.Subscribe(telemetry.NewSettingsListener())
+	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
+	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
+	settingsSvc.Subscribe(push.NewSettingListener(svc.push))
+	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, repos.AuditLog, settingsSvc))
+	settingsSvc.SubscribeBatch(email.NewMailSettingListener(svc.email))
+	settingsSvc.SubscribeBatch(svc.chatbot)
+	settingsSvc.SubscribeBatch(svc.openai)
+
+	for _, candidate := range svc.cache.Engines() {
+		if listener, ok := candidate.(settings.Listener); ok {
+			settingsSvc.Subscribe(listener)
+		}
+	}
 }

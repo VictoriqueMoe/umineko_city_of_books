@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"database/sql"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -15,7 +16,7 @@ type fakeUpdater struct {
 	done  chan struct{}
 }
 
-func (f *fakeUpdater) UpdateIP(_ context.Context, _ uuid.UUID, _ string) error {
+func (f *fakeUpdater) UpdateIP(_ context.Context, _ uuid.UUID, _ string, _ ...*sql.Tx) error {
 	f.calls.Add(1)
 	if f.done != nil {
 		select {

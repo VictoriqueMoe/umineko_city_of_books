@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
@@ -61,6 +62,13 @@ type (
 		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
 		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+	}
+
+	fanficFields struct {
+		Tags     []string
+		Rating   string
+		Series   string
+		Language string
 	}
 
 	service struct {
@@ -112,6 +120,12 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 	return s.contentFilter.Check(ctx, texts...)
 }
 
+func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
 var (
 	validRatings = map[string]bool{
 		"K": true, "K+": true, "T": true, "M": true,
@@ -140,6 +154,93 @@ func countWords(html string) int {
 	return len(strings.Fields(text))
 }
 
+func validateFanficFields(genres, rawTags []string, rawRating, rawSeries, rawLanguage string) (fanficFields, error) {
+	if len(genres) > 2 {
+		return fanficFields{}, ErrTooManyGenres
+	}
+
+	tags := sanitiseTags(rawTags)
+	if len(tags) > 10 {
+		return fanficFields{}, ErrTooManyTags
+	}
+	for _, t := range tags {
+		if len(t) > 30 {
+			return fanficFields{}, ErrTagTooLong
+		}
+	}
+
+	rating := strings.TrimSpace(rawRating)
+	if rating == "" {
+		rating = "K"
+	}
+	if !validRatings[rating] {
+		return fanficFields{}, ErrInvalidRating
+	}
+
+	series := strings.TrimSpace(rawSeries)
+	if series == "" {
+		series = defaultSeries
+	}
+
+	language := strings.TrimSpace(rawLanguage)
+	if language == "" {
+		language = defaultLanguage
+	}
+
+	return fanficFields{
+		Tags:     tags,
+		Rating:   rating,
+		Series:   series,
+		Language: language,
+	}, nil
+}
+
+func fanficUpdateDetails(before *model.FanficRow, spec repository.FanficUpdate) string {
+	if before == nil {
+		return ""
+	}
+
+	var changed []string
+
+	if before.Title != spec.Title {
+		changed = append(changed, "title")
+	}
+
+	if before.Summary != spec.Summary {
+		changed = append(changed, "summary")
+	}
+
+	if before.Series != spec.Series {
+		changed = append(changed, "series")
+	}
+
+	if before.Rating != spec.Rating {
+		changed = append(changed, "rating")
+	}
+
+	if before.Language != spec.Language {
+		changed = append(changed, "language")
+	}
+
+	if before.Status != spec.Status {
+		changed = append(changed, "status")
+	}
+
+	if before.IsOneshot != spec.IsOneshot {
+		changed = append(changed, "is_oneshot")
+	}
+
+	if before.ContainsLemons != spec.ContainsLemons {
+		changed = append(changed, "contains_lemons")
+	}
+
+	if len(changed) == 0 {
+		return "changed=none"
+	}
+
+	return "changed=" + strings.Join(changed, ",")
+}
+
 func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.CreateFanficRequest) (uuid.UUID, error) {
 	title := strings.TrimSpace(req.Title)
 	if title == "" {
@@ -148,41 +249,9 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	if err := s.filterTexts(ctx, title, req.Summary, req.Body); err != nil {
 		return uuid.Nil, err
 	}
-	if len(req.Genres) > 2 {
-		return uuid.Nil, ErrTooManyGenres
-	}
 
-	tags := sanitiseTags(req.Tags)
-	if len(tags) > 10 {
-		return uuid.Nil, ErrTooManyTags
-	}
-	for _, t := range tags {
-		if len(t) > 30 {
-			return uuid.Nil, ErrTagTooLong
-		}
-	}
-
-	rating := strings.TrimSpace(req.Rating)
-	if rating == "" {
-		rating = "K"
-	}
-	if !validRatings[rating] {
-		return uuid.Nil, ErrInvalidRating
-	}
-
-	series := strings.TrimSpace(req.Series)
-	if series == "" {
-		series = defaultSeries
-	}
-	if err := s.fanficRepo.RegisterSeries(ctx, series); err != nil {
-		return uuid.Nil, err
-	}
-
-	language := strings.TrimSpace(req.Language)
-	if language == "" {
-		language = defaultLanguage
-	}
-	if err := s.fanficRepo.RegisterLanguage(ctx, language); err != nil {
+	fields, err := validateFanficFields(req.Genres, req.Tags, req.Rating, req.Series, req.Language)
+	if err != nil {
 		return uuid.Nil, err
 	}
 
@@ -193,27 +262,32 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 		status = "in_progress"
 	}
 
-	id := uuid.New()
-	summary := strings.TrimSpace(req.Summary)
-	if err := s.fanficRepo.CreateWithDetails(ctx, id, userID, title, summary, series, rating, language, status, req.IsOneshot, req.ContainsLemons, req.Genres, tags, req.Characters, req.IsPairing); err != nil {
+	spec := repository.NewFanfic{
+		UserID:         userID,
+		Title:          title,
+		Summary:        strings.TrimSpace(req.Summary),
+		Series:         fields.Series,
+		Rating:         fields.Rating,
+		Language:       fields.Language,
+		Status:         status,
+		IsOneshot:      req.IsOneshot,
+		ContainsLemons: req.ContainsLemons,
+		IsPairing:      req.IsPairing,
+		Genres:         req.Genres,
+		Tags:           fields.Tags,
+		Characters:     req.Characters,
+	}
+
+	if body := strings.TrimSpace(req.Body); body != "" {
+		spec.FirstChapter = &repository.NewChapter{Number: 1, Body: body, WordCount: countWords(body)}
+	}
+
+	created, err := s.fanficRepo.CreateWithDetails(ctx, spec)
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	if strings.TrimSpace(req.Body) != "" {
-		body := strings.TrimSpace(req.Body)
-		if err := s.fanficRepo.CreateChapter(ctx, uuid.New(), id, 1, "", body, countWords(body)); err != nil {
-			return uuid.Nil, err
-		}
-		_ = s.fanficRepo.UpdateWordCount(ctx, id)
-	}
-
-	for _, c := range req.Characters {
-		if c.CharacterID == "" && strings.TrimSpace(c.CharacterName) != "" {
-			_ = s.fanficRepo.RegisterOCCharacter(ctx, strings.TrimSpace(c.CharacterName), userID)
-		}
-	}
-
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerHash string) (*dto.FanficDetailResponse, error) {
@@ -295,8 +369,8 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		return ErrNotFound
 	}
 
-	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyTheory)
-	if authorID != userID && !asAdmin {
+	asAdmin := authorID != userID
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
 	if err := s.filterTexts(ctx, req.Title, req.Summary); err != nil {
@@ -307,64 +381,88 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	if title == "" {
 		return ErrEmptyTitle
 	}
-	if len(req.Genres) > 2 {
-		return ErrTooManyGenres
-	}
 
-	tags := sanitiseTags(req.Tags)
-	if len(tags) > 10 {
-		return ErrTooManyTags
-	}
-	for _, t := range tags {
-		if len(t) > 30 {
-			return ErrTagTooLong
-		}
-	}
-
-	rating := strings.TrimSpace(req.Rating)
-	if rating == "" {
-		rating = "K"
-	}
-	if !validRatings[rating] {
-		return ErrInvalidRating
-	}
-
-	series := strings.TrimSpace(req.Series)
-	if series == "" {
-		series = defaultSeries
-	}
-	if err := s.fanficRepo.RegisterSeries(ctx, series); err != nil {
+	fields, err := validateFanficFields(req.Genres, req.Tags, req.Rating, req.Series, req.Language)
+	if err != nil {
 		return err
 	}
 
-	language := strings.TrimSpace(req.Language)
-	if language == "" {
-		language = defaultLanguage
+	spec := repository.FanficUpdate{
+		ID:             id,
+		UserID:         userID,
+		Title:          title,
+		Summary:        strings.TrimSpace(req.Summary),
+		Series:         fields.Series,
+		Rating:         fields.Rating,
+		Language:       fields.Language,
+		Status:         strings.TrimSpace(req.Status),
+		IsOneshot:      req.IsOneshot,
+		ContainsLemons: req.ContainsLemons,
+		IsPairing:      req.IsPairing,
+		AsAdmin:        asAdmin,
+		Genres:         req.Genres,
+		Tags:           fields.Tags,
+		Characters:     req.Characters,
 	}
-	if err := s.fanficRepo.RegisterLanguage(ctx, language); err != nil {
+
+	var before *model.FanficRow
+	if asAdmin {
+		before, _ = s.fanficRepo.GetByID(ctx, id, userID)
+	}
+
+	if err := s.fanficRepo.UpdateWithDetails(ctx, spec); err != nil {
 		return err
 	}
 
-	summary := strings.TrimSpace(req.Summary)
-	status := strings.TrimSpace(req.Status)
-	if err := s.fanficRepo.UpdateWithDetails(ctx, id, userID, title, summary, series, rating, language, status, req.IsOneshot, req.ContainsLemons, req.Genres, tags, req.Characters, req.IsPairing, asAdmin); err != nil {
-		return err
-	}
-
-	for _, c := range req.Characters {
-		if c.CharacterID == "" && strings.TrimSpace(c.CharacterName) != "" {
-			_ = s.fanficRepo.RegisterOCCharacter(ctx, strings.TrimSpace(c.CharacterName), userID)
-		}
+	if asAdmin {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionFanficUpdateAdmin,
+			TargetType: repository.AuditTargetFanfic,
+			TargetID:   id.String(),
+			Details:    fanficUpdateDetails(before, spec),
+			SubjectID:  authorID,
+		})
 	}
 
 	return nil
 }
 
 func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error {
-	if s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
-		return s.fanficRepo.DeleteAsAdmin(ctx, id)
+	authorID, err := s.fanficRepo.GetAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
 	}
-	return s.fanficRepo.Delete(ctx, id, userID)
+
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
+
+	spec := repository.FanficDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+	}
+
+	paths, err := s.fanficRepo.DeleteFanfic(ctx, spec)
+	if err != nil {
+		return err
+	}
+
+	action := repository.AuditActionFanficDelete
+	if asAdmin {
+		action = repository.AuditActionFanficDeleteAdmin
+	}
+
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetFanfic,
+		TargetID:   id.String(),
+		SubjectID:  authorID,
+	})
+
+	s.uploadSvc.Delete(paths...)
+
+	return nil
 }
 
 func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams) (*dto.FanficListResponse, error) {
@@ -475,15 +573,19 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, err
 	}
 
-	id := uuid.New()
-	title := strings.TrimSpace(req.Title)
-	if err := s.fanficRepo.CreateChapter(ctx, id, fanficID, chapterNum, title, body, countWords(body)); err != nil {
+	spec := repository.NewChapter{
+		Number:    chapterNum,
+		Title:     strings.TrimSpace(req.Title),
+		Body:      body,
+		WordCount: countWords(body),
+	}
+
+	created, err := s.fanficRepo.CreateChapterWithCount(ctx, fanficID, spec)
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	_ = s.fanficRepo.UpdateWordCount(ctx, fanficID)
-
-	return id, nil
+	return created.ID, nil
 }
 
 func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, viewerID uuid.UUID) (*dto.FanficChapterResponse, error) {
@@ -522,7 +624,9 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 	if err != nil {
 		return ErrNotFound
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
+
+	asAdmin := authorID != userID
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
 	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
@@ -534,16 +638,27 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 		return ErrEmptyBody
 	}
 
-	title := strings.TrimSpace(req.Title)
-	if err := s.fanficRepo.UpdateChapter(ctx, chapterID, title, body, countWords(body)); err != nil {
+	spec := repository.ChapterUpdate{
+		ID:        chapterID,
+		Title:     strings.TrimSpace(req.Title),
+		Body:      body,
+		WordCount: countWords(body),
+	}
+
+	if err := s.fanficRepo.UpdateChapterWithCount(ctx, spec); err != nil {
 		return err
 	}
 
-	fanficID, err := s.fanficRepo.GetChapterFanficID(ctx, chapterID)
-	if err != nil {
-		return err
+	if asAdmin {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionFanficChapterUpdateAdmin,
+			TargetType: repository.AuditTargetFanficChapter,
+			TargetID:   chapterID.String(),
+			Details:    fmt.Sprintf("title=%s,word_count=%d", spec.Title, spec.WordCount),
+			SubjectID:  authorID,
+		})
 	}
-	_ = s.fanficRepo.UpdateWordCount(ctx, fanficID)
 
 	return nil
 }
@@ -553,20 +668,28 @@ func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID
 	if err != nil {
 		return ErrNotFound
 	}
-	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
+
+	asAdmin := authorID != userID
+	if asAdmin && !s.authz.Can(ctx, userID, authz.PermDeleteAnyPost) {
 		return ErrNotAuthor
 	}
 
-	fanficID, err := s.fanficRepo.GetChapterFanficID(ctx, chapterID)
-	if err != nil {
+	if err := s.fanficRepo.DeleteChapterWithCount(ctx, chapterID); err != nil {
 		return err
 	}
 
-	if err := s.fanficRepo.DeleteChapter(ctx, chapterID); err != nil {
-		return err
+	action := repository.AuditActionFanficChapterDelete
+	if asAdmin {
+		action = repository.AuditActionFanficChapterDeleteAdmin
 	}
 
-	_ = s.fanficRepo.UpdateWordCount(ctx, fanficID)
+	s.writeAudit(ctx, repository.NewAuditEntry{
+		ActorID:    userID,
+		Action:     action,
+		TargetType: repository.AuditTargetFanficChapter,
+		TargetID:   chapterID.String(),
+		SubjectID:  authorID,
+	})
 
 	return nil
 }
@@ -641,10 +764,12 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	id := uuid.New()
-	if err := s.fanficRepo.CreateComment(ctx, id, fanficID, req.ParentID, userID, body); err != nil {
+	created, err := s.fanficRepo.CreateComment(ctx, fanficID, req.ParentID, userID, body)
+	if err != nil {
 		return uuid.Nil, err
 	}
+
+	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()
@@ -691,28 +816,71 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 	if err := s.filterTexts(ctx, body); err != nil {
 		return err
 	}
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.fanficRepo.UpdateCommentAsAdmin(ctx, id, body)
+
+	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
 	}
-	return s.fanficRepo.UpdateComment(ctx, id, userID, body)
+
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
+
+	spec := repository.FanficCommentUpdate{
+		ID:      id,
+		UserID:  userID,
+		Body:    body,
+		AsAdmin: asAdmin,
+	}
+
+	if err := s.fanficRepo.UpdateCommentBody(ctx, spec); err != nil {
+		return err
+	}
+
+	if asAdmin {
+		s.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     repository.AuditActionFanficCommentUpdateAdmin,
+			TargetType: repository.AuditTargetFanficComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		})
+	}
+
+	return nil
 }
 
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
-	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
-	action := "fanfic_comment_delete"
-	if isAdmin {
-		if err := s.fanficRepo.DeleteCommentAsAdmin(ctx, id); err != nil {
-			return err
-		}
-		action = "fanfic_comment_delete_admin"
-	} else {
-		if err := s.fanficRepo.DeleteComment(ctx, id, userID); err != nil {
-			return err
-		}
+	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
 	}
-	if err := s.auditRepo.Create(ctx, userID, action, "fanfic_comment", id.String(), ""); err != nil {
-		return fmt.Errorf("audit comment delete: %w", err)
+
+	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
+
+	action := repository.AuditActionFanficCommentDelete
+	if asAdmin {
+		action = repository.AuditActionFanficCommentDeleteAdmin
 	}
+
+	spec := repository.FanficCommentDelete{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+		Audit: repository.NewAuditEntry{
+			ActorID:    userID,
+			Action:     action,
+			TargetType: repository.AuditTargetFanficComment,
+			TargetID:   id.String(),
+			SubjectID:  authorID,
+		},
+	}
+
+	paths, err := s.fanficRepo.DeleteCommentWithAudit(ctx, spec)
+	if err != nil {
+		return err
+	}
+
+	s.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -774,7 +942,13 @@ func (s *service) UploadCommentMedia(
 
 	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, fileSize, reader,
 		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
-			return s.fanficRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, sortOrder)
+			return s.fanficRepo.AddCommentMedia(ctx, repository.NewFanficCommentMedia{
+				CommentID:    commentID,
+				MediaURL:     mediaURL,
+				MediaType:    mediaType,
+				ThumbnailURL: thumbURL,
+				SortOrder:    sortOrder,
+			})
 		},
 		s.fanficRepo.UpdateCommentMediaURL,
 		s.fanficRepo.UpdateCommentMediaThumbnail,

@@ -12,6 +12,15 @@ type (
 		MemberIDs   []uuid.UUID `json:"member_ids"`
 	}
 
+	UpdateGroupRoomRequest struct {
+		Name              string   `json:"name"`
+		Description       string   `json:"description"`
+		Tags              []string `json:"tags"`
+		IsPublic          bool     `json:"is_public"`
+		IsRP              bool     `json:"is_rp"`
+		ConfirmBotRemoval bool     `json:"confirm_bot_removal"`
+	}
+
 	InviteMembersRequest struct {
 		UserIDs []uuid.UUID `json:"user_ids"`
 	}

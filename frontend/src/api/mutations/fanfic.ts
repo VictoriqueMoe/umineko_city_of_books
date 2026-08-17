@@ -18,6 +18,7 @@ import {
     uploadFanficCover,
 } from "../endpoints";
 import { queryKeys } from "../queryKeys";
+import { commentMutations } from "./commentMutations";
 
 export function useCreateFanfic() {
     const qc = useQueryClient();
@@ -117,43 +118,16 @@ export function useCreateFanficComment(fanficId: string) {
     });
 }
 
-export function useUpdateFanficComment(_fanficId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ id, body }: { id: string; body: string }) => updateFanficComment(id, body),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
-    });
-}
+const fanficCommentMutations = commentMutations(queryKeys.fanfic.all, {
+    update: (id, body) => updateFanficComment(id, body),
+    remove: id => deleteFanficComment(id),
+    like: id => likeFanficComment(id),
+    unlike: id => unlikeFanficComment(id),
+    uploadMedia: (commentId, file) => uploadFanficCommentMedia(commentId, file),
+});
 
-export function useDeleteFanficComment(_fanficId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => deleteFanficComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
-    });
-}
-
-export function useLikeFanficComment(_fanficId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => likeFanficComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
-    });
-}
-
-export function useUnlikeFanficComment(_fanficId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: (id: string) => unlikeFanficComment(id),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
-    });
-}
-
-export function useUploadFanficCommentMedia(_fanficId: string) {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) =>
-            uploadFanficCommentMedia(commentId, file),
-        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.fanfic.all }),
-    });
-}
+export const useUpdateFanficComment = fanficCommentMutations.useUpdate;
+export const useDeleteFanficComment = fanficCommentMutations.useDelete;
+export const useLikeFanficComment = fanficCommentMutations.useLike;
+export const useUnlikeFanficComment = fanficCommentMutations.useUnlike;
+export const useUploadFanficCommentMedia = fanficCommentMutations.useUploadMedia;

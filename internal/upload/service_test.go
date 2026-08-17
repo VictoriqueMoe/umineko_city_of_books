@@ -423,7 +423,7 @@ func TestDelete_EmptyPathNoOp(t *testing.T) {
 	svc, _, _ := newTestService(t)
 
 	// when
-	err := svc.Delete("")
+	err := svc.delete("")
 
 	// then
 	require.NoError(t, err)
@@ -434,7 +434,7 @@ func TestDelete_MissingFileNoError(t *testing.T) {
 	svc, _, _ := newTestService(t)
 
 	// when
-	err := svc.Delete("/uploads/images/nonexistent.png")
+	err := svc.delete("/uploads/images/nonexistent.png")
 
 	// then
 	require.NoError(t, err)
@@ -449,10 +449,9 @@ func TestDelete_RemovesFile(t *testing.T) {
 	require.NoError(t, os.WriteFile(target, []byte("x"), 0644))
 
 	// when
-	err := svc.Delete("/uploads/images/pic.png")
+	svc.Delete("/uploads/images/pic.png")
 
 	// then
-	require.NoError(t, err)
 	_, statErr := os.Stat(target)
 	assert.True(t, os.IsNotExist(statErr))
 }
@@ -465,7 +464,7 @@ func TestDelete_RemoveErrorWrapped(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(subDir, "keep.png"), []byte("x"), 0644))
 
 	// when
-	err := svc.Delete("/uploads/images")
+	err := svc.delete("/uploads/images")
 
 	// then
 	require.Error(t, err)

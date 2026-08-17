@@ -8,15 +8,14 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 )
 
 func (s *Service) setupVoiceTokenRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/voice/token", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voiceToken)
+	r.Post("/chat/rooms/:roomID/voice/token", s.requireAuth(), s.voiceToken)
 }
 
 func (s *Service) setupVoiceMuteRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/voice/participants/:userID/mute", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.voiceMute)
+	r.Post("/chat/rooms/:roomID/voice/participants/:userID/mute", s.requireAuth(), s.voiceMute)
 }
 
 func (s *Service) setupLiveKitWebhookRoute(r fiber.Router) {
@@ -70,8 +69,10 @@ func (s *Service) decorateVoiceCounts(list *dto.ChatRoomListResponse) {
 	}
 
 	for i := range list.Rooms {
-		list.Rooms[i].VoiceCount = s.ChatService.VoiceCount(list.Rooms[i].ID)
-		list.Rooms[i].VoiceParticipants = s.ChatService.VoiceParticipants(list.Rooms[i].ID)
+		participants := s.ChatService.VoiceParticipants(list.Rooms[i].ID)
+
+		list.Rooms[i].VoiceCount = len(participants)
+		list.Rooms[i].VoiceParticipants = participants
 	}
 }
 

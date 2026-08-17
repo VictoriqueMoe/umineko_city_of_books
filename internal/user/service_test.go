@@ -16,7 +16,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 )
+
+func hashFor(t *testing.T, password string) string {
+	t.Helper()
+	h, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.MinCost)
+	require.NoError(t, err)
+	return string(h)
+}
 
 func newTestService(t *testing.T) (
 	*service,
@@ -24,7 +32,7 @@ func newTestService(t *testing.T) (
 	*repository.MockRoleRepository,
 	*authz.MockService,
 ) {
-	svc, userRepo, roleRepo, authzSvc, _, _ := newFullTestService(t)
+	svc, userRepo, roleRepo, authzSvc, _, _, _ := newFullTestService(t)
 	return svc, userRepo, roleRepo, authzSvc
 }
 
@@ -35,49 +43,48 @@ func newFullTestService(t *testing.T) (
 	*authz.MockService,
 	*repository.MockVanityRoleRepository,
 	*settings.MockService,
+	*repository.MockAuditLogRepository,
 ) {
 	userRepo := repository.NewMockUserRepository(t)
 	roleRepo := repository.NewMockRoleRepository(t)
 	vanityRepo := repository.NewMockVanityRoleRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
 	authzSvc := authz.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
-	svc := NewService(userRepo, roleRepo, vanityRepo, authzSvc, settingsSvc).(*service)
-	return svc, userRepo, roleRepo, authzSvc, vanityRepo, settingsSvc
+	svc := NewService(userRepo, roleRepo, vanityRepo, auditRepo, authzSvc, settingsSvc).(*service)
+	return svc, userRepo, roleRepo, authzSvc, vanityRepo, settingsSvc, auditRepo
 }
 
-func TestCreate_FirstUserAssignsSuperAdmin(t *testing.T) {
+func TestNewAccountSpec_FirstUserCarriesSuperAdmin(t *testing.T) {
 	// given
-	svc, userRepo, roleRepo, _ := newTestService(t)
-	userID := uuid.New()
-	created := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
+	svc, userRepo, _, _ := newTestService(t)
 	userRepo.EXPECT().Count(mock.Anything).Return(0, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(created, nil)
-	roleRepo.EXPECT().SetRole(mock.Anything, userID, authz.RoleSuperAdmin).Return(nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
+	spec, err := svc.NewAccountSpec(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, userID, got.ID)
-	assert.Equal(t, "alice", got.Username)
+	assert.Equal(t, authz.RoleSuperAdmin, spec.Role)
+	assert.Equal(t, "alice", spec.User.Username)
+	assert.Equal(t, "alice@example.com", spec.User.Email)
+	assert.Equal(t, "Alice", spec.User.DisplayName)
+	assert.Equal(t, "landing", spec.User.HomePage)
+	assert.True(t, spec.User.DMsEnabled)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(spec.User.PasswordHash), []byte("pw")))
 }
 
-func TestCreate_FirstUserSetRoleErrorSwallowed(t *testing.T) {
+func TestNewAccountSpec_DefaultsDisplayNameToUsername(t *testing.T) {
 	// given
-	svc, userRepo, roleRepo, _ := newTestService(t)
-	userID := uuid.New()
-	created := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
-	userRepo.EXPECT().Count(mock.Anything).Return(0, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(created, nil)
-	roleRepo.EXPECT().SetRole(mock.Anything, userID, authz.RoleSuperAdmin).Return(errors.New("boom"))
+	svc, userRepo, _, _ := newTestService(t)
+	userRepo.EXPECT().Count(mock.Anything).Return(3, nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
+	spec, err := svc.NewAccountSpec(context.Background(), "alice", "alice@example.com", "pw", "   ")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, userID, got.ID)
+	assert.Equal(t, "alice", spec.User.DisplayName)
 }
 
 func TestListStaff_OK_FiltersBannedAndSorts(t *testing.T) {
@@ -142,47 +149,31 @@ func TestListStaff_UserRepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestCreate_SubsequentUserNoRoleAssigned(t *testing.T) {
+func TestNewAccountSpec_SubsequentUserCarriesNoRole(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
-	userID := uuid.New()
-	created := &model.User{ID: userID, Username: "bob", DisplayName: "Bob"}
 	userRepo.EXPECT().Count(mock.Anything).Return(5, nil)
-	userRepo.EXPECT().Create(mock.Anything, "bob", "bob@example.com", "pw", "Bob").Return(created, nil)
 
 	// when
-	got, err := svc.Create(context.Background(), "bob", "bob@example.com", "pw", "Bob")
+	spec, err := svc.NewAccountSpec(context.Background(), "bob", "bob@example.com", "pw", "Bob")
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, "bob", got.Username)
+	assert.Empty(t, spec.Role)
+	assert.Equal(t, "bob", spec.User.Username)
 }
 
-func TestCreate_CountErrorBubbles(t *testing.T) {
+func TestNewAccountSpec_CountErrorBubbles(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
 	userRepo.EXPECT().Count(mock.Anything).Return(0, errors.New("db down"))
 
 	// when
-	_, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
+	_, err := svc.NewAccountSpec(context.Background(), "alice", "alice@example.com", "pw", "Alice")
 
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "count users")
-}
-
-func TestCreate_CreateErrorBubbles(t *testing.T) {
-	// given
-	svc, userRepo, _, _ := newTestService(t)
-	userRepo.EXPECT().Count(mock.Anything).Return(3, nil)
-	userRepo.EXPECT().Create(mock.Anything, "alice", "alice@example.com", "pw", "Alice").Return(nil, errors.New("dup"))
-
-	// when
-	_, err := svc.Create(context.Background(), "alice", "alice@example.com", "pw", "Alice")
-
-	// then
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "create user")
 }
 
 func TestGetByID_OK(t *testing.T) {
@@ -232,8 +223,8 @@ func TestValidateCredentials_OK(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
 	userID := uuid.New()
-	found := &model.User{ID: userID, Username: "alice", DisplayName: "Alice"}
-	userRepo.EXPECT().ValidatePassword(mock.Anything, "alice", "pw").Return(found, nil)
+	found := &model.User{ID: userID, Username: "alice", DisplayName: "Alice", PasswordHash: hashFor(t, "pw")}
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(found, nil)
 
 	// when
 	got, err := svc.ValidateCredentials(context.Background(), "alice", "pw")
@@ -243,10 +234,10 @@ func TestValidateCredentials_OK(t *testing.T) {
 	assert.Equal(t, userID, got.ID)
 }
 
-func TestValidateCredentials_InvalidReturnsErr(t *testing.T) {
+func TestValidateCredentials_UnknownUserReturnsErr(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
-	userRepo.EXPECT().ValidatePassword(mock.Anything, "alice", "wrong").Return(nil, nil)
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(nil, nil)
 
 	// when
 	_, err := svc.ValidateCredentials(context.Background(), "alice", "wrong")
@@ -255,10 +246,36 @@ func TestValidateCredentials_InvalidReturnsErr(t *testing.T) {
 	require.ErrorIs(t, err, ErrInvalidCredentials)
 }
 
+func TestValidateCredentials_WrongPasswordReturnsErr(t *testing.T) {
+	// given
+	svc, userRepo, _, _ := newTestService(t)
+	found := &model.User{ID: uuid.New(), Username: "alice", PasswordHash: hashFor(t, "pw")}
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(found, nil)
+
+	// when
+	_, err := svc.ValidateCredentials(context.Background(), "alice", "wrong")
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
+func TestValidateCredentials_BotCannotSignIn(t *testing.T) {
+	// given
+	svc, userRepo, _, _ := newTestService(t)
+	found := &model.User{ID: uuid.New(), Username: "beato", IsBot: true, PasswordHash: hashFor(t, "pw")}
+	userRepo.EXPECT().GetByUsername(mock.Anything, "beato").Return(found, nil)
+
+	// when
+	_, err := svc.ValidateCredentials(context.Background(), "beato", "pw")
+
+	// then
+	require.ErrorIs(t, err, ErrInvalidCredentials)
+}
+
 func TestValidateCredentials_RepoError(t *testing.T) {
 	// given
 	svc, userRepo, _, _ := newTestService(t)
-	userRepo.EXPECT().ValidatePassword(mock.Anything, "alice", "pw").Return(nil, errors.New("boom"))
+	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.ValidateCredentials(context.Background(), "alice", "pw")
@@ -326,7 +343,7 @@ func TestIsChatbotOptedIn(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+			svc, _, _, _, vanityRepo, settingsSvc, _ := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(tc.configured)
 			if tc.configured != "" {
@@ -362,7 +379,7 @@ func TestSetChatbotOptIn_Unavailable(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, _, settingsSvc := newFullTestService(t)
+			svc, _, _, _, _, settingsSvc, _ := newFullTestService(t)
 			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(tc.enabled).Maybe()
 			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(tc.restricted).Maybe()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(tc.configured).Maybe()
@@ -394,10 +411,12 @@ func TestSetChatbotOptIn_GrantsAndRevokesThroughRepository(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+			svc, _, _, _, vanityRepo, settingsSvc, auditRepo := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
+			action := repository.AuditActionUnassignVanityRole
 			if tc.optIn {
+				action = repository.AuditActionAssignVanityRole
 				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
 				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
 				vanityRepo.EXPECT().GetByID(mock.Anything, roleID).
@@ -405,6 +424,15 @@ func TestSetChatbotOptIn_GrantsAndRevokesThroughRepository(t *testing.T) {
 				vanityRepo.EXPECT().AssignToUser(mock.Anything, userID, roleID).Return(tc.repoErr)
 			} else {
 				vanityRepo.EXPECT().UnassignFromUser(mock.Anything, userID, roleID).Return(tc.repoErr)
+			}
+			if tc.repoErr == nil {
+				auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+					ActorID:    userID,
+					Action:     action,
+					TargetType: repository.AuditTargetVanityRole,
+					TargetID:   roleID,
+					SubjectID:  userID,
+				}).Return(nil)
 			}
 
 			// when
@@ -436,10 +464,17 @@ func TestSetChatbotOptIn_OptOutWorksEvenWhenOptInIsNoLongerOffered(t *testing.T)
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+			svc, _, _, _, vanityRepo, settingsSvc, auditRepo := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
 			vanityRepo.EXPECT().UnassignFromUser(mock.Anything, userID, roleID).Return(nil)
+			auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+				ActorID:    userID,
+				Action:     repository.AuditActionUnassignVanityRole,
+				TargetType: repository.AuditTargetVanityRole,
+				TargetID:   roleID,
+				SubjectID:  userID,
+			}).Return(nil)
 
 			// when
 			err := svc.SetChatbotOptIn(context.Background(), userID, false)
@@ -452,7 +487,7 @@ func TestSetChatbotOptIn_OptOutWorksEvenWhenOptInIsNoLongerOffered(t *testing.T)
 
 func TestSetChatbotOptIn_RefusesToGrantASystemRole(t *testing.T) {
 	// given
-	svc, _, _, _, vanityRepo, settingsSvc := newFullTestService(t)
+	svc, _, _, _, vanityRepo, settingsSvc, _ := newFullTestService(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return("bot")
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
@@ -466,4 +501,89 @@ func TestSetChatbotOptIn_RefusesToGrantASystemRole(t *testing.T) {
 	// then
 	require.ErrorIs(t, err, ErrChatbotOptInUnavailable)
 	vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestScoreAdjustment_AuditsPreviousAndNextValue(t *testing.T) {
+	cases := []struct {
+		name    string
+		gm      bool
+		current model.User
+		next    int
+		want    string
+	}{
+		{"mystery score", false, model.User{MysteryScoreAdjustment: 5}, 12, "5 -> 12"},
+		{"gm score", true, model.User{GMScoreAdjustment: -3}, 0, "-3 -> 0"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, userRepo, _, _, _, _, auditRepo := newFullTestService(t)
+			actor := uuid.New()
+			target := uuid.New()
+			current := tc.current
+			current.ID = target
+			userRepo.EXPECT().GetByID(mock.Anything, target).Return(&current, nil)
+
+			action := repository.AuditActionMysteryScoreAdjust
+			if tc.gm {
+				action = repository.AuditActionGMScoreAdjust
+				userRepo.EXPECT().UpdateGMScoreAdjustment(mock.Anything, target, tc.next).Return(nil)
+			} else {
+				userRepo.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, target, tc.next).Return(nil)
+			}
+
+			auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+				ActorID:    actor,
+				Action:     action,
+				TargetType: repository.AuditTargetUser,
+				TargetID:   target.String(),
+				Details:    tc.want,
+				SubjectID:  target,
+			}).Return(nil)
+
+			// when
+			var err error
+			if tc.gm {
+				err = svc.UpdateGMScoreAdjustment(context.Background(), actor, target, tc.next)
+			} else {
+				err = svc.UpdateMysteryScoreAdjustment(context.Background(), actor, target, tc.next)
+			}
+
+			// then
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestScoreAdjustment_UnknownUserIsRejected(t *testing.T) {
+	cases := []struct {
+		name string
+		gm   bool
+	}{
+		{"mystery score", false},
+		{"gm score", true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, userRepo, _, _ := newTestService(t)
+			target := uuid.New()
+			userRepo.EXPECT().GetByID(mock.Anything, target).Return(nil, nil)
+
+			// when
+			var err error
+			if tc.gm {
+				err = svc.UpdateGMScoreAdjustment(context.Background(), uuid.New(), target, 5)
+			} else {
+				err = svc.UpdateMysteryScoreAdjustment(context.Background(), uuid.New(), target, 5)
+			}
+
+			// then
+			require.ErrorIs(t, err, ErrUserNotFound)
+			userRepo.AssertNotCalled(t, "UpdateMysteryScoreAdjustment", mock.Anything, mock.Anything, mock.Anything)
+			userRepo.AssertNotCalled(t, "UpdateGMScoreAdjustment", mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
 }

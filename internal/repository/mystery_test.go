@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -19,25 +20,25 @@ import (
 type (
 	mysteryWriterCase struct {
 		name   string
-		expect func(dao *MockMysteryRepository, err error)
+		expect func(dao *MockMysteryDAO, err error)
 		call   func(repo MysteryRepository) error
 	}
 )
 
-func newCachedMysteryRepo(t *testing.T) (MysteryRepository, *MockMysteryRepository, *valkeymock.Client) {
+func newCachedMysteryRepo(t *testing.T) (MysteryRepository, *MockMysteryDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockMysteryRepository(t)
+	dao := NewMockMysteryDAO(t)
 
-	return NewMysteryRepo(dao, cache.NewManagerWithClient(client)), dao, client
+	return NewMysteryRepo(nil, dao, NewMockAuditLogRepository(t), cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
 }
 
 func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mysteryWriterCase {
 	return []mysteryWriterCase{
 		{
 			name: "update",
-			expect: func(dao *MockMysteryRepository, err error) {
+			expect: func(dao *MockMysteryDAO, err error) {
 				dao.EXPECT().Update(mock.Anything, mysteryID, userID, "t", "b", "hard").Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -46,7 +47,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "update as admin",
-			expect: func(dao *MockMysteryRepository, err error) {
+			expect: func(dao *MockMysteryDAO, err error) {
 				dao.EXPECT().UpdateAsAdmin(mock.Anything, mysteryID, "t", "b", "nightmare", true, false, mock.Anything).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -55,7 +56,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete",
-			expect: func(dao *MockMysteryRepository, err error) {
+			expect: func(dao *MockMysteryDAO, err error) {
 				dao.EXPECT().Delete(mock.Anything, mysteryID, userID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -64,7 +65,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete as admin",
-			expect: func(dao *MockMysteryRepository, err error) {
+			expect: func(dao *MockMysteryDAO, err error) {
 				dao.EXPECT().DeleteAsAdmin(mock.Anything, mysteryID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -73,7 +74,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete attempt",
-			expect: func(dao *MockMysteryRepository, err error) {
+			expect: func(dao *MockMysteryDAO, err error) {
 				dao.EXPECT().DeleteAttempt(mock.Anything, attemptID, userID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {
@@ -82,7 +83,7 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 		},
 		{
 			name: "delete attempt as admin",
-			expect: func(dao *MockMysteryRepository, err error) {
+			expect: func(dao *MockMysteryDAO, err error) {
 				dao.EXPECT().DeleteAttemptAsAdmin(mock.Anything, attemptID).Return(err)
 			},
 			call: func(repo MysteryRepository) error {

@@ -1,4 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "./useAuth";
 import { useNotifications } from "./useNotifications";
@@ -8,6 +9,7 @@ import { buildMentionMatcher } from "../utils/mentions";
 import { ROLE_GROUPS, type SiteRole } from "../utils/permissions";
 import { parseServerDate } from "../utils/time";
 import { useChatRoomMembers, useUserRooms } from "../api/queries/chat";
+import { queryKeys } from "../api/queryKeys";
 import {
     useAddChatMessageReaction,
     useBanChatRoomMember,
@@ -45,6 +47,7 @@ import {
     ChatMessagePinnedPayload,
     ChatMessageUnpinnedPayload,
     ChatReactionPayload,
+    ChatRoomUpdatedPayload,
     handleIncomingChatMessage,
     maybePlayChatMessageSound,
 } from "../utils/chatStream";
@@ -56,6 +59,7 @@ export function useRoomController() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const qc = useQueryClient();
     const matchesViewerMention = useMemo(() => buildMentionMatcher(user?.username), [user?.username]);
     const { addWSListener, sendWSMessage, wsEpoch } = useNotifications();
     const [roomOverride, setRoomOverride] = useState<{ roomId: string | null; room: ChatRoom | null }>({
@@ -187,8 +191,9 @@ export function useRoomController() {
     const userRoomsList = userRoomsQuery.rooms;
     const baseRoom = roomId ? (userRoomsList.find(r => r.id === roomId) ?? null) : null;
     const room = roomOverride.roomId === roomId && roomOverride.room ? roomOverride.room : baseRoom;
-    const voice = useVoiceChat(roomId ?? "", room?.voice_participants ?? []);
-    const voiceIdSet = new Set(voice.participantIds);
+    const voiceParticipants = useMemo(() => room?.voice_participants ?? [], [room?.voice_participants]);
+    const voice = useVoiceChat(roomId ?? "", voiceParticipants);
+    const voiceIdSet = useMemo(() => new Set(voice.participantIds), [voice.participantIds]);
     const loading = !!roomId && userRoomsLoading;
     const setRoom: Dispatch<SetStateAction<ChatRoom | null>> = useCallback(
         updater => {
@@ -234,13 +239,16 @@ export function useRoomController() {
         return { ...seed, ...presenceMap };
     }, [baseMembers, presenceMap]);
 
-    const memberOnlineWeight = (id: string) => {
-        const p = presenceMapMerged[id];
-        if (p === "active" || p === "idle") {
-            return 0;
-        }
-        return 1;
-    };
+    const memberOnlineWeight = useCallback(
+        (id: string) => {
+            const p = presenceMapMerged[id];
+            if (p === "active" || p === "idle") {
+                return 0;
+            }
+            return 1;
+        },
+        [presenceMapMerged],
+    );
     const memberRankWeight = (m: ChatRoomMember) => {
         if (m.user.role === "super_admin") {
             return 0;
@@ -291,33 +299,33 @@ export function useRoomController() {
                 return rank;
             }
 
-            const onlineWeight = (id: string) => {
-                const p = presenceMapMerged[id];
-                return p === "active" || p === "idle" ? 0 : 1;
-            };
-            const online = onlineWeight(a.user.id) - onlineWeight(b.user.id);
+            const online = memberOnlineWeight(a.user.id) - memberOnlineWeight(b.user.id);
             if (online !== 0) {
                 return online;
             }
 
             return memberSortName(a).localeCompare(memberSortName(b));
         });
-    }, [members, presenceMapMerged]);
-    const memberGroups: { label: string; members: ChatRoomMember[] }[] = [];
-    for (const m of sortedMembers) {
-        const label = memberRankLabel(m);
-        const last = memberGroups[memberGroups.length - 1];
-        if (last && last.label === label) {
-            last.members.push(m);
-        } else {
-            memberGroups.push({ label, members: [m] });
+    }, [members, memberOnlineWeight]);
+    const memberGroups = useMemo(() => {
+        const groups: { label: string; members: ChatRoomMember[] }[] = [];
+        for (const m of sortedMembers) {
+            const label = memberRankLabel(m);
+            const last = groups[groups.length - 1];
+            if (last && last.label === label) {
+                last.members.push(m);
+            } else {
+                groups.push({ label, members: [m] });
+            }
         }
-    }
 
-    const inVoiceMembers = sortedMembers.filter(m => voiceIdSet.has(m.user.id));
-    if (inVoiceMembers.length > 0) {
-        memberGroups.unshift({ label: "In Voice", members: inVoiceMembers });
-    }
+        const inVoiceMembers = sortedMembers.filter(m => voiceIdSet.has(m.user.id));
+        if (inVoiceMembers.length > 0) {
+            groups.unshift({ label: "In Voice", members: inVoiceMembers });
+        }
+
+        return groups;
+    }, [sortedMembers, voiceIdSet]);
 
     const {
         messages,
@@ -383,14 +391,24 @@ export function useRoomController() {
             });
     }, [invitedPartyId, invitedPartyResolved, invitedPartyMissing, joinWatchParty]);
 
-    const [nowTick, setNowTick] = useState(() => Date.now());
-    useEffect(() => {
-        const t = setInterval(() => setNowTick(Date.now()), 30_000);
-        return () => clearInterval(t);
-    }, []);
-
     const currentMember = members.find(m => m.user.id === user?.id) ?? null;
     const viewerTimeoutUntil = currentMember?.timeout_until ?? undefined;
+
+    const [nowTick, setNowTick] = useState(() => Date.now());
+    useEffect(() => {
+        if (!viewerTimeoutUntil) {
+            return;
+        }
+
+        const reseed = setTimeout(() => setNowTick(Date.now()), 0);
+        const t = setInterval(() => setNowTick(Date.now()), 30_000);
+
+        return () => {
+            clearTimeout(reseed);
+            clearInterval(t);
+        };
+    }, [viewerTimeoutUntil]);
+
     const viewerTimedOutDate = parseServerDate(viewerTimeoutUntil);
     const viewerTimedOut = viewerTimedOutDate ? viewerTimedOutDate.getTime() > nowTick : false;
 
@@ -581,6 +599,28 @@ export function useRoomController() {
                 setTimeout(() => navigate("/rooms"), 1500);
                 return;
             }
+            if (msg.type === "chat_room_updated") {
+                const data = msg.data as ChatRoomUpdatedPayload;
+                if (data.room_id !== roomIdRef.current) {
+                    return;
+                }
+                setRoom(prev => {
+                    if (!prev) {
+                        return prev;
+                    }
+                    return {
+                        ...prev,
+                        name: data.name,
+                        description: data.description,
+                        tags: data.tags ?? [],
+                        is_public: data.is_public,
+                        is_rp: data.is_rp,
+                    };
+                });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.rooms() });
+                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
+                return;
+            }
             if (msg.type === "chat_member_updated") {
                 const data = msg.data as ChatMemberUpdatedPayload;
                 if (data.room_id !== roomIdRef.current) {
@@ -690,6 +730,7 @@ export function useRoomController() {
         setMembers,
         setPresenceMap,
         setRoom,
+        qc,
     ]);
 
     function handleSentMessage(message: ChatMessage) {
@@ -1030,6 +1071,7 @@ export function useRoomController() {
         setModerationDialogOpen,
         openMemberMenu,
         setOpenMemberMenu,
+        setRoom,
         setMembers,
         nicknameDialogTarget,
         setNicknameDialogTarget,

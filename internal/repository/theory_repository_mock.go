@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/theory/params"
 
@@ -41,8 +42,14 @@ func (_m *MockTheoryRepository) EXPECT() *MockTheoryRepository_Expecter {
 }
 
 // CountUserResponsesToday provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) CountUserResponsesToday(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockTheoryRepository) CountUserResponsesToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountUserResponsesToday")
@@ -50,16 +57,16 @@ func (_mock *MockTheoryRepository) CountUserResponsesToday(ctx context.Context, 
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,11 +81,13 @@ type MockTheoryRepository_CountUserResponsesToday_Call struct {
 // CountUserResponsesToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) CountUserResponsesToday(ctx any, userID any) *MockTheoryRepository_CountUserResponsesToday_Call {
-	return &MockTheoryRepository_CountUserResponsesToday_Call{Call: _e.mock.On("CountUserResponsesToday", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) CountUserResponsesToday(ctx any, userID any, tx ...any) *MockTheoryRepository_CountUserResponsesToday_Call {
+	return &MockTheoryRepository_CountUserResponsesToday_Call{Call: _e.mock.On("CountUserResponsesToday",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_CountUserResponsesToday_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockTheoryRepository_CountUserResponsesToday_Call {
+func (_c *MockTheoryRepository_CountUserResponsesToday_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_CountUserResponsesToday_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -88,9 +97,16 @@ func (_c *MockTheoryRepository_CountUserResponsesToday_Call) Run(run func(ctx co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -101,14 +117,20 @@ func (_c *MockTheoryRepository_CountUserResponsesToday_Call) Return(n int, err e
 	return _c
 }
 
-func (_c *MockTheoryRepository_CountUserResponsesToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockTheoryRepository_CountUserResponsesToday_Call {
+func (_c *MockTheoryRepository_CountUserResponsesToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockTheoryRepository_CountUserResponsesToday_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CountUserTheoriesToday provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) CountUserTheoriesToday(ctx context.Context, userID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID)
+func (_mock *MockTheoryRepository) CountUserTheoriesToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CountUserTheoriesToday")
@@ -116,16 +138,16 @@ func (_mock *MockTheoryRepository) CountUserTheoriesToday(ctx context.Context, u
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -140,11 +162,13 @@ type MockTheoryRepository_CountUserTheoriesToday_Call struct {
 // CountUserTheoriesToday is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) CountUserTheoriesToday(ctx any, userID any) *MockTheoryRepository_CountUserTheoriesToday_Call {
-	return &MockTheoryRepository_CountUserTheoriesToday_Call{Call: _e.mock.On("CountUserTheoriesToday", ctx, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) CountUserTheoriesToday(ctx any, userID any, tx ...any) *MockTheoryRepository_CountUserTheoriesToday_Call {
+	return &MockTheoryRepository_CountUserTheoriesToday_Call{Call: _e.mock.On("CountUserTheoriesToday",
+		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_CountUserTheoriesToday_Call) Run(run func(ctx context.Context, userID uuid.UUID)) *MockTheoryRepository_CountUserTheoriesToday_Call {
+func (_c *MockTheoryRepository_CountUserTheoriesToday_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_CountUserTheoriesToday_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -154,9 +178,16 @@ func (_c *MockTheoryRepository_CountUserTheoriesToday_Call) Run(run func(ctx con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -167,33 +198,39 @@ func (_c *MockTheoryRepository_CountUserTheoriesToday_Call) Return(n int, err er
 	return _c
 }
 
-func (_c *MockTheoryRepository_CountUserTheoriesToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID) (int, error)) *MockTheoryRepository_CountUserTheoriesToday_Call {
+func (_c *MockTheoryRepository_CountUserTheoriesToday_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockTheoryRepository_CountUserTheoriesToday_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Create provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) Create(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, userID, req)
+func (_mock *MockTheoryRepository) Create(ctx context.Context, spec NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
 	}
 
-	var r0 uuid.UUID
+	var r0 *dto.TheoryDetailResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateTheoryRequest) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheory, ...*sql.Tx) (*dto.TheoryDetailResponse, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateTheoryRequest) uuid.UUID); ok {
-		r0 = returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheory, ...*sql.Tx) *dto.TheoryDetailResponse); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
+			r0 = ret.Get(0).(*dto.TheoryDetailResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateTheoryRequest) error); ok {
-		r1 = returnFunc(ctx, userID, req)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewTheory, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -207,67 +244,76 @@ type MockTheoryRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - req dto.CreateTheoryRequest
-func (_e *MockTheoryRepository_Expecter) Create(ctx any, userID any, req any) *MockTheoryRepository_Create_Call {
-	return &MockTheoryRepository_Create_Call{Call: _e.mock.On("Create", ctx, userID, req)}
+//   - spec NewTheory
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) Create(ctx any, spec any, tx ...any) *MockTheoryRepository_Create_Call {
+	return &MockTheoryRepository_Create_Call{Call: _e.mock.On("Create",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest)) *MockTheoryRepository_Create_Call {
+func (_c *MockTheoryRepository_Create_Call) Run(run func(ctx context.Context, spec NewTheory, tx ...*sql.Tx)) *MockTheoryRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewTheory
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewTheory)
 		}
-		var arg2 dto.CreateTheoryRequest
-		if args[2] != nil {
-			arg2 = args[2].(dto.CreateTheoryRequest)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockTheoryRepository_Create_Call) Return(uUID uuid.UUID, err error) *MockTheoryRepository_Create_Call {
-	_c.Call.Return(uUID, err)
+func (_c *MockTheoryRepository_Create_Call) Return(theoryDetailResponse *dto.TheoryDetailResponse, err error) *MockTheoryRepository_Create_Call {
+	_c.Call.Return(theoryDetailResponse, err)
 	return _c
 }
 
-func (_c *MockTheoryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error)) *MockTheoryRepository_Create_Call {
+func (_c *MockTheoryRepository_Create_Call) RunAndReturn(run func(ctx context.Context, spec NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error)) *MockTheoryRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateResponse provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, theoryID, userID, req)
+func (_mock *MockTheoryRepository) CreateResponse(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx) (*dto.ResponseResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for CreateResponse")
 	}
 
-	var r0 uuid.UUID
+	var r0 *dto.ResponseResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateResponseRequest) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, theoryID, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheoryResponse, ...*sql.Tx) (*dto.ResponseResponse, error)); ok {
+		return returnFunc(ctx, spec, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateResponseRequest) uuid.UUID); ok {
-		r0 = returnFunc(ctx, theoryID, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheoryResponse, ...*sql.Tx) *dto.ResponseResponse); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(uuid.UUID)
+			r0 = ret.Get(0).(*dto.ResponseResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateResponseRequest) error); ok {
-		r1 = returnFunc(ctx, theoryID, userID, req)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewTheoryResponse, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -281,62 +327,65 @@ type MockTheoryRepository_CreateResponse_Call struct {
 
 // CreateResponse is a helper method to define mock.On call
 //   - ctx context.Context
-//   - theoryID uuid.UUID
-//   - userID uuid.UUID
-//   - req dto.CreateResponseRequest
-func (_e *MockTheoryRepository_Expecter) CreateResponse(ctx any, theoryID any, userID any, req any) *MockTheoryRepository_CreateResponse_Call {
-	return &MockTheoryRepository_CreateResponse_Call{Call: _e.mock.On("CreateResponse", ctx, theoryID, userID, req)}
+//   - spec NewTheoryResponse
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) CreateResponse(ctx any, spec any, tx ...any) *MockTheoryRepository_CreateResponse_Call {
+	return &MockTheoryRepository_CreateResponse_Call{Call: _e.mock.On("CreateResponse",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_CreateResponse_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest)) *MockTheoryRepository_CreateResponse_Call {
+func (_c *MockTheoryRepository_CreateResponse_Call) Run(run func(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx)) *MockTheoryRepository_CreateResponse_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 NewTheoryResponse
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(NewTheoryResponse)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 dto.CreateResponseRequest
-		if args[3] != nil {
-			arg3 = args[3].(dto.CreateResponseRequest)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockTheoryRepository_CreateResponse_Call) Return(uUID uuid.UUID, err error) *MockTheoryRepository_CreateResponse_Call {
-	_c.Call.Return(uUID, err)
+func (_c *MockTheoryRepository_CreateResponse_Call) Return(responseResponse *dto.ResponseResponse, err error) *MockTheoryRepository_CreateResponse_Call {
+	_c.Call.Return(responseResponse, err)
 	return _c
 }
 
-func (_c *MockTheoryRepository_CreateResponse_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error)) *MockTheoryRepository_CreateResponse_Call {
+func (_c *MockTheoryRepository_CreateResponse_Call) RunAndReturn(run func(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx) (*dto.ResponseResponse, error)) *MockTheoryRepository_CreateResponse_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockTheoryRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -352,11 +401,13 @@ type MockTheoryRepository_Delete_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) Delete(ctx any, id any, userID any) *MockTheoryRepository_Delete_Call {
-	return &MockTheoryRepository_Delete_Call{Call: _e.mock.On("Delete", ctx, id, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) Delete(ctx any, id any, userID any, tx ...any) *MockTheoryRepository_Delete_Call {
+	return &MockTheoryRepository_Delete_Call{Call: _e.mock.On("Delete",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockTheoryRepository_Delete_Call {
+func (_c *MockTheoryRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -370,10 +421,17 @@ func (_c *MockTheoryRepository_Delete_Call) Run(run func(ctx context.Context, id
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -384,22 +442,28 @@ func (_c *MockTheoryRepository_Delete_Call) Return(err error) *MockTheoryReposit
 	return _c
 }
 
-func (_c *MockTheoryRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockTheoryRepository_Delete_Call {
+func (_c *MockTheoryRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockTheoryRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteAsAdmin provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockTheoryRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -414,11 +478,13 @@ type MockTheoryRepository_DeleteAsAdmin_Call struct {
 // DeleteAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockTheoryRepository_Expecter) DeleteAsAdmin(ctx any, id any) *MockTheoryRepository_DeleteAsAdmin_Call {
-	return &MockTheoryRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) DeleteAsAdmin(ctx any, id any, tx ...any) *MockTheoryRepository_DeleteAsAdmin_Call {
+	return &MockTheoryRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTheoryRepository_DeleteAsAdmin_Call {
+func (_c *MockTheoryRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_DeleteAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -428,9 +494,16 @@ func (_c *MockTheoryRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -441,22 +514,28 @@ func (_c *MockTheoryRepository_DeleteAsAdmin_Call) Return(err error) *MockTheory
 	return _c
 }
 
-func (_c *MockTheoryRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockTheoryRepository_DeleteAsAdmin_Call {
+func (_c *MockTheoryRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockTheoryRepository_DeleteAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteResponse provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	ret := _mock.Called(ctx, id, userID)
+func (_mock *MockTheoryRepository) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteResponse")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -472,11 +551,13 @@ type MockTheoryRepository_DeleteResponse_Call struct {
 //   - ctx context.Context
 //   - id uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) DeleteResponse(ctx any, id any, userID any) *MockTheoryRepository_DeleteResponse_Call {
-	return &MockTheoryRepository_DeleteResponse_Call{Call: _e.mock.On("DeleteResponse", ctx, id, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) DeleteResponse(ctx any, id any, userID any, tx ...any) *MockTheoryRepository_DeleteResponse_Call {
+	return &MockTheoryRepository_DeleteResponse_Call{Call: _e.mock.On("DeleteResponse",
+		append([]any{ctx, id, userID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_DeleteResponse_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID)) *MockTheoryRepository_DeleteResponse_Call {
+func (_c *MockTheoryRepository_DeleteResponse_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_DeleteResponse_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -490,10 +571,17 @@ func (_c *MockTheoryRepository_DeleteResponse_Call) Run(run func(ctx context.Con
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -504,22 +592,28 @@ func (_c *MockTheoryRepository_DeleteResponse_Call) Return(err error) *MockTheor
 	return _c
 }
 
-func (_c *MockTheoryRepository_DeleteResponse_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID) error) *MockTheoryRepository_DeleteResponse_Call {
+func (_c *MockTheoryRepository_DeleteResponse_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockTheoryRepository_DeleteResponse_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteResponseAsAdmin provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID) error {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockTheoryRepository) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteResponseAsAdmin")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -534,11 +628,13 @@ type MockTheoryRepository_DeleteResponseAsAdmin_Call struct {
 // DeleteResponseAsAdmin is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockTheoryRepository_Expecter) DeleteResponseAsAdmin(ctx any, id any) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
-	return &MockTheoryRepository_DeleteResponseAsAdmin_Call{Call: _e.mock.On("DeleteResponseAsAdmin", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) DeleteResponseAsAdmin(ctx any, id any, tx ...any) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
+	return &MockTheoryRepository_DeleteResponseAsAdmin_Call{Call: _e.mock.On("DeleteResponseAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_DeleteResponseAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
+func (_c *MockTheoryRepository_DeleteResponseAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -548,9 +644,16 @@ func (_c *MockTheoryRepository_DeleteResponseAsAdmin_Call) Run(run func(ctx cont
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -561,14 +664,20 @@ func (_c *MockTheoryRepository_DeleteResponseAsAdmin_Call) Return(err error) *Mo
 	return _c
 }
 
-func (_c *MockTheoryRepository_DeleteResponseAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) error) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
+func (_c *MockTheoryRepository_DeleteResponseAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockTheoryRepository_DeleteResponseAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error) {
-	ret := _mock.Called(ctx, id)
+func (_mock *MockTheoryRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetByID")
@@ -576,18 +685,18 @@ func (_mock *MockTheoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 
 	var r0 *dto.TheoryDetailResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*dto.TheoryDetailResponse, error)); ok {
-		return returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*dto.TheoryDetailResponse, error)); ok {
+		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *dto.TheoryDetailResponse); ok {
-		r0 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *dto.TheoryDetailResponse); ok {
+		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.TheoryDetailResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, id)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -602,11 +711,13 @@ type MockTheoryRepository_GetByID_Call struct {
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - id uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetByID(ctx any, id any) *MockTheoryRepository_GetByID_Call {
-	return &MockTheoryRepository_GetByID_Call{Call: _e.mock.On("GetByID", ctx, id)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetByID(ctx any, id any, tx ...any) *MockTheoryRepository_GetByID_Call {
+	return &MockTheoryRepository_GetByID_Call{Call: _e.mock.On("GetByID",
+		append([]any{ctx, id}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID)) *MockTheoryRepository_GetByID_Call {
+func (_c *MockTheoryRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -616,9 +727,16 @@ func (_c *MockTheoryRepository_GetByID_Call) Run(run func(ctx context.Context, i
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -629,14 +747,20 @@ func (_c *MockTheoryRepository_GetByID_Call) Return(theoryDetailResponse *dto.Th
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID) (*dto.TheoryDetailResponse, error)) *MockTheoryRepository_GetByID_Call {
+func (_c *MockTheoryRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error)) *MockTheoryRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetEvidence provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetEvidence(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error) {
-	ret := _mock.Called(ctx, theoryID)
+func (_mock *MockTheoryRepository) GetEvidence(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) ([]dto.EvidenceResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetEvidence")
@@ -644,18 +768,18 @@ func (_mock *MockTheoryRepository) GetEvidence(ctx context.Context, theoryID uui
 
 	var r0 []dto.EvidenceResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]dto.EvidenceResponse, error)); ok {
-		return returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]dto.EvidenceResponse, error)); ok {
+		return returnFunc(ctx, theoryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []dto.EvidenceResponse); ok {
-		r0 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []dto.EvidenceResponse); ok {
+		r0 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.EvidenceResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -670,11 +794,13 @@ type MockTheoryRepository_GetEvidence_Call struct {
 // GetEvidence is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetEvidence(ctx any, theoryID any) *MockTheoryRepository_GetEvidence_Call {
-	return &MockTheoryRepository_GetEvidence_Call{Call: _e.mock.On("GetEvidence", ctx, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetEvidence(ctx any, theoryID any, tx ...any) *MockTheoryRepository_GetEvidence_Call {
+	return &MockTheoryRepository_GetEvidence_Call{Call: _e.mock.On("GetEvidence",
+		append([]any{ctx, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetEvidence_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_GetEvidence_Call {
+func (_c *MockTheoryRepository_GetEvidence_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetEvidence_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -684,9 +810,16 @@ func (_c *MockTheoryRepository_GetEvidence_Call) Run(run func(ctx context.Contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -697,14 +830,20 @@ func (_c *MockTheoryRepository_GetEvidence_Call) Return(evidenceResponses []dto.
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetEvidence_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) ([]dto.EvidenceResponse, error)) *MockTheoryRepository_GetEvidence_Call {
+func (_c *MockTheoryRepository_GetEvidence_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) ([]dto.EvidenceResponse, error)) *MockTheoryRepository_GetEvidence_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRecentActivityByUser provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]dto.ActivityItem, int, error) {
-	ret := _mock.Called(ctx, userID, limit, offset)
+func (_mock *MockTheoryRepository) GetRecentActivityByUser(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]dto.ActivityItem, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, limit, offset)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetRecentActivityByUser")
@@ -713,23 +852,23 @@ func (_mock *MockTheoryRepository) GetRecentActivityByUser(ctx context.Context, 
 	var r0 []dto.ActivityItem
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) ([]dto.ActivityItem, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]dto.ActivityItem, int, error)); ok {
+		return returnFunc(ctx, userID, limit, offset, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int) []dto.ActivityItem); ok {
-		r0 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []dto.ActivityItem); ok {
+		r0 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.ActivityItem)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, userID, limit, offset, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -746,11 +885,13 @@ type MockTheoryRepository_GetRecentActivityByUser_Call struct {
 //   - userID uuid.UUID
 //   - limit int
 //   - offset int
-func (_e *MockTheoryRepository_Expecter) GetRecentActivityByUser(ctx any, userID any, limit any, offset any) *MockTheoryRepository_GetRecentActivityByUser_Call {
-	return &MockTheoryRepository_GetRecentActivityByUser_Call{Call: _e.mock.On("GetRecentActivityByUser", ctx, userID, limit, offset)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetRecentActivityByUser(ctx any, userID any, limit any, offset any, tx ...any) *MockTheoryRepository_GetRecentActivityByUser_Call {
+	return &MockTheoryRepository_GetRecentActivityByUser_Call{Call: _e.mock.On("GetRecentActivityByUser",
+		append([]any{ctx, userID, limit, offset}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetRecentActivityByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int)) *MockTheoryRepository_GetRecentActivityByUser_Call {
+func (_c *MockTheoryRepository_GetRecentActivityByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockTheoryRepository_GetRecentActivityByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -768,11 +909,18 @@ func (_c *MockTheoryRepository_GetRecentActivityByUser_Call) Run(run func(ctx co
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -783,14 +931,20 @@ func (_c *MockTheoryRepository_GetRecentActivityByUser_Call) Return(activityItem
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetRecentActivityByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int) ([]dto.ActivityItem, int, error)) *MockTheoryRepository_GetRecentActivityByUser_Call {
+func (_c *MockTheoryRepository_GetRecentActivityByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]dto.ActivityItem, int, error)) *MockTheoryRepository_GetRecentActivityByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetResponseEvidence provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetResponseEvidence(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error) {
-	ret := _mock.Called(ctx, responseID)
+func (_mock *MockTheoryRepository) GetResponseEvidence(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) ([]dto.EvidenceResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, responseID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, responseID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetResponseEvidence")
@@ -798,18 +952,18 @@ func (_mock *MockTheoryRepository) GetResponseEvidence(ctx context.Context, resp
 
 	var r0 []dto.EvidenceResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]dto.EvidenceResponse, error)); ok {
-		return returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]dto.EvidenceResponse, error)); ok {
+		return returnFunc(ctx, responseID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []dto.EvidenceResponse); ok {
-		r0 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []dto.EvidenceResponse); ok {
+		r0 = returnFunc(ctx, responseID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.EvidenceResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, responseID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -824,11 +978,13 @@ type MockTheoryRepository_GetResponseEvidence_Call struct {
 // GetResponseEvidence is a helper method to define mock.On call
 //   - ctx context.Context
 //   - responseID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseEvidence(ctx any, responseID any) *MockTheoryRepository_GetResponseEvidence_Call {
-	return &MockTheoryRepository_GetResponseEvidence_Call{Call: _e.mock.On("GetResponseEvidence", ctx, responseID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetResponseEvidence(ctx any, responseID any, tx ...any) *MockTheoryRepository_GetResponseEvidence_Call {
+	return &MockTheoryRepository_GetResponseEvidence_Call{Call: _e.mock.On("GetResponseEvidence",
+		append([]any{ctx, responseID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetResponseEvidence_Call) Run(run func(ctx context.Context, responseID uuid.UUID)) *MockTheoryRepository_GetResponseEvidence_Call {
+func (_c *MockTheoryRepository_GetResponseEvidence_Call) Run(run func(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetResponseEvidence_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -838,9 +994,16 @@ func (_c *MockTheoryRepository_GetResponseEvidence_Call) Run(run func(ctx contex
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -851,14 +1014,20 @@ func (_c *MockTheoryRepository_GetResponseEvidence_Call) Return(evidenceResponse
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetResponseEvidence_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID) ([]dto.EvidenceResponse, error)) *MockTheoryRepository_GetResponseEvidence_Call {
+func (_c *MockTheoryRepository_GetResponseEvidence_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) ([]dto.EvidenceResponse, error)) *MockTheoryRepository_GetResponseEvidence_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetResponseEvidenceWeights provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID) (float64, float64, error) {
-	ret := _mock.Called(ctx, theoryID)
+func (_mock *MockTheoryRepository) GetResponseEvidenceWeights(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (float64, float64, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetResponseEvidenceWeights")
@@ -867,21 +1036,21 @@ func (_mock *MockTheoryRepository) GetResponseEvidenceWeights(ctx context.Contex
 	var r0 float64
 	var r1 float64
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (float64, float64, error)); ok {
-		return returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (float64, float64, error)); ok {
+		return returnFunc(ctx, theoryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) float64); ok {
-		r0 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) float64); ok {
+		r0 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r0 = ret.Get(0).(float64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) float64); ok {
-		r1 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) float64); ok {
+		r1 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r1 = ret.Get(1).(float64)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -896,11 +1065,13 @@ type MockTheoryRepository_GetResponseEvidenceWeights_Call struct {
 // GetResponseEvidenceWeights is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseEvidenceWeights(ctx any, theoryID any) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
-	return &MockTheoryRepository_GetResponseEvidenceWeights_Call{Call: _e.mock.On("GetResponseEvidenceWeights", ctx, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetResponseEvidenceWeights(ctx any, theoryID any, tx ...any) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
+	return &MockTheoryRepository_GetResponseEvidenceWeights_Call{Call: _e.mock.On("GetResponseEvidenceWeights",
+		append([]any{ctx, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetResponseEvidenceWeights_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
+func (_c *MockTheoryRepository_GetResponseEvidenceWeights_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -910,9 +1081,16 @@ func (_c *MockTheoryRepository_GetResponseEvidenceWeights_Call) Run(run func(ctx
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -923,14 +1101,20 @@ func (_c *MockTheoryRepository_GetResponseEvidenceWeights_Call) Return(withLoveS
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetResponseEvidenceWeights_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) (float64, float64, error)) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
+func (_c *MockTheoryRepository_GetResponseEvidenceWeights_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (float64, float64, error)) *MockTheoryRepository_GetResponseEvidenceWeights_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetResponseInfo provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetResponseInfo(ctx context.Context, responseID uuid.UUID) (uuid.UUID, uuid.UUID, error) {
-	ret := _mock.Called(ctx, responseID)
+func (_mock *MockTheoryRepository) GetResponseInfo(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, responseID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, responseID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetResponseInfo")
@@ -939,25 +1123,25 @@ func (_mock *MockTheoryRepository) GetResponseInfo(ctx context.Context, response
 	var r0 uuid.UUID
 	var r1 uuid.UUID
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, uuid.UUID, error)); ok {
-		return returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, uuid.UUID, error)); ok {
+		return returnFunc(ctx, responseID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, responseID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r1 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r1 = returnFunc(ctx, responseID, tx...)
 	} else {
 		if ret.Get(1) != nil {
 			r1 = ret.Get(1).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, responseID, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -972,11 +1156,13 @@ type MockTheoryRepository_GetResponseInfo_Call struct {
 // GetResponseInfo is a helper method to define mock.On call
 //   - ctx context.Context
 //   - responseID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseInfo(ctx any, responseID any) *MockTheoryRepository_GetResponseInfo_Call {
-	return &MockTheoryRepository_GetResponseInfo_Call{Call: _e.mock.On("GetResponseInfo", ctx, responseID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetResponseInfo(ctx any, responseID any, tx ...any) *MockTheoryRepository_GetResponseInfo_Call {
+	return &MockTheoryRepository_GetResponseInfo_Call{Call: _e.mock.On("GetResponseInfo",
+		append([]any{ctx, responseID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetResponseInfo_Call) Run(run func(ctx context.Context, responseID uuid.UUID)) *MockTheoryRepository_GetResponseInfo_Call {
+func (_c *MockTheoryRepository_GetResponseInfo_Call) Run(run func(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetResponseInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -986,9 +1172,16 @@ func (_c *MockTheoryRepository_GetResponseInfo_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -999,14 +1192,20 @@ func (_c *MockTheoryRepository_GetResponseInfo_Call) Return(authorID uuid.UUID, 
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetResponseInfo_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID) (uuid.UUID, uuid.UUID, error)) *MockTheoryRepository_GetResponseInfo_Call {
+func (_c *MockTheoryRepository_GetResponseInfo_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error)) *MockTheoryRepository_GetResponseInfo_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetResponseMeta provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetResponseMeta(ctx context.Context, responseID uuid.UUID) (ResponseMeta, error) {
-	ret := _mock.Called(ctx, responseID)
+func (_mock *MockTheoryRepository) GetResponseMeta(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (ResponseMeta, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, responseID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, responseID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetResponseMeta")
@@ -1014,16 +1213,16 @@ func (_mock *MockTheoryRepository) GetResponseMeta(ctx context.Context, response
 
 	var r0 ResponseMeta
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (ResponseMeta, error)); ok {
-		return returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (ResponseMeta, error)); ok {
+		return returnFunc(ctx, responseID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ResponseMeta); ok {
-		r0 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ResponseMeta); ok {
+		r0 = returnFunc(ctx, responseID, tx...)
 	} else {
 		r0 = ret.Get(0).(ResponseMeta)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, responseID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, responseID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1038,11 +1237,13 @@ type MockTheoryRepository_GetResponseMeta_Call struct {
 // GetResponseMeta is a helper method to define mock.On call
 //   - ctx context.Context
 //   - responseID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponseMeta(ctx any, responseID any) *MockTheoryRepository_GetResponseMeta_Call {
-	return &MockTheoryRepository_GetResponseMeta_Call{Call: _e.mock.On("GetResponseMeta", ctx, responseID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetResponseMeta(ctx any, responseID any, tx ...any) *MockTheoryRepository_GetResponseMeta_Call {
+	return &MockTheoryRepository_GetResponseMeta_Call{Call: _e.mock.On("GetResponseMeta",
+		append([]any{ctx, responseID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetResponseMeta_Call) Run(run func(ctx context.Context, responseID uuid.UUID)) *MockTheoryRepository_GetResponseMeta_Call {
+func (_c *MockTheoryRepository_GetResponseMeta_Call) Run(run func(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetResponseMeta_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1052,9 +1253,16 @@ func (_c *MockTheoryRepository_GetResponseMeta_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1065,14 +1273,20 @@ func (_c *MockTheoryRepository_GetResponseMeta_Call) Return(responseMeta Respons
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetResponseMeta_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID) (ResponseMeta, error)) *MockTheoryRepository_GetResponseMeta_Call {
+func (_c *MockTheoryRepository_GetResponseMeta_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID, tx ...*sql.Tx) (ResponseMeta, error)) *MockTheoryRepository_GetResponseMeta_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetResponses provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID) ([]dto.ResponseResponse, error) {
-	ret := _mock.Called(ctx, theoryID, userID)
+func (_mock *MockTheoryRepository) GetResponses(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]dto.ResponseResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID, userID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetResponses")
@@ -1080,18 +1294,18 @@ func (_mock *MockTheoryRepository) GetResponses(ctx context.Context, theoryID uu
 
 	var r0 []dto.ResponseResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) ([]dto.ResponseResponse, error)); ok {
-		return returnFunc(ctx, theoryID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) ([]dto.ResponseResponse, error)); ok {
+		return returnFunc(ctx, theoryID, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) []dto.ResponseResponse); ok {
-		r0 = returnFunc(ctx, theoryID, userID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) []dto.ResponseResponse); ok {
+		r0 = returnFunc(ctx, theoryID, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.ResponseResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, theoryID, userID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, theoryID, userID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1107,11 +1321,13 @@ type MockTheoryRepository_GetResponses_Call struct {
 //   - ctx context.Context
 //   - theoryID uuid.UUID
 //   - userID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetResponses(ctx any, theoryID any, userID any) *MockTheoryRepository_GetResponses_Call {
-	return &MockTheoryRepository_GetResponses_Call{Call: _e.mock.On("GetResponses", ctx, theoryID, userID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetResponses(ctx any, theoryID any, userID any, tx ...any) *MockTheoryRepository_GetResponses_Call {
+	return &MockTheoryRepository_GetResponses_Call{Call: _e.mock.On("GetResponses",
+		append([]any{ctx, theoryID, userID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetResponses_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID)) *MockTheoryRepository_GetResponses_Call {
+func (_c *MockTheoryRepository_GetResponses_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetResponses_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1125,10 +1341,17 @@ func (_c *MockTheoryRepository_GetResponses_Call) Run(run func(ctx context.Conte
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1139,14 +1362,20 @@ func (_c *MockTheoryRepository_GetResponses_Call) Return(responseResponses []dto
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetResponses_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID) ([]dto.ResponseResponse, error)) *MockTheoryRepository_GetResponses_Call {
+func (_c *MockTheoryRepository_GetResponses_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]dto.ResponseResponse, error)) *MockTheoryRepository_GetResponses_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTheoryAuthorID provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error) {
-	ret := _mock.Called(ctx, theoryID)
+func (_mock *MockTheoryRepository) GetTheoryAuthorID(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTheoryAuthorID")
@@ -1154,18 +1383,18 @@ func (_mock *MockTheoryRepository) GetTheoryAuthorID(ctx context.Context, theory
 
 	var r0 uuid.UUID
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (uuid.UUID, error)); ok {
-		return returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (uuid.UUID, error)); ok {
+		return returnFunc(ctx, theoryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) uuid.UUID); ok {
-		r0 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) uuid.UUID); ok {
+		r0 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(uuid.UUID)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1180,11 +1409,13 @@ type MockTheoryRepository_GetTheoryAuthorID_Call struct {
 // GetTheoryAuthorID is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetTheoryAuthorID(ctx any, theoryID any) *MockTheoryRepository_GetTheoryAuthorID_Call {
-	return &MockTheoryRepository_GetTheoryAuthorID_Call{Call: _e.mock.On("GetTheoryAuthorID", ctx, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetTheoryAuthorID(ctx any, theoryID any, tx ...any) *MockTheoryRepository_GetTheoryAuthorID_Call {
+	return &MockTheoryRepository_GetTheoryAuthorID_Call{Call: _e.mock.On("GetTheoryAuthorID",
+		append([]any{ctx, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetTheoryAuthorID_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_GetTheoryAuthorID_Call {
+func (_c *MockTheoryRepository_GetTheoryAuthorID_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetTheoryAuthorID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1194,9 +1425,16 @@ func (_c *MockTheoryRepository_GetTheoryAuthorID_Call) Run(run func(ctx context.
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1207,14 +1445,20 @@ func (_c *MockTheoryRepository_GetTheoryAuthorID_Call) Return(uUID uuid.UUID, er
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetTheoryAuthorID_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) (uuid.UUID, error)) *MockTheoryRepository_GetTheoryAuthorID_Call {
+func (_c *MockTheoryRepository_GetTheoryAuthorID_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)) *MockTheoryRepository_GetTheoryAuthorID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTheorySeries provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetTheorySeries(ctx context.Context, theoryID uuid.UUID) (string, error) {
-	ret := _mock.Called(ctx, theoryID)
+func (_mock *MockTheoryRepository) GetTheorySeries(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTheorySeries")
@@ -1222,16 +1466,16 @@ func (_mock *MockTheoryRepository) GetTheorySeries(ctx context.Context, theoryID
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
-		return returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, theoryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1246,11 +1490,13 @@ type MockTheoryRepository_GetTheorySeries_Call struct {
 // GetTheorySeries is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetTheorySeries(ctx any, theoryID any) *MockTheoryRepository_GetTheorySeries_Call {
-	return &MockTheoryRepository_GetTheorySeries_Call{Call: _e.mock.On("GetTheorySeries", ctx, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetTheorySeries(ctx any, theoryID any, tx ...any) *MockTheoryRepository_GetTheorySeries_Call {
+	return &MockTheoryRepository_GetTheorySeries_Call{Call: _e.mock.On("GetTheorySeries",
+		append([]any{ctx, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetTheorySeries_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_GetTheorySeries_Call {
+func (_c *MockTheoryRepository_GetTheorySeries_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetTheorySeries_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1260,9 +1506,16 @@ func (_c *MockTheoryRepository_GetTheorySeries_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1273,14 +1526,20 @@ func (_c *MockTheoryRepository_GetTheorySeries_Call) Return(s string, err error)
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetTheorySeries_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) (string, error)) *MockTheoryRepository_GetTheorySeries_Call {
+func (_c *MockTheoryRepository_GetTheorySeries_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockTheoryRepository_GetTheorySeries_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetTheoryTitle provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID) (string, error) {
-	ret := _mock.Called(ctx, theoryID)
+func (_mock *MockTheoryRepository) GetTheoryTitle(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetTheoryTitle")
@@ -1288,16 +1547,16 @@ func (_mock *MockTheoryRepository) GetTheoryTitle(ctx context.Context, theoryID 
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (string, error)); ok {
-		return returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, theoryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) string); ok {
-		r0 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1312,11 +1571,13 @@ type MockTheoryRepository_GetTheoryTitle_Call struct {
 // GetTheoryTitle is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetTheoryTitle(ctx any, theoryID any) *MockTheoryRepository_GetTheoryTitle_Call {
-	return &MockTheoryRepository_GetTheoryTitle_Call{Call: _e.mock.On("GetTheoryTitle", ctx, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetTheoryTitle(ctx any, theoryID any, tx ...any) *MockTheoryRepository_GetTheoryTitle_Call {
+	return &MockTheoryRepository_GetTheoryTitle_Call{Call: _e.mock.On("GetTheoryTitle",
+		append([]any{ctx, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetTheoryTitle_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_GetTheoryTitle_Call {
+func (_c *MockTheoryRepository_GetTheoryTitle_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetTheoryTitle_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1326,9 +1587,16 @@ func (_c *MockTheoryRepository_GetTheoryTitle_Call) Run(run func(ctx context.Con
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1339,14 +1607,20 @@ func (_c *MockTheoryRepository_GetTheoryTitle_Call) Return(s string, err error) 
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetTheoryTitle_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) (string, error)) *MockTheoryRepository_GetTheoryTitle_Call {
+func (_c *MockTheoryRepository_GetTheoryTitle_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockTheoryRepository_GetTheoryTitle_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUserTheoryVote provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID) (int, error) {
-	ret := _mock.Called(ctx, userID, theoryID)
+func (_mock *MockTheoryRepository) GetUserTheoryVote(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, tx ...*sql.Tx) (int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUserTheoryVote")
@@ -1354,16 +1628,16 @@ func (_mock *MockTheoryRepository) GetUserTheoryVote(ctx context.Context, userID
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) (int, error)); ok {
-		return returnFunc(ctx, userID, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, userID, theoryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) int); ok {
-		r0 = returnFunc(ctx, userID, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, userID, theoryID, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, userID, theoryID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, userID, theoryID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1379,11 +1653,13 @@ type MockTheoryRepository_GetUserTheoryVote_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) GetUserTheoryVote(ctx any, userID any, theoryID any) *MockTheoryRepository_GetUserTheoryVote_Call {
-	return &MockTheoryRepository_GetUserTheoryVote_Call{Call: _e.mock.On("GetUserTheoryVote", ctx, userID, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) GetUserTheoryVote(ctx any, userID any, theoryID any, tx ...any) *MockTheoryRepository_GetUserTheoryVote_Call {
+	return &MockTheoryRepository_GetUserTheoryVote_Call{Call: _e.mock.On("GetUserTheoryVote",
+		append([]any{ctx, userID, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_GetUserTheoryVote_Call) Run(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID)) *MockTheoryRepository_GetUserTheoryVote_Call {
+func (_c *MockTheoryRepository_GetUserTheoryVote_Call) Run(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_GetUserTheoryVote_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1397,10 +1673,17 @@ func (_c *MockTheoryRepository_GetUserTheoryVote_Call) Run(run func(ctx context.
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1411,14 +1694,376 @@ func (_c *MockTheoryRepository_GetUserTheoryVote_Call) Return(n int, err error) 
 	return _c
 }
 
-func (_c *MockTheoryRepository_GetUserTheoryVote_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID) (int, error)) *MockTheoryRepository_GetUserTheoryVote_Call {
+func (_c *MockTheoryRepository_GetUserTheoryVote_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockTheoryRepository_GetUserTheoryVote_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertResponse provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) InsertResponse(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx) (*dto.ResponseResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertResponse")
+	}
+
+	var r0 *dto.ResponseResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheoryResponse, ...*sql.Tx) (*dto.ResponseResponse, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheoryResponse, ...*sql.Tx) *dto.ResponseResponse); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.ResponseResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewTheoryResponse, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTheoryRepository_InsertResponse_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertResponse'
+type MockTheoryRepository_InsertResponse_Call struct {
+	*mock.Call
+}
+
+// InsertResponse is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewTheoryResponse
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) InsertResponse(ctx any, spec any, tx ...any) *MockTheoryRepository_InsertResponse_Call {
+	return &MockTheoryRepository_InsertResponse_Call{Call: _e.mock.On("InsertResponse",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockTheoryRepository_InsertResponse_Call) Run(run func(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx)) *MockTheoryRepository_InsertResponse_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewTheoryResponse
+		if args[1] != nil {
+			arg1 = args[1].(NewTheoryResponse)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertResponse_Call) Return(responseResponse *dto.ResponseResponse, err error) *MockTheoryRepository_InsertResponse_Call {
+	_c.Call.Return(responseResponse, err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertResponse_Call) RunAndReturn(run func(ctx context.Context, spec NewTheoryResponse, tx ...*sql.Tx) (*dto.ResponseResponse, error)) *MockTheoryRepository_InsertResponse_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertResponseEvidence provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) InsertResponseEvidence(ctx context.Context, responseID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx) (*dto.EvidenceResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, responseID, ev, sortOrder, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, responseID, ev, sortOrder)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertResponseEvidence")
+	}
+
+	var r0 *dto.EvidenceResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.EvidenceInput, int, ...*sql.Tx) (*dto.EvidenceResponse, error)); ok {
+		return returnFunc(ctx, responseID, ev, sortOrder, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.EvidenceInput, int, ...*sql.Tx) *dto.EvidenceResponse); ok {
+		r0 = returnFunc(ctx, responseID, ev, sortOrder, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.EvidenceResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.EvidenceInput, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, responseID, ev, sortOrder, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTheoryRepository_InsertResponseEvidence_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertResponseEvidence'
+type MockTheoryRepository_InsertResponseEvidence_Call struct {
+	*mock.Call
+}
+
+// InsertResponseEvidence is a helper method to define mock.On call
+//   - ctx context.Context
+//   - responseID uuid.UUID
+//   - ev dto.EvidenceInput
+//   - sortOrder int
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) InsertResponseEvidence(ctx any, responseID any, ev any, sortOrder any, tx ...any) *MockTheoryRepository_InsertResponseEvidence_Call {
+	return &MockTheoryRepository_InsertResponseEvidence_Call{Call: _e.mock.On("InsertResponseEvidence",
+		append([]any{ctx, responseID, ev, sortOrder}, tx...)...)}
+}
+
+func (_c *MockTheoryRepository_InsertResponseEvidence_Call) Run(run func(ctx context.Context, responseID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx)) *MockTheoryRepository_InsertResponseEvidence_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 dto.EvidenceInput
+		if args[2] != nil {
+			arg2 = args[2].(dto.EvidenceInput)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertResponseEvidence_Call) Return(evidenceResponse *dto.EvidenceResponse, err error) *MockTheoryRepository_InsertResponseEvidence_Call {
+	_c.Call.Return(evidenceResponse, err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertResponseEvidence_Call) RunAndReturn(run func(ctx context.Context, responseID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx) (*dto.EvidenceResponse, error)) *MockTheoryRepository_InsertResponseEvidence_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertTheory provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) InsertTheory(ctx context.Context, spec NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertTheory")
+	}
+
+	var r0 *dto.TheoryDetailResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheory, ...*sql.Tx) (*dto.TheoryDetailResponse, error)); ok {
+		return returnFunc(ctx, spec, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, NewTheory, ...*sql.Tx) *dto.TheoryDetailResponse); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.TheoryDetailResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, NewTheory, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, spec, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTheoryRepository_InsertTheory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertTheory'
+type MockTheoryRepository_InsertTheory_Call struct {
+	*mock.Call
+}
+
+// InsertTheory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec NewTheory
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) InsertTheory(ctx any, spec any, tx ...any) *MockTheoryRepository_InsertTheory_Call {
+	return &MockTheoryRepository_InsertTheory_Call{Call: _e.mock.On("InsertTheory",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockTheoryRepository_InsertTheory_Call) Run(run func(ctx context.Context, spec NewTheory, tx ...*sql.Tx)) *MockTheoryRepository_InsertTheory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 NewTheory
+		if args[1] != nil {
+			arg1 = args[1].(NewTheory)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertTheory_Call) Return(theoryDetailResponse *dto.TheoryDetailResponse, err error) *MockTheoryRepository_InsertTheory_Call {
+	_c.Call.Return(theoryDetailResponse, err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertTheory_Call) RunAndReturn(run func(ctx context.Context, spec NewTheory, tx ...*sql.Tx) (*dto.TheoryDetailResponse, error)) *MockTheoryRepository_InsertTheory_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertTheoryEvidence provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) InsertTheoryEvidence(ctx context.Context, theoryID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx) (*dto.EvidenceResponse, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, ev, sortOrder, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID, ev, sortOrder)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for InsertTheoryEvidence")
+	}
+
+	var r0 *dto.EvidenceResponse
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.EvidenceInput, int, ...*sql.Tx) (*dto.EvidenceResponse, error)); ok {
+		return returnFunc(ctx, theoryID, ev, sortOrder, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.EvidenceInput, int, ...*sql.Tx) *dto.EvidenceResponse); ok {
+		r0 = returnFunc(ctx, theoryID, ev, sortOrder, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dto.EvidenceResponse)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.EvidenceInput, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, theoryID, ev, sortOrder, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockTheoryRepository_InsertTheoryEvidence_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InsertTheoryEvidence'
+type MockTheoryRepository_InsertTheoryEvidence_Call struct {
+	*mock.Call
+}
+
+// InsertTheoryEvidence is a helper method to define mock.On call
+//   - ctx context.Context
+//   - theoryID uuid.UUID
+//   - ev dto.EvidenceInput
+//   - sortOrder int
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) InsertTheoryEvidence(ctx any, theoryID any, ev any, sortOrder any, tx ...any) *MockTheoryRepository_InsertTheoryEvidence_Call {
+	return &MockTheoryRepository_InsertTheoryEvidence_Call{Call: _e.mock.On("InsertTheoryEvidence",
+		append([]any{ctx, theoryID, ev, sortOrder}, tx...)...)}
+}
+
+func (_c *MockTheoryRepository_InsertTheoryEvidence_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx)) *MockTheoryRepository_InsertTheoryEvidence_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 dto.EvidenceInput
+		if args[2] != nil {
+			arg2 = args[2].(dto.EvidenceInput)
+		}
+		var arg3 int
+		if args[3] != nil {
+			arg3 = args[3].(int)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertTheoryEvidence_Call) Return(evidenceResponse *dto.EvidenceResponse, err error) *MockTheoryRepository_InsertTheoryEvidence_Call {
+	_c.Call.Return(evidenceResponse, err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_InsertTheoryEvidence_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, ev dto.EvidenceInput, sortOrder int, tx ...*sql.Tx) (*dto.EvidenceResponse, error)) *MockTheoryRepository_InsertTheoryEvidence_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) List(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.TheoryResponse, int, error) {
-	ret := _mock.Called(ctx, p, userID, excludeUserIDs)
+func (_mock *MockTheoryRepository) List(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]dto.TheoryResponse, int, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, p, userID, excludeUserIDs, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, p, userID, excludeUserIDs)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -1427,23 +2072,23 @@ func (_mock *MockTheoryRepository) List(ctx context.Context, p params.ListParams
 	var r0 []dto.TheoryResponse
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID) ([]dto.TheoryResponse, int, error)); ok {
-		return returnFunc(ctx, p, userID, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) ([]dto.TheoryResponse, int, error)); ok {
+		return returnFunc(ctx, p, userID, excludeUserIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID) []dto.TheoryResponse); ok {
-		r0 = returnFunc(ctx, p, userID, excludeUserIDs)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) []dto.TheoryResponse); ok {
+		r0 = returnFunc(ctx, p, userID, excludeUserIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.TheoryResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID) int); ok {
-		r1 = returnFunc(ctx, p, userID, excludeUserIDs)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, p, userID, excludeUserIDs, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID) error); ok {
-		r2 = returnFunc(ctx, p, userID, excludeUserIDs)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, p, userID, excludeUserIDs, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1460,11 +2105,13 @@ type MockTheoryRepository_List_Call struct {
 //   - p params.ListParams
 //   - userID uuid.UUID
 //   - excludeUserIDs []uuid.UUID
-func (_e *MockTheoryRepository_Expecter) List(ctx any, p any, userID any, excludeUserIDs any) *MockTheoryRepository_List_Call {
-	return &MockTheoryRepository_List_Call{Call: _e.mock.On("List", ctx, p, userID, excludeUserIDs)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) List(ctx any, p any, userID any, excludeUserIDs any, tx ...any) *MockTheoryRepository_List_Call {
+	return &MockTheoryRepository_List_Call{Call: _e.mock.On("List",
+		append([]any{ctx, p, userID, excludeUserIDs}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_List_Call) Run(run func(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID)) *MockTheoryRepository_List_Call {
+func (_c *MockTheoryRepository_List_Call) Run(run func(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1482,11 +2129,18 @@ func (_c *MockTheoryRepository_List_Call) Run(run func(ctx context.Context, p pa
 		if args[3] != nil {
 			arg3 = args[3].([]uuid.UUID)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -1497,22 +2151,28 @@ func (_c *MockTheoryRepository_List_Call) Return(theoryResponses []dto.TheoryRes
 	return _c
 }
 
-func (_c *MockTheoryRepository_List_Call) RunAndReturn(run func(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID) ([]dto.TheoryResponse, int, error)) *MockTheoryRepository_List_Call {
+func (_c *MockTheoryRepository_List_Call) RunAndReturn(run func(ctx context.Context, p params.ListParams, userID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]dto.TheoryResponse, int, error)) *MockTheoryRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MarkRefuted provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error {
-	ret := _mock.Called(ctx, theoryID, responseID)
+func (_mock *MockTheoryRepository) MarkRefuted(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, responseID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID, responseID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for MarkRefuted")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, theoryID, responseID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, theoryID, responseID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1528,11 +2188,13 @@ type MockTheoryRepository_MarkRefuted_Call struct {
 //   - ctx context.Context
 //   - theoryID uuid.UUID
 //   - responseID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) MarkRefuted(ctx any, theoryID any, responseID any) *MockTheoryRepository_MarkRefuted_Call {
-	return &MockTheoryRepository_MarkRefuted_Call{Call: _e.mock.On("MarkRefuted", ctx, theoryID, responseID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) MarkRefuted(ctx any, theoryID any, responseID any, tx ...any) *MockTheoryRepository_MarkRefuted_Call {
+	return &MockTheoryRepository_MarkRefuted_Call{Call: _e.mock.On("MarkRefuted",
+		append([]any{ctx, theoryID, responseID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_MarkRefuted_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID)) *MockTheoryRepository_MarkRefuted_Call {
+func (_c *MockTheoryRepository_MarkRefuted_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_MarkRefuted_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1546,10 +2208,17 @@ func (_c *MockTheoryRepository_MarkRefuted_Call) Run(run func(ctx context.Contex
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1560,22 +2229,28 @@ func (_c *MockTheoryRepository_MarkRefuted_Call) Return(err error) *MockTheoryRe
 	return _c
 }
 
-func (_c *MockTheoryRepository_MarkRefuted_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) error) *MockTheoryRepository_MarkRefuted_Call {
+func (_c *MockTheoryRepository_MarkRefuted_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID, tx ...*sql.Tx) error) *MockTheoryRepository_MarkRefuted_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RecomputeStatus provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) RecomputeStatus(ctx context.Context, theoryID uuid.UUID) error {
-	ret := _mock.Called(ctx, theoryID)
+func (_mock *MockTheoryRepository) RecomputeStatus(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for RecomputeStatus")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) error); ok {
-		r0 = returnFunc(ctx, theoryID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, theoryID, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1590,11 +2265,13 @@ type MockTheoryRepository_RecomputeStatus_Call struct {
 // RecomputeStatus is a helper method to define mock.On call
 //   - ctx context.Context
 //   - theoryID uuid.UUID
-func (_e *MockTheoryRepository_Expecter) RecomputeStatus(ctx any, theoryID any) *MockTheoryRepository_RecomputeStatus_Call {
-	return &MockTheoryRepository_RecomputeStatus_Call{Call: _e.mock.On("RecomputeStatus", ctx, theoryID)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) RecomputeStatus(ctx any, theoryID any, tx ...any) *MockTheoryRepository_RecomputeStatus_Call {
+	return &MockTheoryRepository_RecomputeStatus_Call{Call: _e.mock.On("RecomputeStatus",
+		append([]any{ctx, theoryID}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_RecomputeStatus_Call) Run(run func(ctx context.Context, theoryID uuid.UUID)) *MockTheoryRepository_RecomputeStatus_Call {
+func (_c *MockTheoryRepository_RecomputeStatus_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx)) *MockTheoryRepository_RecomputeStatus_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1604,9 +2281,16 @@ func (_c *MockTheoryRepository_RecomputeStatus_Call) Run(run func(ctx context.Co
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
+			arg2...,
 		)
 	})
 	return _c
@@ -1617,22 +2301,106 @@ func (_c *MockTheoryRepository_RecomputeStatus_Call) Return(err error) *MockTheo
 	return _c
 }
 
-func (_c *MockTheoryRepository_RecomputeStatus_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID) error) *MockTheoryRepository_RecomputeStatus_Call {
+func (_c *MockTheoryRepository_RecomputeStatus_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, tx ...*sql.Tx) error) *MockTheoryRepository_RecomputeStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ReplaceTheoryEvidence provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) ReplaceTheoryEvidence(ctx context.Context, theoryID uuid.UUID, evidence []dto.EvidenceInput, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, evidence, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID, evidence)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ReplaceTheoryEvidence")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []dto.EvidenceInput, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, theoryID, evidence, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTheoryRepository_ReplaceTheoryEvidence_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReplaceTheoryEvidence'
+type MockTheoryRepository_ReplaceTheoryEvidence_Call struct {
+	*mock.Call
+}
+
+// ReplaceTheoryEvidence is a helper method to define mock.On call
+//   - ctx context.Context
+//   - theoryID uuid.UUID
+//   - evidence []dto.EvidenceInput
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) ReplaceTheoryEvidence(ctx any, theoryID any, evidence any, tx ...any) *MockTheoryRepository_ReplaceTheoryEvidence_Call {
+	return &MockTheoryRepository_ReplaceTheoryEvidence_Call{Call: _e.mock.On("ReplaceTheoryEvidence",
+		append([]any{ctx, theoryID, evidence}, tx...)...)}
+}
+
+func (_c *MockTheoryRepository_ReplaceTheoryEvidence_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, evidence []dto.EvidenceInput, tx ...*sql.Tx)) *MockTheoryRepository_ReplaceTheoryEvidence_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []dto.EvidenceInput
+		if args[2] != nil {
+			arg2 = args[2].([]dto.EvidenceInput)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_ReplaceTheoryEvidence_Call) Return(err error) *MockTheoryRepository_ReplaceTheoryEvidence_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_ReplaceTheoryEvidence_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, evidence []dto.EvidenceInput, tx ...*sql.Tx) error) *MockTheoryRepository_ReplaceTheoryEvidence_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetEvidenceTruthWeight provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64) error {
-	ret := _mock.Called(ctx, evidenceID, weight)
+func (_mock *MockTheoryRepository) SetEvidenceTruthWeight(ctx context.Context, evidenceID int, weight float64, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, evidenceID, weight, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, evidenceID, weight)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for SetEvidenceTruthWeight")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, float64) error); ok {
-		r0 = returnFunc(ctx, evidenceID, weight)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, float64, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, evidenceID, weight, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1648,11 +2416,13 @@ type MockTheoryRepository_SetEvidenceTruthWeight_Call struct {
 //   - ctx context.Context
 //   - evidenceID int
 //   - weight float64
-func (_e *MockTheoryRepository_Expecter) SetEvidenceTruthWeight(ctx any, evidenceID any, weight any) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
-	return &MockTheoryRepository_SetEvidenceTruthWeight_Call{Call: _e.mock.On("SetEvidenceTruthWeight", ctx, evidenceID, weight)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) SetEvidenceTruthWeight(ctx any, evidenceID any, weight any, tx ...any) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
+	return &MockTheoryRepository_SetEvidenceTruthWeight_Call{Call: _e.mock.On("SetEvidenceTruthWeight",
+		append([]any{ctx, evidenceID, weight}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_SetEvidenceTruthWeight_Call) Run(run func(ctx context.Context, evidenceID int, weight float64)) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
+func (_c *MockTheoryRepository_SetEvidenceTruthWeight_Call) Run(run func(ctx context.Context, evidenceID int, weight float64, tx ...*sql.Tx)) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1666,10 +2436,17 @@ func (_c *MockTheoryRepository_SetEvidenceTruthWeight_Call) Run(run func(ctx con
 		if args[2] != nil {
 			arg2 = args[2].(float64)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1680,22 +2457,28 @@ func (_c *MockTheoryRepository_SetEvidenceTruthWeight_Call) Return(err error) *M
 	return _c
 }
 
-func (_c *MockTheoryRepository_SetEvidenceTruthWeight_Call) RunAndReturn(run func(ctx context.Context, evidenceID int, weight float64) error) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
+func (_c *MockTheoryRepository_SetEvidenceTruthWeight_Call) RunAndReturn(run func(ctx context.Context, evidenceID int, weight float64, tx ...*sql.Tx) error) *MockTheoryRepository_SetEvidenceTruthWeight_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
-	ret := _mock.Called(ctx, id, userID, req)
+func (_mock *MockTheoryRepository) Update(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, dto.CreateTheoryRequest) error); ok {
-		r0 = returnFunc(ctx, id, userID, req)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, TheoryUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1709,36 +2492,33 @@ type MockTheoryRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - req dto.CreateTheoryRequest
-func (_e *MockTheoryRepository_Expecter) Update(ctx any, id any, userID any, req any) *MockTheoryRepository_Update_Call {
-	return &MockTheoryRepository_Update_Call{Call: _e.mock.On("Update", ctx, id, userID, req)}
+//   - spec TheoryUpdate
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) Update(ctx any, spec any, tx ...any) *MockTheoryRepository_Update_Call {
+	return &MockTheoryRepository_Update_Call{Call: _e.mock.On("Update",
+		append([]any{ctx, spec}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest)) *MockTheoryRepository_Update_Call {
+func (_c *MockTheoryRepository_Update_Call) Run(run func(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx)) *MockTheoryRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 TheoryUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(TheoryUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		var arg3 dto.CreateTheoryRequest
-		if args[3] != nil {
-			arg3 = args[3].(dto.CreateTheoryRequest)
-		}
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
+			arg2...,
 		)
 	})
 	return _c
@@ -1749,85 +2529,28 @@ func (_c *MockTheoryRepository_Update_Call) Return(err error) *MockTheoryReposit
 	return _c
 }
 
-func (_c *MockTheoryRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error) *MockTheoryRepository_Update_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateAsAdmin provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) UpdateAsAdmin(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest) error {
-	ret := _mock.Called(ctx, id, req)
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateTheoryRequest) error); ok {
-		r0 = returnFunc(ctx, id, req)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockTheoryRepository_UpdateAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAsAdmin'
-type MockTheoryRepository_UpdateAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - req dto.CreateTheoryRequest
-func (_e *MockTheoryRepository_Expecter) UpdateAsAdmin(ctx any, id any, req any) *MockTheoryRepository_UpdateAsAdmin_Call {
-	return &MockTheoryRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin", ctx, id, req)}
-}
-
-func (_c *MockTheoryRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest)) *MockTheoryRepository_UpdateAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 dto.CreateTheoryRequest
-		if args[2] != nil {
-			arg2 = args[2].(dto.CreateTheoryRequest)
-		}
-		run(
-			arg0,
-			arg1,
-			arg2,
-		)
-	})
-	return _c
-}
-
-func (_c *MockTheoryRepository_UpdateAsAdmin_Call) Return(err error) *MockTheoryRepository_UpdateAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockTheoryRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, req dto.CreateTheoryRequest) error) *MockTheoryRepository_UpdateAsAdmin_Call {
+func (_c *MockTheoryRepository_Update_Call) RunAndReturn(run func(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx) error) *MockTheoryRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCredibilityScore provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64) error {
-	ret := _mock.Called(ctx, theoryID, score)
+func (_mock *MockTheoryRepository) UpdateCredibilityScore(ctx context.Context, theoryID uuid.UUID, score float64, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, theoryID, score, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, theoryID, score)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateCredibilityScore")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, float64) error); ok {
-		r0 = returnFunc(ctx, theoryID, score)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, float64, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, theoryID, score, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1843,11 +2566,13 @@ type MockTheoryRepository_UpdateCredibilityScore_Call struct {
 //   - ctx context.Context
 //   - theoryID uuid.UUID
 //   - score float64
-func (_e *MockTheoryRepository_Expecter) UpdateCredibilityScore(ctx any, theoryID any, score any) *MockTheoryRepository_UpdateCredibilityScore_Call {
-	return &MockTheoryRepository_UpdateCredibilityScore_Call{Call: _e.mock.On("UpdateCredibilityScore", ctx, theoryID, score)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) UpdateCredibilityScore(ctx any, theoryID any, score any, tx ...any) *MockTheoryRepository_UpdateCredibilityScore_Call {
+	return &MockTheoryRepository_UpdateCredibilityScore_Call{Call: _e.mock.On("UpdateCredibilityScore",
+		append([]any{ctx, theoryID, score}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_UpdateCredibilityScore_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, score float64)) *MockTheoryRepository_UpdateCredibilityScore_Call {
+func (_c *MockTheoryRepository_UpdateCredibilityScore_Call) Run(run func(ctx context.Context, theoryID uuid.UUID, score float64, tx ...*sql.Tx)) *MockTheoryRepository_UpdateCredibilityScore_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1861,10 +2586,17 @@ func (_c *MockTheoryRepository_UpdateCredibilityScore_Call) Run(run func(ctx con
 		if args[2] != nil {
 			arg2 = args[2].(float64)
 		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -1875,22 +2607,100 @@ func (_c *MockTheoryRepository_UpdateCredibilityScore_Call) Return(err error) *M
 	return _c
 }
 
-func (_c *MockTheoryRepository_UpdateCredibilityScore_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, score float64) error) *MockTheoryRepository_UpdateCredibilityScore_Call {
+func (_c *MockTheoryRepository_UpdateCredibilityScore_Call) RunAndReturn(run func(ctx context.Context, theoryID uuid.UUID, score float64, tx ...*sql.Tx) error) *MockTheoryRepository_UpdateCredibilityScore_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateTheory provides a mock function for the type MockTheoryRepository
+func (_mock *MockTheoryRepository) UpdateTheory(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, spec, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, spec)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateTheory")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, TheoryUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, spec, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockTheoryRepository_UpdateTheory_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateTheory'
+type MockTheoryRepository_UpdateTheory_Call struct {
+	*mock.Call
+}
+
+// UpdateTheory is a helper method to define mock.On call
+//   - ctx context.Context
+//   - spec TheoryUpdate
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) UpdateTheory(ctx any, spec any, tx ...any) *MockTheoryRepository_UpdateTheory_Call {
+	return &MockTheoryRepository_UpdateTheory_Call{Call: _e.mock.On("UpdateTheory",
+		append([]any{ctx, spec}, tx...)...)}
+}
+
+func (_c *MockTheoryRepository_UpdateTheory_Call) Run(run func(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx)) *MockTheoryRepository_UpdateTheory_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 TheoryUpdate
+		if args[1] != nil {
+			arg1 = args[1].(TheoryUpdate)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockTheoryRepository_UpdateTheory_Call) Return(err error) *MockTheoryRepository_UpdateTheory_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockTheoryRepository_UpdateTheory_Call) RunAndReturn(run func(ctx context.Context, spec TheoryUpdate, tx ...*sql.Tx) error) *MockTheoryRepository_UpdateTheory_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // VoteResponse provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error {
-	ret := _mock.Called(ctx, userID, responseID, value)
+func (_mock *MockTheoryRepository) VoteResponse(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, responseID, value, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, responseID, value)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for VoteResponse")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, userID, responseID, value)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, responseID, value, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1907,11 +2717,13 @@ type MockTheoryRepository_VoteResponse_Call struct {
 //   - userID uuid.UUID
 //   - responseID uuid.UUID
 //   - value int
-func (_e *MockTheoryRepository_Expecter) VoteResponse(ctx any, userID any, responseID any, value any) *MockTheoryRepository_VoteResponse_Call {
-	return &MockTheoryRepository_VoteResponse_Call{Call: _e.mock.On("VoteResponse", ctx, userID, responseID, value)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) VoteResponse(ctx any, userID any, responseID any, value any, tx ...any) *MockTheoryRepository_VoteResponse_Call {
+	return &MockTheoryRepository_VoteResponse_Call{Call: _e.mock.On("VoteResponse",
+		append([]any{ctx, userID, responseID, value}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_VoteResponse_Call) Run(run func(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int)) *MockTheoryRepository_VoteResponse_Call {
+func (_c *MockTheoryRepository_VoteResponse_Call) Run(run func(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int, tx ...*sql.Tx)) *MockTheoryRepository_VoteResponse_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1929,11 +2741,18 @@ func (_c *MockTheoryRepository_VoteResponse_Call) Run(run func(ctx context.Conte
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -1944,22 +2763,28 @@ func (_c *MockTheoryRepository_VoteResponse_Call) Return(err error) *MockTheoryR
 	return _c
 }
 
-func (_c *MockTheoryRepository_VoteResponse_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int) error) *MockTheoryRepository_VoteResponse_Call {
+func (_c *MockTheoryRepository_VoteResponse_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, responseID uuid.UUID, value int, tx ...*sql.Tx) error) *MockTheoryRepository_VoteResponse_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // VoteTheory provides a mock function for the type MockTheoryRepository
-func (_mock *MockTheoryRepository) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error {
-	ret := _mock.Called(ctx, userID, theoryID, value)
+func (_mock *MockTheoryRepository) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, theoryID, value, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, theoryID, value)
+	}
+	ret := tmpRet
 
 	if len(ret) == 0 {
 		panic("no return value specified for VoteTheory")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int) error); ok {
-		r0 = returnFunc(ctx, userID, theoryID, value)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, theoryID, value, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1976,11 +2801,13 @@ type MockTheoryRepository_VoteTheory_Call struct {
 //   - userID uuid.UUID
 //   - theoryID uuid.UUID
 //   - value int
-func (_e *MockTheoryRepository_Expecter) VoteTheory(ctx any, userID any, theoryID any, value any) *MockTheoryRepository_VoteTheory_Call {
-	return &MockTheoryRepository_VoteTheory_Call{Call: _e.mock.On("VoteTheory", ctx, userID, theoryID, value)}
+//   - tx ...*sql.Tx
+func (_e *MockTheoryRepository_Expecter) VoteTheory(ctx any, userID any, theoryID any, value any, tx ...any) *MockTheoryRepository_VoteTheory_Call {
+	return &MockTheoryRepository_VoteTheory_Call{Call: _e.mock.On("VoteTheory",
+		append([]any{ctx, userID, theoryID, value}, tx...)...)}
 }
 
-func (_c *MockTheoryRepository_VoteTheory_Call) Run(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int)) *MockTheoryRepository_VoteTheory_Call {
+func (_c *MockTheoryRepository_VoteTheory_Call) Run(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int, tx ...*sql.Tx)) *MockTheoryRepository_VoteTheory_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -1998,11 +2825,18 @@ func (_c *MockTheoryRepository_VoteTheory_Call) Run(run func(ctx context.Context
 		if args[3] != nil {
 			arg3 = args[3].(int)
 		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
 		run(
 			arg0,
 			arg1,
 			arg2,
 			arg3,
+			arg4...,
 		)
 	})
 	return _c
@@ -2013,7 +2847,7 @@ func (_c *MockTheoryRepository_VoteTheory_Call) Return(err error) *MockTheoryRep
 	return _c
 }
 
-func (_c *MockTheoryRepository_VoteTheory_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int) error) *MockTheoryRepository_VoteTheory_Call {
+func (_c *MockTheoryRepository_VoteTheory_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, theoryID uuid.UUID, value int, tx ...*sql.Tx) error) *MockTheoryRepository_VoteTheory_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,9 +8,9 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
-	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 )
@@ -37,8 +37,16 @@ func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, send
 	if immune {
 		return nil
 	}
-	details := fmt.Sprintf("pattern=%q match=%q", match.Pattern, match.MatchedOn)
-	_ = s.auditRepo.CreateSystemForSubject(ctx, "chat_word_filter_"+match.Action, "chat_room", roomID.String(), details, senderID)
+	details := fmt.Sprintf("pattern=%q", match.Pattern)
+	if err := s.auditRepo.CreateSystem(ctx, repository.NewAuditEntry{
+		Action:     wordFilterAuditAction(match.Action),
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   roomID.String(),
+		Details:    details,
+		SubjectID:  senderID,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit word filter hit")
+	}
 	if match.Action == contentfilter.BannedWordActionKick && !s.isBotSender(ctx, senderID) {
 		targetName := s.displayNameFor(ctx, senderID, roomID)
 		s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
@@ -55,43 +63,6 @@ func (s *moderationService) isBotSender(ctx context.Context, senderID uuid.UUID)
 	}
 
 	return sender.IsBot
-}
-
-func (s *moderationService) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
-	members, _ := s.chatRepo.GetRoomMembers(ctx, roomID)
-
-	if err := s.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
-		return fmt.Errorf("remove member: %w", err)
-	}
-
-	s.clearWatchPartyParticipation(ctx, roomID, targetID)
-	s.dropFromLiveKitRoom(ctx, roomID.String(), targetID.String())
-
-	s.hub.LeaveRoom(roomID, targetID)
-
-	leftEvent := ws.Message{
-		Type: "chat_member_left",
-		Data: map[string]any{
-			"room_id": roomID,
-			"user_id": targetID,
-		},
-	}
-	for _, mid := range members {
-		if mid == targetID {
-			continue
-		}
-		s.hub.SendToUser(mid, leftEvent)
-	}
-
-	kickData := map[string]any{
-		"room_id": roomID,
-	}
-	if reason != "" {
-		kickData["reason"] = reason
-	}
-	s.hub.SendToUser(targetID, ws.Message{Type: "chat_kicked", Data: kickData})
-
-	return nil
 }
 
 func (s *moderationService) banUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, actorID *uuid.UUID, reason string) error {
@@ -199,8 +170,15 @@ func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targ
 	}
 
 	details := fmt.Sprintf("reason=%s", reason)
-	if err := s.auditRepo.CreateForSubject(ctx, actorID, "chat_room_ban", "chat_room", roomID.String(), details, targetID); err != nil {
-		return fmt.Errorf("audit ban: %w", err)
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatRoomBan,
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   roomID.String(),
+		Details:    details,
+		SubjectID:  targetID,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit room ban")
 	}
 	return nil
 }
@@ -210,7 +188,7 @@ func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, ta
 		return err
 	}
 
-	if err := s.banRepo.Unban(ctx, roomID, targetID); err != nil {
+	if err := s.banRepo.UnbanWithAudit(ctx, roomID, targetID, actorID); err != nil {
 		return err
 	}
 
@@ -219,7 +197,7 @@ func (s *moderationService) UnbanMember(ctx context.Context, actorID, roomID, ta
 
 	s.notifyModerationAction(roomID, targetID, actorID, "unbanned", "")
 
-	return s.auditRepo.CreateForSubject(ctx, actorID, "chat_room_unban", "chat_room", roomID.String(), "", targetID)
+	return nil
 }
 
 func (s *moderationService) ListRoomBans(ctx context.Context, actorID, roomID uuid.UUID) ([]dto.ChatRoomBanResponse, error) {
@@ -327,18 +305,20 @@ func (s *moderationService) CreateRoomBannedWord(ctx context.Context, actorID, r
 		Action:        req.Action,
 		CreatedBy:     &actorID,
 	}
-	id, err := s.bannedWordRepo.Create(ctx, spec)
+
+	details := fmt.Sprintf("room=%s pattern=%s mode=%s case=%t action=%s", roomID, req.Pattern, req.MatchMode, req.CaseSensitive, req.Action)
+
+	created, err := s.bannedWordRepo.CreateWithAudit(ctx, spec, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatRoomBannedWordCreate,
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   roomID.String(),
+		Details:    details,
+	})
 	if err != nil {
 		return nil, err
 	}
-	created, err := s.bannedWordRepo.GetByID(ctx, id)
-	if err != nil || created == nil {
-		return nil, fmt.Errorf("fetch created banned word: %w", err)
-	}
-	details := fmt.Sprintf("room=%s pattern=%s mode=%s case=%t action=%s", roomID, req.Pattern, req.MatchMode, req.CaseSensitive, req.Action)
-	if err := s.auditRepo.Create(ctx, actorID, "chat_room_banned_word_create", "chat_room", roomID.String(), details); err != nil {
-		return nil, fmt.Errorf("audit create banned word: %w", err)
-	}
+
 	return new(bannedWordRowToResponse(*created)), nil
 }
 
@@ -362,8 +342,14 @@ func (s *moderationService) UpdateRoomBannedWord(ctx context.Context, actorID, r
 		return nil, err
 	}
 	details := fmt.Sprintf("room=%s pattern=%s mode=%s case=%t action=%s", roomID, req.Pattern, req.MatchMode, req.CaseSensitive, req.Action)
-	if err := s.auditRepo.Create(ctx, actorID, "chat_room_banned_word_update", "chat_room", roomID.String(), details); err != nil {
-		return nil, fmt.Errorf("audit update banned word: %w", err)
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatRoomBannedWordUpdate,
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   roomID.String(),
+		Details:    details,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit banned word update")
 	}
 	return updated, nil
 }
@@ -383,11 +369,20 @@ func (s *moderationService) DeleteRoomBannedWord(ctx context.Context, actorID, r
 	if existing.Scope != "room" || existing.RoomID == nil || *existing.RoomID != roomID {
 		return ErrBannedWordRuleMismatch
 	}
-	if err := s.bannedWordRepo.Delete(ctx, ruleID); err != nil {
+
+	if err := s.bannedWordRepo.DeleteWithAudit(ctx, ruleID, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatRoomBannedWordDelete,
+		TargetType: repository.AuditTargetChatRoom,
+		TargetID:   roomID.String(),
+		Details:    "rule=" + ruleID.String(),
+	}); err != nil {
 		return err
 	}
+
 	s.bannedWordsRule.Invalidate(ruleID)
-	return s.auditRepo.Create(ctx, actorID, "chat_room_banned_word_delete", "chat_room", roomID.String(), "rule="+ruleID.String())
+
+	return nil
 }
 
 func (s *moderationService) ensureCanManageGlobalBannedWords(ctx context.Context, actorID uuid.UUID) error {
@@ -427,18 +422,19 @@ func (s *moderationService) CreateGlobalBannedWord(ctx context.Context, actorID 
 		Action:        req.Action,
 		CreatedBy:     &actorID,
 	}
-	id, err := s.bannedWordRepo.Create(ctx, spec)
+
+	details := fmt.Sprintf("pattern=%s mode=%s case=%t action=%s", req.Pattern, req.MatchMode, req.CaseSensitive, req.Action)
+
+	created, err := s.bannedWordRepo.CreateWithAudit(ctx, spec, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatGlobalBannedWordCreate,
+		TargetType: repository.AuditTargetBannedWord,
+		Details:    details,
+	})
 	if err != nil {
 		return nil, err
 	}
-	created, err := s.bannedWordRepo.GetByID(ctx, id)
-	if err != nil || created == nil {
-		return nil, fmt.Errorf("fetch created banned word: %w", err)
-	}
-	details := fmt.Sprintf("pattern=%s mode=%s case=%t action=%s", req.Pattern, req.MatchMode, req.CaseSensitive, req.Action)
-	if err := s.auditRepo.Create(ctx, actorID, "chat_global_banned_word_create", "banned_word", id.String(), details); err != nil {
-		return nil, fmt.Errorf("audit create banned word: %w", err)
-	}
+
 	return new(bannedWordRowToResponse(*created)), nil
 }
 
@@ -461,8 +457,14 @@ func (s *moderationService) UpdateGlobalBannedWord(ctx context.Context, actorID,
 		return nil, err
 	}
 	details := fmt.Sprintf("pattern=%s mode=%s case=%t action=%s", req.Pattern, req.MatchMode, req.CaseSensitive, req.Action)
-	if err := s.auditRepo.Create(ctx, actorID, "chat_global_banned_word_update", "banned_word", ruleID.String(), details); err != nil {
-		return nil, fmt.Errorf("audit update banned word: %w", err)
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatGlobalBannedWordUpdate,
+		TargetType: repository.AuditTargetBannedWord,
+		TargetID:   ruleID.String(),
+		Details:    details,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("rule_id", ruleID.String()).Msg("failed to audit banned word update")
 	}
 	return updated, nil
 }
@@ -502,9 +504,26 @@ func (s *moderationService) DeleteGlobalBannedWord(ctx context.Context, actorID,
 	if existing.Scope != "global" {
 		return ErrBannedWordRuleMismatch
 	}
-	if err := s.bannedWordRepo.Delete(ctx, ruleID); err != nil {
+
+	if err := s.bannedWordRepo.DeleteWithAudit(ctx, ruleID, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionChatGlobalBannedWordDelete,
+		TargetType: repository.AuditTargetBannedWord,
+		TargetID:   ruleID.String(),
+	}); err != nil {
 		return err
 	}
+
 	s.bannedWordsRule.Invalidate(ruleID)
-	return s.auditRepo.Create(ctx, actorID, "chat_global_banned_word_delete", "banned_word", ruleID.String(), "")
+
+	return nil
+}
+
+func wordFilterAuditAction(action string) repository.AuditAction {
+	switch action {
+	case contentfilter.BannedWordActionKick:
+		return repository.AuditActionChatWordFilterKick
+	default:
+		return repository.AuditActionChatWordFilterDelete
+	}
 }

@@ -26,10 +26,18 @@ func ProcessEmbeds(postRepo repository.PostRepository, ownerID string, ownerType
 		if embed == nil {
 			continue
 		}
-		_ = postRepo.AddEmbed(
-			context.Background(), ownerID, ownerType,
-			embed.URL, embed.Type, embed.Title, embed.Desc, embed.Image, embed.SiteName, embed.VideoID, i,
-		)
+		_ = postRepo.AddEmbed(context.Background(), repository.NewEmbed{
+			OwnerID:     ownerID,
+			OwnerType:   ownerType,
+			URL:         embed.URL,
+			EmbedType:   embed.Type,
+			Title:       embed.Title,
+			Description: embed.Desc,
+			Image:       embed.Image,
+			SiteName:    embed.SiteName,
+			VideoID:     embed.VideoID,
+			SortOrder:   i,
+		})
 	}
 }
 

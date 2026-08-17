@@ -16,7 +16,7 @@ import (
 func TestChatDAO_GetRoomSendContext(t *testing.T) {
 	tests := []struct {
 		name           string
-		create         func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID)
+		create         func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) uuid.UUID
 		wantName       string
 		wantType       dto.RoomType
 		wantIsSystem   bool
@@ -24,16 +24,22 @@ func TestChatDAO_GetRoomSendContext(t *testing.T) {
 	}{
 		{
 			name: "group room carries name, type and creator",
-			create: func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) {
-				require.NoError(t, repos.Chat.CreateRoom(context.Background(), roomID, "Room", "desc", "group", true, false, creatorID))
+			create: func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) uuid.UUID {
+				room, err := repos.Chat.CreateRoom(context.Background(), repository.NewChatRoom{Name: "Room", Description: "desc", Type: "group", IsPublic: true, IsRP: false, CreatedBy: creatorID})
+				require.NoError(t, err)
+
+				return room.ID
 			},
 			wantName: "Room",
 			wantType: "group",
 		},
 		{
 			name: "live stream room carries its system kind",
-			create: func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) {
-				require.NoError(t, repos.Chat.CreateSystemRoom(context.Background(), roomID, "My stream", "", "live_stream", creatorID))
+			create: func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) uuid.UUID {
+				_, err := repos.Chat.CreateSystemRoom(context.Background(), repository.NewChatSystemRoom{ID: roomID, Name: "My stream", Description: "", SystemKind: "live_stream", CreatedBy: creatorID})
+				require.NoError(t, err)
+
+				return roomID
 			},
 			wantName:       "My stream",
 			wantType:       "group",
@@ -42,8 +48,11 @@ func TestChatDAO_GetRoomSendContext(t *testing.T) {
 		},
 		{
 			name: "mods room carries its system kind",
-			create: func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) {
-				require.NoError(t, repos.Chat.CreateSystemRoom(context.Background(), roomID, "Mods", "", "mods", creatorID))
+			create: func(t *testing.T, repos *repository.Repositories, roomID, creatorID uuid.UUID) uuid.UUID {
+				_, err := repos.Chat.CreateSystemRoom(context.Background(), repository.NewChatSystemRoom{ID: roomID, Name: "Mods", Description: "", SystemKind: "mods", CreatedBy: creatorID})
+				require.NoError(t, err)
+
+				return roomID
 			},
 			wantName:       "Mods",
 			wantType:       "group",
@@ -58,8 +67,7 @@ func TestChatDAO_GetRoomSendContext(t *testing.T) {
 			repos := daotest.NewRepos(t)
 			ctx := context.Background()
 			creator := daotest.CreateUser(t, repos)
-			roomID := uuid.New()
-			tt.create(t, repos, roomID, creator.ID)
+			roomID := tt.create(t, repos, uuid.New(), creator.ID)
 
 			// when
 			got, err := repos.Chat.GetRoomSendContext(ctx, roomID)
@@ -83,8 +91,9 @@ func TestChatDAO_GetRoomSendContext_DMRoom(t *testing.T) {
 	ctx := context.Background()
 	userA := daotest.CreateUser(t, repos)
 	userB := daotest.CreateUser(t, repos)
-	roomID, err := repos.Chat.CreateDMRoomAtomic(ctx, uuid.New(), userA.ID, userB.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, userA.ID, userB.ID)
 	require.NoError(t, err)
+	roomID := room.ID
 
 	// when
 	got, err := repos.Chat.GetRoomSendContext(ctx, roomID)
@@ -116,7 +125,8 @@ func TestChatDAO_GetRoomSendContext_MatchesGetRoomByID(t *testing.T) {
 	ctx := context.Background()
 	creator := daotest.CreateUser(t, repos)
 	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateSystemRoom(ctx, roomID, "My stream", "", "live_stream", creator.ID))
+	_, err := repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: roomID, Name: "My stream", Description: "", SystemKind: "live_stream", CreatedBy: creator.ID})
+	require.NoError(t, err)
 
 	// when
 	full, err := repos.Chat.GetRoomByID(ctx, roomID, creator.ID)

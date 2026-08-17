@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
 
@@ -20,26 +21,34 @@ type (
 	}
 )
 
-func (r *gameRoomDAO) CreateRoom(ctx context.Context, id uuid.UUID, gameType, initialStateJSON string, createdBy uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO game_rooms (id, game_type, status, state_json, created_by) VALUES ($1, $2, 'pending', $3, $4)`,
-		id, gameType, initialStateJSON, createdBy,
-	)
+func (r *gameRoomDAO) CreateRoom(ctx context.Context, gameType, initialStateJSON string, createdBy uuid.UUID, tx ...*sql.Tx) (*repository.GameRoomRow, error) {
+	var row repository.GameRoomRow
+	var result sql.NullString
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
+		`INSERT INTO game_rooms (game_type, status, state_json, created_by) VALUES ($1, 'pending', $2, $3)
+         RETURNING id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at`,
+		gameType, initialStateJSON, createdBy,
+	).Scan(&row.ID, &row.GameType, &row.Status, &row.StateJSON, &row.TurnUserID, &row.WinnerID, &result, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.FinishedAt)
 	if err != nil {
-		return fmt.Errorf("create game room: %w", err)
+		return nil, fmt.Errorf("create game room: %w", err)
 	}
-	return nil
+
+	if result.Valid {
+		row.Result = result.String
+	}
+
+	return &row, nil
 }
 
-func (r *gameRoomDAO) AddPlayer(ctx context.Context, roomID, userID uuid.UUID, slot int, joined bool) error {
+func (r *gameRoomDAO) AddPlayer(ctx context.Context, roomID, userID uuid.UUID, slot int, joined bool, tx ...*sql.Tx) error {
 	var err error
 	if joined {
-		_, err = r.db.ExecContext(ctx,
+		_, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`INSERT INTO game_room_players (room_id, user_id, slot, joined, joined_at) VALUES ($1, $2, $3, TRUE, NOW())`,
 			roomID, userID, slot,
 		)
 	} else {
-		_, err = r.db.ExecContext(ctx,
+		_, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`INSERT INTO game_room_players (room_id, user_id, slot, joined) VALUES ($1, $2, $3, FALSE)`,
 			roomID, userID, slot,
 		)
@@ -50,10 +59,10 @@ func (r *gameRoomDAO) AddPlayer(ctx context.Context, roomID, userID uuid.UUID, s
 	return nil
 }
 
-func (r *gameRoomDAO) GetRoom(ctx context.Context, id uuid.UUID) (*repository.GameRoomRow, error) {
+func (r *gameRoomDAO) GetRoom(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.GameRoomRow, error) {
 	var row repository.GameRoomRow
 	var result sql.NullString
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at
          FROM game_rooms WHERE id = $1`, id,
 	).Scan(&row.ID, &row.GameType, &row.Status, &row.StateJSON, &row.TurnUserID, &row.WinnerID, &result, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.FinishedAt)
@@ -69,8 +78,8 @@ func (r *gameRoomDAO) GetRoom(ctx context.Context, id uuid.UUID) (*repository.Ga
 	return &row, nil
 }
 
-func (r *gameRoomDAO) GetPlayers(ctx context.Context, roomID uuid.UUID) ([]repository.GameRoomPlayerRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *gameRoomDAO) GetPlayers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]repository.GameRoomPlayerRow, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT user_id, slot, joined, joined_at, last_seen_at FROM game_room_players WHERE room_id = $1 ORDER BY slot`, roomID,
 	)
 	if err != nil {
@@ -89,9 +98,9 @@ func (r *gameRoomDAO) GetPlayers(ctx context.Context, roomID uuid.UUID) ([]repos
 	return players, rows.Err()
 }
 
-func (r *gameRoomDAO) IsParticipant(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+func (r *gameRoomDAO) IsParticipant(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
 	var count int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM game_room_players WHERE room_id = $1 AND user_id = $2`, roomID, userID,
 	).Scan(&count)
 	if err != nil {
@@ -100,9 +109,9 @@ func (r *gameRoomDAO) IsParticipant(ctx context.Context, roomID, userID uuid.UUI
 	return count > 0, nil
 }
 
-func (r *gameRoomDAO) GetPlayerSlot(ctx context.Context, roomID, userID uuid.UUID) (int, error) {
+func (r *gameRoomDAO) GetPlayerSlot(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var slot int
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT slot FROM game_room_players WHERE room_id = $1 AND user_id = $2`, roomID, userID,
 	).Scan(&slot)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -114,8 +123,8 @@ func (r *gameRoomDAO) GetPlayerSlot(ctx context.Context, roomID, userID uuid.UUI
 	return slot, nil
 }
 
-func (r *gameRoomDAO) SetPlayerJoined(ctx context.Context, roomID, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) SetPlayerJoined(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE game_room_players SET joined = TRUE, joined_at = COALESCE(joined_at, NOW()), last_seen_at = NOW() WHERE room_id = $1 AND user_id = $2`,
 		roomID, userID,
 	)
@@ -125,8 +134,8 @@ func (r *gameRoomDAO) SetPlayerJoined(ctx context.Context, roomID, userID uuid.U
 	return nil
 }
 
-func (r *gameRoomDAO) TouchPlayerSeen(ctx context.Context, roomID, userID uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) TouchPlayerSeen(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE game_room_players SET last_seen_at = NOW() WHERE room_id = $1 AND user_id = $2`,
 		roomID, userID,
 	)
@@ -136,8 +145,8 @@ func (r *gameRoomDAO) TouchPlayerSeen(ctx context.Context, roomID, userID uuid.U
 	return nil
 }
 
-func (r *gameRoomDAO) SetStatus(ctx context.Context, roomID uuid.UUID, status string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) SetStatus(ctx context.Context, roomID uuid.UUID, status string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE game_rooms SET status = $1, updated_at = NOW() WHERE id = $2`, status, roomID,
 	)
 	if err != nil {
@@ -146,8 +155,8 @@ func (r *gameRoomDAO) SetStatus(ctx context.Context, roomID uuid.UUID, status st
 	return nil
 }
 
-func (r *gameRoomDAO) SetState(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) SetState(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE game_rooms SET state_json = $1, turn_user_id = $2, updated_at = NOW() WHERE id = $3`,
 		stateJSON, turnUserID, roomID,
 	)
@@ -157,8 +166,8 @@ func (r *gameRoomDAO) SetState(ctx context.Context, roomID uuid.UUID, stateJSON 
 	return nil
 }
 
-func (r *gameRoomDAO) FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result, stateJSON string) error {
-	res, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) FinishRoom(ctx context.Context, roomID uuid.UUID, status string, winner *uuid.UUID, result, stateJSON string, tx ...*sql.Tx) error {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE game_rooms SET status = $1, winner_user_id = $2, result = $3, state_json = $4, finished_at = NOW(), updated_at = NOW() WHERE id = $5 AND status = 'active'`,
 		status, winner, result, stateJSON, roomID,
 	)
@@ -177,8 +186,8 @@ func (r *gameRoomDAO) FinishRoom(ctx context.Context, roomID uuid.UUID, status s
 	return nil
 }
 
-func (r *gameRoomDAO) AppendMove(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string) error {
-	_, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) AppendMove(ctx context.Context, roomID uuid.UUID, ply int, userID uuid.UUID, actionJSON string, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO game_room_moves (room_id, ply, user_id, action_json) VALUES ($1, $2, $3, $4)`,
 		roomID, ply, userID, actionJSON,
 	)
@@ -188,8 +197,8 @@ func (r *gameRoomDAO) AppendMove(ctx context.Context, roomID uuid.UUID, ply int,
 	return nil
 }
 
-func (r *gameRoomDAO) ListMoves(ctx context.Context, roomID uuid.UUID) ([]repository.GameRoomMoveRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *gameRoomDAO) ListMoves(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]repository.GameRoomMoveRow, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT ply, user_id, action_json, created_at FROM game_room_moves WHERE room_id = $1 ORDER BY ply`, roomID,
 	)
 	if err != nil {
@@ -208,9 +217,9 @@ func (r *gameRoomDAO) ListMoves(ctx context.Context, roomID uuid.UUID) ([]reposi
 	return moves, rows.Err()
 }
 
-func (r *gameRoomDAO) NextPly(ctx context.Context, roomID uuid.UUID) (int, error) {
+func (r *gameRoomDAO) NextPly(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var ply sql.NullInt64
-	err := r.db.QueryRowContext(ctx,
+	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT MAX(ply) FROM game_room_moves WHERE room_id = $1`, roomID,
 	).Scan(&ply)
 	if err != nil {
@@ -222,7 +231,7 @@ func (r *gameRoomDAO) NextPly(ctx context.Context, roomID uuid.UUID) (int, error
 	return int(ply.Int64) + 1, nil
 }
 
-func (r *gameRoomDAO) ListLive(ctx context.Context, gameType string, limit, offset int) ([]repository.GameRoomRow, int, error) {
+func (r *gameRoomDAO) ListLive(ctx context.Context, gameType string, limit, offset int, tx ...*sql.Tx) ([]repository.GameRoomRow, int, error) {
 	var clauses []string
 	var args []any
 	clauses = append(clauses, `status = 'active'`)
@@ -233,7 +242,7 @@ func (r *gameRoomDAO) ListLive(ctx context.Context, gameType string, limit, offs
 	where := strings.Join(clauses, " AND ")
 
 	var total int
-	if err := r.db.QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		fmt.Sprintf(`SELECT COUNT(*) FROM game_rooms WHERE %s`, where), args...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count live rooms: %w", err)
@@ -242,7 +251,7 @@ func (r *gameRoomDAO) ListLive(ctx context.Context, gameType string, limit, offs
 	limitIdx := len(args) + 1
 	offsetIdx := len(args) + 2
 	args = append(args, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		fmt.Sprintf(`SELECT id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at
                      FROM game_rooms WHERE %s ORDER BY updated_at DESC LIMIT $%d OFFSET $%d`, where, limitIdx, offsetIdx), args...,
 	)
@@ -266,7 +275,7 @@ func (r *gameRoomDAO) ListLive(ctx context.Context, gameType string, limit, offs
 	return out, total, rows.Err()
 }
 
-func (r *gameRoomDAO) ListFinished(ctx context.Context, gameType string, limit, offset int) ([]repository.GameRoomRow, int, error) {
+func (r *gameRoomDAO) ListFinished(ctx context.Context, gameType string, limit, offset int, tx ...*sql.Tx) ([]repository.GameRoomRow, int, error) {
 	var clauses []string
 	var args []any
 	clauses = append(clauses, `status IN ('finished', 'abandoned')`)
@@ -277,7 +286,7 @@ func (r *gameRoomDAO) ListFinished(ctx context.Context, gameType string, limit, 
 	where := strings.Join(clauses, " AND ")
 
 	var total int
-	if err := r.db.QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		fmt.Sprintf(`SELECT COUNT(*) FROM game_rooms WHERE %s`, where), args...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count finished rooms: %w", err)
@@ -286,7 +295,7 @@ func (r *gameRoomDAO) ListFinished(ctx context.Context, gameType string, limit, 
 	limitIdx := len(args) + 1
 	offsetIdx := len(args) + 2
 	args = append(args, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		fmt.Sprintf(`SELECT id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at
                      FROM game_rooms WHERE %s ORDER BY finished_at DESC LIMIT $%d OFFSET $%d`, where, limitIdx, offsetIdx), args...,
 	)
@@ -310,9 +319,9 @@ func (r *gameRoomDAO) ListFinished(ctx context.Context, gameType string, limit, 
 	return out, total, rows.Err()
 }
 
-func (r *gameRoomDAO) CountLive(ctx context.Context) (int, error) {
+func (r *gameRoomDAO) CountLive(ctx context.Context, tx ...*sql.Tx) (int, error) {
 	var n int
-	if err := r.db.QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM game_rooms WHERE status = 'active'`,
 	).Scan(&n); err != nil {
 		return 0, fmt.Errorf("count live rooms: %w", err)
@@ -320,8 +329,8 @@ func (r *gameRoomDAO) CountLive(ctx context.Context) (int, error) {
 	return n, nil
 }
 
-func (r *gameRoomDAO) Scoreboard(ctx context.Context, gameType string) ([]repository.ScoreboardRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *gameRoomDAO) Scoreboard(ctx context.Context, gameType string, tx ...*sql.Tx) ([]repository.ScoreboardRow, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT user_id, wins, losses, draws
          FROM (
              SELECT p.user_id,
@@ -352,8 +361,8 @@ func (r *gameRoomDAO) Scoreboard(ctx context.Context, gameType string) ([]reposi
 	return out, rows.Err()
 }
 
-func (r *gameRoomDAO) GetTopWinnerIDs(ctx context.Context, gameType string) ([]string, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *gameRoomDAO) GetTopWinnerIDs(ctx context.Context, gameType string, tx ...*sql.Tx) ([]string, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`WITH ranked AS (
             SELECT p.user_id,
                 SUM(CASE WHEN r.winner_user_id = p.user_id THEN 1 ELSE 0 END) AS wins,
@@ -372,21 +381,12 @@ func (r *gameRoomDAO) GetTopWinnerIDs(ctx context.Context, gameType string) ([]s
 	if err != nil {
 		return nil, fmt.Errorf("get top winner ids: %w", err)
 	}
-	defer rows.Close()
 
-	var ids []string
-	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
-			return nil, fmt.Errorf("scan top winner id: %w", err)
-		}
-		ids = append(ids, id)
-	}
-	return ids, rows.Err()
+	return utils.ScanStrings(rows, "top winner id")
 }
 
-func (r *gameRoomDAO) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time) (bool, error) {
-	res, err := r.db.ExecContext(ctx,
+func (r *gameRoomDAO) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time, tx ...*sql.Tx) (bool, error) {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE game_rooms SET status = 'abandoned', result = 'timeout', finished_at = NOW(), updated_at = NOW() WHERE id = $1 AND status = 'active' AND updated_at < $2`,
 		roomID, idleSince.UTC(),
 	)
@@ -402,8 +402,8 @@ func (r *gameRoomDAO) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idle
 	return n > 0, nil
 }
 
-func (r *gameRoomDAO) ListIdleActive(ctx context.Context, idleSince time.Time) ([]repository.GameRoomRow, error) {
-	rows, err := r.db.QueryContext(ctx,
+func (r *gameRoomDAO) ListIdleActive(ctx context.Context, idleSince time.Time, tx ...*sql.Tx) ([]repository.GameRoomRow, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, game_type, status, state_json, turn_user_id, winner_user_id, result, created_by, created_at, updated_at, finished_at
          FROM game_rooms WHERE status = 'active' AND updated_at < $1`,
 		idleSince.UTC(),
@@ -428,7 +428,7 @@ func (r *gameRoomDAO) ListIdleActive(ctx context.Context, idleSince time.Time) (
 	return out, rows.Err()
 }
 
-func (r *gameRoomDAO) ListForUser(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit, offset int) ([]repository.GameRoomRow, int, error) {
+func (r *gameRoomDAO) ListForUser(ctx context.Context, userID uuid.UUID, gameType string, statuses []dto.GameStatus, limit, offset int, tx ...*sql.Tx) ([]repository.GameRoomRow, int, error) {
 	var clauses []string
 	args := []any{userID}
 	clauses = append(clauses, `EXISTS (SELECT 1 FROM game_room_players p WHERE p.room_id = r.id AND p.user_id = $1)`)
@@ -447,7 +447,7 @@ func (r *gameRoomDAO) ListForUser(ctx context.Context, userID uuid.UUID, gameTyp
 	where := strings.Join(clauses, " AND ")
 
 	var total int
-	if err := r.db.QueryRowContext(ctx,
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		fmt.Sprintf(`SELECT COUNT(*) FROM game_rooms r WHERE %s`, where), args...,
 	).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count rooms: %w", err)
@@ -456,7 +456,7 @@ func (r *gameRoomDAO) ListForUser(ctx context.Context, userID uuid.UUID, gameTyp
 	limitIdx := len(args) + 1
 	offsetIdx := len(args) + 2
 	args = append(args, limit, offset)
-	rows, err := r.db.QueryContext(ctx,
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		fmt.Sprintf(`SELECT r.id, r.game_type, r.status, r.state_json, r.turn_user_id, r.winner_user_id, r.result, r.created_by, r.created_at, r.updated_at, r.finished_at
                      FROM game_rooms r WHERE %s ORDER BY r.updated_at DESC LIMIT $%d OFFSET $%d`, where, limitIdx, offsetIdx), args...,
 	)

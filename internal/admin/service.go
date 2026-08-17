@@ -25,6 +25,7 @@ import (
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type (
@@ -59,7 +60,7 @@ type (
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
 		SendTestEmail(ctx context.Context, actorID uuid.UUID) error
 
-		GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error)
+		GetAuditLog(ctx context.Context, action repository.AuditAction, page bounds.Page) (*dto.AuditLogListResponse, error)
 
 		CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error)
 		ListInvites(ctx context.Context, page bounds.Page) (*dto.InviteListResponse, error)
@@ -179,19 +180,48 @@ func (s *service) rejectBotTarget(ctx context.Context, targetID uuid.UUID) error
 	return nil
 }
 
-func (s *service) audit(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string) {
+func (s *service) audit(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, targetType repository.AuditTargetType, targetID string) {
 	s.auditDetails(ctx, actorID, action, targetType, targetID, "")
 }
 
-func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action, targetType, targetID, details string) {
-	if err := s.auditRepo.Create(ctx, actorID, action, targetType, targetID, details); err != nil {
-		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
+func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, targetType repository.AuditTargetType, targetID, details string) {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		Details:    details,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
 	}
 }
 
-func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action, targetType, targetID string, subjectID uuid.UUID) {
-	if err := s.auditRepo.CreateForSubject(ctx, actorID, action, targetType, targetID, "", subjectID); err != nil {
-		logger.Log.Error().Err(err).Str("action", action).Msg("failed to write audit log")
+func (s *service) auditUser(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, subjectID uuid.UUID) {
+	s.auditUserDetails(ctx, actorID, action, subjectID, "")
+}
+
+func (s *service) auditUserDetails(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, subjectID uuid.UUID, details string) {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   subjectID.String(),
+		Details:    details,
+		SubjectID:  subjectID,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
+	}
+}
+
+func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, targetType repository.AuditTargetType, targetID string, subjectID uuid.UUID) {
+	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     action,
+		TargetType: targetType,
+		TargetID:   targetID,
+		SubjectID:  subjectID,
+	}); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
 	}
 }
 
@@ -361,7 +391,7 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 		if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
 			return fmt.Errorf("set role: %w", err)
 		}
-		s.auditDetails(ctx, actorID, "set_role", "user", targetID.String(), string(r))
+		s.auditUserDetails(ctx, actorID, repository.AuditActionSetRole, targetID, string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.EnsureSystemRooms(ctx); err != nil {
 				logger.Log.Error().Err(err).Msg("ensure system rooms after role change")
@@ -380,7 +410,7 @@ func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetI
 		if err := s.roleRepo.RemoveRole(ctx, targetID, r); err != nil {
 			return fmt.Errorf("remove role: %w", err)
 		}
-		s.auditDetails(ctx, actorID, "remove_role", "user", targetID.String(), string(r))
+		s.auditUserDetails(ctx, actorID, repository.AuditActionRemoveRole, targetID, string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, ""); err != nil {
 				logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role remove")
@@ -413,7 +443,7 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
 		}
-		s.auditDetails(ctx, actorID, "ban_user", "user", targetID.String(), reason)
+		s.auditUserDetails(ctx, actorID, repository.AuditActionBanUser, targetID, reason)
 		s.broadcastBanChange(targetID, true, reason)
 		return nil
 	})
@@ -424,7 +454,7 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 		if err := s.userRepo.UnbanUser(ctx, targetID); err != nil {
 			return fmt.Errorf("unban user: %w", err)
 		}
-		s.audit(ctx, actorID, "unban_user", "user", targetID.String())
+		s.auditUser(ctx, actorID, repository.AuditActionUnbanUser, targetID)
 		s.broadcastBanChange(targetID, false, "")
 		return nil
 	})
@@ -450,7 +480,7 @@ func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid
 		if err := s.userRepo.LockUser(ctx, targetID, actorID, reason); err != nil {
 			return fmt.Errorf("lock user: %w", err)
 		}
-		s.auditDetails(ctx, actorID, "lock_user", "user", targetID.String(), reason)
+		s.auditUserDetails(ctx, actorID, repository.AuditActionLockUser, targetID, reason)
 		s.broadcastLockChange(targetID, true, reason)
 		return nil
 	})
@@ -461,7 +491,7 @@ func (s *service) UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uu
 		if err := s.userRepo.UnlockUser(ctx, targetID); err != nil {
 			return fmt.Errorf("unlock user: %w", err)
 		}
-		s.audit(ctx, actorID, "unlock_user", "user", targetID.String())
+		s.auditUser(ctx, actorID, repository.AuditActionUnlockUser, targetID)
 		s.broadcastLockChange(targetID, false, "")
 		return nil
 	})
@@ -489,11 +519,15 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 		if err := s.userRepo.AdminDeleteAccount(ctx, targetID); err != nil {
 			return fmt.Errorf("delete user: %w", err)
 		}
+		details := ""
 		if user != nil {
-			_ = s.uploadSvc.Delete(user.AvatarURL)
-			_ = s.uploadSvc.Delete(user.BannerURL)
+			s.uploadSvc.Delete(user.AvatarURL)
+			s.uploadSvc.Delete(user.BannerURL)
+
+			details = "username=" + user.Username
 		}
-		s.audit(ctx, actorID, "delete_user", "user", targetID.String())
+
+		s.auditDetails(ctx, actorID, repository.AuditActionDeleteUser, repository.AuditTargetUser, targetID.String(), details)
 		return nil
 	})
 }
@@ -509,13 +543,20 @@ func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targ
 		if err != nil {
 			return fmt.Errorf("generate password: %w", err)
 		}
-		if err := s.userRepo.SetPassword(ctx, targetID, generated); err != nil {
+
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(generated), bcrypt.DefaultCost)
+		if err != nil {
+			return fmt.Errorf("hash password: %w", err)
+		}
+
+		if err := s.userRepo.SetPasswordHash(ctx, targetID, string(passwordHash)); err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}
+
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after password reset")
 		}
-		s.audit(ctx, actorID, "reset_password", "user", targetID.String())
+		s.auditUser(ctx, actorID, repository.AuditActionResetPassword, targetID)
 		newPassword = generated
 		return nil
 	})
@@ -533,7 +574,7 @@ func (s *service) SetUserEmail(ctx context.Context, actorID uuid.UUID, targetID 
 			return fmt.Errorf("set email: %w", err)
 		}
 
-		s.auditDetails(ctx, actorID, "set_user_email", "user", targetID.String(), changeDetails(previous, email))
+		s.auditUserDetails(ctx, actorID, repository.AuditActionSetUserEmail, targetID, changeDetails(previous, email))
 		return nil
 	})
 }
@@ -567,7 +608,7 @@ func (s *service) VerifyUserEmail(ctx context.Context, actorID uuid.UUID, target
 			return fmt.Errorf("verify email: %w", err)
 		}
 
-		s.audit(ctx, actorID, "verify_user_email", "user", targetID.String())
+		s.auditUser(ctx, actorID, repository.AuditActionVerifyUserEmail, targetID)
 		return nil
 	})
 }
@@ -578,7 +619,7 @@ func (s *service) UnverifyUserEmail(ctx context.Context, actorID uuid.UUID, targ
 			return fmt.Errorf("unverify email: %w", err)
 		}
 
-		s.audit(ctx, actorID, "unverify_user_email", "user", targetID.String())
+		s.auditUser(ctx, actorID, repository.AuditActionUnverifyUserEmail, targetID)
 		return nil
 	})
 }
@@ -596,7 +637,7 @@ func (s *service) SetUserDisplayName(ctx context.Context, actorID uuid.UUID, tar
 			return fmt.Errorf("set display name: %w", err)
 		}
 
-		s.auditDetails(ctx, actorID, "set_display_name", "user", targetID.String(), changeDetails(previous, clamped))
+		s.auditUserDetails(ctx, actorID, repository.AuditActionSetDisplayName, targetID, changeDetails(previous, clamped))
 		s.broadcastDisplayNameChange(targetID, clamped)
 		return nil
 	})
@@ -608,11 +649,11 @@ func (s *service) SetDisplayNameLocked(ctx context.Context, actorID uuid.UUID, t
 			return fmt.Errorf("set display name lock: %w", err)
 		}
 
-		action := "unlock_display_name"
+		action := repository.AuditActionUnlockDisplayName
 		if locked {
-			action = "lock_display_name"
+			action = repository.AuditActionLockDisplayName
 		}
-		s.audit(ctx, actorID, action, "user", targetID.String())
+		s.auditUser(ctx, actorID, action, targetID)
 		return nil
 	})
 }
@@ -633,7 +674,7 @@ func (s *service) ForceLogout(ctx context.Context, actorID uuid.UUID, targetID u
 			return fmt.Errorf("delete sessions: %w", err)
 		}
 
-		s.audit(ctx, actorID, "force_logout", "user", targetID.String())
+		s.auditUser(ctx, actorID, repository.AuditActionForceLogout, targetID)
 		return nil
 	})
 }
@@ -750,7 +791,7 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 	}
 
 	details := fmt.Sprintf("changed %d of %d submitted settings", len(changedKeys), len(settings))
-	s.auditDetails(ctx, actorID, "update_settings", "settings", strings.Join(changedKeys, ","), details)
+	s.auditDetails(ctx, actorID, repository.AuditActionUpdateSettings, repository.AuditTargetSettings, strings.Join(changedKeys, ","), details)
 
 	return nil
 }
@@ -775,11 +816,11 @@ func (s *service) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {
 		return fmt.Errorf("send test email: %w", err)
 	}
 
-	s.audit(ctx, actorID, "send_test_email", "settings", "")
+	s.audit(ctx, actorID, repository.AuditActionSendTestEmail, repository.AuditTargetSettings, "")
 	return nil
 }
 
-func (s *service) GetAuditLog(ctx context.Context, action string, page bounds.Page) (*dto.AuditLogListResponse, error) {
+func (s *service) GetAuditLog(ctx context.Context, action repository.AuditAction, page bounds.Page) (*dto.AuditLogListResponse, error) {
 	entries, total, err := s.auditRepo.List(ctx, action, page.Limit(), page.Offset())
 	if err != nil {
 		return nil, fmt.Errorf("get audit log: %w", err)
@@ -800,8 +841,8 @@ func toAuditLogEntries(entries []repository.AuditLogEntry) []dto.AuditLogEntryRe
 			ID:              e.ID,
 			ActorID:         e.ActorID,
 			ActorName:       e.ActorName,
-			Action:          e.Action,
-			TargetType:      e.TargetType,
+			Action:          string(e.Action),
+			TargetType:      string(e.TargetType),
 			TargetID:        e.TargetID,
 			Details:         e.Details,
 			CreatedAt:       e.CreatedAt,
@@ -819,7 +860,7 @@ func (s *service) CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.Inv
 		return nil, fmt.Errorf("create invite: %w", err)
 	}
 
-	s.audit(ctx, actorID, "create_invite", "invite", code)
+	s.audit(ctx, actorID, repository.AuditActionCreateInvite, repository.AuditTargetInvite, code)
 
 	return &dto.InviteResponse{
 		Code:      code,
@@ -857,7 +898,7 @@ func (s *service) DeleteInvite(ctx context.Context, actorID uuid.UUID, code stri
 	if err := s.inviteRepo.Delete(ctx, code); err != nil {
 		return fmt.Errorf("delete invite: %w", err)
 	}
-	s.audit(ctx, actorID, "delete_invite", "invite", code)
+	s.audit(ctx, actorID, repository.AuditActionDeleteInvite, repository.AuditTargetInvite, code)
 	return nil
 }
 
@@ -892,7 +933,7 @@ func (s *service) CreateVanityRole(ctx context.Context, actorID uuid.UUID, req d
 	if err := s.vanityRoleRepo.Create(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
 		return nil, fmt.Errorf("create vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, "create_vanity_role", "vanity_role", id)
+	s.audit(ctx, actorID, repository.AuditActionCreateVanityRole, repository.AuditTargetVanityRole, id)
 	s.broadcastVanityRolesChanged()
 	return &dto.VanityRoleResponse{
 		ID:        id,
@@ -925,7 +966,7 @@ func (s *service) UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	if err := s.vanityRoleRepo.Update(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
 		return fmt.Errorf("update vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, "update_vanity_role", "vanity_role", id)
+	s.audit(ctx, actorID, repository.AuditActionUpdateVanityRole, repository.AuditTargetVanityRole, id)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -949,7 +990,7 @@ func (s *service) DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	if err := s.vanityRoleRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, "delete_vanity_role", "vanity_role", id)
+	s.audit(ctx, actorID, repository.AuditActionDeleteVanityRole, repository.AuditTargetVanityRole, id)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -1007,7 +1048,7 @@ func (s *service) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleI
 	if err := s.vanityRoleRepo.AssignToUser(ctx, userID, roleID); err != nil {
 		return fmt.Errorf("assign vanity role: %w", err)
 	}
-	s.auditSubject(ctx, actorID, "assign_vanity_role", "vanity_role", roleID, userID)
+	s.auditSubject(ctx, actorID, repository.AuditActionAssignVanityRole, repository.AuditTargetVanityRole, roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -1044,7 +1085,7 @@ func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, rol
 	if err := s.vanityRoleRepo.UnassignFromUser(ctx, userID, roleID); err != nil {
 		return fmt.Errorf("unassign vanity role: %w", err)
 	}
-	s.auditSubject(ctx, actorID, "unassign_vanity_role", "vanity_role", roleID, userID)
+	s.auditSubject(ctx, actorID, repository.AuditActionUnassignVanityRole, repository.AuditTargetVanityRole, roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
 }

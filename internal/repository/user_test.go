@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/secrets"
 
@@ -18,13 +19,13 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func newCachedUserRepo(t *testing.T) (UserRepository, *MockUserRepository, *valkeymock.Client) {
+func newCachedUserRepo(t *testing.T) (UserRepository, *MockUserDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockUserRepository(t)
+	dao := NewMockUserDAO(t)
 
-	return NewUserRepo(dao, cache.NewManagerWithClient(client)), dao, client
+	return NewUserRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)), nil, nil, nil, nil, nil, nil), dao, client
 }
 
 func captureDel(client *valkeymock.Client, commands *[]string) {
@@ -43,21 +44,21 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		expect func(dao *MockUserRepository)
+		expect func(dao *MockUserDAO)
 		call   func(repo UserRepository) error
 	}{
 		{
 			name: "self service delete",
-			expect: func(dao *MockUserRepository) {
-				dao.EXPECT().DeleteAccount(mock.Anything, userID, "correct-horse").Return(nil)
+			expect: func(dao *MockUserDAO) {
+				dao.EXPECT().DeleteAccount(mock.Anything, userID).Return(nil)
 			},
 			call: func(repo UserRepository) error {
-				return repo.DeleteAccount(context.Background(), userID, "correct-horse")
+				return repo.DeleteAccount(context.Background(), userID)
 			},
 		},
 		{
 			name: "admin delete",
-			expect: func(dao *MockUserRepository) {
+			expect: func(dao *MockUserDAO) {
 				dao.EXPECT().AdminDeleteAccount(mock.Anything, userID).Return(nil)
 			},
 			call: func(repo UserRepository) error {
@@ -112,21 +113,21 @@ func TestUserRepository_DeletePathsSkipInvalidationOnDaoError(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		expect func(dao *MockUserRepository)
+		expect func(dao *MockUserDAO)
 		call   func(repo UserRepository) error
 	}{
 		{
-			name: "self service delete rejects wrong password",
-			expect: func(dao *MockUserRepository) {
-				dao.EXPECT().DeleteAccount(mock.Anything, userID, "wrong").Return(errors.New("incorrect password"))
+			name: "self service delete fails",
+			expect: func(dao *MockUserDAO) {
+				dao.EXPECT().DeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
 			},
 			call: func(repo UserRepository) error {
-				return repo.DeleteAccount(context.Background(), userID, "wrong")
+				return repo.DeleteAccount(context.Background(), userID)
 			},
 		},
 		{
 			name: "admin delete fails",
-			expect: func(dao *MockUserRepository) {
+			expect: func(dao *MockUserDAO) {
 				dao.EXPECT().AdminDeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
 			},
 			call: func(repo UserRepository) error {

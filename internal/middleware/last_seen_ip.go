@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 	"time"
 
@@ -12,7 +13,7 @@ import (
 )
 
 type IPWriter interface {
-	UpdateIP(ctx context.Context, userID uuid.UUID, ip string) error
+	UpdateIP(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error
 }
 
 type lastSeenEntry struct {

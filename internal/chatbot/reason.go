@@ -3,9 +3,11 @@ package chatbot
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -81,4 +83,52 @@ func (s *service) refusalMessage(ctx context.Context) string {
 	settingsURL := trimBase(s.settingsSvc.Get(ctx, config.SettingBaseURL)) + "/settings"
 
 	return fmt.Sprintf("I am not permitted to answer you yet. Talking to me is opt in, so visit %s and turn it on, then summon me again.", settingsURL)
+}
+
+func (s *service) quotaMessage(q quotaState) string {
+	wait := humaniseWait(time.Until(q.clearsAt))
+
+	if q.global {
+		return fmt.Sprintf("Everyone has been keeping me busy and the whole site has reached its message limit. Try me again %s.", wait)
+	}
+
+	return fmt.Sprintf("You have reached your message limit for the moment. Try me again %s.", wait)
+}
+
+func emptyReplyMessage(reason string) string {
+	switch reason {
+	case openai.IncompleteContentFilter:
+		return "I began an answer to that and thought better of it. Try asking me another way."
+	case openai.IncompleteMaxOutputTokens:
+		return "I ran out of room before I got a word out. Ask me something narrower and I will manage it."
+	default:
+		return "I have nothing to say to that, which is unlike me. Try me again."
+	}
+}
+
+func humaniseWait(d time.Duration) string {
+	switch {
+	case d <= 0:
+		return "shortly"
+	case d < time.Minute:
+		return "in less than a minute"
+	case d < time.Hour:
+		minutes := int(d.Round(time.Minute).Minutes())
+		if minutes == 1 {
+			return "in about a minute"
+		}
+
+		return fmt.Sprintf("in about %d minutes", minutes)
+	default:
+		hours := int(d.Round(time.Hour).Hours())
+		if hours <= 1 {
+			return "in about an hour"
+		}
+
+		return fmt.Sprintf("in about %d hours", hours)
+	}
+}
+
+func trimBase(raw string) string {
+	return strings.TrimSuffix(strings.TrimSpace(raw), "/")
 }

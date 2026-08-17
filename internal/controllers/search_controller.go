@@ -3,9 +3,7 @@ package controllers
 import (
 	"strings"
 
-	"umineko_city_of_books/internal/bounds"
 	ctrlutils "umineko_city_of_books/internal/controllers/utils"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/search"
 
 	"github.com/gofiber/fiber/v3"
@@ -22,11 +20,11 @@ func (s *Service) getAllSearchRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupSearch(r fiber.Router) {
-	r.Get("/search", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.search)
+	r.Get("/search", s.optionalAuth(), s.search)
 }
 
 func (s *Service) setupQuickSearch(r fiber.Router) {
-	r.Get("/search/quick", middleware.OptionalAuth(s.AuthSession, s.AuthzService), s.quickSearch)
+	r.Get("/search/quick", s.optionalAuth(), s.quickSearch)
 }
 
 func (s *Service) search(ctx fiber.Ctx) error {
@@ -38,7 +36,7 @@ func (s *Service) search(ctx fiber.Ctx) error {
 		})
 	}
 
-	page := bounds.NewPage(fiber.Query[int](ctx, "limit", 20), fiber.Query[int](ctx, "offset", 0))
+	page := ctrlutils.Page(ctx, 20)
 	types := s.SearchService.ParseTypes(ctx.Query("types"))
 	viewerID, _ := ctrlutils.OptionalUserID(ctx)
 	roomID, _ := uuid.Parse(ctx.Query("room"))

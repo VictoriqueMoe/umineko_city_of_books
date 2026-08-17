@@ -107,9 +107,6 @@ func TestNotify_BlockFiltering(t *testing.T) {
 			if tt.wantCreated {
 				notifRepo.EXPECT().
 					Create(mock.Anything, recipient, tt.notifType, params.ReferenceID, "", actor, "").
-					Return(int64(1), nil)
-				notifRepo.EXPECT().
-					GetByID(mock.Anything, 1, recipient).
 					Return(&model.NotificationRow{ID: 1, UserID: recipient, Type: tt.notifType}, nil)
 			}
 
@@ -137,9 +134,6 @@ func TestNotify_SystemActorSkipsBlockLookup(t *testing.T) {
 	}
 	notifRepo.EXPECT().
 		Create(mock.Anything, recipient, dto.NotifMention, params.ReferenceID, "", uuid.Nil, "").
-		Return(int64(1), nil)
-	notifRepo.EXPECT().
-		GetByID(mock.Anything, 1, recipient).
 		Return(&model.NotificationRow{ID: 1, UserID: recipient, Type: dto.NotifMention}, nil)
 
 	// when

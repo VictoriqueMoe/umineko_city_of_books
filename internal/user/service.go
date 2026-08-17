@@ -15,11 +15,12 @@ import (
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type (
 	Service interface {
-		Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error)
+		NewAccountSpec(ctx context.Context, username, email, password, displayName string) (repository.NewAccount, error)
 		GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error)
 		ListStaff(ctx context.Context) ([]*dto.UserResponse, error)
 		ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error)
@@ -33,27 +34,34 @@ type (
 
 		GetDetectiveRawScore(ctx context.Context, id uuid.UUID) (int, error)
 		GetGMRawScore(ctx context.Context, id uuid.UUID) (int, error)
-		UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error
-		UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error
+		UpdateMysteryScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error
+		UpdateGMScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error
 	}
 
 	service struct {
 		repo       repository.UserRepository
 		roleRepo   repository.RoleRepository
 		vanityRepo repository.VanityRoleRepository
+		auditRepo  repository.AuditLogRepository
 		authz      authz.Service
 		settings   settings.Service
 	}
 )
 
-func NewService(repo repository.UserRepository, roleRepo repository.RoleRepository, vanityRepo repository.VanityRoleRepository, authzService authz.Service, settingsSvc settings.Service) Service {
-	return &service{repo: repo, roleRepo: roleRepo, vanityRepo: vanityRepo, authz: authzService, settings: settingsSvc}
+func NewService(repo repository.UserRepository, roleRepo repository.RoleRepository, vanityRepo repository.VanityRoleRepository, auditRepo repository.AuditLogRepository, authzService authz.Service, settingsSvc settings.Service) Service {
+	return &service{repo: repo, roleRepo: roleRepo, vanityRepo: vanityRepo, auditRepo: auditRepo, authz: authzService, settings: settingsSvc}
 }
 
-func (s *service) Create(ctx context.Context, username, email, password, displayName string) (*dto.UserResponse, error) {
+func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+	if err := s.auditRepo.Create(ctx, entry); err != nil {
+		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+	}
+}
+
+func (s *service) NewAccountSpec(ctx context.Context, username, email, password, displayName string) (repository.NewAccount, error) {
 	count, err := s.repo.Count(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("count users: %w", err)
+		return repository.NewAccount{}, fmt.Errorf("count users: %w", err)
 	}
 
 	displayName = ClampDisplayName(displayName)
@@ -61,20 +69,27 @@ func (s *service) Create(ctx context.Context, username, email, password, display
 		displayName = username
 	}
 
-	user, err := s.repo.Create(ctx, username, email, password, displayName)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, fmt.Errorf("create user: %w", err)
+		return repository.NewAccount{}, fmt.Errorf("hash password: %w", err)
+	}
+
+	spec := repository.NewAccount{
+		User: repository.NewUser{
+			Username:     username,
+			Email:        email,
+			PasswordHash: string(hash),
+			DisplayName:  displayName,
+			HomePage:     "landing",
+			DMsEnabled:   true,
+		},
 	}
 
 	if count == 0 {
-		if err := s.roleRepo.SetRole(ctx, user.ID, authz.RoleSuperAdmin); err != nil {
-			logger.Log.Error().Err(err).Str("user_id", user.ID.String()).Msg("failed to assign super admin role to first user")
-		} else {
-			logger.Log.Info().Str("user_id", user.ID.String()).Str("username", username).Msg("first user created, assigned super admin role")
-		}
+		spec.Role = authz.RoleSuperAdmin
 	}
 
-	return user.ToResponse(), nil
+	return spec, nil
 }
 
 func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*dto.UserResponse, error) {
@@ -123,13 +138,18 @@ func (s *service) ListStaff(ctx context.Context) ([]*dto.UserResponse, error) {
 }
 
 func (s *service) ValidateCredentials(ctx context.Context, username, password string) (*dto.UserResponse, error) {
-	user, err := s.repo.ValidatePassword(ctx, username, password)
+	user, err := s.repo.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, fmt.Errorf("validate credentials: %w", err)
 	}
-	if user == nil {
+	if user == nil || user.IsBot {
 		return nil, ErrInvalidCredentials
 	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
 	return user.ToResponse(), nil
 }
 
@@ -187,6 +207,14 @@ func (s *service) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool)
 			return fmt.Errorf("revoke chatbot opt-in role: %w", err)
 		}
 
+		s.audit(ctx, repository.NewAuditEntry{
+			ActorID:    id,
+			Action:     repository.AuditActionUnassignVanityRole,
+			TargetType: repository.AuditTargetVanityRole,
+			TargetID:   roleID,
+			SubjectID:  id,
+		})
+
 		return nil
 	}
 
@@ -204,6 +232,14 @@ func (s *service) SetChatbotOptIn(ctx context.Context, id uuid.UUID, optIn bool)
 	if err := s.vanityRepo.AssignToUser(ctx, id, roleID); err != nil {
 		return fmt.Errorf("grant chatbot opt-in role: %w", err)
 	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    id,
+		Action:     repository.AuditActionAssignVanityRole,
+		TargetType: repository.AuditTargetVanityRole,
+		TargetID:   roleID,
+		SubjectID:  id,
+	})
 
 	return nil
 }
@@ -233,10 +269,52 @@ func (s *service) GetGMRawScore(ctx context.Context, id uuid.UUID) (int, error) 
 	return s.repo.GetGMRawScore(ctx, id)
 }
 
-func (s *service) UpdateMysteryScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
-	return s.repo.UpdateMysteryScoreAdjustment(ctx, id, adjustment)
+func (s *service) UpdateMysteryScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error {
+	previous, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if previous == nil {
+		return ErrUserNotFound
+	}
+
+	if err := s.repo.UpdateMysteryScoreAdjustment(ctx, id, adjustment); err != nil {
+		return err
+	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionMysteryScoreAdjust,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("%d -> %d", previous.MysteryScoreAdjustment, adjustment),
+		SubjectID:  id,
+	})
+
+	return nil
 }
 
-func (s *service) UpdateGMScoreAdjustment(ctx context.Context, id uuid.UUID, adjustment int) error {
-	return s.repo.UpdateGMScoreAdjustment(ctx, id, adjustment)
+func (s *service) UpdateGMScoreAdjustment(ctx context.Context, actorID uuid.UUID, id uuid.UUID, adjustment int) error {
+	previous, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+	if previous == nil {
+		return ErrUserNotFound
+	}
+
+	if err := s.repo.UpdateGMScoreAdjustment(ctx, id, adjustment); err != nil {
+		return err
+	}
+
+	s.audit(ctx, repository.NewAuditEntry{
+		ActorID:    actorID,
+		Action:     repository.AuditActionGMScoreAdjust,
+		TargetType: repository.AuditTargetUser,
+		TargetID:   id.String(),
+		Details:    fmt.Sprintf("%d -> %d", previous.GMScoreAdjustment, adjustment),
+		SubjectID:  id,
+	})
+
+	return nil
 }

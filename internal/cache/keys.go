@@ -36,6 +36,9 @@ var (
 
 	SecretHolders = Namespace{Prefix: "secret:holders:", TTL: 0}
 	SecretSolved  = Namespace{Prefix: "secret:solved:", TTL: 0}
+
+	GiphyResponse = Namespace{Prefix: "giphy:response:", TTL: 0}
+	GiphyGifUser  = Namespace{Prefix: "giphy:gif-user:", TTL: 7 * 24 * time.Hour}
 )
 
 func (n Namespace) Key(parts ...string) string {

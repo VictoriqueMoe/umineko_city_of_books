@@ -3,7 +3,6 @@ package controllers
 import (
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -16,11 +15,11 @@ func (s *Service) getAllPushRoutes() []FSetupRoute {
 }
 
 func (s *Service) setupRegisterDeviceRoute(r fiber.Router) {
-	r.Post("/push/device", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.registerDeviceToken)
+	r.Post("/push/device", s.requireAuth(), s.registerDeviceToken)
 }
 
 func (s *Service) setupUnregisterDeviceRoute(r fiber.Router) {
-	r.Delete("/push/device", middleware.RequireAuth(s.AuthSession, s.AuthzService), s.unregisterDeviceToken)
+	r.Delete("/push/device", s.requireAuth(), s.unregisterDeviceToken)
 }
 
 func (s *Service) registerDeviceToken(ctx fiber.Ctx) error {

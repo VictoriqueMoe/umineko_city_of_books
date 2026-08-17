@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"fmt"
 	"testing"
@@ -191,7 +192,9 @@ func TestForceMuteVoice_PersistsBeforeLiveKit(t *testing.T) {
 	var order []string
 	chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("host", nil)
 	chatRepo.EXPECT().SetVoiceForceMuted(mock.Anything, roomID, targetID, actorID, true).
-		Run(func(ctx context.Context, a, b, c uuid.UUID, muted bool) { order = append(order, "persist") }).Return(nil)
+		Run(func(ctx context.Context, a, b, c uuid.UUID, muted bool, _ ...*sql.Tx) {
+			order = append(order, "persist")
+		}).Return(nil)
 	lk.EXPECT().SetCanPublish(mock.Anything, roomID.String(), targetID.String(), false, false).
 		Run(func(ctx context.Context, room, identity string, canPublish, allowScreenShare bool) {
 			order = append(order, "livekit")
@@ -280,8 +283,8 @@ func TestHandleVoiceWebhook_UpdatesPresence(t *testing.T) {
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, roomID, userID, mock.Anything).Return(nil)
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, mock.Anything).Return(nil, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, userID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
 
 	body := []byte(fmt.Sprintf(`{"event":"participant_joined","room":{"name":%q},"participant":{"identity":%q}}`, roomID, userID))
 	sum := sha256.Sum256(body)

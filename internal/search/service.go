@@ -3,6 +3,7 @@ package search
 import (
 	"cmp"
 	"context"
+	"database/sql"
 	"slices"
 	"strings"
 
@@ -19,7 +20,7 @@ type (
 	}
 
 	ChatSearcher interface {
-		SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int) ([]repository.SearchResult, int, error)
+		SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int, tx ...*sql.Tx) ([]repository.SearchResult, int, error)
 	}
 
 	Service interface {
