@@ -824,11 +824,11 @@ func (r *mysteryDAO) GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx
 }
 
 func (r *mysteryDAO) AddMedia(ctx context.Context, spec repository.NewMysteryMedia, tx ...*sql.Tx) (int64, error) {
-	return r.mediaDAO.AddMedia(ctx, spec.MysteryID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.mediaDAO.AddMedia(ctx, spec.MysteryID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *mysteryDAO) AddCommentMedia(ctx context.Context, spec repository.NewMysteryCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *mysteryDAO) GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error) {

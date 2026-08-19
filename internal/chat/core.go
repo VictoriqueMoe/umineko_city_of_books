@@ -96,6 +96,7 @@ type (
 
 	FileUpload struct {
 		ContentType string
+		Filename    string
 		Size        int64
 		Open        func() (io.ReadCloser, error)
 	}

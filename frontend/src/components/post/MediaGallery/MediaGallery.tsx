@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PostMedia } from "../../../types/api";
 import { Lightbox } from "../../Lightbox/Lightbox";
+import { AudioAttachment } from "../../AudioAttachment/AudioAttachment";
 import styles from "./MediaGallery.module.css";
 
 interface MediaGalleryProps {
@@ -36,13 +37,16 @@ export function MediaGallery({ media }: MediaGalleryProps) {
             <div className={`${styles.gallery} ${gridClass}`}>
                 {media.map((item, i) => (
                     <div key={item.id} className={itemClass(i)}>
-                        {item.media_type === "video" ? (
+                        {item.media_type === "audio" ? (
+                            <AudioAttachment src={item.media_url} filename={item.filename} />
+                        ) : item.media_type === "video" ? (
                             <video
                                 className={styles.media}
                                 src={item.media_url}
                                 poster={item.thumbnail_url || undefined}
                                 controls
                                 preload="metadata"
+                                onClick={e => e.stopPropagation()}
                                 onLoadedMetadata={
                                     oddMany && i === lastIdx
                                         ? e => measureLast(e.currentTarget.videoWidth, e.currentTarget.videoHeight)

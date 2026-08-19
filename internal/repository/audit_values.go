@@ -15,6 +15,8 @@ const (
 	AuditActionUnbanUser          AuditAction = "unban_user"
 	AuditActionLockUser           AuditAction = "lock_user"
 	AuditActionUnlockUser         AuditAction = "unlock_user"
+	AuditActionApproveUser        AuditAction = "approve_user"
+	AuditActionUnapproveUser      AuditAction = "unapprove_user"
 	AuditActionDeleteUser         AuditAction = "delete_user"
 	AuditActionResetPassword      AuditAction = "reset_password"
 	AuditActionSetUserEmail       AuditAction = "set_user_email"

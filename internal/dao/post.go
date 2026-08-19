@@ -154,11 +154,11 @@ func (r *postDAO) Create(ctx context.Context, spec repository.NewPost, tx ...*sq
 }
 
 func (r *postDAO) AddMedia(ctx context.Context, spec repository.NewPostMedia, tx ...*sql.Tx) (int64, error) {
-	return r.mediaDAO.AddMedia(ctx, spec.PostID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.mediaDAO.AddMedia(ctx, spec.PostID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *postDAO) AddCommentMedia(ctx context.Context, spec repository.NewPostCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *postDAO) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
@@ -829,106 +829,6 @@ func (r *postDAO) fetchFanficPreviews(ctx context.Context, ids []string, result 
 			URL: "/fanfiction/" + id,
 		}
 	}
-}
-
-func (r *postDAO) AddEmbed(ctx context.Context, spec repository.NewEmbed, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO embeds (owner_id, owner_type, url, embed_type, title, description, image, site_name, video_id, sort_order) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		spec.OwnerID, spec.OwnerType, spec.URL, spec.EmbedType, spec.Title, spec.Description, spec.Image, spec.SiteName, spec.VideoID, spec.SortOrder,
-	)
-	if err != nil {
-		return fmt.Errorf("add embed: %w", err)
-	}
-	return nil
-}
-
-func (r *postDAO) DeleteEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM embeds WHERE owner_id = $1 AND owner_type = $2`, ownerID, ownerType)
-	if err != nil {
-		return fmt.Errorf("delete embeds: %w", err)
-	}
-	return nil
-}
-
-func (r *postDAO) UpdateEmbed(ctx context.Context, spec repository.EmbedUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE embeds SET title = $1, description = $2, image = $3, site_name = $4, fetched_at = NOW() WHERE id = $5`,
-		spec.Title, spec.Description, spec.Image, spec.SiteName, spec.ID,
-	)
-	if err != nil {
-		return fmt.Errorf("update embed: %w", err)
-	}
-	return nil
-}
-
-func (r *postDAO) GetStaleEmbeds(ctx context.Context, olderThan string, limit int, tx ...*sql.Tx) ([]model.EmbedRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE embed_type = 'link' AND fetched_at < NOW() + CAST($1 AS INTERVAL) LIMIT $2`,
-		olderThan, limit,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get stale embeds: %w", err)
-	}
-	defer rows.Close()
-
-	var embeds []model.EmbedRow
-	for rows.Next() {
-		var e model.EmbedRow
-		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan stale embed: %w", err)
-		}
-		embeds = append(embeds, e)
-	}
-	return embeds, rows.Err()
-}
-
-func (r *postDAO) GetEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) ([]model.EmbedRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id = $1 AND owner_type = $2 ORDER BY sort_order`,
-		ownerID, ownerType,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("get embeds: %w", err)
-	}
-	defer rows.Close()
-
-	var embeds []model.EmbedRow
-	for rows.Next() {
-		var e model.EmbedRow
-		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan embed: %w", err)
-		}
-		embeds = append(embeds, e)
-	}
-	return embeds, rows.Err()
-}
-
-func (r *postDAO) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string, tx ...*sql.Tx) (map[string][]model.EmbedRow, error) {
-	if len(ownerIDs) == 0 {
-		return nil, nil
-	}
-
-	placeholders, args := buildPlaceholders(ownerIDs)
-	args = append(args, ownerType)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		utils.Rebind(`SELECT id, owner_id, url, embed_type, title, description, image, site_name, video_id, sort_order FROM embeds WHERE owner_id IN (`+placeholders+`) AND owner_type = ? ORDER BY sort_order`),
-		args...,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("batch get embeds: %w", err)
-	}
-	defer rows.Close()
-
-	result := make(map[string][]model.EmbedRow)
-	for rows.Next() {
-		var e model.EmbedRow
-		if err := rows.Scan(&e.ID, &e.OwnerID, &e.URL, &e.EmbedType, &e.Title, &e.Desc, &e.Image, &e.SiteName, &e.VideoID, &e.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan embed: %w", err)
-		}
-		result[e.OwnerID] = append(result[e.OwnerID], e)
-	}
-	return result, rows.Err()
 }
 
 func (r *postDAO) CreatePoll(ctx context.Context, postID uuid.UUID, durationSeconds int, expiresAt string, tx ...*sql.Tx) (*model.PollRow, error) {

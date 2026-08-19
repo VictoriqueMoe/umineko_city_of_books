@@ -50,10 +50,10 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		UploadAttachment(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, fileName string, fileSize int64, reader io.Reader) (*dto.MysteryAttachment, error)
 		DeleteAttachment(ctx context.Context, attachmentID int64, mysteryID uuid.UUID, userID uuid.UUID) error
-		UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadMedia(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid.UUID, userID uuid.UUID) error
 		SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, paused bool) error
 		SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, away bool) error
@@ -1148,6 +1148,7 @@ func (s *service) UploadCommentMedia(
 	commentID uuid.UUID,
 	userID uuid.UUID,
 	contentType string,
+	filename string,
 	fileSize int64,
 	reader io.Reader,
 ) (*dto.PostMediaResponse, error) {
@@ -1162,12 +1163,13 @@ func (s *service) UploadCommentMedia(
 	existing, _ := s.mysteryRepo.GetCommentMedia(ctx, commentID)
 	sortOrder := len(existing)
 
-	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
-		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
+	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
 			return s.mysteryRepo.AddCommentMedia(ctx, repository.NewMysteryCommentMedia{
 				CommentID: commentID,
 				MediaURL:  mediaURL,
 				MediaType: mediaType,
+				Filename:  filename,
 				SortOrder: sortOrder,
 			})
 		},
@@ -1236,6 +1238,7 @@ func (s *service) UploadMedia(
 	mysteryID uuid.UUID,
 	userID uuid.UUID,
 	contentType string,
+	filename string,
 	fileSize int64,
 	reader io.Reader,
 ) (*dto.PostMediaResponse, error) {
@@ -1250,12 +1253,13 @@ func (s *service) UploadMedia(
 	existing, _ := s.mysteryRepo.GetMedia(ctx, mysteryID)
 	sortOrder := len(existing)
 
-	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, fileSize, reader,
-		func(mediaURL, mediaType, _ string, _ int) (int64, error) {
+	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
 			return s.mysteryRepo.AddMedia(ctx, repository.NewMysteryMedia{
 				MysteryID: mysteryID,
 				MediaURL:  mediaURL,
 				MediaType: mediaType,
+				Filename:  filename,
 				SortOrder: sortOrder,
 			})
 		},

@@ -15,20 +15,8 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
-	}
-
-	EmbedRow struct {
-		ID        int
-		OwnerID   string
-		URL       string
-		EmbedType string
-		Title     string
-		Desc      string
-		Image     string
-		SiteName  string
-		VideoID   string
-		SortOrder int
 	}
 
 	PostLikeUser struct {
@@ -46,35 +34,13 @@ func (m *PostMediaRow) ToResponse() dto.PostMediaResponse {
 		MediaURL:     m.MediaURL,
 		MediaType:    m.MediaType,
 		ThumbnailURL: m.ThumbnailURL,
+		Filename:     m.Filename,
 		SortOrder:    m.SortOrder,
-	}
-}
-
-func (e *EmbedRow) ToResponse() dto.EmbedResponse {
-	return dto.EmbedResponse{
-		URL:      e.URL,
-		Type:     e.EmbedType,
-		Title:    e.Title,
-		Desc:     e.Desc,
-		Image:    e.Image,
-		SiteName: e.SiteName,
-		VideoID:  e.VideoID,
 	}
 }
 
 func MediaRowsToResponse(rows []PostMediaRow) []dto.PostMediaResponse {
 	list := make([]dto.PostMediaResponse, len(rows))
-	for i := range rows {
-		list[i] = rows[i].ToResponse()
-	}
-	return list
-}
-
-func EmbedRowsToResponse(rows []EmbedRow) []dto.EmbedResponse {
-	if len(rows) == 0 {
-		return nil
-	}
-	list := make([]dto.EmbedResponse, len(rows))
 	for i := range rows {
 		list[i] = rows[i].ToResponse()
 	}

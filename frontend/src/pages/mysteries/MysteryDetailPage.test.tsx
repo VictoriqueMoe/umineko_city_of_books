@@ -999,7 +999,7 @@ describe("MysteryDetailPage", () => {
         const { container } = renderPage(gameMasterUser);
 
         // when
-        const input = container.querySelector<HTMLInputElement>("input[accept='image/*,video/*,.mkv,.avi']")!;
+        const input = container.querySelector<HTMLInputElement>("input[accept='image/*,video/*,audio/*,.mkv,.avi']")!;
         await user.upload(input, new File(["png"], "scene.png", { type: "image/png" }));
         await user.click(screen.getByRole("button", { name: "Upload 1" }));
 

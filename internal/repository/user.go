@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 	"umineko_city_of_books/internal/repository/model"
@@ -99,6 +100,8 @@ type (
 		IsBanned(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error)
 		LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string, tx ...*sql.Tx) error
 		UnlockUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
+		ApproveUser(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error
+		UnapproveUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
 		IsLocked(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error)
 		AdminDeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
 	}
@@ -181,6 +184,10 @@ func (r *userRepository) RegisterAccount(ctx context.Context, spec NewRegistrati
 
 		if spec.InviteCode != "" {
 			if err := r.invites.MarkUsed(ctx, spec.InviteCode, created.ID, tx); err != nil {
+				if errors.Is(err, ErrInviteUnavailable) {
+					return err
+				}
+
 				return fmt.Errorf("mark invite as used: %w", err)
 			}
 		}
@@ -452,6 +459,14 @@ func (r *userRepository) LockUser(ctx context.Context, userID uuid.UUID, lockedB
 
 func (r *userRepository) UnlockUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
 	return r.dao.UnlockUser(ctx, userID, tx...)
+}
+
+func (r *userRepository) ApproveUser(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error {
+	return r.dao.ApproveUser(ctx, userID, approvedBy, tx...)
+}
+
+func (r *userRepository) UnapproveUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	return r.dao.UnapproveUser(ctx, userID, tx...)
 }
 
 func (r *userRepository) IsLocked(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {

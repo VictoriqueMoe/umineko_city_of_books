@@ -45,6 +45,7 @@ export function TruthCard({ quote, onClick, selected, lang }: TruthCardProps) {
                 }
             }}
         >
+            {/* This comes from quotes.auaurora.moe, which I own, and is rendered unsanitised because the formatting tags are deliberate.*/}
             <div className={styles.text} dangerouslySetInnerHTML={{ __html: getDisplayHtml(quote, lang) }} />
             <div className={styles.meta}>
                 <span className={styles.speaker}>{quote.character}</span>

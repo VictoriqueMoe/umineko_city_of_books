@@ -81,7 +81,7 @@ type (
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error
 
-		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error)
+		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error)
 		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error
 		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
@@ -300,8 +300,8 @@ func (r *ocRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, comm
 	return r.dao.UnlikeComment(ctx, userID, commentID, tx...)
 }
 
-func (r *ocRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error) {
-	return r.dao.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbnailURL, sortOrder, tx...)
+func (r *ocRepository) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+	return r.dao.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
 }
 
 func (r *ocRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {

@@ -3,6 +3,7 @@ package middleware
 import (
 	"strings"
 
+	"umineko_city_of_books/internal/authctx"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/session"
 
@@ -82,6 +83,7 @@ func RequirePermission(mgr *session.Manager, authzSvc authz.Service, perm authz.
 		}
 
 		ctx.Locals("userID", userID)
+		ctx.SetContext(authctx.WithUserID(ctx.Context(), userID))
 		return ctx.Next()
 	}
 }
@@ -107,6 +109,7 @@ func OptionalAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 		}
 
 		ctx.Locals("userID", userID)
+		ctx.SetContext(authctx.WithUserID(ctx.Context(), userID))
 		return ctx.Next()
 	}
 }
@@ -119,6 +122,7 @@ func RequireAuth(mgr *session.Manager, authzSvc authz.Service) fiber.Handler {
 		}
 
 		ctx.Locals("userID", userID)
+		ctx.SetContext(authctx.WithUserID(ctx.Context(), userID))
 		return ctx.Next()
 	}
 }

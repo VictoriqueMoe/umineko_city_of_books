@@ -264,7 +264,6 @@ func TestGetArt_OK_WithViewerHashAndBlocked(t *testing.T) {
 	m.artRepo.EXPECT().GetTags(mock.Anything, id).Return([]string{"tag"}, nil)
 	m.artRepo.EXPECT().GetComments(mock.Anything, id, viewerID, 500, 0, blocked).Return(nil, 0, nil)
 	m.artRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "art_comment").Return(nil, nil)
 	m.artRepo.EXPECT().GetLikedBy(mock.Anything, id, blocked).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(true, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
@@ -290,7 +289,6 @@ func TestGetArt_OK_AnonymousNoHash(t *testing.T) {
 	m.artRepo.EXPECT().GetTags(mock.Anything, id).Return(nil, nil)
 	m.artRepo.EXPECT().GetComments(mock.Anything, id, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
 	m.artRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "art_comment").Return(nil, nil)
 	m.artRepo.EXPECT().GetLikedBy(mock.Anything, id, []uuid.UUID(nil)).Return(nil, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("")
 
@@ -1137,7 +1135,7 @@ func TestUploadCommentMedia_CommentNotFound(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("no row"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -1152,7 +1150,7 @@ func TestUploadCommentMedia_NotAuthor(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -1171,7 +1169,7 @@ func TestUploadCommentMedia_UploadError(t *testing.T) {
 		Return("", errors.New("disk full"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -1188,11 +1186,11 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image"}).
+		AddCommentMedia(mock.Anything, repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image", Filename: "photo.png"}).
 		Return(int64(0), errors.New("db"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -1210,11 +1208,11 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image"}).
+		AddCommentMedia(mock.Anything, repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image", Filename: "photo.png"}).
 		Return(int64(42), nil)
 
 	// when
-	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", 10, bytes.NewReader(nil))
+	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.NoError(t, err)

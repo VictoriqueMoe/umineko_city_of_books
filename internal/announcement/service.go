@@ -41,7 +41,7 @@ type (
 		DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 	}
 
 	service struct {
@@ -453,7 +453,7 @@ func (s *service) UnlikeComment(ctx context.Context, userID, commentID uuid.UUID
 	return s.repo.UnlikeComment(ctx, userID, commentID)
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrCommentNotFound
@@ -462,13 +462,14 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid
 		return nil, ErrForbidden
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "announcements", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+	return s.uploader.SaveAndRecord(ctx, "announcements", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.repo.AddCommentMedia(ctx, repository.NewAnnouncementCommentMedia{
 				CommentID:    commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
+				Filename:     filename,
 				SortOrder:    sortOrder,
 			})
 		},

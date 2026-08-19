@@ -1868,7 +1868,7 @@ func TestUploadCommentMedia_CommentNotFound(t *testing.T) {
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(uuid.Nil, errors.New("boom"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -1882,7 +1882,7 @@ func TestUploadCommentMedia_NotAuthor(t *testing.T) {
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(uuid.New(), nil)
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -2372,7 +2372,7 @@ func TestUploadMedia_MysteryNotFound(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -2387,7 +2387,7 @@ func TestUploadMedia_NotAuthor(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
 
 	// then
 	require.ErrorIs(t, err, ErrNotAuthor)

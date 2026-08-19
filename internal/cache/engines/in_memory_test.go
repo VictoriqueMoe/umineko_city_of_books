@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/cache/engine"
+	"umineko_city_of_books/internal/config"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,12 +26,16 @@ func (c *fakeClock) advance(d time.Duration) {
 	c.now = c.now.Add(d)
 }
 
-func newClockedInMemory(t *testing.T, maxEntries int) (*InMemory, *fakeClock) {
+func smallEntries(n int) int {
+	return n * (len("a") + len("1") + entryOverheadBytes)
+}
+
+func newClockedInMemory(t *testing.T, maxBytes int) (*InMemory, *fakeClock) {
 	t.Helper()
 
 	clock := &fakeClock{now: time.Date(1986, time.October, 4, 12, 0, 0, 0, time.UTC)}
 
-	c := NewInMemory(maxEntries)
+	c := NewInMemory(maxBytes)
 	c.now = clock.Now
 
 	return c, clock
@@ -55,26 +60,26 @@ func TestInMemoryReturnsMissForUnknownKey(t *testing.T) {
 	require.ErrorIs(t, err, engine.ErrMiss)
 }
 
-func TestInMemoryDefaultsMaxEntries(t *testing.T) {
+func TestInMemoryDefaultsMaxBytes(t *testing.T) {
 	tests := []struct {
-		name       string
-		maxEntries int
-		want       int
+		name     string
+		maxBytes int
+		want     int
 	}{
-		{name: "zero falls back to default", maxEntries: 0, want: defaultInMemoryMaxEntries},
-		{name: "negative falls back to default", maxEntries: -5, want: defaultInMemoryMaxEntries},
-		{name: "explicit value is kept", maxEntries: 16, want: 16},
+		{name: "zero falls back to default", maxBytes: 0, want: defaultInMemoryMaxBytes},
+		{name: "negative falls back to default", maxBytes: -5, want: defaultInMemoryMaxBytes},
+		{name: "explicit value is kept", maxBytes: 4096, want: 4096},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, NewInMemory(tt.maxEntries).maxEntries)
+			assert.Equal(t, tt.want, NewInMemory(tt.maxBytes).maxBytes)
 		})
 	}
 }
 
-func TestInMemoryEvictsOldestBeyondMaxEntries(t *testing.T) {
-	c, _ := newClockedInMemory(t, 2)
+func TestInMemoryEvictsOldestBeyondTheByteBudget(t *testing.T) {
+	c, _ := newClockedInMemory(t, smallEntries(2))
 	ctx := context.Background()
 
 	require.NoError(t, c.Set(ctx, "a", []byte("1"), 0))
@@ -93,7 +98,7 @@ func TestInMemoryEvictsOldestBeyondMaxEntries(t *testing.T) {
 }
 
 func TestInMemoryReadRefreshesRecency(t *testing.T) {
-	c, _ := newClockedInMemory(t, 2)
+	c, _ := newClockedInMemory(t, smallEntries(2))
 	ctx := context.Background()
 
 	require.NoError(t, c.Set(ctx, "a", []byte("1"), 0))
@@ -249,20 +254,116 @@ func TestInMemoryNeverHoldsAnEntryIndefinitely(t *testing.T) {
 }
 
 func TestInMemoryEvictsOnByteCeiling(t *testing.T) {
+	// given a budget with room for exactly two entries once overhead is counted
 	c, _ := newClockedInMemory(t, 0)
-	c.maxBytes = 1000
+	blob := make([]byte, 400)
+	budget := 2 * entrySize("a", blob)
+	c.maxBytes = budget
 	ctx := context.Background()
 
-	blob := make([]byte, 400)
+	// when a third arrives
 	for _, key := range []string{"a", "b", "c"} {
 		require.NoError(t, c.Set(ctx, key, blob, time.Minute))
 	}
 
-	assert.LessOrEqual(t, c.Bytes(), 1000)
+	// then the oldest is evicted and the budget is respected
+	assert.LessOrEqual(t, c.Bytes(), budget)
 	assert.Equal(t, 2, c.Len())
 
 	_, err := c.Get(ctx, "a")
 	require.ErrorIs(t, err, engine.ErrMiss)
+}
+
+func TestInMemoryCountsKeyAndPerEntryOverheadNotJustThePayload(t *testing.T) {
+	// given
+	c, _ := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	// when
+	require.NoError(t, c.Set(ctx, "beatrice", make([]byte, 100), time.Minute))
+
+	// then the budget reflects real footprint, so tiny values cannot blow past it unseen
+	assert.Equal(t, len("beatrice")+100+entryOverheadBytes, c.Bytes())
+}
+
+func TestInMemoryResizeMBEvictsImmediately(t *testing.T) {
+	// given a cache holding more than the new budget will allow
+	c, _ := newClockedInMemory(t, 0)
+	ctx := context.Background()
+
+	for _, key := range []string{"a", "b", "c"} {
+		require.NoError(t, c.Set(ctx, key, make([]byte, 400*1024), time.Minute))
+	}
+	require.Equal(t, 3, c.Len())
+
+	// when the limit is shrunk to one megabyte
+	c.ResizeMB(1)
+
+	// then it evicts on the spot rather than waiting for the next write
+	assert.LessOrEqual(t, c.Bytes(), bytesPerMB)
+	assert.Less(t, c.Len(), 3)
+}
+
+func TestInMemoryResizeMBClampsOutOfRangeValues(t *testing.T) {
+	tests := []struct {
+		name string
+		mb   int
+		want int
+	}{
+		{name: "zero falls back to the default", mb: 0, want: defaultInMemoryMaxMB * bytesPerMB},
+		{name: "negative falls back to the default", mb: -3, want: defaultInMemoryMaxMB * bytesPerMB},
+		{name: "absurdly large is clamped", mb: 1 << 20, want: maxInMemoryMaxMB * bytesPerMB},
+		{name: "a sane value is kept", mb: 64, want: 64 * bytesPerMB},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			c, _ := newClockedInMemory(t, 0)
+
+			// when
+			c.ResizeMB(tt.mb)
+
+			// then
+			assert.Equal(t, tt.want, c.maxBytes)
+		})
+	}
+}
+
+func TestInMemoryOnSettingChangedOnlyReactsToItsOwnKey(t *testing.T) {
+	// given
+	c, _ := newClockedInMemory(t, 0)
+	before := c.maxBytes
+
+	// when an unrelated setting changes
+	c.OnSettingChanged(config.SettingValkeyURL.Key, "redis://localhost:6379")
+
+	// then
+	assert.Equal(t, before, c.maxBytes)
+}
+
+func TestInMemoryOnSettingChangedKeepsTheLimitWhenTheValueIsNotANumber(t *testing.T) {
+	// given
+	c, _ := newClockedInMemory(t, 0)
+	c.ResizeMB(64)
+	before := c.maxBytes
+
+	// when
+	c.OnSettingChanged(config.SettingCacheInMemoryMaxMB.Key, "not-a-number")
+
+	// then a bad value must never shrink the cache to nothing
+	assert.Equal(t, before, c.maxBytes)
+}
+
+func TestInMemoryOnSettingChangedAppliesTheNewLimit(t *testing.T) {
+	// given
+	c, _ := newClockedInMemory(t, 0)
+
+	// when
+	c.OnSettingChanged(config.SettingCacheInMemoryMaxMB.Key, "32")
+
+	// then
+	assert.Equal(t, 32*bytesPerMB, c.maxBytes)
 }
 
 func TestInMemoryBytesTracksOverwriteAndDelete(t *testing.T) {
@@ -270,10 +371,10 @@ func TestInMemoryBytesTracksOverwriteAndDelete(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, c.Set(ctx, "k", make([]byte, 500), time.Minute))
-	assert.Equal(t, 500, c.Bytes())
+	assert.Equal(t, entrySize("k", make([]byte, 500)), c.Bytes())
 
 	require.NoError(t, c.Set(ctx, "k", make([]byte, 100), time.Minute))
-	assert.Equal(t, 100, c.Bytes())
+	assert.Equal(t, entrySize("k", make([]byte, 100)), c.Bytes())
 
 	require.NoError(t, c.Del(ctx, "k"))
 	assert.Zero(t, c.Bytes())
@@ -292,7 +393,7 @@ func TestInMemoryIsAlwaysAvailable(t *testing.T) {
 }
 
 func TestInMemoryHandlesConcurrentAccess(t *testing.T) {
-	c := NewInMemory(8)
+	c := NewInMemory(0)
 	ctx := context.Background()
 
 	var wg sync.WaitGroup

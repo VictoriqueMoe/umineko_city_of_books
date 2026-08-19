@@ -46,6 +46,7 @@ export interface User {
     username: string;
     display_name: string;
     avatar_url?: string;
+    created_at?: string;
     role?: SiteRole;
     banned?: boolean;
     ban_reason?: string;
@@ -257,16 +258,19 @@ export interface ActivityListResponse extends PaginationFields {
 export interface PostMedia {
     id: number;
     media_url: string;
-    media_type: "image" | "video";
+    media_type: "image" | "video" | "audio";
     thumbnail_url?: string;
+    filename?: string;
     sort_order: number;
     width?: number;
     height?: number;
 }
 
-export interface PostEmbed {
+export type LinkPreviewType = "" | "link" | "youtube" | "image" | "video";
+
+export interface LinkPreview {
     url: string;
-    type: "link" | "youtube";
+    type: LinkPreviewType;
     title?: string;
     description?: string;
     image?: string;
@@ -319,7 +323,6 @@ export interface Post {
     author: User;
     body: string;
     media: PostMedia[];
-    embeds?: PostEmbed[];
     poll?: Poll;
     shared_content?: SharedContentPreview;
     share_count: number;
@@ -351,7 +354,6 @@ interface CommentFields {
 }
 
 export interface PostComment extends CommentFields {
-    embeds?: PostEmbed[];
     replies?: PostComment[];
 }
 
@@ -557,6 +559,9 @@ export interface AdminUserDetail extends AdminUserItem {
     banned_by?: User;
     lock_reason?: string;
     locked_at?: string;
+    approved_at?: string;
+    approved_by?: User;
+    restricted: boolean;
     theory_count: number;
     response_count: number;
     mystery_score_adjustment: number;
@@ -648,7 +653,6 @@ export interface ArtDetail extends Art {
 }
 
 export interface ArtComment extends CommentFields {
-    embeds?: PostEmbed[];
     replies?: ArtComment[];
 }
 
@@ -1133,7 +1137,6 @@ export interface Announcement {
 }
 
 export interface AnnouncementComment extends CommentFields {
-    embeds?: PostEmbed[];
     replies?: AnnouncementComment[];
 }
 
@@ -1161,7 +1164,6 @@ export interface Ship {
 }
 
 export interface ShipComment extends CommentFields {
-    embeds?: PostEmbed[];
     replies?: ShipComment[];
 }
 

@@ -387,7 +387,7 @@ func (r *artDAO) CountUserArtToday(ctx context.Context, userID uuid.UUID, tx ...
 }
 
 func (r *artDAO) AddCommentMedia(ctx context.Context, spec repository.NewArtCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *artDAO) SetGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID, tx ...*sql.Tx) error {

@@ -43,6 +43,7 @@ require (
 	golang.org/x/crypto v0.55.0
 	golang.org/x/image v0.45.0
 	golang.org/x/net v0.58.0
+	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.41.0
 	golang.org/x/time v0.15.0
 	google.golang.org/api v0.293.0
@@ -87,7 +88,6 @@ require (
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/containerd/platforms v1.0.0-rc.4 // indirect
 	github.com/cpuguy83/dockercfg v0.3.2 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dennwc/iters v1.2.2 // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/go-connections v0.8.1 // indirect
@@ -183,7 +183,6 @@ require (
 	github.com/pion/turn/v5 v5.0.13 // indirect
 	github.com/pion/webrtc/v4 v4.2.18 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20260805114148-88456608a4f6 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.70.1 // indirect
@@ -230,7 +229,6 @@ require (
 	golang.org/x/exp/typeparams v0.0.0-20260709172345-9ea1abe57597 // indirect
 	golang.org/x/mod v0.40.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
-	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/term v0.45.0 // indirect
 	golang.org/x/tools v0.49.0 // indirect

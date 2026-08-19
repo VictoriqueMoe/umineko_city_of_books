@@ -97,7 +97,6 @@ func validCreatePostReq() dto.CreatePostRequest {
 }
 
 func expectBackgroundSocial(m *testMocks) {
-	m.postRepo.EXPECT().AddEmbed(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().IncrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
@@ -387,10 +386,8 @@ func TestGetPost_OK(t *testing.T) {
 	m.postRepo.EXPECT().RecordView(mock.Anything, id, "hash").Return(true, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbeds(mock.Anything, id.String(), "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, mock.Anything).Return(nil, 0, nil)
 	m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "comment").Return(nil, nil)
 	m.postRepo.EXPECT().GetLikedBy(mock.Anything, id, mock.Anything).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, authorID).Return(false, nil)
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, id, viewer).Return(nil, nil, nil, nil)
@@ -414,10 +411,8 @@ func TestGetPost_AnonymousNoViewHash(t *testing.T) {
 	m.postRepo.EXPECT().GetByID(mock.Anything, id, uuid.Nil).Return(row, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
 	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbeds(mock.Anything, id.String(), "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetComments(mock.Anything, id, uuid.Nil, 500, 0, mock.Anything).Return(nil, 0, nil)
 	m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "comment").Return(nil, nil)
 	m.postRepo.EXPECT().GetLikedBy(mock.Anything, id, mock.Anything).Return(nil, nil)
 	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, id, uuid.Nil).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCount(mock.Anything, id.String(), "post").Return(5, nil)
@@ -648,7 +643,6 @@ func TestListFeed_FollowingTab(t *testing.T) {
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.postRepo.EXPECT().ListByFollowing(mock.Anything, viewer, "general", "new", 0, 10, 0, mock.Anything).Return(rows, 1, nil)
 	m.postRepo.EXPECT().GetMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
@@ -669,7 +663,6 @@ func TestListFeed_AllTab(t *testing.T) {
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.postRepo.EXPECT().ListAll(mock.Anything, viewer, "general", "q", "new", 0, 5, 0, mock.Anything, "resolved").Return(nil, 0, nil)
 	m.postRepo.EXPECT().GetMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
@@ -703,7 +696,6 @@ func TestListUserPosts_OK(t *testing.T) {
 	viewer := uuid.New()
 	m.postRepo.EXPECT().ListByUser(mock.Anything, target, viewer, 10, 0).Return(nil, 2, nil)
 	m.postRepo.EXPECT().GetMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetEmbedsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
 	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
@@ -738,7 +730,7 @@ func TestUploadPostMedia_NotFound(t *testing.T) {
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(uuid.Nil, errors.New("nope"))
 
 	// when
-	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", 10, strings.NewReader("x"))
+	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", "photo.png", 10, strings.NewReader("x"))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -753,7 +745,7 @@ func TestUploadPostMedia_NotAuthor(t *testing.T) {
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(other, nil)
 
 	// when
-	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", 10, strings.NewReader("x"))
+	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", "photo.png", 10, strings.NewReader("x"))
 
 	// then
 	require.Error(t, err)
@@ -770,7 +762,7 @@ func TestUploadPostMedia_UploaderError(t *testing.T) {
 	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
 
 	// when
-	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", 10, strings.NewReader("x"))
+	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", "photo.png", 10, strings.NewReader("x"))
 
 	// then
 	require.Error(t, err)
@@ -845,7 +837,7 @@ func TestUploadCommentMedia_NotFound(t *testing.T) {
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("nope"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, strings.NewReader("x"))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, strings.NewReader("x"))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -859,7 +851,7 @@ func TestUploadCommentMedia_NotAuthor(t *testing.T) {
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.New(), nil)
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, strings.NewReader("x"))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, strings.NewReader("x"))
 
 	// then
 	require.Error(t, err)
@@ -876,7 +868,7 @@ func TestUploadCommentMedia_UploaderError(t *testing.T) {
 	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "posts", mock.Anything, int64(10), int64(1000), mock.Anything).Return("", errors.New("upload fail"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 10, strings.NewReader("x"))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 10, strings.NewReader("x"))
 
 	// then
 	require.Error(t, err)
@@ -1408,31 +1400,6 @@ func TestGetCornerCounts_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
-}
-
-func TestRefreshStaleEmbeds_RepoErrorReturnsZero(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	m.postRepo.EXPECT().GetStaleEmbeds(mock.Anything, "-1 day", 50).Return(nil, errors.New("boom"))
-
-	// when
-	got := svc.RefreshStaleEmbeds(context.Background())
-
-	// then
-	assert.Zero(t, got)
-}
-
-func TestRefreshStaleEmbeds_UnparsedSkipped(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	stale := []model.EmbedRow{{ID: 1, URL: "not-a-url"}}
-	m.postRepo.EXPECT().GetStaleEmbeds(mock.Anything, "-1 day", 50).Return(stale, nil)
-
-	// when
-	got := svc.RefreshStaleEmbeds(context.Background())
-
-	// then
-	assert.Zero(t, got)
 }
 
 func TestVotePoll_RepoError(t *testing.T) {

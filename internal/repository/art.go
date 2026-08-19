@@ -140,6 +140,7 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
 	}
 
@@ -153,10 +154,6 @@ type (
 		ImageURL     string
 		ThumbnailURL string
 	}
-)
-
-const (
-	artCommentEmbedOwnerType = "art_comment"
 )
 
 type artRepository struct {
@@ -251,11 +248,7 @@ func (r *artRepository) UpdateCommentWithDetails(ctx context.Context, spec ArtCo
 		} else {
 			err = r.dao.UpdateComment(ctx, spec.ID, spec.UserID, spec.Body, tx)
 		}
-		if err != nil {
-			return err
-		}
-
-		return r.posts.DeleteEmbeds(ctx, spec.ID.String(), artCommentEmbedOwnerType, tx)
+		return err
 	})
 }
 

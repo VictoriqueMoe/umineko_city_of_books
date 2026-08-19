@@ -66,12 +66,12 @@ type (
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error
 
-		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error)
+		AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error)
 		UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error
 		UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error
 		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
 
-		AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error)
+		AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error)
 		UpdateMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error
 		UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error
 		GetMediaBatch(ctx context.Context, entityIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
@@ -182,6 +182,7 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
 	}
 
@@ -190,6 +191,7 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
 	}
 
@@ -594,7 +596,7 @@ func (r *journalRepository) UnlikeComment(ctx context.Context, userID uuid.UUID,
 }
 
 func (r *journalRepository) AddCommentMedia(ctx context.Context, spec NewJournalCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.dao.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.dao.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *journalRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
@@ -618,7 +620,7 @@ func (r *journalRepository) CollectSingleCommentMediaPaths(ctx context.Context, 
 }
 
 func (r *journalRepository) AddMedia(ctx context.Context, spec NewJournalEntryMedia, tx ...*sql.Tx) (int64, error) {
-	return r.dao.AddMedia(ctx, spec.EntryID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.dao.AddMedia(ctx, spec.EntryID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *journalRepository) UpdateMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {

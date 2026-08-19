@@ -50,7 +50,12 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
             const errors: string[] = [];
             const valid: File[] = [];
             for (const file of pasted) {
-                const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+                const err = validateFileSize(
+                    file,
+                    siteInfo.max_image_size,
+                    siteInfo.max_video_size,
+                    siteInfo.max_audio_size,
+                );
                 if (err) {
                     errors.push(err);
                 } else {
@@ -64,7 +69,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                 setFiles(prev => [...prev, ...valid]);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size],
+        [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
     async function handleGifPick(gif: { url: string }) {

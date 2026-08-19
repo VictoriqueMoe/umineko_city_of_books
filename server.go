@@ -33,6 +33,7 @@ import (
 	"umineko_city_of_books/internal/health"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal"
+	"umineko_city_of_books/internal/linkpreview"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/middleware"
@@ -123,6 +124,7 @@ type (
 		overlay         overlay.Service
 		health          health.Service
 		sitemap         sitemap.Service
+		linkPreview     linkpreview.Service
 		ogResolver      *og.Resolver
 		ogImage         *og.ImageService
 		staticFS        fs.FS
@@ -177,7 +179,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 
 	middleware.Setup(app, settingsSvc, svc.session, svc.authz)
 	app.Use(middleware.Metrics())
-	app.Get("/metrics", middleware.MetricsHandler())
+	app.Get("/metrics", middleware.RequireMetricsToken(settingsSvc), middleware.MetricsHandler())
 	registerPprofRoutes(app, svc.session, svc.authz)
 
 	lastSeenIP := middleware.NewLastSeenIP(repos.User, time.Hour)
@@ -224,6 +226,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		HealthService:         svc.health,
 		OverlayService:        svc.overlay,
 		SitemapService:        svc.sitemap,
+		LinkPreviewService:    svc.linkPreview,
 		SiteInfoService:       svc.siteInfo,
 		OGResolver:            svc.ogResolver,
 		OGImageService:        svc.ogImage,

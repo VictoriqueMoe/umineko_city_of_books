@@ -151,7 +151,12 @@ export function ChatComposer({
             const errors: string[] = [];
             const valid: File[] = [];
             for (let i = 0; i < pasted.length; i++) {
-                const err = validateFileSize(pasted[i], siteInfo.max_image_size, siteInfo.max_video_size);
+                const err = validateFileSize(
+                    pasted[i],
+                    siteInfo.max_image_size,
+                    siteInfo.max_video_size,
+                    siteInfo.max_audio_size,
+                );
                 if (err) {
                     errors.push(err);
                 } else {
@@ -165,7 +170,7 @@ export function ChatComposer({
                 setFiles(prev => [...prev, ...valid]);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size],
+        [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
     async function sendBody(content: string): Promise<ChatMessage | null> {

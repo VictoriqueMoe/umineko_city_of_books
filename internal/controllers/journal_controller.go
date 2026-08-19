@@ -98,7 +98,7 @@ func (s *Service) setupUnlikeJournalCommentRoute(r fiber.Router) {
 }
 
 func (s *Service) setupUploadJournalCommentMediaRoute(r fiber.Router) {
-	r.Post("/journal-comments/:id/media", s.requireAuth(), s.uploadJournalCommentMedia)
+	r.Post("/journal-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadJournalCommentMedia)
 }
 
 func (s *Service) setupGetJournalEntryRoute(r fiber.Router) {
@@ -118,7 +118,7 @@ func (s *Service) setupDeleteJournalEntryRoute(r fiber.Router) {
 }
 
 func (s *Service) setupUploadJournalEntryMediaRoute(r fiber.Router) {
-	r.Post("/journal-entries/:id/media", s.requireAuth(), s.uploadJournalEntryMedia)
+	r.Post("/journal-entries/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadJournalEntryMedia)
 }
 
 func (s *Service) setupDeleteJournalEntryMediaRoute(r fiber.Router) {
@@ -430,7 +430,7 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 	defer reader.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	result, err := s.JournalService.UploadCommentMedia(ctx.Context(), commentID, userID, contentType, file.Size, reader)
+	result, err := s.JournalService.UploadCommentMedia(ctx.Context(), commentID, userID, contentType, file.Filename, file.Size, reader)
 	if err != nil {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the comment author")
@@ -487,7 +487,7 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 	defer reader.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Size, reader)
+	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Filename, file.Size, reader)
 	if err != nil {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the entry author")

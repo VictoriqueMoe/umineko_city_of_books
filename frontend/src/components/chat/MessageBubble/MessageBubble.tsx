@@ -5,11 +5,11 @@ import { RolePill } from "../../RolePill/RolePill";
 import { renderRich } from "../../../utils/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
-import { YouTubeEmbed } from "../YouTubeEmbed/YouTubeEmbed";
+import { AudioAttachment } from "../../AudioAttachment/AudioAttachment";
+import { LinkPreviews } from "../../LinkPreviews/LinkPreviews";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { formatExactDateTime } from "../../../utils/time";
 import { extractGif } from "../../../utils/gif";
-import { extractYouTubeIDs } from "../../../utils/youtube";
 import styles from "./MessageBubble.module.css";
 
 interface MessageBubbleProps {
@@ -193,7 +193,6 @@ function MessageBubbleBase({
     const effectiveSender = useMemo(() => applySenderOverrides(message), [message]);
     const richBody = useMemo(() => renderRich(message.body), [message.body]);
     const gifURL = useMemo(() => extractGif(message.body), [message.body]);
-    const youtubeIds = useMemo(() => extractYouTubeIDs(message.body), [message.body]);
     const editedFull = useMemo(() => formatExactDateTime(message.edited_at), [message.edited_at]);
 
     function handlePick(emoji: string) {
@@ -272,7 +271,7 @@ function MessageBubbleBase({
                         return (
                             <>
                                 {message.body.trim() && <div className={styles.messageText}>{richBody}</div>}
-                                {youtubeIds.length > 0 && <YouTubeEmbed videoIds={youtubeIds} />}
+                                <LinkPreviews body={message.body} authorCreatedAt={message.sender?.created_at} />
                             </>
                         );
                     })()
@@ -280,7 +279,9 @@ function MessageBubbleBase({
                 {message.media && message.media.length > 0 && (
                     <div className={styles.messageMedia}>
                         {message.media.map(m =>
-                            m.media_type === "video" ? (
+                            m.media_type === "audio" ? (
+                                <AudioAttachment key={m.id} src={m.media_url} filename={m.filename} />
+                            ) : m.media_type === "video" ? (
                                 <video
                                     key={m.id}
                                     className={styles.messageMediaItem}

@@ -36,6 +36,9 @@ type (
 		BannedBy               *UserResponse `json:"banned_by,omitempty"`
 		LockReason             string        `json:"lock_reason,omitempty"`
 		LockedAt               string        `json:"locked_at,omitempty"`
+		ApprovedAt             string        `json:"approved_at,omitempty"`
+		ApprovedBy             *UserResponse `json:"approved_by,omitempty"`
+		Restricted             bool          `json:"restricted"`
 		TheoryCount            int           `json:"theory_count"`
 		ResponseCount          int           `json:"response_count"`
 		MysteryScoreAdjustment int           `json:"mystery_score_adjustment"`
@@ -237,6 +240,8 @@ type (
 		ChatbotRequirePerm    bool                 `json:"chatbot_require_permission"`
 		MaxImageSize          int                  `json:"max_image_size"`
 		MaxVideoSize          int                  `json:"max_video_size"`
+		MaxAudioSize          int                  `json:"max_audio_size"`
+		NewAccountHours       int                  `json:"new_account_hours"`
 		TopDetectiveIDs       []string             `json:"top_detective_ids"`
 		TopGMIDs              []string             `json:"top_gm_ids"`
 		TopChessIDs           []string             `json:"top_chess_ids"`

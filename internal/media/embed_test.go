@@ -130,3 +130,56 @@ func TestBlockNonPublicAddress(t *testing.T) {
 		})
 	}
 }
+
+func TestLinkEmbed_DropsAResultWithNothingWorthShowing(t *testing.T) {
+	cases := []struct {
+		name string
+		og   map[string]string
+		want bool
+	}{
+		{"no og tags at all", map[string]string{}, false},
+		{"only a site name is not worth a card", map[string]string{"og:site_name": "Example"}, false},
+		{"a title alone is enough", map[string]string{"og:title": "Rokkenjima"}, true},
+		{"a description alone is enough", map[string]string{"og:description": "the golden witch"}, true},
+		{"an image alone is enough", map[string]string{"og:image": "https://example.com/a.png"}, true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+
+			// when
+			got := linkEmbed("https://example.com", tc.og)
+
+			// then an empty card must never be stored or rendered
+			if !tc.want {
+				assert.Nil(t, got)
+				return
+			}
+
+			require.NotNil(t, got)
+			assert.Equal(t, EmbedTypeLink, got.Type)
+			assert.Equal(t, "https://example.com", got.URL)
+		})
+	}
+}
+
+func TestLinkEmbed_CarriesEveryOpenGraphField(t *testing.T) {
+	// given
+	og := map[string]string{
+		"og:title":       "Rokkenjima",
+		"og:description": "an island",
+		"og:image":       "https://example.com/a.png",
+		"og:site_name":   "Example",
+	}
+
+	// when
+	got := linkEmbed("https://example.com/x", og)
+
+	// then
+	require.NotNil(t, got)
+	assert.Equal(t, "Rokkenjima", got.Title)
+	assert.Equal(t, "an island", got.Desc)
+	assert.Equal(t, "https://example.com/a.png", got.Image)
+	assert.Equal(t, "Example", got.SiteName)
+}

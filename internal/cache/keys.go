@@ -18,6 +18,8 @@ var (
 
 	HomeEchoes = Namespace{Prefix: "home:echoes:", TTL: 24 * time.Hour}
 
+	LinkPreview = Namespace{Prefix: "linkpreview:", TTL: 24 * time.Hour}
+
 	UserRole = Namespace{Prefix: "role:", TTL: 0}
 
 	Setting = Namespace{Prefix: "setting:", TTL: 0}

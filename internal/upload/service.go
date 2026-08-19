@@ -38,9 +38,26 @@ var (
 		"video/x-matroska": ".mkv",
 	}
 
+	AllowedAudioTypes = map[string]string{
+		"audio/mpeg": ".mp3",
+		"audio/mp4":  ".m4a",
+		"audio/ogg":  ".ogg",
+		"audio/wav":  ".wav",
+		"audio/flac": ".flac",
+	}
+
 	sniffAliases = map[string]string{
-		"video/avi":      "video/x-msvideo",
-		"video/matroska": "video/x-matroska",
+		"video/avi":       "video/x-msvideo",
+		"video/matroska":  "video/x-matroska",
+		"application/ogg": "audio/ogg",
+		"audio/wave":      "audio/wav",
+		"audio/x-wav":     "audio/wav",
+		"audio/x-flac":    "audio/flac",
+		"audio/x-m4a":     "audio/mp4",
+	}
+
+	audioMP4Brands = map[string]bool{
+		"M4A ": true, "M4B ": true,
 	}
 
 	mp4FallbackBrands = map[string]bool{
@@ -55,6 +72,7 @@ type (
 		SaveFile(subDir string, filename string, reader io.Reader) (string, error)
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		Delete(urlPaths ...string)
 		DeleteByPrefix(subDir string, prefix string) error
 		GetUploadDir() string
@@ -190,6 +208,10 @@ func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, file
 	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedVideoTypes, ErrInvalidVideoType, reader)
 }
 
+func (s *service) SaveAudio(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedAudioTypes, ErrInvalidAudioType, reader)
+}
+
 func (s *service) Delete(urlPaths ...string) {
 	for i := range urlPaths {
 		if err := s.delete(urlPaths[i]); err != nil {
@@ -274,9 +296,19 @@ func DetectContentType(reader io.Reader) (string, io.Reader, error) {
 		if alt := sniffVideoFallback(peek); alt != "" {
 			mt = alt
 		}
+
+		if alt := sniffFLAC(peek); alt != "" {
+			mt = alt
+		}
 	}
 	if mt == "video/webm" && bytes.Contains(peek, []byte("matroska")) {
 		mt = "video/x-matroska"
+	}
+	if mt == "video/mp4" && isAudioOnlyMP4(peek) {
+		mt = "audio/mp4"
+	}
+	if mt == "application/ogg" && !isOggAudio(peek) {
+		mt = "application/octet-stream"
 	}
 	return mt, io.MultiReader(bytes.NewReader(peek), reader), nil
 }
@@ -319,6 +351,26 @@ func sniffMP4(b []byte) string {
 		}
 	}
 	return ""
+}
+
+func sniffFLAC(b []byte) string {
+	if len(b) >= 4 && bytes.Equal(b[:4], []byte("fLaC")) {
+		return "audio/flac"
+	}
+
+	return ""
+}
+
+func isAudioOnlyMP4(b []byte) bool {
+	if len(b) < 12 || !bytes.Equal(b[4:8], []byte("ftyp")) {
+		return false
+	}
+
+	return audioMP4Brands[string(b[8:12])]
+}
+
+func isOggAudio(b []byte) bool {
+	return bytes.Contains(b, []byte("vorbis")) || bytes.Contains(b, []byte("OpusHead")) || bytes.Contains(b, []byte("FLAC"))
 }
 
 func sniffMatroska(b []byte) string {

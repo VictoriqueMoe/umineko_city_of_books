@@ -1,4 +1,5 @@
 import type { PostMedia } from "../../types/api";
+import { AudioThumb } from "../AudioAttachment/AudioAttachment";
 import styles from "./ExistingMediaGrid.module.css";
 
 interface ExistingMediaGridProps {
@@ -27,7 +28,9 @@ export function ExistingMediaGrid({
 
                 return (
                     <div key={m.id} className={itemClass}>
-                        {m.media_type === "video" ? (
+                        {m.media_type === "audio" ? (
+                            <AudioThumb className={styles.thumb} />
+                        ) : m.media_type === "video" ? (
                             <video src={m.media_url} className={styles.thumb} />
                         ) : (
                             <img src={imageSrc} className={styles.thumb} alt="" />

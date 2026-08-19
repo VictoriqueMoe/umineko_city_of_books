@@ -42,12 +42,22 @@ func (r *inviteDAO) GetByCode(ctx context.Context, code string, tx ...*sql.Tx) (
 }
 
 func (r *inviteDAO) MarkUsed(ctx context.Context, code string, usedBy uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE invites SET used_by = $1, used_at = NOW() WHERE code = $2`, usedBy, code,
+	result, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`UPDATE invites SET used_by = $1, used_at = NOW() WHERE code = $2 AND used_by IS NULL`, usedBy, code,
 	)
 	if err != nil {
 		return fmt.Errorf("mark invite used: %w", err)
 	}
+
+	claimed, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("mark invite used: %w", err)
+	}
+
+	if claimed == 0 {
+		return repository.ErrInviteUnavailable
+	}
+
 	return nil
 }
 

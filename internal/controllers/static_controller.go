@@ -18,7 +18,8 @@ func (s *Service) getAllUploadRoutes() []FSetupRoute {
 
 func (s *Service) setupUploads(r fiber.Router) {
 	r.Get("/uploads/*", static.New(s.UploadService.GetUploadDir(), static.Config{
-		Browse: false,
+		Browse:    false,
+		ByteRange: true,
 	}))
 }
 
@@ -30,7 +31,8 @@ func (s *Service) getAllHLSRoutes() []FSetupRoute {
 
 func (s *Service) setupHLS(r fiber.Router) {
 	r.Get("/hls/*", static.New(s.SettingsService.Get(context.Background(), config.SettingStreamHLSOutputDir), static.Config{
-		Browse: false,
+		Browse:    false,
+		ByteRange: true,
 	}))
 }
 

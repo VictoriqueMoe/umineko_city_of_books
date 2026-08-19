@@ -12,6 +12,7 @@ import {
 } from "./client";
 import { clearAuthToken } from "../utils/authToken";
 import type {
+    LinkPreview,
     ActivityListResponse,
     AdminIPMatches,
     AdminStats,
@@ -155,6 +156,8 @@ export interface SiteInfo {
     chatbot_require_permission: boolean;
     max_image_size: number;
     max_video_size: number;
+    max_audio_size: number;
+    new_account_hours: number;
     top_detective_ids: string[];
     top_gm_ids: string[];
     top_chess_ids: string[];
@@ -558,6 +561,14 @@ export async function lockUser(id: string, reason: string): Promise<void> {
 
 export async function unlockUser(id: string): Promise<void> {
     await apiPost<unknown, undefined>(`/admin/users/${id}/unlock`, undefined);
+}
+
+export async function approveUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/approve`, undefined);
+}
+
+export async function unapproveUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/unapprove`, undefined);
 }
 
 export async function adminDeleteUser(id: string): Promise<void> {
@@ -2478,6 +2489,11 @@ export async function getSidebarLastVisited(): Promise<SidebarLastVisitedRespons
 
 export async function markSidebarVisited(key: string): Promise<void> {
     await apiPost<unknown, MarkSidebarVisitedRequest>("/sidebar/last-visited", { key });
+}
+
+export async function getLinkPreview(url: string): Promise<LinkPreview> {
+    const qs = buildQueryString({ url });
+    return apiFetch<LinkPreview>(`/link-preview${qs}`);
 }
 
 export async function quickSearch(q: string, perType: number = 3): Promise<QuickSearchResponse> {

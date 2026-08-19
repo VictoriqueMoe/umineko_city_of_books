@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { validateFileSize } from "../../utils/fileValidation";
+import { AudioThumb } from "../AudioAttachment/AudioAttachment";
 import { Button } from "../Button/Button";
 import styles from "./MediaPicker.module.css";
 
@@ -83,7 +84,8 @@ export function MediaPreviews({ files, onRemove, onReorder, size = "normal" }: M
                         onDrop={canReorder ? () => handleDrop(i) : undefined}
                     >
                         {url && file.type.startsWith("video/") && <video className={styles.previewMedia} src={url} />}
-                        {url && !file.type.startsWith("video/") && (
+                        {file.type.startsWith("audio/") && <AudioThumb className={styles.previewMedia} />}
+                        {url && !file.type.startsWith("video/") && !file.type.startsWith("audio/") && (
                             <img className={styles.previewMedia} src={url} alt="" />
                         )}
                         <button className={removeClass} onClick={() => onRemove(i)} aria-label="Remove">
@@ -136,7 +138,12 @@ export function MediaPickerButton({ onFiles, onError, multiple = true, label = "
             const valid: File[] = [];
 
             for (const file of newFiles) {
-                const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+                const err = validateFileSize(
+                    file,
+                    siteInfo.max_image_size,
+                    siteInfo.max_video_size,
+                    siteInfo.max_audio_size,
+                );
                 if (err) {
                     errors.push(err);
                 } else {
@@ -159,7 +166,7 @@ export function MediaPickerButton({ onFiles, onError, multiple = true, label = "
             <input
                 ref={inputRef}
                 type="file"
-                accept="image/*,video/*,.mkv,.avi"
+                accept="image/*,video/*,audio/*,.mkv,.avi"
                 multiple={multiple}
                 onChange={handleChange}
                 hidden

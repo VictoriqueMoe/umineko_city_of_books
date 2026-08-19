@@ -3,16 +3,23 @@ package engines
 import (
 	"container/list"
 	"context"
+	"strconv"
 	"sync"
 	"time"
 
 	"umineko_city_of_books/internal/cache/engine"
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/logger"
 )
 
 const (
-	defaultInMemoryMaxEntries = 8192
-	defaultInMemoryMaxBytes   = 64 << 20
-	unboundedTTLCeiling       = time.Minute
+	bytesPerMB              = 1 << 20
+	defaultInMemoryMaxMB    = 128
+	minInMemoryMaxMB        = 1
+	maxInMemoryMaxMB        = 4096
+	defaultInMemoryMaxBytes = defaultInMemoryMaxMB * bytesPerMB
+	entryOverheadBytes      = 192
+	unboundedTTLCeiling     = time.Minute
 )
 
 type (
@@ -23,27 +30,25 @@ type (
 	}
 
 	InMemory struct {
-		mu         sync.Mutex
-		items      map[string]*list.Element
-		order      *list.List
-		maxEntries int
-		maxBytes   int
-		bytes      int
-		now        func() time.Time
+		mu       sync.Mutex
+		items    map[string]*list.Element
+		order    *list.List
+		maxBytes int
+		bytes    int
+		now      func() time.Time
 	}
 )
 
-func NewInMemory(maxEntries int) *InMemory {
-	if maxEntries <= 0 {
-		maxEntries = defaultInMemoryMaxEntries
+func NewInMemory(maxBytes int) *InMemory {
+	if maxBytes <= 0 {
+		maxBytes = defaultInMemoryMaxBytes
 	}
 
 	return &InMemory{
-		items:      make(map[string]*list.Element),
-		order:      list.New(),
-		maxEntries: maxEntries,
-		maxBytes:   defaultInMemoryMaxBytes,
-		now:        time.Now,
+		items:    make(map[string]*list.Element),
+		order:    list.New(),
+		maxBytes: maxBytes,
+		now:      time.Now,
 	}
 }
 
@@ -149,7 +154,7 @@ func (c *InMemory) drop(el *list.Element) {
 	entry := el.Value.(*inMemoryEntry)
 	c.order.Remove(el)
 	delete(c.items, entry.key)
-	c.bytes -= len(entry.data)
+	c.bytes -= entrySize(entry.key, entry.data)
 }
 
 func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
@@ -170,9 +175,13 @@ func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
 	}
 
 	c.items[key] = c.order.PushFront(&inMemoryEntry{key: key, data: data, expiresAt: expiresAt})
-	c.bytes += len(data)
+	c.bytes += entrySize(key, data)
 
-	for c.order.Len() > c.maxEntries || c.bytes > c.maxBytes {
+	c.evict()
+}
+
+func (c *InMemory) evict() {
+	for c.bytes > c.maxBytes {
 		oldest := c.order.Back()
 		if oldest == nil {
 			break
@@ -180,4 +189,39 @@ func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
 
 		c.drop(oldest)
 	}
+}
+
+func entrySize(key string, data []byte) int {
+	return len(key) + len(data) + entryOverheadBytes
+}
+
+func (c *InMemory) ResizeMB(maxMB int) {
+	if maxMB <= 0 {
+		maxMB = defaultInMemoryMaxMB
+	}
+
+	maxMB = min(max(maxMB, minInMemoryMaxMB), maxInMemoryMaxMB)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.maxBytes = maxMB * bytesPerMB
+	c.evict()
+}
+
+func (c *InMemory) OnSettingChanged(key config.SiteSettingKey, value string) {
+	if key != config.SettingCacheInMemoryMaxMB.Key {
+		return
+	}
+
+	maxMB, err := strconv.Atoi(value)
+	if err != nil {
+		logger.Log.Warn().Str("value", value).Msg("in-memory cache size is not a number, keeping the current limit")
+
+		return
+	}
+
+	c.ResizeMB(maxMB)
+
+	logger.Log.Info().Int("max_mb", maxMB).Msg("in-memory cache resized")
 }

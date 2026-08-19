@@ -102,7 +102,7 @@ func (r *shipDAO) UpdateDetails(ctx context.Context, spec repository.ShipDetails
 }
 
 func (r *shipDAO) AddCommentMedia(ctx context.Context, spec repository.NewShipCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *shipDAO) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {

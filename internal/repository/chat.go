@@ -150,6 +150,7 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
 		Width        int
 		Height       int

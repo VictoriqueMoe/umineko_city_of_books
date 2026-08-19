@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	bannedgiphyrule "umineko_city_of_books/internal/contentfilter/rules/bannedgiphy"
+	newaccountlinksrule "umineko_city_of_books/internal/contentfilter/rules/newaccountlinks"
 	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/email"
@@ -38,6 +39,7 @@ import (
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/journal"
+	"umineko_city_of_books/internal/linkpreview"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
@@ -82,7 +84,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
 	mediaProc := media.NewProcessor(4)
 	uploadSvc := upload.NewService(settingsSvc, mediaProc)
-	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission)
+	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission, settingsSvc)
 	giphyBanlist, err := banlist.NewService(context.Background(), repos.BannedGiphy)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
@@ -91,9 +93,11 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	if !giphySvc.Enabled() {
 		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
 	}
+	identityFilter := contentfilter.New(slursrule.NewStrict())
 	contentFilter := contentfilter.New(
 		slursrule.New(),
 		bannedgiphyrule.New(giphyBanlist, giphySvc),
+		newaccountlinksrule.New(authzSvc),
 	)
 	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.AuditLog, authzSvc, settingsSvc)
 	hub := ws.NewHub("main")
@@ -140,7 +144,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	userSecretSvc := usersecret.NewService(repos.UserSecret)
 	searchSvc := searchsvc.NewService(repos.Search, repos.Chat)
 
-	authSvc := auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.PasswordReset, repos.EmailVerification, repos.AuditLog, emailSvc, contentFilter)
+	authSvc := auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.PasswordReset, repos.EmailVerification, repos.AuditLog, emailSvc, contentFilter, identityFilter)
 
 	healthSvc, err := health.NewService(repos.DB(), config.Version, settingsSvc, livekitSvc)
 	if err != nil {
@@ -185,7 +189,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		settings:        settingsSvc,
 		cache:           cacheManager,
 		auth:            authSvc,
-		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, repos.AuditLog, authzSvc, uploadSvc, settingsSvc, contentFilter, hub, authSvc, sessionMgr, userSvc),
+		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, repos.AuditLog, authzSvc, uploadSvc, settingsSvc, contentFilter, identityFilter, hub, authSvc, sessionMgr, userSvc),
 		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
 		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, repos.Permission, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
@@ -228,6 +232,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		health:          healthSvc,
 		siteInfo:        siteInfoSvc,
 		sitemap:         sitemapSvc,
+		linkPreview:     linkpreview.NewService(cacheManager),
 		ogResolver:      ogResolver,
 		ogImage:         ogImageSvc,
 		staticFS:        staticFS,
@@ -239,8 +244,13 @@ func initCache(manager *cache.Manager, settingsSvc settings.Service) {
 	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
 
 	url := settingsSvc.Get(context.Background(), config.SettingValkeyURL)
+	maxMB := settingsSvc.GetInt(context.Background(), config.SettingCacheInMemoryMaxMB)
 
 	for _, candidate := range manager.Engines() {
+		if resizable, ok := candidate.(interface{ ResizeMB(int) }); ok {
+			resizable.ResizeMB(maxMB)
+		}
+
 		configurable, ok := candidate.(interface{ Reconfigure(string) error })
 		if !ok {
 			continue

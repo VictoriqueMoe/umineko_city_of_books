@@ -8,8 +8,9 @@ import "context"
 type RuleName string
 
 const (
-	RuleBannedGiphy RuleName = "banned_giphy"
-	RuleSlurs       RuleName = "slurs"
+	RuleBannedGiphy     RuleName = "banned_giphy"
+	RuleSlurs           RuleName = "slurs"
+	RuleNewAccountLinks RuleName = "new_account_links"
 )
 
 type (

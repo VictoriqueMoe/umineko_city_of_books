@@ -76,13 +76,6 @@ type (
 		GetPollByPostID(ctx context.Context, postID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.PollRow, []model.PollOptionRow, *int, error)
 		GetPollsByPostIDs(ctx context.Context, postIDs []uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]*model.PollRow, map[uuid.UUID][]model.PollOptionRow, map[uuid.UUID]*int, error)
 		VotePoll(ctx context.Context, pollID uuid.UUID, userID uuid.UUID, optionID int, tx ...*sql.Tx) error
-
-		AddEmbed(ctx context.Context, spec NewEmbed, tx ...*sql.Tx) error
-		DeleteEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) error
-		UpdateEmbed(ctx context.Context, spec EmbedUpdate, tx ...*sql.Tx) error
-		GetEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) ([]model.EmbedRow, error)
-		GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string, tx ...*sql.Tx) (map[string][]model.EmbedRow, error)
-		GetStaleEmbeds(ctx context.Context, olderThan string, limit int, tx ...*sql.Tx) ([]model.EmbedRow, error)
 	}
 
 	PostRepository interface {
@@ -148,6 +141,7 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
 	}
 
@@ -156,34 +150,9 @@ type (
 		MediaURL     string
 		MediaType    string
 		ThumbnailURL string
+		Filename     string
 		SortOrder    int
 	}
-
-	NewEmbed struct {
-		OwnerID     string
-		OwnerType   string
-		URL         string
-		EmbedType   string
-		Title       string
-		Description string
-		Image       string
-		SiteName    string
-		VideoID     string
-		SortOrder   int
-	}
-
-	EmbedUpdate struct {
-		ID          int
-		Title       string
-		Description string
-		Image       string
-		SiteName    string
-	}
-)
-
-const (
-	postEmbedOwnerType    = "post"
-	commentEmbedOwnerType = "comment"
 )
 
 type postRepository struct {
@@ -231,11 +200,7 @@ func (r *postRepository) UpdateWithDetails(ctx context.Context, spec PostUpdate,
 		} else {
 			err = r.dao.UpdatePost(ctx, spec.ID, spec.UserID, spec.Body, tx)
 		}
-		if err != nil {
-			return err
-		}
-
-		return r.dao.DeleteEmbeds(ctx, spec.ID.String(), postEmbedOwnerType, tx)
+		return err
 	})
 }
 
@@ -298,11 +263,7 @@ func (r *postRepository) UpdateCommentWithDetails(ctx context.Context, spec Post
 		} else {
 			err = r.dao.UpdateComment(ctx, spec.ID, spec.UserID, spec.Body, tx)
 		}
-		if err != nil {
-			return err
-		}
-
-		return r.dao.DeleteEmbeds(ctx, spec.ID.String(), commentEmbedOwnerType, tx)
+		return err
 	})
 }
 
@@ -591,28 +552,4 @@ func (r *postRepository) GetPollsByPostIDs(ctx context.Context, postIDs []uuid.U
 
 func (r *postRepository) VotePoll(ctx context.Context, pollID uuid.UUID, userID uuid.UUID, optionID int, tx ...*sql.Tx) error {
 	return r.dao.VotePoll(ctx, pollID, userID, optionID, tx...)
-}
-
-func (r *postRepository) AddEmbed(ctx context.Context, spec NewEmbed, tx ...*sql.Tx) error {
-	return r.dao.AddEmbed(ctx, spec, tx...)
-}
-
-func (r *postRepository) DeleteEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) error {
-	return r.dao.DeleteEmbeds(ctx, ownerID, ownerType, tx...)
-}
-
-func (r *postRepository) UpdateEmbed(ctx context.Context, spec EmbedUpdate, tx ...*sql.Tx) error {
-	return r.dao.UpdateEmbed(ctx, spec, tx...)
-}
-
-func (r *postRepository) GetEmbeds(ctx context.Context, ownerID string, ownerType string, tx ...*sql.Tx) ([]model.EmbedRow, error) {
-	return r.dao.GetEmbeds(ctx, ownerID, ownerType, tx...)
-}
-
-func (r *postRepository) GetEmbedsBatch(ctx context.Context, ownerIDs []string, ownerType string, tx ...*sql.Tx) (map[string][]model.EmbedRow, error) {
-	return r.dao.GetEmbedsBatch(ctx, ownerIDs, ownerType, tx...)
-}
-
-func (r *postRepository) GetStaleEmbeds(ctx context.Context, olderThan string, limit int, tx ...*sql.Tx) ([]model.EmbedRow, error) {
-	return r.dao.GetStaleEmbeds(ctx, olderThan, limit, tx...)
 }

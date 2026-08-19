@@ -53,7 +53,6 @@ type (
 		Author    UserResponse         `json:"author"`
 		Body      string               `json:"body"`
 		Media     []PostMediaResponse  `json:"media"`
-		Embeds    []EmbedResponse      `json:"embeds,omitempty"`
 		LikeCount int                  `json:"like_count"`
 		UserLiked bool                 `json:"user_liked"`
 		Replies   []ArtCommentResponse `json:"replies,omitempty"`

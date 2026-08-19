@@ -4,8 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -14,18 +19,20 @@ import (
 )
 
 type testDeps struct {
-	roleRepo *repository.MockRoleRepository
-	userRepo *repository.MockUserRepository
-	permRepo *repository.MockPermissionRepository
+	roleRepo    *repository.MockRoleRepository
+	userRepo    *repository.MockUserRepository
+	permRepo    *repository.MockPermissionRepository
+	settingsSvc *settings.MockService
 }
 
 func newTestService(t *testing.T) (*service, *testDeps) {
 	deps := &testDeps{
-		roleRepo: repository.NewMockRoleRepository(t),
-		userRepo: repository.NewMockUserRepository(t),
-		permRepo: repository.NewMockPermissionRepository(t),
+		roleRepo:    repository.NewMockRoleRepository(t),
+		userRepo:    repository.NewMockUserRepository(t),
+		permRepo:    repository.NewMockPermissionRepository(t),
+		settingsSvc: settings.NewMockService(t),
 	}
-	svc := NewService(deps.roleRepo, deps.userRepo, deps.permRepo).(*service)
+	svc := NewService(deps.roleRepo, deps.userRepo, deps.permRepo, deps.settingsSvc).(*service)
 
 	return svc, deps
 }
@@ -66,8 +73,8 @@ func TestIsBanned_False(t *testing.T) {
 	assert.False(t, got)
 }
 
-func TestIsBanned_RepoErrorReturnsFalse(t *testing.T) {
-	// given
+func TestIsBanned_RepoErrorTreatsTheAccountAsBanned(t *testing.T) {
+	// given a ban lookup that cannot be answered
 	svc, deps := newTestService(t)
 	userID := uuid.New()
 	deps.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, errors.New("db down"))
@@ -75,8 +82,34 @@ func TestIsBanned_RepoErrorReturnsFalse(t *testing.T) {
 	// when
 	got := svc.IsBanned(context.Background(), userID)
 
+	// then a database failure must never hand access to a banned account
+	assert.True(t, got)
+}
+
+func TestIsLocked_RepoErrorTreatsTheAccountAsLocked(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.userRepo.EXPECT().IsLocked(mock.Anything, userID).Return(false, errors.New("db down"))
+
+	// when
+	got := svc.IsLocked(context.Background(), userID)
+
 	// then
-	assert.False(t, got)
+	assert.True(t, got)
+}
+
+func TestRequiresEmailVerification_RepoErrorTreatsTheAccountAsUnverified(t *testing.T) {
+	// given
+	svc, deps := newTestService(t)
+	userID := uuid.New()
+	deps.userRepo.EXPECT().RequiresEmailVerification(mock.Anything, userID).Return(false, errors.New("db down"))
+
+	// when
+	got := svc.RequiresEmailVerification(context.Background(), userID)
+
+	// then
+	assert.True(t, got)
 }
 
 func TestCan_NilUserIDDenied(t *testing.T) {
@@ -472,4 +505,39 @@ func TestGetRole_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestIsRestrictedNewAccount(t *testing.T) {
+	tests := []struct {
+		name  string
+		hours int
+		user  *model.User
+		err   error
+		want  bool
+	}{
+		{name: "a member inside the window is restricted", hours: 24, user: &model.User{CreatedAt: time.Now().Add(-time.Hour).Format(time.RFC3339)}, want: true},
+		{name: "a member past the window is not", hours: 24, user: &model.User{CreatedAt: time.Now().Add(-48 * time.Hour).Format(time.RFC3339)}, want: false},
+		{name: "brand new staff are exempt", hours: 24, user: &model.User{CreatedAt: time.Now().Format(time.RFC3339), Role: string(role.RoleModerator)}, want: false},
+		{name: "a zero threshold disables the rule", hours: 0, user: &model.User{CreatedAt: time.Now().Format(time.RFC3339)}, want: false},
+		{name: "a lookup failure does not restrict", hours: 24, user: nil, err: errors.New("db down"), want: false},
+		{name: "a missing user does not restrict", hours: 24, user: nil, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, deps := newTestService(t)
+			userID := uuid.New()
+			deps.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingNewAccountHours).Return(tc.hours)
+			if tc.hours > 0 {
+				deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(tc.user, tc.err)
+			}
+
+			// when
+			got := svc.IsRestrictedNewAccount(context.Background(), userID)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
 }

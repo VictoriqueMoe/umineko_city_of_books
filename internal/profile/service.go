@@ -51,6 +51,7 @@ type (
 		uploadSvc      upload.Service
 		settingsSvc    settings.Service
 		contentFilter  *contentfilter.Manager
+		identityFilter *contentfilter.Manager
 		hub            *ws.Hub
 		authService    auth.Service
 		session        *session.Manager
@@ -91,6 +92,7 @@ func NewService(
 	uploadSvc upload.Service,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
+	identityFilter *contentfilter.Manager,
 	hub *ws.Hub,
 	authService auth.Service,
 	sessionMgr *session.Manager,
@@ -105,6 +107,7 @@ func NewService(
 		uploadSvc:      uploadSvc,
 		settingsSvc:    settingsSvc,
 		contentFilter:  contentFilter,
+		identityFilter: identityFilter,
 		hub:            hub,
 		authService:    authService,
 		userSvc:        userSvc,
@@ -123,6 +126,13 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 		return nil
 	}
 	return s.contentFilter.Check(ctx, texts...)
+}
+
+func (s *service) filterIdentity(ctx context.Context, texts ...string) error {
+	if s.identityFilter == nil {
+		return nil
+	}
+	return s.identityFilter.Check(ctx, texts...)
 }
 
 func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid.UUID) (*dto.UserProfileResponse, error) {
@@ -158,7 +168,11 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	if req.DisplayName == "" {
 		return ErrEmptyDisplayName
 	}
-	if err := s.filterTexts(ctx, req.DisplayName, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
+	if err := s.filterIdentity(ctx, req.DisplayName); err != nil {
+		return err
+	}
+
+	if err := s.filterTexts(ctx, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
 		return err
 	}
 	if req.DefaultProfileTab == "" {

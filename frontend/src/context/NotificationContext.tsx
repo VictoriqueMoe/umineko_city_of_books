@@ -13,7 +13,7 @@ import { absolutizeMedia } from "../api/client";
 import { showDesktopNotification } from "../utils/notifications";
 import { playNotificationSound } from "../utils/sound";
 import { patchUserInCache, type UserPatch } from "../utils/userCache";
-import { getAuthToken } from "../utils/authToken";
+import { getAuthToken, isNativeApp } from "../utils/authToken";
 
 const MAX_BACKOFF = 30000;
 const KEEPALIVE_INTERVAL_MS = 20_000;
@@ -133,7 +133,8 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         const wsOrigin = httpOrigin.replace(/^http/, "ws");
         let wsUrl = `${wsOrigin}/api/v1/ws`;
         const token = getAuthToken();
-        if (token) {
+        const cookieWillBeSent = !isNativeApp() && httpOrigin === window.location.origin;
+        if (token && !cookieWillBeSent) {
             wsUrl += `?token=${encodeURIComponent(token)}`;
         }
         const socket = new WebSocket(wsUrl);

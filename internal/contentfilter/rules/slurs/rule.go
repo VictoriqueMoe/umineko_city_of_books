@@ -3,6 +3,7 @@ package slurs
 import (
 	"context"
 	"regexp"
+	"strings"
 
 	"umineko_city_of_books/internal/contentfilter"
 )
@@ -11,10 +12,20 @@ type Rule struct {
 	patterns []*regexp.Regexp
 }
 
+const trailingAnchor = `(?:\W|$)`
+
 func New() *Rule {
 	compiled := make([]*regexp.Regexp, 0, len(rawPatterns))
 	for _, p := range rawPatterns {
 		compiled = append(compiled, regexp.MustCompile(`(?i)`+p))
+	}
+	return &Rule{patterns: compiled}
+}
+
+func NewStrict() *Rule {
+	compiled := make([]*regexp.Regexp, 0, len(rawPatterns))
+	for _, p := range rawPatterns {
+		compiled = append(compiled, regexp.MustCompile(`(?i)`+strings.TrimSuffix(p, trailingAnchor)))
 	}
 	return &Rule{patterns: compiled}
 }

@@ -22,7 +22,7 @@ type (
 )
 
 const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.display_name_locked, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.social_bluesky, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, ''), u.is_bot, u.follow_activity_notifications, u.echoes_enabled`
+	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.display_name_locked, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.approved_at, u.approved_by, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.social_bluesky, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, ''), u.is_bot, u.follow_activity_notifications, u.echoes_enabled`
 )
 
 func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
@@ -32,6 +32,7 @@ func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
 		&u.PronounSubject, &u.PronounPossessive,
 		&u.BannedAt, &u.BannedBy, &u.BanReason,
 		&u.LockedAt, &u.LockedBy, &u.LockReason,
+		&u.ApprovedAt, &u.ApprovedBy,
 		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.SocialBluesky, &u.Website,
 		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.EmailVerified, &u.VerifyGraceUntil, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.DefaultProfileTab, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role, &u.IsBot, &u.FollowActivity, &u.EchoesEnabled)
 	return &u, err
@@ -619,6 +620,26 @@ func (r *userDAO) UnlockUser(ctx context.Context, userID uuid.UUID, tx ...*sql.T
 	)
 	if err != nil {
 		return fmt.Errorf("unlock user: %w", err)
+	}
+	return nil
+}
+
+func (r *userDAO) ApproveUser(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`UPDATE users SET approved_at = NOW(), approved_by = $1 WHERE id = $2`, approvedBy, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("approve user: %w", err)
+	}
+	return nil
+}
+
+func (r *userDAO) UnapproveUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`UPDATE users SET approved_at = NULL, approved_by = NULL WHERE id = $1`, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("unapprove user: %w", err)
 	}
 	return nil
 }
