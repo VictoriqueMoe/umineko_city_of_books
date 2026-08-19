@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import {
     addBannedGif,
     adminDeleteUser,
+    approveUser,
     assignVanityRole,
     banUser,
     createAnnouncement,
@@ -33,6 +34,7 @@ import {
     testChatbotModel,
     unassignVanityRole,
     unbanUser,
+    unapproveUser,
     unlockUser,
     unverifyUserEmail,
     updateAdminSettings,
@@ -111,6 +113,22 @@ export function useUnlockUser() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => unlockUser(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
+    });
+}
+
+export function useApproveUser() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => approveUser(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
+    });
+}
+
+export function useUnapproveUser() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (id: string) => unapproveUser(id),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.admin.all }),
     });
 }

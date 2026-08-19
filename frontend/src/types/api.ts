@@ -559,6 +559,9 @@ export interface AdminUserDetail extends AdminUserItem {
     banned_by?: User;
     lock_reason?: string;
     locked_at?: string;
+    approved_at?: string;
+    approved_by?: User;
+    restricted: boolean;
     theory_count: number;
     response_count: number;
     mystery_score_adjustment: number;

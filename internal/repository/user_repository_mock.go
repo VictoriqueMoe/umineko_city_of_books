@@ -113,6 +113,84 @@ func (_c *MockUserRepository_AdminDeleteAccount_Call) RunAndReturn(run func(ctx 
 	return _c
 }
 
+// ApproveUser provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) ApproveUser(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, approvedBy, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, approvedBy)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApproveUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, approvedBy, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_ApproveUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApproveUser'
+type MockUserRepository_ApproveUser_Call struct {
+	*mock.Call
+}
+
+// ApproveUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - approvedBy uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockUserRepository_Expecter) ApproveUser(ctx any, userID any, approvedBy any, tx ...any) *MockUserRepository_ApproveUser_Call {
+	return &MockUserRepository_ApproveUser_Call{Call: _e.mock.On("ApproveUser",
+		append([]any{ctx, userID, approvedBy}, tx...)...)}
+}
+
+func (_c *MockUserRepository_ApproveUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx)) *MockUserRepository_ApproveUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_ApproveUser_Call) Return(err error) *MockUserRepository_ApproveUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_ApproveUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error) *MockUserRepository_ApproveUser_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BanUser provides a mock function for the type MockUserRepository
 func (_mock *MockUserRepository) BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
@@ -2798,6 +2876,78 @@ func (_c *MockUserRepository_SetPasswordHash_Call) Return(err error) *MockUserRe
 }
 
 func (_c *MockUserRepository_SetPasswordHash_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, passwordHash string, tx ...*sql.Tx) error) *MockUserRepository_SetPasswordHash_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UnapproveUser provides a mock function for the type MockUserRepository
+func (_mock *MockUserRepository) UnapproveUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UnapproveUser")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockUserRepository_UnapproveUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnapproveUser'
+type MockUserRepository_UnapproveUser_Call struct {
+	*mock.Call
+}
+
+// UnapproveUser is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockUserRepository_Expecter) UnapproveUser(ctx any, userID any, tx ...any) *MockUserRepository_UnapproveUser_Call {
+	return &MockUserRepository_UnapproveUser_Call{Call: _e.mock.On("UnapproveUser",
+		append([]any{ctx, userID}, tx...)...)}
+}
+
+func (_c *MockUserRepository_UnapproveUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockUserRepository_UnapproveUser_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockUserRepository_UnapproveUser_Call) Return(err error) *MockUserRepository_UnapproveUser_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockUserRepository_UnapproveUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error) *MockUserRepository_UnapproveUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

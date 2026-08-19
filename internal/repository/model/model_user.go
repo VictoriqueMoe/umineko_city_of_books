@@ -31,6 +31,8 @@ type (
 		LockedAt               *string
 		LockedBy               *uuid.UUID
 		LockReason             string
+		ApprovedAt             *string
+		ApprovedBy             *uuid.UUID
 		SocialTwitter          string
 		SocialDiscord          string
 		SocialWaifulist        string
@@ -88,6 +90,22 @@ func (u *User) DisplayLabel() string {
 		return name
 	}
 	return "A user"
+}
+
+func (u *User) IsApproved() bool {
+	return u != nil && u.ApprovedAt != nil
+}
+
+func (u *User) IsRestrictedNewAccount(hours int) bool {
+	if u == nil || hours <= 0 {
+		return false
+	}
+
+	if u.IsApproved() || role.Role(u.Role).IsSiteStaff() {
+		return false
+	}
+
+	return u.IsNewAccount(hours)
 }
 
 func (u *User) IsNewAccount(hours int) bool {

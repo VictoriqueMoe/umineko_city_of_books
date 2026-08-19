@@ -563,6 +563,14 @@ export async function unlockUser(id: string): Promise<void> {
     await apiPost<unknown, undefined>(`/admin/users/${id}/unlock`, undefined);
 }
 
+export async function approveUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/approve`, undefined);
+}
+
+export async function unapproveUser(id: string): Promise<void> {
+    await apiPost<unknown, undefined>(`/admin/users/${id}/unapprove`, undefined);
+}
+
 export async function adminDeleteUser(id: string): Promise<void> {
     await apiDelete<unknown>(`/admin/users/${id}`);
 }

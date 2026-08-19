@@ -48,7 +48,7 @@ func (s *service) IsRestrictedNewAccount(ctx context.Context, userID uuid.UUID) 
 		return false
 	}
 
-	return !role.Role(user.Role).IsSiteStaff() && user.IsNewAccount(hours)
+	return user.IsRestrictedNewAccount(hours)
 }
 
 func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {

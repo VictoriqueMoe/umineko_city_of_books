@@ -6,6 +6,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
     unban_user: "Unbanned",
     lock_user: "Locked",
     unlock_user: "Unlocked",
+    approve_user: "Approved new account",
+    unapprove_user: "Revoked account approval",
     delete_user: "Account deleted",
     reset_password: "Password reset by staff",
     password_reset: "Password reset via email link",

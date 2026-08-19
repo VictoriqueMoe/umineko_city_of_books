@@ -45,6 +45,8 @@ type (
 		UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, reason string) error
 		UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		ApproveUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
+		UnapproveUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error
 		ResetUserPassword(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) (string, error)
 		SetUserEmail(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, email string) error
@@ -344,6 +346,21 @@ func (s *service) GetUser(ctx context.Context, targetID uuid.UUID) (*dto.AdminUs
 	if u.LockedAt != nil {
 		resp.LockedAt = *u.LockedAt
 	}
+
+	resp.Restricted = u.IsRestrictedNewAccount(s.settingsSvc.GetInt(ctx, config.SettingNewAccountHours))
+	if u.ApprovedAt != nil {
+		resp.ApprovedAt = *u.ApprovedAt
+	}
+	if u.ApprovedBy != nil {
+		approver, err := s.userRepo.GetByID(ctx, *u.ApprovedBy)
+		if err != nil {
+			return nil, fmt.Errorf("get approved_by user: %w", err)
+		}
+		if approver != nil {
+			resp.ApprovedBy = approver.ToResponse()
+		}
+	}
+
 	if stats != nil {
 		resp.TheoryCount = stats.TheoryCount
 		resp.ResponseCount = stats.ResponseCount
@@ -493,6 +510,30 @@ func (s *service) UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uu
 		}
 		s.auditUser(ctx, actorID, repository.AuditActionUnlockUser, targetID)
 		s.broadcastLockChange(targetID, false, "")
+		return nil
+	})
+}
+
+func (s *service) ApproveUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.rejectBotTarget(ctx, targetID); err != nil {
+			return err
+		}
+
+		if err := s.userRepo.ApproveUser(ctx, targetID, actorID); err != nil {
+			return fmt.Errorf("approve user: %w", err)
+		}
+		s.auditUser(ctx, actorID, repository.AuditActionApproveUser, targetID)
+		return nil
+	})
+}
+
+func (s *service) UnapproveUser(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID) error {
+	return s.guardedAction(ctx, actorID, targetID, func() error {
+		if err := s.userRepo.UnapproveUser(ctx, targetID); err != nil {
+			return fmt.Errorf("unapprove user: %w", err)
+		}
+		s.auditUser(ctx, actorID, repository.AuditActionUnapproveUser, targetID)
 		return nil
 	})
 }

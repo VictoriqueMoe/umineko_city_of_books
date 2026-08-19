@@ -41,6 +41,8 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminUnbanUser,
 		s.setupAdminLockUser,
 		s.setupAdminUnlockUser,
+		s.setupAdminApproveUser,
+		s.setupAdminUnapproveUser,
 		s.setupAdminDeleteUser,
 		s.setupAdminResetPassword,
 		s.setupAdminSetUserEmail,
@@ -139,6 +141,14 @@ func (s *Service) setupAdminLockUser(r fiber.Router) {
 
 func (s *Service) setupAdminUnlockUser(r fiber.Router) {
 	r.Post("/admin/users/:id/unlock", s.requirePerm(authz.PermBanUser), s.adminUnlockUser)
+}
+
+func (s *Service) setupAdminApproveUser(r fiber.Router) {
+	r.Post("/admin/users/:id/approve", s.requirePerm(authz.PermManageUserAccount), s.adminApproveUser)
+}
+
+func (s *Service) setupAdminUnapproveUser(r fiber.Router) {
+	r.Post("/admin/users/:id/unapprove", s.requirePerm(authz.PermManageUserAccount), s.adminUnapproveUser)
 }
 
 func (s *Service) setupAdminDeleteUser(r fiber.Router) {
@@ -299,6 +309,30 @@ func (s *Service) adminLockUser(ctx fiber.Ctx) error {
 	}
 
 	if err := s.AdminService.LockUser(ctx.Context(), actorID, targetID, req.Reason); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminApproveUser(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.ApproveUser(ctx.Context(), actorID, targetID); err != nil {
+		return handleAdminError(ctx, err)
+	}
+	return utils.OK(ctx)
+}
+
+func (s *Service) adminUnapproveUser(ctx fiber.Ctx) error {
+	actorID, targetID, ok := utils.ActorAndTarget(ctx)
+	if !ok {
+		return nil
+	}
+
+	if err := s.AdminService.UnapproveUser(ctx.Context(), actorID, targetID); err != nil {
 		return handleAdminError(ctx, err)
 	}
 	return utils.OK(ctx)

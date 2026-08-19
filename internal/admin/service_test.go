@@ -236,6 +236,7 @@ func TestGetUser_OK(t *testing.T) {
 	}, &model.UserStats{TheoryCount: 10, ResponseCount: 7}, nil)
 	m.userRepo.EXPECT().GetDetectiveRawScore(mock.Anything, uid).Return(100, nil)
 	m.userRepo.EXPECT().GetGMRawScore(mock.Anything, uid).Return(50, nil)
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingNewAccountHours).Return(24).Maybe()
 
 	// when
 	got, err := svc.GetUser(context.Background(), uid)
@@ -895,6 +896,56 @@ func TestUnlockUser_OK(t *testing.T) {
 
 	// when
 	err := svc.UnlockUser(context.Background(), actor, target)
+
+	// then
+	require.NoError(t, err)
+}
+
+func TestApproveUser_OK(t *testing.T) {
+	// given a moderator clearing a new member early
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
+	m.userRepo.EXPECT().ApproveUser(mock.Anything, target, actor).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionApproveUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+
+	// when
+	err := svc.ApproveUser(context.Background(), actor, target)
+
+	// then the approver is recorded, so the decision is attributable
+	require.NoError(t, err)
+}
+
+func TestApproveUser_ProtectedOutranksActor(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleSuperAdmin, nil)
+
+	// when
+	err := svc.ApproveUser(context.Background(), actor, target)
+
+	// then
+	assert.ErrorIs(t, err, ErrProtectedUser)
+}
+
+func TestUnapproveUser_OK(t *testing.T) {
+	// given a moderator taking an approval back
+	svc, m := newTestService(t)
+	actor := uuid.New()
+	target := uuid.New()
+	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
+	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
+	m.userRepo.EXPECT().UnapproveUser(mock.Anything, target).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUnapproveUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+
+	// when
+	err := svc.UnapproveUser(context.Background(), actor, target)
 
 	// then
 	require.NoError(t, err)

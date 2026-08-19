@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
     unban: vi.fn(),
     lock: vi.fn(),
     unlock: vi.fn(),
+    approve: vi.fn(),
+    unapprove: vi.fn(),
     deleteUser: vi.fn(),
     detectiveScore: vi.fn(),
     gmScore: vi.fn(),
@@ -43,6 +45,8 @@ vi.mock("../../api/mutations/admin", () => ({
     useUnbanUser: () => ({ mutateAsync: mocks.unban, isPending: false }),
     useLockUser: () => ({ mutateAsync: mocks.lock, isPending: false }),
     useUnlockUser: () => ({ mutateAsync: mocks.unlock, isPending: false }),
+    useApproveUser: () => ({ mutateAsync: mocks.approve, isPending: false }),
+    useUnapproveUser: () => ({ mutateAsync: mocks.unapprove, isPending: false }),
     useAdminDeleteUser: () => ({ mutateAsync: mocks.deleteUser, isPending: false }),
     useUpdateDetectiveScore: () => ({ mutateAsync: mocks.detectiveScore, isPending: false }),
     useUpdateGMScore: () => ({ mutateAsync: mocks.gmScore, isPending: false }),
@@ -67,6 +71,8 @@ const MUTATIONS = [
     mocks.unban,
     mocks.lock,
     mocks.unlock,
+    mocks.approve,
+    mocks.unapprove,
     mocks.deleteUser,
     mocks.detectiveScore,
     mocks.gmScore,
@@ -91,6 +97,7 @@ function makeTarget(overrides: Partial<AdminUserDetailType> = {}): AdminUserDeta
         email: "battler@example.com",
         email_verified: true,
         display_name_locked: false,
+        restricted: false,
         theory_count: 3,
         response_count: 5,
         mystery_score_adjustment: 0,
@@ -617,6 +624,98 @@ describe("AdminUserDetail roles, bans and locks", () => {
         // then
         expect(mocks.unlock).toHaveBeenCalledWith("target-1");
         expect(await screen.findByText("User unlocked")).toBeInTheDocument();
+    });
+});
+
+describe("AdminUserDetail new account approval", () => {
+    it("offers to approve an account still inside the restriction window", async () => {
+        // given a member who signed up today
+        stubTarget(makeTarget({ restricted: true }));
+        const user = userEvent.setup();
+        renderDetail("admin");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Approve Account" }));
+
+        // then
+        expect(mocks.approve).toHaveBeenCalledWith("target-1");
+        expect(await screen.findByText("Account approved, restrictions lifted")).toBeInTheDocument();
+    });
+
+    it("marks a restricted account on the summary", () => {
+        // given
+        stubTarget(makeTarget({ restricted: true }));
+
+        // when
+        renderDetail("admin");
+
+        // then
+        expect(within(fieldFor("New Account")).getByText("Restricted")).toBeInTheDocument();
+    });
+
+    it("offers to revoke an approval that was already granted", async () => {
+        // given
+        stubTarget(makeTarget({ restricted: false, approved_at: "2026-02-03T10:00:00Z" }));
+        const user = userEvent.setup();
+        renderDetail("admin");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Revoke Approval" }));
+
+        // then
+        expect(mocks.unapprove).toHaveBeenCalledWith("target-1");
+        expect(await screen.findByText("Approval revoked")).toBeInTheDocument();
+    });
+
+    it("names who approved the account, so the decision is attributable", () => {
+        // given
+        stubTarget(
+            makeTarget({
+                approved_at: "2026-02-03T10:00:00Z",
+                approved_by: { id: "staff-9", username: "ronove", display_name: "Ronove" },
+            }),
+        );
+
+        // when
+        renderDetail("admin");
+
+        // then
+        expect(within(fieldFor("Approved By")).getByText("Ronove")).toBeInTheDocument();
+    });
+
+    it("stays out of the way for an established account that was never approved", () => {
+        // given a member well past the window
+        stubTarget(makeTarget({ restricted: false }));
+
+        // when
+        renderDetail("admin");
+
+        // then there is nothing to approve, so the card is not shown at all
+        expect(screen.queryByText("New Account Restriction")).not.toBeInTheDocument();
+    });
+
+    it("lets a moderator approve, not just an admin", async () => {
+        // given moderators carry manage_user_account, and they are the ones watching new joins
+        stubTarget(makeTarget({ restricted: true }));
+        const user = userEvent.setup();
+        renderDetail("moderator");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Approve Account" }));
+
+        // then
+        expect(mocks.approve).toHaveBeenCalledWith("target-1");
+    });
+
+    it("never offers to approve a super admin", () => {
+        // given a protected target, which every other account action also refuses
+        stubTarget(makeTarget({ restricted: true, role: "super_admin" }));
+
+        // when
+        renderDetail("admin");
+
+        // then
+        expect(screen.queryByRole("button", { name: "Approve Account" })).not.toBeInTheDocument();
     });
 });
 

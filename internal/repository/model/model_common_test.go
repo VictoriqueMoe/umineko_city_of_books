@@ -2,9 +2,83 @@ package model
 
 import (
 	"testing"
+	"time"
+
+	"umineko_city_of_books/internal/role"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestIsRestrictedNewAccount(t *testing.T) {
+	justNow := time.Now().Add(-time.Hour).Format(time.RFC3339)
+	approved := time.Now().Format(time.RFC3339)
+
+	tests := []struct {
+		name  string
+		user  *User
+		hours int
+		want  bool
+	}{
+		{
+			name:  "a fresh account is restricted",
+			user:  &User{CreatedAt: justNow},
+			hours: 24,
+			want:  true,
+		},
+		{
+			name:  "an approved account is trusted straight away",
+			user:  &User{CreatedAt: justNow, ApprovedAt: &approved},
+			hours: 24,
+			want:  false,
+		},
+		{
+			name:  "staff are never restricted",
+			user:  &User{CreatedAt: justNow, Role: string(role.RoleModerator)},
+			hours: 24,
+			want:  false,
+		},
+		{
+			name:  "an established account is not restricted",
+			user:  &User{CreatedAt: time.Now().Add(-48 * time.Hour).Format(time.RFC3339)},
+			hours: 24,
+			want:  false,
+		},
+		{
+			name:  "the whole restriction switches off at zero hours",
+			user:  &User{CreatedAt: justNow},
+			hours: 0,
+			want:  false,
+		},
+		{
+			name:  "a nil user is never restricted",
+			user:  nil,
+			hours: 24,
+			want:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a user and the configured window
+
+			// when
+			got := tc.user.IsRestrictedNewAccount(tc.hours)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestIsApproved(t *testing.T) {
+	// given
+	stamp := time.Now().Format(time.RFC3339)
+
+	// then
+	assert.False(t, (*User)(nil).IsApproved())
+	assert.False(t, new(User).IsApproved())
+	assert.True(t, (&User{ApprovedAt: &stamp}).IsApproved())
+}
 
 func TestPostMediaRowToResponse_CarriesEveryColumn(t *testing.T) {
 	// given a row read back from any media table, audio included

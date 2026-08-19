@@ -6,6 +6,7 @@ import {
     useAdminDeleteUser,
     useBanUser,
     useForceLogoutUser,
+    useApproveUser,
     useLockUser,
     useRemoveUserRole,
     useResetUserPassword,
@@ -14,6 +15,7 @@ import {
     useSetUserEmail,
     useSetUserRole,
     useUnbanUser,
+    useUnapproveUser,
     useUnlockUser,
     useUnverifyUserEmail,
     useUpdateDetectiveScore,
@@ -50,6 +52,8 @@ export function AdminUserDetail() {
     const unbanUserMutation = useUnbanUser();
     const lockUserMutation = useLockUser();
     const unlockUserMutation = useUnlockUser();
+    const approveUserMutation = useApproveUser();
+    const unapproveUserMutation = useUnapproveUser();
     const deleteUserMutation = useAdminDeleteUser();
     const updateDetectiveScoreMutation = useUpdateDetectiveScore();
     const updateGMScoreMutation = useUpdateGMScore();
@@ -280,6 +284,30 @@ export function AdminUserDetail() {
         }
     }
 
+    async function handleApprove() {
+        if (!id) {
+            return;
+        }
+        try {
+            await approveUserMutation.mutateAsync(id);
+            setFeedback("Account approved, restrictions lifted");
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to approve account");
+        }
+    }
+
+    async function handleUnapprove() {
+        if (!id) {
+            return;
+        }
+        try {
+            await unapproveUserMutation.mutateAsync(id);
+            setFeedback("Approval revoked");
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to revoke approval");
+        }
+    }
+
     async function handleUnlock() {
         if (!id) {
             return;
@@ -443,6 +471,24 @@ export function AdminUserDetail() {
                         <div className={styles.infoItem}>
                             <span className={styles.infoLabel}>Locked At</span>
                             <span className={styles.infoValue}>{formatDate(user.locked_at)}</span>
+                        </div>
+                    )}
+                    {user.restricted && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>New Account</span>
+                            <span className={styles.bannedBadge}>Restricted</span>
+                        </div>
+                    )}
+                    {user.approved_at && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Approved At</span>
+                            <span className={styles.infoValue}>{formatDate(user.approved_at)}</span>
+                        </div>
+                    )}
+                    {user.approved_by && (
+                        <div className={styles.infoItem}>
+                            <span className={styles.infoLabel}>Approved By</span>
+                            <span className={styles.infoValue}>{user.approved_by.display_name}</span>
                         </div>
                     )}
                     <div className={styles.infoItem}>
@@ -680,6 +726,26 @@ export function AdminUserDetail() {
                                 Lock User
                             </Button>
                         </div>
+                    )}
+                </div>
+            )}
+
+            {canManageAccount && (user.restricted || user.approved_at) && (
+                <div className={styles.card}>
+                    <h2 className={styles.sectionTitle}>New Account Restriction</h2>
+                    <p className={styles.fieldLabel}>
+                        For their first day, a new member cannot post attachments or links, and their posts show no link
+                        previews. Approving lifts that immediately, for someone you recognise or have already vouched
+                        for.
+                    </p>
+                    {user.approved_at ? (
+                        <Button variant="danger" onClick={handleUnapprove}>
+                            Revoke Approval
+                        </Button>
+                    ) : (
+                        <Button variant="primary" onClick={handleApprove}>
+                            Approve Account
+                        </Button>
                     )}
                 </div>
             )}
