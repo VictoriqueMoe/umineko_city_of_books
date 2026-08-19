@@ -20,7 +20,7 @@ import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { PollDisplay } from "../PollDisplay/PollDisplay";
-import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { LinkPreviews } from "../../LinkPreviews/LinkPreviews";
 import { SharedContentCard } from "../SharedContentCard/SharedContentCard";
 import { ShareDialog } from "../ShareDialog/ShareDialog";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
@@ -178,7 +178,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                         <input
                             ref={mediaInputRef}
                             type="file"
-                            accept="image/*,video/*"
+                            accept="image/*,video/*,audio/*"
                             hidden
                             onChange={async e => {
                                 const file = e.target.files?.[0];
@@ -230,7 +230,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                     >
                         {bodyContent}
                         <MediaGallery media={displayMedia} />
-                        {post.embeds && <PostEmbeds embeds={post.embeds} />}
+                        <LinkPreviews body={post.body} authorCreatedAt={post.author?.created_at} />
                         {post.shared_content && <SharedContentCard content={post.shared_content} />}
                     </div>
                     {post.poll && <PollDisplay poll={post.poll} postId={post.id} onVoted={onEdit} />}

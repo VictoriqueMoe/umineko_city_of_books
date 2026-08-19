@@ -60,7 +60,7 @@ func newTestService(t *testing.T) (
 	authSvc := auth.NewMockService(t)
 	userSvc := userpkg.NewMockService(t)
 	userSvc.EXPECT().IsChatbotOptedIn(mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	svc := NewService(userRepo, userSecretRepo, theoryRepo, auditRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), nil, authSvc, nil, userSvc).(*service)
+	svc := NewService(userRepo, userSecretRepo, theoryRepo, auditRepo, authzSvc, uploadSvc, settingsSvc, contentfilter.New(), contentfilter.New(), nil, authSvc, nil, userSvc).(*service)
 	return svc, userRepo, theoryRepo, authzSvc, uploadSvc, settingsSvc
 }
 

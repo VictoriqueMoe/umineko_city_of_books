@@ -51,7 +51,7 @@ func (s *Service) setupUnlikeAnnouncementComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadAnnouncementCommentMedia(r fiber.Router) {
-	r.Post("/announcement-comments/:id/media", s.requireAuth(), s.uploadAnnouncementCommentMedia)
+	r.Post("/announcement-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadAnnouncementCommentMedia)
 }
 
 func (s *Service) setupListAnnouncements(r fiber.Router) {
@@ -315,7 +315,7 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	resp, err := s.AnnouncementService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	resp, err := s.AnnouncementService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
 	if err != nil {
 		switch {
 		case errors.Is(err, announcementsvc.ErrCommentNotFound):

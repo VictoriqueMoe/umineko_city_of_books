@@ -77,18 +77,48 @@ describe("validateFileSize", () => {
         expect(error).toBeNull();
     });
 
-    it("treats anything that is not a video as an image", () => {
-        // given
+    it("measures audio against the audio limit, not the image one", () => {
+        // given a track that is far over the image limit but well under the audio limit
         const audio = makeFile("theme.m4a", "audio/mp4", 20 * MB);
+
+        // when
+        const error = validateFileSize(audio, 1 * MB, 50 * MB, 25 * MB);
+
+        // then
+        expect(error).toBeNull();
+    });
+
+    it("names audio in the message when a track is over the audio limit", () => {
+        // given
+        const audio = makeFile("theme.m4a", "audio/mp4", 30 * MB);
+
+        // when
+        const error = validateFileSize(audio, 1 * MB, 50 * MB, 25 * MB);
+
+        // then
+        expect(error).toBe("theme.m4a is too large (30.0 MB). Maximum audio size is 25.0 MB.");
+    });
+
+    it("falls back to the image limit for audio when no audio limit is given", () => {
+        // given a caller that does not accept audio at all
+        const audio = makeFile("theme.m4a", "audio/mp4", 20 * MB);
+
+        // when
+        const error = validateFileSize(audio, 1 * MB, 50 * MB);
+
+        // then
+        expect(error).toBe("theme.m4a is too large (20.0 MB). Maximum image size is 1.0 MB.");
+    });
+
+    it("treats an untyped file as an image", () => {
+        // given
         const untyped = makeFile("mystery", "", 20 * MB);
 
         // when
-        const audioError = validateFileSize(audio, 1 * MB, 50 * MB);
-        const untypedError = validateFileSize(untyped, 1 * MB, 50 * MB);
+        const error = validateFileSize(untyped, 1 * MB, 50 * MB, 25 * MB);
 
         // then
-        expect(audioError).toBe("theme.m4a is too large (20.0 MB). Maximum image size is 1.0 MB.");
-        expect(untypedError).toBe("mystery is too large (20.0 MB). Maximum image size is 1.0 MB.");
+        expect(error).toBe("mystery is too large (20.0 MB). Maximum image size is 1.0 MB.");
     });
 
     it("reports bytes below a kilobyte and kilobytes below a megabyte", () => {

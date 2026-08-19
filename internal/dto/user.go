@@ -23,6 +23,7 @@ type (
 		AvatarURL   string               `json:"avatar_url,omitempty"`
 		Role        role.Role            `json:"role,omitempty"`
 		VanityRoles []VanityRoleResponse `json:"vanity_roles,omitempty"`
+		CreatedAt   string               `json:"created_at,omitempty"`
 		Banned      bool                 `json:"banned,omitempty"`
 		BanReason   string               `json:"ban_reason,omitempty"`
 		Locked      bool                 `json:"locked,omitempty"`

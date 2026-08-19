@@ -407,7 +407,7 @@ func (s *Service) setupUnlikeMysteryComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadMysteryCommentMedia(r fiber.Router) {
-	r.Post("/mystery-comments/:id/media", s.requireAuth(), s.uploadMysteryCommentMedia)
+	r.Post("/mystery-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadMysteryCommentMedia)
 }
 
 func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
@@ -544,7 +544,7 @@ func (s *Service) deleteMysteryAttachment(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupUploadMysteryMedia(r fiber.Router) {
-	r.Post("/mysteries/:id/media", s.requireAuth(), s.uploadMysteryMedia)
+	r.Post("/mysteries/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadMysteryMedia)
 }
 
 func (s *Service) setupDeleteMysteryMedia(r fiber.Router) {
@@ -568,7 +568,7 @@ func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
 	if err != nil {
 		if errors.Is(err, mysterysvc.ErrNotFound) {
 			return utils.NotFound(ctx, "mystery not found")

@@ -1318,8 +1318,8 @@ func (r *chatDAO) GetMessageSenderID(ctx context.Context, messageID uuid.UUID, t
 func (r *chatDAO) AddMessageMedia(ctx context.Context, spec repository.NewChatMessageMedia, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`INSERT INTO chat_message_media (message_id, media_url, media_type, thumbnail_url, sort_order, width, height) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-		spec.MessageID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, spec.Width, spec.Height,
+		`INSERT INTO chat_message_media (message_id, media_url, media_type, thumbnail_url, filename, sort_order, width, height) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		spec.MessageID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.Width, spec.Height,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add message media: %w", err)
@@ -1355,7 +1355,7 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 
 	placeholders, args := utils.PlaceholderArgs(messageIDs, 1)
 
-	query := `SELECT id, message_id, media_url, media_type, thumbnail_url, sort_order, width, height
+	query := `SELECT id, message_id, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order, width, height
 	          FROM chat_message_media WHERE message_id IN (` + strings.Join(placeholders, ",") + `)
 	          ORDER BY sort_order ASC, id ASC`
 
@@ -1368,9 +1368,9 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 	for rows.Next() {
 		var id int64
 		var msgID uuid.UUID
-		var mediaURL, mediaType, thumbURL string
+		var mediaURL, mediaType, thumbURL, filename string
 		var sortOrder, width, height int
-		if err := rows.Scan(&id, &msgID, &mediaURL, &mediaType, &thumbURL, &sortOrder, &width, &height); err != nil {
+		if err := rows.Scan(&id, &msgID, &mediaURL, &mediaType, &thumbURL, &filename, &sortOrder, &width, &height); err != nil {
 			return nil, fmt.Errorf("scan message media: %w", err)
 		}
 		result[msgID] = append(result[msgID], dto.PostMediaResponse{
@@ -1378,6 +1378,7 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 			MediaURL:     mediaURL,
 			MediaType:    mediaType,
 			ThumbnailURL: thumbURL,
+			Filename:     filename,
 			SortOrder:    sortOrder,
 			Width:        width,
 			Height:       height,

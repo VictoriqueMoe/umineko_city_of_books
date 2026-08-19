@@ -8,19 +8,10 @@ type (
 		MediaURL     string `json:"media_url"`
 		MediaType    string `json:"media_type"`
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
+		Filename     string `json:"filename,omitempty"`
 		SortOrder    int    `json:"sort_order"`
 		Width        int    `json:"width,omitempty"`
 		Height       int    `json:"height,omitempty"`
-	}
-
-	EmbedResponse struct {
-		URL      string `json:"url"`
-		Type     string `json:"type"`
-		Title    string `json:"title,omitempty"`
-		Desc     string `json:"description,omitempty"`
-		Image    string `json:"image,omitempty"`
-		SiteName string `json:"site_name,omitempty"`
-		VideoID  string `json:"video_id,omitempty"`
 	}
 
 	PostResponse struct {
@@ -28,7 +19,6 @@ type (
 		Author         UserResponse          `json:"author"`
 		Body           string                `json:"body"`
 		Media          []PostMediaResponse   `json:"media"`
-		Embeds         []EmbedResponse       `json:"embeds,omitempty"`
 		Poll           *PollResponse         `json:"poll,omitempty"`
 		SharedContent  *SharedContentPreview `json:"shared_content,omitempty"`
 		ShareCount     int                   `json:"share_count"`
@@ -81,7 +71,6 @@ type (
 		Author    UserResponse          `json:"author"`
 		Body      string                `json:"body"`
 		Media     []PostMediaResponse   `json:"media"`
-		Embeds    []EmbedResponse       `json:"embeds,omitempty"`
 		LikeCount int                   `json:"like_count"`
 		UserLiked bool                  `json:"user_liked"`
 		Replies   []PostCommentResponse `json:"replies,omitempty"`

@@ -13,3 +13,7 @@ func (s *Service) requireAuth() fiber.Handler {
 func (s *Service) optionalAuth() fiber.Handler {
 	return middleware.OptionalAuth(s.AuthSession, s.AuthzService)
 }
+
+func (s *Service) requireEstablished() fiber.Handler {
+	return middleware.RequireEstablishedAccount(s.AuthzService, s.SettingsService)
+}

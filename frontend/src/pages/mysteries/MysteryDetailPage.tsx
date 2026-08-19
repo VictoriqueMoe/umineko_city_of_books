@@ -834,7 +834,7 @@ export function MysteryDetailPage() {
                                         onClick={() => handleDeleteMedia(m.id)}
                                         title="Remove image"
                                     >
-                                        Remove {m.media_type === "video" ? "video" : "image"} #{m.id}
+                                        Remove {m.media_type} #{m.id}
                                     </button>
                                 ))}
                             </div>

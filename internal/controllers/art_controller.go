@@ -99,7 +99,7 @@ func (s *Service) setupUnlikeArtComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadArtCommentMedia(r fiber.Router) {
-	r.Post("/art-comments/:id/media", s.requireAuth(), s.uploadArtCommentMedia)
+	r.Post("/art-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadArtCommentMedia)
 }
 
 func (s *Service) setupListUserArt(r fiber.Router) {

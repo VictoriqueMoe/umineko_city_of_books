@@ -19,6 +19,7 @@ const {
     showDesktopNotification,
     playNotificationSound,
     getAuthToken,
+    isNativeApp,
 } = vi.hoisted(() => ({
     useUnreadCount: vi.fn(),
     useChatUnreadCount: vi.fn(),
@@ -30,6 +31,7 @@ const {
     showDesktopNotification: vi.fn(),
     playNotificationSound: vi.fn(),
     getAuthToken: vi.fn(),
+    isNativeApp: vi.fn(),
 }));
 
 vi.mock("../api/queries/notification", () => ({ useUnreadCount }));
@@ -42,7 +44,7 @@ vi.mock("../api/mutations/notification", () => ({
 }));
 vi.mock("../utils/notifications", () => ({ showDesktopNotification }));
 vi.mock("../utils/sound", () => ({ playNotificationSound }));
-vi.mock("../utils/authToken", () => ({ getAuthToken, isNativeApp: () => false, clientPlatform: () => "web" }));
+vi.mock("../utils/authToken", () => ({ getAuthToken, isNativeApp, clientPlatform: () => "web" }));
 
 type CountUpdater = (prev: { count: number } | undefined) => { count: number };
 
@@ -188,14 +190,27 @@ describe("NotificationProvider", () => {
     });
 
     it("carries the native session token on the socket url", () => {
-        // given
+        // given the app has no cookie to fall back on
         getAuthToken.mockReturnValue("tok en&1");
+        isNativeApp.mockReturnValue(true);
 
         // when
         renderProvider();
 
         // then
         expect(lastSocket().url).toContain("?token=tok%20en%261");
+    });
+
+    it("keeps the session token out of the socket url in a browser", () => {
+        // given a same-origin browser session, where the cookie already authenticates
+        getAuthToken.mockReturnValue("tok en&1");
+        isNativeApp.mockReturnValue(false);
+
+        // when
+        renderProvider();
+
+        // then the token must never reach proxy or edge access logs
+        expect(lastSocket().url).not.toContain("token=");
     });
 
     it("closes the socket when the provider goes away", () => {

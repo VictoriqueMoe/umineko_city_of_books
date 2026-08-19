@@ -113,6 +113,7 @@ export function AdminSettings() {
         const maxImage = parseInt(settings.max_image_size ?? "0", 10);
         const maxImagePixels = parseInt(settings.max_image_pixels ?? "0", 10);
         const maxVideo = parseInt(settings.max_video_size ?? "0", 10);
+        const maxAudio = parseInt(settings.max_audio_size ?? "0", 10);
         const maxGeneral = parseInt(settings.max_general_size ?? "0", 10);
         const minPassword = parseInt(settings.min_password_length ?? "0", 10);
         const sessionDays = parseInt(settings.session_duration_days ?? "0", 10);
@@ -133,6 +134,9 @@ export function AdminSettings() {
         }
         if (maxVideo > maxBody) {
             return `Max video size (${Math.round(maxVideo / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
+        }
+        if (maxAudio > maxBody) {
+            return `Max audio size (${Math.round(maxAudio / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
         }
         if (maxGeneral > maxBody) {
             return `Max general size (${Math.round(maxGeneral / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
@@ -781,7 +785,7 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
-                <h2 className={styles.sectionTitle}>Cache (Valkey)</h2>
+                <h2 className={styles.sectionTitle}>Cache</h2>
                 <div className={styles.fieldGroup}>
                     <div className={styles.field}>
                         <span className={styles.fieldLabel}>Valkey URL</span>
@@ -792,9 +796,35 @@ export function AdminSettings() {
                             placeholder="redis://valkey-cache:6379/0"
                         />
                         <span className={styles.fieldHint}>
-                            Connection URL for the app cache, separate from the LiveKit coordination Valkey. When set,
-                            caching is enabled; leave it empty to disable and bypass the cache entirely. Changes take
-                            effect immediately, with no restart needed.
+                            Connection URL for the app cache, separate from the LiveKit coordination Valkey. Changes
+                            take effect immediately, with no restart needed.
+                        </span>
+                        <span className={styles.fieldHint}>
+                            Caching cannot be switched off. Leave this empty and the built-in in-memory cache is used as
+                            the primary store. Set a URL and Valkey takes over, with the in-memory cache demoted to a
+                            fallback: if Valkey stops responding, reads and writes are served from memory automatically
+                            and Valkey is retried about every 30 seconds. Invalidations are sent to both, so a recovered
+                            Valkey never serves a stale value.
+                        </span>
+                        <span className={styles.fieldHint}>
+                            The in-memory cache is per-process, and anything cached without its own expiry is capped at
+                            60 seconds. It is a safety net, not a substitute for Valkey.
+                        </span>
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>In-Memory Cache Size (MB)</span>
+                        <Input
+                            type="number"
+                            value={getNumber("cache_in_memory_max_mb")}
+                            onChange={e => updateField("cache_in_memory_max_mb", e.target.value)}
+                        />
+                        <span className={styles.fieldHint}>
+                            How much memory the built-in cache may use, counting the stored value, its key and the
+                            per-entry overhead. When it is full the least recently used entries are dropped to make
+                            room. Applies whether the in-memory cache is the primary store or only the fallback, so it
+                            also bounds how much is held while Valkey is unreachable. Accepted range is 1 to 4096 MB,
+                            and anything outside it falls back to 128. Lowering it takes effect immediately and evicts
+                            straight away rather than waiting for the next write.
                         </span>
                     </div>
                 </div>
@@ -835,6 +865,18 @@ export function AdminSettings() {
                             onChange={e => updateField("session_duration_days", e.target.value)}
                         />
                     </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>New Account Restriction (hours)</span>
+                        <Input
+                            type="number"
+                            value={getNumber("new_account_hours")}
+                            onChange={e => updateField("new_account_hours", e.target.value)}
+                        />
+                        <span className={styles.fieldHint}>
+                            For this long after signing up, a new member cannot post attachments or links, and their
+                            posts do not render link previews. Set to 0 to disable.
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -868,6 +910,15 @@ export function AdminSettings() {
                             value={getMB("max_video_size")}
                             onChange={e => setMB("max_video_size", e.target.value)}
                         />
+                    </div>
+                    <div className={styles.field}>
+                        <span className={styles.fieldLabel}>Max Audio Size (MB)</span>
+                        <Input
+                            type="number"
+                            value={getMB("max_audio_size")}
+                            onChange={e => setMB("max_audio_size", e.target.value)}
+                        />
+                        <span className={styles.fieldHint}>Applies to MP3, M4A, OGG, WAV and FLAC uploads.</span>
                     </div>
                     <div className={styles.field}>
                         <span className={styles.fieldLabel}>Max General Size (MB)</span>

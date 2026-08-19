@@ -15,6 +15,15 @@ import (
 	"golang.org/x/net/html"
 )
 
+const (
+	EmbedTypeLink    = "link"
+	EmbedTypeYouTube = "youtube"
+	EmbedTypeImage   = "image"
+	EmbedTypeVideo   = "video"
+
+	previewBodyLimit = 256 * 1024
+)
+
 type (
 	Embed struct {
 		URL       string
@@ -52,24 +61,12 @@ func ParseEmbed(rawURL string) *Embed {
 	if vid := extractYouTubeID(rawURL); vid != "" {
 		return &Embed{
 			URL:     rawURL,
-			Type:    "youtube",
+			Type:    EmbedTypeYouTube,
 			VideoID: vid,
 		}
 	}
 
-	og := fetchOGTags(rawURL)
-	if og == nil {
-		return nil
-	}
-
-	return &Embed{
-		URL:      rawURL,
-		Type:     "link",
-		Title:    og["og:title"],
-		Desc:     og["og:description"],
-		Image:    og["og:image"],
-		SiteName: og["og:site_name"],
-	}
+	return fetchPreview(rawURL)
 }
 
 func extractYouTubeID(rawURL string) string {
@@ -113,7 +110,7 @@ func isPublicAddr(addr netip.Addr) bool {
 	return true
 }
 
-func fetchOGTags(rawURL string) map[string]string {
+func fetchPreview(rawURL string) *Embed {
 	parsed, err := url.Parse(rawURL)
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return nil
@@ -146,13 +143,34 @@ func fetchOGTags(rawURL string) map[string]string {
 		return nil
 	}
 
-	ct := resp.Header.Get("Content-Type")
-	if !strings.Contains(ct, "text/html") {
+	ct := strings.ToLower(strings.TrimSpace(resp.Header.Get("Content-Type")))
+
+	switch {
+	case strings.Contains(ct, "text/html"):
+		return linkEmbed(rawURL, parseOGFromHTML(io.LimitReader(resp.Body, previewBodyLimit)))
+	case strings.HasPrefix(ct, "image/"):
+		return &Embed{URL: rawURL, Type: EmbedTypeImage, Image: rawURL}
+	case strings.HasPrefix(ct, "video/"):
+		return &Embed{URL: rawURL, Type: EmbedTypeVideo}
+	}
+
+	return nil
+}
+
+func linkEmbed(rawURL string, og map[string]string) *Embed {
+	title, desc, image := og["og:title"], og["og:description"], og["og:image"]
+	if title == "" && desc == "" && image == "" {
 		return nil
 	}
 
-	limited := io.LimitReader(resp.Body, 256*1024)
-	return parseOGFromHTML(limited)
+	return &Embed{
+		URL:      rawURL,
+		Type:     EmbedTypeLink,
+		Title:    title,
+		Desc:     desc,
+		Image:    image,
+		SiteName: og["og:site_name"],
+	}
 }
 
 func parseOGFromHTML(r io.Reader) map[string]string {

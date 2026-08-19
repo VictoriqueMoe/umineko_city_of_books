@@ -6,7 +6,6 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -15,31 +14,6 @@ import (
 )
 
 var MentionRegex = regexp.MustCompile(`\B@([a-zA-Z0-9_]+)`)
-
-func ProcessEmbeds(postRepo repository.PostRepository, ownerID string, ownerType string, body string) {
-	urls := media.ExtractURLs(body)
-	for i, rawURL := range urls {
-		if i >= 5 {
-			break
-		}
-		embed := media.ParseEmbed(rawURL)
-		if embed == nil {
-			continue
-		}
-		_ = postRepo.AddEmbed(context.Background(), repository.NewEmbed{
-			OwnerID:     ownerID,
-			OwnerType:   ownerType,
-			URL:         embed.URL,
-			EmbedType:   embed.Type,
-			Title:       embed.Title,
-			Description: embed.Desc,
-			Image:       embed.Image,
-			SiteName:    embed.SiteName,
-			VideoID:     embed.VideoID,
-			SortOrder:   i,
-		})
-	}
-}
 
 func ProcessMentions(
 	userRepo repository.UserRepository,

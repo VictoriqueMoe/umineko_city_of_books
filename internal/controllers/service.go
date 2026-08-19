@@ -19,6 +19,7 @@ import (
 	"umineko_city_of_books/internal/health"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal"
+	"umineko_city_of_books/internal/linkpreview"
 	"umineko_city_of_books/internal/media"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
@@ -89,6 +90,7 @@ type (
 		OverlayService        overlay.Service
 		SitemapService        sitemap.Service
 		SiteInfoService       siteinfo.Service
+		LinkPreviewService    linkpreview.Service
 		OGResolver            *og.Resolver
 		OGImageService        *og.ImageService
 		StaticFS              fs.FS
@@ -127,6 +129,7 @@ func (s *Service) GetAPIRoutes() []FSetupRoute {
 	all = append(all, s.getAllWebSocketRoutes()...)
 	all = append(all, s.getAllOverlayRoutes()...)
 	all = append(all, s.getAllOverlayTokenRoutes()...)
+	all = append(all, s.getAllLinkPreviewRoutes()...)
 	return all
 }
 

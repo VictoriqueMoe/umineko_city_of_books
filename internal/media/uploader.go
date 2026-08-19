@@ -16,12 +16,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	MediaTypeImage = "image"
+	MediaTypeVideo = "video"
+	MediaTypeAudio = "audio"
+)
+
 type (
 	UpdateURLFn func(ctx context.Context, id int64, url string, tx ...*sql.Tx) error
-	AddFn       func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error)
+	AddFn       func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error)
 	uploadSvc   interface {
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		FullDiskPath(urlPath string) string
 	}
 
@@ -40,46 +47,48 @@ func NewUploader(uploadSvc uploadSvc, settingsSvc settings.Service, processor *P
 	}
 }
 
+func (u *Uploader) kindFor(contentType string) (string, *config.SiteSettingDef, func(context.Context, string, uuid.UUID, int64, int64, io.Reader) (string, error)) {
+	switch {
+	case strings.HasPrefix(contentType, "video/"):
+		return MediaTypeVideo, config.SettingMaxVideoSize, u.uploadSvc.SaveVideo
+	case strings.HasPrefix(contentType, "audio/"):
+		return MediaTypeAudio, config.SettingMaxAudioSize, u.uploadSvc.SaveAudio
+	default:
+		return MediaTypeImage, config.SettingMaxImageSize, u.uploadSvc.SaveImage
+	}
+}
+
 func (u *Uploader) SaveAndRecord(
 	ctx context.Context,
 	subDir string,
 	contentType string,
+	filename string,
 	fileSize int64,
 	reader io.Reader,
 	addFn AddFn,
 	updateURL UpdateURLFn,
 	updateThumb UpdateURLFn,
 ) (*dto.PostMediaResponse, error) {
-	isVideo := strings.HasPrefix(contentType, "video/")
+	mediaType, sizeSetting, save := u.kindFor(contentType)
 	mediaID := uuid.New()
+	maxSize := int64(u.settingsSvc.GetInt(ctx, sizeSetting))
 
-	var urlPath string
-	var err error
-	if isVideo {
-		maxSize := int64(u.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
-		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading video")
-		urlPath, err = u.uploadSvc.SaveVideo(ctx, subDir, mediaID, fileSize, maxSize, reader)
-	} else {
-		maxSize := int64(u.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
-		logger.Log.Debug().Str("content_type", contentType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading image")
-		urlPath, err = u.uploadSvc.SaveImage(ctx, subDir, mediaID, fileSize, maxSize, reader)
-	}
+	logger.Log.Debug().Str("content_type", contentType).Str("media_type", mediaType).Int64("file_size", fileSize).Int64("max_size", maxSize).Msg("uploading media")
+
+	urlPath, err := save(ctx, subDir, mediaID, fileSize, maxSize, reader)
 	if err != nil {
 		return nil, err
 	}
 
-	mediaType := "image"
-	if isVideo {
-		mediaType = "video"
-	}
+	safeName := SafeFilename(filename)
 
-	rowID, err := addFn(urlPath, mediaType, "", 0)
+	rowID, err := addFn(urlPath, mediaType, "", safeName, 0)
 	if err != nil {
 		return nil, err
 	}
 
 	diskPath := u.uploadSvc.FullDiskPath(urlPath)
-	if isVideo {
+	if mediaType == MediaTypeVideo {
 		u.processor.Enqueue(Job{
 			Type:      JobVideo,
 			InputPath: diskPath,
@@ -117,5 +126,6 @@ func (u *Uploader) SaveAndRecord(
 		ID:        int(rowID),
 		MediaURL:  urlPath,
 		MediaType: mediaType,
+		Filename:  safeName,
 	}, nil
 }

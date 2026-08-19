@@ -56,7 +56,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	emailSvc := email.NewMockService(t)
 	sessionMgr := session.NewManager(sessionRepo, settingsSvc)
 	filter := contentfilter.New(slursrule.New())
-	svc := NewService(userSvc, sessionMgr, settingsSvc, inviteRepo, userRepo, resetRepo, verifyRepo, auditRepo, emailSvc, filter).(*service)
+	svc := NewService(userSvc, sessionMgr, settingsSvc, inviteRepo, userRepo, resetRepo, verifyRepo, auditRepo, emailSvc, filter, filter).(*service)
 	return svc, &testMocks{
 		userSvc:     userSvc,
 		settingsSvc: settingsSvc,
@@ -671,22 +671,20 @@ func TestLogin_OK(t *testing.T) {
 	assert.Equal(t, userID, resp.ID)
 }
 
-func TestLogin_BannedCheckErrorTreatedAsNotBanned(t *testing.T) {
-	// given
+func TestLogin_BannedCheckErrorRefusesTheLogin(t *testing.T) {
+	// given credentials that are valid but a ban lookup that fails
 	svc, m := newTestService(t)
 	req := dto.LoginRequest{Username: "alice", Password: "password123"}
 	userID := uuid.New()
 	m.userSvc.EXPECT().ValidateCredentials(mock.Anything, req.Username, req.Password).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
 	m.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, errors.New("db down"))
-	expectSessionDuration(m)
-	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil)
 
 	// when
 	_, token, err := svc.Login(context.Background(), req)
 
-	// then
-	require.NoError(t, err)
-	assert.NotEmpty(t, token)
+	// then no session is issued, because an unanswerable ban check is not an absent ban
+	require.ErrorIs(t, err, ErrUserBanned)
+	assert.Empty(t, token)
 }
 
 func TestLogout_EmptyTokenNoop(t *testing.T) {

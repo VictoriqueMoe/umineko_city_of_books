@@ -46,7 +46,7 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 
 		CreateGallery(ctx context.Context, userID uuid.UUID, req dto.CreateGalleryRequest) (uuid.UUID, error)
 		UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateGalleryRequest) error
@@ -211,17 +211,14 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	comments, _, _ := s.artRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 
 	var commentIDs []uuid.UUID
-	var commentIDStrs []string
 	for _, c := range comments {
 		commentIDs = append(commentIDs, c.ID)
-		commentIDStrs = append(commentIDStrs, c.ID.String())
 	}
 	commentMediaMap, _ := s.artRepo.GetCommentMediaBatch(ctx, commentIDs)
-	commentEmbedMap, _ := s.postRepo.GetEmbedsBatch(ctx, commentIDStrs, "art_comment")
 
 	flatComments := make([]dto.ArtCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = artCommentToResponse(c, commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
+		flatComments[i] = artCommentToResponse(c, commentMediaMap[c.ID])
 	}
 	dtoComments := utils.BuildTree(flatComments,
 		func(c dto.ArtCommentResponse) uuid.UUID { return c.ID },
@@ -452,7 +449,6 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 
 	id := created.ID
 
-	go social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
 	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, artID, fmt.Sprintf("art_comment:%s", id), fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id))
 
 	go func() {
@@ -548,8 +544,6 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		go s.notifyArtCommentEdited(ctx, id, userID)
 	}
 
-	go social.ProcessEmbeds(s.postRepo, id.String(), "art_comment", body)
-
 	return nil
 }
 
@@ -626,7 +620,7 @@ func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID
 	return s.artRepo.UnlikeComment(ctx, userID, commentID)
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
 	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -635,13 +629,14 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "art", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+	return s.uploader.SaveAndRecord(ctx, "art", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.artRepo.AddCommentMedia(ctx, repository.NewArtCommentMedia{
 				CommentID:    commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
+				Filename:     filename,
 				SortOrder:    sortOrder,
 			})
 		},
@@ -818,7 +813,7 @@ func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUI
 	})
 }
 
-func artCommentToResponse(c repository.CommentRow, media []model.PostMediaRow, embeds []model.EmbedRow) dto.ArtCommentResponse {
+func artCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.ArtCommentResponse {
 	return dto.ArtCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,
@@ -831,7 +826,6 @@ func artCommentToResponse(c repository.CommentRow, media []model.PostMediaRow, e
 		},
 		Body:      c.Body,
 		Media:     model.MediaRowsToResponse(media),
-		Embeds:    model.EmbedRowsToResponse(embeds),
 		LikeCount: c.LikeCount,
 		UserLiked: c.UserLiked,
 		CreatedAt: c.CreatedAt,

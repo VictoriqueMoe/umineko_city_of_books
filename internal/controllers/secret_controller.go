@@ -53,7 +53,7 @@ func (s *Service) setupUnlikeSecretComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadSecretCommentMedia(r fiber.Router) {
-	r.Post("/secret-comments/:id/media", s.requireAuth(), s.uploadSecretCommentMedia)
+	r.Post("/secret-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadSecretCommentMedia)
 }
 
 func (s *Service) listSecrets(ctx fiber.Ctx) error {

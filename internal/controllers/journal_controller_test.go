@@ -992,7 +992,7 @@ func TestUploadJournalCommentMedia_OK(t *testing.T) {
 	commentID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	expected := &dto.PostMediaResponse{MediaType: "image"}
-	js.EXPECT().UploadCommentMedia(mock.Anything, commentID, userID, "image/png", mock.AnythingOfType("int64"), mock.Anything).
+	js.EXPECT().UploadCommentMedia(mock.Anything, commentID, userID, "image/png", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).
 		Return(expected, nil)
 
 	body, ct := buildMultipart(t, "media", "pic.png", "image/png", []byte("payload"))
@@ -1029,7 +1029,7 @@ func TestUploadJournalCommentMedia_ServiceErrors(t *testing.T) {
 			userID := uuid.New()
 			commentID := uuid.New()
 			h.ExpectValidSession("valid-cookie", userID)
-			js.EXPECT().UploadCommentMedia(mock.Anything, commentID, userID, "image/png", mock.AnythingOfType("int64"), mock.Anything).
+			js.EXPECT().UploadCommentMedia(mock.Anything, commentID, userID, "image/png", mock.Anything, mock.AnythingOfType("int64"), mock.Anything).
 				Return(nil, tc.svcErr)
 
 			body, ct := buildMultipart(t, "media", "pic.png", "image/png", []byte("payload"))

@@ -243,6 +243,30 @@ describe("MediaPreviews", () => {
         expect(src).toBeTruthy();
         expect(revoked).not.toHaveBeenCalledWith(src);
     });
+
+    it("shows a note for a staged audio file rather than a broken picture", () => {
+        // given an audio attachment, which no browser can render as an image
+        const files = [makeFile("theme.mp3", "audio/mpeg")];
+
+        // when
+        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+
+        // then
+        expect(screen.getByLabelText("Audio file")).toBeInTheDocument();
+        expect(screen.queryByRole("presentation")).not.toBeInTheDocument();
+    });
+
+    it("still shows a picture preview for an image", () => {
+        // given
+        const files = [makeFile("a.png", "image/png")];
+
+        // when
+        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+
+        // then
+        expect(screen.getByRole("presentation")).toBeInTheDocument();
+        expect(screen.queryByLabelText("Audio file")).not.toBeInTheDocument();
+    });
 });
 
 describe("MediaPickerButton", () => {
@@ -268,7 +292,7 @@ describe("MediaPickerButton", () => {
         expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
     });
 
-    it("only accepts images and videos and takes several at once", () => {
+    it("accepts images, videos and audio, and takes several at once", () => {
         // given
         const onFiles = vi.fn();
 
@@ -277,7 +301,7 @@ describe("MediaPickerButton", () => {
 
         // then
         const input = fileInput(container);
-        expect(input).toHaveAttribute("accept", "image/*,video/*,.mkv,.avi");
+        expect(input).toHaveAttribute("accept", "image/*,video/*,audio/*,.mkv,.avi");
         expect(input).toHaveAttribute("multiple");
     });
 

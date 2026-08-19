@@ -46,7 +46,7 @@ type (
 	}
 )
 
-func (r *PostRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto.PostResponse {
+func (r *PostRow) ToResponse(media []PostMediaRow) dto.PostResponse {
 	return dto.PostResponse{
 		ID: r.ID,
 		Author: dto.UserResponse{
@@ -58,7 +58,6 @@ func (r *PostRow) ToResponse(media []PostMediaRow, embeds []EmbedRow) dto.PostRe
 		},
 		Body:           r.Body,
 		Media:          MediaRowsToResponse(media),
-		Embeds:         EmbedRowsToResponse(embeds),
 		LikeCount:      r.LikeCount,
 		CommentCount:   r.CommentCount,
 		ViewCount:      r.ViewCount,

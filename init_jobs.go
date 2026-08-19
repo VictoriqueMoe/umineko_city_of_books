@@ -30,9 +30,6 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 
 	uploadDir := svc.upload.GetUploadDir()
 
-	scheduleJob(stop, wg, "refresh stale embeds", "refreshed stale embeds", time.Hour, func() (int, error) {
-		return svc.post.RefreshStaleEmbeds(context.Background()), nil
-	})
 	scheduleJob(stop, wg, "clean orphaned uploads", "cleaned orphaned upload files", 24*time.Hour, func() (int, error) {
 		return upload.CleanOrphanedFiles(repos.Upload, uploadDir), nil
 	})

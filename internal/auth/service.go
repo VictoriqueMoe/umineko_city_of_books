@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/mail"
 	"regexp"
@@ -43,16 +44,17 @@ type (
 	}
 
 	service struct {
-		userService   user.Service
-		session       *session.Manager
-		settingsSvc   settings.Service
-		inviteRepo    repository.InviteRepository
-		userRepo      repository.UserRepository
-		resetRepo     repository.PasswordResetRepository
-		verifyRepo    repository.EmailVerificationRepository
-		auditRepo     repository.AuditLogRepository
-		emailSvc      email.Service
-		contentFilter *contentfilter.Manager
+		userService    user.Service
+		session        *session.Manager
+		settingsSvc    settings.Service
+		inviteRepo     repository.InviteRepository
+		userRepo       repository.UserRepository
+		resetRepo      repository.PasswordResetRepository
+		verifyRepo     repository.EmailVerificationRepository
+		auditRepo      repository.AuditLogRepository
+		emailSvc       email.Service
+		contentFilter  *contentfilter.Manager
+		identityFilter *contentfilter.Manager
 	}
 )
 
@@ -76,18 +78,31 @@ func isReservedUsername(username string) bool {
 	return false
 }
 
-func NewService(userService user.Service, sessionMgr *session.Manager, settingsSvc settings.Service, inviteRepo repository.InviteRepository, userRepo repository.UserRepository, resetRepo repository.PasswordResetRepository, verifyRepo repository.EmailVerificationRepository, auditRepo repository.AuditLogRepository, emailSvc email.Service, contentFilter *contentfilter.Manager) Service {
+func NewService(
+	userService user.Service,
+	sessionMgr *session.Manager,
+	settingsSvc settings.Service,
+	inviteRepo repository.InviteRepository,
+	userRepo repository.UserRepository,
+	resetRepo repository.PasswordResetRepository,
+	verifyRepo repository.EmailVerificationRepository,
+	auditRepo repository.AuditLogRepository,
+	emailSvc email.Service,
+	contentFilter *contentfilter.Manager,
+	identityFilter *contentfilter.Manager,
+) Service {
 	return &service{
-		userService:   userService,
-		session:       sessionMgr,
-		settingsSvc:   settingsSvc,
-		inviteRepo:    inviteRepo,
-		userRepo:      userRepo,
-		resetRepo:     resetRepo,
-		verifyRepo:    verifyRepo,
-		auditRepo:     auditRepo,
-		emailSvc:      emailSvc,
-		contentFilter: contentFilter,
+		userService:    userService,
+		session:        sessionMgr,
+		settingsSvc:    settingsSvc,
+		inviteRepo:     inviteRepo,
+		userRepo:       userRepo,
+		resetRepo:      resetRepo,
+		verifyRepo:     verifyRepo,
+		auditRepo:      auditRepo,
+		emailSvc:       emailSvc,
+		contentFilter:  contentFilter,
+		identityFilter: identityFilter,
 	}
 }
 
@@ -155,8 +170,8 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		req.DisplayName = req.Username
 	}
 
-	if s.contentFilter != nil {
-		if err := s.contentFilter.Check(ctx, req.Username, req.DisplayName); err != nil {
+	if s.identityFilter != nil {
+		if err := s.identityFilter.Check(ctx, req.Username, req.DisplayName); err != nil {
 			return nil, "", err
 		}
 	}
@@ -194,6 +209,10 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 
 	created, err := s.userRepo.RegisterAccount(ctx, spec)
 	if err != nil {
+		if errors.Is(err, repository.ErrInviteUnavailable) {
+			return nil, "", ErrInvalidInvite
+		}
+
 		return nil, "", err
 	}
 
@@ -209,7 +228,13 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserRes
 		return nil, "", err
 	}
 
-	banned, _ := s.userRepo.IsBanned(ctx, userResp.ID)
+	banned, banErr := s.userRepo.IsBanned(ctx, userResp.ID)
+	if banErr != nil {
+		logger.Log.Error().Err(banErr).Str("user_id", userResp.ID.String()).Msg("failed to check ban status during login, refusing the login")
+
+		return nil, "", ErrUserBanned
+	}
+
 	if banned {
 		s.audit(ctx, repository.NewAuditEntry{
 			ActorID:    userResp.ID,

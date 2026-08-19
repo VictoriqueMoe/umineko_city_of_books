@@ -114,7 +114,7 @@ func (s *Service) setupUnlikeFanficComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadFanficCommentMedia(r fiber.Router) {
-	r.Post("/fanfic-comments/:id/media", s.requireAuth(), s.uploadFanficCommentMedia)
+	r.Post("/fanfic-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadFanficCommentMedia)
 }
 
 func (s *Service) setupGetFanficLanguages(r fiber.Router) {

@@ -77,7 +77,7 @@ func (s *Service) setupResolveDMRoute(r fiber.Router) {
 }
 
 func (s *Service) setupSendFirstDMRoute(r fiber.Router) {
-	r.Post("/chat/dm/:userID/messages", s.requireAuth(), s.sendFirstDM)
+	r.Post("/chat/dm/:userID/messages", s.requireAuth(), s.requireEstablished(), s.sendFirstDM)
 }
 
 func (s *Service) setupCreateGroupRoomRoute(r fiber.Router) {
@@ -243,7 +243,7 @@ func (s *Service) listRooms(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupSendMessageRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/messages", s.requireAuth(), s.sendMessage)
+	r.Post("/chat/rooms/:roomID/messages", s.requireAuth(), s.requireEstablished(), s.sendMessage)
 }
 
 func (s *Service) sendMessage(ctx fiber.Ctx) error {
@@ -748,7 +748,7 @@ func (s *Service) setRoomNickname(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupSetRoomAvatarRoute(r fiber.Router) {
-	r.Post("/chat/rooms/:roomID/me/avatar", s.requireAuth(), s.setRoomAvatar)
+	r.Post("/chat/rooms/:roomID/me/avatar", s.requireAuth(), s.requireEstablished(), s.setRoomAvatar)
 }
 
 func (s *Service) setRoomAvatar(ctx fiber.Ctx) error {

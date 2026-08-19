@@ -1831,7 +1831,7 @@ func TestUploadCommentMedia_CommentNotFound(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("no row"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 100, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil))
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -1845,7 +1845,7 @@ func TestUploadCommentMedia_NotAuthor(t *testing.T) {
 	m.fanficRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.New(), nil)
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 100, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -1864,7 +1864,7 @@ func TestUploadCommentMedia_UploadError(t *testing.T) {
 		Return("", errors.New("disk full"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 100, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -1881,11 +1881,11 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewFanficCommentMedia{CommentID: commentID, MediaURL: "/uploads/fanfics/x.png", MediaType: "image"}).
+		AddCommentMedia(mock.Anything, repository.NewFanficCommentMedia{CommentID: commentID, MediaURL: "/uploads/fanfics/x.png", MediaType: "image", Filename: "photo.png"}).
 		Return(int64(0), errors.New("db"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", 100, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil))
 
 	// then
 	require.Error(t, err)
@@ -1904,11 +1904,11 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 		SaveImage(mock.Anything, "fanfics", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/fanfics/x.png", nil)
 	m.fanficRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewFanficCommentMedia{CommentID: commentID, MediaURL: "/uploads/fanfics/x.png", MediaType: "image"}).
+		AddCommentMedia(mock.Anything, repository.NewFanficCommentMedia{CommentID: commentID, MediaURL: "/uploads/fanfics/x.png", MediaType: "image", Filename: "photo.png"}).
 		Return(int64(42), nil)
 
 	// when
-	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", 100, bytes.NewReader(nil))
+	resp, err := svc.UploadCommentMedia(ctx, commentID, userID, "image/png", "photo.png", 100, bytes.NewReader(nil))
 
 	// then
 	require.NoError(t, err)

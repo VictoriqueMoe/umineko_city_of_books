@@ -67,6 +67,8 @@ export function makeSiteInfo(overrides: Partial<SiteInfo> = {}): SiteInfo {
         chatbot_require_permission: false,
         max_image_size: 10 * 1024 * 1024,
         max_video_size: 50 * 1024 * 1024,
+        max_audio_size: 25 * 1024 * 1024,
+        new_account_hours: 24,
         top_detective_ids: [],
         top_gm_ids: [],
         top_chess_ids: [],

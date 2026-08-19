@@ -65,7 +65,7 @@ func (s *Service) setupDeletePost(r fiber.Router) {
 }
 
 func (s *Service) setupUploadPostMedia(r fiber.Router) {
-	r.Post("/posts/:id/media", s.requireAuth(), s.uploadPostMedia)
+	r.Post("/posts/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadPostMedia)
 }
 
 func (s *Service) setupDeletePostMedia(r fiber.Router) {
@@ -93,7 +93,7 @@ func (s *Service) setupDeleteComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadCommentMedia(r fiber.Router) {
-	r.Post("/comments/:id/media", s.requireAuth(), s.uploadCommentMedia)
+	r.Post("/comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadCommentMedia)
 }
 
 func (s *Service) setupLikeComment(r fiber.Router) {
@@ -258,7 +258,7 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Size, reader)
+	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
 	if err != nil {
 		return utils.BadRequest(ctx, err.Error())
 	}

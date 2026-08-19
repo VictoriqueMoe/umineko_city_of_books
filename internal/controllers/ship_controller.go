@@ -53,7 +53,7 @@ func (s *Service) setupDeleteShip(r fiber.Router) {
 }
 
 func (s *Service) setupUploadShipImage(r fiber.Router) {
-	r.Post("/ships/:id/image", s.requireAuth(), s.uploadShipImage)
+	r.Post("/ships/:id/image", s.requireAuth(), s.requireEstablished(), s.uploadShipImage)
 }
 
 func (s *Service) setupVoteShip(r fiber.Router) {
@@ -81,7 +81,7 @@ func (s *Service) setupUnlikeShipComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadShipCommentMedia(r fiber.Router) {
-	r.Post("/ship-comments/:id/media", s.requireAuth(), s.uploadShipCommentMedia)
+	r.Post("/ship-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadShipCommentMedia)
 }
 
 func (s *Service) setupListCharacters(r fiber.Router) {

@@ -4,12 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"time"
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
+)
+
+var (
+	turnstileClient = &http.Client{Timeout: 5 * time.Second}
 )
 
 func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
@@ -20,7 +25,11 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 
 		secretKey := settingsSvc.Get(ctx.Context(), config.SettingTurnstileSecretKey)
 		if secretKey == "" {
-			return ctx.Next()
+			logger.Log.Error().Msg("turnstile is enabled but no secret key is set, refusing rather than letting requests through unverified")
+
+			return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "verification is temporarily unavailable, please try again later",
+			})
 		}
 
 		var partial struct {
@@ -32,7 +41,7 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 			})
 		}
 
-		resp, err := http.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify",
+		resp, err := turnstileClient.PostForm("https://challenges.cloudflare.com/turnstile/v0/siteverify",
 			url.Values{
 				"secret":   {secretKey},
 				"response": {partial.TurnstileToken},

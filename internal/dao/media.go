@@ -22,13 +22,13 @@ func newMediaDAO(db *sql.DB, table string, fk string) *mediaDAO {
 	return &mediaDAO{db: db, table: table, fk: fk}
 }
 
-func (m *mediaDAO) AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+func (m *mediaDAO) AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(m.db, tx).QueryRowContext(ctx,
-		`INSERT INTO `+m.table+` (`+m.fk+`, media_url, media_type, thumbnail_url, sort_order)
-		VALUES ($1, $2, $3, $4, COALESCE((SELECT MAX(sort_order) + 1 FROM `+m.table+` WHERE `+m.fk+` = $1), $5))
+		`INSERT INTO `+m.table+` (`+m.fk+`, media_url, media_type, thumbnail_url, filename, sort_order)
+		VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(sort_order) + 1 FROM `+m.table+` WHERE `+m.fk+` = $1), $6))
 		RETURNING id`,
-		entityID, mediaURL, mediaType, thumbnailURL, sortOrder,
+		entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add media in %s: %w", m.table, err)
@@ -75,7 +75,7 @@ func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, id int64, thumbnail
 
 func (m *mediaDAO) GetMedia(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
 	rows, err := txOrDB(m.db, tx).QueryContext(ctx,
-		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, sort_order FROM `+m.table+` WHERE `+m.fk+` = $1 ORDER BY sort_order, id`,
+		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order FROM `+m.table+` WHERE `+m.fk+` = $1 ORDER BY sort_order, id`,
 		entityID,
 	)
 	if err != nil {
@@ -86,7 +86,7 @@ func (m *mediaDAO) GetMedia(ctx context.Context, entityID uuid.UUID, tx ...*sql.
 	var media []model.PostMediaRow
 	for rows.Next() {
 		var row model.PostMediaRow
-		if err := rows.Scan(&row.ID, &row.PostID, &row.MediaURL, &row.MediaType, &row.ThumbnailURL, &row.SortOrder); err != nil {
+		if err := rows.Scan(&row.ID, &row.PostID, &row.MediaURL, &row.MediaType, &row.ThumbnailURL, &row.Filename, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan media in %s: %w", m.table, err)
 		}
 		media = append(media, row)
@@ -103,7 +103,7 @@ func (m *mediaDAO) GetMediaBatch(ctx context.Context, entityIDs []uuid.UUID, tx 
 	placeholders, args := utils.PlaceholderArgs(entityIDs, 1)
 
 	rows, err := txOrDB(m.db, tx).QueryContext(ctx,
-		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, sort_order FROM `+m.table+` WHERE `+m.fk+` IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order, id`,
+		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order FROM `+m.table+` WHERE `+m.fk+` IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order, id`,
 		args...,
 	)
 	if err != nil {
@@ -114,7 +114,7 @@ func (m *mediaDAO) GetMediaBatch(ctx context.Context, entityIDs []uuid.UUID, tx 
 	result := make(map[uuid.UUID][]model.PostMediaRow)
 	for rows.Next() {
 		var row model.PostMediaRow
-		if err := rows.Scan(&row.ID, &row.PostID, &row.MediaURL, &row.MediaType, &row.ThumbnailURL, &row.SortOrder); err != nil {
+		if err := rows.Scan(&row.ID, &row.PostID, &row.MediaURL, &row.MediaType, &row.ThumbnailURL, &row.Filename, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan media in %s: %w", m.table, err)
 		}
 		result[row.PostID] = append(result[row.PostID], row)

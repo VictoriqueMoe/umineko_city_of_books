@@ -61,7 +61,7 @@ type (
 		DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 	}
 
 	fanficFields struct {
@@ -929,6 +929,7 @@ func (s *service) UploadCommentMedia(
 	commentID uuid.UUID,
 	userID uuid.UUID,
 	contentType string,
+	filename string,
 	fileSize int64,
 	reader io.Reader,
 ) (*dto.PostMediaResponse, error) {
@@ -940,13 +941,14 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.fanficRepo.AddCommentMedia(ctx, repository.NewFanficCommentMedia{
 				CommentID:    commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
+				Filename:     filename,
 				SortOrder:    sortOrder,
 			})
 		},

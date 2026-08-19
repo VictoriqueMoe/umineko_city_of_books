@@ -772,5 +772,5 @@ func (r *fanficDAO) ListFavourites(ctx context.Context, userID uuid.UUID, viewer
 }
 
 func (r *fanficDAO) AddCommentMedia(ctx context.Context, spec repository.NewFanficCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }

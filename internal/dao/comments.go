@@ -251,13 +251,13 @@ func (c *commentDAO[K]) UnlikeComment(ctx context.Context, userID uuid.UUID, com
 	return nil
 }
 
-func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(c.db, tx).QueryRowContext(ctx,
-		`INSERT INTO `+c.mediaTable+` (comment_id, media_url, media_type, thumbnail_url, sort_order)
-		VALUES ($1, $2, $3, $4, COALESCE((SELECT MAX(sort_order) + 1 FROM `+c.mediaTable+` WHERE comment_id = $1), $5))
+		`INSERT INTO `+c.mediaTable+` (comment_id, media_url, media_type, thumbnail_url, filename, sort_order)
+		VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(sort_order) + 1 FROM `+c.mediaTable+` WHERE comment_id = $1), $6))
 		RETURNING id`,
-		commentID, mediaURL, mediaType, thumbnailURL, sortOrder,
+		commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add comment media in %s: %w", c.mediaTable, err)
@@ -268,7 +268,7 @@ func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, commentID uuid.UUID
 
 func (c *commentDAO[K]) GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
 	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM `+c.mediaTable+` WHERE comment_id = $1 ORDER BY sort_order`,
+		`SELECT id, comment_id, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order FROM `+c.mediaTable+` WHERE comment_id = $1 ORDER BY sort_order`,
 		commentID,
 	)
 	if err != nil {
@@ -279,7 +279,7 @@ func (c *commentDAO[K]) GetCommentMedia(ctx context.Context, commentID uuid.UUID
 	var mediaList []model.PostMediaRow
 	for rows.Next() {
 		var m model.PostMediaRow
-		if err := rows.Scan(&m.ID, &m.PostID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
+		if err := rows.Scan(&m.ID, &m.PostID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.Filename, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan comment media: %w", err)
 		}
 
@@ -297,7 +297,7 @@ func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 	placeholders, args := utils.PlaceholderArgs(commentIDs, 1)
 
 	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
-		`SELECT id, comment_id, media_url, media_type, thumbnail_url, sort_order FROM `+c.mediaTable+` WHERE comment_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order`,
+		`SELECT id, comment_id, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order FROM `+c.mediaTable+` WHERE comment_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order`,
 		args...,
 	)
 	if err != nil {
@@ -311,7 +311,7 @@ func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 			m         model.PostMediaRow
 			commentID uuid.UUID
 		)
-		if err := rows.Scan(&m.ID, &commentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.SortOrder); err != nil {
+		if err := rows.Scan(&m.ID, &commentID, &m.MediaURL, &m.MediaType, &m.ThumbnailURL, &m.Filename, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan comment media: %w", err)
 		}
 

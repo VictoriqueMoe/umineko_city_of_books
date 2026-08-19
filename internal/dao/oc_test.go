@@ -195,9 +195,9 @@ func TestOCDAO_DeleteOC_ReturnsImageGalleryAndCommentMediaPaths(t *testing.T) {
 	require.NoError(t, err)
 	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "nice")
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment.png", "image", "/uploads/ocs/comment_thumb.png", 0)
+	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment.png", "image", "/uploads/ocs/comment_thumb.png", "comment.png", 0)
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment_two.gif", "image", "", 1)
+	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment_two.gif", "image", "", "comment_two.gif", 1)
 	require.NoError(t, err)
 
 	// when
@@ -268,11 +268,11 @@ func TestOCDAO_DeleteCommentWithMedia_ReturnsOnlyThatCommentMediaPaths(t *testin
 	require.NoError(t, err)
 	other, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "other")
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target.png", "image", "/uploads/ocs/target_thumb.png", 0)
+	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target.png", "image", "/uploads/ocs/target_thumb.png", "target.png", 0)
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target_two.gif", "image", "", 1)
+	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target_two.gif", "image", "", "target_two.gif", 1)
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), other.ID, "/uploads/ocs/other.png", "image", "", 0)
+	_, err = repos.OC.AddCommentMedia(context.Background(), other.ID, "/uploads/ocs/other.png", "image", "", "other.png", 0)
 	require.NoError(t, err)
 
 	// when
@@ -299,7 +299,7 @@ func TestOCDAO_DeleteCommentWithMedia_AsAdmin(t *testing.T) {
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
 	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "spam")
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/spam.png", "image", "/uploads/ocs/spam_thumb.png", 0)
+	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/spam.png", "image", "/uploads/ocs/spam_thumb.png", "spam.png", 0)
 	require.NoError(t, err)
 
 	// when

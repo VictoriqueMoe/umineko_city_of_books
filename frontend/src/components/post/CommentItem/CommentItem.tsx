@@ -9,7 +9,7 @@ import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { MediaGallery } from "../MediaGallery/MediaGallery";
-import { PostEmbeds } from "../PostEmbeds/PostEmbeds";
+import { LinkPreviews } from "../../LinkPreviews/LinkPreviews";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import { Button } from "../../Button/Button";
 import { ReportButton } from "../../ReportButton/ReportButton";
@@ -185,7 +185,7 @@ function SingleComment({
                 <>
                     {bodyContent}
                     <MediaGallery media={comment.media} />
-                    {comment.embeds && <PostEmbeds embeds={comment.embeds} />}
+                    <LinkPreviews body={comment.body} authorCreatedAt={comment.author?.created_at} />
                 </>
             )}
 

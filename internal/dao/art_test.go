@@ -956,34 +956,6 @@ func TestArtDAO_DeleteCommentAsAdmin(t *testing.T) {
 	assert.Equal(t, 0, total)
 }
 
-func TestArtDAO_UpdateCommentWithDetails_Owner_ClearsEmbeds(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	user := daotest.CreateUser(t, repos)
-	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-	commentID := createArtComment(t, repos, artID, user.ID, nil, "old https://example.com")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{
-		OwnerID:   commentID.String(),
-		OwnerType: "art_comment",
-		URL:       "https://example.com",
-		EmbedType: "link",
-		Title:     "stale",
-	}))
-
-	// when
-	err := repos.Art.UpdateCommentWithDetails(context.Background(), repository.ArtCommentUpdate{ID: commentID, UserID: user.ID, Body: "new body"})
-
-	// then
-	require.NoError(t, err)
-	comments, _, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
-	require.NoError(t, err)
-	require.Len(t, comments, 1)
-	assert.Equal(t, "new body", comments[0].Body)
-	embeds, err := repos.Post.GetEmbeds(context.Background(), commentID.String(), "art_comment")
-	require.NoError(t, err)
-	assert.Empty(t, embeds)
-}
-
 func TestArtDAO_UpdateCommentWithDetails_AsAdmin(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
@@ -1001,31 +973,6 @@ func TestArtDAO_UpdateCommentWithDetails_AsAdmin(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "admin body", comments[0].Body)
-}
-
-func TestArtDAO_UpdateCommentWithDetails_NotOwner_KeepsEmbeds(t *testing.T) {
-	// given
-	repos := daotest.NewRepos(t)
-	owner := daotest.CreateUser(t, repos)
-	other := daotest.CreateUser(t, repos)
-	artID := createArt(t, repos, owner.ID, "general", "drawing", "A", nil, false)
-	commentID := createArtComment(t, repos, artID, owner.ID, nil, "old")
-	require.NoError(t, repos.Post.AddEmbed(context.Background(), repository.NewEmbed{
-		OwnerID:   commentID.String(),
-		OwnerType: "art_comment",
-		URL:       "https://example.com",
-		EmbedType: "link",
-		Title:     "kept",
-	}))
-
-	// when
-	err := repos.Art.UpdateCommentWithDetails(context.Background(), repository.ArtCommentUpdate{ID: commentID, UserID: other.ID, Body: "hack"})
-
-	// then
-	require.Error(t, err)
-	embeds, err := repos.Post.GetEmbeds(context.Background(), commentID.String(), "art_comment")
-	require.NoError(t, err)
-	require.Len(t, embeds, 1)
 }
 
 func TestArtDAO_DeleteCommentWithAudit_Owner(t *testing.T) {

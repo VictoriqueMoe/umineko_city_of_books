@@ -114,7 +114,12 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
             const errors: string[] = [];
             const valid: File[] = [];
             for (const file of pasted) {
-                const err = validateFileSize(file, siteInfo.max_image_size, siteInfo.max_video_size);
+                const err = validateFileSize(
+                    file,
+                    siteInfo.max_image_size,
+                    siteInfo.max_video_size,
+                    siteInfo.max_audio_size,
+                );
                 if (err) {
                     errors.push(err);
                 } else {
@@ -128,7 +133,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 setFiles(prev => [...prev, ...valid]);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size],
+        [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
     return (

@@ -12,6 +12,7 @@ import {
 } from "./client";
 import { clearAuthToken } from "../utils/authToken";
 import type {
+    LinkPreview,
     ActivityListResponse,
     AdminIPMatches,
     AdminStats,
@@ -155,6 +156,8 @@ export interface SiteInfo {
     chatbot_require_permission: boolean;
     max_image_size: number;
     max_video_size: number;
+    max_audio_size: number;
+    new_account_hours: number;
     top_detective_ids: string[];
     top_gm_ids: string[];
     top_chess_ids: string[];
@@ -2478,6 +2481,11 @@ export async function getSidebarLastVisited(): Promise<SidebarLastVisitedRespons
 
 export async function markSidebarVisited(key: string): Promise<void> {
     await apiPost<unknown, MarkSidebarVisitedRequest>("/sidebar/last-visited", { key });
+}
+
+export async function getLinkPreview(url: string): Promise<LinkPreview> {
+    const qs = buildQueryString({ url });
+    return apiFetch<LinkPreview>(`/link-preview${qs}`);
 }
 
 export async function quickSearch(q: string, perType: number = 3): Promise<QuickSearchResponse> {

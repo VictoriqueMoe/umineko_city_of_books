@@ -45,7 +45,7 @@ func scanAnnouncementRow(scanner interface {
 }
 
 func (r *announcementDAO) AddCommentMedia(ctx context.Context, spec repository.NewAnnouncementCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
 }
 
 func (r *announcementDAO) Create(ctx context.Context, authorID uuid.UUID, title string, body string, tx ...*sql.Tx) (*repository.AnnouncementRow, error) {

@@ -4,9 +4,11 @@ import (
 	"context"
 	"slices"
 
+	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
 )
@@ -20,24 +22,40 @@ type (
 		IsBanned(ctx context.Context, userID uuid.UUID) bool
 		IsLocked(ctx context.Context, userID uuid.UUID) bool
 		RequiresEmailVerification(ctx context.Context, userID uuid.UUID) bool
+		IsRestrictedNewAccount(ctx context.Context, userID uuid.UUID) bool
 	}
 
 	service struct {
-		roleRepo repository.RoleRepository
-		userRepo repository.UserRepository
-		permRepo repository.PermissionRepository
+		roleRepo    repository.RoleRepository
+		userRepo    repository.UserRepository
+		permRepo    repository.PermissionRepository
+		settingsSvc settings.Service
 	}
 )
 
-func NewService(roleRepo repository.RoleRepository, userRepo repository.UserRepository, permRepo repository.PermissionRepository) Service {
-	return &service{roleRepo: roleRepo, userRepo: userRepo, permRepo: permRepo}
+func NewService(roleRepo repository.RoleRepository, userRepo repository.UserRepository, permRepo repository.PermissionRepository, settingsSvc settings.Service) Service {
+	return &service{roleRepo: roleRepo, userRepo: userRepo, permRepo: permRepo, settingsSvc: settingsSvc}
+}
+
+func (s *service) IsRestrictedNewAccount(ctx context.Context, userID uuid.UUID) bool {
+	hours := s.settingsSvc.GetInt(ctx, config.SettingNewAccountHours)
+	if hours <= 0 {
+		return false
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil || user == nil {
+		return false
+	}
+
+	return !role.Role(user.Role).IsSiteStaff() && user.IsNewAccount(hours)
 }
 
 func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
 	banned, err := s.userRepo.IsBanned(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check ban status")
-		return false
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check ban status, treating the account as restricted")
+		return true
 	}
 	return banned
 }
@@ -45,8 +63,8 @@ func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
 func (s *service) IsLocked(ctx context.Context, userID uuid.UUID) bool {
 	locked, err := s.userRepo.IsLocked(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check lock status")
-		return false
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check lock status, treating the account as restricted")
+		return true
 	}
 	return locked
 }
@@ -54,8 +72,8 @@ func (s *service) IsLocked(ctx context.Context, userID uuid.UUID) bool {
 func (s *service) RequiresEmailVerification(ctx context.Context, userID uuid.UUID) bool {
 	blocked, err := s.userRepo.RequiresEmailVerification(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check email verification status")
-		return false
+		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check email verification status, treating the account as restricted")
+		return true
 	}
 	return blocked
 }

@@ -129,6 +129,7 @@ export const queryKeys = {
         search: (params: Record<string, unknown>) => ["quotes", "search", params] as const,
         browse: (params: Record<string, unknown>) => ["quotes", "browse", params] as const,
     },
+    linkPreview: (url: string) => ["link-preview", url] as const,
     search: {
         quick: (query: string) => ["search", "quick", query] as const,
         room: (roomId: string, query: string, limit: number, offset: number) =>

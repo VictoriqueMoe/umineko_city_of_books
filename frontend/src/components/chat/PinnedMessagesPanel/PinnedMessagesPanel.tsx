@@ -6,6 +6,7 @@ import { useUnpinChatMessage } from "../../../api/mutations/chat";
 import { queryKeys } from "../../../api/queryKeys";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { renderRich } from "../../../utils/richText";
+import { AudioAttachment } from "../../AudioAttachment/AudioAttachment";
 import styles from "./PinnedMessagesPanel.module.css";
 
 interface PinnedMessagesPanelProps {
@@ -128,7 +129,13 @@ export function PinnedMessagesPanel({
                                     {m.media && m.media.length > 0 && (
                                         <div className={styles.pinMedia}>
                                             {m.media.map(media =>
-                                                media.media_type === "video" ? (
+                                                media.media_type === "audio" ? (
+                                                    <AudioAttachment
+                                                        key={media.id}
+                                                        src={media.media_url}
+                                                        filename={media.filename}
+                                                    />
+                                                ) : media.media_type === "video" ? (
                                                     <video
                                                         key={media.id}
                                                         className={`${styles.pinMediaItem} ${styles.pinMediaItemVideo}`}

@@ -58,7 +58,7 @@ func (s *Service) setupDeleteOC(r fiber.Router) {
 }
 
 func (s *Service) setupUploadOCImage(r fiber.Router) {
-	r.Post("/ocs/:id/image", s.requireAuth(), s.uploadOCImage)
+	r.Post("/ocs/:id/image", s.requireAuth(), s.requireEstablished(), s.uploadOCImage)
 }
 
 func (s *Service) setupAddOCGalleryImage(r fiber.Router) {
@@ -102,7 +102,7 @@ func (s *Service) setupUnlikeOCComment(r fiber.Router) {
 }
 
 func (s *Service) setupUploadOCCommentMedia(r fiber.Router) {
-	r.Post("/oc-comments/:id/media", s.requireAuth(), s.uploadOCCommentMedia)
+	r.Post("/oc-comments/:id/media", s.requireAuth(), s.requireEstablished(), s.uploadOCCommentMedia)
 }
 
 func (s *Service) setupListUserOCs(r fiber.Router) {

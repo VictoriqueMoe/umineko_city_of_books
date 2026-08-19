@@ -68,6 +68,7 @@ type (
 			commentID uuid.UUID,
 			userID uuid.UUID,
 			contentType string,
+			filename string,
 			fileSize int64,
 			reader io.Reader,
 		) (*dto.PostMediaResponse, error)
@@ -526,6 +527,7 @@ func (s *service) UploadCommentMedia(
 	commentID uuid.UUID,
 	userID uuid.UUID,
 	contentType string,
+	filename string,
 	fileSize int64,
 	reader io.Reader,
 ) (*dto.PostMediaResponse, error) {
@@ -537,13 +539,14 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "ships", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+	return s.uploader.SaveAndRecord(ctx, "ships", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.shipRepo.AddCommentMedia(ctx, repository.NewShipCommentMedia{
 				CommentID:    commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
+				Filename:     filename,
 				SortOrder:    sortOrder,
 			})
 		},

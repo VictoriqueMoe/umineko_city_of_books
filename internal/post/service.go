@@ -36,7 +36,7 @@ type (
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
-		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
@@ -45,9 +45,8 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
-		RefreshStaleEmbeds(ctx context.Context) int
 		VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error)
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error
 		UnresolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error
@@ -192,8 +191,6 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 		go s.notifyContentShared(userID, id, req.SharedContentID, req.SharedContentType)
 	}
 
-	go social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
-
 	if corner == "suggestions" {
 		go s.notifySuggestionPosted(userID, id)
 	} else {
@@ -223,21 +220,17 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
 	postMedia, _ := s.postRepo.GetMedia(ctx, id)
-	postEmbeds, _ := s.postRepo.GetEmbeds(ctx, id.String(), "post")
 	comments, _, _ := s.postRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
 
 	var commentIDs []uuid.UUID
-	var commentIDStrs []string
 	for _, c := range comments {
 		commentIDs = append(commentIDs, c.ID)
-		commentIDStrs = append(commentIDStrs, c.ID.String())
 	}
 	commentMediaMap, _ := s.postRepo.GetCommentMediaBatch(ctx, commentIDs)
-	commentEmbedMap, _ := s.postRepo.GetEmbedsBatch(ctx, commentIDStrs, "comment")
 
 	flatComments := make([]dto.PostCommentResponse, len(comments))
 	for i, c := range comments {
-		flatComments[i] = postCommentToResponse(c, commentMediaMap[c.ID], commentEmbedMap[c.ID.String()])
+		flatComments[i] = postCommentToResponse(c, commentMediaMap[c.ID])
 	}
 	dtoComments := utils.BuildTree(flatComments,
 		func(c dto.PostCommentResponse) uuid.UUID { return c.ID },
@@ -262,7 +255,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
 	}
 
-	postResp := row.ToResponse(postMedia, postEmbeds)
+	postResp := row.ToResponse(postMedia)
 	pollRow, pollOptions, votedOption, _ := s.postRepo.GetPollByPostID(ctx, id, viewerID)
 	if pollRow != nil {
 		postResp.Poll = pollRow.ToResponse(pollOptions, votedOption)
@@ -311,8 +304,6 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	if asAdmin {
 		go s.notifyContentEdited(ctx, id, "post", userID)
 	}
-
-	go social.ProcessEmbeds(s.postRepo, id.String(), "post", body)
 
 	return nil
 }
@@ -401,7 +392,6 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}
 
 	mediaMap, _ := s.postRepo.GetMediaBatch(ctx, postIDs)
-	embedMap, _ := s.postRepo.GetEmbedsBatch(ctx, postIDStrs, "post")
 	pollMap, pollOptionMap, pollVoteMap, _ := s.postRepo.GetPollsByPostIDs(ctx, postIDs, viewerID)
 
 	var sharedRefs []repository.SharedContentRef
@@ -419,7 +409,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 
 	posts := make([]dto.PostResponse, len(rows))
 	for i, r := range rows {
-		posts[i] = r.ToResponse(mediaMap[r.ID], embedMap[r.ID.String()])
+		posts[i] = r.ToResponse(mediaMap[r.ID])
 		if p, ok := pollMap[r.ID]; ok {
 			posts[i].Poll = p.ToResponse(pollOptionMap[r.ID], pollVoteMap[r.ID])
 		}
@@ -440,7 +430,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}
 }
 
-func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -449,13 +439,14 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, fmt.Errorf("not the post author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "posts", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.postRepo.AddMedia(ctx, repository.NewPostMedia{
 				PostID:       postID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
+				Filename:     filename,
 				SortOrder:    sortOrder,
 			})
 		},
@@ -482,7 +473,7 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 	return nil
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -491,13 +482,14 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "posts", contentType, fileSize, reader,
-		func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader,
+		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.postRepo.AddCommentMedia(ctx, repository.NewPostCommentMedia{
 				CommentID:    commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
+				Filename:     filename,
 				SortOrder:    sortOrder,
 			})
 		},
@@ -596,7 +588,6 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 
 	s.broadcastCommentAdded(postID, id)
 
-	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
 	go social.ProcessMentions(s.userRepo, s.blockSvc, s.notifService, s.settingsSvc, userID, body, postID, fmt.Sprintf("post_comment:%s", id), fmt.Sprintf("/game-board/%s#comment-%s", postID, id))
 	go s.observeForBot(postID, new(id), userID, body, req.ParentID)
 
@@ -692,8 +683,6 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if asAdmin {
 		go s.notifyCommentEdited(ctx, id, "post", userID)
 	}
-
-	go social.ProcessEmbeds(s.postRepo, id.String(), "comment", body)
 
 	return nil
 }
@@ -881,31 +870,6 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 	return pollRow.ToResponse(options, votedOption), nil
 }
 
-func (s *service) RefreshStaleEmbeds(ctx context.Context) int {
-	stale, err := s.postRepo.GetStaleEmbeds(ctx, "-1 day", 50)
-	if err != nil {
-		return 0
-	}
-	refreshed := 0
-	for _, e := range stale {
-		embed := media.ParseEmbed(e.URL)
-		if embed == nil {
-			continue
-		}
-		if embed.Type == "link" {
-			_ = s.postRepo.UpdateEmbed(ctx, repository.EmbedUpdate{
-				ID:          e.ID,
-				Title:       embed.Title,
-				Description: embed.Desc,
-				Image:       embed.Image,
-				SiteName:    embed.SiteName,
-			})
-			refreshed++
-		}
-	}
-	return refreshed
-}
-
 func newPollSpec(poll *dto.CreatePollInput) *repository.NewPoll {
 	labels := make([]string, len(poll.Options))
 	for i := range poll.Options {
@@ -1018,7 +982,7 @@ func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, cont
 	})
 }
 
-func postCommentToResponse(c repository.CommentRow, media []model.PostMediaRow, embeds []model.EmbedRow) dto.PostCommentResponse {
+func postCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.PostCommentResponse {
 	return dto.PostCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,
@@ -1032,7 +996,6 @@ func postCommentToResponse(c repository.CommentRow, media []model.PostMediaRow, 
 		},
 		Body:      c.Body,
 		Media:     model.MediaRowsToResponse(media),
-		Embeds:    model.EmbedRowsToResponse(embeds),
 		LikeCount: c.LikeCount,
 		UserLiked: c.UserLiked,
 		CreatedAt: c.CreatedAt,

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -80,7 +81,7 @@ func TestInviteDAO_MarkUsed(t *testing.T) {
 	assert.NotEmpty(t, *inv.UsedAt)
 }
 
-func TestInviteDAO_MarkUsed_UnknownCodeNoError(t *testing.T) {
+func TestInviteDAO_MarkUsed_UnknownCodeIsRejected(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
@@ -88,8 +89,31 @@ func TestInviteDAO_MarkUsed_UnknownCodeNoError(t *testing.T) {
 	// when
 	err := repos.Invite.MarkUsed(context.Background(), "no-such-code", user.ID)
 
-	// then
-	require.NoError(t, err)
+	// then a code that cannot be claimed must never look like a success
+	require.ErrorIs(t, err, repository.ErrInviteUnavailable)
+}
+
+func TestInviteDAO_MarkUsed_SecondClaimOfTheSameCodeIsRejected(t *testing.T) {
+	// given an invite already redeemed by one member
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	first := daotest.CreateUser(t, repos)
+	second := daotest.CreateUser(t, repos)
+
+	code := "single-use-code"
+	require.NoError(t, repos.Invite.Create(context.Background(), code, owner.ID))
+	require.NoError(t, repos.Invite.MarkUsed(context.Background(), code, first.ID))
+
+	// when a second member races for the same code
+	err := repos.Invite.MarkUsed(context.Background(), code, second.ID)
+
+	// then the claim is refused and the original redeemer is preserved
+	require.ErrorIs(t, err, repository.ErrInviteUnavailable)
+
+	invite, getErr := repos.Invite.GetByCode(context.Background(), code)
+	require.NoError(t, getErr)
+	require.NotNil(t, invite.UsedBy)
+	assert.Equal(t, first.ID, *invite.UsedBy)
 }
 
 func TestInviteDAO_List(t *testing.T) {

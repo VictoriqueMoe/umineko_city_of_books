@@ -2,7 +2,6 @@ package social
 
 import (
 	"errors"
-	"strings"
 	"testing"
 	"umineko_city_of_books/internal/block"
 
@@ -49,49 +48,6 @@ func TestMentionRegex_MatchesUsernames(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
-}
-
-func TestProcessEmbeds_SkipsUnparseable(t *testing.T) {
-	// given
-	postRepo := repository.NewMockPostRepository(t)
-	ownerID := uuid.NewString()
-
-	// when
-	ProcessEmbeds(postRepo, ownerID, "post", "no urls here")
-
-	// then — no mock calls expected
-}
-
-func TestProcessEmbeds_AddsEmbedsForValidURLs(t *testing.T) {
-	// given
-	postRepo := repository.NewMockPostRepository(t)
-	ownerID := uuid.NewString()
-	postRepo.EXPECT().AddEmbed(mock.Anything, mock.MatchedBy(func(spec repository.NewEmbed) bool {
-		return spec.OwnerID == ownerID && spec.OwnerType == "post"
-	})).Return(nil).Maybe()
-
-	// when
-	ProcessEmbeds(postRepo, ownerID, "post", "check this https://youtube.com/watch?v=dQw4w9WgXcQ")
-
-	// then — embed attempt made, errors swallowed
-}
-
-func TestProcessEmbeds_CapsAtFiveURLs(t *testing.T) {
-	// given
-	postRepo := repository.NewMockPostRepository(t)
-	ownerID := uuid.NewString()
-	body := "https://a.com https://b.com https://c.com https://d.com https://e.com https://f.com https://g.com"
-	postRepo.EXPECT().AddEmbed(mock.Anything, mock.MatchedBy(func(spec repository.NewEmbed) bool {
-		return spec.OwnerID == ownerID && spec.OwnerType == "post"
-	})).Return(nil).Maybe()
-
-	// when
-	ProcessEmbeds(postRepo, ownerID, "post", body)
-
-	// then — mockery verifies no more than the number of parseable embeds were attempted;
-	// the important invariant (i>=5 break) is exercised because the 6th and 7th URLs
-	// are never parsed. We assert by running with no failure.
-	_ = strings.Split(body, " ")
 }
 
 func TestProcessMentions_NoMentionsDoesNothing(t *testing.T) {

@@ -2,6 +2,7 @@ package model
 
 import (
 	"strings"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/role"
@@ -89,6 +90,19 @@ func (u *User) DisplayLabel() string {
 	return "A user"
 }
 
+func (u *User) IsNewAccount(hours int) bool {
+	if u == nil || hours <= 0 {
+		return false
+	}
+
+	created := ParseTime(u.CreatedAt)
+	if created.IsZero() {
+		return false
+	}
+
+	return time.Since(created) < time.Duration(hours)*time.Hour
+}
+
 func (u *User) ToResponse() *dto.UserResponse {
 	return &dto.UserResponse{
 		ID:          u.ID,
@@ -96,6 +110,7 @@ func (u *User) ToResponse() *dto.UserResponse {
 		DisplayName: u.DisplayName,
 		AvatarURL:   u.AvatarURL,
 		Role:        role.Role(u.Role),
+		CreatedAt:   u.CreatedAt,
 		Banned:      u.BannedAt != nil,
 		BanReason:   u.BanReason,
 		Locked:      u.LockedAt != nil,

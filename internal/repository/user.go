@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 	"umineko_city_of_books/internal/repository/model"
@@ -181,6 +182,10 @@ func (r *userRepository) RegisterAccount(ctx context.Context, spec NewRegistrati
 
 		if spec.InviteCode != "" {
 			if err := r.invites.MarkUsed(ctx, spec.InviteCode, created.ID, tx); err != nil {
+				if errors.Is(err, ErrInviteUnavailable) {
+					return err
+				}
+
 				return fmt.Errorf("mark invite as used: %w", err)
 			}
 		}

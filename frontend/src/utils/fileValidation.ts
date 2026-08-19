@@ -8,12 +8,25 @@ function formatSize(bytes: number): string {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function validateFileSize(file: File, maxImageSize: number, maxVideoSize: number): string | null {
-    const isVideo = file.type.startsWith("video/");
-    const maxSize = isVideo ? maxVideoSize : maxImageSize;
+export function validateFileSize(
+    file: File,
+    maxImageSize: number,
+    maxVideoSize: number,
+    maxAudioSize?: number,
+): string | null {
+    let kind = "image";
+    let maxSize = maxImageSize;
+
+    if (file.type.startsWith("video/")) {
+        kind = "video";
+        maxSize = maxVideoSize;
+    } else if (file.type.startsWith("audio/") && maxAudioSize) {
+        kind = "audio";
+        maxSize = maxAudioSize;
+    }
 
     if (file.size > maxSize) {
-        return `${file.name} is too large (${formatSize(file.size)}). Maximum ${isVideo ? "video" : "image"} size is ${formatSize(maxSize)}.`;
+        return `${file.name} is too large (${formatSize(file.size)}). Maximum ${kind} size is ${formatSize(maxSize)}.`;
     }
 
     return null;

@@ -42,11 +42,11 @@ func (s *Service) setupUpdateProfileRoute(r fiber.Router) {
 }
 
 func (s *Service) setupUploadAvatarRoute(r fiber.Router) {
-	r.Post("/auth/avatar", s.requireAuth(), s.uploadAvatar)
+	r.Post("/auth/avatar", s.requireAuth(), s.requireEstablished(), s.uploadAvatar)
 }
 
 func (s *Service) setupUploadBannerRoute(r fiber.Router) {
-	r.Post("/auth/banner", s.requireAuth(), s.uploadBanner)
+	r.Post("/auth/banner", s.requireAuth(), s.requireEstablished(), s.uploadBanner)
 }
 
 func (s *Service) setupChangePasswordRoute(r fiber.Router) {

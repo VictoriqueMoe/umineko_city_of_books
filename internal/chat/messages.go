@@ -598,16 +598,20 @@ func (m *messagesService) GetRoomsByUser(ctx context.Context, userID uuid.UUID) 
 }
 
 func (m *messagesService) validateMediaFile(ctx context.Context, f FileUpload) error {
-	isVideo := strings.HasPrefix(f.ContentType, "video/")
-
 	var maxSize int64
 	var allowed map[string]string
 	var typeErr error
-	if isVideo {
+
+	switch {
+	case strings.HasPrefix(f.ContentType, "video/"):
 		maxSize = int64(m.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize))
 		allowed = upload.AllowedVideoTypes
 		typeErr = upload.ErrInvalidVideoType
-	} else {
+	case strings.HasPrefix(f.ContentType, "audio/"):
+		maxSize = int64(m.settingsSvc.GetInt(ctx, config.SettingMaxAudioSize))
+		allowed = upload.AllowedAudioTypes
+		typeErr = upload.ErrInvalidAudioType
+	default:
 		maxSize = int64(m.settingsSvc.GetInt(ctx, config.SettingMaxImageSize))
 		allowed = upload.AllowedImageTypes
 		typeErr = upload.ErrInvalidFileType
@@ -660,13 +664,14 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		if err != nil {
 			return nil, fmt.Errorf("open media: %w", err)
 		}
-		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Size, r,
-			func(mediaURL, mediaType, thumbURL string, sortOrder int) (int64, error) {
+		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r,
+			func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 				return m.chatRepo.AddMessageMedia(ctx, repository.NewChatMessageMedia{
 					MessageID:    messageID,
 					MediaURL:     mediaURL,
 					MediaType:    mediaType,
 					ThumbnailURL: thumbURL,
+					Filename:     filename,
 					SortOrder:    sortOrder,
 					Width:        width,
 					Height:       height,

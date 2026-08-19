@@ -150,6 +150,10 @@ func (h *Harness) expectSessionResolves(cookie string, userID uuid.UUID, banned 
 		IsLocked(mock.Anything, userID).
 		Return(false).
 		Maybe()
+	h.AuthzService.EXPECT().
+		IsRestrictedNewAccount(mock.Anything, userID).
+		Return(false).
+		Maybe()
 }
 
 func (h *Harness) ExpectValidSession(cookie string, userID uuid.UUID) {

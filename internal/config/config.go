@@ -71,8 +71,11 @@ var (
 	SettingMaxImageSize            = &SiteSettingDef{"max_image_size", "10485760", TypeInt, false}
 	SettingMaxImagePixels          = &SiteSettingDef{"max_image_pixels", "100000000", TypeInt, false}
 	SettingMaxVideoSize            = &SiteSettingDef{"max_video_size", "104857600", TypeInt, false}
+	SettingMaxAudioSize            = &SiteSettingDef{"max_audio_size", "26214400", TypeInt, false}
 	SettingMaxGeneralSize          = &SiteSettingDef{"max_general_size", "52428800", TypeInt, false}
 	SettingRegistrationType        = &SiteSettingDef{"registration_type", "open", TypeString, false}
+	SettingNewAccountHours         = &SiteSettingDef{"new_account_hours", "24", TypeInt, false}
+	SettingMetricsToken            = &SiteSettingDef{"metrics_token", "", TypeString, true}
 	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool, false}
 	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString, false}
 	SettingMaintenanceMessage      = &SiteSettingDef{"maintenance_message", "", TypeString, false}
@@ -138,6 +141,7 @@ var (
 	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString, false}
 	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString, false}
 	SettingValkeyURL               = &SiteSettingDef{"valkey_url", "", TypeString, true}
+	SettingCacheInMemoryMaxMB      = &SiteSettingDef{"cache_in_memory_max_mb", "128", TypeInt, false}
 
 	SettingChatbotEnabled              = &SiteSettingDef{"chatbot_enabled", "false", TypeBool, false}
 	SettingChatbotAPIKey               = &SiteSettingDef{"chatbot_api_key", "", TypeString, true}
@@ -165,8 +169,11 @@ var (
 		SettingMaxImageSize,
 		SettingMaxImagePixels,
 		SettingMaxVideoSize,
+		SettingMaxAudioSize,
 		SettingMaxGeneralSize,
 		SettingRegistrationType,
+		SettingNewAccountHours,
+		SettingMetricsToken,
 		SettingMaintenanceMode,
 		SettingMaintenanceTitle,
 		SettingMaintenanceMessage,
@@ -232,6 +239,7 @@ var (
 		SettingAppDownloadURL,
 		SettingOGDefaultImage,
 		SettingValkeyURL,
+		SettingCacheInMemoryMaxMB,
 		SettingChatbotEnabled,
 		SettingChatbotAPIKey,
 		SettingChatbotAdminKey,
@@ -353,6 +361,7 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	maxImage := getInt(SettingMaxImageSize.Key)
 	maxImagePixels := getInt(SettingMaxImagePixels.Key)
 	maxVideo := getInt(SettingMaxVideoSize.Key)
+	maxAudio := getInt(SettingMaxAudioSize.Key)
 	maxGeneral := getInt(SettingMaxGeneralSize.Key)
 	minPassword := getInt(SettingMinPasswordLength.Key)
 	sessionDays := getInt(SettingSessionDurationDays.Key)
@@ -376,6 +385,12 @@ func ValidateSettings(all map[SiteSettingKey]string) error {
 	}
 	if maxVideo > maxBody {
 		return fmt.Errorf("max video size (%d) cannot exceed max body size (%d)", maxVideo, maxBody)
+	}
+	if maxAudio <= 0 {
+		return fmt.Errorf("max audio size must be greater than 0")
+	}
+	if maxAudio > maxBody {
+		return fmt.Errorf("max audio size (%d) cannot exceed max body size (%d)", maxAudio, maxBody)
 	}
 	if maxGeneral <= 0 {
 		return fmt.Errorf("max general size must be greater than 0")
