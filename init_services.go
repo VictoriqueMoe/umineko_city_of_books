@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io/fs"
+	"net"
 	"os"
 	"path/filepath"
 	"umineko_city_of_books/internal/notification/push"
@@ -23,6 +24,7 @@ import (
 	newaccountlinksrule "umineko_city_of_books/internal/contentfilter/rules/newaccountlinks"
 	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/credibility"
+	"umineko_city_of_books/internal/dronebl"
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
@@ -211,6 +213,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		block:           blockSvc,
 		email:           emailSvc,
 		session:         sessionMgr,
+		dronebl:         dronebl.New(settingsSvc, cacheManager, net.DefaultResolver),
 		upload:          uploadSvc,
 		hub:             hub,
 		mediaProc:       mediaProc,

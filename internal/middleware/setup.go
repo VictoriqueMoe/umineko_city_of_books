@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dronebl"
 	appLogger "umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
@@ -56,7 +57,7 @@ func httpStatusToSentry(status int) sentry.SpanStatus {
 	return sentry.SpanStatusUnknown
 }
 
-func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service) {
+func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Manager, authzSvc authz.Service, droneblChecker *dronebl.Checker) {
 	app.Server().MaxRequestBodySize = settingsSvc.GetInt(context.Background(), config.SettingMaxBodySize)
 
 	app.Use(fiberRecover.New(fiberRecover.Config{
@@ -128,6 +129,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		ctx.Locals("client_ip", ip)
 		return ctx.Next()
 	})
+
+	app.Use(RequireCleanIP(droneblChecker, sessionMgr))
 
 	app.Use(func(ctx fiber.Ctx) error {
 		start := time.Now()

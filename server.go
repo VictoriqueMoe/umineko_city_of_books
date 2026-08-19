@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dronebl"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
@@ -103,6 +104,7 @@ type (
 		block           blocksvc.Service
 		email           email.Service
 		session         *session.Manager
+		dronebl         *dronebl.Checker
 		upload          upload.Service
 		hub             *ws.Hub
 		mediaProc       *media.Processor
@@ -177,7 +179,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 		AppName:            siteName,
 	})
 
-	middleware.Setup(app, settingsSvc, svc.session, svc.authz)
+	middleware.Setup(app, settingsSvc, svc.session, svc.authz, svc.dronebl)
 	app.Use(middleware.Metrics())
 	app.Get("/metrics", middleware.RequireMetricsToken(settingsSvc), middleware.MetricsHandler())
 	registerPprofRoutes(app, svc.session, svc.authz)

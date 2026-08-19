@@ -75,6 +75,9 @@ var (
 	SettingMaxGeneralSize          = &SiteSettingDef{"max_general_size", "52428800", TypeInt, false}
 	SettingRegistrationType        = &SiteSettingDef{"registration_type", "open", TypeString, false}
 	SettingNewAccountHours         = &SiteSettingDef{"new_account_hours", "24", TypeInt, false}
+	SettingDroneBLEnabled          = &SiteSettingDef{"dronebl_enabled", "false", TypeBool, false}
+	SettingDroneBLAllowlist        = &SiteSettingDef{"dronebl_allowlist", "", TypeString, false}
+	SettingDroneBLIgnoredClasses   = &SiteSettingDef{"dronebl_ignored_classes", "", TypeString, false}
 	SettingMetricsToken            = &SiteSettingDef{"metrics_token", "", TypeString, true}
 	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool, false}
 	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString, false}
@@ -173,6 +176,9 @@ var (
 		SettingMaxGeneralSize,
 		SettingRegistrationType,
 		SettingNewAccountHours,
+		SettingDroneBLEnabled,
+		SettingDroneBLAllowlist,
+		SettingDroneBLIgnoredClasses,
 		SettingMetricsToken,
 		SettingMaintenanceMode,
 		SettingMaintenanceTitle,

@@ -313,6 +313,49 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>DroneBL</h2>
+                <div className={styles.fieldGroup}>
+                    <ToggleSwitch
+                        label="Enable DroneBL"
+                        description="Refuse requests from addresses listed on the DroneBL public abuse blocklist. Signed-in members are never blocked, and a blocked visitor can still reach the login page."
+                        enabled={settings.dronebl_enabled === "true"}
+                        onChange={v => toggleField("dronebl_enabled", v)}
+                    />
+                    {settings.dronebl_enabled === "true" && (
+                        <>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Ignored Classes</span>
+                                <Input
+                                    value={settings.dronebl_ignored_classes ?? ""}
+                                    onChange={e => updateField("dronebl_ignored_classes", e.target.value)}
+                                    fullWidth
+                                    placeholder="13"
+                                />
+                                <span className={styles.fieldHint}>
+                                    Comma separated DroneBL classes that should not block. Leave empty to block any
+                                    listing. Class 13 (brute force attackers) is the usual source of false positives on
+                                    recycled home addresses.
+                                </span>
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Allowlist</span>
+                                <Input
+                                    value={settings.dronebl_allowlist ?? ""}
+                                    onChange={e => updateField("dronebl_allowlist", e.target.value)}
+                                    fullWidth
+                                    placeholder="203.0.113.4, 2600:387:15:4015::/64"
+                                />
+                                <span className={styles.fieldHint}>
+                                    Comma separated addresses or CIDR ranges that are never checked. Put your own
+                                    address here so a false positive cannot lock you out of this page.
+                                </span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>Turnstile (Cloudflare)</h2>
                 <div className={styles.fieldGroup}>
                     <ToggleSwitch
