@@ -15,7 +15,6 @@ import (
 	"umineko_city_of_books/internal/authz"
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
-	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/chatbot"
 	"umineko_city_of_books/internal/config"
@@ -25,6 +24,7 @@ import (
 	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/dronebl"
+	"umineko_city_of_books/internal/dronebl/feed"
 	"umineko_city_of_books/internal/email"
 	fanficsvc "umineko_city_of_books/internal/fanfic"
 	"umineko_city_of_books/internal/follow"
@@ -127,8 +127,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	chatSvc.SetMessageObserver(chatbotSvc)
 	postSvc.SetCommentObserver(chatbotSvc)
 	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.ChatbotBasePrompt, repos.AuditLog, userSvc, openaiSvc, chatbotSvc)
-	settingsSvc.RegisterValidator(config.SettingChatbotModel, chatbot.ModelValidator(openaiSvc))
-	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
 	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
 	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
@@ -186,6 +184,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		baseURL,
 	)
 	ogImageSvc := og.NewImageService(cacheManager)
+	crawlerFeeds := feed.New(settingsSvc, cacheManager)
 
 	return &services{
 		settings:        settingsSvc,
@@ -213,7 +212,8 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		block:           blockSvc,
 		email:           emailSvc,
 		session:         sessionMgr,
-		dronebl:         dronebl.New(settingsSvc, cacheManager, net.DefaultResolver),
+		crawlerFeeds:    crawlerFeeds,
+		dronebl:         dronebl.New(settingsSvc, cacheManager, net.DefaultResolver, crawlerFeeds),
 		upload:          uploadSvc,
 		hub:             hub,
 		mediaProc:       mediaProc,
@@ -244,7 +244,6 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 }
 
 func initCache(manager *cache.Manager, settingsSvc settings.Service) {
-	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
 
 	url := settingsSvc.Get(context.Background(), config.SettingValkeyURL)
 	maxMB := settingsSvc.GetInt(context.Background(), config.SettingCacheInMemoryMaxMB)

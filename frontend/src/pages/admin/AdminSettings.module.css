@@ -230,3 +230,41 @@
     color: var(--gold);
     opacity: 0.6;
 }
+
+.feedList {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin: 0.4rem 0;
+}
+
+.feedRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.feedRow > *:first-child {
+    flex: 0 0 8rem;
+}
+
+.feedRow > *:nth-child(2) {
+    flex: 1;
+    min-width: 14rem;
+}
+
+.feedRemove {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+    cursor: pointer;
+}
+
+.feedRemove:hover {
+    color: var(--rose);
+}

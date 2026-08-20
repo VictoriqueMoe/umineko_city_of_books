@@ -47,6 +47,10 @@ const (
 	TypeInt
 )
 
+const defaultCrawlerFeeds = "bing=https://www.bing.com/toolbox/bingbot.json\n" +
+	"google=https://developers.google.com/static/search/apis/ipranges/googlebot.json\n" +
+	"apple=https://search.developer.apple.com/applebot.json"
+
 const (
 	EmailProviderSMTP       EmailProvider = "smtp"
 	EmailProviderCloudflare EmailProvider = "cloudflare"
@@ -75,9 +79,11 @@ var (
 	SettingMaxGeneralSize          = &SiteSettingDef{"max_general_size", "52428800", TypeInt, false}
 	SettingRegistrationType        = &SiteSettingDef{"registration_type", "open", TypeString, false}
 	SettingNewAccountHours         = &SiteSettingDef{"new_account_hours", "24", TypeInt, false}
+	SettingPrivateMode             = &SiteSettingDef{"private_mode", "false", TypeBool, false}
 	SettingDroneBLEnabled          = &SiteSettingDef{"dronebl_enabled", "false", TypeBool, false}
 	SettingDroneBLAllowlist        = &SiteSettingDef{"dronebl_allowlist", "", TypeString, false}
 	SettingDroneBLIgnoredClasses   = &SiteSettingDef{"dronebl_ignored_classes", "", TypeString, false}
+	SettingCrawlerFeeds            = &SiteSettingDef{"crawler_feeds", defaultCrawlerFeeds, TypeString, false}
 	SettingMetricsToken            = &SiteSettingDef{"metrics_token", "", TypeString, true}
 	SettingMaintenanceMode         = &SiteSettingDef{"maintenance_mode", "false", TypeBool, false}
 	SettingMaintenanceTitle        = &SiteSettingDef{"maintenance_title", "", TypeString, false}
@@ -176,9 +182,11 @@ var (
 		SettingMaxGeneralSize,
 		SettingRegistrationType,
 		SettingNewAccountHours,
+		SettingPrivateMode,
 		SettingDroneBLEnabled,
 		SettingDroneBLAllowlist,
 		SettingDroneBLIgnoredClasses,
+		SettingCrawlerFeeds,
 		SettingMetricsToken,
 		SettingMaintenanceMode,
 		SettingMaintenanceTitle,

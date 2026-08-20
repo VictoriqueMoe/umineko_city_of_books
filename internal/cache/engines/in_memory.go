@@ -19,7 +19,6 @@ const (
 	maxInMemoryMaxMB        = 4096
 	defaultInMemoryMaxBytes = defaultInMemoryMaxMB * bytesPerMB
 	entryOverheadBytes      = 192
-	unboundedTTLCeiling     = time.Minute
 )
 
 type (
@@ -70,7 +69,7 @@ func (c *InMemory) Get(_ context.Context, key string) ([]byte, error) {
 	}
 
 	entry := el.Value.(*inMemoryEntry)
-	if c.now().After(entry.expiresAt) {
+	if !entry.expiresAt.IsZero() && c.now().After(entry.expiresAt) {
 		c.drop(el)
 
 		return nil, engine.ErrMiss
@@ -158,11 +157,10 @@ func (c *InMemory) drop(el *list.Element) {
 }
 
 func (c *InMemory) store(key string, data []byte, ttl time.Duration) {
-	if ttl <= 0 {
-		ttl = unboundedTTLCeiling
+	var expiresAt time.Time
+	if ttl > 0 {
+		expiresAt = c.now().Add(ttl)
 	}
-
-	expiresAt := c.now().Add(ttl)
 
 	if el, ok := c.items[key]; ok {
 		entry := el.Value.(*inMemoryEntry)

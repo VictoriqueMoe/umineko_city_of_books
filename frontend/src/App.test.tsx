@@ -470,3 +470,55 @@ describe("App", () => {
         expect(container.querySelector(".app-layout")).toHaveAttribute("data-sidebar-collapsed", "true");
     });
 });
+
+describe("App private mode", () => {
+    const priv = { private_mode: true };
+
+    it("sends a stranger to the login page from anywhere on the site", () => {
+        // given a site locked to members
+        renderApp("/quotes", { siteInfo: priv });
+
+        // then they never reach the page they asked for
+        expect(screen.queryByTestId("page-QuoteBrowserPage")).not.toBeInTheDocument();
+        expect(screen.getByTestId("page-LoginPage")).toBeInTheDocument();
+    });
+
+    it("shows the login page with no sidebar, header or navigation", () => {
+        // given
+        const { container } = renderApp("/login", { siteInfo: priv });
+
+        // then a stranger must not be able to read the site structure either
+        expect(screen.getByTestId("page-LoginPage")).toBeInTheDocument();
+        expect(container.querySelector(".app-layout")).toBeNull();
+        expect(container.querySelector("aside")).toBeNull();
+        expect(container.querySelector("header")).toBeNull();
+    });
+
+    it("still lets somebody recover an account", () => {
+        // given the routes an emailed link lands on
+        for (const route of ["/forgot-password", "/reset-password", "/verify-email"]) {
+            const { unmount } = renderApp(route, { siteInfo: priv });
+
+            // then the recovery flow is not locked behind the login it is trying to restore
+            expect(screen.queryByTestId("page-LoginPage")).not.toBeInTheDocument();
+
+            unmount();
+        }
+    });
+
+    it("leaves a signed in member alone", () => {
+        // given
+        renderApp("/quotes", { user: member, siteInfo: priv });
+
+        // then
+        expect(screen.getByTestId("page-QuoteBrowserPage")).toBeInTheDocument();
+    });
+
+    it("changes nothing while private mode is off", () => {
+        // given the default
+        renderApp("/quotes", { siteInfo: { private_mode: false } });
+
+        // then the site stays public
+        expect(screen.getByTestId("page-QuoteBrowserPage")).toBeInTheDocument();
+    });
+});

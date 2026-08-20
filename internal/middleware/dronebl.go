@@ -143,21 +143,6 @@ func RequireCleanIP(checker *dronebl.Checker, sessionMgr *session.Manager) fiber
 	}
 }
 
-func hasSession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
-	if sessionMgr == nil {
-		return false
-	}
-
-	token := SessionToken(ctx)
-	if token == "" {
-		return false
-	}
-
-	_, err := sessionMgr.Validate(ctx.Context(), token)
-
-	return err == nil
-}
-
 func isStaticAsset(path string) bool {
 	if strings.HasPrefix(path, "/api") || strings.HasPrefix(path, "/uploads") || strings.HasPrefix(path, "/hls") {
 		return false

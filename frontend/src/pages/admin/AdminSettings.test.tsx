@@ -949,3 +949,122 @@ describe("AdminSettings link previews", () => {
         expect(screen.getAllByAltText("Embed preview")).toHaveLength(2);
     });
 });
+
+describe("AdminSettings dronebl", () => {
+    const DRONEBL: SiteSettings = { ...VALID, dronebl_enabled: "true" };
+    const BING = "https://www.bing.com/toolbox/bingbot.json";
+
+    it("keeps the blocklist fields hidden until dronebl is enabled", () => {
+        // given
+        stubSettings({ ...VALID, dronebl_enabled: "false" });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.queryByText("Listings To Ignore")).not.toBeInTheDocument();
+        expect(screen.queryByText("Search Engine Crawlers")).not.toBeInTheDocument();
+    });
+
+    it("saves an ignored class as the number the backend reads", async () => {
+        // given
+        stubSettings(DRONEBL);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("checkbox", { name: /Brute force attackers/ }));
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...DRONEBL, dronebl_ignored_classes: "13" });
+    });
+
+    it("ticks a crawler that is already configured", () => {
+        // given
+        stubSettings({ ...DRONEBL, crawler_feeds: `bing=${BING}` });
+
+        // when
+        renderWithProviders(<AdminSettings />);
+
+        // then
+        expect(screen.getByRole("checkbox", { name: "Bing" })).toBeChecked();
+        expect(screen.getByRole("checkbox", { name: "Google" })).not.toBeChecked();
+    });
+
+    it("writes the published url when a crawler is ticked", async () => {
+        // given
+        stubSettings({ ...DRONEBL, crawler_feeds: "" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("checkbox", { name: "Bing" }));
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then the admin never types the url themselves
+        expect(mocks.update).toHaveBeenCalledWith({ ...DRONEBL, crawler_feeds: `bing=${BING}` });
+    });
+
+    it("unticking a crawler leaves the others alone", async () => {
+        // given
+        const google = "https://developers.google.com/static/search/apis/ipranges/googlebot.json";
+        stubSettings({ ...DRONEBL, crawler_feeds: `bing=${BING}\ngoogle=${google}` });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("checkbox", { name: "Bing" }));
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...DRONEBL, crawler_feeds: `google=${google}` });
+    });
+
+    it("adds a custom feed alongside the ticked ones", async () => {
+        // given
+        stubSettings({ ...DRONEBL, crawler_feeds: `bing=${BING}` });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "+ Add Feed" }));
+        await user.type(screen.getByLabelText("Feed 1 name"), "mine");
+        await user.type(screen.getByLabelText("Feed 1 url"), "https://example.com/r.json");
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({
+            ...DRONEBL,
+            crawler_feeds: `bing=${BING}\nmine=https://example.com/r.json`,
+        });
+    });
+
+    it("keeps a half typed row on screen instead of dropping it", async () => {
+        // given a row whose url is not a valid feed yet
+        stubSettings({ ...DRONEBL, crawler_feeds: "" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "+ Add Feed" }));
+        await user.type(screen.getByLabelText("Feed 1 name"), "mine");
+
+        // then the row survives, because the admin has not finished typing
+        expect(screen.getByLabelText("Feed 1 name")).toHaveValue("mine");
+    });
+
+    it("removes a custom feed", async () => {
+        // given
+        stubSettings({ ...DRONEBL, crawler_feeds: "mine=https://example.com/r.json" });
+        const user = userEvent.setup();
+        renderWithProviders(<AdminSettings />);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Remove feed 1" }));
+        await user.click(screen.getByRole("button", { name: "Save Settings" }));
+
+        // then
+        expect(mocks.update).toHaveBeenCalledWith({ ...DRONEBL, crawler_feeds: "" });
+    });
+});

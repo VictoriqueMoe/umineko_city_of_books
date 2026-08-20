@@ -140,6 +140,7 @@ func (s *Service) GetPageRoutes() []FSetupRoute {
 	all = append(all, s.getAllHLSRoutes()...)
 	all = append(all, s.getAllOGImageRoutes()...)
 	all = append(all, s.getAllSitemapRoutes()...)
+	all = append(all, s.getAllRobotsRoutes()...)
 	all = append(all, s.getAllSPARoutes()...)
 	return all
 }

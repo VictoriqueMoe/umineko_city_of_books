@@ -19,6 +19,21 @@ func SessionToken(ctx fiber.Ctx) string {
 	return ctx.Cookies(session.CookieName)
 }
 
+func hasSession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
+	if sessionMgr == nil {
+		return false
+	}
+
+	token := SessionToken(ctx)
+	if token == "" {
+		return false
+	}
+
+	_, err := sessionMgr.Validate(ctx.Context(), token)
+
+	return err == nil
+}
+
 func isWriteMethod(method string) bool {
 	switch method {
 	case fiber.MethodPost, fiber.MethodPut, fiber.MethodPatch, fiber.MethodDelete:

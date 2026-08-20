@@ -177,6 +177,7 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		return err
 	})
 
+	app.Use(RequireLogin(settingsSvc, sessionMgr))
 	app.Use(maintenanceMiddleware(settingsSvc, sessionMgr, authzSvc))
 }
 

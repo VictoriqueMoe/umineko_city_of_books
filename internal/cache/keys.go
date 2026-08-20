@@ -22,6 +22,9 @@ var (
 
 	DroneBL = Namespace{Prefix: "dronebl:", TTL: 24 * time.Hour}
 
+	// CrawlerRanges refilled by a job rather than invalidated by a write, to keep third party fetches off the request path
+	CrawlerRanges = Namespace{Prefix: "dronebl:crawler-ranges", TTL: 0}
+
 	UserRole = Namespace{Prefix: "role:", TTL: 0}
 
 	Setting = Namespace{Prefix: "setting:", TTL: 0}

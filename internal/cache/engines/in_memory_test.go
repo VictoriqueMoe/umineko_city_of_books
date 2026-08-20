@@ -126,9 +126,9 @@ func TestInMemoryTTLExpiry(t *testing.T) {
 		{name: "before expiry", ttl: time.Minute, advance: 30 * time.Second, wantHit: true},
 		{name: "exactly at expiry", ttl: time.Minute, advance: time.Minute, wantHit: true},
 		{name: "past expiry", ttl: time.Minute, advance: 90 * time.Second, wantHit: false},
-		{name: "zero ttl still live below the ceiling", ttl: 0, advance: 30 * time.Second, wantHit: true},
-		{name: "zero ttl expires at the ceiling", ttl: 0, advance: unboundedTTLCeiling + time.Second, wantHit: false},
-		{name: "negative ttl expires at the ceiling", ttl: -time.Minute, advance: unboundedTTLCeiling + time.Second, wantHit: false},
+		{name: "zero ttl never expires, matching valkey", ttl: 0, advance: 30 * time.Second, wantHit: true},
+		{name: "zero ttl survives a year, because forever means forever", ttl: 0, advance: 365 * 24 * time.Hour, wantHit: true},
+		{name: "negative ttl is treated as forever too", ttl: -time.Minute, advance: 365 * 24 * time.Hour, wantHit: true},
 		{name: "long ttl is left alone", ttl: 24 * time.Hour, advance: 12 * time.Hour, wantHit: true},
 	}
 
@@ -241,15 +241,27 @@ func TestInMemoryCloseClearsEntries(t *testing.T) {
 	require.ErrorIs(t, err, engine.ErrMiss)
 }
 
-func TestInMemoryNeverHoldsAnEntryIndefinitely(t *testing.T) {
+func TestInMemoryHoldsZeroTTLUntilEvicted(t *testing.T) {
+	// given a zero ttl entry, which valkey would keep forever
 	c, clock := newClockedInMemory(t, 0)
 	ctx := context.Background()
 
 	require.NoError(t, c.Set(ctx, "setting:maintenance_mode", []byte("false"), 0))
 
+	// when a long time passes
 	clock.advance(24 * time.Hour)
 
-	_, err := c.Get(ctx, "setting:maintenance_mode")
+	// then it is still there, so both engines agree on what zero means
+	got, err := c.Get(ctx, "setting:maintenance_mode")
+	require.NoError(t, err)
+	require.Equal(t, []byte("false"), got)
+
+	// and memory is still bounded, because the byte budget evicts rather than the clock
+	blob := make([]byte, 400)
+	c.maxBytes = entrySize("filler", blob)
+	require.NoError(t, c.Set(ctx, "filler", blob, 0))
+
+	_, err = c.Get(ctx, "setting:maintenance_mode")
 	require.ErrorIs(t, err, engine.ErrMiss)
 }
 

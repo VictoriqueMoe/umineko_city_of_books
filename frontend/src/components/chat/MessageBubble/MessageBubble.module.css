@@ -441,7 +441,7 @@
 .messageMediaItem {
     width: auto;
     height: auto;
-    max-width: 520px;
+    max-width: min(100%, var(--embed-max-width));
     max-height: 510px;
     border-radius: 6px;
     border: 1px solid rgba(var(--purple-rgb), 0.25);

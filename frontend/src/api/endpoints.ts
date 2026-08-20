@@ -156,6 +156,7 @@ export interface SiteInfo {
     chatbot_require_permission: boolean;
     max_image_size: number;
     max_video_size: number;
+    private_mode: boolean;
     max_audio_size: number;
     new_account_hours: number;
     top_detective_ids: string[];
