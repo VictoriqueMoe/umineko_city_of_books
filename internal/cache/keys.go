@@ -20,6 +20,8 @@ var (
 
 	LinkPreview = Namespace{Prefix: "linkpreview:", TTL: 24 * time.Hour}
 
+	DroneBL = Namespace{Prefix: "dronebl:", TTL: 24 * time.Hour}
+
 	UserRole = Namespace{Prefix: "role:", TTL: 0}
 
 	Setting = Namespace{Prefix: "setting:", TTL: 0}

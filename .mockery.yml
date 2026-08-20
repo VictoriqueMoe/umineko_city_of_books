@@ -36,6 +36,9 @@ packages:
   umineko_city_of_books/internal/authz:
     interfaces:
       Service:
+  umineko_city_of_books/internal/dronebl:
+    interfaces:
+      Resolver:
   umineko_city_of_books/internal/settings:
     interfaces:
       Service:
