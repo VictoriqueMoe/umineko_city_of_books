@@ -13,6 +13,7 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
+import { DRONEBL_CLASSES, parseIgnoredClasses, toggleIgnoredClass } from "../../utils/dronebl";
 import type { SiteSettings } from "../../types/api";
 import { ChatbotKeyGate } from "./ChatbotKeyGate";
 import styles from "./AdminSettings.module.css";
@@ -47,6 +48,7 @@ export function AdminSettings() {
 
     const saving = updateSettingsMutation.isPending;
     const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
+    const ignoredClasses = parseIgnoredClasses(settings.dronebl_ignored_classes ?? "");
 
     const chatbotKeySaved = (loadedSettings?.chatbot_api_key ?? "").trim() !== "";
     const chatbotLocked = !chatbotKeySaved || models.length === 0;
@@ -324,18 +326,39 @@ export function AdminSettings() {
                     {settings.dronebl_enabled === "true" && (
                         <>
                             <div className={styles.field}>
-                                <span className={styles.fieldLabel}>Ignored Classes</span>
-                                <Input
-                                    value={settings.dronebl_ignored_classes ?? ""}
-                                    onChange={e => updateField("dronebl_ignored_classes", e.target.value)}
-                                    fullWidth
-                                    placeholder="13"
-                                />
+                                <span className={styles.fieldLabel}>Listings To Ignore</span>
                                 <span className={styles.fieldHint}>
-                                    Comma separated DroneBL classes that should not block. Leave empty to block any
-                                    listing. Class 13 (brute force attackers) is the usual source of false positives on
-                                    recycled home addresses.
+                                    Tick a reason to stop it blocking. Anything left unticked still blocks. DroneBL only
+                                    lists addresses it has evidence against, so a well behaved VPN is usually not listed
+                                    at all.
                                 </span>
+                                <div className={styles.classGrid}>
+                                    {DRONEBL_CLASSES.map(cls => {
+                                        const ignored = ignoredClasses.has(cls.id);
+                                        return (
+                                            <label key={cls.id} className={styles.classRow}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={ignored}
+                                                    onChange={e =>
+                                                        updateField(
+                                                            "dronebl_ignored_classes",
+                                                            toggleIgnoredClass(
+                                                                settings.dronebl_ignored_classes ?? "",
+                                                                cls.id,
+                                                                e.target.checked,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                                <span className={styles.className}>
+                                                    {cls.label} <code className={styles.classId}>{cls.id}</code>
+                                                    {cls.note && <em className={styles.classNote}>{cls.note}</em>}
+                                                </span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
                             </div>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>Allowlist</span>

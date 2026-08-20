@@ -189,3 +189,44 @@
     font-size: 0.8rem;
     color: #8b98a5;
 }
+
+.classGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: 0.35rem 1rem;
+    margin-top: 0.4rem;
+}
+
+.classRow {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.25rem 0.1rem;
+    cursor: pointer;
+}
+
+.classRow input {
+    flex-shrink: 0;
+    accent-color: var(--gold);
+    cursor: pointer;
+}
+
+.className {
+    font-size: 0.82rem;
+    line-height: 1.35;
+    color: var(--text);
+}
+
+.classNote {
+    display: block;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    opacity: 0.75;
+}
+
+.classId {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.7rem;
+    color: var(--gold);
+    opacity: 0.6;
+}
