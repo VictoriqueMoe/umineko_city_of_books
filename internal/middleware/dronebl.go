@@ -132,6 +132,7 @@ func RequireCleanIP(checker *dronebl.Checker, sessionMgr *session.Manager) fiber
 		}
 
 		droneblChecks.WithLabelValues("blocked").Inc()
+		recordBlockedClasses(verdict.Classes)
 		logger.Log.Warn().
 			Str("ip", ip).
 			Ints("classes", verdict.Classes).
