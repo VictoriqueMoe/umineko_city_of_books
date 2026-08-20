@@ -28,6 +28,7 @@ type (
 		UnregisterToken(ctx context.Context, userID uuid.UUID, token string) error
 		SendToUser(ctx context.Context, userID uuid.UUID, n Notification)
 		Enabled() bool
+		OnSettingChanged(key config.SiteSettingKey, value string)
 	}
 
 	service struct {
@@ -152,16 +153,8 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 	}
 }
 
-type SettingListener struct {
-	svc *service
-}
-
-func NewSettingListener(svc Service) *SettingListener {
-	return &SettingListener{svc: svc.(*service)}
-}
-
-func (l *SettingListener) OnSettingChanged(key config.SiteSettingKey, _ string) {
+func (s *service) OnSettingChanged(key config.SiteSettingKey, _ string) {
 	if key == config.SettingPushEnabled.Key {
-		l.svc.buildClient()
+		s.buildClient()
 	}
 }

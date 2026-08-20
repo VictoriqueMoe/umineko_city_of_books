@@ -379,7 +379,13 @@ func (s *Service) staff(ctx fiber.Ctx) error {
 }
 
 func (s *Service) siteInfo(ctx fiber.Ctx) error {
-	return ctx.JSON(s.SiteInfoService.Get(ctx.Context()))
+	info := s.SiteInfoService.Get(ctx.Context())
+
+	if middleware.PrivateGated(ctx) {
+		info = info.WithoutMemberData()
+	}
+
+	return ctx.JSON(info)
 }
 
 func (s *Service) setupGetRulesRoute(r fiber.Router) {

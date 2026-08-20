@@ -32,7 +32,7 @@ func newChecker(t *testing.T) (*Checker, *deps) {
 	d.settings.EXPECT().Get(mock.Anything, config.SettingDroneBLAllowlist).Return("").Maybe()
 	d.settings.EXPECT().Get(mock.Anything, config.SettingDroneBLIgnoredClasses).Return("").Maybe()
 
-	return New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver), d
+	return New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver, nil), d
 }
 
 func listed(class byte) []netip.Addr {
@@ -156,7 +156,7 @@ func TestBlocked_IgnoredClassesLetAMemberThrough(t *testing.T) {
 			// given
 			d := &deps{settings: settings.NewMockService(t), resolver: NewMockResolver(t)}
 			d.settings.EXPECT().Get(mock.Anything, config.SettingDroneBLIgnoredClasses).Return(tc.ignored).Maybe()
-			checker := New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver)
+			checker := New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver, nil)
 			d.resolver.EXPECT().LookupNetIP(mock.Anything, "ip4", mock.Anything).Return(listed(tc.class), nil).Once()
 
 			// when
@@ -173,7 +173,7 @@ func TestAllowlisted(t *testing.T) {
 	// given an operator who has rescued their own address
 	d := &deps{settings: settings.NewMockService(t), resolver: NewMockResolver(t)}
 	d.settings.EXPECT().Get(mock.Anything, config.SettingDroneBLAllowlist).Return("203.0.113.0/24").Maybe()
-	checker := New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver)
+	checker := New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver, nil)
 
 	// then the resolver is never consulted for an allowlisted address
 	assert.True(t, checker.Allowlisted(context.Background(), "203.0.113.7"))
@@ -184,7 +184,7 @@ func TestEnabled(t *testing.T) {
 	// given
 	d := &deps{settings: settings.NewMockService(t), resolver: NewMockResolver(t)}
 	d.settings.EXPECT().GetBool(mock.Anything, config.SettingDroneBLEnabled).Return(false).Once()
-	checker := New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver)
+	checker := New(d.settings, cache.NewManager(engines.NewInMemory(0)), d.resolver, nil)
 
 	// then
 	assert.False(t, checker.Enabled(context.Background()))

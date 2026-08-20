@@ -7,8 +7,8 @@
 
 .frame {
     position: relative;
-    width: min(100%, 480px);
-    min-width: min(100%, 320px);
+    width: 100%;
+    max-width: var(--embed-max-width);
     aspect-ratio: 16 / 9;
     border-radius: 6px;
     overflow: hidden;

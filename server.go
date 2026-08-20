@@ -11,6 +11,7 @@ import (
 	"time"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dronebl"
+	"umineko_city_of_books/internal/dronebl/feed"
 	"umineko_city_of_books/internal/notification/push"
 
 	"umineko_city_of_books/internal/admin"
@@ -105,6 +106,7 @@ type (
 		email           email.Service
 		session         *session.Manager
 		dronebl         *dronebl.Checker
+		crawlerFeeds    *feed.Service
 		upload          upload.Service
 		hub             *ws.Hub
 		mediaProc       *media.Processor

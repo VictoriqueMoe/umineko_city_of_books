@@ -195,6 +195,8 @@ const CHAT_LAYOUT_ROUTES = [/^\/rooms\/[^/]+$/, /^\/chat(\/|$)/, /^\/live\/[^/]+
 
 const STREAM_CHAT_POPOUT_ROUTE = /^\/live\/[^/]+\/chat$/;
 
+const PRIVATE_MODE_ROUTES = new Set(["/login", "/forgot-password", "/reset-password", "/set-email", "/verify-email"]);
+
 function isChatLayoutPath(pathname: string): boolean {
     for (const pattern of CHAT_LAYOUT_ROUTES) {
         if (pattern.test(pathname)) {
@@ -244,6 +246,26 @@ function AppLayout() {
     if (siteInfo.maintenance_mode && !canAccessAdmin(user)) {
         return (
             <MaintenancePage title={siteInfo.maintenance_title ?? ""} message={siteInfo.maintenance_message ?? ""} />
+        );
+    }
+
+    if (siteInfo.private_mode && !user) {
+        if (!PRIVATE_MODE_ROUTES.has(pathname)) {
+            return <Navigate to="/login" replace state={{ from: pathname }} />;
+        }
+
+        return (
+            <div className="app-private">
+                <Suspense fallback={<RouteFallback />}>
+                    <Routes>
+                        <Route path="/login" element={<LoginPage />} />
+                        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
+                        <Route path="/set-email" element={<SetEmailPage />} />
+                        <Route path="/verify-email" element={<VerifyEmailPage />} />
+                    </Routes>
+                </Suspense>
+            </div>
         );
     }
 

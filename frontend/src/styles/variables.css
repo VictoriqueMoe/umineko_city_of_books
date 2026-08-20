@@ -24,6 +24,7 @@
     --bg-purple-rgb: 26, 15, 46;
     --hover-glow: 0.1;
     --page-max-width: 640px;
+    --embed-max-width: 640px;
 }
 
 html[data-font="im-fell"] {

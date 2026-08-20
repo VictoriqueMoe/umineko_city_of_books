@@ -14,6 +14,14 @@ import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { DRONEBL_CLASSES, parseIgnoredClasses, toggleIgnoredClass } from "../../utils/dronebl";
+import {
+    KNOWN_CRAWLER_FEEDS,
+    customFeeds,
+    isKnownFeedEnabled,
+    replaceCustomFeeds,
+    toggleKnownFeed,
+} from "../../utils/crawlerFeeds";
+import type { CrawlerFeed } from "../../utils/crawlerFeeds";
 import type { SiteSettings } from "../../types/api";
 import { ChatbotKeyGate } from "./ChatbotKeyGate";
 import styles from "./AdminSettings.module.css";
@@ -45,10 +53,29 @@ export function AdminSettings() {
     const [modelTestMessage, setModelTestMessage] = useState("");
     const [modelTestError, setModelTestError] = useState("");
     const [ogImageError, setOGImageError] = useState("");
+    const [customDraft, setCustomDraft] = useState<CrawlerFeed[] | null>(null);
 
     const saving = updateSettingsMutation.isPending;
     const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
     const ignoredClasses = parseIgnoredClasses(settings.dronebl_ignored_classes ?? "");
+    const custom = customDraft ?? customFeeds(settings.crawler_feeds ?? "");
+
+    function writeCustomFeeds(next: CrawlerFeed[]) {
+        setCustomDraft(next);
+        updateField("crawler_feeds", replaceCustomFeeds(settings.crawler_feeds ?? "", next));
+    }
+
+    function updateCustomFeed(index: number, patch: Partial<CrawlerFeed>) {
+        writeCustomFeeds(custom.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
+    }
+
+    function addCustomFeed() {
+        writeCustomFeeds([...custom, { name: "", url: "" }]);
+    }
+
+    function removeCustomFeed(index: number) {
+        writeCustomFeeds(custom.filter((_, i) => i !== index));
+    }
 
     const chatbotKeySaved = (loadedSettings?.chatbot_api_key ?? "").trim() !== "";
     const chatbotLocked = !chatbotKeySaved || models.length === 0;
@@ -315,6 +342,18 @@ export function AdminSettings() {
             </div>
 
             <div className={styles.card}>
+                <h2 className={styles.sectionTitle}>Private Mode</h2>
+                <div className={styles.fieldGroup}>
+                    <ToggleSwitch
+                        label="Require a login for everything"
+                        description="Nobody who is not signed in can see or do anything: no pages, no API, no uploads, no link previews, and search engines are told to index nothing. Signing in, resetting a password and verifying an email keep working."
+                        enabled={settings.private_mode === "true"}
+                        onChange={v => toggleField("private_mode", v)}
+                    />
+                </div>
+            </div>
+
+            <div className={styles.card}>
                 <h2 className={styles.sectionTitle}>DroneBL</h2>
                 <div className={styles.fieldGroup}>
                     <ToggleSwitch
@@ -372,6 +411,74 @@ export function AdminSettings() {
                                     Comma separated addresses or CIDR ranges that are never checked. Put your own
                                     address here so a false positive cannot lock you out of this page.
                                 </span>
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Search Engine Crawlers</span>
+                                <span className={styles.fieldHint}>
+                                    These publish the addresses their crawlers use, and are never blocked. Untick one
+                                    and it is treated like any other visitor, which can cost you search indexing.
+                                </span>
+                                <div className={styles.classGrid}>
+                                    {KNOWN_CRAWLER_FEEDS.map(known => (
+                                        <label key={known.name} className={styles.classRow}>
+                                            <input
+                                                type="checkbox"
+                                                checked={isKnownFeedEnabled(settings.crawler_feeds ?? "", known)}
+                                                onChange={e =>
+                                                    updateField(
+                                                        "crawler_feeds",
+                                                        toggleKnownFeed(
+                                                            settings.crawler_feeds ?? "",
+                                                            known,
+                                                            e.target.checked,
+                                                        ),
+                                                    )
+                                                }
+                                            />
+                                            <span className={styles.className}>{known.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className={styles.field}>
+                                <span className={styles.fieldLabel}>Other Crawler Feeds</span>
+                                <span className={styles.fieldHint}>
+                                    Any endpoint publishing the same format Google, Bing and Apple use: a prefixes array
+                                    of ipv4Prefix or ipv6Prefix entries. Every URL is fetched when you save, and one
+                                    that fails will block the save.
+                                </span>
+                                <div className={styles.feedList}>
+                                    {custom.map((entry, i) => (
+                                        <div key={i} className={styles.feedRow}>
+                                            <Input
+                                                value={entry.name}
+                                                onChange={e => updateCustomFeed(i, { name: e.target.value })}
+                                                placeholder="name"
+                                                aria-label={`Feed ${i + 1} name`}
+                                            />
+                                            <Input
+                                                value={entry.url}
+                                                onChange={e => updateCustomFeed(i, { url: e.target.value })}
+                                                placeholder="https://example.com/ranges.json"
+                                                aria-label={`Feed ${i + 1} url`}
+                                                fullWidth
+                                            />
+                                            <button
+                                                type="button"
+                                                className={styles.feedRemove}
+                                                onClick={() => removeCustomFeed(i)}
+                                                aria-label={`Remove feed ${i + 1}`}
+                                            >
+                                                &times;
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div>
+                                    <Button variant="ghost" size="small" onClick={addCustomFeed}>
+                                        + Add Feed
+                                    </Button>
+                                </div>
                             </div>
                         </>
                     )}

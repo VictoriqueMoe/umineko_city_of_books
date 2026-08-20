@@ -4,10 +4,11 @@ import (
 	"context"
 	"sync"
 	"time"
-	"umineko_city_of_books/internal/notification/push"
 
+	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/chatbot"
-	"umineko_city_of_books/internal/email"
+	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dronebl/feed"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/repository"
@@ -23,6 +24,7 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	wg := new(sync.WaitGroup)
 
 	subscribeToSettingsEvents(settingsSvc, app, svc, repos)
+	registerValidators(settingsSvc, svc, repos)
 
 	if err := svc.chat.EnsureSystemRooms(context.Background()); err != nil {
 		logger.Log.Error().Err(err).Msg("ensure system chat rooms at startup")
@@ -38,6 +40,11 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 	})
 	scheduleJob(stop, wg, "clean expired sessions", "cleaned expired sessions", 24*time.Hour, func() (int, error) {
 		return svc.session.CleanExpired(context.Background())
+	})
+
+	// the only job here that fills the cache rather than pruning; see cache.CrawlerRanges
+	scheduleJob(stop, wg, "refresh crawler ranges", "refreshed crawler ranges", 24*time.Hour, func() (int, error) {
+		return svc.crawlerFeeds.Refresh(context.Background())
 	})
 	scheduleJob(stop, wg, "archive stale journals", "archived stale journals", time.Hour, func() (int, error) {
 		return svc.journal.ArchiveStale(context.Background())
@@ -102,14 +109,22 @@ func scheduleJob(stop <-chan struct{}, wg *sync.WaitGroup, name string, successM
 	})
 }
 
+func registerValidators(settingsSvc settings.Service, svc *services, repos *repository.Repositories) {
+	settingsSvc.RegisterValidator(config.SettingChatbotModel, chatbot.ModelValidator(svc.openai))
+	settingsSvc.RegisterValidator(config.SettingChatbotOptInRole, chatbot.OptInRoleValidator(repos.VanityRole, repos.Permission))
+	settingsSvc.RegisterValidator(config.SettingCrawlerFeeds, feed.Validator(svc.crawlerFeeds))
+	settingsSvc.RegisterValidator(config.SettingValkeyURL, engines.ProbeURL)
+}
+
 func subscribeToSettingsEvents(settingsSvc settings.Service, app *fiber.App, svc *services, repos *repository.Repositories) {
 	settingsSvc.Subscribe(logger.NewSettingsListener())
 	settingsSvc.Subscribe(telemetry.NewSettingsListener())
 	settingsSvc.Subscribe(telemetry.NewProfilingSettingsListener())
 	settingsSvc.Subscribe(middleware.NewBodyLimitListener(app))
-	settingsSvc.Subscribe(push.NewSettingListener(svc.push))
+	settingsSvc.Subscribe(svc.push)
 	settingsSvc.Subscribe(chatbot.NewOptInRoleMigrator(repos.VanityRole, repos.AuditLog, settingsSvc))
-	settingsSvc.SubscribeBatch(email.NewMailSettingListener(svc.email))
+	settingsSvc.Subscribe(svc.crawlerFeeds)
+	settingsSvc.SubscribeBatch(svc.email)
 	settingsSvc.SubscribeBatch(svc.chatbot)
 	settingsSvc.SubscribeBatch(svc.openai)
 

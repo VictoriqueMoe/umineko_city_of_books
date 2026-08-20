@@ -46,7 +46,7 @@ func droneblApp(t *testing.T, tc droneblCase) *fiber.App {
 			Maybe()
 	}
 
-	checker := dronebl.New(settingsSvc, cache.NewManager(engines.NewInMemory(0)), resolver)
+	checker := dronebl.New(settingsSvc, cache.NewManager(engines.NewInMemory(0)), resolver, nil)
 
 	app := fiber.New()
 	app.Use(func(ctx fiber.Ctx) error {
@@ -232,7 +232,7 @@ func TestRequireCleanIP_SkipsWhenTheAddressIsUnknown(t *testing.T) {
 	// given a request that never got a client_ip local
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingDroneBLEnabled).Return(true).Maybe()
-	checker := dronebl.New(settingsSvc, cache.NewManager(engines.NewInMemory(0)), dronebl.NewMockResolver(t))
+	checker := dronebl.New(settingsSvc, cache.NewManager(engines.NewInMemory(0)), dronebl.NewMockResolver(t), nil)
 
 	app := fiber.New()
 	app.Use(RequireCleanIP(checker, nil))

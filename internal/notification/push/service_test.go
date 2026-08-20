@@ -131,10 +131,9 @@ func TestSettingListener_RebuildsOnlyForPushEnabledKey(t *testing.T) {
 			settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingPushEnabled).Return(false).Times(wantCalls)
 
 			svc := NewService(settingsSvc, repo, "")
-			listener := NewSettingListener(svc)
 
 			// when
-			listener.OnSettingChanged(tc.key, "true")
+			svc.OnSettingChanged(tc.key, "true")
 
 			// then
 			settingsSvc.AssertExpectations(t)

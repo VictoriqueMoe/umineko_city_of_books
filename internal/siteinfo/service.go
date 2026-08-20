@@ -142,6 +142,7 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 		ChatbotRequirePerm:    s.settingsSvc.GetBool(ctx, config.SettingChatbotRequirePermission),
 		MaxImageSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize),
 		MaxVideoSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize),
+		PrivateMode:           s.settingsSvc.GetBool(ctx, config.SettingPrivateMode),
 		MaxAudioSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxAudioSize),
 		NewAccountHours:       s.settingsSvc.GetInt(ctx, config.SettingNewAccountHours),
 		TopDetectiveIDs:       topDetectives,

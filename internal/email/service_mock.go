@@ -6,6 +6,7 @@ package email
 
 import (
 	"context"
+	"umineko_city_of_books/internal/config"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -85,6 +86,46 @@ func (_c *MockService_Enabled_Call) Return(b bool) *MockService_Enabled_Call {
 
 func (_c *MockService_Enabled_Call) RunAndReturn(run func(ctx context.Context) bool) *MockService_Enabled_Call {
 	_c.Call.Return(run)
+	return _c
+}
+
+// OnSettingsBatchChanged provides a mock function for the type MockService
+func (_mock *MockService) OnSettingsBatchChanged(keys []config.SiteSettingKey) {
+	_mock.Called(keys)
+	return
+}
+
+// MockService_OnSettingsBatchChanged_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OnSettingsBatchChanged'
+type MockService_OnSettingsBatchChanged_Call struct {
+	*mock.Call
+}
+
+// OnSettingsBatchChanged is a helper method to define mock.On call
+//   - keys []config.SiteSettingKey
+func (_e *MockService_Expecter) OnSettingsBatchChanged(keys any) *MockService_OnSettingsBatchChanged_Call {
+	return &MockService_OnSettingsBatchChanged_Call{Call: _e.mock.On("OnSettingsBatchChanged", keys)}
+}
+
+func (_c *MockService_OnSettingsBatchChanged_Call) Run(run func(keys []config.SiteSettingKey)) *MockService_OnSettingsBatchChanged_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []config.SiteSettingKey
+		if args[0] != nil {
+			arg0 = args[0].([]config.SiteSettingKey)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_OnSettingsBatchChanged_Call) Return() *MockService_OnSettingsBatchChanged_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *MockService_OnSettingsBatchChanged_Call) RunAndReturn(run func(keys []config.SiteSettingKey)) *MockService_OnSettingsBatchChanged_Call {
+	_c.Run(run)
 	return _c
 }
 

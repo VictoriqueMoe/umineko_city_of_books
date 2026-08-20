@@ -31,19 +31,25 @@ type (
 		Classes []int `json:"classes,omitempty"`
 	}
 
+	CrawlerRegistry interface {
+		Ranges(ctx context.Context) []netip.Prefix
+	}
+
 	Checker struct {
-		settingsSvc settings.Service
-		cache       *cache.Manager
-		resolver    Resolver
-		group       singleflight.Group
+		settingsSvc     settings.Service
+		cache           *cache.Manager
+		resolver        Resolver
+		crawlerRegistry CrawlerRegistry
+		group           singleflight.Group
 	}
 )
 
-func New(settingsSvc settings.Service, cacheMgr *cache.Manager, resolver Resolver) *Checker {
+func New(settingsSvc settings.Service, cacheMgr *cache.Manager, resolver Resolver, crawlerRegistry CrawlerRegistry) *Checker {
 	return &Checker{
-		settingsSvc: settingsSvc,
-		cache:       cacheMgr,
-		resolver:    resolver,
+		settingsSvc:     settingsSvc,
+		cache:           cacheMgr,
+		resolver:        resolver,
+		crawlerRegistry: crawlerRegistry,
 	}
 }
 
@@ -52,7 +58,15 @@ func (c *Checker) Enabled(ctx context.Context) bool {
 }
 
 func (c *Checker) Allowlisted(ctx context.Context, ip string) bool {
-	return allowlisted(parseAllowlist(c.settingsSvc.Get(ctx, config.SettingDroneBLAllowlist)), ip)
+	if allowlisted(parseAllowlist(c.settingsSvc.Get(ctx, config.SettingDroneBLAllowlist)), ip) {
+		return true
+	}
+
+	if c.crawlerRegistry == nil {
+		return false
+	}
+
+	return allowlisted(c.crawlerRegistry.Ranges(ctx), ip)
 }
 
 func (c *Checker) Blocked(ctx context.Context, ip string) (Verdict, bool) {

@@ -232,6 +232,7 @@ type (
 		MaintenanceMode       bool                 `json:"maintenance_mode"`
 		MaintenanceTitle      string               `json:"maintenance_title"`
 		MaintenanceMessage    string               `json:"maintenance_message"`
+		PrivateMode           bool                 `json:"private_mode"`
 		TurnstileEnabled      bool                 `json:"turnstile_enabled"`
 		TurnstileSiteKey      string               `json:"turnstile_site_key"`
 		VoiceEnabled          bool                 `json:"voice_enabled"`
@@ -285,3 +286,19 @@ type (
 		Tile   int    `json:"tile,omitempty"`
 	}
 )
+
+func (s SiteInfoResponse) WithoutMemberData() SiteInfoResponse {
+	s.AnnouncementBanner = ""
+	s.RulesPage = ""
+	s.TopDetectiveIDs = nil
+	s.TopGMIDs = nil
+	s.TopChessIDs = nil
+	s.TopCheckersIDs = nil
+	s.TopOthelloIDs = nil
+	s.TopMinesweeperIDs = nil
+	s.VanityRoles = nil
+	s.VanityRoleAssignments = nil
+	s.ListedSecrets = nil
+
+	return s
+}

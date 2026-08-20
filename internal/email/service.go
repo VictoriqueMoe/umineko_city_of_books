@@ -25,6 +25,7 @@ type (
 		Send(ctx context.Context, to, subject, body string) error
 		SendTest(ctx context.Context, to, subject, body string) error
 		Enabled(ctx context.Context) bool
+		OnSettingsBatchChanged(keys []config.SiteSettingKey)
 	}
 
 	service struct {
@@ -250,18 +251,10 @@ func htmlToText(html string) string {
 	return strings.TrimSpace(text)
 }
 
-type MailSettingListener struct {
-	svc *service
-}
-
-func NewMailSettingListener(svc Service) *MailSettingListener {
-	return &MailSettingListener{svc: svc.(*service)}
-}
-
-func (l *MailSettingListener) OnSettingsBatchChanged(keys []config.SiteSettingKey) {
+func (s *service) OnSettingsBatchChanged(keys []config.SiteSettingKey) {
 	for _, key := range keys {
 		if strings.HasPrefix(string(key), "smtp_") {
-			l.svc.buildClient()
+			s.buildClient()
 			return
 		}
 	}

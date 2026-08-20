@@ -1,7 +1,7 @@
 .wrapper {
     display: block;
     margin: 0.5rem 0;
-    max-width: 520px;
+    max-width: var(--embed-max-width);
     border-radius: 12px;
     overflow: hidden;
     border: 1px solid rgba(var(--purple-rgb), 0.2);
