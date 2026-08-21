@@ -475,6 +475,10 @@ func (r *roomsService) ListRooms(ctx context.Context, userID uuid.UUID) (*dto.Ch
 
 	rooms := make([]dto.ChatRoomResponse, 0, len(rows))
 	for _, row := range rows {
+		if row.SystemKind == SystemKindLiveStream {
+			continue
+		}
+
 		members, count, err := r.getRoomMemberResponses(ctx, row.ID, userID)
 		if err != nil {
 			return nil, err

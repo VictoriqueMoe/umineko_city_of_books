@@ -273,12 +273,16 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                                             alt=""
                                                             className={styles.galleryCoverImage}
                                                             onError={e => {
+                                                                const el = e.currentTarget;
                                                                 if (
-                                                                    g.cover_image_url &&
-                                                                    e.currentTarget.src !== g.cover_image_url
+                                                                    !g.cover_image_url ||
+                                                                    el.dataset.fallbackTried === "1"
                                                                 ) {
-                                                                    e.currentTarget.src = g.cover_image_url;
+                                                                    return;
                                                                 }
+
+                                                                el.dataset.fallbackTried = "1";
+                                                                el.src = g.cover_image_url;
                                                             }}
                                                         />
                                                     ) : g.preview_images && g.preview_images.length > 0 ? (
@@ -398,9 +402,13 @@ function PreviewImg({ img, className }: { img: { thumbnail: string; full: string
             alt=""
             className={className}
             onError={e => {
-                if (e.currentTarget.src !== img.full) {
-                    e.currentTarget.src = img.full;
+                const el = e.currentTarget;
+                if (el.dataset.fallbackTried === "1") {
+                    return;
                 }
+
+                el.dataset.fallbackTried = "1";
+                el.src = img.full;
             }}
         />
     );

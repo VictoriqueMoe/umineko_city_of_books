@@ -10,7 +10,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-const PrivateGatedLocal = "private_gated"
+const (
+	PrivateGatedLocal = "private_gated"
+	websocketPath     = "/api/v1/ws"
+)
 
 var (
 	privateModeExempt = map[string]bool{
@@ -44,6 +47,10 @@ func RequireLogin(settingsSvc settings.Service, sessionMgr *session.Manager) fib
 		}
 
 		if hasSession(ctx, sessionMgr) {
+			return ctx.Next()
+		}
+
+		if path == websocketPath && hasQuerySession(ctx, sessionMgr) {
 			return ctx.Next()
 		}
 

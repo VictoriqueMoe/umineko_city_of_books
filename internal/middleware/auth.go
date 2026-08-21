@@ -34,6 +34,21 @@ func hasSession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
 	return err == nil
 }
 
+func hasQuerySession(ctx fiber.Ctx, sessionMgr *session.Manager) bool {
+	if sessionMgr == nil {
+		return false
+	}
+
+	token := ctx.Query("token")
+	if token == "" {
+		return false
+	}
+
+	_, err := sessionMgr.Validate(ctx.Context(), token)
+
+	return err == nil
+}
+
 func isWriteMethod(method string) bool {
 	switch method {
 	case fiber.MethodPost, fiber.MethodPut, fiber.MethodPatch, fiber.MethodDelete:

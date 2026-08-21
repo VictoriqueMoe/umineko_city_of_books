@@ -225,7 +225,7 @@ export function RoomsListPage() {
                 <div className={styles.cardHeader}>
                     <h3 className={styles.cardTitle}>{room.name}</h3>
                     <div className={styles.cardBadges}>
-                        {room.is_system && <span className={styles.systemBadge}>Pinned</span>}
+                        {room.is_system && <span className={styles.systemBadge}>System</span>}
                         {(room.voice_count ?? 0) > 0 && (
                             <span className={styles.voiceBadge} title="Voice chat active">
                                 {"\u{1F50A}"} {room.voice_count}

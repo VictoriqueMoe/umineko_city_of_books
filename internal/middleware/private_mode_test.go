@@ -1,13 +1,18 @@
 package middleware
 
 import (
+	"errors"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -147,6 +152,51 @@ func TestRequireLogin_ClosesTheCrawlerSurface(t *testing.T) {
 
 			// then a private site must not still be serving content to strangers
 			assert.Equal(t, fiber.StatusUnauthorized, status)
+		})
+	}
+}
+
+func privateModeAppWithSession(t *testing.T, validToken string) *fiber.App {
+	t.Helper()
+
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingPrivateMode).Return(true).Maybe()
+
+	sessionRepo := repository.NewMockSessionRepository(t)
+	sessionRepo.EXPECT().GetUserID(mock.Anything, validToken).Return(uuid.New(), time.Now().Add(time.Hour), nil).Maybe()
+	sessionRepo.EXPECT().GetUserID(mock.Anything, mock.Anything).Return(uuid.Nil, time.Time{}, errors.New("no session")).Maybe()
+
+	app := fiber.New()
+	app.Use(RequireLogin(settingsSvc, session.NewManager(sessionRepo, settingsSvc)))
+	app.All("/*", func(ctx fiber.Ctx) error {
+		return ctx.SendString("handler reached")
+	})
+
+	return app
+}
+
+func TestRequireLogin_LetsTheNativeAppOpenItsWebsocket(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+		want int
+	}{
+		{name: "a websocket cannot send an Authorization header, so the native app authenticates by query token", path: "/api/v1/ws?token=good", want: fiber.StatusOK},
+		{name: "a stranger with no token at all is still refused", path: "/api/v1/ws", want: fiber.StatusUnauthorized},
+		{name: "an invalid query token is refused", path: "/api/v1/ws?token=bad", want: fiber.StatusUnauthorized},
+		{name: "a query token must not unlock the rest of the api", path: "/api/v1/posts?token=good", want: fiber.StatusUnauthorized},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a private site and a session manager that knows one good token
+			app := privateModeAppWithSession(t, "good")
+
+			// when
+			status, _ := statusOf(t, app, tc.path)
+
+			// then
+			assert.Equal(t, tc.want, status)
 		})
 	}
 }
