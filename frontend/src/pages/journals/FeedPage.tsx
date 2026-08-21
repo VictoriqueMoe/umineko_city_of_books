@@ -75,7 +75,8 @@ export function JournalsFeedPage() {
                 </p>
                 <p>
                     Journals <strong>auto-archive after 7 days of author inactivity</strong>. Archived journals stay
-                    readable but new comments are disabled, so finish (or pause) yours before you ghost.
+                    readable but new comments are disabled, and posting a new entry reopens one. Pause yours from its
+                    page if you need to step away without it archiving.
                 </p>
             </InfoPanel>
 

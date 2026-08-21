@@ -24,6 +24,7 @@ func (s *Service) getAllJournalRoutes() []FSetupRoute {
 		s.setupGetJournalRoute,
 		s.setupUpdateJournalRoute,
 		s.setupDeleteJournalRoute,
+		s.setupSetJournalPausedRoute,
 		s.setupFollowJournalRoute,
 		s.setupUnfollowJournalRoute,
 		s.setupCreateJournalCommentRoute,
@@ -67,6 +68,10 @@ func (s *Service) setupUpdateJournalRoute(r fiber.Router) {
 
 func (s *Service) setupDeleteJournalRoute(r fiber.Router) {
 	r.Delete("/journals/:id", s.requireAuth(), s.deleteJournal)
+}
+
+func (s *Service) setupSetJournalPausedRoute(r fiber.Router) {
+	r.Put("/journals/:id/pause", s.requireAuth(), s.setJournalPaused)
 }
 
 func (s *Service) setupFollowJournalRoute(r fiber.Router) {
@@ -259,6 +264,32 @@ func (s *Service) deleteJournal(ctx fiber.Ctx) error {
 
 	if err := s.JournalService.DeleteJournal(ctx.Context(), id, userID); err != nil {
 		return utils.Forbidden(ctx, "cannot delete this journal")
+	}
+	return ctx.SendStatus(fiber.StatusNoContent)
+}
+
+func (s *Service) setJournalPaused(ctx fiber.Ctx) error {
+	id, ok := utils.ParseID(ctx)
+	if !ok {
+		return nil
+	}
+	userID := utils.UserID(ctx)
+
+	var req struct {
+		Paused bool `json:"paused"`
+	}
+	if err := ctx.Bind().JSON(&req); err != nil {
+		return utils.BadRequest(ctx, "invalid request")
+	}
+
+	if err := s.JournalService.SetJournalPaused(ctx.Context(), id, userID, req.Paused); err != nil {
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "journal not found")
+		}
+		if errors.Is(err, journal.ErrNotAuthor) {
+			return utils.Forbidden(ctx, "not the journal author")
+		}
+		return utils.InternalError(ctx, "failed to update the journal")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

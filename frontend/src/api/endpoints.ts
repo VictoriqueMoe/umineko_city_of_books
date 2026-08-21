@@ -1927,6 +1927,10 @@ export async function deleteJournal(id: string): Promise<void> {
     await apiDelete<unknown>(`/journals/${id}`);
 }
 
+export async function setJournalPaused(id: string, paused: boolean): Promise<void> {
+    await apiPut<unknown, { paused: boolean }>(`/journals/${id}/pause`, { paused });
+}
+
 export async function followJournal(id: string): Promise<void> {
     await apiPost<unknown, Record<string, never>>(`/journals/${id}/follow`, {});
 }

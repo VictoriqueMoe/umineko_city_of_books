@@ -3650,6 +3650,90 @@ func (_c *MockJournalDAO_ListFollowedByUser_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
+// SetPaused provides a mock function for the type MockJournalDAO
+func (_mock *MockJournalDAO) SetPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, userID, paused, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id, userID, paused)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetPaused")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, userID, paused, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalDAO_SetPaused_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetPaused'
+type MockJournalDAO_SetPaused_Call struct {
+	*mock.Call
+}
+
+// SetPaused is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - userID uuid.UUID
+//   - paused bool
+//   - tx ...*sql.Tx
+func (_e *MockJournalDAO_Expecter) SetPaused(ctx any, id any, userID any, paused any, tx ...any) *MockJournalDAO_SetPaused_Call {
+	return &MockJournalDAO_SetPaused_Call{Call: _e.mock.On("SetPaused",
+		append([]any{ctx, id, userID, paused}, tx...)...)}
+}
+
+func (_c *MockJournalDAO_SetPaused_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool, tx ...*sql.Tx)) *MockJournalDAO_SetPaused_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalDAO_SetPaused_Call) Return(err error) *MockJournalDAO_SetPaused_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalDAO_SetPaused_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool, tx ...*sql.Tx) error) *MockJournalDAO_SetPaused_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Unfollow provides a mock function for the type MockJournalDAO
 func (_mock *MockJournalDAO) Unfollow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments

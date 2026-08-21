@@ -1140,6 +1140,75 @@ func (_c *MockService_ListJournalsByUser_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// SetJournalPaused provides a mock function for the type MockService
+func (_mock *MockService) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error {
+	ret := _mock.Called(ctx, id, userID, paused)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SetJournalPaused")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool) error); ok {
+		r0 = returnFunc(ctx, id, userID, paused)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockService_SetJournalPaused_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SetJournalPaused'
+type MockService_SetJournalPaused_Call struct {
+	*mock.Call
+}
+
+// SetJournalPaused is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - userID uuid.UUID
+//   - paused bool
+func (_e *MockService_Expecter) SetJournalPaused(ctx any, id any, userID any, paused any) *MockService_SetJournalPaused_Call {
+	return &MockService_SetJournalPaused_Call{Call: _e.mock.On("SetJournalPaused", ctx, id, userID, paused)}
+}
+
+func (_c *MockService_SetJournalPaused_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool)) *MockService_SetJournalPaused_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 bool
+		if args[3] != nil {
+			arg3 = args[3].(bool)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SetJournalPaused_Call) Return(err error) *MockService_SetJournalPaused_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockService_SetJournalPaused_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error) *MockService_SetJournalPaused_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnfollowJournal provides a mock function for the type MockService
 func (_mock *MockService) UnfollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	ret := _mock.Called(ctx, id, userID)

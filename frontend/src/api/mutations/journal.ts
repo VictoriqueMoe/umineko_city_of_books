@@ -9,6 +9,7 @@ import {
     deleteJournalEntryMedia,
     followJournal,
     likeJournalComment,
+    setJournalPaused,
     unfollowJournal,
     unlikeJournalComment,
     updateJournal,
@@ -41,6 +42,14 @@ export function useDeleteJournal() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: string) => deleteJournal(id),
+        onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
+    });
+}
+
+export function useSetJournalPaused() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: ({ id, paused }: { id: string; paused: boolean }) => setJournalPaused(id, paused),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
     });
 }

@@ -11,6 +11,7 @@ const {
     useFollowJournal,
     useUnfollowJournal,
     useDeleteJournal,
+    useSetJournalPaused,
     useCreateJournalComment,
     useUpdateJournalComment,
     useDeleteJournalComment,
@@ -23,6 +24,7 @@ const {
     useFollowJournal: vi.fn(),
     useUnfollowJournal: vi.fn(),
     useDeleteJournal: vi.fn(),
+    useSetJournalPaused: vi.fn(),
     useCreateJournalComment: vi.fn(),
     useUpdateJournalComment: vi.fn(),
     useDeleteJournalComment: vi.fn(),
@@ -39,6 +41,7 @@ vi.mock("../../api/mutations/journal", () => ({
     useDeleteJournalComment,
     useFollowJournal,
     useLikeJournalComment,
+    useSetJournalPaused,
     useUnfollowJournal,
     useUnlikeJournalComment,
     useUpdateJournalComment,
@@ -111,6 +114,7 @@ function makeJournal(overrides: Partial<JournalDetail> = {}): JournalDetail {
         follower_count: 3,
         is_following: false,
         is_archived: false,
+        is_paused: false,
         comment_count: 0,
         entry_count: 1,
         latest_entry_excerpt: "",
@@ -129,6 +133,7 @@ interface StubOptions {
     follow?: () => Promise<unknown>;
     unfollow?: () => Promise<unknown>;
     remove?: () => Promise<unknown>;
+    setPaused?: () => Promise<unknown>;
 }
 
 function stubJournal(options: StubOptions = {}) {
@@ -142,9 +147,11 @@ function stubJournal(options: StubOptions = {}) {
     const followAsync = vi.fn(options.follow ?? (() => Promise.resolve({})));
     const unfollowAsync = vi.fn(options.unfollow ?? (() => Promise.resolve({})));
     const deleteAsync = vi.fn(options.remove ?? (() => Promise.resolve({})));
+    const setPausedAsync = vi.fn(options.setPaused ?? (() => Promise.resolve({})));
     useFollowJournal.mockReturnValue({ mutateAsync: followAsync });
     useUnfollowJournal.mockReturnValue({ mutateAsync: unfollowAsync });
     useDeleteJournal.mockReturnValue({ mutateAsync: deleteAsync });
+    useSetJournalPaused.mockReturnValue({ mutateAsync: setPausedAsync });
     for (const hook of [
         useCreateJournalComment,
         useUpdateJournalComment,
@@ -156,7 +163,7 @@ function stubJournal(options: StubOptions = {}) {
         hook.mockReturnValue({ mutateAsync: vi.fn(() => Promise.resolve({ id: "comment-1" })) });
     }
 
-    return { refresh, followAsync, unfollowAsync, deleteAsync };
+    return { refresh, followAsync, unfollowAsync, deleteAsync, setPausedAsync };
 }
 
 function renderPage(user: UserProfile | null, route = "/journals/journal-1") {
@@ -524,7 +531,7 @@ describe("JournalPage", () => {
         );
     });
 
-    it("takes the new entry link away once the journal is archived", () => {
+    it("keeps the new entry link on an archived journal, because posting is how the author reopens it", () => {
         // given
         stubJournal({ journal: makeJournal({ is_archived: true }) });
 
@@ -532,7 +539,54 @@ describe("JournalPage", () => {
         renderPage(author);
 
         // then
+        expect(screen.getByRole("link", { name: /New Entry/ })).toHaveAttribute(
+            "href",
+            "/journals/journal-1/entry/new",
+        );
+    });
+
+    it("keeps the new entry link away from a reader on an archived journal", () => {
+        // given
+        stubJournal({ journal: makeJournal({ is_archived: true }) });
+
+        // when
+        renderPage(null);
+
+        // then
         expect(screen.queryByRole("link", { name: /New Entry/ })).not.toBeInTheDocument();
+    });
+
+    it("offers the author a pause control and hides it from a reader", () => {
+        // given
+        stubJournal();
+
+        // when
+        renderPage(author);
+
+        // then
+        expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    });
+
+    it("offers to resume an already paused journal", () => {
+        // given
+        stubJournal({ journal: makeJournal({ is_paused: true }) });
+
+        // when
+        renderPage(author);
+
+        // then
+        expect(screen.getByRole("button", { name: "Resume" })).toBeInTheDocument();
+    });
+
+    it("takes the pause control away once the journal is archived, since pausing cannot undo that", () => {
+        // given
+        stubJournal({ journal: makeJournal({ is_archived: true }) });
+
+        // when
+        renderPage(author);
+
+        // then
+        expect(screen.queryByRole("button", { name: /Pause|Resume/ })).not.toBeInTheDocument();
     });
 
     it("returns to the feed from the back link", async () => {

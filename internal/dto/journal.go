@@ -11,6 +11,7 @@ type (
 		FollowerCount        int          `json:"follower_count"`
 		IsFollowing          bool         `json:"is_following"`
 		IsArchived           bool         `json:"is_archived"`
+		IsPaused             bool         `json:"is_paused"`
 		CommentCount         int          `json:"comment_count"`
 		EntryCount           int          `json:"entry_count"`
 		LatestEntryNumber    *int         `json:"latest_entry_number,omitempty"`

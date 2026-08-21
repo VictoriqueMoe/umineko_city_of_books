@@ -639,6 +639,55 @@ func TestJournalDAO_ArchiveStale_NoneStale(t *testing.T) {
 	assert.Empty(t, ids)
 }
 
+func TestJournalDAO_ArchiveStale_SkipsPausedJournals(t *testing.T) {
+	// given a journal old enough to archive, that its author has paused
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	paused := createJournal(t, repos, user.ID, "Paused", "b", "general")
+	require.NoError(t, repos.Journal.SetPaused(context.Background(), paused, user.ID, true))
+
+	// when the archive sweep runs with a cutoff that would otherwise catch it
+	ids, err := repos.Journal.ArchiveStale(context.Background(), time.Now().Add(time.Hour))
+
+	// then it is left alone, because pausing exists precisely to survive this
+	require.NoError(t, err)
+	assert.Empty(t, ids)
+	archived, err := repos.Journal.IsArchived(context.Background(), paused)
+	require.NoError(t, err)
+	assert.False(t, archived)
+}
+
+func TestJournalDAO_ArchiveStale_CatchesAJournalOnceResumed(t *testing.T) {
+	// given a paused journal whose author has resumed it
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	resumed := createJournal(t, repos, user.ID, "Resumed", "b", "general")
+	require.NoError(t, repos.Journal.SetPaused(context.Background(), resumed, user.ID, true))
+	require.NoError(t, repos.Journal.SetPaused(context.Background(), resumed, user.ID, false))
+
+	// when
+	ids, err := repos.Journal.ArchiveStale(context.Background(), time.Now().Add(time.Hour))
+
+	// then the pause must not linger and shield it forever
+	require.NoError(t, err)
+	require.Len(t, ids, 1)
+	assert.Equal(t, resumed, ids[0])
+}
+
+func TestJournalDAO_SetPaused_RefusesAJournalTheUserDoesNotOwn(t *testing.T) {
+	// given a journal belonging to somebody else
+	repos := daotest.NewRepos(t)
+	author := daotest.CreateUser(t, repos)
+	stranger := daotest.CreateUser(t, repos)
+	journalID := createJournal(t, repos, author.ID, "Theirs", "b", "general")
+
+	// when
+	err := repos.Journal.SetPaused(context.Background(), journalID, stranger.ID, true)
+
+	// then ownership is enforced in the statement itself, not only in the service above it
+	require.Error(t, err)
+}
+
 func TestJournalDAO_FollowAndUnfollow(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

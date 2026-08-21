@@ -378,6 +378,7 @@ export interface Journal {
     follower_count: number;
     is_following: boolean;
     is_archived: boolean;
+    is_paused: boolean;
     comment_count: number;
     entry_count: number;
     latest_entry_number?: number;

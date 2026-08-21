@@ -39,6 +39,7 @@ type (
 		ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.JournalListResponse, error)
 		UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateJournalRequest) error
 		DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
+		SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error
 
 		CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error)
 		GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error)
@@ -383,6 +384,19 @@ func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	s.uploadSvc.Delete(paths...)
 
 	return nil
+}
+
+func (s *service) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error {
+	authorID, err := s.repo.GetAuthorID(ctx, id)
+	if err != nil {
+		return ErrNotFound
+	}
+
+	if authorID != userID {
+		return ErrNotAuthor
+	}
+
+	return s.repo.SetPaused(ctx, id, userID, paused)
 }
 
 func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error) {

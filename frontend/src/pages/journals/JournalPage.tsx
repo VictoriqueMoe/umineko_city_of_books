@@ -8,6 +8,7 @@ import {
     useDeleteJournal,
     useDeleteJournalComment,
     useFollowJournal,
+    useSetJournalPaused,
     useLikeJournalComment,
     useUnfollowJournal,
     useUnlikeJournalComment,
@@ -53,6 +54,7 @@ export function JournalPage() {
     const followMutation = useFollowJournal();
     const unfollowMutation = useUnfollowJournal();
     const deleteJournalMutation = useDeleteJournal();
+    const setPausedMutation = useSetJournalPaused();
     const createCommentMutation = useCreateJournalComment(id ?? "");
     const updateCommentMutation = useUpdateJournalComment(id ?? "");
     const deleteCommentMutation = useDeleteJournalComment(id ?? "");
@@ -77,6 +79,20 @@ export function JournalPage() {
             }
         } catch {
             qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_following: wasFollowing } : prev));
+        }
+    }
+
+    async function handleTogglePause() {
+        if (!journal || !id) {
+            return;
+        }
+        const wasPaused = journal.is_paused;
+        const journalKey = queryKeys.journal.detail(id);
+        qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_paused: !wasPaused } : prev));
+        try {
+            await setPausedMutation.mutateAsync({ id, paused: !wasPaused });
+        } catch {
+            qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_paused: wasPaused } : prev));
         }
     }
 
@@ -126,6 +142,7 @@ export function JournalPage() {
                     <h1 className={styles.title}>{journal.title}</h1>
                     <span className={styles.work}>{workLabel(journal.work)}</span>
                     {journal.is_archived && <span className={styles.archived}>Archived</span>}
+                    {!journal.is_archived && journal.is_paused && <span className={styles.archived}>Paused</span>}
                 </div>
                 <div className={styles.meta}>
                     <ProfileLink user={journal.author} size="small" />
@@ -149,6 +166,11 @@ export function JournalPage() {
                             </Button>
                         </Link>
                     )}
+                    {isOwner && !journal.is_archived && (
+                        <Button variant="ghost" size="small" onClick={handleTogglePause}>
+                            {journal.is_paused ? "Resume" : "Pause"}
+                        </Button>
+                    )}
                     {canDelete && (
                         <Button variant="ghost" size="small" onClick={handleDelete}>
                             Delete
@@ -160,6 +182,13 @@ export function JournalPage() {
                 {journal.is_archived && (
                     <div className={styles.archivedBanner}>
                         This journal was archived after 7 days of inactivity. New comments are disabled.
+                        {isOwner && " Post a new entry to reopen it."}
+                    </div>
+                )}
+                {!journal.is_archived && journal.is_paused && (
+                    <div className={styles.archivedBanner}>
+                        This journal is paused, so it will not be archived while you are away.
+                        {isOwner && " Resume it whenever you are ready to continue."}
                     </div>
                 )}
             </div>
@@ -202,10 +231,10 @@ export function JournalPage() {
             <div className={styles.tocSection}>
                 <div className={styles.tocHeader}>
                     <h3 className={styles.tocTitle}>All entries ({entries.length})</h3>
-                    {canEdit && !journal.is_archived && (
+                    {canEdit && (
                         <Link to={`/journals/${journal.id}/entry/new`}>
                             <Button variant="primary" size="small">
-                                + New Entry
+                                {journal.is_archived ? "+ New Entry (reopens)" : "+ New Entry"}
                             </Button>
                         </Link>
                     )}

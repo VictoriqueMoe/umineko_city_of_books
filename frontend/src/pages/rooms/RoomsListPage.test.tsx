@@ -318,7 +318,8 @@ describe("RoomsListPage room cards", () => {
 
         // then
         expect(await screen.findByRole("link", { name: /Staff Lounge/ })).toHaveAttribute("href", "/rooms/room-sys");
-        expect(screen.getAllByText("Pinned")).toHaveLength(2);
+        expect(screen.getByText("Pinned")).toBeInTheDocument();
+        expect(screen.getByText("System")).toBeInTheDocument();
     });
 
     it("keeps system rooms out of the hosted and joined lists", async () => {

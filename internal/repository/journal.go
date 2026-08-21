@@ -34,6 +34,7 @@ type (
 		IsArchived(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error)
 		CountUserJournalsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
 		UpdateLastAuthorActivity(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		SetPaused(ctx context.Context, id, userID uuid.UUID, paused bool, tx ...*sql.Tx) error
 		ArchiveStale(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error)
 
 		Follow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error
@@ -89,6 +90,7 @@ type (
 		IsArchived(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error)
 		CountUserJournalsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
 		UpdateLastAuthorActivity(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		SetPaused(ctx context.Context, id, userID uuid.UUID, paused bool, tx ...*sql.Tx) error
 		ArchiveStale(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error)
 
 		Follow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error
@@ -366,6 +368,10 @@ func (r *journalRepository) CountUserJournalsToday(ctx context.Context, userID u
 
 func (r *journalRepository) UpdateLastAuthorActivity(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
 	return r.dao.UpdateLastAuthorActivity(ctx, id, tx...)
+}
+
+func (r *journalRepository) SetPaused(ctx context.Context, id, userID uuid.UUID, paused bool, tx ...*sql.Tx) error {
+	return r.dao.SetPaused(ctx, id, userID, paused, tx...)
 }
 
 func (r *journalRepository) ArchiveStale(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error) {

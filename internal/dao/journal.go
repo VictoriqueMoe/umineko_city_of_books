@@ -25,7 +25,7 @@ type (
 	}
 )
 
-const journalSelectBase = `SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity_at, j.archived_at,
+const journalSelectBase = `SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity_at, j.archived_at, j.paused_at,
 		u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 		(SELECT COUNT(*) FROM journal_follows WHERE journal_id = j.id),
 		(SELECT COUNT(*) FROM journal_comments WHERE journal_id = j.id),
@@ -48,13 +48,13 @@ func scanJournalRow(ctx context.Context, scanner interface {
 	var j dto.JournalResponse
 	var author dto.UserResponse
 	var createdAt, lastAuthorActivityAt time.Time
-	var updatedAt, archivedAt *time.Time
+	var updatedAt, archivedAt, pausedAt *time.Time
 	var latestEntryNumber *int
 	var latestEntryTitle *string
 	var latestEntryBody *string
 	var latestEntryAt *time.Time
 	err := scanner.Scan(
-		&j.ID, &j.Title, &j.Work, &createdAt, &updatedAt, &lastAuthorActivityAt, &archivedAt,
+		&j.ID, &j.Title, &j.Work, &createdAt, &updatedAt, &lastAuthorActivityAt, &archivedAt, &pausedAt,
 		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role,
 		&j.FollowerCount, &j.CommentCount, &j.EntryCount,
 		&latestEntryNumber, &latestEntryTitle, &latestEntryBody, &latestEntryAt,
@@ -68,6 +68,7 @@ func scanJournalRow(ctx context.Context, scanner interface {
 	j.ArchivedAt = timePtrToString(archivedAt)
 	j.Author = author
 	j.IsArchived = j.ArchivedAt != nil
+	j.IsPaused = pausedAt != nil
 	j.LatestEntryNumber = latestEntryNumber
 	j.LatestEntryTitle = latestEntryTitle
 	j.LatestEntryAt = timePtrToString(latestEntryAt)
@@ -102,7 +103,7 @@ func (r *journalDAO) Create(ctx context.Context, userID uuid.UUID, req dto.Creat
 		     VALUES ($1, $2, $3)
 		     RETURNING *
 		 )
-		 SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity_at, j.archived_at,
+		 SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity_at, j.archived_at, j.paused_at,
 		        u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 		        0, 0, 0,
 		        NULL::int, NULL::text, NULL::text, NULL::timestamptz
@@ -312,29 +313,41 @@ func (r *journalDAO) UpdateLastAuthorActivity(ctx context.Context, id uuid.UUID,
 
 func (r *journalDAO) ArchiveStale(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id FROM journals WHERE archived_at IS NULL AND last_author_activity_at < $1`,
-		cutoff,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("find stale journals: %w", err)
-	}
-	ids, err := utils.ScanIDs(rows, "stale journal id")
-	if err != nil {
-		return nil, err
-	}
-
-	if len(ids) == 0 {
-		return nil, nil
-	}
-
-	_, err = txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE journals SET archived_at = NOW() WHERE archived_at IS NULL AND last_author_activity_at < $1`,
+		`UPDATE journals SET archived_at = NOW()
+		 WHERE archived_at IS NULL AND paused_at IS NULL AND last_author_activity_at < $1
+		 RETURNING id`,
 		cutoff,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("archive stale journals: %w", err)
 	}
-	return ids, nil
+
+	return utils.ScanIDs(rows, "stale journal id")
+}
+
+func (r *journalDAO) SetPaused(ctx context.Context, id, userID uuid.UUID, paused bool, tx ...*sql.Tx) error {
+	var pausedAt any
+	if paused {
+		pausedAt = time.Now().UTC()
+	}
+
+	res, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`UPDATE journals SET paused_at = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+		pausedAt, id, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("set journal paused: %w", err)
+	}
+
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("set journal paused rows affected: %w", err)
+	}
+	if affected == 0 {
+		return fmt.Errorf("journal not found or not owned")
+	}
+
+	return nil
 }
 
 func (r *journalDAO) Follow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error {

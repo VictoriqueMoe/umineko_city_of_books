@@ -32,6 +32,7 @@ function makeJournal(overrides: Partial<JournalDetail> = {}): JournalDetail {
         follower_count: 3,
         is_following: false,
         is_archived: false,
+        is_paused: false,
         comment_count: 0,
         entry_count: 1,
         latest_entry_excerpt: "",
