@@ -151,6 +151,29 @@ func TestRequireLogin_ClosesTheCrawlerSurface(t *testing.T) {
 	}
 }
 
+func TestRequireLogin_LeavesStreamingWorking(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "livekit calling back when a stream starts, signed with its own hmac", path: "/api/v1/livekit/webhook"},
+		{name: "the obs browser source, which carries its own token and no cookie", path: "/api/v1/overlay"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a private site
+			app := privateModeApp(t, true)
+
+			// when
+			status, _ := statusOf(t, app, tc.path)
+
+			// then neither has a session to present, and both authenticate themselves
+			assert.Equal(t, fiber.StatusOK, status)
+		})
+	}
+}
+
 func TestRequireLogin_NeverBlocksTheHealthcheck(t *testing.T) {
 	tests := []string{"/livez", "/health"}
 

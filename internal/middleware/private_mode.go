@@ -14,8 +14,10 @@ const PrivateGatedLocal = "private_gated"
 
 var (
 	privateModeExempt = map[string]bool{
-		"/livez":  true,
-		"/health": true,
+		"/livez":                  true,
+		"/health":                 true,
+		"/api/v1/livekit/webhook": true,
+		"/api/v1/overlay":         true,
 	}
 
 	privateModeSignIn = map[string]bool{
