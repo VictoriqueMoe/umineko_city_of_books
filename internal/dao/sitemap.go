@@ -54,7 +54,7 @@ func (r *sitemapDAO) ListShips(ctx context.Context, tx ...*sql.Tx) ([]repository
 }
 
 func (r *sitemapDAO) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM fanfics ORDER BY created_at DESC`, "fanfics", tx...)
+	return r.listEntries(ctx, `SELECT id, created_at FROM fanfics WHERE status != 'draft' ORDER BY created_at DESC`, "fanfics", tx...)
 }
 
 func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string, error) {

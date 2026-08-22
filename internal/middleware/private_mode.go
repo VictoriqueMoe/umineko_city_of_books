@@ -37,7 +37,7 @@ var (
 
 func RequireLogin(settingsSvc settings.Service, sessionMgr *session.Manager) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
-		path := ctx.Path()
+		path := strings.ToLower(ctx.Path())
 		if privateModeExempt[path] {
 			return ctx.Next()
 		}

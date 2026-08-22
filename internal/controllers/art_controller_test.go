@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1183,6 +1184,25 @@ func TestSetGalleryCover_InternalError(t *testing.T) {
 	assert.Contains(t, string(body), "failed to set cover")
 }
 
+func TestSetGalleryCover_ForeignArt_NotFound(t *testing.T) {
+	// given
+	h, as := newArtHarness(t)
+	userID := uuid.New()
+	galleryID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	as.EXPECT().SetGalleryCover(mock.Anything, galleryID, userID, (*uuid.UUID)(nil)).Return(repository.ErrArtNotOwned)
+
+	// when
+	status, body := h.NewRequest("PUT", "/galleries/"+galleryID.String()+"/cover").
+		WithCookie("valid-cookie").
+		WithJSONBody(map[string]any{"cover_art_id": nil}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusNotFound, status)
+	assert.Contains(t, string(body), "gallery or art not found")
+}
+
 func TestDeleteGallery_AuthFailures(t *testing.T) {
 	testutil.RunAuthFailureSuite(t, newArtHarness, "DELETE", "/galleries/"+uuid.NewString(), nil)
 }
@@ -1425,6 +1445,28 @@ func TestSetArtGallery_OK_ClearGallery(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusNoContent, status)
+}
+
+func TestSetArtGallery_ForeignGallery_NotFound(t *testing.T) {
+	// given
+	h, as := newArtHarness(t)
+	userID := uuid.New()
+	artID := uuid.New()
+	galleryID := uuid.New()
+	h.ExpectValidSession("valid-cookie", userID)
+	as.EXPECT().SetArtGallery(mock.Anything, artID, userID, mock.MatchedBy(func(p *uuid.UUID) bool {
+		return p != nil && *p == galleryID
+	})).Return(repository.ErrArtNotOwned)
+
+	// when
+	status, body := h.NewRequest("PUT", "/art/"+artID.String()+"/gallery").
+		WithCookie("valid-cookie").
+		WithJSONBody(map[string]any{"gallery_id": galleryID.String()}).
+		Do()
+
+	// then
+	require.Equal(t, http.StatusNotFound, status)
+	assert.Contains(t, string(body), "art or gallery not found")
 }
 
 func TestSetArtGallery_InternalError(t *testing.T) {

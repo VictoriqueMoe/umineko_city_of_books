@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,4 +69,28 @@ func TestSitemapDAO_ListPosts_Empty(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, entries)
+}
+
+func TestSitemapDAO_ListFanfics_ExcludesDrafts(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	publishedID := createFanfic(t, repos, user.ID, "Published")
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
+		UserID:   user.ID,
+		Title:    "Draft",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
+	})
+	require.NoError(t, err)
+
+	// when
+	entries, err := repos.Sitemap.ListFanfics(context.Background())
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, publishedID.String(), entries[0].ID)
 }

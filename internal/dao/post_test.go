@@ -1542,6 +1542,34 @@ func TestGetSharedContentPreviews_MissingContentFlaggedDeleted(t *testing.T) {
 	assert.Equal(t, "/game-board/"+missingID, preview.URL)
 }
 
+func TestGetSharedContentPreviews_DraftFanficFlaggedDeleted(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	created, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
+		UserID:   user.ID,
+		Title:    "Secret Draft",
+		Summary:  "unpublished summary",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
+	})
+	require.NoError(t, err)
+
+	// when
+	result := repos.Post.GetSharedContentPreviews([]repository.SharedContentRef{
+		{ID: created.ID.String(), Type: "fanfic"},
+	})
+
+	// then
+	preview := result["fanfic:"+created.ID.String()]
+	require.NotNil(t, preview)
+	assert.True(t, preview.Deleted)
+	assert.NotContains(t, preview.Body, "unpublished summary")
+	assert.NotEqual(t, "Secret Draft", preview.Title)
+}
+
 func TestGetSharedContentPreviews_EmptyRefs(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

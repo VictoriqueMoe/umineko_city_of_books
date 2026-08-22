@@ -192,7 +192,7 @@ func maintenanceMiddleware(settingsSvc settings.Service, sessionMgr *session.Man
 			return ctx.Next()
 		}
 
-		path := ctx.Path()
+		path := strings.ToLower(ctx.Path())
 
 		if !strings.HasPrefix(path, "/api") {
 			return ctx.Next()

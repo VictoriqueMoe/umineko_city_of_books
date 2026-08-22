@@ -371,12 +371,12 @@ func (r *fanficDAO) List(ctx context.Context, viewerID uuid.UUID, params fanficp
 
 func (r *fanficDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM fanfics WHERE user_id = $1 AND (status != 'draft' OR user_id = $2)`, userID, viewerID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user fanfics: %w", err)
 	}
 
-	query := utils.Rebind(fanficSelectBase + ` WHERE f.user_id = ? ORDER BY f.updated_at DESC LIMIT ? OFFSET ?`)
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
+	query := utils.Rebind(fanficSelectBase + ` WHERE f.user_id = ? AND (f.status != 'draft' OR f.user_id = ?) ORDER BY f.updated_at DESC LIMIT ? OFFSET ?`)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, viewerID, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user fanfics: %w", err)
 	}

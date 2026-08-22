@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -268,4 +269,56 @@ func TestResolver_OGImageURL(t *testing.T) {
 			assert.Equal(t, tc.want, got)
 		})
 	}
+}
+
+func TestResolver_Resolve_HidesDraftFanfic(t *testing.T) {
+	// given
+	fanficID := uuid.New()
+
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	fanficRepo := repository.NewMockFanficRepository(t)
+	fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).
+		Return(&model.FanficRow{ID: fanficID, Title: "Unfinished Golden Witch", Summary: "Secret draft summary", CoverImageURL: "https://example.com/uploads/fanfics/secret.webp", Status: "draft"}, nil)
+
+	r := &Resolver{settingsSvc: ss, fanficRepo: fanficRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when
+	html := r.Resolve(context.Background(), "/fanfiction/"+fanficID.String(), "")
+
+	// then
+	assert.NotContains(t, html, "Unfinished Golden Witch")
+	assert.NotContains(t, html, "Secret draft summary")
+	assert.NotContains(t, html, "secret.webp")
+	assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
+}
+
+func TestResolver_Resolve_HidesDraftJournalEntry(t *testing.T) {
+	// given
+	journalID := uuid.New()
+	draftTitle := "Working notes on Episode 8"
+
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	journalRepo := repository.NewMockJournalRepository(t)
+	journalRepo.EXPECT().GetByID(mock.Anything, journalID, uuid.Nil).
+		Return(&dto.JournalResponse{ID: journalID, Title: "Umineko Read-through", Author: dto.UserResponse{DisplayName: "Battler"}}, nil)
+	journalRepo.EXPECT().GetEntry(mock.Anything, journalID, 6).
+		Return(&repository.JournalEntryRow{JournalID: journalID, EntryNumber: 6, Title: &draftTitle, Body: "Secret unpublished body", IsDraft: true}, nil)
+
+	r := &Resolver{settingsSvc: ss, journalRepo: journalRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when
+	html := r.Resolve(context.Background(), "/journals/"+journalID.String()+"/entry/6", "")
+
+	// then
+	assert.NotContains(t, html, draftTitle)
+	assert.NotContains(t, html, "Secret unpublished body")
+	assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
 }

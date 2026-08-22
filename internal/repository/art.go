@@ -3,12 +3,17 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
+)
+
+var (
+	ErrArtNotOwned = errors.New("art or gallery not found or not owned")
 )
 
 type (
