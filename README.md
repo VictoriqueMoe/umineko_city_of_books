@@ -1157,7 +1157,7 @@ npm run build:app   # builds the app bundle into frontend/dist-app/ using .env.a
 npm run cap:sync    # build:app + copy assets into the native projects
 npm run cap:android # build:app + sync android + open Android Studio
 npm run cap:local   # sync android against a live dev server, for local iteration
-npm run build:ota   # build:app + zip it into ../static/app-bundles/ as an OTA bundle
+npm run build:ota   # build:app + sign and encrypt it into ../static/app-bundles/ as an OTA bundle (needs the Capgo private key)
 npm run assets      # regenerate launcher icons and splash screens
 ```
 
@@ -1175,7 +1175,9 @@ Both `npm run dev` (Vite on `:5173`) and the Go backend (`:4323`) need to be run
 
 #### Over-the-air bundles
 
-The app ships `@capgo/capacitor-updater` with `autoUpdate` turned off. `npm run build:ota` writes `../static/app-bundles/<VITE_APP_VERSION>.zip` plus a `latest.json` manifest, which the Go server then serves from the embedded static bundle like any other asset. The Docker image build runs it, so a deployed image publishes its own OTA bundle. On the client, `frontend/src/utils/appUpdate.ts` fetches `/app-bundles/latest.json` on launch and on resume, downloads a newer version in the background, and stages it for the next start rather than swapping under the user.
+The app ships `@capgo/capacitor-updater` with `autoUpdate` turned off and end-to-end bundle signing turned on. `npm run build:ota` zips `dist-app/` with the Capgo CLI, encrypts it with the private signing key, and writes `../static/app-bundles/<VITE_APP_VERSION>.zip` plus a `latest.json` manifest carrying the RSA-encrypted checksum and the AES session key; the Go server serves both from the embedded static bundle like any other asset. The matching public key is committed in `frontend/capacitor.config.ts` and compiled into the APK by `cap sync`, so a device only accepts a bundle that was produced with the private key, whatever the origin or edge serves. On the client, `frontend/src/utils/appUpdate.ts` fetches `/app-bundles/latest.json` on launch and on resume, refuses a manifest without `checksum` and `session_key`, downloads a newer version in the background, and stages it for the next start rather than swapping under the user.
+
+The private key is never in the repo. `make-ota` reads it from `CAPGO_PRIVATE_KEY_FILE` (default `/run/secrets/capgo_private_key`); `Dockerfile.ci` mounts it as a BuildKit secret that `deploy.yml` fills from the `CAPGO_PRIVATE_KEY` repository secret, and that mount is `required=true`, so a CI build without the key fails rather than shipping unsigned. The plain `Dockerfile` mounts the same secret optionally: without it `make-ota` logs a warning and writes no bundle at all, so a local image simply offers no OTA update. To sign locally, point `CAPGO_PRIVATE_KEY_FILE` at your copy of `.capgo_key_v2`. Rotating the key means a new APK for everyone, because devices on the old public key cannot verify bundles signed with the new one.
 
 #### Changing the app's API base URL
 

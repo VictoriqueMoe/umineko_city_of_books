@@ -36,6 +36,11 @@ keystore.properties
 *.keystore
 *.jks
 
+# OTA bundle signing key (lives in CI secrets, never committed)
+.capgo_key_v2
+.capgo_key_v2.pub
+frontend/*.zip
+
 # Frontend dependencies
 frontend/node_modules/
 
