@@ -253,3 +253,56 @@ func TestRequireLogin_AnswersTheApiWithJSON(t *testing.T) {
 	// then an api caller must not be handed html to parse
 	assert.Contains(t, resp.Header.Get("Content-Type"), "application/json")
 }
+
+func TestRequireLogin_RefusesMixedCasePathsToAStranger(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "the api with an upper-case prefix", path: "/API/v1/posts"},
+		{name: "the api with a capitalised prefix", path: "/Api/v1/users"},
+		{name: "uploaded media", path: "/Uploads/chat/a_1.webp"},
+		{name: "the og image mirror", path: "/OG-Image/posts/a_1.jpg"},
+		{name: "stream segments", path: "/HLS/stream-abc/live.m3u8"},
+		{name: "the sitemap index", path: "/Sitemap.xml"},
+		{name: "the post sitemap", path: "/Sitemap-posts.xml"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a site locked to members and a router that matches paths case-insensitively
+			app := privateModeApp(t, true)
+
+			// when
+			status, _ := statusOf(t, app, tc.path)
+
+			// then changing the case of one letter must not open a door the lower-case path closes
+			assert.Equal(t, fiber.StatusUnauthorized, status)
+		})
+	}
+}
+
+func TestRequireLogin_MixedCaseExemptionsStillWork(t *testing.T) {
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "the healthcheck", path: "/Health"},
+		{name: "the livekit webhook", path: "/API/v1/livekit/webhook"},
+		{name: "the obs overlay", path: "/API/v1/overlay"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			app := privateModeApp(t, true)
+
+			// when
+			status, body := statusOf(t, app, tc.path)
+
+			// then the exemption matched on the normalised path, so the request was never marked as gated
+			assert.Equal(t, fiber.StatusOK, status)
+			assert.Equal(t, "handler reached", body)
+		})
+	}
+}

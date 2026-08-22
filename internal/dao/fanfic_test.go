@@ -2190,3 +2190,36 @@ func TestFanficDAO_GetCommentMediaBatch_Empty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, got)
 }
+
+func TestFanficDAO_ListByUser_HidesDraftsFromOthers(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	createFanfic(t, repos, owner.ID, "Published")
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
+		UserID:   owner.ID,
+		Title:    "Draft",
+		Series:   "Umineko",
+		Rating:   "K",
+		Language: "English",
+		Status:   "draft",
+	})
+	require.NoError(t, err)
+
+	// when
+	otherRows, totalOther, otherErr := repos.Fanfic.ListByUser(context.Background(), owner.ID, other.ID, 10, 0)
+	anonRows, totalAnon, anonErr := repos.Fanfic.ListByUser(context.Background(), owner.ID, uuid.Nil, 10, 0)
+	_, totalOwner, ownerErr := repos.Fanfic.ListByUser(context.Background(), owner.ID, owner.ID, 10, 0)
+
+	// then
+	require.NoError(t, otherErr)
+	require.NoError(t, anonErr)
+	require.NoError(t, ownerErr)
+	assert.Equal(t, 1, totalOther)
+	assert.Len(t, otherRows, 1)
+	assert.Equal(t, "Published", otherRows[0].Title)
+	assert.Equal(t, 1, totalAnon)
+	assert.Len(t, anonRows, 1)
+	assert.Equal(t, 2, totalOwner)
+}

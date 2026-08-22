@@ -1699,3 +1699,44 @@ func TestArtDAO_DeleteComment_NotFound(t *testing.T) {
 	// then
 	require.Error(t, err)
 }
+
+func TestArtDAO_SetGallery_ForeignGallery_Fails(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	attacker := daotest.CreateUser(t, repos)
+	victim := daotest.CreateUser(t, repos)
+	victimGalleryID := createGallery(t, repos, victim.ID, "Victim Gallery")
+	artID := createArt(t, repos, attacker.ID, "general", "drawing", "Intruder", nil, false)
+
+	// when
+	err := repos.Art.SetGallery(context.Background(), artID, attacker.ID, &victimGalleryID)
+
+	// then
+	require.ErrorIs(t, err, repository.ErrArtNotOwned)
+	row, err := repos.Art.GetByID(context.Background(), artID, attacker.ID)
+	require.NoError(t, err)
+	assert.Nil(t, row.GalleryID)
+	listed, total, err := repos.Art.ListArtInGallery(context.Background(), victimGalleryID, attacker.ID, 10, 0)
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Empty(t, listed)
+}
+
+func TestArtDAO_SetGalleryCover_ForeignArt_Fails(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	owner := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	galleryID := createGallery(t, repos, owner.ID, "G")
+	foreignArtID := createArt(t, repos, other.ID, "general", "drawing", "Not Mine", nil, false)
+
+	// when
+	err := repos.Art.SetGalleryCover(context.Background(), galleryID, owner.ID, &foreignArtID)
+
+	// then
+	require.ErrorIs(t, err, repository.ErrArtNotOwned)
+	row, err := repos.Art.GetGalleryByID(context.Background(), galleryID)
+	require.NoError(t, err)
+	require.NotNil(t, row)
+	assert.Nil(t, row.CoverArtID)
+}

@@ -94,7 +94,7 @@ func RequireCleanIP(checker *dronebl.Checker, sessionMgr *session.Manager) fiber
 			return ctx.Next()
 		}
 
-		path := ctx.Path()
+		path := strings.ToLower(ctx.Path())
 		if exemptFromDroneBL[path] {
 			return ctx.Next()
 		}
@@ -164,7 +164,7 @@ func respondBlocked(ctx fiber.Ctx) error {
 }
 
 func wantsHTML(ctx fiber.Ctx) bool {
-	if strings.HasPrefix(ctx.Path(), "/api") {
+	if strings.HasPrefix(strings.ToLower(ctx.Path()), "/api") {
 		return false
 	}
 

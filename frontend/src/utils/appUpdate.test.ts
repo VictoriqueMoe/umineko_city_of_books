@@ -28,6 +28,10 @@ const otaReadyListener = vi.fn();
 
 let stateHandler: AppStateHandler | null = null;
 
+function signedManifest(): Record<string, string> {
+    return { version: "1.1.0", path: "/app-bundles/1.1.0.zip", checksum: "enc-checksum", session_key: "iv:session" };
+}
+
 function manifestResponse(body: unknown, ok = true): Response {
     return { ok, json: () => Promise.resolve(body) } as unknown as Response;
 }
@@ -49,7 +53,7 @@ beforeEach(() => {
     updater.download.mockResolvedValue({ id: "bundle-2", version: "1.1.0" });
     updater.next.mockResolvedValue(undefined);
     updater.set.mockResolvedValue(undefined);
-    fetchMock.mockResolvedValue(manifestResponse({ version: "1.1.0", path: "/app-bundles/1.1.0.zip" }));
+    fetchMock.mockResolvedValue(manifestResponse(signedManifest()));
     vi.stubGlobal("fetch", fetchMock);
     window.addEventListener("ota-update-ready", otaReadyListener);
 });
@@ -116,6 +120,8 @@ describe("initAppUpdates", () => {
         expect(updater.download).toHaveBeenCalledWith({
             url: "https://api.test/app-bundles/1.1.0.zip",
             version: "1.1.0",
+            checksum: "enc-checksum",
+            sessionKey: "iv:session",
         });
         expect(otaReadyListener).toHaveBeenCalledOnce();
         expect(appUpdate.hasOtaUpdate()).toBe(true);
@@ -140,7 +146,7 @@ describe("initAppUpdates", () => {
 
     it("ignores a manifest request that comes back with an error status", async () => {
         // given
-        fetchMock.mockResolvedValue(manifestResponse({ version: "1.1.0", path: "/app-bundles/1.1.0.zip" }, false));
+        fetchMock.mockResolvedValue(manifestResponse(signedManifest(), false));
         const appUpdate = await loadAppUpdateModule();
 
         // when
@@ -157,7 +163,7 @@ describe("initAppUpdates", () => {
 
     it("ignores a manifest that is missing the bundle version", async () => {
         // given
-        fetchMock.mockResolvedValue(manifestResponse({ path: "/app-bundles/1.1.0.zip" }));
+        fetchMock.mockResolvedValue(manifestResponse({ ...signedManifest(), version: undefined }));
         const appUpdate = await loadAppUpdateModule();
 
         // when
@@ -173,7 +179,39 @@ describe("initAppUpdates", () => {
 
     it("ignores a manifest that is missing the bundle path", async () => {
         // given
-        fetchMock.mockResolvedValue(manifestResponse({ version: "1.1.0" }));
+        fetchMock.mockResolvedValue(manifestResponse({ ...signedManifest(), path: undefined }));
+        const appUpdate = await loadAppUpdateModule();
+
+        // when
+        appUpdate.initAppUpdates();
+
+        // then
+        await vi.waitFor(() => {
+            expect(fetchMock).toHaveBeenCalledOnce();
+        });
+        expect(updater.download).not.toHaveBeenCalled();
+        expect(appUpdate.hasOtaUpdate()).toBe(false);
+    });
+
+    it("refuses an unsigned manifest that carries no checksum", async () => {
+        // given
+        fetchMock.mockResolvedValue(manifestResponse({ ...signedManifest(), checksum: undefined }));
+        const appUpdate = await loadAppUpdateModule();
+
+        // when
+        appUpdate.initAppUpdates();
+
+        // then
+        await vi.waitFor(() => {
+            expect(fetchMock).toHaveBeenCalledOnce();
+        });
+        expect(updater.download).not.toHaveBeenCalled();
+        expect(appUpdate.hasOtaUpdate()).toBe(false);
+    });
+
+    it("refuses a manifest that carries no session key", async () => {
+        // given
+        fetchMock.mockResolvedValue(manifestResponse({ ...signedManifest(), session_key: undefined }));
         const appUpdate = await loadAppUpdateModule();
 
         // when

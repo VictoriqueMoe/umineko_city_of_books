@@ -1033,6 +1033,7 @@ func TestGetChapter_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "in_progress"}, nil)
 	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 1).Return(nil, errors.New("boom"))
 
 	// when
@@ -1046,6 +1047,7 @@ func TestGetChapter_NilNotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "in_progress"}, nil)
 	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 1).Return(nil, nil)
 
 	// when
@@ -1059,6 +1061,7 @@ func TestGetChapter_CountError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "in_progress"}, nil)
 	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 1).Return(&model.FanficChapterRow{ChapterNum: 1}, nil)
 	m.fanficRepo.EXPECT().GetChapterCount(mock.Anything, fanficID).Return(0, errors.New("db"))
 
@@ -1073,6 +1076,7 @@ func TestGetChapter_OK_AnonSkipsProgress(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "in_progress"}, nil)
 	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 2).Return(&model.FanficChapterRow{ChapterNum: 2, Title: "t", Body: "b"}, nil)
 	m.fanficRepo.EXPECT().GetChapterCount(mock.Anything, fanficID).Return(3, nil)
 
@@ -1090,6 +1094,7 @@ func TestGetChapter_OK_SetsProgress(t *testing.T) {
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
 	viewer := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, viewer).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "in_progress"}, nil)
 	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 1).Return(&model.FanficChapterRow{ChapterNum: 1}, nil)
 	m.fanficRepo.EXPECT().GetChapterCount(mock.Anything, fanficID).Return(1, nil)
 	m.fanficRepo.EXPECT().SetReadingProgress(mock.Anything, viewer, fanficID, 1).Return(nil)
@@ -1101,6 +1106,94 @@ func TestGetChapter_OK_SetsProgress(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, got.HasPrev)
 	assert.False(t, got.HasNext)
+}
+
+func TestGetChapter_HidesDraftChaptersFromNonAuthors(t *testing.T) {
+	ownerID := uuid.New()
+	fanficID := uuid.New()
+
+	tests := []struct {
+		name     string
+		viewerID uuid.UUID
+	}{
+		{name: "anonymous reader", viewerID: uuid.Nil},
+		{name: "another member", viewerID: uuid.New()},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, tc.viewerID).
+				Return(&model.FanficRow{ID: fanficID, UserID: ownerID, Status: "draft"}, nil)
+			m.authz.EXPECT().Can(mock.Anything, tc.viewerID, authz.PermEditAnyTheory).Return(false)
+
+			// when
+			resp, err := svc.GetChapter(context.Background(), fanficID, 1, tc.viewerID)
+
+			// then
+			require.ErrorIs(t, err, ErrNotFound)
+			assert.Nil(t, resp)
+			m.fanficRepo.AssertNotCalled(t, "GetChapter", mock.Anything, mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestGetChapter_ServesDraftChaptersToTheAuthor(t *testing.T) {
+	// given
+	ownerID := uuid.New()
+	fanficID := uuid.New()
+	svc, m := newTestService(t)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, ownerID).
+		Return(&model.FanficRow{ID: fanficID, UserID: ownerID, Status: "draft"}, nil)
+	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 1).
+		Return(&model.FanficChapterRow{ID: uuid.New(), ChapterNum: 1, Title: "One", Body: "<p>body</p>", WordCount: 1}, nil)
+	m.fanficRepo.EXPECT().GetChapterCount(mock.Anything, fanficID).Return(2, nil)
+	m.fanficRepo.EXPECT().SetReadingProgress(mock.Anything, ownerID, fanficID, 1).Return(nil)
+
+	// when
+	resp, err := svc.GetChapter(context.Background(), fanficID, 1, ownerID)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "<p>body</p>", resp.Body)
+	assert.True(t, resp.HasNext)
+}
+
+func TestGetChapter_ServesDraftChaptersToAnEditor(t *testing.T) {
+	// given
+	fanficID := uuid.New()
+	editorID := uuid.New()
+	svc, m := newTestService(t)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, editorID).
+		Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "draft"}, nil)
+	m.authz.EXPECT().Can(mock.Anything, editorID, authz.PermEditAnyTheory).Return(true)
+	m.fanficRepo.EXPECT().GetChapter(mock.Anything, fanficID, 1).
+		Return(&model.FanficChapterRow{ID: uuid.New(), ChapterNum: 1, Body: "b"}, nil)
+	m.fanficRepo.EXPECT().GetChapterCount(mock.Anything, fanficID).Return(1, nil)
+	m.fanficRepo.EXPECT().SetReadingProgress(mock.Anything, editorID, fanficID, 1).Return(nil)
+
+	// when
+	resp, err := svc.GetChapter(context.Background(), fanficID, 1, editorID)
+
+	// then
+	require.NoError(t, err)
+	assert.Equal(t, "b", resp.Body)
+}
+
+func TestGetChapter_UnknownFanficIsNotFound(t *testing.T) {
+	// given
+	fanficID := uuid.New()
+	svc, m := newTestService(t)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).Return(nil, nil)
+
+	// when
+	resp, err := svc.GetChapter(context.Background(), fanficID, 1, uuid.Nil)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+	assert.Nil(t, resp)
+	m.fanficRepo.AssertNotCalled(t, "GetChapter", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUpdateChapter_NotFound(t *testing.T) {
@@ -1285,7 +1378,7 @@ func TestFavourite_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
 	userID := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(uuid.Nil, errors.New("no row"))
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(nil, nil)
 
 	// when
 	err := svc.Favourite(context.Background(), userID, fanficID)
@@ -1300,7 +1393,7 @@ func TestFavourite_Blocked(t *testing.T) {
 	fanficID := uuid.New()
 	userID := uuid.New()
 	author := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(true, nil)
 
 	// when
@@ -1316,7 +1409,7 @@ func TestFavourite_RepoError(t *testing.T) {
 	fanficID := uuid.New()
 	userID := uuid.New()
 	author := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().Favourite(mock.Anything, userID, fanficID).Return(errors.New("db"))
 
@@ -1332,7 +1425,7 @@ func TestFavourite_OK_SelfSkipsNotification(t *testing.T) {
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
 	userID := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(userID, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: userID, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
 	m.fanficRepo.EXPECT().Favourite(mock.Anything, userID, fanficID).Return(nil)
 
@@ -1349,7 +1442,7 @@ func TestFavourite_OK_OtherAuthor(t *testing.T) {
 	fanficID := uuid.New()
 	userID := uuid.New()
 	author := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().Favourite(mock.Anything, userID, fanficID).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
@@ -1359,6 +1452,22 @@ func TestFavourite_OK_OtherAuthor(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestFavourite_HiddenDraftIsNotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	fanficID := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "draft"}, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+
+	// when
+	err := svc.Favourite(context.Background(), userID, fanficID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+	m.fanficRepo.AssertNotCalled(t, "Favourite", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUnfavourite_OK(t *testing.T) {
@@ -1457,7 +1566,7 @@ func TestCreateComment_FanficNotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	fanficID := uuid.New()
 	userID := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(uuid.Nil, errors.New("no row"))
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(nil, nil)
 
 	// when
 	_, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -1472,7 +1581,7 @@ func TestCreateComment_Blocked(t *testing.T) {
 	fanficID := uuid.New()
 	userID := uuid.New()
 	author := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(true, nil)
 
 	// when
@@ -1488,7 +1597,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	fanficID := uuid.New()
 	userID := uuid.New()
 	author := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().
 		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
@@ -1507,7 +1616,7 @@ func TestCreateComment_OK(t *testing.T) {
 	fanficID := uuid.New()
 	userID := uuid.New()
 	author := uuid.New()
-	m.fanficRepo.EXPECT().GetAuthorID(mock.Anything, fanficID).Return(author, nil)
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
 	m.fanficRepo.EXPECT().
 		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
@@ -1520,6 +1629,22 @@ func TestCreateComment_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateComment_HiddenDraftIsNotFound(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	fanficID := uuid.New()
+	userID := uuid.New()
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: uuid.New(), Status: "draft"}, nil)
+	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(false)
+
+	// when
+	_, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: "hi"})
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
+	m.fanficRepo.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUpdateComment_EmptyBody(t *testing.T) {

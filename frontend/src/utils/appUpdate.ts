@@ -6,6 +6,8 @@ import { apiUrl } from "../api/client";
 interface OtaManifest {
     version: string;
     path: string;
+    checksum: string;
+    session_key: string;
 }
 
 let checking = false;
@@ -30,7 +32,7 @@ async function downloadLatest(): Promise<void> {
         }
 
         const manifest = (await response.json()) as OtaManifest;
-        if (!manifest.version || !manifest.path) {
+        if (!manifest.version || !manifest.path || !manifest.checksum || !manifest.session_key) {
             return;
         }
 
@@ -39,7 +41,12 @@ async function downloadLatest(): Promise<void> {
             return;
         }
 
-        const bundle = await CapacitorUpdater.download({ url: apiUrl(manifest.path), version: manifest.version });
+        const bundle = await CapacitorUpdater.download({
+            url: apiUrl(manifest.path),
+            version: manifest.version,
+            checksum: manifest.checksum,
+            sessionKey: manifest.session_key,
+        });
         await CapacitorUpdater.next({ id: bundle.id });
         pending = bundle;
         window.dispatchEvent(new CustomEvent("ota-update-ready"));

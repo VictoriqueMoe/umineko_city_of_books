@@ -392,7 +392,7 @@ func (r *artDAO) AddCommentMedia(ctx context.Context, spec repository.NewArtComm
 
 func (r *artDAO) SetGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID, tx ...*sql.Tx) error {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE art SET gallery_id = $1 WHERE id = $2 AND user_id = $3`,
+		`UPDATE art SET gallery_id = $1 WHERE id = $2 AND user_id = $3 AND ($1::uuid IS NULL OR EXISTS (SELECT 1 FROM galleries WHERE id = $1 AND user_id = $3))`,
 		galleryID, artID, userID,
 	)
 	if err != nil {
@@ -400,7 +400,7 @@ func (r *artDAO) SetGallery(ctx context.Context, artID uuid.UUID, userID uuid.UU
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("art not found or not owned")
+		return repository.ErrArtNotOwned
 	}
 	return nil
 }
@@ -454,7 +454,7 @@ func (r *artDAO) UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UU
 
 func (r *artDAO) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID, tx ...*sql.Tx) error {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE galleries SET cover_art_id = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+		`UPDATE galleries SET cover_art_id = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 AND ($1::uuid IS NULL OR EXISTS (SELECT 1 FROM art WHERE id = $1 AND user_id = $3))`,
 		coverArtID, galleryID, userID,
 	)
 	if err != nil {
@@ -462,7 +462,7 @@ func (r *artDAO) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userI
 	}
 	n, _ := res.RowsAffected()
 	if n == 0 {
-		return fmt.Errorf("gallery not found or not owned")
+		return repository.ErrArtNotOwned
 	}
 	return nil
 }

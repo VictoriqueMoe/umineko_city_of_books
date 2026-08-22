@@ -728,7 +728,7 @@ func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	fanfic, err := r.fanficRepo.GetByID(ctx, id, uuid.Nil)
-	if err != nil || fanfic == nil {
+	if err != nil || fanfic == nil || fanfic.Status == "draft" {
 		return nil
 	}
 
@@ -791,7 +791,7 @@ func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr
 	}
 
 	entry, err := r.journalRepo.GetEntry(ctx, journalID, number)
-	if err != nil || entry == nil {
+	if err != nil || entry == nil || entry.IsDraft {
 		return nil
 	}
 

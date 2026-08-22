@@ -39,6 +39,8 @@ jobs:
           cache-to: type=gha,mode=min
           build-args: |
             APP_VERSION=${{ github.event.workflow_run.head_sha }}
+          secrets: |
+            "capgo_private_key=${{ secrets.CAPGO_PRIVATE_KEY }}"
           tags: |
             ${{ env.IMAGE }}:latest
             ${{ env.IMAGE }}:${{ github.sha }}

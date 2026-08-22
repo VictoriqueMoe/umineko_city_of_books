@@ -178,6 +178,7 @@ func initApp(svc *services, repos *repository.Repositories, settingsSvc settings
 			Private:  true,
 		},
 		EnableIPValidation: true,
+		CaseSensitive:      true,
 		AppName:            siteName,
 	})
 

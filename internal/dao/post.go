@@ -789,7 +789,7 @@ func (r *postDAO) fetchFanficPreviews(ctx context.Context, ids []string, result 
 		FROM fanfics f
 		JOIN users u ON f.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = f.user_id
-		WHERE f.id IN (`+placeholders+`)`), args...,
+		WHERE f.id IN (`+placeholders+`) AND f.status != 'draft'`), args...,
 	)
 	if err != nil {
 		return

@@ -306,7 +306,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 		}
 	}
 
-	if row.Status == "draft" && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyTheory) {
+	if s.hiddenDraft(ctx, row, viewerID) {
 		return nil, ErrNotFound
 	}
 
@@ -588,7 +588,19 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 	return created.ID, nil
 }
 
+func (s *service) hiddenDraft(ctx context.Context, row *model.FanficRow, viewerID uuid.UUID) bool {
+	return row.Status == "draft" && row.UserID != viewerID && !s.authz.Can(ctx, viewerID, authz.PermEditAnyTheory)
+}
+
 func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, viewerID uuid.UUID) (*dto.FanficChapterResponse, error) {
+	fanfic, err := s.fanficRepo.GetByID(ctx, fanficID, viewerID)
+	if err != nil {
+		return nil, err
+	}
+	if fanfic == nil || s.hiddenDraft(ctx, fanfic, viewerID) {
+		return nil, ErrNotFound
+	}
+
 	ch, err := s.fanficRepo.GetChapter(ctx, fanficID, chapterNumber)
 	if err != nil {
 		return nil, err
@@ -695,10 +707,15 @@ func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID
 }
 
 func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) error {
-	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
+	fanfic, err := s.fanficRepo.GetByID(ctx, fanficID, userID)
 	if err != nil {
+		return err
+	}
+	if fanfic == nil || s.hiddenDraft(ctx, fanfic, userID) {
 		return ErrNotFound
 	}
+
+	authorID := fanfic.UserID
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
 		return block.ErrUserBlocked
 	}
@@ -756,10 +773,15 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, err
 	}
 
-	authorID, err := s.fanficRepo.GetAuthorID(ctx, fanficID)
+	fanfic, err := s.fanficRepo.GetByID(ctx, fanficID, userID)
 	if err != nil {
+		return uuid.Nil, err
+	}
+	if fanfic == nil || s.hiddenDraft(ctx, fanfic, userID) {
 		return uuid.Nil, ErrNotFound
 	}
+
+	authorID := fanfic.UserID
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
