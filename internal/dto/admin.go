@@ -256,6 +256,16 @@ type (
 		Version               string               `json:"version"`
 		AppLatestVersion      string               `json:"app_latest_version"`
 		AppDownloadURL        string               `json:"app_download_url"`
+		PushEnabled           bool                 `json:"push_enabled"`
+		WebPush               SiteInfoWebPush      `json:"web_push"`
+	}
+
+	SiteInfoWebPush struct {
+		VAPIDKey  string `json:"vapid_key"`
+		APIKey    string `json:"api_key"`
+		ProjectID string `json:"project_id"`
+		SenderID  string `json:"sender_id"`
+		AppID     string `json:"app_id"`
 	}
 
 	SiteInfoVanityRole struct {

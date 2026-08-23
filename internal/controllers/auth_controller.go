@@ -120,18 +120,28 @@ func (s *Service) cookieSecure(ctx fiber.Ctx) bool {
 	return strings.HasPrefix(baseURL, "https://")
 }
 
+func cookieSameSite(clientPlatform string, secure bool) string {
+	if secure && clientPlatform != "" {
+		return "None"
+	}
+
+	return "Lax"
+}
+
 func (s *Service) setSessionCookie(ctx fiber.Ctx, token string) {
 	days := s.SettingsService.GetInt(ctx.Context(), config.SettingSessionDurationDays)
 	if days < 1 {
 		days = 30
 	}
 
+	secure := s.cookieSecure(ctx)
+
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
 		Value:    token,
 		HTTPOnly: true,
-		Secure:   s.cookieSecure(ctx),
-		SameSite: "Lax",
+		Secure:   secure,
+		SameSite: cookieSameSite(ctx.Get("X-Client-Platform"), secure),
 		MaxAge:   days * 24 * 60 * 60,
 		Path:     "/",
 	})
@@ -144,12 +154,14 @@ func (s *Service) setAppSessionToken(ctx fiber.Ctx, token string) {
 }
 
 func (s *Service) clearSessionCookie(ctx fiber.Ctx) {
+	secure := s.cookieSecure(ctx)
+
 	ctx.Cookie(&fiber.Cookie{
 		Name:     session.CookieName,
 		Value:    "",
 		HTTPOnly: true,
-		Secure:   s.cookieSecure(ctx),
-		SameSite: "Lax",
+		Secure:   secure,
+		SameSite: cookieSameSite(ctx.Get("X-Client-Platform"), secure),
 		MaxAge:   -1,
 		Path:     "/",
 	})

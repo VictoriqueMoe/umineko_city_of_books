@@ -40,7 +40,7 @@ type (
 	ReportResponse struct {
 		ID             int    `json:"id"`
 		ReporterName   string `json:"reporter_name"`
-		ReporterAvatar string `json:"reporter_avatar"`
+		ReporterAvatar string `json:"reporter_avatar_url"`
 		TargetType     string `json:"target_type"`
 		TargetID       string `json:"target_id"`
 		ContextID      string `json:"context_id,omitempty"`

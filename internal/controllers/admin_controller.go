@@ -543,7 +543,7 @@ func (s *Service) adminUploadOGImage(ctx fiber.Ctx) error {
 		return utils.InternalError(ctx, "failed to save image")
 	}
 
-	return ctx.JSON(fiber.Map{"url": url})
+	return ctx.JSON(fiber.Map{"image_url": url})
 }
 
 func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {

@@ -109,8 +109,8 @@ func (_c *MockGameHandler_ComputeStats_Call) Run(run func(stateJSON string, resu
 	return _c
 }
 
-func (_c *MockGameHandler_ComputeStats_Call) Return(v any, err error) *MockGameHandler_ComputeStats_Call {
-	_c.Call.Return(v, err)
+func (_c *MockGameHandler_ComputeStats_Call) Return(anyMoqParam any, err error) *MockGameHandler_ComputeStats_Call {
+	_c.Call.Return(anyMoqParam, err)
 	return _c
 }
 

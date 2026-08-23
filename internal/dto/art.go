@@ -86,8 +86,8 @@ type (
 	}
 
 	PreviewImageDTO struct {
-		Thumbnail string `json:"thumbnail"`
-		Full      string `json:"full"`
+		Thumbnail string `json:"thumbnail_url"`
+		Full      string `json:"full_url"`
 	}
 
 	CreateGalleryRequest struct {

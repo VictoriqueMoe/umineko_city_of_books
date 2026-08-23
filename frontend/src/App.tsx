@@ -19,6 +19,8 @@ import { LastLocationTracker } from "./components/LastLocationTracker/LastLocati
 import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh";
 import { LockBanner } from "./components/LockBanner/LockBanner";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
+import { InstallPrompt } from "./components/InstallPrompt/InstallPrompt";
+import { initWebPushRouting, resumeWebPush } from "./utils/webPush";
 import { Toast } from "./components/Toast/Toast";
 import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitWarning";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
@@ -222,11 +224,16 @@ function AppLayout() {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (user) {
-            ensureNotificationPermission().catch(() => {});
-            initPush(navigate).catch(() => {});
+        if (!user) {
+            return;
         }
-    }, [user, navigate]);
+
+        ensureNotificationPermission().catch(() => {});
+        initPush(navigate).catch(() => {});
+        resumeWebPush(siteInfo.web_push).catch(() => {});
+
+        return initWebPushRouting(navigate);
+    }, [user, navigate, siteInfo.web_push]);
 
     useLayoutEffect(() => {
         if (!chatLayout) {
@@ -302,6 +309,7 @@ function AppLayout() {
                 <NativeUpdateBanner />
                 <LockBanner />
                 <VerifyEmailBanner />
+                <InstallPrompt />
                 <AnnouncementBanner />
                 <SecretClosedToast />
                 <GameForfeitWarning />

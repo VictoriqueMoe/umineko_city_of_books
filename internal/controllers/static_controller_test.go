@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -82,4 +83,15 @@ func TestStaticController_SPA_ServesEmbeddedAssetForDottedPath(t *testing.T) {
 	// then
 	assert.Equal(t, http.StatusOK, status)
 	assert.Contains(t, string(body), "console.log(1)")
+}
+
+func TestStaticController_RegistersWebManifestMimeType(t *testing.T) {
+	// given
+	ext := ".webmanifest"
+
+	// when
+	got := mime.TypeByExtension(ext)
+
+	// then
+	assert.Equal(t, "application/manifest+json", got)
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"mime"
 	"strings"
 
 	"umineko_city_of_books/internal/config"
@@ -10,6 +11,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
+
+func init() {
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 func (s *Service) getAllUploadRoutes() []FSetupRoute {
 	return []FSetupRoute{

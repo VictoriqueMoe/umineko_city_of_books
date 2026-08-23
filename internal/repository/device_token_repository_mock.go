@@ -195,8 +195,8 @@ func (_c *MockDeviceTokenRepository_DeleteMany_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
-// TokensForUser provides a mock function for the type MockDeviceTokenRepository
-func (_mock *MockDeviceTokenRepository) TokensForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+// RegistrationsForUser provides a mock function for the type MockDeviceTokenRepository
+func (_mock *MockDeviceTokenRepository) RegistrationsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]DeviceRegistration, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, userID, tx)
@@ -206,19 +206,19 @@ func (_mock *MockDeviceTokenRepository) TokensForUser(ctx context.Context, userI
 	ret := tmpRet
 
 	if len(ret) == 0 {
-		panic("no return value specified for TokensForUser")
+		panic("no return value specified for RegistrationsForUser")
 	}
 
-	var r0 []string
+	var r0 []DeviceRegistration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]DeviceRegistration, error)); ok {
 		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []DeviceRegistration); ok {
 		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
+			r0 = ret.Get(0).([]DeviceRegistration)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -229,21 +229,21 @@ func (_mock *MockDeviceTokenRepository) TokensForUser(ctx context.Context, userI
 	return r0, r1
 }
 
-// MockDeviceTokenRepository_TokensForUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'TokensForUser'
-type MockDeviceTokenRepository_TokensForUser_Call struct {
+// MockDeviceTokenRepository_RegistrationsForUser_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RegistrationsForUser'
+type MockDeviceTokenRepository_RegistrationsForUser_Call struct {
 	*mock.Call
 }
 
-// TokensForUser is a helper method to define mock.On call
+// RegistrationsForUser is a helper method to define mock.On call
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - tx ...*sql.Tx
-func (_e *MockDeviceTokenRepository_Expecter) TokensForUser(ctx any, userID any, tx ...any) *MockDeviceTokenRepository_TokensForUser_Call {
-	return &MockDeviceTokenRepository_TokensForUser_Call{Call: _e.mock.On("TokensForUser",
+func (_e *MockDeviceTokenRepository_Expecter) RegistrationsForUser(ctx any, userID any, tx ...any) *MockDeviceTokenRepository_RegistrationsForUser_Call {
+	return &MockDeviceTokenRepository_RegistrationsForUser_Call{Call: _e.mock.On("RegistrationsForUser",
 		append([]any{ctx, userID}, tx...)...)}
 }
 
-func (_c *MockDeviceTokenRepository_TokensForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockDeviceTokenRepository_TokensForUser_Call {
+func (_c *MockDeviceTokenRepository_RegistrationsForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx)) *MockDeviceTokenRepository_RegistrationsForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -268,12 +268,12 @@ func (_c *MockDeviceTokenRepository_TokensForUser_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_TokensForUser_Call) Return(strings []string, err error) *MockDeviceTokenRepository_TokensForUser_Call {
-	_c.Call.Return(strings, err)
+func (_c *MockDeviceTokenRepository_RegistrationsForUser_Call) Return(deviceRegistrations []DeviceRegistration, err error) *MockDeviceTokenRepository_RegistrationsForUser_Call {
+	_c.Call.Return(deviceRegistrations, err)
 	return _c
 }
 
-func (_c *MockDeviceTokenRepository_TokensForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockDeviceTokenRepository_TokensForUser_Call {
+func (_c *MockDeviceTokenRepository_RegistrationsForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]DeviceRegistration, error)) *MockDeviceTokenRepository_RegistrationsForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

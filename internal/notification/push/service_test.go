@@ -2,6 +2,7 @@ package push
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func newTestService(t *testing.T, pushEnabled bool, credsFile string) (*service, *repository.MockDeviceTokenRepository, *settings.MockService) {
@@ -137,6 +139,42 @@ func TestSettingListener_RebuildsOnlyForPushEnabledKey(t *testing.T) {
 
 			// then
 			settingsSvc.AssertExpectations(t)
+		})
+	}
+}
+
+func TestBuildMessage_AddressesWebByFidAndNativeByToken(t *testing.T) {
+	tests := []struct {
+		name     string
+		platform string
+		wantKey  string
+		otherKey string
+	}{
+		{name: "a web registration is addressed by installation id", platform: PlatformWeb, wantKey: "fid", otherKey: "token"},
+		{name: "an android registration is addressed by device token", platform: "android", wantKey: "token", otherKey: "fid"},
+		{name: "an ios registration is addressed by device token", platform: "ios", wantKey: "token", otherKey: "fid"},
+		{name: "an unknown platform falls back to a device token", platform: "", wantKey: "token", otherKey: "fid"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			reg := repository.DeviceRegistration{Token: "reg_id", Platform: tc.platform}
+			notification := Notification{Title: "Beatrice", Body: "replied to your theory", Data: map[string]string{"type": "reply"}}
+
+			// when
+			raw, err := json.Marshal(buildMessage(reg, notification))
+
+			// then
+			require.NoError(t, err)
+
+			var wire map[string]any
+			require.NoError(t, json.Unmarshal(raw, &wire))
+
+			assert.Equal(t, "reg_id", wire[tc.wantKey])
+			assert.NotContains(t, wire, tc.otherKey)
+			assert.Equal(t, map[string]any{"title": "Beatrice", "body": "replied to your theory"}, wire["notification"])
+			assert.Equal(t, map[string]any{"type": "reply"}, wire["data"])
 		})
 	}
 }

@@ -8,6 +8,12 @@ export default tseslint.config(
     js.configs.recommended,
     ...tseslint.configs.recommended,
     {
+        files: ["public/**/*.js"],
+        languageOptions: {
+            globals: { self: "readonly" },
+        },
+    },
+    {
         plugins: {
             "react-hooks": reactHooks,
             "react-refresh": reactRefresh,

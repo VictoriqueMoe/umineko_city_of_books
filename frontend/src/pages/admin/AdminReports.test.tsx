@@ -26,7 +26,7 @@ function makeReport(overrides: Partial<ReportItem> = {}): ReportItem {
     return {
         id: 11,
         reporter_name: "beatrice",
-        reporter_avatar: "",
+        reporter_avatar_url: "",
         target_type: "theory",
         target_id: "theory-1",
         reason: "endless repetition of the same red truth",
@@ -82,7 +82,7 @@ describe("AdminReports", () => {
 
     it("falls back to an upper case initial when the reporter has no avatar", () => {
         // given
-        stubReports([makeReport({ reporter_avatar: "" })]);
+        stubReports([makeReport({ reporter_avatar_url: "" })]);
 
         // when
         const { container } = renderWithProviders(<AdminReports />);

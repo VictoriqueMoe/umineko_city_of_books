@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/repository"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,9 +41,7 @@ func TestDeviceTokenDAO_DeleteIsScopedToOwner(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			remaining, err := repos.DeviceToken.TokensForUser(ctx, owner.ID)
-			require.NoError(t, err)
-			assert.Equal(t, tc.wantRemaining, remaining)
+			assert.Equal(t, tc.wantRemaining, remainingTokens(t, repos, owner.ID))
 		})
 	}
 }
@@ -76,9 +76,7 @@ func TestDeviceTokenDAO_DeleteManyIsScopedToOwner(t *testing.T) {
 
 			// then
 			require.NoError(t, err)
-			remaining, err := repos.DeviceToken.TokensForUser(ctx, owner.ID)
-			require.NoError(t, err)
-			assert.ElementsMatch(t, tc.wantRemaining, remaining)
+			assert.ElementsMatch(t, tc.wantRemaining, remainingTokens(t, repos, owner.ID))
 		})
 	}
 }
@@ -96,11 +94,43 @@ func TestDeviceTokenDAO_UpsertRebindsTokenOnDeviceHandover(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	previousTokens, err := repos.DeviceToken.TokensForUser(ctx, previousOwner.ID)
-	require.NoError(t, err)
-	assert.Empty(t, previousTokens)
+	assert.Empty(t, remainingTokens(t, repos, previousOwner.ID))
+	assert.Equal(t, []string{"tok_handover"}, remainingTokens(t, repos, newOwner.ID))
+}
 
-	newTokens, err := repos.DeviceToken.TokensForUser(ctx, newOwner.ID)
+func remainingTokens(t *testing.T, repos *repository.Repositories, userID uuid.UUID) []string {
+	t.Helper()
+
+	registrations, err := repos.DeviceToken.RegistrationsForUser(context.Background(), userID)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"tok_handover"}, newTokens)
+
+	tokens := make([]string, 0, len(registrations))
+	for _, reg := range registrations {
+		tokens = append(tokens, reg.Token)
+	}
+
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	return tokens
+}
+
+func TestDeviceTokenDAO_RegistrationsCarryPlatform(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	require.NoError(t, repos.DeviceToken.Upsert(ctx, user.ID, "tok_native", "android"))
+	require.NoError(t, repos.DeviceToken.Upsert(ctx, user.ID, "fid_web", "web"))
+
+	// when
+	registrations, err := repos.DeviceToken.RegistrationsForUser(ctx, user.ID)
+
+	// then
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []repository.DeviceRegistration{
+		{Token: "tok_native", Platform: "android"},
+		{Token: "fid_web", Platform: "web"},
+	}, registrations)
 }

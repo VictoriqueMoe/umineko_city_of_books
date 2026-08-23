@@ -126,8 +126,8 @@ export function AdminReports() {
                             return (
                                 <tr key={report.id}>
                                     <td className={styles.reporter}>
-                                        {report.reporter_avatar ? (
-                                            <img className={styles.avatar} src={report.reporter_avatar} alt="" />
+                                        {report.reporter_avatar_url ? (
+                                            <img className={styles.avatar} src={report.reporter_avatar_url} alt="" />
                                         ) : (
                                             <span className={styles.avatarPlaceholder}>
                                                 {report.reporter_name.charAt(0).toUpperCase()}

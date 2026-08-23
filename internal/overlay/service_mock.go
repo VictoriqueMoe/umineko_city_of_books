@@ -254,8 +254,8 @@ func (_c *MockService_Handler_Call) Run(run func()) *MockService_Handler_Call {
 	return _c
 }
 
-func (_c *MockService_Handler_Call) Return(v fiber.Handler) *MockService_Handler_Call {
-	_c.Call.Return(v)
+func (_c *MockService_Handler_Call) Return(handler fiber.Handler) *MockService_Handler_Call {
+	_c.Call.Return(handler)
 	return _c
 }
 

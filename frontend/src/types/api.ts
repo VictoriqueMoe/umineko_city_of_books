@@ -673,7 +673,7 @@ export interface Gallery {
     description: string;
     cover_image_url: string;
     cover_thumbnail_url: string;
-    preview_images?: { thumbnail: string; full: string }[];
+    preview_images?: { thumbnail_url: string; full_url: string }[];
     art_count: number;
     created_at: string;
     updated_at?: string;

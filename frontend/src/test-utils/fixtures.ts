@@ -83,6 +83,8 @@ export function makeSiteInfo(overrides: Partial<SiteInfo> = {}): SiteInfo {
         version: "test",
         app_latest_version: "",
         app_download_url: "",
+        push_enabled: false,
+        web_push: { vapid_key: "", api_key: "", project_id: "", sender_id: "", app_id: "" },
         ...overrides,
     };
 }

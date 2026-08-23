@@ -172,6 +172,16 @@ export interface SiteInfo {
     version: string;
     app_latest_version: string;
     app_download_url: string;
+    push_enabled: boolean;
+    web_push: WebPushConfig;
+}
+
+export interface WebPushConfig {
+    vapid_key: string;
+    api_key: string;
+    project_id: string;
+    sender_id: string;
+    app_id: string;
 }
 
 export async function getSiteInfo(): Promise<SiteInfo> {
@@ -620,10 +630,10 @@ export async function updateAdminSettings(settings: SiteSettings): Promise<void>
     await apiPut<unknown, { settings: SiteSettings }>("/admin/settings", { settings });
 }
 
-export async function uploadOGDefaultImage(file: File): Promise<{ url: string }> {
+export async function uploadOGDefaultImage(file: File): Promise<{ image_url: string }> {
     const formData = new FormData();
     formData.append("image", file);
-    return apiPostFormData<{ url: string }>("/admin/settings/og-image", formData);
+    return apiPostFormData<{ image_url: string }>("/admin/settings/og-image", formData);
 }
 
 export async function sendTestEmail(): Promise<void> {
@@ -1161,7 +1171,7 @@ export async function createReport(
 export interface ReportItem {
     id: number;
     reporter_name: string;
-    reporter_avatar: string;
+    reporter_avatar_url: string;
     target_type: string;
     target_id: string;
     context_id?: string;

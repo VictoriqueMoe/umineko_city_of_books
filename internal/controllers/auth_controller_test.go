@@ -770,3 +770,31 @@ func TestGetRules_Landing(t *testing.T) {
 	got := testutil.UnmarshalJSON[map[string]string](t, body)
 	assert.Equal(t, "landing", got["page"])
 }
+
+func TestCookieSameSite_RelaxesOnlyForTheNativeAppOverHTTPS(t *testing.T) {
+	tests := []struct {
+		name           string
+		clientPlatform string
+		secure         bool
+		want           string
+	}{
+		{name: "a browser keeps Lax, which is the only CSRF defence", clientPlatform: "", secure: true, want: "Lax"},
+		{name: "the android app needs None so cross-site media requests carry the cookie", clientPlatform: "android", secure: true, want: "None"},
+		{name: "the ios app needs None for the same reason", clientPlatform: "ios", secure: true, want: "None"},
+		{name: "None is never sent without Secure because chromium rejects it", clientPlatform: "android", secure: false, want: "Lax"},
+		{name: "plain http browsers keep Lax", clientPlatform: "", secure: false, want: "Lax"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			platform := tc.clientPlatform
+
+			// when
+			got := cookieSameSite(platform, tc.secure)
+
+			// then
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}

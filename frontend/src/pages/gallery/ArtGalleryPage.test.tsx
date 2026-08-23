@@ -318,9 +318,9 @@ describe("ArtGalleryPage by artist view", () => {
             galleries: [
                 makeGallery({
                     preview_images: [
-                        { thumbnail: "/one-thumb.png", full: "/one-full.png" },
-                        { thumbnail: "/two-thumb.png", full: "/two-full.png" },
-                        { thumbnail: "/three-thumb.png", full: "/three-full.png" },
+                        { thumbnail_url: "/one-thumb.png", full_url: "/one-full.png" },
+                        { thumbnail_url: "/two-thumb.png", full_url: "/two-full.png" },
+                        { thumbnail_url: "/three-thumb.png", full_url: "/three-full.png" },
                     ],
                 }),
             ],
@@ -338,7 +338,7 @@ describe("ArtGalleryPage by artist view", () => {
     it("shows a lone preview image on its own", () => {
         // given
         stubPage({
-            galleries: [makeGallery({ preview_images: [{ thumbnail: "", full: "/one-full.png" }] })],
+            galleries: [makeGallery({ preview_images: [{ thumbnail_url: "", full_url: "/one-full.png" }] })],
         });
 
         // when
@@ -355,8 +355,8 @@ describe("ArtGalleryPage by artist view", () => {
             galleries: [
                 makeGallery({
                     preview_images: [
-                        { thumbnail: "/one-thumb.png", full: "/one-full.png" },
-                        { thumbnail: "/two-thumb.png", full: "/two-full.png" },
+                        { thumbnail_url: "/one-thumb.png", full_url: "/one-full.png" },
+                        { thumbnail_url: "/two-thumb.png", full_url: "/two-full.png" },
                     ],
                 }),
             ],

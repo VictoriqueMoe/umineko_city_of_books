@@ -1,0 +1,50 @@
+.banner {
+    background: linear-gradient(90deg, #134e4a, #0d9488, #134e4a);
+    color: #fff;
+    padding: 0.6rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.text {
+    overflow-wrap: anywhere;
+}
+
+.button {
+    background: #fff;
+    color: #0d9488;
+    border: none;
+    padding: 0.3rem 0.9rem;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: opacity 0.15s ease;
+}
+
+.button:hover {
+    opacity: 0.85;
+}
+
+.dismiss {
+    background: none;
+    color: #fff;
+    border: none;
+    padding: 0 0.25rem;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.dismiss:hover {
+    opacity: 0.7;
+}

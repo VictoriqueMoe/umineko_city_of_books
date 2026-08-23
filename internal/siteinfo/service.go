@@ -158,5 +158,13 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 		Version:               config.Version,
 		AppLatestVersion:      s.settingsSvc.Get(ctx, config.SettingAppLatestVersion),
 		AppDownloadURL:        s.settingsSvc.Get(ctx, config.SettingAppDownloadURL),
+		PushEnabled:           s.settingsSvc.GetBool(ctx, config.SettingPushEnabled),
+		WebPush: dto.SiteInfoWebPush{
+			VAPIDKey:  s.settingsSvc.Get(ctx, config.SettingWebPushVAPIDKey),
+			APIKey:    s.settingsSvc.Get(ctx, config.SettingWebPushFirebaseAPIKey),
+			ProjectID: s.settingsSvc.Get(ctx, config.SettingWebPushFirebaseProject),
+			SenderID:  s.settingsSvc.Get(ctx, config.SettingWebPushFirebaseSenderID),
+			AppID:     s.settingsSvc.Get(ctx, config.SettingWebPushFirebaseAppID),
+		},
 	}
 }

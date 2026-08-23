@@ -148,6 +148,11 @@ var (
 	SettingPushEnabled             = &SiteSettingDef{"push_enabled", "false", TypeBool, false}
 	SettingAppLatestVersion        = &SiteSettingDef{"app_latest_version", "", TypeString, false}
 	SettingAppDownloadURL          = &SiteSettingDef{"app_download_url", "", TypeString, false}
+	SettingWebPushVAPIDKey         = &SiteSettingDef{"web_push_vapid_key", "", TypeString, false}
+	SettingWebPushFirebaseAPIKey   = &SiteSettingDef{"web_push_firebase_api_key", "", TypeString, false}
+	SettingWebPushFirebaseProject  = &SiteSettingDef{"web_push_firebase_project_id", "", TypeString, false}
+	SettingWebPushFirebaseSenderID = &SiteSettingDef{"web_push_firebase_sender_id", "", TypeString, false}
+	SettingWebPushFirebaseAppID    = &SiteSettingDef{"web_push_firebase_app_id", "", TypeString, false}
 	SettingOGDefaultImage          = &SiteSettingDef{"og_default_image", "", TypeString, false}
 	SettingValkeyURL               = &SiteSettingDef{"valkey_url", "", TypeString, true}
 	SettingCacheInMemoryMaxMB      = &SiteSettingDef{"cache_in_memory_max_mb", "128", TypeInt, false}
@@ -251,6 +256,11 @@ var (
 		SettingPushEnabled,
 		SettingAppLatestVersion,
 		SettingAppDownloadURL,
+		SettingWebPushVAPIDKey,
+		SettingWebPushFirebaseAPIKey,
+		SettingWebPushFirebaseProject,
+		SettingWebPushFirebaseSenderID,
+		SettingWebPushFirebaseAppID,
 		SettingOGDefaultImage,
 		SettingValkeyURL,
 		SettingCacheInMemoryMaxMB,

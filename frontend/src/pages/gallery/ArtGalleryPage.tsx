@@ -395,10 +395,10 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
     );
 }
 
-function PreviewImg({ img, className }: { img: { thumbnail: string; full: string }; className: string }) {
+function PreviewImg({ img, className }: { img: { thumbnail_url: string; full_url: string }; className: string }) {
     return (
         <img
-            src={img.thumbnail || img.full}
+            src={img.thumbnail_url || img.full_url}
             alt=""
             className={className}
             onError={e => {
@@ -408,13 +408,13 @@ function PreviewImg({ img, className }: { img: { thumbnail: string; full: string
                 }
 
                 el.dataset.fallbackTried = "1";
-                el.src = img.full;
+                el.src = img.full_url;
             }}
         />
     );
 }
 
-function GalleryPreview({ images }: { images: { thumbnail: string; full: string }[] }) {
+function GalleryPreview({ images }: { images: { thumbnail_url: string; full_url: string }[] }) {
     if (images.length === 1) {
         return <PreviewImg img={images[0]} className={styles.galleryCoverImage} />;
     }

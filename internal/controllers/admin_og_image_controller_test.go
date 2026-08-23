@@ -86,7 +86,7 @@ func TestAdminUploadOGImage_OK(t *testing.T) {
 	// then
 	require.Equal(t, http.StatusOK, status)
 	got := testutil.UnmarshalJSON[map[string]string](t, respBody)
-	assert.Equal(t, "/uploads/branding/og_default_123.jpg", got["url"])
+	assert.Equal(t, "/uploads/branding/og_default_123.jpg", got["image_url"])
 }
 
 func TestAdminUploadOGImage_RejectsNonJPEG(t *testing.T) {

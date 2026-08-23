@@ -16,6 +16,10 @@ import (
 	"google.golang.org/api/option"
 )
 
+const (
+	PlatformWeb = "web"
+)
+
 type (
 	Notification struct {
 		Title string
@@ -104,6 +108,24 @@ func (s *service) UnregisterToken(ctx context.Context, userID uuid.UUID, token s
 	return s.repo.Delete(ctx, userID, token)
 }
 
+func buildMessage(reg repository.DeviceRegistration, n Notification) *messaging.Message {
+	notification := &messaging.Notification{Title: n.Title, Body: n.Body}
+
+	if reg.Platform == PlatformWeb {
+		return &messaging.Message{
+			Notification: notification,
+			Data:         n.Data,
+			Fid:          reg.Token,
+		}
+	}
+
+	return &messaging.Message{
+		Notification: notification,
+		Data:         n.Data,
+		Token:        reg.Token,
+	}
+}
+
 func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notification) {
 	s.mu.RLock()
 	client := s.client
@@ -113,23 +135,22 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 		return
 	}
 
-	tokens, err := s.repo.TokensForUser(ctx, userID)
+	registrations, err := s.repo.RegistrationsForUser(ctx, userID)
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("failed to load device tokens for push")
 		return
 	}
 
-	if len(tokens) == 0 {
+	if len(registrations) == 0 {
 		return
 	}
 
-	msg := &messaging.MulticastMessage{
-		Tokens:       tokens,
-		Notification: &messaging.Notification{Title: n.Title, Body: n.Body},
-		Data:         n.Data,
+	messages := make([]*messaging.Message, 0, len(registrations))
+	for _, reg := range registrations {
+		messages = append(messages, buildMessage(reg, n))
 	}
 
-	resp, err := client.SendEachForMulticast(ctx, msg)
+	resp, err := client.SendEach(ctx, messages)
 	if err != nil {
 		logger.Log.Warn().Err(err).Msg("failed to send push notification")
 		return
@@ -142,7 +163,7 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 	var stale []string
 	for i, r := range resp.Responses {
 		if r.Error != nil && messaging.IsUnregistered(r.Error) {
-			stale = append(stale, tokens[i])
+			stale = append(stale, registrations[i].Token)
 		}
 	}
 

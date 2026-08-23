@@ -1,0 +1,21 @@
+{
+    "id": "/",
+    "name": "When They Cry City of Books",
+    "short_name": "City of Books",
+    "description": "A social platform for fans of Umineko, Higurashi, and the wider When They Cry series. Post theories, solve mysteries, share fan art, chronicle read-throughs, ship pairings, write fanfiction, and chat in live rooms.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "lang": "en-GB",
+    "dir": "ltr",
+    "theme_color": "#d4a84b",
+    "background_color": "#1a1025",
+    "categories": ["social", "entertainment"],
+    "icons": [
+        { "src": "/favicon/android-chrome-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+        { "src": "/favicon/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+        { "src": "/favicon/maskable-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+        { "src": "/favicon/maskable-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    ]
+}

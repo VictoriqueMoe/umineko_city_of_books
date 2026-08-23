@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+
+	"umineko_city_of_books/internal/repository"
 )
 
 type (
@@ -27,28 +29,28 @@ func (r *deviceTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token, pl
 	return nil
 }
 
-func (r *deviceTokenDAO) TokensForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+func (r *deviceTokenDAO) RegistrationsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.DeviceRegistration, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT token FROM device_tokens WHERE user_id = $1`, userID,
+		`SELECT token, platform FROM device_tokens WHERE user_id = $1`, userID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list device tokens: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
-	var tokens []string
+	var registrations []repository.DeviceRegistration
 	for rows.Next() {
-		var token string
-		if err := rows.Scan(&token); err != nil {
+		var reg repository.DeviceRegistration
+		if err := rows.Scan(&reg.Token, &reg.Platform); err != nil {
 			return nil, fmt.Errorf("scan device token: %w", err)
 		}
-		tokens = append(tokens, token)
+		registrations = append(registrations, reg)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate device tokens: %w", err)
 	}
 
-	return tokens, nil
+	return registrations, nil
 }
 
 func (r *deviceTokenDAO) Delete(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {

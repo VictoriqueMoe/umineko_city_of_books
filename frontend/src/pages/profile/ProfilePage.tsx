@@ -1033,22 +1033,28 @@ function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
     );
 }
 
-function ProfilePreviewImg({ img, className }: { img: { thumbnail: string; full: string }; className: string }) {
+function ProfilePreviewImg({
+    img,
+    className,
+}: {
+    img: { thumbnail_url: string; full_url: string };
+    className: string;
+}) {
     return (
         <img
-            src={img.thumbnail || img.full}
+            src={img.thumbnail_url || img.full_url}
             alt=""
             className={className}
             onError={e => {
-                if (e.currentTarget.src !== img.full) {
-                    e.currentTarget.src = img.full;
+                if (e.currentTarget.src !== img.full_url) {
+                    e.currentTarget.src = img.full_url;
                 }
             }}
         />
     );
 }
 
-function ProfileGalleryPreview({ images }: { images: { thumbnail: string; full: string }[] }) {
+function ProfileGalleryPreview({ images }: { images: { thumbnail_url: string; full_url: string }[] }) {
     if (images.length === 1) {
         return <ProfilePreviewImg img={images[0]} className={styles.galleryCoverImage} />;
     }

@@ -16,6 +16,7 @@ import { StreamOverlaySection } from "./StreamOverlaySection";
 import { getSeriesConfig } from "../../utils/seriesConfig";
 import { useUserOCSummaries } from "../../api/queries/oc";
 import styles from "./SettingsPage.module.css";
+import { WebPushToggle } from "../../components/WebPushToggle/WebPushToggle";
 
 const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
 
@@ -439,6 +440,7 @@ export function SettingsPage() {
 
                     <div className={`${styles.section} ${styles.gridFull}`}>
                         <h3 className={styles.sectionTitle}>Notifications</h3>
+                        <WebPushToggle />
                         <ToggleSwitch
                             enabled={form.emailNotifications}
                             onChange={form.setEmailNotifications}
