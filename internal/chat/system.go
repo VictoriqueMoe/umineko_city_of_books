@@ -95,11 +95,11 @@ func (s *systemService) EnsureSystemRooms(ctx context.Context) error {
 	for _, uid := range staff {
 		r, rErr := s.roleRepo.GetRole(ctx, uid)
 		if rErr != nil {
-			logger.Log.Error().Err(rErr).Str("user_id", uid.String()).Msg("get role during system room seed")
+			logger.Ctx(ctx).Error().Err(rErr).Str("user_id", uid.String()).Msg("get role during system room seed")
 			continue
 		}
 		if err := s.SyncSystemRoomMembership(ctx, uid, r); err != nil {
-			logger.Log.Error().Err(err).Str("user_id", uid.String()).Msg("sync system room membership during seed")
+			logger.Ctx(ctx).Error().Err(err).Str("user_id", uid.String()).Msg("sync system room membership during seed")
 		}
 	}
 	return nil

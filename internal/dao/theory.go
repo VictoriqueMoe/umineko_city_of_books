@@ -253,19 +253,19 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 
 	voteScores, err := r.theoryVoteScoresBatch(ctx, ids, tx...)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get theory vote counts")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get theory vote counts")
 	}
 
 	sideCounts, err := r.responseSideCountsBatch(ctx, ids, tx...)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get response side counts")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get response side counts")
 	}
 
 	var userVotes map[uuid.UUID]int
 	if userID != uuid.Nil {
 		userVotes, err = r.userTheoryVotesBatch(ctx, userID, ids, tx...)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("failed to get user theory vote")
+			logger.Ctx(ctx).Error().Err(err).Msg("failed to get user theory vote")
 		}
 	}
 
@@ -304,7 +304,7 @@ func (r *theoryDAO) UpdateTheory(ctx context.Context, spec repository.TheoryUpda
 
 	affected, err := result.RowsAffected()
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get rows affected for theory update")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get rows affected for theory update")
 	}
 	if affected == 0 {
 		return fmt.Errorf("theory not found or not owned by user")
@@ -339,7 +339,7 @@ func (r *theoryDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get rows affected for theory delete")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get rows affected for theory delete")
 	}
 	if affected == 0 {
 		return fmt.Errorf("theory not found or not owned by user")
@@ -354,7 +354,7 @@ func (r *theoryDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get rows affected for admin theory delete")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get rows affected for admin theory delete")
 	}
 	if affected == 0 {
 		return fmt.Errorf("theory not found")
@@ -419,7 +419,7 @@ func (r *theoryDAO) DeleteResponse(ctx context.Context, id uuid.UUID, userID uui
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get rows affected for response delete")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get rows affected for response delete")
 	}
 	if affected == 0 {
 		return fmt.Errorf("response not found or not owned by user")
@@ -434,7 +434,7 @@ func (r *theoryDAO) DeleteResponseAsAdmin(ctx context.Context, id uuid.UUID, tx 
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get rows affected for admin response delete")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get rows affected for admin response delete")
 	}
 	if affected == 0 {
 		return fmt.Errorf("response not found")
@@ -480,14 +480,14 @@ func (r *theoryDAO) GetResponses(ctx context.Context, theoryID uuid.UUID, userID
 
 	voteScores, err := r.responseVoteScoresBatch(ctx, ids, tx...)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get response vote counts")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get response vote counts")
 	}
 
 	var userVotes map[uuid.UUID]int
 	if userID != uuid.Nil {
 		userVotes, err = r.userResponseVotesBatch(ctx, userID, ids, tx...)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("failed to get user response vote")
+			logger.Ctx(ctx).Error().Err(err).Msg("failed to get user response vote")
 		}
 	}
 

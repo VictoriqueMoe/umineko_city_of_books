@@ -142,6 +142,6 @@ func (r *settingsRepository) invalidate(ctx context.Context, keys ...config.Site
 	}
 
 	if err := r.cache.Del(ctx, cacheKeys...); err != nil {
-		logger.Log.Error().Err(err).Msg("failed to invalidate setting caches after write")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate setting caches after write")
 	}
 }

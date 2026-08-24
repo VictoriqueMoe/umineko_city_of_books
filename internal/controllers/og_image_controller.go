@@ -55,7 +55,7 @@ func (h *OGImageHandler) serve(ctx fiber.Ctx) error {
 
 	data, err := h.images.JPEG(ctx.Context(), clean, fullPath, info, maxPixels)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("path", fullPath).Msg("og image conversion failed, serving original webp")
+		logger.Ctx(ctx.Context()).Warn().Err(err).Str("path", fullPath).Msg("og image conversion failed, serving original webp")
 		return ctx.SendFile(fullPath)
 	}
 

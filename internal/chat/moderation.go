@@ -45,7 +45,7 @@ func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, send
 		Details:    details,
 		SubjectID:  senderID,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit word filter hit")
+		logger.Ctx(ctx).Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit word filter hit")
 	}
 	if match.Action == contentfilter.BannedWordActionKick && !s.isBotSender(ctx, senderID) {
 		targetName := s.displayNameFor(ctx, senderID, roomID)
@@ -178,7 +178,7 @@ func (s *moderationService) BanMember(ctx context.Context, actorID, roomID, targ
 		Details:    details,
 		SubjectID:  targetID,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit room ban")
+		logger.Ctx(ctx).Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit room ban")
 	}
 	return nil
 }
@@ -349,7 +349,7 @@ func (s *moderationService) UpdateRoomBannedWord(ctx context.Context, actorID, r
 		TargetID:   roomID.String(),
 		Details:    details,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit banned word update")
+		logger.Ctx(ctx).Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit banned word update")
 	}
 	return updated, nil
 }
@@ -464,7 +464,7 @@ func (s *moderationService) UpdateGlobalBannedWord(ctx context.Context, actorID,
 		TargetID:   ruleID.String(),
 		Details:    details,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("rule_id", ruleID.String()).Msg("failed to audit banned word update")
+		logger.Ctx(ctx).Error().Err(err).Str("rule_id", ruleID.String()).Msg("failed to audit banned word update")
 	}
 	return updated, nil
 }

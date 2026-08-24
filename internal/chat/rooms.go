@@ -140,7 +140,7 @@ func (r *roomsService) removeBotsAfterRPChange(ctx context.Context, roomID, acto
 	removed := make([]string, 0, len(bots))
 	for i := range bots {
 		if err := r.evictUserFromRoom(ctx, roomID, bots[i].ID, "this room is no longer a roleplay room"); err != nil {
-			logger.Log.Error().Err(err).Str("room_id", roomID.String()).Str("bot_id", bots[i].ID.String()).Msg("failed to remove bot after roleplay was turned off")
+			logger.Ctx(ctx).Error().Err(err).Str("room_id", roomID.String()).Str("bot_id", bots[i].ID.String()).Msg("failed to remove bot after roleplay was turned off")
 
 			continue
 		}

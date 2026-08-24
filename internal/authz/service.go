@@ -54,7 +54,7 @@ func (s *service) IsRestrictedNewAccount(ctx context.Context, userID uuid.UUID) 
 func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
 	banned, err := s.userRepo.IsBanned(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check ban status, treating the account as restricted")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to check ban status, treating the account as restricted")
 		return true
 	}
 	return banned
@@ -63,7 +63,7 @@ func (s *service) IsBanned(ctx context.Context, userID uuid.UUID) bool {
 func (s *service) IsLocked(ctx context.Context, userID uuid.UUID) bool {
 	locked, err := s.userRepo.IsLocked(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check lock status, treating the account as restricted")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to check lock status, treating the account as restricted")
 		return true
 	}
 	return locked
@@ -72,7 +72,7 @@ func (s *service) IsLocked(ctx context.Context, userID uuid.UUID) bool {
 func (s *service) RequiresEmailVerification(ctx context.Context, userID uuid.UUID) bool {
 	blocked, err := s.userRepo.RequiresEmailVerification(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to check email verification status, treating the account as restricted")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to check email verification status, treating the account as restricted")
 		return true
 	}
 	return blocked
@@ -85,7 +85,7 @@ func (s *service) Can(ctx context.Context, userID uuid.UUID, perm Permission) bo
 
 	r, err := s.roleRepo.GetRole(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to get role for permission check")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to get role for permission check")
 		return false
 	}
 
@@ -111,7 +111,7 @@ func (s *service) EffectivePermissions(ctx context.Context, userID uuid.UUID) []
 
 	r, err := s.roleRepo.GetRole(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to get role for effective permissions")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to get role for effective permissions")
 		return nil
 	}
 
@@ -130,7 +130,7 @@ func (s *service) EffectivePermissions(ctx context.Context, userID uuid.UUID) []
 	if IsEditableSystemRole(r) {
 		table, err := s.permRepo.GetRolePermissions(ctx)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("failed to load role permissions")
+			logger.Ctx(ctx).Error().Err(err).Msg("failed to load role permissions")
 			return nil
 		}
 
@@ -141,14 +141,14 @@ func (s *service) EffectivePermissions(ctx context.Context, userID uuid.UUID) []
 
 	ids, err := s.permRepo.GetVanityRoleIDsForUser(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to load vanity roles for effective permissions")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to load vanity roles for effective permissions")
 		ids = nil
 	}
 
 	if len(ids) > 0 {
 		table, err := s.permRepo.GetVanityRolePermissions(ctx)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("failed to load vanity role permissions")
+			logger.Ctx(ctx).Error().Err(err).Msg("failed to load vanity role permissions")
 			table = nil
 		}
 
@@ -193,7 +193,7 @@ func (s *service) systemRoleGrants(ctx context.Context, r role.Role, perm Permis
 
 	table, err := s.permRepo.GetRolePermissions(ctx)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to load role permissions")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to load role permissions")
 		return false
 	}
 
@@ -203,7 +203,7 @@ func (s *service) systemRoleGrants(ctx context.Context, r role.Role, perm Permis
 func (s *service) vanityRolesGrant(ctx context.Context, userID uuid.UUID, perm Permission) bool {
 	ids, err := s.permRepo.GetVanityRoleIDsForUser(ctx, userID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to load vanity roles for permission check")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to load vanity roles for permission check")
 		return false
 	}
 
@@ -213,7 +213,7 @@ func (s *service) vanityRolesGrant(ctx context.Context, userID uuid.UUID, perm P
 
 	table, err := s.permRepo.GetVanityRolePermissions(ctx)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to load vanity role permissions")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to load vanity role permissions")
 		return false
 	}
 

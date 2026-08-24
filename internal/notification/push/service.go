@@ -74,24 +74,24 @@ func (s *service) buildClient() {
 		Scopes: []string{"https://www.googleapis.com/auth/firebase.messaging"},
 	})
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to load FCM credentials")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to load FCM credentials")
 		return
 	}
 
 	app, err := firebase.NewApp(ctx, nil, option.WithAuthCredentials(creds))
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to initialise firebase app")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to initialise firebase app")
 		return
 	}
 
 	client, err := app.Messaging(ctx)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to initialise firebase messaging client")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to initialise firebase messaging client")
 		return
 	}
 
 	s.client = client
-	logger.Log.Info().Msg("FCM push client configured")
+	logger.Ctx(ctx).Info().Msg("FCM push client configured")
 }
 
 func (s *service) Enabled() bool {
@@ -137,7 +137,7 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 
 	registrations, err := s.repo.RegistrationsForUser(ctx, userID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to load device tokens for push")
+		logger.Ctx(ctx).Warn().Err(err).Msg("failed to load device tokens for push")
 		return
 	}
 
@@ -152,7 +152,7 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 
 	resp, err := client.SendEach(ctx, messages)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("failed to send push notification")
+		logger.Ctx(ctx).Warn().Err(err).Msg("failed to send push notification")
 		return
 	}
 
@@ -169,7 +169,7 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 
 	if len(stale) > 0 {
 		if err := s.repo.DeleteMany(ctx, userID, stale); err != nil {
-			logger.Log.Warn().Err(err).Msg("failed to prune stale device tokens")
+			logger.Ctx(ctx).Warn().Err(err).Msg("failed to prune stale device tokens")
 		}
 	}
 }

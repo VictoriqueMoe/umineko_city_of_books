@@ -84,7 +84,7 @@ func applyLocked(ctx context.Context, endpoint string) error {
 	currentDSN = endpoint
 
 	if endpoint == "" {
-		logger.Log.Info().Msg("otel tracing disabled")
+		logger.Ctx(ctx).Info().Msg("otel tracing disabled")
 		return nil
 	}
 
@@ -102,7 +102,7 @@ func applyLocked(ctx context.Context, endpoint string) error {
 	tp.RegisterSpanProcessor(processor)
 	currentProcessor = processor
 
-	logger.Log.Info().Str("endpoint", endpoint).Msg("otel tracing enabled")
+	logger.Ctx(ctx).Info().Str("endpoint", endpoint).Msg("otel tracing enabled")
 	return nil
 }
 

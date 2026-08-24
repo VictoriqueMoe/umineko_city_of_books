@@ -166,7 +166,7 @@ func (s *service) blockedBetween(ctx context.Context, params dto.NotifyParams) b
 
 	blocked, err := s.blockRepo.IsBlockedEither(ctx, params.RecipientID, params.ActorID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("type", string(params.Type)).Msg("block check failed, delivering notification")
+		logger.Ctx(ctx).Warn().Err(err).Str("type", string(params.Type)).Msg("block check failed, delivering notification")
 		return false
 	}
 
@@ -205,7 +205,7 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
 	for _, p := range params {
 		if err := s.Notify(ctx, p); err != nil {
-			logger.Log.Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("type", string(p.Type)).Str("recipient", p.RecipientID.String()).Msg("notify failed")
 		}
 	}
 }
@@ -213,7 +213,7 @@ func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
 func (s *service) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool {
 	recent, err := s.repo.HasRecentFromActor(ctx, notifType, actorID, within)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("type", string(notifType)).Str("actor", actorID.String()).Msg("recent notification lookup failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("type", string(notifType)).Str("actor", actorID.String()).Msg("recent notification lookup failed")
 		return false
 	}
 
@@ -233,7 +233,7 @@ func (s *service) sendEmail(ctx context.Context, params dto.NotifyParams) {
 	subject, body := s.buildEmail(ctx, params)
 
 	if err := s.emailSvc.Send(ctx, recipient.Email, subject, body); err != nil {
-		logger.Log.Warn().Err(err).Str("to", recipient.Email).Msg("failed to send notification email")
+		logger.Ctx(ctx).Warn().Err(err).Str("to", recipient.Email).Msg("failed to send notification email")
 	}
 }
 

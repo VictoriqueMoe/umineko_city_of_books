@@ -118,7 +118,7 @@ func (r *chatbotBasePromptRepository) Delete(ctx context.Context, id uuid.UUID, 
 
 func (r *chatbotBasePromptRepository) InvalidateList(ctx context.Context) {
 	if err := r.cache.Del(ctx, cache.ChatbotBasePrompts.Key()); err != nil {
-		logger.Log.Error().Err(err).Msg("failed to invalidate the chatbot base prompt list cache")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate the chatbot base prompt list cache")
 	}
 }
 
@@ -126,6 +126,6 @@ func (r *chatbotBasePromptRepository) invalidate(ctx context.Context, id uuid.UU
 	keys := []string{cache.ChatbotBasePrompts.Key(), cache.ChatbotBasePromptByID.Key(id.String())}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Log.Error().Err(err).Msg("failed to invalidate chatbot base prompt caches")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate chatbot base prompt caches")
 	}
 }

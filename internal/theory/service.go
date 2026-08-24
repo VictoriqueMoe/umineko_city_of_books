@@ -88,7 +88,7 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 
 func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
@@ -109,7 +109,7 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 }
 
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
-	logger.Log.Debug().Str("user_id", userID.String()).Str("title", req.Title).Msg("creating theory")
+	logger.Ctx(ctx).Debug().Str("user_id", userID.String()).Str("title", req.Title).Msg("creating theory")
 
 	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
 		return uuid.Nil, err
@@ -173,7 +173,7 @@ func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid
 	if userID != uuid.Nil {
 		vote, err := s.repo.GetUserTheoryVote(ctx, userID, id)
 		if err != nil {
-			logger.Log.Error().Err(err).Str("theory_id", id.String()).Msg("failed to get user theory vote")
+			logger.Ctx(ctx).Error().Err(err).Str("theory_id", id.String()).Msg("failed to get user theory vote")
 		}
 		detail.UserVote = vote
 	}
@@ -288,7 +288,7 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 }
 
 func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
-	logger.Log.Debug().Str("theory_id", theoryID.String()).Str("user_id", userID.String()).Str("side", req.Side).Msg("creating response")
+	logger.Ctx(ctx).Debug().Str("theory_id", theoryID.String()).Str("user_id", userID.String()).Str("side", req.Side).Msg("creating response")
 
 	if err := s.filterTexts(ctx, append([]string{req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
 		return uuid.Nil, err
@@ -335,7 +335,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 		s.resolveEvidenceWeights(ctx, theoryID, created.ID)
 		s.credibilitySvc.Recalculate(ctx, theoryID)
 		if err := s.repo.RecomputeStatus(ctx, theoryID); err != nil {
-			logger.Log.Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
 		}
 	}()
 
@@ -354,7 +354,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 			EmailTitle:    title,
 			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, created.ID),
 		}); err != nil {
-			logger.Log.Warn().Err(err).Msg("notify theory response failed")
+			logger.Ctx(ctx).Warn().Err(err).Msg("notify theory response failed")
 		}
 	}()
 
@@ -376,7 +376,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 				EmailTitle:    title,
 				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, created.ID),
 			}); err != nil {
-				logger.Log.Warn().Err(err).Msg("notify response reply failed")
+				logger.Ctx(ctx).Warn().Err(err).Msg("notify response reply failed")
 			}
 		}()
 	}
@@ -387,19 +387,19 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID, responseID uuid.UUID) {
 	seriesStr, err := s.repo.GetTheorySeries(ctx, theoryID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to get theory series for weight resolution")
+		logger.Ctx(ctx).Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to get theory series for weight resolution")
 		return
 	}
 
 	series, err := quotefinder.ParseSeries(seriesStr)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("series", seriesStr).Msg("theory has invalid series, defaulting to umineko")
+		logger.Ctx(ctx).Warn().Err(err).Str("series", seriesStr).Msg("theory has invalid series, defaulting to umineko")
 		series = quotefinder.SeriesUmineko
 	}
 
 	evidence, err := s.repo.GetResponseEvidence(ctx, responseID)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to get response evidence for weight resolution")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to get response evidence for weight resolution")
 		return
 	}
 
@@ -411,14 +411,14 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID
 			q, err = s.quoteClient.GetByIndex(series, *ev.QuoteIndex)
 		}
 		if err != nil {
-			logger.Log.Warn().Err(err).Int("evidence_id", ev.ID).Msg("failed to resolve quote for truth weight")
+			logger.Ctx(ctx).Warn().Err(err).Int("evidence_id", ev.ID).Msg("failed to resolve quote for truth weight")
 			continue
 		}
 
 		weight := quotefinder.TruthWeight(q)
 		if weight != 1.0 {
 			if err := s.repo.SetEvidenceTruthWeight(ctx, ev.ID, weight); err != nil {
-				logger.Log.Error().Err(err).Int("evidence_id", ev.ID).Msg("failed to set truth weight")
+				logger.Ctx(ctx).Error().Err(err).Int("evidence_id", ev.ID).Msg("failed to set truth weight")
 			}
 		}
 	}
@@ -452,7 +452,7 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 		go func() {
 			s.credibilitySvc.Recalculate(ctx, theoryID)
 			if err := s.repo.RecomputeStatus(ctx, theoryID); err != nil {
-				logger.Log.Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
+				logger.Ctx(ctx).Warn().Err(err).Str("theory_id", theoryID.String()).Msg("recompute theory status failed")
 			}
 		}()
 	}
@@ -525,7 +525,7 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 			EmailTitle:    title,
 			EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 		}); err != nil {
-			logger.Log.Warn().Err(err).Msg("notify theory refuted failed")
+			logger.Ctx(ctx).Warn().Err(err).Msg("notify theory refuted failed")
 		}
 	}()
 
@@ -559,7 +559,7 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 				EmailTitle:    title,
 				EmailLink:     fmt.Sprintf("/theory/%s", theoryID),
 			}); err != nil {
-				logger.Log.Warn().Err(err).Msg("notify theory upvote failed")
+				logger.Ctx(ctx).Warn().Err(err).Msg("notify theory upvote failed")
 			}
 		}()
 	}
@@ -594,7 +594,7 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 				EmailTitle:    title,
 				EmailLink:     fmt.Sprintf("/theory/%s#response-%s", theoryID, responseID),
 			}); err != nil {
-				logger.Log.Warn().Err(err).Msg("notify response upvote failed")
+				logger.Ctx(ctx).Warn().Err(err).Msg("notify response upvote failed")
 			}
 		}()
 	}

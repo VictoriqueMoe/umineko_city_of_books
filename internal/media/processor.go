@@ -153,12 +153,12 @@ func (p *Processor) Shutdown(ctx context.Context) error {
 
 	select {
 	case <-done:
-		logger.Log.Info().Int("abandoned", len(p.jobs)).Msg("media processor drained")
+		logger.Ctx(ctx).Info().Int("abandoned", len(p.jobs)).Msg("media processor drained")
 		p.failPending()
 
 		return nil
 	case <-ctx.Done():
-		logger.Log.Warn().Int("abandoned", len(p.jobs)).Msg("media processor drain timed out, encoding jobs were cut short")
+		logger.Ctx(ctx).Warn().Int("abandoned", len(p.jobs)).Msg("media processor drain timed out, encoding jobs were cut short")
 		p.failPending()
 
 		return ctx.Err()

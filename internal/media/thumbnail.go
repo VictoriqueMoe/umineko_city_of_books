@@ -60,6 +60,6 @@ func GenerateThumbnail(videoPath string, outputDir string, filename string) (str
 		return "", fmt.Errorf("ffmpeg thumbnail: %w: %s", err, string(output))
 	}
 
-	logger.Log.Debug().Str("video", videoPath).Str("thumb", destPath).Msg("thumbnail generated")
+	logger.Ctx(ctx).Debug().Str("video", videoPath).Str("thumb", destPath).Msg("thumbnail generated")
 	return thumbFilename, nil
 }

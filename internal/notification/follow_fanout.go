@@ -42,7 +42,7 @@ func SendFollowerNotification(
 ) {
 	followerIDs, err := followRepo.GetFollowerIDsToNotify(ctx, p.ActorID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("type", string(p.Type)).Str("actor", p.ActorID.String()).Msg("follower fan-out lookup failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("type", string(p.Type)).Str("actor", p.ActorID.String()).Msg("follower fan-out lookup failed")
 		return
 	}
 

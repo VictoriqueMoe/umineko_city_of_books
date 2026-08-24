@@ -124,7 +124,7 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 
 func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 

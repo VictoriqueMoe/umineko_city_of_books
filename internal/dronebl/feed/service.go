@@ -94,7 +94,7 @@ func (f *Service) Refresh(ctx context.Context) (int, error) {
 		ranges, err := f.fetch(ctx, source.URL)
 		if err != nil {
 			failures++
-			logger.Log.Error().Err(err).Str("feed", source.Name).Msg("crawler range feed refresh failed, keeping the ranges it gave us last time")
+			logger.Ctx(ctx).Error().Err(err).Str("feed", source.Name).Msg("crawler range feed refresh failed, keeping the ranges it gave us last time")
 
 			ranges = previous[source.Name]
 		}

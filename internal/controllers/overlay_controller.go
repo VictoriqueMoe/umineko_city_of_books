@@ -54,7 +54,7 @@ func (s *Service) overlayTokenReset(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if _, err := s.OverlayService.ResetToken(ctx.Context(), userID); err != nil {
-		logger.Log.Warn().Err(err).Msg("overlay token reset failed")
+		logger.Ctx(ctx.Context()).Warn().Err(err).Msg("overlay token reset failed")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
@@ -64,7 +64,7 @@ func (s *Service) overlayTokenReset(ctx fiber.Ctx) error {
 func (s *Service) overlayConnectorSEF(ctx fiber.Ctx) error {
 	sef, err := s.OverlayService.BuildSEF(ctx.Context(), utils.UserID(ctx))
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("overlay sef build failed")
+		logger.Ctx(ctx.Context()).Warn().Err(err).Msg("overlay sef build failed")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
@@ -89,13 +89,13 @@ func (s *Service) overlayTest(ctx fiber.Ctx) error {
 func (s *Service) respondOverlayConnection(ctx fiber.Ctx, userID uuid.UUID) error {
 	token, err := s.OverlayService.Token(ctx.Context(), userID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("overlay token failed")
+		logger.Ctx(ctx.Context()).Warn().Err(err).Msg("overlay token failed")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 
 	connectURL, err := s.OverlayService.ConnectURL(ctx.Context(), userID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("overlay connect url failed")
+		logger.Ctx(ctx.Context()).Warn().Err(err).Msg("overlay connect url failed")
 		return ctx.SendStatus(fiber.StatusInternalServerError)
 	}
 

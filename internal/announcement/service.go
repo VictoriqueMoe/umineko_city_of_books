@@ -199,7 +199,7 @@ func (s *service) audit(ctx context.Context, actorID uuid.UUID, action repositor
 		Details:    details,
 		SubjectID:  subjectID,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
 	}
 }
 
@@ -307,7 +307,7 @@ func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid
 
 	created, err := s.repo.CreateComment(ctx, announcementID, parentID, userID, body)
 	if err != nil {
-		logger.Log.Error().Err(err).
+		logger.Ctx(ctx).Error().Err(err).
 			Str("announcement_id", announcementID.String()).
 			Str("user_id", userID.String()).
 			Msg("failed to create announcement comment")

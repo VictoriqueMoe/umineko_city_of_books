@@ -122,7 +122,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		}, candidates)
 		if err != nil {
 			if hyperbeam.IsNoCapacity(err) {
-				logger.Log.Error().Err(err).Str("regions", strings.Join(candidates, ",")).Msg("every hyperbeam region is out of capacity: virtual browser watch parties cannot start")
+				logger.Ctx(ctx).Error().Err(err).Str("regions", strings.Join(candidates, ",")).Msg("every hyperbeam region is out of capacity: virtual browser watch parties cannot start")
 				return nil, ErrWatchPartyNoCapacity
 			}
 			return nil, fmt.Errorf("create hyperbeam vm: %w", err)
@@ -218,7 +218,7 @@ func (s *watchPartyService) JoinWatchParty(ctx context.Context, roomID, sessionI
 				s.cleanupDeadSession(session, "vm_gone")
 				return nil, ErrWatchPartyNotActive
 			}
-			logger.Log.Warn().Err(statusErr).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("vm status check failed (continuing)")
+			logger.Ctx(ctx).Warn().Err(statusErr).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("vm status check failed (continuing)")
 		}
 	}
 
@@ -282,7 +282,7 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 
 	if participant.HasControl {
 		if err := s.transferControlTo(ctx, roomID, session, session.StartedBy); err != nil {
-			logger.Log.Warn().Err(err).Msg("auto-return control to owner on leave failed")
+			logger.Ctx(ctx).Warn().Err(err).Msg("auto-return control to owner on leave failed")
 		} else {
 			s.postControlChangeSystemMessage(ctx, roomID, session.ID, actorID, session.StartedBy, "auto_owner_return")
 		}
@@ -336,7 +336,7 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 
 	if target.HasControl {
 		if err := s.transferControlTo(ctx, roomID, session, session.StartedBy); err != nil {
-			logger.Log.Warn().Err(err).Msg("auto-return control on kick failed")
+			logger.Ctx(ctx).Warn().Err(err).Msg("auto-return control on kick failed")
 		} else if session.StartedBy != targetID {
 			s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, session.StartedBy, "auto_owner_return")
 		}
@@ -378,7 +378,7 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 		Details:    details,
 		SubjectID:  targetID,
 	}); err != nil {
-		logger.Log.Warn().Err(err).Msg("audit watch_party.kick failed")
+		logger.Ctx(ctx).Warn().Err(err).Msg("audit watch_party.kick failed")
 	}
 
 	return nil
@@ -391,7 +391,7 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 	for _, roomID := range roomIDs {
 		sessions, err := s.watchPartyRepo.ListActiveByRoom(ctx, roomID)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("disconnect: list active watch parties failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("disconnect: list active watch parties failed")
 			continue
 		}
 
@@ -405,14 +405,14 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 
 			if participant.HasControl && sess.StartedBy != userID {
 				if err := s.transferControlTo(ctx, roomID, &sess, sess.StartedBy); err != nil {
-					logger.Log.Warn().Err(err).Msg("disconnect: auto-return control failed")
+					logger.Ctx(ctx).Warn().Err(err).Msg("disconnect: auto-return control failed")
 				} else {
 					s.postControlChangeSystemMessage(ctx, roomID, sess.ID, userID, sess.StartedBy, "auto_owner_return")
 				}
 			}
 
 			if err := s.watchPartyRepo.MarkParticipantLeft(ctx, sess.ID, userID); err != nil {
-				logger.Log.Warn().Err(err).Msg("disconnect: mark participant left failed")
+				logger.Ctx(ctx).Warn().Err(err).Msg("disconnect: mark participant left failed")
 				continue
 			}
 
@@ -486,7 +486,7 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 		Details:    details,
 		SubjectID:  targetID,
 	}); err != nil {
-		logger.Log.Warn().Err(err).Msg("audit watch_party.grant_control failed")
+		logger.Ctx(ctx).Warn().Err(err).Msg("audit watch_party.grant_control failed")
 	}
 
 	return nil
@@ -527,7 +527,7 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 	for i := range demotedIDs {
 		if demotedIdentifiers[i] != "" && session.VMBaseURL != "" {
 			if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, demotedIdentifiers[i], false); err != nil {
-				logger.Log.Warn().Err(err).Str("user_id", demotedIDs[i].String()).Msg("transfer: demote previous controller failed")
+				logger.Ctx(ctx).Warn().Err(err).Str("user_id", demotedIDs[i].String()).Msg("transfer: demote previous controller failed")
 			}
 		}
 
@@ -544,7 +544,7 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 
 	if targetIdentifier != "" && session.VMBaseURL != "" {
 		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, targetIdentifier, true); err != nil {
-			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("transfer: promote target permissions failed (continuing)")
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", targetID.String()).Msg("transfer: promote target permissions failed (continuing)")
 		}
 	}
 
@@ -592,7 +592,7 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 
 	if s.hyperbeamSvc != nil && session.Type != watchPartyTypeScreenShare {
 		if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
-			logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("terminate hyperbeam vm failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("terminate hyperbeam vm failed")
 		}
 	}
 
@@ -607,7 +607,7 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 			TargetID:   session.ID.String(),
 			Details:    details,
 		}); err != nil {
-			logger.Log.Warn().Err(err).Msg("audit watch_party.end failed")
+			logger.Ctx(ctx).Warn().Err(err).Msg("audit watch_party.end failed")
 		}
 
 		hostName, _ := s.nameAndPossessive(ctx, session.StartedBy)
@@ -648,7 +648,7 @@ func (s *watchPartyService) IdentifyWatchPartyParticipant(ctx context.Context, r
 	}
 	if s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() && session.VMBaseURL != "" {
 		if err := s.hyperbeamSvc.SetControlRole(ctx, session.VMBaseURL, session.HyperbeamAdminToken, identifier, participant.HasControl); err != nil {
-			logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("identify: set user permissions failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("identify: set user permissions failed")
 		}
 	}
 	return nil
@@ -671,7 +671,7 @@ func (s *watchPartyService) ListWatchParties(ctx context.Context, roomID, viewer
 					s.cleanupDeadSession(&row, "vm_gone")
 					continue
 				}
-				logger.Log.Warn().Err(statusErr).Str("hyperbeam_session_id", row.HyperbeamSessionID).Msg("list watch parties: vm status check failed")
+				logger.Ctx(ctx).Warn().Err(statusErr).Str("hyperbeam_session_id", row.HyperbeamSessionID).Msg("list watch parties: vm status check failed")
 			}
 		}
 		s2, err := s.buildWatchPartySessionDTO(ctx, &row, viewerID, "", false)
@@ -783,14 +783,14 @@ func (s *watchPartyService) ReconcileWatchPartiesOnce(ctx context.Context) {
 	cutoff := time.Now().UTC().Add(-watchPartyReconcileIdleAfter).Format(time.RFC3339Nano)
 	sessions, err := s.watchPartyRepo.ListIdleActiveSessions(ctx, cutoff)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("reconcile watch parties: list failed")
+		logger.Ctx(ctx).Warn().Err(err).Msg("reconcile watch parties: list failed")
 		return
 	}
 	for i := range sessions {
 		session := sessions[i]
 		if s.hyperbeamSvc != nil && session.Type != watchPartyTypeScreenShare {
 			if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
-				logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("reconcile: terminate vm failed")
+				logger.Ctx(ctx).Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("reconcile: terminate vm failed")
 			}
 		}
 		s.cleanupDeadSession(&session, "idle_reconcile")
@@ -822,28 +822,28 @@ func (s *watchPartyService) abandonSession(ctx context.Context, sessionID uuid.U
 	}
 
 	if err := s.deleteRoomWithMedia(ctx, sessionID); err != nil {
-		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party chat room failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party chat room failed")
 	}
 
 	if err := s.watchPartyRepo.MarkAllParticipantsLeft(ctx, sessionID); err != nil {
-		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party participants failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party participants failed")
 	}
 
 	if err := s.watchPartyRepo.EndSession(ctx, sessionID, reason); err != nil {
-		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party session failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party session failed")
 	}
 }
 
 func (s *watchPartyService) admitToWatchPartyRoom(ctx context.Context, sessionID, userID uuid.UUID) {
 	alreadyMember, err := s.chatRepo.IsMember(ctx, sessionID, userID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("check watch party chat membership failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("check watch party chat membership failed")
 		return
 	}
 
 	if !alreadyMember {
 		if err := s.chatRepo.AddMemberWithRole(ctx, sessionID, userID, "member", false); err != nil {
-			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("add participant to watch party chat room failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("add participant to watch party chat room failed")
 			return
 		}
 	}
@@ -914,7 +914,7 @@ func (s *watchPartyService) createVMWithRegionFallback(ctx context.Context, opts
 			return nil, "", err
 		}
 
-		logger.Log.Warn().Str("region", region).Msg("hyperbeam region has no free vms, trying the next region")
+		logger.Ctx(ctx).Warn().Str("region", region).Msg("hyperbeam region has no free vms, trying the next region")
 	}
 
 	return nil, "", lastErr
@@ -924,7 +924,7 @@ func (s *watchPartyService) terminateHyperbeam(sessionID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := s.hyperbeamSvc.TerminateVM(ctx, sessionID); err != nil {
-		logger.Log.Warn().Err(err).Str("hyperbeam_session_id", sessionID).Msg("cleanup terminate vm failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("hyperbeam_session_id", sessionID).Msg("cleanup terminate vm failed")
 	}
 }
 

@@ -194,7 +194,7 @@ func (a *adminService) Update(ctx context.Context, actorID uuid.UUID, id uuid.UU
 func (a *adminService) Delete(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
 	doomed, lookupErr := a.findBot(ctx, id)
 	if lookupErr != nil && !errors.Is(lookupErr, ErrBotNotFound) {
-		logger.Log.Error().Err(lookupErr).Str("chatbot_id", id.String()).Msg("failed to read the chatbot before deleting it")
+		logger.Ctx(ctx).Error().Err(lookupErr).Str("chatbot_id", id.String()).Msg("failed to read the chatbot before deleting it")
 	}
 
 	if err := a.botRepo.DeleteBot(ctx, id); err != nil {
@@ -241,7 +241,7 @@ func (a *adminService) findBot(ctx context.Context, id uuid.UUID) (*repository.C
 
 func (a *adminService) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := a.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 

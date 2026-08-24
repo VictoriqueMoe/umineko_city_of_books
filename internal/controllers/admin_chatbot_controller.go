@@ -165,7 +165,7 @@ func (s *Service) adminChatbotUsage(ctx fiber.Ctx) error {
 func (s *Service) adminChatbotModels(ctx fiber.Ctx) error {
 	models, err := s.ChatbotAdminService.Models(ctx.Context())
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to list openai models for the admin panel")
+		logger.Ctx(ctx.Context()).Error().Err(err).Msg("failed to list openai models for the admin panel")
 
 		return ctx.JSON(dto.ChatbotModelsResponse{Models: []string{}, Error: openai.Reason(err)})
 	}

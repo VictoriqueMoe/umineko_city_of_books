@@ -31,7 +31,7 @@ func InternalError(ctx fiber.Ctx, msg string, cause ...error) error {
 		if cause[i] == nil {
 			continue
 		}
-		logger.Log.Error().
+		logger.Ctx(ctx.Context()).Error().
 			Err(cause[i]).
 			Str("method", ctx.Method()).
 			Str("path", ctx.Path()).

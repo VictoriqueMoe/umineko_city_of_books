@@ -138,7 +138,7 @@ func (s *service) createChatRoom(ctx context.Context, streamID, streamerID uuid.
 	}
 
 	if err := s.chat.CreateStreamRoom(ctx, streamID, streamerID, title); err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("create stream chat room failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("create stream chat room failed")
 	}
 }
 
@@ -148,7 +148,7 @@ func (s *service) deleteChatRoom(ctx context.Context, streamID uuid.UUID) {
 	}
 
 	if err := s.chat.DeleteStreamRoom(ctx, streamID); err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("delete stream chat room failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("delete stream chat room failed")
 	}
 }
 
@@ -273,7 +273,7 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 
 	outputDir := s.settingsSvc.Get(ctx, config.SettingStreamHLSOutputDir)
 
-	logger.Log.Info().
+	logger.Ctx(ctx).Info().
 		Str("stream_id", streamID.String()).
 		Int("width", width).
 		Int("height", height).
@@ -283,12 +283,12 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 
 	egressID, err := s.livekitSvc.CreateEgress(ctx, room, identity, outputDir, width, height, framerate, bitrate)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("start stream egress failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("start stream egress failed")
 		return
 	}
 
 	if err := s.repo.SetEgress(ctx, streamID, egressID, hlsPlaylistURL(room)); err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("save stream egress failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("save stream egress failed")
 		return
 	}
 
@@ -460,7 +460,7 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 
 func (s *service) abandonStart(ctx context.Context, streamID uuid.UUID) {
 	if _, err := s.repo.MarkOffline(ctx, streamID); err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", streamID.String()).Msg("mark stream offline after a failed start failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("mark stream offline after a failed start failed")
 	}
 }
 
@@ -789,7 +789,7 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 
 	transitioned, err := s.repo.MarkOffline(ctx, stream.ID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("mark stream offline failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("mark stream offline failed")
 		return false
 	}
 	if !transitioned {
@@ -798,7 +798,7 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 
 	if stream.EgressID != "" {
 		if err := s.livekitSvc.StopEgress(ctx, stream.EgressID); err != nil {
-			logger.Log.Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("stop stream egress failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("stream_id", stream.ID.String()).Msg("stop stream egress failed")
 		}
 	}
 
@@ -820,7 +820,7 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 func (s *service) adjustViewers(ctx context.Context, id uuid.UUID, delta int) {
 	count, ok, err := s.repo.AdjustViewerCount(ctx, id, delta)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("stream_id", id.String()).Msg("adjust viewer count failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", id.String()).Msg("adjust viewer count failed")
 		return
 	}
 	if !ok {

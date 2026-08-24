@@ -25,7 +25,7 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 
 		secretKey := settingsSvc.Get(ctx.Context(), config.SettingTurnstileSecretKey)
 		if secretKey == "" {
-			logger.Log.Error().Msg("turnstile is enabled but no secret key is set, refusing rather than letting requests through unverified")
+			logger.Ctx(ctx.Context()).Error().Msg("turnstile is enabled but no secret key is set, refusing rather than letting requests through unverified")
 
 			return ctx.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
 				"error": "verification is temporarily unavailable, please try again later",
@@ -48,7 +48,7 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 			},
 		)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("turnstile verification request failed")
+			logger.Ctx(ctx.Context()).Error().Err(err).Msg("turnstile verification request failed")
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "verification failed",
 			})
@@ -59,7 +59,7 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 			Success bool `json:"success"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			logger.Log.Error().Err(err).Msg("turnstile response decode failed")
+			logger.Ctx(ctx.Context()).Error().Err(err).Msg("turnstile response decode failed")
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "verification failed",
 			})

@@ -91,11 +91,13 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		status := ctx.Response().StatusCode()
 		ip, _ := ctx.Locals("client_ip").(string)
 
-		event := appLogger.Log.Info()
+		reqLogger := appLogger.Ctx(ctx.Context())
+
+		event := reqLogger.Info()
 		if status >= 500 {
-			event = appLogger.Log.Error()
+			event = reqLogger.Error()
 		} else if status >= 400 {
-			event = appLogger.Log.Warn()
+			event = reqLogger.Warn()
 		}
 
 		if traceID, _ := ctx.Locals("trace_id").(string); traceID != "" {

@@ -73,9 +73,9 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 
 		select {
 		case <-done:
-			logger.Log.Info().Msg("background jobs stopped")
+			logger.Ctx(ctx).Info().Msg("background jobs stopped")
 		case <-ctx.Done():
-			logger.Log.Warn().Msg("background jobs did not stop in time")
+			logger.Ctx(ctx).Warn().Msg("background jobs did not stop in time")
 		}
 	}
 }

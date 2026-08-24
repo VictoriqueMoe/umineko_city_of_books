@@ -467,7 +467,7 @@ func (r *mysteryRepository) collectFilePaths(ctx context.Context, mysteryID uuid
 
 func (r *mysteryRepository) invalidateLeaderboards(ctx context.Context) {
 	if err := r.cache.Del(ctx, cache.MysteryTopDetectives.Key(), cache.MysteryTopGMs.Key()); err != nil {
-		logger.Log.Error().Err(err).Msg("failed to invalidate mystery leaderboard caches after write")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate mystery leaderboard caches after write")
 	}
 }
 

@@ -421,7 +421,7 @@ func (s *service) CountLive(ctx context.Context) (int, error) {
 func (s *service) broadcastLiveGamesCount(ctx context.Context) {
 	count, err := s.repo.CountLive(ctx)
 	if err != nil {
-		logger.Log.Warn().Err(err).Msg("count live games for broadcast")
+		logger.Ctx(ctx).Warn().Err(err).Msg("count live games for broadcast")
 		return
 	}
 	s.hub.Broadcast(ws.Message{
@@ -616,7 +616,7 @@ func (s *service) Scoreboard(ctx context.Context, gameType dto.GameType) (*dto.G
 	}
 	byID, err := s.usersByID(ctx, ids)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("game_type", string(gameType)).Msg("load scoreboard users")
+		logger.Ctx(ctx).Warn().Err(err).Str("game_type", string(gameType)).Msg("load scoreboard users")
 	}
 
 	out := make([]dto.GameScoreboardRow, 0, len(rows))
@@ -913,7 +913,7 @@ func (s *service) CancelIdleGames(ctx context.Context) (int, error) {
 	for _, row := range rows {
 		cancelled, err := s.repo.CancelIdleRoom(ctx, row.ID, idleSince)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("room_id", row.ID.String()).Msg("cancel idle game")
+			logger.Ctx(ctx).Warn().Err(err).Str("room_id", row.ID.String()).Msg("cancel idle game")
 			continue
 		}
 		if !cancelled {
@@ -998,7 +998,7 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	}
 	winner := winnerUserID(res.WinnerSlot, players)
 	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusAbandoned), winner, res.Result, row.StateJSON); err != nil {
-		logger.Log.Warn().Err(err).Msg("finish room after grace expired")
+		logger.Ctx(ctx).Warn().Err(err).Msg("finish room after grace expired")
 		return
 	}
 	room, err := s.loadRoom(ctx, roomID)

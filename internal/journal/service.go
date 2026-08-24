@@ -110,7 +110,7 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
@@ -493,7 +493,7 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 
 	followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, actorUserID)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("get follower ids failed on entry publish")
+		logger.Ctx(bgCtx).Error().Err(err).Msg("get follower ids failed on entry publish")
 		return
 	}
 
@@ -726,7 +726,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		if isAuthorComment {
 			followerIDs, err := s.eligibleFollowerIDs(bgCtx, journalID, userID)
 			if err != nil {
-				logger.Log.Error().Err(err).Msg("get follower ids failed")
+				logger.Ctx(ctx).Error().Err(err).Msg("get follower ids failed")
 				return
 			}
 

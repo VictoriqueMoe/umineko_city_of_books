@@ -102,7 +102,7 @@ func (s *service) Handler() fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		origin := ctx.Get("Origin")
 		if origin != "" && !ws.OriginAllowed(origin, s.settingsSvc.Get(ctx.Context(), config.SettingBaseURL)) {
-			logger.Log.Warn().Str("origin", origin).Msg("overlay ws upgrade rejected: origin not allowed")
+			logger.Ctx(ctx.Context()).Warn().Str("origin", origin).Msg("overlay ws upgrade rejected: origin not allowed")
 
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "origin not allowed"})
 		}
@@ -114,7 +114,7 @@ func (s *service) Handler() fiber.Handler {
 
 		userID, err := s.Validate(ctx.Context(), token)
 		if err != nil {
-			logger.Log.Warn().Err(err).Msg("overlay token validation failed")
+			logger.Ctx(ctx.Context()).Warn().Err(err).Msg("overlay token validation failed")
 			return ctx.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal error"})
 		}
 		if userID == uuid.Nil {

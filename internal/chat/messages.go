@@ -238,7 +238,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	if err != nil {
 		paths, delErr := m.chatRepo.DeleteMessageWithMedia(ctx, msgID)
 		if delErr != nil {
-			logger.Log.Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
+			logger.Ctx(ctx).Error().Err(delErr).Str("message_id", msgID.String()).Msg("failed to roll back message after media save failure")
 		}
 
 		m.uploadSvc.Delete(paths...)
@@ -802,7 +802,7 @@ func (m *messagesService) DeleteMessage(ctx context.Context, messageID, actorID 
 func (m *messagesService) auditMessageDelete(ctx context.Context, msg repository.ChatMessageRow, actorID uuid.UUID, modKind string) {
 	room, err := m.chatRepo.GetRoomSendContext(ctx, msg.RoomID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("room_id", msg.RoomID.String()).Msg("audit chat message delete: get room send context failed")
+		logger.Ctx(ctx).Error().Err(err).Str("room_id", msg.RoomID.String()).Msg("audit chat message delete: get room send context failed")
 		return
 	}
 	if !isAuditableSendContext(room) {

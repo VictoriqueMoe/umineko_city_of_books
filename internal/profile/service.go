@@ -117,7 +117,7 @@ func NewService(
 
 func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
@@ -151,7 +151,7 @@ func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid
 	if resp.Private != nil {
 		optedIn, optErr := s.userSvc.IsChatbotOptedIn(ctx, user.ID)
 		if optErr != nil {
-			logger.Log.Error().Err(optErr).Str("user_id", user.ID.String()).Msg("failed to read character opt-in state")
+			logger.Ctx(ctx).Error().Err(optErr).Str("user_id", user.ID.String()).Msg("failed to read character opt-in state")
 		}
 
 		resp.Private.ChatbotOptedIn = optedIn
@@ -328,7 +328,7 @@ func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, currentT
 	othersRevoked := false
 	if s.session != nil {
 		if err := s.session.DeleteAllForUserExcept(ctx, userID, currentToken); err != nil {
-			logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate other sessions after password change")
+			logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate other sessions after password change")
 		} else {
 			othersRevoked = true
 		}

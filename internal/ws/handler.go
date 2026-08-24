@@ -248,7 +248,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			allowed = allowedOrigin(ctx.Context())
 		}
 		if !OriginAllowed(origin, allowed) {
-			logger.Log.Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")
+			logger.Ctx(ctx.Context()).Warn().Str("origin", origin).Msg("ws upgrade rejected: origin not allowed")
 			return ctx.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "origin not allowed",
 			})

@@ -36,7 +36,7 @@ func HostAuthorization(settingsSvc settings.Service) fiber.Handler {
 			return host == expected
 		},
 		ErrorHandler: func(ctx fiber.Ctx, err error) error {
-			appLogger.Log.Err(err).
+			appLogger.Ctx(ctx.Context()).Err(err).
 				Str("client_ip", ctx.IP()).
 				Str("host", ctx.Hostname()).
 				Str("method", ctx.Method()).

@@ -150,17 +150,17 @@ func initServer() (*fiber.App, func()) {
 		defer cancel()
 
 		if err := svc.chatbot.Shutdown(ctx); err != nil {
-			logger.Log.Warn().Err(err).Msg("chatbot drain incomplete")
+			logger.Ctx(ctx).Warn().Err(err).Msg("chatbot drain incomplete")
 		}
 
 		if err := svc.mediaProc.Shutdown(ctx); err != nil {
-			logger.Log.Warn().Err(err).Msg("media processor drain incomplete")
+			logger.Ctx(ctx).Warn().Err(err).Msg("media processor drain incomplete")
 		}
 
 		stopJobs(ctx)
 
 		if err := cacheMgr.Close(); err != nil {
-			logger.Log.Warn().Err(err).Msg("valkey cache close error")
+			logger.Ctx(ctx).Warn().Err(err).Msg("valkey cache close error")
 		}
 	}
 

@@ -132,7 +132,7 @@ func (v *Valkey) Reconfigure(rawURL string) error {
 
 	v.healthy.Store(true)
 
-	logger.Log.Info().Msg("valkey cache enabled")
+	logger.Ctx(ctx).Info().Msg("valkey cache enabled")
 
 	return nil
 }

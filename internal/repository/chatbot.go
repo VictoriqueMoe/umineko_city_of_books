@@ -237,7 +237,7 @@ func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*
 	}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Log.Error().Err(err).Msg("failed to invalidate caches after deleting a bot")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to invalidate caches after deleting a bot")
 	}
 
 	return nil
@@ -246,7 +246,7 @@ func (r *chatbotRepository) DeleteBot(ctx context.Context, id uuid.UUID, tx ...*
 func (r *chatbotRepository) resolveBotUserID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) uuid.UUID {
 	bots, err := r.dao.ListBots(ctx, tx...)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("chatbot_id", id.String()).Msg("failed to resolve bot user id before deleting a bot")
+		logger.Ctx(ctx).Error().Err(err).Str("chatbot_id", id.String()).Msg("failed to resolve bot user id before deleting a bot")
 
 		return uuid.Nil
 	}

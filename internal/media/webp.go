@@ -59,7 +59,7 @@ func EncodeWebP(ctx context.Context, inputPath string, opts WebPOptions) (string
 	if strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
 		oriented, err := applyExifOrientation(inputPath)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("input", inputPath).Msg("exif auto-orient failed, using original")
+			logger.Ctx(ctx).Warn().Err(err).Str("input", inputPath).Msg("exif auto-orient failed, using original")
 		} else if oriented != "" {
 			cwebpInput = oriented
 			tempFiles = append(tempFiles, oriented)
@@ -69,7 +69,7 @@ func EncodeWebP(ctx context.Context, inputPath string, opts WebPOptions) (string
 	if opts.SquareCrop {
 		cropped, err := centerCropSquare(cwebpInput)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("input", cwebpInput).Msg("square crop failed, using original aspect")
+			logger.Ctx(ctx).Warn().Err(err).Str("input", cwebpInput).Msg("square crop failed, using original aspect")
 		} else if cropped != "" {
 			cwebpInput = cropped
 			tempFiles = append(tempFiles, cropped)
@@ -115,7 +115,7 @@ func reencodeWebPInPlace(ctx context.Context, inputPath string, opts WebPOptions
 	if opts.SquareCrop {
 		cropped, err := centerCropSquare(inputPath)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("input", inputPath).Msg("square crop failed, using original aspect")
+			logger.Ctx(ctx).Warn().Err(err).Str("input", inputPath).Msg("square crop failed, using original aspect")
 		} else if cropped != "" {
 			cwebpInput = cropped
 			tempFiles = append(tempFiles, cropped)
@@ -128,7 +128,7 @@ func reencodeWebPInPlace(ctx context.Context, inputPath string, opts WebPOptions
 			_ = os.Remove(p)
 		}
 		if isAnimatedWebPError(err) {
-			logger.Log.Debug().Str("path", inputPath).Msg("skipping animated webp re-encode")
+			logger.Ctx(ctx).Debug().Str("path", inputPath).Msg("skipping animated webp re-encode")
 			return inputPath, nil
 		}
 		return "", err

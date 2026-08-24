@@ -24,7 +24,7 @@ func carriesUpload(ctx fiber.Ctx) bool {
 func RequireEstablishedAccount(authzSvc authz.Service, settingsSvc settings.Service) fiber.Handler {
 	return func(ctx fiber.Ctx) error {
 		if authzSvc == nil || settingsSvc == nil {
-			logger.Log.Error().Msg("new account upload gate is not wired, uploads are ungated")
+			logger.Ctx(ctx.Context()).Error().Msg("new account upload gate is not wired, uploads are ungated")
 
 			return ctx.Next()
 		}

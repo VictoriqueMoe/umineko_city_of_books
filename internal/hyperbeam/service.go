@@ -141,14 +141,14 @@ func (s *service) SetControlRole(ctx context.Context, vmBaseURL, adminToken, use
 		[]string{ControlRoleName},
 	}
 	fullURL := strings.TrimRight(vmBaseURL, "/") + path
-	logger.Log.Info().
+	logger.Ctx(ctx).Info().
 		Str("vm_base_url", vmBaseURL).
 		Str("user_identifier", userIdentifier).
 		Bool("has_control", hasControl).
 		Str("path", path).
 		Msg("hyperbeam role change")
 	if err := s.doAs(ctx, adminToken, http.MethodPost, fullURL, body, nil); err != nil {
-		logger.Log.Warn().Err(err).Str("user_identifier", userIdentifier).Str("path", path).Msg("hyperbeam role change failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("user_identifier", userIdentifier).Str("path", path).Msg("hyperbeam role change failed")
 		return err
 	}
 	return nil

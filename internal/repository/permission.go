@@ -61,7 +61,7 @@ func (r *permissionRepository) SetRolePermissions(ctx context.Context, roleName 
 	}
 
 	if err := r.cache.Del(ctx, cache.RolePermissions.Key()); err != nil {
-		logger.Log.Error().Err(err).Str("role", roleName).Msg("failed to invalidate role permission cache after write")
+		logger.Ctx(ctx).Error().Err(err).Str("role", roleName).Msg("failed to invalidate role permission cache after write")
 	}
 
 	return nil
@@ -81,7 +81,7 @@ func (r *permissionRepository) SetVanityRolePermissions(ctx context.Context, van
 	}
 
 	if err := r.cache.Del(ctx, cache.VanityRolePermissions.Key()); err != nil {
-		logger.Log.Error().Err(err).Str("vanity_role_id", vanityRoleID).Msg("failed to invalidate vanity role permission cache after write")
+		logger.Ctx(ctx).Error().Err(err).Str("vanity_role_id", vanityRoleID).Msg("failed to invalidate vanity role permission cache after write")
 	}
 
 	return nil

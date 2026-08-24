@@ -106,7 +106,7 @@ func (s *voiceService) ForceMuteVoice(ctx context.Context, roomID, actorID, targ
 func (s *voiceService) reapplyForceMute(ctx context.Context, roomID uuid.UUID, roomName string, userID uuid.UUID, allowScreenShare bool) {
 	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, roomID, userID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("check force mute on rejoin failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("check force mute on rejoin failed")
 		return
 	}
 	if !forceMuted {
@@ -114,7 +114,7 @@ func (s *voiceService) reapplyForceMute(ctx context.Context, roomID uuid.UUID, r
 	}
 
 	if err := s.livekitSvc.SetCanPublish(ctx, roomName, userID.String(), false, allowScreenShare); err != nil {
-		logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("re-apply force mute on rejoin failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("re-apply force mute on rejoin failed")
 	}
 }
 
@@ -164,7 +164,7 @@ func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string
 		return err
 	}
 
-	logger.Log.Debug().Str("event", event.Type).Str("room", event.RoomName).Str("identity", event.Identity).Msg("livekit webhook received")
+	logger.Ctx(ctx).Debug().Str("event", event.Type).Str("room", event.RoomName).Str("identity", event.Identity).Msg("livekit webhook received")
 
 	if rawSessionID, ok := strings.CutPrefix(event.RoomName, voiceSessionRoomPrefix); ok {
 		if event.Type == livekit.EventParticipantJoined {

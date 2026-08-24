@@ -108,7 +108,7 @@ func (c *core) SetMessageObserver(obs MessageObserver) {
 
 func (c *core) clearVoiceMuted(ctx context.Context, roomID uuid.UUID) {
 	if err := c.chatRepo.ClearVoiceForceMutes(ctx, roomID); err != nil {
-		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("clear voice force mutes failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("clear voice force mutes failed")
 	}
 }
 
@@ -122,13 +122,13 @@ func (c *core) dropFromLiveKitRoom(ctx context.Context, roomName, identity strin
 		return
 	}
 
-	logger.Log.Warn().Err(err).Str("livekit_room", roomName).Str("identity", identity).Msg("remove livekit participant failed")
+	logger.Ctx(ctx).Warn().Err(err).Str("livekit_room", roomName).Str("identity", identity).Msg("remove livekit participant failed")
 }
 
 func (c *core) deleteRoomWithMedia(ctx context.Context, roomID uuid.UUID) error {
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("list room members for hub cleanup failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("list room members for hub cleanup failed")
 	}
 
 	paths, err := c.chatRepo.DeleteRoomWithMessages(ctx, roomID)
@@ -149,7 +149,7 @@ func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	logger.Log.Warn().
+	logger.Ctx(ctx).Warn().
 		Str("session_id", session.ID.String()).
 		Str("room_id", session.RoomID.String()).
 		Str("hyperbeam_session_id", session.HyperbeamSessionID).
@@ -159,13 +159,13 @@ func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, 
 		Msg("watch party ended")
 
 	if err := c.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
-		logger.Log.Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
+		logger.Ctx(ctx).Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
 	}
 	if err := c.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
-		logger.Log.Warn().Err(err).Msg("cleanup dead session: end session failed")
+		logger.Ctx(ctx).Warn().Err(err).Msg("cleanup dead session: end session failed")
 	}
 	if err := c.deleteRoomWithMedia(ctx, session.ID); err != nil {
-		logger.Log.Warn().Err(err).Msg("cleanup dead session: delete watch party chat room failed")
+		logger.Ctx(ctx).Warn().Err(err).Msg("cleanup dead session: delete watch party chat room failed")
 	}
 
 	c.clearVoiceMuted(ctx, session.ID)
@@ -187,7 +187,7 @@ func (c *core) endWatchPartiesForRoom(ctx context.Context, roomID uuid.UUID, rea
 
 	sessions, err := c.watchPartyRepo.ListActiveByRoom(ctx, roomID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("end watch parties for room: list failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("end watch parties for room: list failed")
 		return
 	}
 
@@ -195,7 +195,7 @@ func (c *core) endWatchPartiesForRoom(ctx context.Context, roomID uuid.UUID, rea
 		session := sessions[i]
 		if c.hyperbeamSvc != nil && session.HyperbeamSessionID != "" {
 			if err := c.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
-				logger.Log.Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("end watch parties for room: terminate vm failed")
+				logger.Ctx(ctx).Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("end watch parties for room: terminate vm failed")
 			}
 		}
 		c.cleanupDeadSession(&session, reason)
@@ -209,7 +209,7 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 
 	sessions, err := c.watchPartyRepo.ListActiveByRoom(ctx, roomID)
 	if err != nil {
-		logger.Log.Warn().Err(err).Str("room_id", roomID.String()).Msg("evict: list active watch parties failed")
+		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("evict: list active watch parties failed")
 		return
 	}
 
@@ -222,7 +222,7 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 		}
 
 		if err := c.watchPartyRepo.RemoveParticipant(ctx, sessionID, userID); err != nil {
-			logger.Log.Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: mark watch party participant left failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: mark watch party participant left failed")
 			continue
 		}
 
@@ -437,7 +437,7 @@ func isAuditableSendContext(row *repository.ChatRoomSendContext) bool {
 
 func (c *core) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := c.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 

@@ -149,14 +149,14 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	if len(missing) > 0 {
-		logger.Log.Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
+		logger.Ctx(ctx).Info().Int("count", len(missing)).Msg("seeded missing settings with defaults")
 	}
 
 	for _, k := range stale {
-		logger.Log.Info().Str("key", string(k)).Msg("removed stale setting")
+		logger.Ctx(ctx).Info().Str("key", string(k)).Msg("removed stale setting")
 	}
 
-	logger.Log.Debug().Msg("settings reconciled")
+	logger.Ctx(ctx).Debug().Msg("settings reconciled")
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 	}
 
 	s.notify(setting.Key, value)
-	logger.Log.Info().Str("key", string(setting.Key)).Str("updated_by", updatedBy.String()).Msg("setting updated")
+	logger.Ctx(ctx).Info().Str("key", string(setting.Key)).Str("updated_by", updatedBy.String()).Msg("setting updated")
 	return nil
 }
 
@@ -256,6 +256,6 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 	}
 
 	s.notifyBatch(keys)
-	logger.Log.Info().Int("count", len(values)).Str("updated_by", updatedBy.String()).Msg("settings updated")
+	logger.Ctx(ctx).Info().Int("count", len(values)).Str("updated_by", updatedBy.String()).Msg("settings updated")
 	return nil
 }

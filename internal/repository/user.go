@@ -203,7 +203,7 @@ func (r *userRepository) RegisterAccount(ctx context.Context, spec NewRegistrati
 	}
 
 	if spec.Account.Role != "" {
-		logger.Log.Info().Str("user_id", created.ID.String()).Str("username", spec.Account.User.Username).Msg("first user created, assigned super admin role")
+		logger.Ctx(ctx).Info().Str("user_id", created.ID.String()).Str("username", spec.Account.User.Username).Msg("first user created, assigned super admin role")
 	}
 
 	return created, nil
@@ -417,7 +417,7 @@ func (r *userRepository) invalidateAfterUserDelete(ctx context.Context, userID u
 	}
 
 	if err := r.cache.Del(ctx, keys...); err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate caches after deleting a user")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to invalidate caches after deleting a user")
 	}
 }
 

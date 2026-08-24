@@ -73,7 +73,7 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 		noticesTotal.WithLabelValues(string(out.reason), "failed").Inc()
 		silentTotal.WithLabelValues(string(out.reason), string(out.stage)).Inc()
 
-		logger.Log.Error().Err(err).
+		logger.Ctx(ctx).Error().Err(err).
 			Str("bot", j.bot.Username).
 			Str("reason", string(out.reason)).
 			Msg("chatbot could not deliver its explanation, the member was left with nothing")
@@ -132,7 +132,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 	result, err := s.openaiSvc.Complete(ctx, req)
 	if err != nil {
 		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, repository.InvocationUsage{}, repository.InvocationFailed); closeErr != nil {
-			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the failed invocation")
+			logger.Ctx(ctx).Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the failed invocation")
 		}
 
 		stopTyping()
@@ -145,7 +145,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 	body := stripSelfLabel(result.Text, j.bot)
 	if body == "" {
 		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
-			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the refused invocation")
+			logger.Ctx(ctx).Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the refused invocation")
 		}
 
 		stopTyping()
@@ -159,7 +159,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 	}
 
 	if result.Incomplete {
-		logger.Log.Warn().
+		logger.Ctx(ctx).Warn().
 			Str("bot", j.bot.Username).
 			Str("reason", firstNonBlank(result.IncompleteReason, "unknown")).
 			Int("completion_tokens", result.CompletionTokens).
@@ -171,14 +171,14 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 
 	if sendErr := s.deliver(ctx, j, body); sendErr != nil {
 		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
-			logger.Log.Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the undelivered invocation")
+			logger.Ctx(ctx).Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the undelivered invocation")
 		}
 
 		return classifyDelivery(sendErr)
 	}
 
 	if err := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationReplied); err != nil {
-		logger.Log.Error().Err(err).Str("bot", j.bot.Username).Msg("chatbot answered but the invocation could not be closed")
+		logger.Ctx(ctx).Error().Err(err).Str("bot", j.bot.Username).Msg("chatbot answered but the invocation could not be closed")
 	}
 
 	return outcome{status: repository.InvocationReplied}
@@ -211,7 +211,7 @@ func (s *service) overQuota(ctx context.Context, userID uuid.UUID, tune tuning) 
 		if used >= tune.perUserPerDay {
 			oldest, oldErr := s.botRepo.OldestUserInvocationToday(ctx, userID)
 			if oldErr != nil {
-				logger.Log.Warn().Err(oldErr).Msg("chatbot: could not work out when the member quota frees up")
+				logger.Ctx(ctx).Warn().Err(oldErr).Msg("chatbot: could not work out when the member quota frees up")
 			}
 
 			return quotaState{over: true, clearsAt: quotaClearsAt(oldest)}, nil
@@ -226,7 +226,7 @@ func (s *service) overQuota(ctx context.Context, userID uuid.UUID, tune tuning) 
 		if used >= tune.perDay {
 			oldest, oldErr := s.botRepo.OldestInvocationToday(ctx)
 			if oldErr != nil {
-				logger.Log.Warn().Err(oldErr).Msg("chatbot: could not work out when the site quota frees up")
+				logger.Ctx(ctx).Warn().Err(oldErr).Msg("chatbot: could not work out when the site quota frees up")
 			}
 
 			return quotaState{over: true, global: true, clearsAt: quotaClearsAt(oldest)}, nil

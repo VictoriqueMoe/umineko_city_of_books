@@ -108,7 +108,7 @@ func NewService(
 
 func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
@@ -165,7 +165,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", ErrEmailTaken
 	}
 
-	logger.Log.Debug().Str("username", req.Username).Msg("registering user")
+	logger.Ctx(ctx).Debug().Str("username", req.Username).Msg("registering user")
 	if req.DisplayName == "" {
 		req.DisplayName = req.Username
 	}
@@ -222,7 +222,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 }
 
 func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserResponse, string, error) {
-	logger.Log.Debug().Str("username", req.Username).Msg("login attempt")
+	logger.Ctx(ctx).Debug().Str("username", req.Username).Msg("login attempt")
 	userResp, err := s.userService.ValidateCredentials(ctx, req.Username, req.Password)
 	if err != nil {
 		return nil, "", err
@@ -230,7 +230,7 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserRes
 
 	banned, banErr := s.userRepo.IsBanned(ctx, userResp.ID)
 	if banErr != nil {
-		logger.Log.Error().Err(banErr).Str("user_id", userResp.ID.String()).Msg("failed to check ban status during login, refusing the login")
+		logger.Ctx(ctx).Error().Err(banErr).Str("user_id", userResp.ID.String()).Msg("failed to check ban status during login, refusing the login")
 
 		return nil, "", ErrUserBanned
 	}
@@ -307,7 +307,7 @@ func (s *service) ForgotPassword(ctx context.Context, username string) error {
 		return fmt.Errorf("send reset email: %w", err)
 	}
 
-	logger.Log.Info().Str("user_id", usr.ID.String()).Msg("password reset email sent")
+	logger.Ctx(ctx).Info().Str("user_id", usr.ID.String()).Msg("password reset email sent")
 	return nil
 }
 
@@ -501,7 +501,7 @@ func (s *service) notifyEmailChanged(ctx context.Context, previousEmail, newEmai
 
 	subject, body := notification.EmailChangedEmail(siteName, newEmail, baseURL+"/forgot-password")
 	if err := s.emailSvc.Send(ctx, previousEmail, subject, body); err != nil {
-		logger.Log.Error().Err(err).Msg("failed to send email-changed alert to previous address")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to send email-changed alert to previous address")
 	}
 }
 
@@ -544,7 +544,7 @@ func (s *service) ResendVerification(ctx context.Context, userID uuid.UUID) erro
 func (s *service) sendVerification(ctx context.Context, userID uuid.UUID, email string) {
 	raw, hash, err := generateResetToken()
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to generate verification token")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to generate verification token")
 		return
 	}
 
@@ -555,7 +555,7 @@ func (s *service) sendVerification(ctx context.Context, userID uuid.UUID, email 
 	}
 
 	if err := s.verifyRepo.Issue(ctx, spec); err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to store verification token")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to store verification token")
 		return
 	}
 
@@ -569,7 +569,7 @@ func (s *service) sendVerificationEmail(ctx context.Context, userID uuid.UUID, e
 
 	subject, body := notification.VerificationEmail(siteName, link)
 	if err := s.emailSvc.Send(ctx, email, subject, body); err != nil {
-		logger.Log.Error().Err(err).Str("user_id", userID.String()).Msg("failed to send verification email")
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to send verification email")
 	}
 }
 

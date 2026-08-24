@@ -187,7 +187,7 @@ func (s *service) reload() {
 	if next.enabled {
 		rows, err := s.botRepo.ListBots(ctx)
 		if err != nil {
-			logger.Log.Error().Err(err).Msg("chatbot: load bots, keeping the previously loaded set")
+			logger.Ctx(ctx).Error().Err(err).Msg("chatbot: load bots, keeping the previously loaded set")
 
 			s.mu.Lock()
 			s.tune = next
@@ -315,11 +315,11 @@ func (s *service) Shutdown(ctx context.Context) error {
 
 	select {
 	case <-done:
-		logger.Log.Info().Msg(shutdownMessage)
+		logger.Ctx(ctx).Info().Msg(shutdownMessage)
 
 		return nil
 	case <-ctx.Done():
-		logger.Log.Warn().Int("abandoned", len(s.jobs)).Msg("chatbot drain timed out")
+		logger.Ctx(ctx).Warn().Int("abandoned", len(s.jobs)).Msg("chatbot drain timed out")
 
 		return ctx.Err()
 	}

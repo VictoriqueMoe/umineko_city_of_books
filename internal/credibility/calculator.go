@@ -28,13 +28,13 @@ func (*Service) calculate(withLoveSum, withoutLoveSum float64) float64 {
 func (s *Service) Recalculate(ctx context.Context, theoryID uuid.UUID) {
 	withLove, withoutLove, err := s.theoryRepo.GetResponseEvidenceWeights(ctx, theoryID)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to get evidence weights for credibility")
+		logger.Ctx(ctx).Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to get evidence weights for credibility")
 		return
 	}
 
 	score := s.calculate(withLove, withoutLove)
 
 	if err := s.theoryRepo.UpdateCredibilityScore(ctx, theoryID, score); err != nil {
-		logger.Log.Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to update credibility score")
+		logger.Ctx(ctx).Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to update credibility score")
 	}
 }

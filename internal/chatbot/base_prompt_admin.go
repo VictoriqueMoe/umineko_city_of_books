@@ -102,7 +102,7 @@ func (a *adminService) UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, 
 func (a *adminService) DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
 	doomed, lookupErr := a.basePromptRepo.GetByID(ctx, id)
 	if lookupErr != nil && !errors.Is(lookupErr, repository.ErrBasePromptNotFound) {
-		logger.Log.Error().Err(lookupErr).Str("base_prompt_id", id.String()).Msg("failed to read the base prompt before deleting it")
+		logger.Ctx(ctx).Error().Err(lookupErr).Str("base_prompt_id", id.String()).Msg("failed to read the base prompt before deleting it")
 	}
 
 	if err := a.basePromptRepo.Delete(ctx, id); err != nil {

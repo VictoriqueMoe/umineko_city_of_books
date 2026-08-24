@@ -62,7 +62,7 @@ func (s *service) buildEchoes(ctx context.Context) []dto.HomeEcho {
 	for _, window := range echoWindows {
 		rows, err := s.repo.ListEchoes(ctx, window.ago, echoCandidateLimit)
 		if err != nil {
-			logger.Log.Warn().Err(err).Str("ago", window.ago).Msg("list echoes failed")
+			logger.Ctx(ctx).Warn().Err(err).Str("ago", window.ago).Msg("list echoes failed")
 			return nil
 		}
 		if len(rows) == 0 {

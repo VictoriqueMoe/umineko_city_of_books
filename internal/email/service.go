@@ -100,32 +100,32 @@ func (s *service) buildClient() {
 
 	client, err := mail.NewClient(host, opts...)
 	if err != nil {
-		logger.Log.Error().Err(err).Msg("failed to create SMTP client")
+		logger.Ctx(ctx).Error().Err(err).Msg("failed to create SMTP client")
 		return
 	}
 
 	from := s.settingsSvc.Get(ctx, config.SettingSMTPFrom)
 	if from == "" {
-		logger.Log.Warn().Msg("SMTP from address not set, skipping connection test")
+		logger.Ctx(ctx).Warn().Msg("SMTP from address not set, skipping connection test")
 		s.client = client
 		return
 	}
 
 	if err := client.DialWithContext(ctx); err != nil {
-		logger.Log.Error().Err(err).Str("host", host).Int("port", port).Msg("SMTP connection test failed")
+		logger.Ctx(ctx).Error().Err(err).Str("host", host).Int("port", port).Msg("SMTP connection test failed")
 		_ = client.Close()
 		return
 	}
 	_ = client.Close()
 
 	s.client = client
-	logger.Log.Info().Str("host", host).Int("port", port).Msg("SMTP client configured and verified")
+	logger.Ctx(ctx).Info().Str("host", host).Int("port", port).Msg("SMTP client configured and verified")
 }
 
 func (s *service) Send(ctx context.Context, to, subject, body string) error {
 	err := s.send(ctx, to, subject, body)
 	if errors.Is(err, ErrNotConfigured) {
-		logger.Log.Warn().Msg("email provider not configured, skipping email send")
+		logger.Ctx(ctx).Warn().Msg("email provider not configured, skipping email send")
 		return nil
 	}
 

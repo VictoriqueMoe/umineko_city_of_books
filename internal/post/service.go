@@ -117,7 +117,7 @@ func (s *service) filterTexts(ctx context.Context, texts ...string) error {
 
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
@@ -959,7 +959,7 @@ func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, cont
 
 	authorID, err := s.postRepo.GetSharedContentAuthor(bgCtx, contentID, contentType)
 	if err != nil {
-		logger.Log.
+		logger.Ctx(bgCtx).
 			Err(err).
 			Str("content_id", contentID).
 			Str("content_type", contentType).

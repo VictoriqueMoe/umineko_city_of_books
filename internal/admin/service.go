@@ -194,7 +194,7 @@ func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action re
 		TargetID:   targetID,
 		Details:    details,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
 	}
 }
 
@@ -211,7 +211,7 @@ func (s *service) auditUserDetails(ctx context.Context, actorID uuid.UUID, actio
 		Details:    details,
 		SubjectID:  subjectID,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
 	}
 }
 
@@ -223,7 +223,7 @@ func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action re
 		TargetID:   targetID,
 		SubjectID:  subjectID,
 	}); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
+		logger.Ctx(ctx).Error().Err(err).Str("action", string(action)).Msg("failed to write audit log")
 	}
 }
 
@@ -411,10 +411,10 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 		s.auditUserDetails(ctx, actorID, repository.AuditActionSetRole, targetID, string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.EnsureSystemRooms(ctx); err != nil {
-				logger.Log.Error().Err(err).Msg("ensure system rooms after role change")
+				logger.Ctx(ctx).Error().Err(err).Msg("ensure system rooms after role change")
 			}
 			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, r); err != nil {
-				logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role set")
+				logger.Ctx(ctx).Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role set")
 			}
 		}
 		s.broadcastRoleChange(targetID, string(r))
@@ -430,7 +430,7 @@ func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetI
 		s.auditUserDetails(ctx, actorID, repository.AuditActionRemoveRole, targetID, string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, ""); err != nil {
-				logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role remove")
+				logger.Ctx(ctx).Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role remove")
 			}
 		}
 		s.broadcastRoleChange(targetID, "")
@@ -458,7 +458,7 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 			return fmt.Errorf("ban user: %w", err)
 		}
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
-			logger.Log.Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
+			logger.Ctx(ctx).Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
 		}
 		s.auditUserDetails(ctx, actorID, repository.AuditActionBanUser, targetID, reason)
 		s.broadcastBanChange(targetID, true, reason)
@@ -595,7 +595,7 @@ func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targ
 		}
 
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
-			logger.Log.Warn().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after password reset")
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after password reset")
 		}
 		s.auditUser(ctx, actorID, repository.AuditActionResetPassword, targetID)
 		newPassword = generated

@@ -112,7 +112,7 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 
 	holders, err := m.holders(ctx, from)
 	if err != nil {
-		logger.Log.Error().Err(err).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not list holders")
+		logger.Ctx(parent).Error().Err(err).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not list holders")
 
 		return
 	}
@@ -125,7 +125,7 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 
 		if err := m.vanityRepo.MoveUserRole(ctx, spec); err != nil {
 			failed++
-			logger.Log.Error().Err(err).Str("user_id", userID.String()).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not move the member")
+			logger.Ctx(parent).Error().Err(err).Str("user_id", userID.String()).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not move the member")
 
 			continue
 		}
@@ -133,7 +133,7 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 		moved++
 	}
 
-	logger.Log.Info().Str("from", from).Str("to", to).Int("holders", len(holders)).Int("moved", moved).Int("failed", failed).Msg("chatbot opt-in role migration finished")
+	logger.Ctx(parent).Info().Str("from", from).Str("to", to).Int("holders", len(holders)).Int("moved", moved).Int("failed", failed).Msg("chatbot opt-in role migration finished")
 
 	entry := repository.NewAuditEntry{
 		Action:     repository.AuditActionChatbotOptInRoleMigrate,
@@ -143,7 +143,7 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 	}
 
 	if err := m.auditRepo.CreateSystem(ctx, entry); err != nil {
-		logger.Log.Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
+		logger.Ctx(parent).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 

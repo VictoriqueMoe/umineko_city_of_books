@@ -111,7 +111,7 @@ func (c *Checker) lookup(ctx context.Context, key, name, ip string) Verdict {
 
 	answers, err := c.resolver.LookupNetIP(lookupCtx, "ip4", name)
 	if err != nil && !isNotFound(err) {
-		logger.Log.Warn().Err(err).Str("ip", ip).Msg("dronebl lookup failed, treating the address as clean")
+		logger.Ctx(ctx).Warn().Err(err).Str("ip", ip).Msg("dronebl lookup failed, treating the address as clean")
 		_ = cache.Set(ctx, c.cache, key, Verdict{}, failureTTL)
 
 		return Verdict{}
