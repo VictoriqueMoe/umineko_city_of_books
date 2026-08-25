@@ -470,18 +470,6 @@ func TestNotify_PushNotificationFindsRowSendsToHub(t *testing.T) {
 	require.NoError(t, err)
 }
 
-type fakeOverlayDispatcher struct {
-	called      bool
-	recipientID uuid.UUID
-	resp        dto.NotificationResponse
-}
-
-func (f *fakeOverlayDispatcher) DispatchNotification(recipientID uuid.UUID, resp dto.NotificationResponse) {
-	f.called = true
-	f.recipientID = recipientID
-	f.resp = resp
-}
-
 func TestNotify_DispatchesToOverlay(t *testing.T) {
 	// given
 	notifRepo := repository.NewMockNotificationRepository(t)
@@ -490,7 +478,7 @@ func TestNotify_DispatchesToOverlay(t *testing.T) {
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("Test Site").Maybe()
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
-	overlay := &fakeOverlayDispatcher{}
+	overlay := NewMockOverlayDispatcher(t)
 	blockRepo := repository.NewMockBlockRepository(t)
 	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	svc := NewService(notifRepo, userRepo, blockRepo, ws.NewHub(), emailSvc, nil, settingsSvc, overlay)
@@ -504,15 +492,16 @@ func TestNotify_DispatchesToOverlay(t *testing.T) {
 	notifRepo.EXPECT().
 		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
 		Return(&model.NotificationRow{ID: 55, UserID: params.RecipientID, Type: params.Type}, nil)
+	overlay.EXPECT().DispatchNotification(recipient, mock.MatchedBy(func(resp dto.NotificationResponse) bool {
+		return resp.Type == dto.NotifPostLiked
+	})).Return().Once()
 
 	// when
 	err := svc.Notify(context.Background(), params)
 
 	// then
 	require.NoError(t, err)
-	assert.True(t, overlay.called)
-	assert.Equal(t, recipient, overlay.recipientID)
-	assert.Equal(t, dto.NotifPostLiked, overlay.resp.Type)
+	overlay.AssertExpectations(t)
 }
 
 func TestNotifyMany_IteratesAllParamsAndSwallowsErrors(t *testing.T) {

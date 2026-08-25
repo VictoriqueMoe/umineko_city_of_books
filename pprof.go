@@ -46,6 +46,7 @@ func registerPprofRoutes(app *fiber.App, sessionMgr *session.Manager, authzSvc a
 		{"/debug/pprof/allocs", pprof.Handler("allocs").ServeHTTP},
 		{"/debug/pprof/block", pprof.Handler("block").ServeHTTP},
 		{"/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP},
+		{"/debug/pprof/goroutineleak", pprof.Handler("goroutineleak").ServeHTTP},
 		{"/debug/pprof/heap", pprof.Handler("heap").ServeHTTP},
 		{"/debug/pprof/mutex", pprof.Handler("mutex").ServeHTTP},
 		{"/debug/pprof/threadcreate", pprof.Handler("threadcreate").ServeHTTP},

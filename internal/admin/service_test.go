@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/auth"
@@ -28,32 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type fakeChatSync struct {
-	ensureErr      error
-	syncErr        error
-	ensureCalls    int
-	syncCalls      int
-	lastSyncRole   role.Role
-	lastSyncUserID uuid.UUID
-	mu             sync.Mutex
-}
-
-func (f *fakeChatSync) EnsureSystemRooms(ctx context.Context) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.ensureCalls++
-	return f.ensureErr
-}
-
-func (f *fakeChatSync) SyncSystemRoomMembership(ctx context.Context, userID uuid.UUID, newRole role.Role) error {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.syncCalls++
-	f.lastSyncUserID = userID
-	f.lastSyncRole = newRole
-	return f.syncErr
-}
-
 type testMocks struct {
 	userRepo    *repository.MockUserRepository
 	roleRepo    *repository.MockRoleRepository
@@ -68,7 +41,7 @@ type testMocks struct {
 	settingsSvc *settings.MockService
 	uploadSvc   *upload.MockService
 	hub         *ws.Hub
-	chatSync    *fakeChatSync
+	chatSync    *MockSystemRoomSync
 	banlist     banlist.Service
 	emailSvc    *email.MockService
 	authSvc     *auth.MockService
@@ -91,7 +64,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
 	hub := ws.NewHub()
-	chatSync := &fakeChatSync{}
+	chatSync := NewMockSystemRoomSync(t)
 	sessionMgr := session.NewManager(sessionRepo, settingsSvc)
 	emailSvc := email.NewMockService(t)
 	authSvc := auth.NewMockService(t)
@@ -374,15 +347,15 @@ func TestSetUserRole_OK(t *testing.T) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
 	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionSetRole, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "admin", SubjectID: target}).Return(nil)
+	m.chatSync.EXPECT().EnsureSystemRooms(mock.Anything).Return(nil).Once()
+	m.chatSync.EXPECT().SyncSystemRoomMembership(mock.Anything, target, authz.RoleAdmin).Return(nil).Once()
 
 	// when
 	err := svc.SetUserRole(context.Background(), actor, target, authz.RoleAdmin)
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 1, m.chatSync.ensureCalls)
-	assert.Equal(t, 1, m.chatSync.syncCalls)
-	assert.Equal(t, authz.RoleAdmin, m.chatSync.lastSyncRole)
+	m.chatSync.AssertExpectations(t)
 }
 
 func TestSetUserRole_BotAccountIsProtected(t *testing.T) {
@@ -424,8 +397,8 @@ func TestSetUserRole_ChatSyncErrorsLogged(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
-	m.chatSync.ensureErr = errors.New("ensure boom")
-	m.chatSync.syncErr = errors.New("sync boom")
+	m.chatSync.EXPECT().EnsureSystemRooms(mock.Anything).Return(errors.New("ensure boom")).Once()
+	m.chatSync.EXPECT().SyncSystemRoomMembership(mock.Anything, target, authz.RoleAdmin).Return(errors.New("sync boom")).Once()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
@@ -448,14 +421,14 @@ func TestRemoveUserRole_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleModerator, nil)
 	m.roleRepo.EXPECT().RemoveRole(mock.Anything, target, authz.RoleModerator).Return(nil)
 	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionRemoveRole, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "moderator", SubjectID: target}).Return(nil)
+	m.chatSync.EXPECT().SyncSystemRoomMembership(mock.Anything, target, role.Role("")).Return(nil).Once()
 
 	// when
 	err := svc.RemoveUserRole(context.Background(), actor, target, authz.RoleModerator)
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 1, m.chatSync.syncCalls)
-	assert.Equal(t, role.Role(""), m.chatSync.lastSyncRole)
+	m.chatSync.AssertExpectations(t)
 }
 
 func TestRemoveUserRole_Protected(t *testing.T) {

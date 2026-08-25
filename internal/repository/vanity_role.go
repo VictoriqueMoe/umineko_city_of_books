@@ -55,7 +55,7 @@ type (
 	}
 )
 
-func ExcludeVanityRoleIDs(ids []string, startIndex int) (string, []interface{}) {
+func ExcludeVanityRoleIDs(ids []string, startIndex int) (string, []any) {
 	if len(ids) == 0 {
 		return "", nil
 	}
@@ -143,17 +143,9 @@ func (r *vanityRoleRepository) GetRolesForUsersBatch(ctx context.Context, userID
 }
 
 func (r *vanityRoleRepository) GetAllAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error) {
-	key := cache.VanityAssignments.Key()
-
-	if v, err := cache.Get[map[string][]string](ctx, r.cache, key); err == nil {
-		return v, nil
+	load := func(ctx context.Context) (map[string][]string, error) {
+		return r.dao.GetAllAssignments(ctx, tx...)
 	}
 
-	v, err := r.dao.GetAllAssignments(ctx, tx...)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, v, cache.VanityAssignments.TTL)
-	return v, nil
+	return r.cache.Load(ctx, cache.VanityAssignments, load)
 }

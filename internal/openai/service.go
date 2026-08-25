@@ -316,8 +316,10 @@ func buildInput(req CompletionRequest) responses.ResponseInputParam {
 }
 
 func cacheablePrefix(prompt string) responses.ResponseInputMessageContentListParam {
-	block := responses.ResponseInputTextParam{Text: prompt}
-	block.PromptCacheBreakpoint = responses.ResponseInputTextPromptCacheBreakpointParam{Mode: cacheModeExplicit}
+	block := responses.ResponseInputTextParam{
+		Text:                  prompt,
+		PromptCacheBreakpoint: responses.ResponseInputTextPromptCacheBreakpointParam{Mode: cacheModeExplicit},
+	}
 
 	return responses.ResponseInputMessageContentListParam{
 		{OfInputText: &block},

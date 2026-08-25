@@ -47,13 +47,11 @@ func NewService(repo repository.HomeFeedRepository, hub *ws.Hub, cacheMgr *cache
 }
 
 func (s *service) echoes(ctx context.Context) []dto.HomeEcho {
-	key := cache.HomeEchoes.Key(time.Now().UTC().Format("2006-01-02"))
-	if cached, err := cache.Get[[]dto.HomeEcho](ctx, s.cache, key); err == nil {
-		return cached
+	load := func(ctx context.Context) ([]dto.HomeEcho, error) {
+		return s.buildEchoes(ctx), nil
 	}
 
-	echoes := s.buildEchoes(ctx)
-	_ = cache.Set(ctx, s.cache, key, echoes, cache.HomeEchoes.TTL)
+	echoes, _ := s.cache.Load(ctx, cache.HomeEchoes, load, time.Now().UTC().Format("2006-01-02"))
 
 	return echoes
 }

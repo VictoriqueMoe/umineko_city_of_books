@@ -13,55 +13,12 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/settings"
 
-	"github.com/google/uuid"
+	"github.com/wneessen/go-mail"
+
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
-
-type stubSettings struct {
-	values map[*config.SiteSettingDef]string
-}
-
-func (s *stubSettings) Get(_ context.Context, def *config.SiteSettingDef) string {
-	if v, ok := s.values[def]; ok {
-		return v
-	}
-	return def.Default
-}
-
-func (s *stubSettings) GetInt(ctx context.Context, def *config.SiteSettingDef) int {
-	v, err := strconv.Atoi(s.Get(ctx, def))
-	if err != nil {
-		return 0
-	}
-	return v
-}
-
-func (s *stubSettings) GetBool(ctx context.Context, def *config.SiteSettingDef) bool {
-	return s.Get(ctx, def) == "true"
-}
-
-func (s *stubSettings) GetAll(_ context.Context) map[config.SiteSettingKey]string {
-	return nil
-}
-
-func (s *stubSettings) Set(_ context.Context, _ *config.SiteSettingDef, _ string, _ uuid.UUID) error {
-	return nil
-}
-
-func (s *stubSettings) SetMultiple(_ context.Context, _ map[config.SiteSettingKey]string, _ uuid.UUID) error {
-	return nil
-}
-
-func (s *stubSettings) Subscribe(_ settings.Listener) {}
-
-func (s *stubSettings) SubscribeBatch(_ settings.BatchListener) {}
-
-func (s *stubSettings) RegisterValidator(_ *config.SiteSettingDef, _ settings.Validator) {}
-
-func (s *stubSettings) Refresh(_ context.Context) error {
-	return nil
-}
 
 type roundTripFunc func(req *http.Request) (*http.Response, error)
 
@@ -69,16 +26,45 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func newServiceWithSettings(values map[*config.SiteSettingDef]string, rt http.RoundTripper) *service {
-	svc := NewService(&stubSettings{values: values}).(*service)
+func newServiceWithSettings(t *testing.T, values map[*config.SiteSettingDef]string, rt http.RoundTripper) *service {
+	t.Helper()
+
+	settingsSvc := settings.NewMockService(t)
+	settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, def *config.SiteSettingDef) string {
+			if v, ok := values[def]; ok {
+				return v
+			}
+
+			return def.Default
+		}).Maybe()
+	settingsSvc.EXPECT().GetInt(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, def *config.SiteSettingDef) int {
+			raw, ok := values[def]
+			if !ok {
+				raw = def.Default
+			}
+
+			n, err := strconv.Atoi(raw)
+			if err != nil {
+				return 0
+			}
+
+			return n
+		}).Maybe()
+
+	svc := NewService(settingsSvc).(*service)
 	if rt != nil {
 		svc.httpClient = &http.Client{Transport: rt}
 	}
+
 	return svc
 }
 
-func cloudflareConfigured(rt http.RoundTripper) *service {
-	return newServiceWithSettings(map[*config.SiteSettingDef]string{
+func cloudflareConfigured(t *testing.T, rt http.RoundTripper) *service {
+	t.Helper()
+
+	return newServiceWithSettings(t, map[*config.SiteSettingDef]string{
 		config.SettingEmailProvider:       string(config.EmailProviderCloudflare),
 		config.SettingCloudflareAccountID: "acct-123",
 		config.SettingCloudflareAPIToken:  "secret-token",
@@ -97,7 +83,7 @@ func jsonResponse(status int, body string) *http.Response {
 
 func TestSend_SMTPNotConfigured_IsSwallowed(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(nil, nil)
+	svc := newServiceWithSettings(t, nil, nil)
 
 	// when
 	err := svc.Send(context.Background(), "user@example.com", "Subject", "<p>Body</p>")
@@ -108,7 +94,7 @@ func TestSend_SMTPNotConfigured_IsSwallowed(t *testing.T) {
 
 func TestSendTest_SMTPNotConfigured_ReturnsNotConfigured(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(nil, nil)
+	svc := newServiceWithSettings(t, nil, nil)
 
 	// when
 	err := svc.SendTest(context.Background(), "user@example.com", "Subject", "<p>Body</p>")
@@ -119,7 +105,7 @@ func TestSendTest_SMTPNotConfigured_ReturnsNotConfigured(t *testing.T) {
 
 func TestSendTest_CloudflareNotConfigured_ReturnsNotConfigured(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(map[*config.SiteSettingDef]string{
+	svc := newServiceWithSettings(t, map[*config.SiteSettingDef]string{
 		config.SettingEmailProvider: string(config.EmailProviderCloudflare),
 	}, nil)
 
@@ -139,7 +125,7 @@ func TestSend_CloudflareSuccess_BuildsRequest(t *testing.T) {
 		capturedBody, _ = io.ReadAll(req.Body)
 		return jsonResponse(http.StatusOK, `{"success":true,"result":{"delivered":["user@example.com"]}}`), nil
 	})
-	svc := cloudflareConfigured(rt)
+	svc := cloudflareConfigured(t, rt)
 
 	// when
 	err := svc.Send(context.Background(), "user@example.com", "Welcome", "<p>Hi &amp; bye</p>")
@@ -167,7 +153,7 @@ func TestSend_CloudflareHTTPStatusError_Returns(t *testing.T) {
 	rt := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusUnauthorized, `{"success":false,"errors":[{"code":1000,"message":"bad token"}]}`), nil
 	})
-	svc := cloudflareConfigured(rt)
+	svc := cloudflareConfigured(t, rt)
 
 	// when
 	err := svc.Send(context.Background(), "user@example.com", "Welcome", "<p>Body</p>")
@@ -182,7 +168,7 @@ func TestSend_CloudflareSuccessFalse_Returns(t *testing.T) {
 	rt := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return jsonResponse(http.StatusOK, `{"success":false,"errors":[{"code":1000,"message":"domain not verified"}]}`), nil
 	})
-	svc := cloudflareConfigured(rt)
+	svc := cloudflareConfigured(t, rt)
 
 	// when
 	err := svc.Send(context.Background(), "user@example.com", "Welcome", "<p>Body</p>")
@@ -197,7 +183,7 @@ func TestSend_CloudflareTransportError_Returns(t *testing.T) {
 	rt := roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 		return nil, errors.New("connection refused")
 	})
-	svc := cloudflareConfigured(rt)
+	svc := cloudflareConfigured(t, rt)
 
 	// when
 	err := svc.Send(context.Background(), "user@example.com", "Welcome", "<p>Body</p>")
@@ -209,7 +195,7 @@ func TestSend_CloudflareTransportError_Returns(t *testing.T) {
 
 func TestEnabled_SMTPConfigured(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(map[*config.SiteSettingDef]string{
+	svc := newServiceWithSettings(t, map[*config.SiteSettingDef]string{
 		config.SettingSMTPHost: "127.0.0.1",
 	}, nil)
 
@@ -219,7 +205,7 @@ func TestEnabled_SMTPConfigured(t *testing.T) {
 
 func TestEnabled_SMTPNotConfigured(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(nil, nil)
+	svc := newServiceWithSettings(t, nil, nil)
 
 	// when / then
 	assert.False(t, svc.Enabled(context.Background()))
@@ -227,7 +213,7 @@ func TestEnabled_SMTPNotConfigured(t *testing.T) {
 
 func TestEnabled_CloudflareConfigured(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(map[*config.SiteSettingDef]string{
+	svc := newServiceWithSettings(t, map[*config.SiteSettingDef]string{
 		config.SettingEmailProvider:       string(config.EmailProviderCloudflare),
 		config.SettingCloudflareAccountID: "acct-123",
 		config.SettingCloudflareAPIToken:  "secret-token",
@@ -240,7 +226,7 @@ func TestEnabled_CloudflareConfigured(t *testing.T) {
 
 func TestEnabled_CloudflareMissingToken(t *testing.T) {
 	// given
-	svc := newServiceWithSettings(map[*config.SiteSettingDef]string{
+	svc := newServiceWithSettings(t, map[*config.SiteSettingDef]string{
 		config.SettingEmailProvider:       string(config.EmailProviderCloudflare),
 		config.SettingCloudflareAccountID: "acct-123",
 		config.SettingCloudflareEmailFrom: "noreply@books.test",
@@ -248,6 +234,46 @@ func TestEnabled_CloudflareMissingToken(t *testing.T) {
 
 	// when / then
 	assert.False(t, svc.Enabled(context.Background()))
+}
+
+func TestBuildClient_TLSPolicyForUncredentialedHosts(t *testing.T) {
+	// given
+	cases := []struct {
+		name string
+		host string
+		want string
+	}{
+		{name: "loopback ip may stay in cleartext", host: "127.0.0.1", want: mail.NoTLS.String()},
+		{name: "ipv6 loopback may stay in cleartext", host: "::1", want: mail.NoTLS.String()},
+		{name: "localhost may stay in cleartext", host: "localhost", want: mail.NoTLS.String()},
+		{name: "remote host must not disable tls", host: "smtp.example.com", want: mail.TLSOpportunistic.String()},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			svc := newServiceWithSettings(t, map[*config.SiteSettingDef]string{
+				config.SettingSMTPHost: tc.host,
+			}, nil)
+
+			// then
+			require.NotNil(t, svc.client)
+			assert.Equal(t, tc.want, svc.client.TLSPolicy())
+		})
+	}
+}
+
+func TestBuildClient_CredentialsKeepMandatoryTLS(t *testing.T) {
+	// given
+	svc := newServiceWithSettings(t, map[*config.SiteSettingDef]string{
+		config.SettingSMTPHost:     "smtp.example.com",
+		config.SettingSMTPUsername: "beatrice",
+		config.SettingSMTPPassword: "golden",
+	}, nil)
+
+	// then
+	require.NotNil(t, svc.client)
+	assert.Equal(t, mail.TLSMandatory.String(), svc.client.TLSPolicy())
 }
 
 func TestHtmlToText(t *testing.T) {

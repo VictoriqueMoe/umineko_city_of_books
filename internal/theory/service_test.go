@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
@@ -68,20 +69,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		blockSvc:    blockSvc,
 		notifSvc:    notifSvc,
 		settingsSvc: settingsSvc,
-	}
-}
-
-func waitOrFail(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(timeout):
-		t.Fatal("timed out waiting for goroutine")
 	}
 }
 
@@ -417,6 +404,10 @@ func TestUpdateTheory_Admin_UpdateError(t *testing.T) {
 }
 
 func TestUpdateTheory_Admin_OK_TriggersNotification(t *testing.T) {
+	synctest.Test(t, testUpdateTheoryAdminOKTriggersNotification)
+}
+
+func testUpdateTheoryAdminOKTriggersNotification(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
@@ -449,7 +440,7 @@ func TestUpdateTheory_Admin_OK_TriggersNotification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestUpdateTheory_Admin_OK_AuthorLookupErrorSwallowed(t *testing.T) {
@@ -723,6 +714,10 @@ func TestCreateResponse_RepoCreateError(t *testing.T) {
 }
 
 func TestCreateResponse_OK_SendsNotification(t *testing.T) {
+	synctest.Test(t, testCreateResponseOKSendsNotification)
+}
+
+func testCreateResponseOKSendsNotification(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -756,7 +751,7 @@ func TestCreateResponse_OK_SendsNotification(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, responseID, got)
-	waitOrFail(t, &wg, 2*time.Second)
+	wg.Wait()
 }
 
 func TestDeleteResponse_Admin(t *testing.T) {
@@ -925,6 +920,10 @@ func TestVoteTheory_Downvote_NoNotification(t *testing.T) {
 }
 
 func TestVoteTheory_Upvote_SendsNotification(t *testing.T) {
+	synctest.Test(t, testVoteTheoryUpvoteSendsNotification)
+}
+
+func testVoteTheoryUpvoteSendsNotification(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -951,7 +950,7 @@ func TestVoteTheory_Upvote_SendsNotification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, 2*time.Second)
+	wg.Wait()
 }
 
 func TestVoteResponse_ResponseInfoError(t *testing.T) {
@@ -1019,6 +1018,10 @@ func TestVoteResponse_Downvote_NoNotification(t *testing.T) {
 }
 
 func TestVoteResponse_Upvote_SendsNotification(t *testing.T) {
+	synctest.Test(t, testVoteResponseUpvoteSendsNotification)
+}
+
+func testVoteResponseUpvoteSendsNotification(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -1046,10 +1049,14 @@ func TestVoteResponse_Upvote_SendsNotification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, 2*time.Second)
+	wg.Wait()
 }
 
 func TestCreateTheory_MentionNotifiesMentionedUser(t *testing.T) {
+	synctest.Test(t, testCreateTheoryMentionNotifiesMentionedUser)
+}
+
+func testCreateTheoryMentionNotifiesMentionedUser(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -1077,10 +1084,14 @@ func TestCreateTheory_MentionNotifiesMentionedUser(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, theoryID, got)
-	waitOrFail(t, &wg, 2*time.Second)
+	wg.Wait()
 }
 
 func TestCreateResponse_MentionAnchorsOnTheResponse(t *testing.T) {
+	synctest.Test(t, testCreateResponseMentionAnchorsOnTheResponse)
+}
+
+func testCreateResponseMentionAnchorsOnTheResponse(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
@@ -1118,7 +1129,7 @@ func TestCreateResponse_MentionAnchorsOnTheResponse(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, responseID, got)
-	waitOrFail(t, &wg, 2*time.Second)
+	wg.Wait()
 }
 
 func TestCreateTheory_NotifiesFollowers(t *testing.T) {

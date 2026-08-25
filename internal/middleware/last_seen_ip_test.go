@@ -1,116 +1,106 @@
 package middleware
 
 import (
-	"context"
-	"database/sql"
-	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
-type fakeUpdater struct {
-	calls atomic.Int32
-	done  chan struct{}
-}
-
-func (f *fakeUpdater) UpdateIP(_ context.Context, _ uuid.UUID, _ string, _ ...*sql.Tx) error {
-	f.calls.Add(1)
-	if f.done != nil {
-		select {
-		case f.done <- struct{}{}:
-		default:
-		}
-	}
-	return nil
-}
-
-func waitForWrites(t *testing.T, f *fakeUpdater, want int32) {
-	t.Helper()
-	deadline := time.Now().Add(1 * time.Second)
-	for time.Now().Before(deadline) {
-		if f.calls.Load() >= want {
-			return
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	t.Fatalf("expected %d writes, got %d", want, f.calls.Load())
-}
-
 func TestLastSeenIP_FirstCallWrites(t *testing.T) {
-	// given
-	f := &fakeUpdater{}
-	r := NewLastSeenIP(f, time.Hour)
-	uid := uuid.New()
+	synctest.Test(t, func(t *testing.T) {
+		// given
+		repo := NewMockIPWriter(t)
+		uid := uuid.New()
+		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Once()
 
-	// when
-	r.Record(uid, "10.0.0.1")
+		// when
+		NewLastSeenIP(repo, time.Hour).Record(uid, "10.0.0.1")
 
-	// then
-	waitForWrites(t, f, 1)
+		// then
+		synctest.Wait()
+		repo.AssertExpectations(t)
+	})
 }
 
 func TestLastSeenIP_SameIPWithinWindowIsSkipped(t *testing.T) {
-	// given
-	f := &fakeUpdater{}
-	r := NewLastSeenIP(f, time.Hour)
-	uid := uuid.New()
+	synctest.Test(t, func(t *testing.T) {
+		// given
+		repo := NewMockIPWriter(t)
+		uid := uuid.New()
+		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Once()
 
-	// when
-	r.Record(uid, "10.0.0.1")
-	waitForWrites(t, f, 1)
-	for range 50 {
-		r.Record(uid, "10.0.0.1")
-	}
-	time.Sleep(50 * time.Millisecond)
+		r := NewLastSeenIP(repo, time.Hour)
 
-	// then
-	assert.Equal(t, int32(1), f.calls.Load())
+		// when
+		for range 50 {
+			r.Record(uid, "10.0.0.1")
+		}
+
+		// then
+		synctest.Wait()
+		repo.AssertExpectations(t)
+	})
 }
 
 func TestLastSeenIP_ChangedIPWritesImmediately(t *testing.T) {
-	// given
-	f := &fakeUpdater{}
-	r := NewLastSeenIP(f, time.Hour)
-	uid := uuid.New()
+	synctest.Test(t, func(t *testing.T) {
+		// given
+		repo := NewMockIPWriter(t)
+		uid := uuid.New()
+		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Once()
+		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.2").Return(nil).Once()
 
-	// when
-	r.Record(uid, "10.0.0.1")
-	waitForWrites(t, f, 1)
-	r.Record(uid, "10.0.0.2")
+		r := NewLastSeenIP(repo, time.Hour)
 
-	// then
-	waitForWrites(t, f, 2)
+		// when
+		r.Record(uid, "10.0.0.1")
+		synctest.Wait()
+
+		r.Record(uid, "10.0.0.2")
+
+		// then
+		synctest.Wait()
+		repo.AssertExpectations(t)
+	})
 }
 
 func TestLastSeenIP_WindowElapsedWritesAgain(t *testing.T) {
-	// given
-	f := &fakeUpdater{}
-	r := NewLastSeenIP(f, 10*time.Millisecond)
-	uid := uuid.New()
+	synctest.Test(t, func(t *testing.T) {
+		// given
+		repo := NewMockIPWriter(t)
+		uid := uuid.New()
+		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Twice()
 
-	// when
-	r.Record(uid, "10.0.0.1")
-	waitForWrites(t, f, 1)
-	time.Sleep(20 * time.Millisecond)
-	r.Record(uid, "10.0.0.1")
+		r := NewLastSeenIP(repo, time.Hour)
 
-	// then
-	waitForWrites(t, f, 2)
+		// when
+		r.Record(uid, "10.0.0.1")
+		synctest.Wait()
+
+		synctest.Sleep(2 * time.Hour)
+		r.Record(uid, "10.0.0.1")
+
+		// then
+		synctest.Wait()
+		repo.AssertExpectations(t)
+	})
 }
 
 func TestLastSeenIP_NilUserOrEmptyIPNoOp(t *testing.T) {
-	// given
-	f := &fakeUpdater{}
-	r := NewLastSeenIP(f, time.Hour)
+	synctest.Test(t, func(t *testing.T) {
+		// given
+		repo := NewMockIPWriter(t)
+		r := NewLastSeenIP(repo, time.Hour)
 
-	// when
-	r.Record(uuid.Nil, "10.0.0.1")
-	r.Record(uuid.New(), "")
-	time.Sleep(20 * time.Millisecond)
+		// when
+		r.Record(uuid.Nil, "10.0.0.1")
+		r.Record(uuid.New(), "")
 
-	// then
-	assert.Equal(t, int32(0), f.calls.Load())
+		// then
+		synctest.Wait()
+		repo.AssertExpectations(t)
+	})
 }

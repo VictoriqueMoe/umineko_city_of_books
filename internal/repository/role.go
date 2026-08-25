@@ -31,19 +31,18 @@ func NewRoleRepo(dao RoleRepository, c *cache.Manager) RoleRepository {
 }
 
 func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (role.Role, error) {
-	key := cache.UserRole.Key(userID.String())
+	load := func(ctx context.Context) (string, error) {
+		rl, err := r.dao.GetRole(ctx, userID, tx...)
 
-	if cached, err := cache.Get[string](ctx, r.cache, key); err == nil {
-		return role.Role(cached), nil
+		return string(rl), err
 	}
 
-	rl, err := r.dao.GetRole(ctx, userID, tx...)
+	cached, err := r.cache.Load(ctx, cache.UserRole, load, userID.String())
 	if err != nil {
 		return "", err
 	}
 
-	_ = cache.Set(ctx, r.cache, key, string(rl), cache.UserRole.TTL)
-	return rl, nil
+	return role.Role(cached), nil
 }
 
 func (r *roleRepository) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {

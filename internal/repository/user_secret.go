@@ -42,19 +42,11 @@ func (r *userSecretRepository) ListForUser(ctx context.Context, userID uuid.UUID
 }
 
 func (r *userSecretRepository) GetUserIDsWithSecret(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	key := cache.SecretHolders.Key(secretID)
-
-	if v, err := cache.Get[[]uuid.UUID](ctx, r.cache, key); err == nil {
-		return v, nil
+	load := func(ctx context.Context) ([]uuid.UUID, error) {
+		return r.dao.GetUserIDsWithSecret(ctx, secretID, tx...)
 	}
 
-	v, err := r.dao.GetUserIDsWithSecret(ctx, secretID, tx...)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, v, cache.SecretHolders.TTL)
-	return v, nil
+	return r.cache.Load(ctx, cache.SecretHolders, load, secretID)
 }
 
 func (r *userSecretRepository) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]uuid.UUID, error) {
@@ -62,19 +54,11 @@ func (r *userSecretRepository) GetUserIDsWithAnyPiece(ctx context.Context, piece
 }
 
 func (r *userSecretRepository) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
-	key := cache.SecretSolved.Key(secretID)
-
-	if v, err := cache.Get[bool](ctx, r.cache, key); err == nil {
-		return v, nil
+	load := func(ctx context.Context) (bool, error) {
+		return r.dao.IsSolvedByAnyone(ctx, secretID, tx...)
 	}
 
-	v, err := r.dao.IsSolvedByAnyone(ctx, secretID, tx...)
-	if err != nil {
-		return false, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, v, cache.SecretSolved.TTL)
-	return v, nil
+	return r.cache.Load(ctx, cache.SecretSolved, load, secretID)
 }
 
 func (r *userSecretRepository) DeleteSecrets(ctx context.Context, secretIDs []string, tx ...*sql.Tx) error {

@@ -11,7 +11,7 @@ RUN npm ci
 COPY frontend/ .
 RUN --mount=type=secret,id=capgo_private_key,required=true npm run build && npm run build:ota
 
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 ARG APP_VERSION
 
@@ -23,8 +23,7 @@ RUN go mod download
 COPY . .
 COPY --from=frontend-builder /app/static/ ./static/
 
-RUN mkdir -p internal/truth/data internal/truth/data/sub
-RUN CGO_ENABLED=0 GOOS=linux go build -tags ci -ldflags="-X umineko_city_of_books/internal/config.Version=${APP_VERSION}" -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-X umineko_city_of_books/internal/config.Version=${APP_VERSION}" -o main .
 
 FROM alpine:latest
 

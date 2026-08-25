@@ -106,17 +106,16 @@ func (r *Resolver) Resolve(ctx context.Context, path, partyID string) string {
 }
 
 func (r *Resolver) resolveMeta(ctx context.Context, path, partyID string) *Meta {
-	key := cache.OGMeta.Key(path)
+	parts := []string{path}
 	if partyID != "" {
-		key = cache.OGMeta.Key(path, partyID)
+		parts = append(parts, partyID)
 	}
 
-	if meta, err := cache.Get[*Meta](ctx, r.cache, key); err == nil {
-		return meta
+	load := func(ctx context.Context) (*Meta, error) {
+		return r.metaForPath(ctx, path, partyID), nil
 	}
 
-	meta := r.metaForPath(ctx, path, partyID)
-	_ = cache.Set(ctx, r.cache, key, meta, cache.OGMeta.TTL)
+	meta, _ := r.cache.Load(ctx, cache.OGMeta, load, parts...)
 
 	return meta
 }

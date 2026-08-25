@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func Get[T any](ctx context.Context, m *Manager, key string) (T, error) {
+func (m *Manager) Get[T any](ctx context.Context, key string) (T, error) {
 	var zero T
 
 	if m == nil {
@@ -21,7 +21,7 @@ func Get[T any](ctx context.Context, m *Manager, key string) (T, error) {
 	return decode[T](data)
 }
 
-func Set[T any](ctx context.Context, m *Manager, key string, value T, ttl time.Duration) error {
+func (m *Manager) Set[T any](ctx context.Context, key string, value T, ttl time.Duration) error {
 	if m == nil {
 		return nil
 	}
@@ -34,7 +34,7 @@ func Set[T any](ctx context.Context, m *Manager, key string, value T, ttl time.D
 	return m.setBytes(ctx, key, data, ttl)
 }
 
-func SetMany[T any](ctx context.Context, m *Manager, values map[string]T, ttl time.Duration) error {
+func (m *Manager) SetMany[T any](ctx context.Context, values map[string]T, ttl time.Duration) error {
 	if m == nil || len(values) == 0 {
 		return nil
 	}
@@ -50,6 +50,25 @@ func SetMany[T any](ctx context.Context, m *Manager, values map[string]T, ttl ti
 	}
 
 	return m.setManyBytes(ctx, entries, ttl)
+}
+
+func (m *Manager) Load[T any](ctx context.Context, ns Namespace, load func(context.Context) (T, error), parts ...string) (T, error) {
+	key := ns.Key(parts...)
+
+	if cached, err := m.Get[T](ctx, key); err == nil {
+		return cached, nil
+	}
+
+	value, err := load(ctx)
+	if err != nil {
+		var zero T
+
+		return zero, err
+	}
+
+	_ = m.Set(ctx, key, value, ns.TTL)
+
+	return value, nil
 }
 
 func encode[T any](value T) ([]byte, error) {

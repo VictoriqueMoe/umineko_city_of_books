@@ -11,7 +11,7 @@ RUN npm ci
 COPY frontend/ .
 RUN --mount=type=secret,id=capgo_private_key npm run build && npm run build:ota
 
-FROM golang:1.26-alpine AS builder
+FROM golang:1.27-alpine AS builder
 
 ARG APP_VERSION
 

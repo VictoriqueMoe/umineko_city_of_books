@@ -5,6 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"umineko_city_of_books/internal/cache"
@@ -114,6 +115,10 @@ func TestResolve_ServesTheSecondCallFromCache(t *testing.T) {
 }
 
 func TestResolve_CollapsesConcurrentCallsForTheSameURL(t *testing.T) {
+	synctest.Test(t, testResolveCollapsesConcurrentCallsForTheSameURL)
+}
+
+func testResolveCollapsesConcurrentCallsForTheSameURL(t *testing.T) {
 	// given a slow fetch and many callers arriving at once on a cold cache
 	svc, calls := newCountingService(t, &media.Embed{Type: media.EmbedTypeLink, Title: "Beatrice"}, 50*time.Millisecond)
 
@@ -124,16 +129,12 @@ func TestResolve_CollapsesConcurrentCallsForTheSameURL(t *testing.T) {
 
 	// when
 	for i := range results {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			got, err := svc.Resolve(context.Background(), "https://example.com/slow")
 			if err == nil {
 				results[i] = got.Title
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

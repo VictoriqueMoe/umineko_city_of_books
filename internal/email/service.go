@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"regexp"
 	"strings"
@@ -68,6 +69,16 @@ func NewService(settingsSvc settings.Service) Service {
 	return svc
 }
 
+func isLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") {
+		return true
+	}
+
+	ip := net.ParseIP(host)
+
+	return ip != nil && ip.IsLoopback()
+}
+
 func (s *service) buildClient() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -90,12 +101,16 @@ func (s *service) buildClient() {
 	var opts []mail.Option
 	opts = append(opts, mail.WithPort(port))
 
-	if username != "" && password != "" {
+	switch {
+	case username != "" && password != "":
 		opts = append(opts, mail.WithSMTPAuth(mail.SMTPAuthPlain))
 		opts = append(opts, mail.WithUsername(username))
 		opts = append(opts, mail.WithPassword(password))
-	} else {
+	case isLoopbackHost(host):
 		opts = append(opts, mail.WithTLSPolicy(mail.NoTLS))
+	default:
+		opts = append(opts, mail.WithTLSPolicy(mail.TLSOpportunistic))
+		logger.Ctx(ctx).Warn().Str("host", host).Msg("SMTP has no credentials, using opportunistic TLS; mail leaves this host in cleartext if the server does not offer STARTTLS")
 	}
 
 	client, err := mail.NewClient(host, opts...)

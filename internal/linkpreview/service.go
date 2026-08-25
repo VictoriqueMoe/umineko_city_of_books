@@ -49,7 +49,7 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 
 	key := cache.LinkPreview.Key(hashURL(rawURL))
 
-	if cached, err := cache.Get[dto.LinkPreviewResponse](ctx, s.cache, key); err == nil {
+	if cached, err := s.cache.Get[dto.LinkPreviewResponse](ctx, key); err == nil {
 		return cached, nil
 	}
 
@@ -63,7 +63,7 @@ func (s *service) Resolve(ctx context.Context, rawURL string) (dto.LinkPreviewRe
 			ttl = missTTL
 		}
 
-		_ = cache.Set(storeCtx, s.cache, key, preview, ttl)
+		_ = s.cache.Set(storeCtx, key, preview, ttl)
 
 		return preview, nil
 	})

@@ -411,17 +411,13 @@ func TestInMemoryHandlesConcurrentAccess(t *testing.T) {
 	var wg sync.WaitGroup
 
 	for i := range 64 {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			key := strconv.Itoa(i % 16)
 
 			_ = c.Set(ctx, key, []byte(key), 0)
 			_, _ = c.Get(ctx, key)
 			_ = c.Del(ctx, key)
-		}()
+		})
 	}
 
 	wg.Wait()

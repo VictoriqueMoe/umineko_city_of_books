@@ -20,20 +20,11 @@ func NewImageService(cacheMgr *cache.Manager) *ImageService {
 }
 
 func (s *ImageService) JPEG(ctx context.Context, rel, fullPath string, info os.FileInfo, maxPixels int) ([]byte, error) {
-	key := cache.OGImage.Key(rel, fingerprint(info))
-
-	if data, err := cache.Get[[]byte](ctx, s.cache, key); err == nil {
-		return data, nil
+	load := func(ctx context.Context) ([]byte, error) {
+		return media.WebPToJPEG(ctx, fullPath, maxPixels)
 	}
 
-	data, err := media.WebPToJPEG(ctx, fullPath, maxPixels)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, s.cache, key, data, cache.OGImage.TTL)
-
-	return data, nil
+	return s.cache.Load(ctx, cache.OGImage, load, rel, fingerprint(info))
 }
 
 func fingerprint(info os.FileInfo) string {

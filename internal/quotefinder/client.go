@@ -107,7 +107,7 @@ func (c *Client) GetByAudioID(series Series, audioID string) (*Quote, error) {
 	if !series.Valid() {
 		series = SeriesUmineko
 	}
-	firstID := strings.Split(audioID, ",")[0]
+	firstID, _, _ := strings.Cut(audioID, ",")
 	firstID = strings.TrimSpace(firstID)
 	if firstID == "" {
 		return nil, nil

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"umineko_city_of_books/internal/block"
@@ -84,6 +85,10 @@ func TestFollow_RepoErrorBubbles(t *testing.T) {
 }
 
 func TestFollow_OK_SendsNotification(t *testing.T) {
+	synctest.Test(t, testFollowOKSendsNotification)
+}
+
+func testFollowOKSendsNotification(t *testing.T) {
 	// given
 	svc, followRepo, userRepo, blockSvc, notifSvc, _ := newTestService(t)
 	follower := uuid.New()
@@ -114,7 +119,7 @@ func TestFollow_OK_SendsNotification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestFollow_OK_UserLookupErrorSwallowed(t *testing.T) {
@@ -445,18 +450,4 @@ func TestGetMutualFollowers_Empty(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, got)
-}
-
-func waitOrFail(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(timeout):
-		t.Fatal("timed out waiting for goroutine")
-	}
 }

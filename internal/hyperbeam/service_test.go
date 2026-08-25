@@ -17,16 +17,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(t *testing.T, apiKey, baseURL string) *service {
+func newTestService(t *testing.T, apiKey, baseURL string, httpClient *http.Client) *service {
 	settingsSvc := settings.NewMockService(t)
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingHyperbeamAPIKey).Return(apiKey).Maybe()
+
+	if httpClient == nil {
+		httpClient = &http.Client{Timeout: 5 * time.Second}
+	}
 
 	return &service{
 		settingsSvc: settingsSvc,
 		baseURL:     baseURL,
-		httpClient: &http.Client{
-			Timeout: 5 * time.Second,
-		},
+		httpClient:  httpClient,
 	}
 }
 
@@ -44,7 +46,7 @@ func TestService_Enabled(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			svc := newTestService(t, tc.key, "http://example")
+			svc := newTestService(t, tc.key, "http://example", nil)
 
 			// then
 			require.Equal(t, tc.want, svc.Enabled())
@@ -60,7 +62,7 @@ func TestService_CreateVM(t *testing.T) {
 		gotAuth   string
 		gotBody   map[string]any
 	)
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotMethod = r.Method
 		gotPath = r.URL.Path
 		gotAuth = r.Header.Get("Authorization")
@@ -69,9 +71,9 @@ func TestService_CreateVM(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"session_id":"sess_123","embed_url":"https://hb.example/embed","admin_token":"admin_abc"}`))
 	}))
-	defer server.Close()
+	httpClient := server.Client()
 
-	svc := newTestService(t, "sk_test_abc", server.URL)
+	svc := newTestService(t, "sk_test_abc", server.URL, httpClient)
 
 	// when
 	vm, err := svc.CreateVM(context.Background(), CreateVMOptions{
@@ -98,7 +100,7 @@ func TestService_CreateVM(t *testing.T) {
 
 func TestService_SetControlRole_RequiresAnAdminToken(t *testing.T) {
 	// given
-	svc := newTestService(t, "sk_test_abc", "http://engine")
+	svc := newTestService(t, "sk_test_abc", "http://engine", nil)
 
 	// when
 	err := svc.SetControlRole(context.Background(), "https://vm.hyperbeam.com/abc", "", "user_xyz", true)
@@ -112,16 +114,16 @@ func TestService_SetControlRole_AddsControlRole(t *testing.T) {
 	var gotPath string
 	var gotAuth string
 	var gotBody []any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotAuth = r.Header.Get("Authorization")
 		raw, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(raw, &gotBody)
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	defer server.Close()
+	httpClient := server.Client()
 
-	svc := newTestService(t, "sk_test_abc", "http://engine")
+	svc := newTestService(t, "sk_test_abc", "http://engine", httpClient)
 
 	// when
 	err := svc.SetControlRole(context.Background(), server.URL+"/session_path", "vm_admin_token", "user_xyz", true)
@@ -142,13 +144,13 @@ func TestService_SetControlRole_AddsControlRole(t *testing.T) {
 func TestService_SetControlRole_RemovesControlRole(t *testing.T) {
 	// given
 	var gotPath string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	defer server.Close()
+	httpClient := server.Client()
 
-	svc := newTestService(t, "sk_test_abc", "http://engine")
+	svc := newTestService(t, "sk_test_abc", "http://engine", httpClient)
 
 	// when
 	err := svc.SetControlRole(context.Background(), server.URL+"/session_path", "vm_admin_token", "user_xyz", false)
@@ -160,14 +162,14 @@ func TestService_SetControlRole_RemovesControlRole(t *testing.T) {
 
 func TestService_TerminateVM_Success(t *testing.T) {
 	// given
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodDelete, r.Method)
 		require.Equal(t, "/vm/sess_123", r.URL.Path)
 		w.WriteHeader(http.StatusNoContent)
 	}))
-	defer server.Close()
+	httpClient := server.Client()
 
-	svc := newTestService(t, "sk_test_abc", server.URL)
+	svc := newTestService(t, "sk_test_abc", server.URL, httpClient)
 
 	// when
 	err := svc.TerminateVM(context.Background(), "sess_123")
@@ -178,13 +180,13 @@ func TestService_TerminateVM_Success(t *testing.T) {
 
 func TestService_APIError(t *testing.T) {
 	// given
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		_, _ = w.Write([]byte(`{"error":"bad request"}`))
 	}))
-	defer server.Close()
+	httpClient := server.Client()
 
-	svc := newTestService(t, "sk_test_abc", server.URL)
+	svc := newTestService(t, "sk_test_abc", server.URL, httpClient)
 
 	// when
 	_, err := svc.CreateVM(context.Background(), CreateVMOptions{})
@@ -212,13 +214,13 @@ func TestService_NoCapacityIsDistinguishable(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			server := httptest.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tc.status)
 				_, _ = w.Write([]byte(tc.body))
 			}))
-			defer server.Close()
+			httpClient := server.Client()
 
-			svc := newTestService(t, "sk_test_abc", server.URL)
+			svc := newTestService(t, "sk_test_abc", server.URL, httpClient)
 
 			// when
 			_, err := svc.CreateVM(context.Background(), CreateVMOptions{})

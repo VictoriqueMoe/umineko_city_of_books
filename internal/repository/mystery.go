@@ -618,19 +618,11 @@ func (r *mysteryRepository) GetLeaderboard(ctx context.Context, limit int, tx ..
 }
 
 func (r *mysteryRepository) GetTopDetectiveIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
-	key := cache.MysteryTopDetectives.Key()
-
-	if v, err := cache.Get[[]string](ctx, r.cache, key); err == nil {
-		return v, nil
+	load := func(ctx context.Context) ([]string, error) {
+		return r.dao.GetTopDetectiveIDs(ctx, tx...)
 	}
 
-	v, err := r.dao.GetTopDetectiveIDs(ctx, tx...)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, v, cache.MysteryTopDetectives.TTL)
-	return v, nil
+	return r.cache.Load(ctx, cache.MysteryTopDetectives, load)
 }
 
 func (r *mysteryRepository) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]GMLeaderboardEntry, error) {
@@ -638,19 +630,11 @@ func (r *mysteryRepository) GetGMLeaderboard(ctx context.Context, limit int, tx 
 }
 
 func (r *mysteryRepository) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
-	key := cache.MysteryTopGMs.Key()
-
-	if v, err := cache.Get[[]string](ctx, r.cache, key); err == nil {
-		return v, nil
+	load := func(ctx context.Context) ([]string, error) {
+		return r.dao.GetTopGMIDs(ctx, tx...)
 	}
 
-	v, err := r.dao.GetTopGMIDs(ctx, tx...)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, v, cache.MysteryTopGMs.TTL)
-	return v, nil
+	return r.cache.Load(ctx, cache.MysteryTopGMs, load)
 }
 
 func (r *mysteryRepository) CountAttempts(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error) {

@@ -1,6 +1,6 @@
 module umineko_city_of_books
 
-go 1.26.0
+go 1.27
 
 require (
 	cloud.google.com/go/auth v0.23.2
@@ -236,7 +236,7 @@ require (
 	google.golang.org/grpc v1.83.1 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	honnef.co/go/tools v0.7.0 // indirect
+	honnef.co/go/tools v0.8.1 // indirect
 )
 
 tool (

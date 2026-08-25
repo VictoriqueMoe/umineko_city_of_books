@@ -2,33 +2,18 @@ package bannedgiphy
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/contentfilter"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type fakeBanlist struct {
-	gifs  map[string]bool
-	users map[string]bool
-}
-
-func (b *fakeBanlist) ContainsGif(id string) bool        { return b.gifs[id] }
-func (b *fakeBanlist) ContainsUser(username string) bool { return b.users[strings.ToLower(username)] }
-
-type fakeLookup map[string]string
-
-func (f fakeLookup) UserForGif(_ context.Context, gifID string) (string, bool) {
-	u, ok := f[gifID]
-	return u, ok
-}
-
 func TestCheck_AllowsCleanText(t *testing.T) {
 	// given
-	r := New(&fakeBanlist{}, nil)
+	r := New(NewMockBanlist(t), nil)
 
 	// when
 	rej, err := r.Check(context.Background(), []string{"just some text", "https://example.com"})
@@ -55,7 +40,10 @@ func TestCheck_DetectsBannedGifAcrossURLShapes(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			r := New(&fakeBanlist{gifs: map[string]bool{"abc123": true}}, nil)
+			b := NewMockBanlist(t)
+			b.EXPECT().ContainsGif("abc123").Return(true).Once()
+
+			r := New(b, nil)
 
 			// when
 			rej, err := r.Check(context.Background(), []string{tc.text})
@@ -71,7 +59,10 @@ func TestCheck_DetectsBannedGifAcrossURLShapes(t *testing.T) {
 
 func TestCheck_AllowsDifferentGifID(t *testing.T) {
 	// given
-	r := New(&fakeBanlist{gifs: map[string]bool{"banned": true}}, nil)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsGif("xyz789").Return(false).Once()
+
+	r := New(b, nil)
 
 	// when
 	rej, err := r.Check(context.Background(), []string{"https://giphy.com/gifs/allowed-xyz789"})
@@ -83,7 +74,10 @@ func TestCheck_AllowsDifferentGifID(t *testing.T) {
 
 func TestCheck_DetectsBannedChannel(t *testing.T) {
 	// given
-	r := New(&fakeBanlist{users: map[string]bool{"larperine": true}}, nil)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsUser("Larperine").Return(true).Once()
+
+	r := New(b, nil)
 
 	// when
 	rej, err := r.Check(context.Background(), []string{"linked: https://giphy.com/channel/Larperine"})
@@ -96,7 +90,10 @@ func TestCheck_DetectsBannedChannel(t *testing.T) {
 
 func TestCheck_DetectsBannedProfileURL(t *testing.T) {
 	// given
-	r := New(&fakeBanlist{users: map[string]bool{"larperine": true}}, nil)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsUser("Larperine").Return(true).Once()
+
+	r := New(b, nil)
 
 	// when
 	rej, err := r.Check(context.Background(), []string{"https://giphy.com/Larperine/"})
@@ -108,8 +105,11 @@ func TestCheck_DetectsBannedProfileURL(t *testing.T) {
 }
 
 func TestCheck_IgnoresReservedProfileSegments(t *testing.T) {
-	// given — "gifs" is reserved even if "gifs" ends up as a username in the banlist
-	r := New(&fakeBanlist{users: map[string]bool{"gifs": true}}, nil)
+	// given — "gifs" is reserved, so it is never offered to ContainsUser and no such call is expected
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsGif("something").Return(false).Once()
+
+	r := New(b, nil)
 
 	// when
 	rej, err := r.Check(context.Background(), []string{"https://giphy.com/gifs/something"})
@@ -121,10 +121,10 @@ func TestCheck_IgnoresReservedProfileSegments(t *testing.T) {
 
 func TestCheck_UsesGifCheckBeforeUserCheck(t *testing.T) {
 	// given — if GIF and user are both banned, the GIF detection takes precedence
-	r := New(&fakeBanlist{
-		gifs:  map[string]bool{"abc": true},
-		users: map[string]bool{"larperine": true},
-	}, nil)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsGif("abc").Return(true).Once()
+
+	r := New(b, nil)
 
 	// when
 	rej, err := r.Check(
@@ -140,7 +140,10 @@ func TestCheck_UsesGifCheckBeforeUserCheck(t *testing.T) {
 
 func TestCheck_ScansMultipleTextsInOrder(t *testing.T) {
 	// given
-	r := New(&fakeBanlist{gifs: map[string]bool{"bad": true}}, nil)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsGif("bad").Return(true).Once()
+
+	r := New(b, nil)
 
 	// when — banned GIF is in the second text
 	rej, err := r.Check(context.Background(), []string{"clean", "https://media.giphy.com/media/bad/giphy.gif"})
@@ -153,9 +156,14 @@ func TestCheck_ScansMultipleTextsInOrder(t *testing.T) {
 
 func TestCheck_ResolvesGifUploaderAgainstUserBanlist(t *testing.T) {
 	// given
-	banlist := &fakeBanlist{users: map[string]bool{"larperine": true}}
-	lookup := fakeLookup{"abc123": "Larperine"}
-	r := New(banlist, lookup)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsGif("abc123").Return(false).Once()
+	b.EXPECT().ContainsUser("Larperine").Return(true).Once()
+
+	lookup := NewMockLookup(t)
+	lookup.EXPECT().UserForGif(mock.Anything, "abc123").Return("Larperine", true).Once()
+
+	r := New(b, lookup)
 
 	// when — GIF ID isn't banned but its uploader is
 	rej, err := r.Check(context.Background(), []string{"https://giphy.com/gifs/battler-abc123"})
@@ -168,7 +176,10 @@ func TestCheck_ResolvesGifUploaderAgainstUserBanlist(t *testing.T) {
 
 func TestCheck_NoLookup_StillEnforcesDirectUserURL(t *testing.T) {
 	// given
-	r := New(&fakeBanlist{users: map[string]bool{"larperine": true}}, nil)
+	b := NewMockBanlist(t)
+	b.EXPECT().ContainsUser("Larperine").Return(true).Once()
+
+	r := New(b, nil)
 
 	// when
 	rej, err := r.Check(context.Background(), []string{"https://giphy.com/channel/Larperine"})

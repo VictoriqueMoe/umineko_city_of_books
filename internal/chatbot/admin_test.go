@@ -7,11 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"umineko_city_of_books/internal/chat"
-	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/openai"
-	"umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/user"
 
@@ -21,25 +18,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type stubReloader struct {
-	reloads int
+func anyReloader(t *testing.T) *MockService {
+	t.Helper()
+
+	m := NewMockService(t)
+	m.EXPECT().Reload().Maybe()
+
+	return m
 }
-
-func (s *stubReloader) ObserveMessage(_ chat.BotMessageEvent) {}
-
-func (s *stubReloader) ObserveComment(_ post.BotContentEvent) {}
-
-func (s *stubReloader) Enabled() bool { return true }
-
-func (s *stubReloader) OnSettingChanged(_ config.SiteSettingKey, _ string) {}
-
-func (s *stubReloader) OnSettingsBatchChanged(_ []config.SiteSettingKey) {}
-
-func (s *stubReloader) Reload() { s.reloads++ }
-
-func (s *stubReloader) Listing() []dto.ChatbotSummary { return nil }
-
-func (s *stubReloader) Shutdown(_ context.Context) error { return nil }
 
 func validRequest(model string) dto.ChatbotUpsertRequest {
 	return dto.ChatbotUpsertRequest{
@@ -163,7 +149,7 @@ func TestCreate_RejectsUnknownModelBeforeTouchingTheDatabase(t *testing.T) {
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Models(mock.Anything).Return([]string{"gpt-5.6-luna"}, nil).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), userSvc, openaiSvc, new(stubReloader))
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), userSvc, openaiSvc, anyReloader(t))
 
 	// when
 	bot, err := svc.Create(context.Background(), uuid.New(), validRequest("gpt-5.6-mirage"))
@@ -177,7 +163,9 @@ func TestCreate_RejectsUnknownModelBeforeTouchingTheDatabase(t *testing.T) {
 
 func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	// given
-	reloader := new(stubReloader)
+	reloader := NewMockService(t)
+	reloader.EXPECT().Reload().Once()
+
 	actor := uuid.New()
 	botID := uuid.New()
 	botUserID := uuid.New()
@@ -215,12 +203,12 @@ func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, bot)
 	assert.Equal(t, "gpt-9-unreleased", bot.Model)
-	assert.Equal(t, 1, reloader.reloads)
+	reloader.AssertExpectations(t)
 }
 
 func TestDelete_MissingBotIsReportedAsNotFound(t *testing.T) {
 	// given
-	reloader := new(stubReloader)
+	reloader := NewMockService(t)
 
 	botRepo := repository.NewMockChatbotRepository(t)
 	botRepo.EXPECT().ListBots(mock.Anything).Return(nil, nil).Once()
@@ -233,12 +221,14 @@ func TestDelete_MissingBotIsReportedAsNotFound(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrBotNotFound)
-	assert.Equal(t, 0, reloader.reloads)
+	reloader.AssertExpectations(t)
 }
 
 func TestDelete_KeepsTheBotNameTheDeleteDestroys(t *testing.T) {
 	// given
-	reloader := new(stubReloader)
+	reloader := NewMockService(t)
+	reloader.EXPECT().Reload().Once()
+
 	actor := uuid.New()
 	botID := uuid.New()
 	botUserID := uuid.New()
@@ -266,7 +256,7 @@ func TestDelete_KeepsTheBotNameTheDeleteDestroys(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 1, reloader.reloads)
+	reloader.AssertExpectations(t)
 }
 
 func TestTest_ProviderFailureIsReportedNotPropagated(t *testing.T) {
@@ -327,7 +317,7 @@ func TestTest_ProviderFailureIsReportedNotPropagated(t *testing.T) {
 				})).Return(tc.result, tc.completeErr).Once()
 			}
 
-			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), userSvc, openaiSvc, anyReloader(t))
 
 			// when
 			ok, message, err := svc.Test(context.Background(), tc.model)
@@ -393,7 +383,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 				})).Return(nil).Once()
 			}
 
-			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), auditRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), auditRepo, userSvc, openaiSvc, anyReloader(t))
 
 			req := validRequest("gpt-5.6-luna")
 			req.DisplayName = tc.given
@@ -441,7 +431,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 				})).Return(nil).Once()
 			}
 
-			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), auditRepo, userSvc, openaiSvc, new(stubReloader))
+			svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), auditRepo, userSvc, openaiSvc, anyReloader(t))
 
 			req := validRequest("gpt-5.6-luna")
 			req.DisplayName = tc.given
@@ -485,7 +475,7 @@ func TestUpdateBasePrompt_AuditCarriesTheNameNotThePrompt(t *testing.T) {
 		Details:    "name=Witches bots=3",
 	}).Return(nil).Once()
 
-	svc := NewAdminService(repository.NewMockChatbotRepository(t), basePromptRepo, auditRepo, user.NewMockService(t), openai.NewMockService(t), new(stubReloader))
+	svc := NewAdminService(repository.NewMockChatbotRepository(t), basePromptRepo, auditRepo, user.NewMockService(t), openai.NewMockService(t), anyReloader(t))
 
 	// when
 	updated, err := svc.UpdateBasePrompt(context.Background(), actor, promptID, dto.ChatbotBasePromptUpsertRequest{Name: "Witches", Prompt: secret})
@@ -514,7 +504,7 @@ func TestDeleteBasePrompt_KeepsTheNameTheDeleteDestroys(t *testing.T) {
 		Details:    "name=Witches bots=0",
 	}).Return(nil).Once()
 
-	svc := NewAdminService(repository.NewMockChatbotRepository(t), basePromptRepo, auditRepo, user.NewMockService(t), openai.NewMockService(t), new(stubReloader))
+	svc := NewAdminService(repository.NewMockChatbotRepository(t), basePromptRepo, auditRepo, user.NewMockService(t), openai.NewMockService(t), anyReloader(t))
 
 	// when
 	err := svc.DeleteBasePrompt(context.Background(), actor, promptID)
@@ -537,7 +527,7 @@ func TestUsage_ReportsFailureCounts(t *testing.T) {
 	openaiSvc := openai.NewMockService(t)
 	openaiSvc.EXPECT().Costs(mock.Anything, mock.Anything).Return(nil, errors.New("no admin key")).Once()
 
-	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), userSvc, openaiSvc, new(stubReloader))
+	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), userSvc, openaiSvc, anyReloader(t))
 
 	// when
 	usage, err := svc.Usage(context.Background(), time.Unix(1_700_000_000, 0))

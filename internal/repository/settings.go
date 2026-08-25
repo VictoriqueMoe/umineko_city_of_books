@@ -76,20 +76,11 @@ func (r *settingsRepository) Reconcile(ctx context.Context, spec SettingsReconci
 }
 
 func (r *settingsRepository) Get(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error) {
-	cacheKey := cache.Setting.Key(string(key))
-
-	if cached, err := cache.Get[string](ctx, r.cache, cacheKey); err == nil {
-		return cached, nil
+	load := func(ctx context.Context) (string, error) {
+		return r.dao.Get(ctx, key, tx...)
 	}
 
-	value, err := r.dao.Get(ctx, key, tx...)
-	if err != nil {
-		return "", err
-	}
-
-	_ = cache.Set(ctx, r.cache, cacheKey, value, cache.Setting.TTL)
-
-	return value, nil
+	return r.cache.Load(ctx, cache.Setting, load, string(key))
 }
 
 func (r *settingsRepository) GetAll(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error) {

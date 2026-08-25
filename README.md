@@ -437,7 +437,7 @@ Site events can drive on-stream alert popups through SAMMI. A streamer downloads
 
 **Backend**
 
-- Go 1.26
+- Go 1.27
 - Fiber v3 (HTTP router)
 - PostgreSQL via `jackc/pgx/v5` (through the `pgx/v5/stdlib` adapter so `database/sql` and `otelsql` instrumentation still apply)
 - Goose for migrations
@@ -964,7 +964,7 @@ Five independent signals. Metrics, traces, profiling and health need no redeploy
 
 ### Prerequisites
 
-- Go 1.26 or newer
+- Go 1.27 or newer
 - Node.js LTS
 - Docker (for the Postgres and Valkey containers, plus repo-layer tests via testcontainers-go)
 - FFmpeg, both `ffmpeg` and `ffprobe`, for video transcoding and thumbnails

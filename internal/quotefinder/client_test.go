@@ -7,8 +7,20 @@ import (
 	"testing"
 )
 
+func newTestClient(t *testing.T, handler http.HandlerFunc) *Client {
+	t.Helper()
+
+	srv := httptest.NewTestServer(t, handler)
+	httpClient := srv.Client()
+
+	c := NewClientWithBaseURL(srv.URL)
+	c.http = httpClient
+
+	return c
+}
+
 func TestListCharacters_MainAndAdditional(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	c := newTestClient(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/ciconia/characters" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
 		}
@@ -17,10 +29,8 @@ func TestListCharacters_MainAndAdditional(t *testing.T) {
 			"characters": {"miyao": "Miyao", "lingji": "Lingji"},
 			"additional": {"narrator": "Narrator", "keropoyo": "Keropoyo"}
 		}`)
-	}))
-	defer srv.Close()
+	})
 
-	c := NewClientWithBaseURL(srv.URL)
 	chars, err := c.ListCharacters(SeriesCiconia)
 	if err != nil {
 		t.Fatalf("ListCharacters: %v", err)
@@ -49,13 +59,11 @@ func TestListCharacters_MainAndAdditional(t *testing.T) {
 }
 
 func TestListCharacters_OnlyMain(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"characters": {"beato": "Beatrice"}}`)
-	}))
-	defer srv.Close()
+	})
 
-	c := NewClientWithBaseURL(srv.URL)
 	chars, err := c.ListCharacters(SeriesUmineko)
 	if err != nil {
 		t.Fatalf("ListCharacters: %v", err)
@@ -78,14 +86,13 @@ func TestListCharacters_InvalidSeries(t *testing.T) {
 
 func TestListCharacters_CachesResult(t *testing.T) {
 	var hits int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	c := newTestClient(t, func(w http.ResponseWriter, _ *http.Request) {
 		hits++
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprint(w, `{"characters": {"rika": "Rika"}}`)
-	}))
-	defer srv.Close()
+	})
 
-	c := NewClientWithBaseURL(srv.URL)
 	for i := range 3 {
 		if _, err := c.ListCharacters(SeriesHigurashi); err != nil {
 			t.Fatalf("call %d: %v", i, err)

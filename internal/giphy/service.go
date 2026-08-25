@@ -170,7 +170,7 @@ func (s *service) get(ctx context.Context, path string, params url.Values, ttl t
 	key := cache.GiphyResponse.Key(cacheKeyFor(path, params))
 
 	if ttl > 0 {
-		if cached, err := cache.Get[Response](ctx, s.cache, key); err == nil {
+		if cached, err := s.cache.Get[Response](ctx, key); err == nil {
 			return &cached, nil
 		}
 	}
@@ -183,7 +183,7 @@ func (s *service) get(ctx context.Context, path string, params url.Values, ttl t
 	s.filterBannedGifs(&out)
 
 	if ttl > 0 {
-		_ = cache.Set(ctx, s.cache, key, out, ttl)
+		_ = s.cache.Set(ctx, key, out, ttl)
 	}
 
 	return &out, nil
@@ -194,7 +194,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 		return "", false
 	}
 	key := cache.GiphyGifUser.Key(gifID)
-	if cached, err := cache.Get[gifUserEntry](ctx, s.cache, key); err == nil {
+	if cached, err := s.cache.Get[gifUserEntry](ctx, key); err == nil {
 		return cached.Username, cached.Known
 	}
 
@@ -212,7 +212,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 	status, err := s.fetch(ctx, "/gifs/"+gifID, params, &payload)
 	if err != nil {
 		if status == http.StatusNotFound {
-			_ = cache.Set(ctx, s.cache, key, gifUserEntry{}, cache.GiphyGifUser.TTL)
+			_ = s.cache.Set(ctx, key, gifUserEntry{}, cache.GiphyGifUser.TTL)
 		}
 
 		return "", false
@@ -223,7 +223,7 @@ func (s *service) UserForGif(ctx context.Context, gifID string) (string, bool) {
 		username = payload.Data.User.Username
 	}
 
-	_ = cache.Set(ctx, s.cache, key, gifUserEntry{Username: username, Known: username != ""}, cache.GiphyGifUser.TTL)
+	_ = s.cache.Set(ctx, key, gifUserEntry{Username: username, Known: username != ""}, cache.GiphyGifUser.TTL)
 
 	return username, username != ""
 }

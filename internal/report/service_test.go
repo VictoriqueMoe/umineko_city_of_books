@@ -6,7 +6,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
-	"time"
+	"testing/synctest"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
@@ -38,20 +38,6 @@ func newTestService(t *testing.T) (
 	settingsSvc := settings.NewMockService(t)
 	svc := NewService(reportRepo, roleRepo, userRepo, notifSvc, settingsSvc).(*service)
 	return svc, reportRepo, roleRepo, userRepo, notifSvc, settingsSvc
-}
-
-func waitOrFail(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(timeout):
-		t.Fatal("timed out waiting for goroutine")
-	}
 }
 
 func TestCreate_MissingFields(t *testing.T) {
@@ -104,6 +90,10 @@ func TestCreate_RepoErrorBubbles(t *testing.T) {
 }
 
 func TestCreate_OK_NotifiesModerators(t *testing.T) {
+	synctest.Test(t, testCreateOKNotifiesModerators)
+}
+
+func testCreateOKNotifiesModerators(t *testing.T) {
 	// given
 	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
@@ -179,10 +169,14 @@ func TestCreate_OK_NotifiesModerators(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestCreate_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
+	synctest.Test(t, testCreateOKInvalidTargetIDUsesNilUUID)
+}
+
+func testCreateOKInvalidTargetIDUsesNilUUID(t *testing.T) {
 	// given
 	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
@@ -221,10 +215,14 @@ func TestCreate_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestCreate_OK_RoleRepoErrorAbortsNotifications(t *testing.T) {
+	synctest.Test(t, testCreateOKRoleRepoErrorAbortsNotifications)
+}
+
+func testCreateOKRoleRepoErrorAbortsNotifications(t *testing.T) {
 	// given
 	svc, reportRepo, roleRepo, _, _, _ := newTestService(t)
 	reporterID := uuid.New()
@@ -252,14 +250,20 @@ func TestCreate_OK_RoleRepoErrorAbortsNotifications(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+	synctest.Wait()
+
 	select {
 	case <-done:
-	case <-time.After(time.Second):
+	default:
 		t.Fatal("role lookup goroutine did not run")
 	}
 }
 
 func TestCreate_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
+	synctest.Test(t, testCreateOKUserLookupErrorFallsBackToDefaultName)
+}
+
+func testCreateOKUserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	// given
 	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
@@ -292,10 +296,14 @@ func TestCreate_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestCreate_OK_NoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
+	synctest.Test(t, testCreateOKNoModeratorsStillCallsNotifyManyWithEmptyList)
+}
+
+func testCreateOKNoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 	// given
 	svc, reportRepo, roleRepo, userRepo, notifSvc, _ := newTestService(t)
 	reporterID := uuid.New()
@@ -328,7 +336,7 @@ func TestCreate_OK_NoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestList_OK(t *testing.T) {
@@ -455,6 +463,10 @@ func TestResolve_RepoResolveErrorBubbles(t *testing.T) {
 }
 
 func TestResolve_OK_SendsNotificationWithComment(t *testing.T) {
+	synctest.Test(t, testResolveOKSendsNotificationWithComment)
+}
+
+func testResolveOKSendsNotificationWithComment(t *testing.T) {
 	// given
 	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
@@ -494,10 +506,14 @@ func TestResolve_OK_SendsNotificationWithComment(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestResolve_OK_EmptyCommentOmitsCommentFromMessage(t *testing.T) {
+	synctest.Test(t, testResolveOKEmptyCommentOmitsCommentFromMessage)
+}
+
+func testResolveOKEmptyCommentOmitsCommentFromMessage(t *testing.T) {
 	// given
 	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
@@ -528,10 +544,14 @@ func TestResolve_OK_EmptyCommentOmitsCommentFromMessage(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestResolve_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
+	synctest.Test(t, testResolveOKInvalidTargetIDUsesNilUUID)
+}
+
+func testResolveOKInvalidTargetIDUsesNilUUID(t *testing.T) {
 	// given
 	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
@@ -561,10 +581,14 @@ func TestResolve_OK_InvalidTargetIDUsesNilUUID(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestResolve_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
+	synctest.Test(t, testResolveOKUserLookupErrorFallsBackToDefaultName)
+}
+
+func testResolveOKUserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	// given
 	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
@@ -592,5 +616,5 @@ func TestResolve_OK_UserLookupErrorFallsBackToDefaultName(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }

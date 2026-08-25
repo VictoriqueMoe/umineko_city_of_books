@@ -51,37 +51,29 @@ func NewChatbotBasePromptRepo(dao ChatbotBasePromptRepository, c *cache.Manager)
 }
 
 func (r *chatbotBasePromptRepository) List(ctx context.Context, tx ...*sql.Tx) ([]ChatbotBasePrompt, error) {
-	key := cache.ChatbotBasePrompts.Key()
-
-	if cached, err := cache.Get[[]ChatbotBasePrompt](ctx, r.cache, key); err == nil {
-		return cached, nil
+	load := func(ctx context.Context) ([]ChatbotBasePrompt, error) {
+		return r.dao.List(ctx, tx...)
 	}
 
-	prompts, err := r.dao.List(ctx, tx...)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, prompts, cache.ChatbotBasePrompts.TTL)
-
-	return prompts, nil
+	return r.cache.Load(ctx, cache.ChatbotBasePrompts, load)
 }
 
 func (r *chatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
-	key := cache.ChatbotBasePromptByID.Key(id.String())
+	load := func(ctx context.Context) (ChatbotBasePrompt, error) {
+		prompt, err := r.dao.GetByID(ctx, id, tx...)
+		if err != nil {
+			return ChatbotBasePrompt{}, err
+		}
 
-	if cached, err := cache.Get[ChatbotBasePrompt](ctx, r.cache, key); err == nil {
-		return &cached, nil
+		return *prompt, nil
 	}
 
-	prompt, err := r.dao.GetByID(ctx, id, tx...)
+	cached, err := r.cache.Load(ctx, cache.ChatbotBasePromptByID, load, id.String())
 	if err != nil {
 		return nil, err
 	}
 
-	_ = cache.Set(ctx, r.cache, key, *prompt, cache.ChatbotBasePromptByID.TTL)
-
-	return prompt, nil
+	return &cached, nil
 }
 
 func (r *chatbotBasePromptRepository) Create(ctx context.Context, name, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {

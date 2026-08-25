@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
@@ -72,20 +73,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		uploadSvc:   uploadSvc,
 		settingsSvc: settingsSvc,
 		hub:         hub,
-	}
-}
-
-func waitOrFail(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(timeout):
-		t.Fatal("timed out waiting for goroutine")
 	}
 }
 
@@ -609,6 +596,10 @@ func TestDeletePost_RepoError(t *testing.T) {
 }
 
 func TestDeletePost_SharedContentDecrements(t *testing.T) {
+	synctest.Test(t, testDeletePostSharedContentDecrements)
+}
+
+func testDeletePostSharedContentDecrements(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
@@ -632,7 +623,7 @@ func TestDeletePost_SharedContentDecrements(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestListFeed_FollowingTab(t *testing.T) {

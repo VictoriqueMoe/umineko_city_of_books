@@ -45,14 +45,14 @@ func TestNewFallsBackToInMemoryWithoutValkey(t *testing.T) {
 
 	want := sample{Name: "beatrice", N: 1}
 
-	require.NoError(t, Set(ctx, m, "witch", want, 0))
+	require.NoError(t, m.Set(ctx, "witch", want, 0))
 
-	got, err := Get[sample](ctx, m, "witch")
+	got, err := m.Get[sample](ctx, "witch")
 	require.NoError(t, err)
 	assert.Equal(t, want, got)
 
 	require.NoError(t, m.Del(ctx, "witch"))
 
-	_, err = Get[sample](ctx, m, "witch")
+	_, err = m.Get[sample](ctx, "witch")
 	require.ErrorIs(t, err, ErrMiss)
 }

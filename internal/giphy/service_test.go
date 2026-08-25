@@ -17,12 +17,13 @@ import (
 
 func newTestService(t *testing.T, handler http.HandlerFunc) *service {
 	t.Helper()
-	srv := httptest.NewServer(handler)
-	t.Cleanup(srv.Close)
+	srv := httptest.NewTestServer(t, handler)
+	httpClient := srv.Client()
+
 	return &service{
 		apiKey:     "test-key",
 		baseURL:    srv.URL,
-		httpClient: srv.Client(),
+		httpClient: httpClient,
 	}
 }
 

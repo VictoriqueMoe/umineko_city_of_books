@@ -87,18 +87,22 @@ func openAdmin(t *testing.T) *sql.DB {
 
 func DSNForDatabase(t *testing.T, dbName string) string {
 	t.Helper()
-	dsn := AdminDSN(t)
-	idx := strings.LastIndex(dsn, "/")
-	if idx < 0 {
+
+	return replaceDatabase(AdminDSN(t), dbName)
+}
+
+func replaceDatabase(dsn, dbName string) string {
+	prefix, rest, found := strings.CutLast(dsn, "/")
+	if !found {
 		return dsn
 	}
-	prefix := dsn[:idx+1]
-	rest := dsn[idx+1:]
-	q := strings.Index(rest, "?")
-	if q < 0 {
-		return prefix + dbName
+
+	_, query, hasQuery := strings.Cut(rest, "?")
+	if !hasQuery {
+		return prefix + "/" + dbName
 	}
-	return prefix + dbName + rest[q:]
+
+	return prefix + "/" + dbName + "?" + query
 }
 
 func NewEmptyDatabase(t *testing.T) (*sql.DB, string) {
@@ -188,17 +192,7 @@ func CreateDatabase(ctx context.Context, dbName string) error {
 }
 
 func DSNFor(dbName string) string {
-	idx := strings.LastIndex(adminDSN, "/")
-	if idx < 0 {
-		return adminDSN
-	}
-	prefix := adminDSN[:idx+1]
-	rest := adminDSN[idx+1:]
-	q := strings.Index(rest, "?")
-	if q < 0 {
-		return prefix + dbName
-	}
-	return prefix + dbName + rest[q:]
+	return replaceDatabase(adminDSN, dbName)
 }
 
 func EnsureRunning() error {

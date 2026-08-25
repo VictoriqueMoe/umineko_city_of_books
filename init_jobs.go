@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -83,29 +84,31 @@ func registerListeners(settingsSvc settings.Service, app *fiber.App, svc *servic
 func scheduleJob(stop <-chan struct{}, wg *sync.WaitGroup, name string, successMsg string, interval time.Duration, fn func() (int, error)) {
 	logger.Log.Info().Str("interval", interval.String()).Msgf("registered job: %s", name)
 	wg.Go(func() {
-		run := func() {
-			n, err := fn()
-			if err != nil {
-				logger.Log.Error().Err(err).Msgf("%s failed", name)
-				return
+		pprof.Do(context.Background(), pprof.Labels("job", name), func(context.Context) {
+			run := func() {
+				n, err := fn()
+				if err != nil {
+					logger.Log.Error().Err(err).Msgf("%s failed", name)
+					return
+				}
+				if n > 0 {
+					logger.Log.Info().Int("count", n).Msg(successMsg)
+				}
 			}
-			if n > 0 {
-				logger.Log.Info().Int("count", n).Msg(successMsg)
-			}
-		}
-		run()
+			run()
 
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
+			ticker := time.NewTicker(interval)
+			defer ticker.Stop()
 
-		for {
-			select {
-			case <-stop:
-				return
-			case <-ticker.C:
-				run()
+			for {
+				select {
+				case <-stop:
+					return
+				case <-ticker.C:
+					run()
+				}
 			}
-		}
+		})
 	})
 }
 

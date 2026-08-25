@@ -15,17 +15,15 @@ import (
 func createArt(t *testing.T, repos *repository.Repositories, userID uuid.UUID, corner, artType, title string, tags []string, spoiler bool) uuid.UUID {
 	t.Helper()
 	created, err := repos.Art.CreateWithTags(context.Background(), repository.NewArtWithTags{
-		NewArt: repository.NewArt{
-			UserID:       userID,
-			Corner:       corner,
-			ArtType:      artType,
-			Title:        title,
-			Description:  "desc",
-			ImageURL:     "https://example.com/img.png",
-			ThumbnailURL: "https://example.com/thumb.png",
-			IsSpoiler:    spoiler,
-		},
-		Tags: tags,
+		UserID:       userID,
+		Corner:       corner,
+		ArtType:      artType,
+		Title:        title,
+		Description:  "desc",
+		ImageURL:     "https://example.com/img.png",
+		ThumbnailURL: "https://example.com/thumb.png",
+		IsSpoiler:    spoiler,
+		Tags:         tags,
 	})
 	require.NoError(t, err)
 	return created.ID
@@ -128,8 +126,8 @@ func TestArtDAO_UpdateWithTags_Owner(t *testing.T) {
 
 	// when
 	err := repos.Art.UpdateWithTags(context.Background(), repository.ArtUpdateWithTags{
-		ArtUpdate: repository.ArtUpdate{ID: id, UserID: user.ID, Title: "New Title", Description: "New Desc", IsSpoiler: true},
-		Tags:      []string{"b", "c"},
+		ID: id, UserID: user.ID, Title: "New Title", Description: "New Desc", IsSpoiler: true,
+		Tags: []string{"b", "c"},
 	})
 
 	// then
@@ -153,7 +151,7 @@ func TestArtDAO_UpdateWithTags_NotOwner_Fails(t *testing.T) {
 
 	// when
 	err := repos.Art.UpdateWithTags(context.Background(), repository.ArtUpdateWithTags{
-		ArtUpdate: repository.ArtUpdate{ID: id, UserID: other.ID, Title: "Hack", Description: "Hack"},
+		ID: id, UserID: other.ID, Title: "Hack", Description: "Hack",
 	})
 
 	// then
@@ -169,8 +167,8 @@ func TestArtDAO_UpdateWithTags_AsAdmin(t *testing.T) {
 
 	// when
 	err := repos.Art.UpdateWithTags(context.Background(), repository.ArtUpdateWithTags{
-		ArtUpdate: repository.ArtUpdate{ID: id, UserID: admin.ID, Title: "Admin Title", Description: "d", AsAdmin: true},
-		Tags:      []string{"x"},
+		ID: id, UserID: admin.ID, Title: "Admin Title", Description: "d", AsAdmin: true,
+		Tags: []string{"x"},
 	})
 
 	// then

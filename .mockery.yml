@@ -30,9 +30,18 @@ packages:
   umineko_city_of_books/internal/notification:
     interfaces:
       Service:
+      OverlayDispatcher:
   umineko_city_of_books/internal/admin:
     interfaces:
       Service:
+      SystemRoomSync:
+  umineko_city_of_books/internal/contentfilter:
+    interfaces:
+      Rule:
+  umineko_city_of_books/internal/contentfilter/rules/bannedgiphy:
+    interfaces:
+      Banlist:
+      Lookup:
   umineko_city_of_books/internal/authz:
     interfaces:
       Service:
@@ -142,6 +151,9 @@ packages:
   umineko_city_of_books/internal/session:
     interfaces:
       Disconnector:
+  umineko_city_of_books/internal/middleware:
+    interfaces:
+      IPWriter:
   umineko_city_of_books/internal/repository:
     config:
       all: true

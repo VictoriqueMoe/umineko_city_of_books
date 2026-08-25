@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime/pprof"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -65,7 +67,11 @@ func NewProcessor(workers int) *Processor {
 
 	p.wg.Add(workers)
 	for i := range workers {
-		go p.worker(i)
+		labels := pprof.Labels("pool", "media", "worker", strconv.Itoa(i))
+
+		go pprof.Do(context.Background(), labels, func(context.Context) {
+			p.worker(i)
+		})
 	}
 
 	logger.Log.Info().Int("workers", workers).Msg("media processor started")

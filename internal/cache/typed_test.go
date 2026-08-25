@@ -2,7 +2,11 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
+
+	"umineko_city_of_books/internal/cache/engines"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -76,7 +80,7 @@ func TestSetManyWithoutClient(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := SetMany(context.Background(), tt.manager, tt.values, 0)
+			err := tt.manager.SetMany(context.Background(), tt.values, 0)
 
 			require.NoError(t, err)
 		})
@@ -86,7 +90,7 @@ func TestSetManyWithoutClient(t *testing.T) {
 func TestSetManyPropagatesEncodeError(t *testing.T) {
 	values := map[string]chan int{"unserialisable": make(chan int)}
 
-	err := SetMany(context.Background(), NewManager(), values, 0)
+	err := NewManager().SetMany(context.Background(), values, 0)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "chan int")
@@ -120,4 +124,78 @@ func TestEncodeDecodeNilPointer(t *testing.T) {
 	got, err := decode[*sample](encoded)
 	require.NoError(t, err)
 	assert.Nil(t, got)
+}
+
+func newLoadManager() (*Manager, Namespace) {
+	return NewManager(engines.NewInMemory(0)), Namespace{Prefix: "witch:", TTL: time.Minute}
+}
+
+func TestLoadReturnsCachedValueWithoutCallingLoader(t *testing.T) {
+	m, ns := newLoadManager()
+	ctx := t.Context()
+
+	require.NoError(t, m.Set(ctx, ns.Key("gold"), sample{Name: "beatrice", N: 1}, ns.TTL))
+
+	calls := 0
+	load := func(context.Context) (sample, error) {
+		calls++
+
+		return sample{Name: "battler", N: 2}, nil
+	}
+
+	got, err := m.Load(ctx, ns, load, "gold")
+
+	require.NoError(t, err)
+	assert.Equal(t, sample{Name: "beatrice", N: 1}, got)
+	assert.Zero(t, calls)
+}
+
+func TestLoadStoresLoadedValueOnMiss(t *testing.T) {
+	m, ns := newLoadManager()
+	ctx := t.Context()
+
+	want := sample{Name: "beatrice", N: 7}
+	load := func(context.Context) (sample, error) {
+		return want, nil
+	}
+
+	got, err := m.Load(ctx, ns, load, "gold")
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
+
+	cached, err := m.Get[sample](ctx, ns.Key("gold"))
+	require.NoError(t, err)
+	assert.Equal(t, want, cached)
+}
+
+func TestLoadPropagatesLoaderErrorAndCachesNothing(t *testing.T) {
+	m, ns := newLoadManager()
+	ctx := t.Context()
+
+	wantErr := errors.New("the golden land is closed")
+	load := func(context.Context) (sample, error) {
+		return sample{Name: "battler", N: 2}, wantErr
+	}
+
+	got, err := m.Load(ctx, ns, load, "gold")
+
+	require.ErrorIs(t, err, wantErr)
+	assert.Zero(t, got)
+
+	_, err = m.Get[sample](ctx, ns.Key("gold"))
+	assert.ErrorIs(t, err, ErrMiss)
+}
+
+func TestLoadFallsBackToLoaderWithoutManager(t *testing.T) {
+	var m *Manager
+
+	want := sample{Name: "beatrice", N: 3}
+	load := func(context.Context) (sample, error) {
+		return want, nil
+	}
+
+	got, err := m.Load(t.Context(), Namespace{Prefix: "witch:"}, load, "gold")
+
+	require.NoError(t, err)
+	assert.Equal(t, want, got)
 }

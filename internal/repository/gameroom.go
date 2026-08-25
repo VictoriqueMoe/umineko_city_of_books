@@ -240,19 +240,11 @@ func (r *gameRoomRepository) Scoreboard(ctx context.Context, gameType string, tx
 }
 
 func (r *gameRoomRepository) GetTopWinnerIDs(ctx context.Context, gameType string, tx ...*sql.Tx) ([]string, error) {
-	key := cache.GameTopWinners.Key(gameType)
-
-	if v, err := cache.Get[[]string](ctx, r.cache, key); err == nil {
-		return v, nil
+	load := func(ctx context.Context) ([]string, error) {
+		return r.dao.GetTopWinnerIDs(ctx, gameType, tx...)
 	}
 
-	v, err := r.dao.GetTopWinnerIDs(ctx, gameType, tx...)
-	if err != nil {
-		return nil, err
-	}
-
-	_ = cache.Set(ctx, r.cache, key, v, cache.GameTopWinners.TTL)
-	return v, nil
+	return r.cache.Load(ctx, cache.GameTopWinners, load, gameType)
 }
 
 func (r *gameRoomRepository) CancelIdleRoom(ctx context.Context, roomID uuid.UUID, idleSince time.Time, tx ...*sql.Tx) (bool, error) {

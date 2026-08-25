@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"umineko_city_of_books/internal/authz"
@@ -72,20 +73,6 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		uploadSvc:    uploadSvc,
 		settingsSvc:  settingsSvc,
 		followRepo:   followRepo,
-	}
-}
-
-func waitOrFail(t *testing.T, wg *sync.WaitGroup, timeout time.Duration) {
-	t.Helper()
-	done := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(timeout):
-		t.Fatal("timed out waiting for goroutine")
 	}
 }
 
@@ -647,6 +634,10 @@ func TestUpdateMystery_OwnerNoChanges_NoNotification(t *testing.T) {
 }
 
 func TestUpdateMystery_AdminChange_SendsNotification(t *testing.T) {
+	synctest.Test(t, testUpdateMysteryAdminChangeSendsNotification)
+}
+
+func testUpdateMysteryAdminChangeSendsNotification(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
@@ -678,7 +669,7 @@ func TestUpdateMystery_AdminChange_SendsNotification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestUpdateMystery_WithClues_Replaces(t *testing.T) {
@@ -1079,6 +1070,10 @@ func TestVoteAttempt_ZeroVote_NoNotification(t *testing.T) {
 }
 
 func TestVoteAttempt_Upvote_SendsNotification(t *testing.T) {
+	synctest.Test(t, testVoteAttemptUpvoteSendsNotification)
+}
+
+func testVoteAttemptUpvoteSendsNotification(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	aid := uuid.New()
@@ -1102,7 +1097,7 @@ func TestVoteAttempt_Upvote_SendsNotification(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestMarkSolved_MysteryNotFound(t *testing.T) {
@@ -2176,6 +2171,10 @@ func TestSetPaused_OK_Pause(t *testing.T) {
 }
 
 func TestSetPaused_OK_Unpause_NotifiesPlayers(t *testing.T) {
+	synctest.Test(t, testSetPausedOKUnpauseNotifiesPlayers)
+}
+
+func testSetPausedOKUnpauseNotifiesPlayers(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	mid := uuid.New()
@@ -2197,7 +2196,7 @@ func TestSetPaused_OK_Unpause_NotifiesPlayers(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestSetGmAway_NotFound(t *testing.T) {
@@ -2261,6 +2260,10 @@ func TestSetGmAway_OK_Away(t *testing.T) {
 }
 
 func TestSetGmAway_OK_Back_NotifiesPlayers(t *testing.T) {
+	synctest.Test(t, testSetGmAwayOKBackNotifiesPlayers)
+}
+
+func testSetGmAwayOKBackNotifiesPlayers(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	mid := uuid.New()
@@ -2282,7 +2285,7 @@ func TestSetGmAway_OK_Back_NotifiesPlayers(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	waitOrFail(t, &wg, time.Second)
+	wg.Wait()
 }
 
 func TestDeleteClue_RepoError(t *testing.T) {

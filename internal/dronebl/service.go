@@ -89,7 +89,7 @@ func (c *Checker) Check(ctx context.Context, ip string) Verdict {
 	}
 
 	key := cache.DroneBL.Key(ip)
-	if cached, err := cache.Get[Verdict](ctx, c.cache, key); err == nil {
+	if cached, err := c.cache.Get[Verdict](ctx, key); err == nil {
 		return cached
 	}
 
@@ -112,14 +112,14 @@ func (c *Checker) lookup(ctx context.Context, key, name, ip string) Verdict {
 	answers, err := c.resolver.LookupNetIP(lookupCtx, "ip4", name)
 	if err != nil && !isNotFound(err) {
 		logger.Ctx(ctx).Warn().Err(err).Str("ip", ip).Msg("dronebl lookup failed, treating the address as clean")
-		_ = cache.Set(ctx, c.cache, key, Verdict{}, failureTTL)
+		_ = c.cache.Set(ctx, key, Verdict{}, failureTTL)
 
 		return Verdict{}
 	}
 
 	classes := classesFrom(answers)
 	verdict := Verdict{Listed: len(classes) > 0, Classes: classes}
-	_ = cache.Set(ctx, c.cache, key, verdict, cache.DroneBL.TTL)
+	_ = c.cache.Set(ctx, key, verdict, cache.DroneBL.TTL)
 
 	return verdict
 }

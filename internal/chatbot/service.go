@@ -3,7 +3,9 @@ package chatbot
 import (
 	"cmp"
 	"context"
+	"runtime/pprof"
 	"slices"
+	"strconv"
 
 	"strings"
 	"sync"
@@ -142,7 +144,11 @@ func NewService(
 
 	s.wg.Add(workerCount)
 	for i := range workerCount {
-		go s.worker(i)
+		labels := pprof.Labels("pool", "chatbot", "worker", strconv.Itoa(i))
+
+		go pprof.Do(context.Background(), labels, func(context.Context) {
+			s.worker(i)
+		})
 	}
 
 	return s

@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"runtime/pprof"
 	"sync"
 	"time"
 
@@ -55,6 +56,10 @@ const (
 	ViewerStateIdle   = "idle"
 )
 
+var (
+	topicNamespace = uuid.MustParse("1b671a64-40d5-491e-99b0-da01ff1f3341")
+)
+
 func NewClient(userID uuid.UUID, conn *websocket.Conn) *Client {
 	return &Client{
 		UserID:  userID,
@@ -70,7 +75,9 @@ func (c *Client) Start() {
 		return
 	}
 
-	go c.writeLoop()
+	go pprof.Do(context.Background(), pprof.Labels("conn", "ws"), func(context.Context) {
+		c.writeLoop()
+	})
 }
 
 func (c *Client) writeLoop() {
@@ -450,8 +457,6 @@ func (h *Hub) OnlineCount() int {
 	defer h.mu.RUnlock()
 	return len(h.clients)
 }
-
-var topicNamespace = uuid.MustParse("1b671a64-40d5-491e-99b0-da01ff1f3341")
 
 func TopicUUID(topic string) uuid.UUID {
 	return uuid.NewSHA1(topicNamespace, []byte(topic))

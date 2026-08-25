@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"errors"
+	"maps"
 	"slices"
 	"testing"
 	"time"
@@ -53,7 +54,7 @@ func TestSetManySendsEveryKeyInOneBatch(t *testing.T) {
 		}).
 		Times(1)
 
-	err := SetMany(context.Background(), m, map[string]string{"a": "1", "b": "2", "c": "3"}, 0)
+	err := m.SetMany(context.Background(), map[string]string{"a": "1", "b": "2", "c": "3"}, 0)
 	require.NoError(t, err)
 
 	slices.SortFunc(captured, slices.Compare)
@@ -79,7 +80,7 @@ func TestSetManyAttachesTTLAsMilliseconds(t *testing.T) {
 		}).
 		Times(1)
 
-	err := SetMany(context.Background(), m, map[string]string{"k": "v"}, time.Minute)
+	err := m.SetMany(context.Background(), map[string]string{"k": "v"}, time.Minute)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"SET", "k", "v", "PX", "60000"}, captured)
@@ -99,7 +100,7 @@ func TestSetManyOmitsTTLWhenZero(t *testing.T) {
 		}).
 		Times(1)
 
-	err := SetMany(context.Background(), m, map[string]string{"k": "v"}, 0)
+	err := m.SetMany(context.Background(), map[string]string{"k": "v"}, 0)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"SET", "k", "v"}, captured)
@@ -120,7 +121,7 @@ func TestSetManyEncodesStructsAsJSON(t *testing.T) {
 		}).
 		Times(1)
 
-	err := SetMany(context.Background(), m, map[string]sample{"s": {Name: "beatrice", N: 1}}, 0)
+	err := m.SetMany(context.Background(), map[string]sample{"s": {Name: "beatrice", N: 1}}, 0)
 	require.NoError(t, err)
 
 	assert.Equal(t, []string{"SET", "s", `{"name":"beatrice","n":1}`}, captured)
@@ -141,7 +142,7 @@ func TestSetManyReturnsCommandError(t *testing.T) {
 		}).
 		Times(1)
 
-	err := SetMany(context.Background(), m, map[string]string{"a": "1", "b": "2"}, 0)
+	err := m.SetMany(context.Background(), map[string]string{"a": "1", "b": "2"}, 0)
 
 	require.ErrorIs(t, err, wantErr)
 }
@@ -194,9 +195,7 @@ func (s *stubEngine) Set(_ context.Context, key string, data []byte, _ time.Dura
 func (s *stubEngine) SetMany(_ context.Context, entries map[string][]byte, _ time.Duration) error {
 	s.sets++
 
-	for key, data := range entries {
-		s.values[key] = data
-	}
+	maps.Copy(s.values, entries)
 
 	return nil
 }
@@ -242,7 +241,7 @@ func TestManagerPicksFirstEnabledEngine(t *testing.T) {
 
 			m := NewManager(first, second)
 
-			require.NoError(t, Set(context.Background(), m, "k", "v", 0))
+			require.NoError(t, m.Set(context.Background(), "k", "v", 0))
 
 			assert.Equal(t, tt.wantFirst, first.sets)
 			assert.Equal(t, tt.wantSecond, second.sets)
@@ -257,17 +256,17 @@ func TestManagerFailsOverWhenEngineGoesDown(t *testing.T) {
 	m := NewManager(primary, fallback)
 	ctx := context.Background()
 
-	require.NoError(t, Set(ctx, m, "k", "primary value", 0))
+	require.NoError(t, m.Set(ctx, "k", "primary value", 0))
 	require.Equal(t, 1, primary.sets)
 	require.Zero(t, fallback.sets)
 
 	primary.enabled = false
 
-	require.NoError(t, Set(ctx, m, "k", "fallback value", 0))
+	require.NoError(t, m.Set(ctx, "k", "fallback value", 0))
 	assert.Equal(t, 1, primary.sets)
 	assert.Equal(t, 1, fallback.sets)
 
-	got, err := Get[string](ctx, m, "k")
+	got, err := m.Get[string](ctx, "k")
 	require.NoError(t, err)
 	assert.Equal(t, "fallback value", got)
 }
@@ -278,11 +277,11 @@ func TestManagerWithoutAnyEnabledEngine(t *testing.T) {
 	m := NewManager(stub)
 	ctx := context.Background()
 
-	_, err := Get[string](ctx, m, "k")
+	_, err := m.Get[string](ctx, "k")
 	require.ErrorIs(t, err, ErrMiss)
 
-	require.NoError(t, Set(ctx, m, "k", "v", 0))
-	require.NoError(t, SetMany(ctx, m, map[string]string{"k": "v"}, 0))
+	require.NoError(t, m.Set(ctx, "k", "v", 0))
+	require.NoError(t, m.SetMany(ctx, map[string]string{"k": "v"}, 0))
 	require.NoError(t, m.Ping(ctx))
 
 	assert.Zero(t, stub.sets)
@@ -331,7 +330,7 @@ func TestManagerNilReceiverIsSafe(t *testing.T) {
 	require.NoError(t, m.Ping(ctx))
 	require.NoError(t, m.Close())
 
-	_, err := Get[string](ctx, m, "k")
+	_, err := m.Get[string](ctx, "k")
 	require.ErrorIs(t, err, ErrMiss)
 }
 
@@ -369,11 +368,11 @@ func TestManagerCountsHitsAndMisses(t *testing.T) {
 	hitsBefore := testutil.ToFloat64(cacheHits)
 	missesBefore := testutil.ToFloat64(cacheMisses)
 
-	got, err := Get[string](ctx, m, "present")
+	got, err := m.Get[string](ctx, "present")
 	require.NoError(t, err)
 	assert.Equal(t, "v", got)
 
-	_, err = Get[string](ctx, m, "absent")
+	_, err = m.Get[string](ctx, "absent")
 	require.ErrorIs(t, err, ErrMiss)
 
 	assert.Equal(t, hitsBefore+1, testutil.ToFloat64(cacheHits))

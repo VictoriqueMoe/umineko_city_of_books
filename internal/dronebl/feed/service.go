@@ -50,7 +50,7 @@ func New(settingsSvc settings.Service, cacheMgr *cache.Manager) *Service {
 }
 
 func (f *Service) byFeed(ctx context.Context) map[string][]netip.Prefix {
-	stored, err := cache.Get[map[string][]netip.Prefix](ctx, f.cache, cache.CrawlerRanges.Key())
+	stored, err := f.cache.Get[map[string][]netip.Prefix](ctx, cache.CrawlerRanges.Key())
 	if err != nil {
 		return map[string][]netip.Prefix{}
 	}
@@ -111,7 +111,7 @@ func (f *Service) Refresh(ctx context.Context) (int, error) {
 		return 0, fmt.Errorf("every crawler range feed failed")
 	}
 
-	if err := cache.Set(ctx, f.cache, cache.CrawlerRanges.Key(), current, cache.CrawlerRanges.TTL); err != nil {
+	if err := f.cache.Set(ctx, cache.CrawlerRanges.Key(), current, cache.CrawlerRanges.TTL); err != nil {
 		return 0, fmt.Errorf("store crawler ranges: %w", err)
 	}
 
