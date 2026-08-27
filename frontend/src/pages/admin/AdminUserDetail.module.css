@@ -99,6 +99,7 @@
     font-size: 0.9rem;
     min-width: 0;
     overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
 }
 
 .monoValue {
@@ -221,6 +222,7 @@
 .historyDetails {
     color: var(--text);
     overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
 }
 
 .historyDetailKey {
@@ -236,6 +238,7 @@
     color: var(--text-muted);
     font-size: 0.75rem;
     margin-left: auto;
+    unicode-bidi: plaintext;
 }
 
 .historyTime {

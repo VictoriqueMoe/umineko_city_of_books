@@ -219,7 +219,9 @@ describe("MinesweeperGamePage", () => {
         renderGame(guest);
 
         // then
-        expect(screen.getByText(/Battler has invited you to a minesweeper match/)).toBeInTheDocument();
+        expect(screen.getByText(/has invited you to a minesweeper match/)).toHaveTextContent(
+            "Battler has invited you to a minesweeper match. Accept to start; you will play simultaneously and race to clear the board.",
+        );
         expect(screen.getByText(/race to clear the board/)).toBeInTheDocument();
     });
 
@@ -231,7 +233,7 @@ describe("MinesweeperGamePage", () => {
         renderGame(host);
 
         // then
-        expect(screen.getByText("Waiting for Beatrice to accept.")).toBeInTheDocument();
+        expect(screen.getByText(/Waiting for/)).toHaveTextContent("Waiting for Beatrice to accept.");
         expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
     });
 

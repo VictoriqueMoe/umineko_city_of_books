@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { GameRoom, MinesweeperState, MinesweeperStats, User } from "../../../types/api";
 import { Button } from "../../Button/Button";
 import { DisconnectBanner } from "../DisconnectBanner";
@@ -34,16 +34,34 @@ function isMinesweeperStats(x: unknown): x is MinesweeperStats {
     return "revealed_p0" in x && "revealed_p1" in x;
 }
 
-function formatReason(reason: string, loserName?: string): string {
+function formatReason(reason: string, loserName?: string): ReactNode {
     switch (reason) {
         case "mine_hit":
-            return loserName ? `after ${loserName} hit a mine` : "after a mine was hit";
+            return loserName ? (
+                <>
+                    after <bdi>{loserName}</bdi> hit a mine
+                </>
+            ) : (
+                "after a mine was hit"
+            );
         case "completed":
             return "by clearing the board";
         case "forfeit":
-            return loserName ? `after ${loserName} forfeited` : "by forfeit";
+            return loserName ? (
+                <>
+                    after <bdi>{loserName}</bdi> forfeited
+                </>
+            ) : (
+                "by forfeit"
+            );
         case "resign":
-            return loserName ? `after ${loserName} resigned` : "by resignation";
+            return loserName ? (
+                <>
+                    after <bdi>{loserName}</bdi> resigned
+                </>
+            ) : (
+                "by resignation"
+            );
         case "abandoned":
             return "by abandonment";
         case "timeout":

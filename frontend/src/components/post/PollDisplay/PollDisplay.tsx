@@ -95,7 +95,7 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
                             <div className={styles.optionContent}>
                                 <span className={styles.optionLabel}>
                                     {isVotedOption && <span className={styles.checkmark}>&#10003;</span>}
-                                    {option.label}
+                                    <span dir="auto">{option.label}</span>
                                 </span>
                                 {showResults && (
                                     <span className={styles.optionPercent}>{Math.round(option.percent)}%</span>

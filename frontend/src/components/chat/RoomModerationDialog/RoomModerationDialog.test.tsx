@@ -253,7 +253,7 @@ describe("RoomModerationDialog", () => {
 
         // then
         expect(screen.getByText("Beatrice")).toBeInTheDocument();
-        expect(screen.getByText(/Reason: endless spam/)).toBeInTheDocument();
+        expect(screen.getByText(/Reason:/)).toHaveTextContent("Reason: endless spam");
         expect(screen.getByText("Ronove")).toBeInTheDocument();
     });
 

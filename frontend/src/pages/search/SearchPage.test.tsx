@@ -157,7 +157,7 @@ describe("SearchPage result states", () => {
         setup(route, { results: [makeResult()], total: 1 });
 
         // then
-        expect(screen.getByText('1 result for "beatrice"')).toBeInTheDocument();
+        expect(screen.getByText(/result for/)).toHaveTextContent('1 result for "beatrice"');
     });
 
     it("counts several results in the plural", () => {
@@ -168,7 +168,7 @@ describe("SearchPage result states", () => {
         setup(route, { results: [makeResult(), makeResult({ id: "theory-2", title: "Blue truth" })], total: 2 });
 
         // then
-        expect(screen.getByText('2 results for "beatrice"')).toBeInTheDocument();
+        expect(screen.getByText(/results for/)).toHaveTextContent('2 results for "beatrice"');
     });
 
     it("keeps the old results visible while a refetch is in flight", () => {

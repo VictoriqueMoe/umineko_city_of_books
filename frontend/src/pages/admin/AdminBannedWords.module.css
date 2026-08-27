@@ -126,7 +126,7 @@
 .table th,
 .table td {
     padding: 0.6rem 0.9rem;
-    text-align: left;
+    text-align: start;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
 }
 
@@ -148,6 +148,7 @@
     font-size: 0.85rem;
     color: var(--text);
     word-break: break-all;
+    unicode-bidi: plaintext;
 }
 
 .badgeDelete,

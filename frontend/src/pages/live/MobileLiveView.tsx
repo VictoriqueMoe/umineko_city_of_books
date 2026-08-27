@@ -179,14 +179,14 @@ export function MobileLiveView({
                     {"←"}
                 </Link>
                 <div className={styles.mobileMetaText}>
-                    <span className={styles.mobileTitle} title={stream.title}>
+                    <span dir="auto" className={styles.mobileTitle} title={stream.title}>
                         {stream.title}
                     </span>
                     <Link to={`/user/${stream.streamerUsername}`} className={styles.mobileStreamer}>
                         {stream.streamerAvatarUrl && (
                             <img src={stream.streamerAvatarUrl} alt="" className={styles.mobileStreamerAvatar} />
                         )}
-                        <span>{name}</span>
+                        <span dir="auto">{name}</span>
                     </Link>
                 </div>
                 {isLive && (

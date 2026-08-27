@@ -416,7 +416,9 @@ export function RoomModerationDialog({ isOpen, room, onClose, onSaved }: RoomMod
                             <p className={styles.confirmText}>Turning roleplay off removes these bots from the room:</p>
                             <ul className={styles.confirmList}>
                                 {pendingConfirm.bots.map(b => (
-                                    <li key={b.id}>{botLabel(b)}</li>
+                                    <li key={b.id}>
+                                        <bdi>{botLabel(b)}</bdi>
+                                    </li>
                                 ))}
                             </ul>
                             <div className={styles.confirmActions}>
@@ -470,7 +472,11 @@ export function RoomModerationDialog({ isOpen, room, onClose, onSaved }: RoomMod
                                         <ProfileLink user={b.user} size="small" />
                                         <span className={styles.banDate}>{formatDate(b.created_at)}</span>
                                     </div>
-                                    {b.reason && <div className={styles.banReason}>Reason: {b.reason}</div>}
+                                    {b.reason && (
+                                        <div className={styles.banReason}>
+                                            Reason: <bdi>{b.reason}</bdi>
+                                        </div>
+                                    )}
                                     {b.banned_by && (
                                         <div className={styles.banBy}>
                                             By <ProfileLink user={b.banned_by} size="small" />
@@ -571,7 +577,9 @@ export function RoomModerationDialog({ isOpen, room, onClose, onSaved }: RoomMod
                                     className={`${styles.ruleRow}${rule.scope === "global" ? ` ${styles.ruleGlobal}` : ""}`}
                                 >
                                     <div className={styles.ruleMain}>
-                                        <span className={styles.mono}>{rule.pattern}</span>
+                                        <span dir="auto" className={styles.mono}>
+                                            {rule.pattern}
+                                        </span>
                                         <span className={styles.metaPill}>{rule.match_mode}</span>
                                         {rule.case_sensitive && <span className={styles.metaPill}>case-sensitive</span>}
                                         <span

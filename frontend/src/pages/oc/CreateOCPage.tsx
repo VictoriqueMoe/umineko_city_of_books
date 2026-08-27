@@ -265,7 +265,9 @@ function OCForm({ editing, initial, id }: FormProps) {
                                         style={{ width: "100%", borderRadius: "6px" }}
                                     />
                                     {img.caption && (
-                                        <figcaption style={{ fontSize: "0.85rem" }}>{img.caption}</figcaption>
+                                        <figcaption dir="auto" style={{ fontSize: "0.85rem" }}>
+                                            {img.caption}
+                                        </figcaption>
                                     )}
                                     <Button variant="ghost" size="small" onClick={() => markExistingForRemoval(img.id)}>
                                         Remove
@@ -283,7 +285,7 @@ function OCForm({ editing, initial, id }: FormProps) {
                                         style={{ width: "100%", borderRadius: "6px" }}
                                     />
                                     <figcaption style={{ fontSize: "0.85rem", fontStyle: "italic" }}>
-                                        {item.caption || "(no caption)"} - pending upload
+                                        <bdi>{item.caption || "(no caption)"}</bdi> - pending upload
                                     </figcaption>
                                     <Button variant="ghost" size="small" onClick={() => unstagePendingImage(idx)}>
                                         Remove
@@ -309,7 +311,13 @@ function OCForm({ editing, initial, id }: FormProps) {
                             hidden
                         />
                         <Button variant="ghost" size="small" onClick={() => galleryInputRef.current?.click()}>
-                            {galleryFile ? `Selected: ${galleryFile.name}` : "+ Media"}
+                            {galleryFile ? (
+                                <>
+                                    Selected: <bdi>{galleryFile.name}</bdi>
+                                </>
+                            ) : (
+                                "+ Media"
+                            )}
                         </Button>
                         <Input
                             type="text"

@@ -64,7 +64,7 @@
 .table th,
 .table td {
     padding: 0.75rem 1rem;
-    text-align: left;
+    text-align: start;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
 }
 
@@ -109,6 +109,7 @@
     display: flex;
     align-items: centre;
     gap: 0.75rem;
+    unicode-bidi: plaintext;
 }
 
 .avatar {

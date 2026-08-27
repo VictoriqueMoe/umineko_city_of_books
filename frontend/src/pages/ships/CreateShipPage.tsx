@@ -118,7 +118,7 @@ export function CreateShipPage() {
                                 key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
                                 className={characterPillClass(c.series)}
                             >
-                                {c.character_name}
+                                <span dir="auto">{c.character_name}</span>
                                 <button
                                     type="button"
                                     className={styles.removeCharBtn}

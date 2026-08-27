@@ -158,6 +158,7 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
             {user ? (
                 <div className={styles.inputRow}>
                     <input
+                        dir="auto"
                         className={styles.input}
                         placeholder={cfg.placeholder}
                         value={body}

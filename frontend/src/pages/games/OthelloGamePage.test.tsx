@@ -215,7 +215,9 @@ describe("OthelloGamePage", () => {
         renderGame(guest);
 
         // then
-        expect(screen.getByText(/Battler has invited you to an othello game/)).toBeInTheDocument();
+        expect(screen.getByText(/has invited you to an othello game/)).toHaveTextContent(
+            "Battler has invited you to an othello game. Accept to start - you will play as white.",
+        );
         expect(screen.getByText(/you will play as white/)).toBeInTheDocument();
     });
 
@@ -227,7 +229,7 @@ describe("OthelloGamePage", () => {
         renderGame(host);
 
         // then
-        expect(screen.getByText("Waiting for Beatrice to accept.")).toBeInTheDocument();
+        expect(screen.getByText(/Waiting for/)).toHaveTextContent("Waiting for Beatrice to accept.");
         expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
     });
 

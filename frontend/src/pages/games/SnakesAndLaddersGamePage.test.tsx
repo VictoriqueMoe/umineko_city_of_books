@@ -215,7 +215,9 @@ describe("SnakesAndLaddersGamePage", () => {
         renderGame(guest);
 
         // then
-        expect(screen.getByText(/Battler has invited you to a game of snakes and ladders/)).toBeInTheDocument();
+        expect(screen.getByText(/has invited you to a game of snakes and ladders/)).toHaveTextContent(
+            "Battler has invited you to a game of snakes and ladders. Accept to start - you both race to square 100.",
+        );
         expect(screen.getByText(/race to square 100/)).toBeInTheDocument();
     });
 
@@ -227,7 +229,7 @@ describe("SnakesAndLaddersGamePage", () => {
         renderGame(host);
 
         // then
-        expect(screen.getByText("Waiting for Beatrice to accept.")).toBeInTheDocument();
+        expect(screen.getByText(/Waiting for/)).toHaveTextContent("Waiting for Beatrice to accept.");
         expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
     });
 

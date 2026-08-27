@@ -46,16 +46,22 @@ export function SearchResultRow({
                 <span className={`${avatarClass} ${styles.resultAvatarPlaceholder}`}>{initial}</span>
             )}
             <span className={styles.resultMain}>
-                <span className={styles.resultTitle}>{result.title || "(untitled)"}</span>
+                <span dir="auto" className={styles.resultTitle}>
+                    {result.title || "(untitled)"}
+                </span>
                 {result.snippet && (
                     <span
+                        dir="auto"
                         className={styles.resultSnippet}
                         dangerouslySetInnerHTML={{ __html: sanitiseSnippet(result.snippet) }}
                     />
                 )}
                 {!isUser && (
                     <span className={styles.resultMeta}>
-                        by <span className={styles.resultAuthor}>{author.display_name || author.username}</span>
+                        by{" "}
+                        <span dir="auto" className={styles.resultAuthor}>
+                            {author.display_name || author.username}
+                        </span>
                     </span>
                 )}
             </span>

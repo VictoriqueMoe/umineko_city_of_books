@@ -417,7 +417,9 @@ export function RoomPage() {
                         </button>
                         <div className={styles.roomHeaderInfo}>
                             <div className={styles.roomTitleRow}>
-                                <span className={styles.roomTitle}>{room.name}</span>
+                                <span dir="auto" className={styles.roomTitle}>
+                                    {room.name}
+                                </span>
                                 {room.is_system && <span className={styles.rpBadge}>Staff</span>}
                                 {room.is_rp && <span className={styles.rpBadge}>RP</span>}
                             </div>
@@ -451,7 +453,11 @@ export function RoomPage() {
                                 {descExpanded ? "Hide info ▲" : "Show info ▼"}
                             </button>
                             <div className={styles.roomInfoContent}>
-                                {room.description && <div className={styles.roomDescription}>{room.description}</div>}
+                                {room.description && (
+                                    <div dir="auto" className={styles.roomDescription}>
+                                        {room.description}
+                                    </div>
+                                )}
                                 {room.tags && room.tags.length > 0 && (
                                     <div className={styles.roomTags}>
                                         {room.tags.map(t => (
@@ -612,9 +618,12 @@ export function RoomPage() {
             {nicknameDialogTarget && (
                 <div className={styles.nicknameDialogOverlay} onClick={() => setNicknameDialogTarget(null)}>
                     <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
-                        <h3>Change nickname for {nicknameDialogTarget.user.display_name}</h3>
+                        <h3>
+                            Change nickname for <bdi>{nicknameDialogTarget.user.display_name}</bdi>
+                        </h3>
                         <input
                             type="text"
+                            dir="auto"
                             value={nicknameDialogValue}
                             maxLength={32}
                             onChange={e => setNicknameDialogValue(e.target.value)}
@@ -647,7 +656,9 @@ export function RoomPage() {
             {timeoutDialogTarget && (
                 <div className={styles.nicknameDialogOverlay} onClick={() => setTimeoutDialogTarget(null)}>
                     <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
-                        <h3>Set timeout for {timeoutDialogTarget.user.display_name}</h3>
+                        <h3>
+                            Set timeout for <bdi>{timeoutDialogTarget.user.display_name}</bdi>
+                        </h3>
                         <div className={styles.timeoutDialogRow}>
                             <input
                                 type="number"

@@ -361,7 +361,9 @@ export function CreateMysteryPage() {
                     </p>
                     {attachments.map((file, i) => (
                         <div key={i} className={styles.attachmentItem}>
-                            <span className={styles.attachmentLink}>{file.name}</span>
+                            <span dir="auto" className={styles.attachmentLink}>
+                                {file.name}
+                            </span>
                             <span className={styles.attachmentSize}>
                                 {file.size < 1024
                                     ? `${file.size} B`

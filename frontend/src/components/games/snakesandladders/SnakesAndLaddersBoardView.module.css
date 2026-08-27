@@ -65,6 +65,7 @@
     font-size: 0.92rem;
     color: #c9b48f;
     text-align: center;
+    unicode-bidi: plaintext;
 }
 
 .controls {

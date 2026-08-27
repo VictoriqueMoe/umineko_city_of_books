@@ -292,7 +292,7 @@ describe("FanficChapterPage", () => {
         renderPage();
 
         // when
-        await user.click(screen.getByText("← Back to Golden Land"));
+        await user.click(screen.getByText(/← Back to/));
 
         // then
         expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-1");

@@ -34,7 +34,9 @@ export function UserMenu() {
                         {user.display_name[0]}
                     </span>
                 )}
-                <span className={styles.name}>{user.display_name}</span>
+                <span dir="auto" className={styles.name}>
+                    {user.display_name}
+                </span>
                 <span className={`${styles.chevron}${isOpen ? ` ${styles.chevronOpen}` : ""}`}>{"\u25BC"}</span>
             </button>
 

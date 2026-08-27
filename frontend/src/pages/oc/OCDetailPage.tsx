@@ -96,14 +96,20 @@ export function OCDetailPage() {
                     />
                 )}
                 <div className={shipStyles.detailBody}>
-                    <h1 className={shipStyles.detailTitle}>{oc.name}</h1>
+                    <h1 dir="auto" className={shipStyles.detailTitle}>
+                        {oc.name}
+                    </h1>
                     <div className={shipStyles.detailMeta}>
                         <ProfileLink user={oc.author} size="small" />
-                        <span className={`${shipStyles.characterPill} ${shipStyles.characterPillOc}`}>
+                        <span dir="auto" className={`${shipStyles.characterPill} ${shipStyles.characterPillOc}`}>
                             {seriesLabel}
                         </span>
                     </div>
-                    {oc.description && <div className={shipStyles.detailDescription}>{renderRich(oc.description)}</div>}
+                    {oc.description && (
+                        <div dir="auto" className={shipStyles.detailDescription}>
+                            {renderRich(oc.description)}
+                        </div>
+                    )}
                     <div className={shipStyles.voteRow}>
                         <Button variant="ghost" size="small" onClick={() => handleVote(1)} disabled={!currentUser}>
                             {oc.user_vote === 1 ? "▲" : "△"}
@@ -166,7 +172,11 @@ export function OCDetailPage() {
                                     }}
                                     onClick={() => setLightbox({ src: img.image_url, alt: img.caption ?? "" })}
                                 />
-                                {img.caption && <figcaption style={{ fontSize: "0.85rem" }}>{img.caption}</figcaption>}
+                                {img.caption && (
+                                    <figcaption dir="auto" style={{ fontSize: "0.85rem" }}>
+                                        {img.caption}
+                                    </figcaption>
+                                )}
                             </figure>
                         ))}
                     </div>

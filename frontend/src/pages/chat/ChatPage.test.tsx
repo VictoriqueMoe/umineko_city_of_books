@@ -294,7 +294,9 @@ describe("ChatPage message area", () => {
         renderChat({ draftRecipient });
 
         // then
-        expect(screen.getByText("Send your first message to Beatrice.")).toBeInTheDocument();
+        expect(screen.getByText(/Send your first message to/)).toHaveTextContent(
+            "Send your first message to Beatrice.",
+        );
         expect(screen.getByTestId("composer")).toHaveAttribute("data-draft", "user-b");
     });
 
@@ -342,7 +344,7 @@ describe("ChatPage message area", () => {
         renderChat({ activeRoom: makeRoom(), typingNames });
 
         // then
-        expect(screen.getByText("Beatrice is typing...")).toBeInTheDocument();
+        expect(screen.getByText(/is typing/)).toHaveTextContent("Beatrice is typing...");
     });
 
     it("goes back to the conversation list when asked", async () => {

@@ -889,8 +889,11 @@ export function AdminUserDetail() {
                 title="New Password"
             >
                 <div className={styles.modalBody}>
-                    Share this new password with <strong>{user.display_name}</strong> securely. It will not be shown
-                    again.
+                    Share this new password with{" "}
+                    <strong>
+                        <bdi>{user.display_name}</bdi>
+                    </strong>{" "}
+                    securely. It will not be shown again.
                     <div className={styles.infoItem} style={{ marginTop: "1rem" }}>
                         <span className={styles.infoLabel}>Password</span>
                         <code className={styles.infoValue}>{resetPasswordResult}</code>
@@ -915,7 +918,11 @@ export function AdminUserDetail() {
 
             <Modal isOpen={deleteModalOpen} onClose={() => setDeleteModalOpen(false)} title="Confirm Delete">
                 <div className={styles.modalBody}>
-                    Are you sure you want to delete <strong>{user.display_name}</strong>? This action cannot be undone.
+                    Are you sure you want to delete{" "}
+                    <strong>
+                        <bdi>{user.display_name}</bdi>
+                    </strong>
+                    ? This action cannot be undone.
                 </div>
                 <div className={styles.modalActions}>
                     <Button variant="secondary" onClick={() => setDeleteModalOpen(false)}>

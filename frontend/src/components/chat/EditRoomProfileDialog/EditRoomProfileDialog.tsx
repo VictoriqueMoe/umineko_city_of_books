@@ -140,6 +140,7 @@ export function EditRoomProfileDialog({ isOpen, roomId, currentMember, onClose, 
                 <input
                     id="room-nickname"
                     type="text"
+                    dir="auto"
                     className={styles.input}
                     maxLength={NICKNAME_MAX}
                     value={nickname}

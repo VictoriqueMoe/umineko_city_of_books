@@ -208,6 +208,7 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                             <p>You need a gallery first. Create one to start uploading art.</p>
                             <div className={styles.createGalleryRow}>
                                 <input
+                                    dir="auto"
                                     className={styles.createGalleryInput}
                                     type="text"
                                     placeholder="Gallery name"
@@ -292,7 +293,9 @@ export function ArtGalleryPage({ corner = "general" }: ArtGalleryPageProps) {
                                                     )}
                                                 </div>
                                                 <div className={styles.galleryCardInfo}>
-                                                    <span className={styles.galleryCardName}>{g.name}</span>
+                                                    <span dir="auto" className={styles.galleryCardName}>
+                                                        {g.name}
+                                                    </span>
                                                     <span className={styles.galleryCardCount}>
                                                         {g.art_count} pieces
                                                     </span>

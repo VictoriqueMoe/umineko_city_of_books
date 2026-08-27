@@ -40,7 +40,7 @@
 .table th,
 .table td {
     padding: 0.6rem 1rem;
-    text-align: left;
+    text-align: start;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.15);
 }
 
@@ -70,6 +70,8 @@
     font-size: 0.8rem;
     line-height: 1.45;
     overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
+    text-align: start;
 }
 
 .detailPart {
@@ -84,6 +86,7 @@
 
 .detailValue {
     color: var(--text);
+    unicode-bidi: plaintext;
 }
 
 .action {

@@ -13,5 +13,9 @@ const roleClass: Record<string, string> = {
 
 export function RoleStyledName({ name, role }: RoleStyledNameProps) {
     const cls = role ? roleClass[role] : undefined;
-    return <span className={`${styles.name}${cls ? ` ${styles[cls]}` : ""}`}>{name}</span>;
+    return (
+        <span dir="auto" className={`${styles.name}${cls ? ` ${styles[cls]}` : ""}`}>
+            {name}
+        </span>
+    );
 }

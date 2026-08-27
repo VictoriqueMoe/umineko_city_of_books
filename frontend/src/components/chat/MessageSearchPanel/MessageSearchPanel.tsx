@@ -58,6 +58,7 @@ export function MessageSearchPanel({ roomId, isOpen, onClose, onJump }: MessageS
                 </header>
                 <div className={styles.searchBar}>
                     <input
+                        dir="auto"
                         className={styles.searchInput}
                         type="text"
                         placeholder="Search this conversation..."
@@ -101,6 +102,7 @@ export function MessageSearchPanel({ roomId, isOpen, onClose, onJump }: MessageS
                                 </div>
                                 {r.snippet && (
                                     <div
+                                        dir="auto"
                                         className={styles.resultSnippet}
                                         dangerouslySetInnerHTML={{ __html: sanitiseSnippet(r.snippet) }}
                                     />

@@ -216,6 +216,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
             )}
             {tab === "browse" && (
                 <input
+                    dir="auto"
                     className={styles.search}
                     type="text"
                     autoFocus

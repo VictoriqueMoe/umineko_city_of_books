@@ -75,8 +75,14 @@ function ResponseCard({
                 <VoteButton score={score} userVote={userVote} onVote={vote} />
             </div>
             <div className={styles.content}>
-                {mentionedAuthor && <div className={styles.mention}>@{mentionedAuthor}</div>}
-                <div className={styles.body}>{richBody}</div>
+                {mentionedAuthor && (
+                    <div dir="auto" className={styles.mention}>
+                        @{mentionedAuthor}
+                    </div>
+                )}
+                <div dir="auto" className={styles.body}>
+                    {richBody}
+                </div>
 
                 <EvidenceList evidence={response.evidence ?? []} series={series} />
 

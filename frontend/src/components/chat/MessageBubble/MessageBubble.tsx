@@ -234,12 +234,16 @@ function MessageBubbleBase({
                 {message.reply_to && (
                     <div className={styles.replyPreview} onClick={() => jumpToMessage(message.reply_to!.id)}>
                         <span className={styles.replyArrow}>{"\u21B5"}</span>
-                        <span className={styles.replySender}>{message.reply_to.sender_name}</span>
-                        <span className={styles.replyText}>{message.reply_to.body_preview}</span>
+                        <span dir="auto" className={styles.replySender}>
+                            {message.reply_to.sender_name}
+                        </span>
+                        <span dir="auto" className={styles.replyText}>
+                            {message.reply_to.body_preview}
+                        </span>
                     </div>
                 )}
                 <div className={`${styles.messageSender} ${isOwn ? styles.messageSenderOwn : ""}`}>
-                    <span className={styles.senderName} title={effectiveSender.display_name}>
+                    <span dir="auto" className={styles.senderName} title={effectiveSender.display_name}>
                         {effectiveSender.display_name}
                     </span>
                     <RolePill role={effectiveSender.role ?? ""} userId={effectiveSender.id} compactOnMobile />
@@ -270,7 +274,11 @@ function MessageBubbleBase({
                         }
                         return (
                             <>
-                                {message.body.trim() && <div className={styles.messageText}>{richBody}</div>}
+                                {message.body.trim() && (
+                                    <div dir="auto" className={styles.messageText}>
+                                        {richBody}
+                                    </div>
+                                )}
                                 <LinkPreviews body={message.body} authorCreatedAt={message.sender?.created_at} />
                             </>
                         );
@@ -344,7 +352,9 @@ function MessageBubbleBase({
                                             {names.length > 0 ? (
                                                 <ul className={styles.reactorList}>
                                                     {names.map(n => (
-                                                        <li key={n}>{n}</li>
+                                                        <li key={n} dir="auto">
+                                                            {n}
+                                                        </li>
                                                     ))}
                                                 </ul>
                                             ) : (
@@ -479,6 +489,7 @@ function EditRow({ initialBody, onCommit, onCancel }: EditRowProps) {
             <div className={styles.editSizer} data-value={draft}>
                 <textarea
                     ref={textareaRef}
+                    dir="auto"
                     className={styles.editTextarea}
                     value={draft}
                     onChange={e => setDraft(e.target.value)}

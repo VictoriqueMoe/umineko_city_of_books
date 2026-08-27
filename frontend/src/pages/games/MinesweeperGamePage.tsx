@@ -27,9 +27,12 @@ export function MinesweeperGamePage() {
     return (
         <GameRoomShell
             gameName="Minesweeper"
-            inviteCopy={name =>
-                `${name} has invited you to a minesweeper match. Accept to start; you will play simultaneously and race to clear the board.`
-            }
+            inviteCopy={name => (
+                <>
+                    <bdi>{name}</bdi> has invited you to a minesweeper match. Accept to start; you will play
+                    simultaneously and race to clear the board.
+                </>
+            )}
             Board={MinesweeperBoard}
         />
     );

@@ -133,12 +133,14 @@
 .discordSite {
     font-size: 0.7rem;
     color: #b5bac1;
+    unicode-bidi: plaintext;
 }
 
 .discordTitle {
     font-size: 0.9rem;
     font-weight: 600;
     color: #00a8fc;
+    unicode-bidi: plaintext;
 }
 
 .discordDesc {
@@ -183,6 +185,7 @@
 .twitterTitle {
     font-size: 0.85rem;
     color: #f7f9f9;
+    unicode-bidi: plaintext;
 }
 
 .twitterDesc {

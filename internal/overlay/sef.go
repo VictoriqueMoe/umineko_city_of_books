@@ -26,7 +26,7 @@ Connects SAMMI to {{.SiteName}}. Site events (likes, follows, comments, theory v
   <div class="col-12 col-md-8 col-lg-6 mx-auto">
     <div class="card bg-dark text-white">
       <div class="card-header">
-        <h3>{{.SiteName}} Overlay</h3>
+        <h3><bdi>{{.SiteName}}</bdi> Overlay</h3>
       </div>
       <div class="card-body">
         <p>Run <strong>Overlay: Connect</strong> on deck load, then catch the <strong>overlay_event</strong> extension trigger on a button and read its data with Trigger Pull Data.</p>

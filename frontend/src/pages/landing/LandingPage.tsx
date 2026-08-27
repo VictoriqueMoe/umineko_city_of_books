@@ -85,7 +85,9 @@ export function LandingPage() {
 
             <section className={styles.hero}>
                 <div className={styles.heroOrnament}>{"\u2666 \u2663 \u2665 \u2660"}</div>
-                <h1 className={styles.heroTitle}>{site_name}</h1>
+                <h1 dir="auto" className={styles.heroTitle}>
+                    {site_name}
+                </h1>
                 <p className={styles.heroTagline}>
                     Without love, it cannot be seen. <PieceTrigger pieceId="piece_01" />
                 </p>

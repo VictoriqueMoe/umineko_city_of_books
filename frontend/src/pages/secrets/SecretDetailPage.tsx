@@ -49,7 +49,7 @@ export function SecretDetailPage() {
     const detail = rawDetail
         ? ({ ...rawDetail, leaderboard: sortLeaderboard(rawDetail.leaderboard) } as SecretDetailResponse)
         : null;
-    const [toast, setToast] = useState<string | null>(null);
+    const [solvedByName, setSolvedByName] = useState<string | null>(null);
 
     const createCommentMutation = useCreateSecretComment(id);
     const updateCommentMutation = useUpdateSecretComment(id);
@@ -100,7 +100,7 @@ export function SecretDetailPage() {
                 if (data.secret_id !== id) {
                     return;
                 }
-                setToast(`${data.solver.display_name} spoke the witch's name.`);
+                setSolvedByName(data.solver.display_name);
                 qc.setQueryData<SecretDetailResponse>(["secrets", "detail", id], prev => {
                     if (!prev) {
                         return prev;
@@ -148,10 +148,14 @@ export function SecretDetailPage() {
         <div className={styles.page}>
             <div className={styles.header}>
                 <div className={styles.breadcrumb}>
-                    <Link to="/secrets">Secrets</Link> / {detail.title}
+                    <Link to="/secrets">Secrets</Link> / <bdi>{detail.title}</bdi>
                 </div>
-                <h1 className={styles.title}>{detail.title}</h1>
-                <p className={styles.description}>{detail.description}</p>
+                <h1 dir="auto" className={styles.title}>
+                    {detail.title}
+                </h1>
+                <p dir="auto" className={styles.description}>
+                    {detail.description}
+                </p>
 
                 <div className={`${styles.statusBar} ${detail.solved ? styles.statusSolved : styles.statusOpen}`}>
                     {detail.solved && detail.solver ? (
@@ -172,7 +176,9 @@ export function SecretDetailPage() {
 
             <section className={styles.section}>
                 <h2 className={styles.sectionTitle}>The Riddle</h2>
-                <div className={styles.riddle}>{detail.riddle}</div>
+                <div dir="auto" className={styles.riddle}>
+                    {detail.riddle}
+                </div>
             </section>
 
             <section className={styles.section}>
@@ -220,9 +226,9 @@ export function SecretDetailPage() {
                 uploadMediaFn={uploadMediaFn}
             />
 
-            {toast && (
-                <Toast variant="arcane" duration={6000} onDismiss={() => setToast(null)}>
-                    {toast}
+            {solvedByName && (
+                <Toast variant="arcane" duration={6000} onDismiss={() => setSolvedByName(null)}>
+                    <bdi>{solvedByName}</bdi> spoke the witch&apos;s name.
                 </Toast>
             )}
         </div>

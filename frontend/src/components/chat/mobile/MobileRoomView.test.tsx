@@ -532,7 +532,7 @@ describe("MobileRoomView chat view", () => {
 
         // then
         expect(screen.getByTestId("room-messages")).toBeInTheDocument();
-        expect(screen.getByText("Battler is typing...")).toBeInTheDocument();
+        expect(screen.getByText(/is typing/)).toHaveTextContent("Battler is typing...");
     });
 
     it("tells the viewer when the watch party they were invited to has ended", () => {
@@ -1035,7 +1035,7 @@ describe("MobileRoomView members view", () => {
         await user.click(screen.getByRole("button", { name: "Save" }));
 
         // then
-        expect(screen.getByText("Change nickname for Battler")).toBeInTheDocument();
+        expect(screen.getByText(/Change nickname for/)).toHaveTextContent("Change nickname for Battler");
         expect(handleModSetNickname).toHaveBeenCalledTimes(1);
     });
 
@@ -1080,7 +1080,7 @@ describe("MobileRoomView members view", () => {
         await user.click(screen.getByRole("button", { name: "Set timeout" }));
 
         // then
-        expect(screen.getByText("Set timeout for Battler")).toBeInTheDocument();
+        expect(screen.getByText(/Set timeout for/)).toHaveTextContent("Set timeout for Battler");
         expect(setTimeoutDialogUnit).toHaveBeenCalledWith("weeks");
         expect(handleSetTimeout).toHaveBeenCalledTimes(1);
     });

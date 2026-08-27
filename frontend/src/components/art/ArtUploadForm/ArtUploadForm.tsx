@@ -154,6 +154,7 @@ export function ArtUploadForm({
             <div className={styles.field}>
                 <label className={styles.label}>Title *</label>
                 <input
+                    dir="auto"
                     className={styles.input}
                     type="text"
                     value={title}

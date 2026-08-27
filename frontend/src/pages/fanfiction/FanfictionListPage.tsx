@@ -344,7 +344,9 @@ export function FanfictionListPage() {
                             )}
                             <div className={styles.cardContent}>
                                 <div className={styles.cardTitleRow}>
-                                    <h3 className={styles.cardTitle}>{f.title}</h3>
+                                    <h3 dir="auto" className={styles.cardTitle}>
+                                        {f.title}
+                                    </h3>
                                     <span className={`${styles.badge} ${ratingBadgeClass(f.rating)}`}>{f.rating}</span>
                                     {f.status === "complete" && (
                                         <span className={`${styles.badge} ${styles.badgeComplete}`}>Complete</span>
@@ -356,8 +358,8 @@ export function FanfictionListPage() {
 
                                 <div className={styles.cardByline}>
                                     <ProfileLink user={f.author} size="small" clickable={false} />
-                                    <span>{f.series}</span>
-                                    <span>{f.language}</span>
+                                    <span dir="auto">{f.series}</span>
+                                    <span dir="auto">{f.language}</span>
                                     {f.updated_at ? (
                                         <span>
                                             Updated <RelativeTimestamp value={f.updated_at} />
@@ -367,7 +369,11 @@ export function FanfictionListPage() {
                                     )}
                                 </div>
 
-                                {f.summary && <p className={styles.cardSummary}>{f.summary}</p>}
+                                {f.summary && (
+                                    <p dir="auto" className={styles.cardSummary}>
+                                        {f.summary}
+                                    </p>
+                                )}
 
                                 {(f.genres?.length > 0 ||
                                     f.tags?.length > 0 ||
@@ -381,7 +387,7 @@ export function FanfictionListPage() {
                                             </span>
                                         ))}
                                         {(f.tags ?? []).map(t => (
-                                            <span key={t} className={`${styles.badge} ${styles.badgeTag}`}>
+                                            <span key={t} dir="auto" className={`${styles.badge} ${styles.badgeTag}`}>
                                                 {t}
                                             </span>
                                         ))}
@@ -393,7 +399,7 @@ export function FanfictionListPage() {
                                         )}
                                         {(f.characters ?? []).map((c, i) => (
                                             <span key={`${c.character_name}-${i}`} className={styles.charPill}>
-                                                {c.character_name}
+                                                <span dir="auto">{c.character_name}</span>
                                             </span>
                                         ))}
                                     </div>

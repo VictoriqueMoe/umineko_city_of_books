@@ -88,6 +88,7 @@ export function AdminAuditLog() {
                                             <td>
                                                 {entry.subject_id ? (
                                                     <Link
+                                                        dir="auto"
                                                         to={`/admin/users/${entry.subject_id}`}
                                                         className={styles.subjectLink}
                                                     >
@@ -104,7 +105,9 @@ export function AdminAuditLog() {
                                                     <span className={styles.muted}>&mdash;</span>
                                                 )}
                                             </td>
-                                            <td>{entry.actor_name || <span className={styles.muted}>system</span>}</td>
+                                            <td dir="auto">
+                                                {entry.actor_name || <span className={styles.muted}>system</span>}
+                                            </td>
                                             <td>
                                                 <span className={styles.details} title={entry.details}>
                                                     {parseAuditDetails(entry.details).map((part, i) => (

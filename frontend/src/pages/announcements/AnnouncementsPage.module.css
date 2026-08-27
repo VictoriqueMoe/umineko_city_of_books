@@ -107,6 +107,15 @@
     font-size: 0.95rem;
 }
 
+.body p,
+.body li,
+.body blockquote,
+.body h1,
+.body h2,
+.body h3 {
+    unicode-bidi: plaintext;
+}
+
 .body h1,
 .body h2,
 .body h3 {
@@ -130,7 +139,7 @@
 
 .body ul,
 .body ol {
-    padding-left: 1.5rem;
+    padding-inline-start: 1.5rem;
     margin: 0.75rem 0;
 }
 
@@ -169,8 +178,8 @@
 }
 
 .body blockquote {
-    border-left: 3px solid var(--gold);
-    padding-left: 1rem;
+    border-inline-start: 3px solid var(--gold);
+    padding-inline-start: 1rem;
     margin: 0.75rem 0;
     color: var(--text-muted);
     font-style: italic;

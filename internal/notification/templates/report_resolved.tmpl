@@ -10,18 +10,18 @@
         </td></tr>
         <tr><td style="padding:24px 40px;">
           <p style="margin:0 0 12px;font-size:15px;line-height:1.6;color:#e0d0c0;">
-            Your report on a <strong>{{.TargetType}}</strong> has been reviewed and resolved by <strong style="color:#d4af37;">{{.ResolverName}}</strong>.
+            Your report on a <strong>{{.TargetType}}</strong> has been reviewed and resolved by <strong style="color:#d4af37;"><bdi>{{.ResolverName}}</bdi></strong>.
           </p>
           {{if .Comment}}
-          <div style="margin:16px 0 24px;padding:12px 16px;background:rgba(180,160,120,0.1);border-left:3px solid #d4af37;border-radius:0 4px 4px 0;">
+          <div dir="auto" style="margin:16px 0 24px;padding:12px 16px;background:rgba(180,160,120,0.1);border-left:3px solid #d4af37;border-radius:0 4px 4px 0;">
             <p style="margin:0;font-size:14px;color:#aaa;">Message from the moderator:</p>
-            <p style="margin:8px 0 0;font-size:15px;line-height:1.6;color:#e0d0c0;">{{.Comment}}</p>
+            <p dir="auto" style="margin:8px 0 0;font-size:15px;line-height:1.6;color:#e0d0c0;">{{.Comment}}</p>
           </div>
           {{end}}
           <a href="{{.LinkURL}}" style="display:inline-block;padding:10px 24px;background:#d4af37;color:#1a1a2e;text-decoration:none;border-radius:4px;font-weight:600;font-size:14px;">Visit Game Board</a>
         </td></tr>
         <tr><td style="padding:16px 40px;border-top:1px solid rgba(180,160,120,0.15);text-align:center;">
-          <p style="margin:0;font-size:12px;color:#888;">{{.SiteName}}</p>
+          <p dir="auto" style="margin:0;font-size:12px;color:#888;">{{.SiteName}}</p>
         </td></tr>
       </table>
     </td></tr>

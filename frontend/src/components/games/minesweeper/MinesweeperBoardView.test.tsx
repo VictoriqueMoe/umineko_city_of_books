@@ -426,7 +426,7 @@ describe("MinesweeperBoardView", () => {
 
         // then
         expect(screen.getByText("You won")).toBeInTheDocument();
-        expect(screen.getByText("after Erika hit a mine")).toBeInTheDocument();
+        expect(screen.getByText(/hit a mine/)).toHaveTextContent("after Erika hit a mine");
     });
 
     it("counts what each side managed once the game is over", () => {

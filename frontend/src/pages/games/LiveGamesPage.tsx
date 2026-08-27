@@ -35,7 +35,8 @@ export function LiveGamesPage() {
                             <Link key={r.id} to={`/games/${r.game_type}/${r.id}`} className={styles.gameRow}>
                                 <div className={styles.gameRowContent}>
                                     <span className={styles.opponentLine}>
-                                        {white?.display_name ?? "?"} vs {black?.display_name ?? "?"}
+                                        <bdi>{white?.display_name ?? "?"}</bdi> vs{" "}
+                                        <bdi>{black?.display_name ?? "?"}</bdi>
                                     </span>
                                     <span className={styles.subline}>
                                         {r.game_type} — {r.watcher_count} watching

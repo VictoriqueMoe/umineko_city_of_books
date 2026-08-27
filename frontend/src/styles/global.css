@@ -88,6 +88,7 @@ html[data-width="wide"] [class*="_page_"] {
 a {
     color: var(--gold);
     text-decoration: none;
+    unicode-bidi: isolate;
 }
 
 a:hover {
@@ -105,7 +106,20 @@ select {
     font-family: var(--font-body);
 }
 
+[dir="auto"] {
+    unicode-bidi: plaintext;
+}
+
 /* Truth text colours (used inline via dangerouslySetInnerHTML) */
+
+.red-truth,
+.blue-truth,
+.gold-truth,
+.purple-truth,
+.green-truth,
+.pink-truth {
+    unicode-bidi: isolate;
+}
 
 .red-truth {
     color: #ff3333;
@@ -169,6 +183,8 @@ select {
     line-height: 1.4;
     white-space: pre;
     color: var(--text-main);
+    direction: ltr;
+    unicode-bidi: isolate;
 }
 
 .rich-code-block code {
@@ -185,12 +201,14 @@ select {
     border-radius: 3px;
     font-family: ui-monospace, "Cascadia Code", "Fira Code", Consolas, "Courier New", monospace;
     font-size: 0.9em;
+    direction: ltr;
+    unicode-bidi: isolate;
 }
 
 .rich-quote {
     margin: 0.3rem 0;
     padding: 0.1rem 0.75rem;
-    border-left: 3px solid rgba(var(--purple-rgb), 0.55);
+    border-inline-start: 3px solid rgba(var(--purple-rgb), 0.55);
     color: var(--text-muted);
     white-space: pre-wrap;
     word-break: break-word;

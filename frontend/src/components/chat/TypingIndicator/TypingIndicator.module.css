@@ -11,6 +11,7 @@
 }
 
 .text {
+    unicode-bidi: plaintext;
     line-height: 1;
 }
 

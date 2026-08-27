@@ -17,6 +17,7 @@
 
 .resultReason {
     color: var(--text-muted);
+    unicode-bidi: plaintext;
 }
 
 .resultWin {

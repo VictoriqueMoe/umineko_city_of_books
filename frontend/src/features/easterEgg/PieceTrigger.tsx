@@ -64,13 +64,13 @@ export function PieceTrigger({ pieceId, ariaLabel }: PieceTriggerProps) {
             )}
             {justFound && (
                 <Toast variant="arcane" duration={4200} onDismiss={() => setJustFound(false)}>
-                    Uu~ a piece of the {parent.title}.
+                    Uu~ a piece of the <bdi>{parent.title}</bdi>.
                 </Toast>
             )}
             {completed && (
                 <Toast variant="arcane" duration={12000} onDismiss={() => setCompleted(false)}>
-                    Uu~ all {state.totalPieces} pieces of {parent.title} are yours. Read the riddle again, then open the
-                    trophy on your profile to whisper the answer.
+                    Uu~ all {state.totalPieces} pieces of <bdi>{parent.title}</bdi> are yours. Read the riddle again,
+                    then open the trophy on your profile to whisper the answer.
                 </Toast>
             )}
         </>

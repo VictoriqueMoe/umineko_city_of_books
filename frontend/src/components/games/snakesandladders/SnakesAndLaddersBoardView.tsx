@@ -5,7 +5,7 @@ import { DisconnectBanner } from "../DisconnectBanner.tsx";
 import { GameOverPanel } from "../GameOverPanel.tsx";
 import { GamePlayerBar } from "../GamePlayerBar.tsx";
 import { GameStatsGrid } from "../GameStatsGrid.tsx";
-import { gameResultLabel, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers.ts";
+import { gameResultLabel, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers";
 import type { BoardToken } from "./SnakesLaddersBoard.tsx";
 import { SnakesLaddersBoard } from "./SnakesLaddersBoard.tsx";
 import styles from "./SnakesAndLaddersBoardView.module.css";

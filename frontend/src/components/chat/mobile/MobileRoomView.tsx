@@ -185,9 +185,12 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
             {nicknameDialogTarget && (
                 <div className={styles.dialogOverlay} onClick={() => setNicknameDialogTarget(null)}>
                     <div className={styles.dialog} onClick={e => e.stopPropagation()}>
-                        <h3>Change nickname for {nicknameDialogTarget.user.display_name}</h3>
+                        <h3>
+                            Change nickname for <bdi>{nicknameDialogTarget.user.display_name}</bdi>
+                        </h3>
                         <input
                             type="text"
+                            dir="auto"
                             value={nicknameDialogValue}
                             maxLength={32}
                             onChange={e => setNicknameDialogValue(e.target.value)}
@@ -220,7 +223,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
             {timeoutDialogTarget && (
                 <div className={styles.dialogOverlay} onClick={() => setTimeoutDialogTarget(null)}>
                     <div className={styles.dialog} onClick={e => e.stopPropagation()}>
-                        <h3>Set timeout for {timeoutDialogTarget.user.display_name}</h3>
+                        <h3>
+                            Set timeout for <bdi>{timeoutDialogTarget.user.display_name}</bdi>
+                        </h3>
                         <div className={styles.dialogRow}>
                             <input
                                 type="number"
@@ -263,7 +268,11 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
             )}
 
             {invitedPartyMissing && <div className={styles.endedPartyNotice}>That watch party has ended.</div>}
-            {toast && <div className={styles.toast}>{toast}</div>}
+            {toast && (
+                <div dir="auto" className={styles.toast}>
+                    {toast}
+                </div>
+            )}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </>
     );
@@ -452,7 +461,9 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 </button>
                 <div className={styles.topInfo}>
                     <div className={styles.topTitleRow}>
-                        <span className={styles.topTitle}>{room.name}</span>
+                        <span dir="auto" className={styles.topTitle}>
+                            {room.name}
+                        </span>
                         {room.is_system && <span className={styles.topBadge}>Staff</span>}
                         {room.is_rp && <span className={styles.topBadge}>RP</span>}
                     </div>

@@ -60,14 +60,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const uploadMediaMutation = useUploadPostMedia(post.id);
     const deleteMediaMutation = useDeletePostMedia(post.id);
 
-    const bodyContent = useMemo(() => {
-        const gifURL = extractGif(displayBody);
-        if (gifURL) {
-            return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
-        }
-
-        return <div className={styles.text}>{renderRich(displayBody)}</div>;
-    }, [displayBody]);
+    const gifURL = useMemo(() => extractGif(displayBody), [displayBody]);
 
     useEffect(() => {
         return addWSListener(msg => {
@@ -228,9 +221,15 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                             }
                         }}
                     >
-                        {bodyContent}
+                        {gifURL ? (
+                            <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />
+                        ) : (
+                            <div dir="auto" className={styles.text}>
+                                {renderRich(displayBody)}
+                            </div>
+                        )}
                         <MediaGallery media={displayMedia} />
-                        <LinkPreviews body={post.body} authorCreatedAt={post.author?.created_at} />
+                        {!gifURL && <LinkPreviews body={displayBody} authorCreatedAt={post.author?.created_at} />}
                         {post.shared_content && <SharedContentCard content={post.shared_content} />}
                     </div>
                     {post.poll && <PollDisplay poll={post.poll} postId={post.id} onVoted={onEdit} />}

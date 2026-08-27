@@ -58,6 +58,7 @@
 .author {
     font-weight: 600;
     color: var(--gold);
+    unicode-bidi: plaintext;
 }
 
 .timestamp {
@@ -69,6 +70,8 @@
     color: var(--text);
     word-wrap: break-word;
     overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
+    text-align: start;
 }
 
 .inputRow {

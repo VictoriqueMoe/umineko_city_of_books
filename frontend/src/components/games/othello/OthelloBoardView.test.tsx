@@ -318,7 +318,7 @@ describe("OthelloBoardView", () => {
         renderBoard(room, null, true);
 
         // then
-        expect(screen.getByText("Beatrice won")).toBeInTheDocument();
+        expect(screen.getByText(/won/)).toHaveTextContent("Beatrice won");
     });
 
     it("keeps live stats in front of a spectator while the game runs", () => {

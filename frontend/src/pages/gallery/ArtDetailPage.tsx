@@ -163,6 +163,7 @@ export function ArtDetailPage() {
                 {editing ? (
                     <div className={styles.editSection}>
                         <input
+                            dir="auto"
                             className={styles.editTitle}
                             value={editTitle}
                             onChange={e => setEditTitle(e.target.value)}
@@ -187,8 +188,14 @@ export function ArtDetailPage() {
                     </div>
                 ) : (
                     <>
-                        <h1 className={styles.title}>{art.title}</h1>
-                        {art.description && <div className={styles.description}>{renderRich(art.description)}</div>}
+                        <h1 dir="auto" className={styles.title}>
+                            {art.title}
+                        </h1>
+                        {art.description && (
+                            <div dir="auto" className={styles.description}>
+                                {renderRich(art.description)}
+                            </div>
+                        )}
                     </>
                 )}
 
@@ -206,7 +213,7 @@ export function ArtDetailPage() {
 
                 <div className={styles.artistLinks}>
                     <span className={styles.artistLink} onClick={() => navigate(`/user/${art.author.username}`)}>
-                        More by {art.author.display_name}
+                        More by <bdi>{art.author.display_name}</bdi>
                     </span>
                     {art.gallery_id && (
                         <span className={styles.artistLink} onClick={() => navigate(`/gallery/view/${art.gallery_id}`)}>

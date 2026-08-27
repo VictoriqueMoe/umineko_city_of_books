@@ -68,6 +68,7 @@
     text-transform: uppercase;
     letter-spacing: 0.18em;
     line-height: 1;
+    unicode-bidi: plaintext;
 }
 
 .nameplateChar {

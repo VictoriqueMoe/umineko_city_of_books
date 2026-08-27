@@ -108,9 +108,21 @@ function LinkCard({ preview }: { preview: LinkPreview }) {
     return (
         <a href={preview.url} target="_blank" rel="noopener noreferrer" className={styles.linkCard}>
             <div className={styles.linkBody}>
-                {preview.site_name && <span className={styles.linkSite}>{preview.site_name}</span>}
-                {preview.title && <span className={styles.linkTitle}>{preview.title}</span>}
-                {preview.description && <span className={styles.linkDesc}>{preview.description}</span>}
+                {preview.site_name && (
+                    <span dir="auto" className={styles.linkSite}>
+                        {preview.site_name}
+                    </span>
+                )}
+                {preview.title && (
+                    <span dir="auto" className={styles.linkTitle}>
+                        {preview.title}
+                    </span>
+                )}
+                {preview.description && (
+                    <span dir="auto" className={styles.linkDesc}>
+                        {preview.description}
+                    </span>
+                )}
             </div>
             {preview.image && (
                 <div className={styles.linkImageWrap}>

@@ -168,7 +168,7 @@
     border: none;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.12);
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     color: var(--text);
 }
 

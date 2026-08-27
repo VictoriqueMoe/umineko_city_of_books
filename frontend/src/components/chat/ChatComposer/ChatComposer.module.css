@@ -33,6 +33,7 @@
 }
 
 .error {
+    unicode-bidi: plaintext;
     color: #ff6b6b;
     font-size: 0.85rem;
 }

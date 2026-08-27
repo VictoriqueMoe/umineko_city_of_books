@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { GameRoom, GameRoomPlayer } from "../../types/api";
 import {
@@ -229,7 +229,9 @@ describe("gameResultLabel", () => {
         const result = gameResultLabel(room, "a", true);
 
         // then
-        expect(result).toEqual({ text: "Beatrice won", tone: "neutral" });
+        expect(result.tone).toBe("neutral");
+        render(<span>{result.text}</span>);
+        expect(screen.getByText(/won/)).toHaveTextContent("Beatrice won");
     });
 
     it("names the winner for a logged out viewer", () => {
@@ -240,7 +242,9 @@ describe("gameResultLabel", () => {
         const result = gameResultLabel(room, null, false);
 
         // then
-        expect(result).toEqual({ text: "Battler won", tone: "neutral" });
+        expect(result.tone).toBe("neutral");
+        render(<span>{result.text}</span>);
+        expect(screen.getByText(/won/)).toHaveTextContent("Battler won");
     });
 
     it("falls back to a question mark when the winner is not in the player list", () => {
@@ -251,7 +255,9 @@ describe("gameResultLabel", () => {
         const result = gameResultLabel(room, null, false);
 
         // then
-        expect(result).toEqual({ text: "? won", tone: "neutral" });
+        expect(result.tone).toBe("neutral");
+        render(<span>{result.text}</span>);
+        expect(screen.getByText(/won/)).toHaveTextContent("? won");
     });
 
     it("congratulates the player who won", () => {

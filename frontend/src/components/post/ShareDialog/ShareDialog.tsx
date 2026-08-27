@@ -70,7 +70,9 @@ export function ShareDialog({ isOpen, onClose, contentId, contentType, contentTi
                     showColours
                 />
 
-                <p className={styles.preview}>Sharing: {contentTitle || contentType}</p>
+                <p className={styles.preview}>
+                    Sharing: <bdi>{contentTitle || contentType}</bdi>
+                </p>
 
                 {error && <p className={styles.error}>{error}</p>}
 

@@ -12,7 +12,7 @@ export function DisconnectBanner({ offlinePlayer, forfeitRemaining }: Disconnect
     }
     return (
         <div className={styles.disconnectBanner}>
-            {offlinePlayer.display_name} disconnected - forfeits in {forfeitRemaining}s
+            <bdi>{offlinePlayer.display_name}</bdi> disconnected - forfeits in {forfeitRemaining}s
         </div>
     );
 }

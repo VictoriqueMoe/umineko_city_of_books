@@ -104,7 +104,9 @@ export function WatchPartyButton({
                         return (
                             <div key={s.id} className={styles.pickerRow}>
                                 <div className={styles.pickerRowMain}>
-                                    <div className={styles.pickerTitle}>{s.title || "Untitled party"}</div>
+                                    <div dir="auto" className={styles.pickerTitle}>
+                                        {s.title || "Untitled party"}
+                                    </div>
                                     <div className={styles.pickerMeta}>
                                         {s.participants.length}{" "}
                                         {s.participants.length === 1 ? "participant" : "participants"}
@@ -168,6 +170,7 @@ export function WatchPartyButton({
                     )}
                     <div className={styles.pickerStart}>
                         <input
+                            dir="auto"
                             className={styles.pickerInput}
                             type="text"
                             placeholder="Title (optional)"

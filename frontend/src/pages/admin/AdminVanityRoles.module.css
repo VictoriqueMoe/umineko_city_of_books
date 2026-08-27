@@ -38,7 +38,7 @@
 }
 
 .table th {
-    text-align: left;
+    text-align: start;
     padding: 0.75rem 1rem;
     font-family: var(--font-display);
     font-size: 0.75rem;
@@ -69,6 +69,7 @@
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
+    unicode-bidi: plaintext;
 }
 
 .colorCell {
@@ -198,6 +199,7 @@
 .userName {
     font-size: 0.85rem;
     color: var(--text);
+    unicode-bidi: plaintext;
 }
 
 .assignedSection {

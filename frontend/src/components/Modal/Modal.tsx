@@ -58,7 +58,9 @@ export function Modal({ isOpen, onClose, title, children }: PropsWithChildren<Mo
                 onClick={e => e.stopPropagation()}
             >
                 <div className={styles.header}>
-                    <h3 id={titleId}>{title}</h3>
+                    <h3 id={titleId} dir="auto">
+                        {title}
+                    </h3>
                     <button type="button" className={styles.close} onClick={onClose}>
                         {"\u2715"}
                     </button>

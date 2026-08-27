@@ -116,14 +116,18 @@ export function TheoryPage() {
 
             <div className={styles.preamble}>
                 <ProfileLink user={theory.author} size="large" showName={false} />
-                {theory.author.display_name} declares in blue:
+                <span>
+                    <bdi>{theory.author.display_name}</bdi> declares in blue:
+                </span>
             </div>
 
             <div className={styles.detailCard}>
                 <div className={styles.detailHeader}>
                     <VoteButton score={score} userVote={userVote} onVote={vote} />
                     <div className={styles.detailInfo}>
-                        <h2 className={styles.detailTitle}>{theory.title}</h2>
+                        <h2 dir="auto" className={styles.detailTitle}>
+                            {theory.title}
+                        </h2>
                         <div className={styles.detailMeta}>
                             {theory.episode > 0 && (
                                 <span className={styles.episode}>{formatSeriesEpisode(seriesKey, theory.episode)}</span>
@@ -160,7 +164,9 @@ export function TheoryPage() {
                     />
                 )}
 
-                <div className={styles.body}>{renderRich(theory.body)}</div>
+                <div dir="auto" className={styles.body}>
+                    {renderRich(theory.body)}
+                </div>
 
                 <EvidenceList evidence={theory.evidence ?? []} series={seriesKey} />
             </div>

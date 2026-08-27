@@ -49,7 +49,11 @@ export function ChessGamePage() {
     return (
         <GameRoomShell
             gameName="Chess"
-            inviteCopy={name => `${name} has invited you to a chess game. Accept to start - you will play as black.`}
+            inviteCopy={name => (
+                <>
+                    <bdi>{name}</bdi> has invited you to a chess game. Accept to start - you will play as black.
+                </>
+            )}
             Board={ChessBoard}
         />
     );

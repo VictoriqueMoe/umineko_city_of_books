@@ -177,7 +177,7 @@
     color: var(--text);
     font-family: var(--font-body);
     font-size: 0.9rem;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
     transition: background 0.1s;
 }

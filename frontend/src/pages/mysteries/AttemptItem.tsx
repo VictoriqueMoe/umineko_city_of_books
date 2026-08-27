@@ -115,11 +115,17 @@ function SingleAttempt({
         >
             <div className={styles.attemptHeader}>
                 <ProfileLink user={attempt.author} size="small" />
-                {replyToName && <span className={styles.replyTo}>@{replyToName}</span>}
+                {replyToName && (
+                    <span dir="auto" className={styles.replyTo}>
+                        @{replyToName}
+                    </span>
+                )}
                 <RelativeTimestamp value={attempt.created_at} />
                 {attempt.is_winner && <span className={styles.winnerBadge}>Winner</span>}
             </div>
-            <div className={styles.attemptBody}>{renderRich(attempt.body)}</div>
+            <div dir="auto" className={styles.attemptBody}>
+                {renderRich(attempt.body)}
+            </div>
             <div className={styles.attemptActions}>
                 {user && (
                     <>
@@ -162,6 +168,7 @@ function SingleAttempt({
             {showReply && (!mysteryPaused || isAuthor) && (
                 <div className={styles.composer}>
                     <textarea
+                        dir="auto"
                         className={styles.composerTextarea}
                         placeholder="Reply..."
                         value={replyBody}

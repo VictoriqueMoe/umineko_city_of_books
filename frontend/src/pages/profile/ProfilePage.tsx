@@ -303,7 +303,11 @@ export function ProfilePage() {
             {isBanned && (
                 <div className={styles.banBanner}>
                     <span className={styles.banBannerTitle}>This user has been banned</span>
-                    {profile.ban_reason && <span className={styles.banBannerReason}>Reason: {profile.ban_reason}</span>}
+                    {profile.ban_reason && (
+                        <span className={styles.banBannerReason}>
+                            Reason: <bdi>{profile.ban_reason}</bdi>
+                        </span>
+                    )}
                 </div>
             )}
             <div className={styles.banner}>
@@ -334,7 +338,9 @@ export function ProfilePage() {
                         <RolePill role={profile.role ?? ""} userId={profile.id} />
                         <HuntsInProgress profileUserId={profile.id} />
                     </h1>
-                    <span className={styles.username}>@{profile.username}</span>
+                    <span dir="auto" className={styles.username}>
+                        @{profile.username}
+                    </span>
                     {currentUser && currentUser.id !== profile.id && follow.stats && (
                         <div className={styles.followRow}>
                             <Button
@@ -372,9 +378,13 @@ export function ProfilePage() {
                         <div className={styles.blockedBanner}>This user has blocked you.</div>
                     )}
                     <div className={styles.metaRow}>
-                        {showGender && <span className={styles.metaItem}>{profile.gender}</span>}
+                        {showGender && (
+                            <span dir="auto" className={styles.metaItem}>
+                                {profile.gender}
+                            </span>
+                        )}
                         {profile.pronoun_subject && profile.pronoun_possessive && (
-                            <span className={styles.metaItem}>
+                            <span dir="auto" className={styles.metaItem}>
                                 {profile.pronoun_subject}/{profile.pronoun_possessive}
                             </span>
                         )}
@@ -384,7 +394,7 @@ export function ProfilePage() {
                 </div>
             </div>
 
-            <div className={styles.bio}>
+            <div dir="auto" className={styles.bio}>
                 {profile.bio ? renderRich(profile.bio) : "This player has not written a bio yet."}
             </div>
 
@@ -394,9 +404,12 @@ export function ProfilePage() {
                         <span key={entry.key} className={styles.socialChip}>
                             <span className={styles.socialChipLabel}>{entry.label}</span>
                             {entry.key === "social_discord" ? (
-                                <span className={styles.socialChipValue}>{entry.value}</span>
+                                <span dir="auto" className={styles.socialChipValue}>
+                                    {entry.value}
+                                </span>
                             ) : (
                                 <a
+                                    dir="auto"
                                     className={styles.socialChipValue}
                                     href={
                                         entry.key === "website"
@@ -421,7 +434,9 @@ export function ProfilePage() {
             {profile.favourite_character && (
                 <div className={styles.favourite}>
                     <span className={styles.favouriteLabel}>Favourite Character</span>
-                    <span className={styles.favouriteValue}>{profile.favourite_character}</span>
+                    <span dir="auto" className={styles.favouriteValue}>
+                        {profile.favourite_character}
+                    </span>
                 </div>
             )}
 
@@ -640,7 +655,9 @@ export function ProfilePage() {
                                         )}
                                     </div>
                                     <div className={styles.galleryInfo}>
-                                        <span className={styles.galleryName}>{g.name}</span>
+                                        <span dir="auto" className={styles.galleryName}>
+                                            {g.name}
+                                        </span>
                                         <span className={styles.galleryCount}>{g.art_count} pieces</span>
                                     </div>
                                 </Link>
@@ -666,8 +683,10 @@ export function ProfilePage() {
                                         />
                                     )}
                                     <div className={styles.shipInfo}>
-                                        <span className={styles.shipTitle}>{oc.name}</span>
-                                        <span className={styles.shipMeta}>
+                                        <span dir="auto" className={styles.shipTitle}>
+                                            {oc.name}
+                                        </span>
+                                        <span dir="auto" className={styles.shipMeta}>
                                             {oc.series === "custom" ? (oc.custom_series_name ?? "Custom") : oc.series}
                                         </span>
                                         <span className={styles.shipMeta}>
@@ -702,8 +721,10 @@ export function ProfilePage() {
                                         />
                                     )}
                                     <div className={styles.shipInfo}>
-                                        <span className={styles.shipTitle}>{s.title}</span>
-                                        <span className={styles.shipMeta}>
+                                        <span dir="auto" className={styles.shipTitle}>
+                                            {s.title}
+                                        </span>
+                                        <span dir="auto" className={styles.shipMeta}>
                                             {s.characters.map(c => c.character_name).join(" × ")}
                                         </span>
                                         <span className={styles.shipMeta}>
@@ -742,7 +763,9 @@ export function ProfilePage() {
                             {userMysteries.map(m => (
                                 <Link key={m.id} to={`/mystery/${m.id}`} className={styles.mysteryCard}>
                                     <div className={styles.mysteryHeader}>
-                                        <span className={styles.mysteryTitle}>{m.title}</span>
+                                        <span dir="auto" className={styles.mysteryTitle}>
+                                            {m.title}
+                                        </span>
                                         <span
                                             className={`${styles.mysteryBadge} ${m.solved ? styles.mysteryBadgeSolved : styles.mysteryBadgeOpen}`}
                                         >
@@ -753,7 +776,12 @@ export function ProfilePage() {
                                         Difficulty: {m.difficulty} &middot; {m.attempt_count} attempt
                                         {m.attempt_count !== 1 ? "s" : ""} &middot; {m.clue_count} clue
                                         {m.clue_count !== 1 ? "s" : ""}
-                                        {m.winner && ` \u00B7 Winner: ${m.winner.display_name}`}
+                                        {m.winner && (
+                                            <>
+                                                {" \u00B7 Winner: "}
+                                                <bdi>{m.winner.display_name}</bdi>
+                                            </>
+                                        )}
                                     </span>
                                 </Link>
                             ))}
@@ -784,10 +812,12 @@ export function ProfilePage() {
                             {userFanfics.map(f => (
                                 <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
                                     <div className={styles.shipInfo}>
-                                        <span className={styles.shipTitle}>{f.title}</span>
+                                        <span dir="auto" className={styles.shipTitle}>
+                                            {f.title}
+                                        </span>
                                         <span className={styles.shipMeta}>
-                                            {f.series} &middot; {f.word_count.toLocaleString()} words &middot;{" "}
-                                            {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                            <bdi>{f.series}</bdi> &middot; {f.word_count.toLocaleString()} words
+                                            &middot; {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
                                         </span>
                                     </div>
                                 </Link>
@@ -819,10 +849,12 @@ export function ProfilePage() {
                             {userFavourites.map(f => (
                                 <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
                                     <div className={styles.shipInfo}>
-                                        <span className={styles.shipTitle}>{f.title}</span>
+                                        <span dir="auto" className={styles.shipTitle}>
+                                            {f.title}
+                                        </span>
                                         <span className={styles.shipMeta}>
-                                            {f.series} &middot; {f.word_count.toLocaleString()} words &middot;{" "}
-                                            {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                            <bdi>{f.series}</bdi> &middot; {f.word_count.toLocaleString()} words
+                                            &middot; {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
                                         </span>
                                     </div>
                                 </Link>
@@ -910,8 +942,10 @@ export function ProfilePage() {
                                     </span>
                                     <span className={styles.activityDate}>{formatDate(item.created_at)}</span>
                                 </div>
-                                <div className={styles.activityTitle}>{item.theory_title}</div>
-                                <div className={styles.activityBody}>
+                                <div dir="auto" className={styles.activityTitle}>
+                                    {item.theory_title}
+                                </div>
+                                <div dir="auto" className={styles.activityBody}>
                                     {item.body.length > 200 ? `${item.body.substring(0, 200)}...` : item.body}
                                 </div>
                             </Link>
@@ -988,6 +1022,7 @@ function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
         <div className={styles.galleryCard} style={{ padding: "1rem", cursor: "default", marginBottom: "1rem" }}>
             <input
                 type="text"
+                dir="auto"
                 placeholder="Gallery name"
                 value={name}
                 onChange={e => setName(e.target.value)}
@@ -1004,6 +1039,7 @@ function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
                 }}
             />
             <textarea
+                dir="auto"
                 placeholder="Description (optional)"
                 value={description}
                 onChange={e => setDescription(e.target.value)}

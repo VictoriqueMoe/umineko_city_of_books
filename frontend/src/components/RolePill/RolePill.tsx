@@ -127,13 +127,16 @@ export function RolePill({ role, userId, compactOnMobile }: RolePillProps) {
                             style={{ ["--dot-color" as string]: "#f0c878" }}
                             onClick={onPillClick}
                         >
-                            <span className={styles.witchHunterLabel}>{vr.label}</span>
+                            <span dir="auto" className={styles.witchHunterLabel}>
+                                {vr.label}
+                            </span>
                         </span>
                     );
                 }
                 return (
                     <span
                         key={vr.id}
+                        dir="auto"
                         className={`${styles.pill}${compactClass}`}
                         title={tooltip}
                         style={{

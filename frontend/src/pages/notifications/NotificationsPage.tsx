@@ -172,7 +172,7 @@ export function NotificationsPage() {
                                     >
                                         <ProfileLink user={notif.actor} size="small" showName={false} />
                                         <div className={styles.itemContent}>
-                                            <div className={styles.itemText}>
+                                            <div dir="auto" className={styles.itemText}>
                                                 <NotificationText notif={notif} />
                                             </div>
                                             <div className={styles.itemFooter}>
@@ -270,7 +270,7 @@ function CategorySection({
                     >
                         <ProfileLink user={notif.actor} size="small" showName={false} />
                         <div className={styles.itemContent}>
-                            <div className={styles.itemText}>
+                            <div dir="auto" className={styles.itemText}>
                                 <NotificationText notif={notif} />
                             </div>
                             <div className={styles.itemFooter}>
@@ -308,7 +308,10 @@ function NotificationText({ notif }: { notif: Notification }) {
         const { message, role, actorName } = formatContentEditedText(notif);
         return (
             <>
-                {message} by {role} <strong>{actorName}</strong>
+                {message} by {role}{" "}
+                <strong>
+                    <bdi>{actorName}</bdi>
+                </strong>
             </>
         );
     }
@@ -319,7 +322,10 @@ function NotificationText({ notif }: { notif: Notification }) {
 
     return (
         <>
-            <strong>{notif.actor.display_name}</strong> {getNotificationText(notif)}
+            <strong>
+                <bdi>{notif.actor.display_name}</bdi>
+            </strong>{" "}
+            {getNotificationText(notif)}
         </>
     );
 }

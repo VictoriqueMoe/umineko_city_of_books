@@ -253,7 +253,10 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                         ) : (
                             <div className={styles.field}>
                                 <p className={styles.hint}>
-                                    <strong>{owner.stream.title}</strong> is live. Stop here or close OBS to end it.
+                                    <strong>
+                                        <bdi>{owner.stream.title}</bdi>
+                                    </strong>{" "}
+                                    is live. Stop here or close OBS to end it.
                                 </p>
                                 <div className={styles.actions}>
                                     <Button

@@ -56,7 +56,9 @@ describe("DisconnectBanner", () => {
         renderWithProviders(<DisconnectBanner offlinePlayer={offlinePlayer} forfeitRemaining={42} />);
 
         // then
-        expect(screen.getByText("Beatrice disconnected - forfeits in 42s")).toBeInTheDocument();
+        expect(screen.getByText(/disconnected - forfeits in 42s/)).toHaveTextContent(
+            "Beatrice disconnected - forfeits in 42s",
+        );
     });
 
     it("keeps showing the banner at the moment the countdown reaches zero", () => {
@@ -72,6 +74,8 @@ describe("DisconnectBanner", () => {
         );
 
         // then
-        expect(screen.getByText("Battler disconnected - forfeits in 0s")).toBeInTheDocument();
+        expect(screen.getByText(/disconnected - forfeits in 0s/)).toHaveTextContent(
+            "Battler disconnected - forfeits in 0s",
+        );
     });
 });

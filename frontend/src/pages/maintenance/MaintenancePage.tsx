@@ -11,8 +11,10 @@ export function MaintenancePage({ title, message }: MaintenancePageProps) {
     return (
         <div className={styles.page}>
             <div className={styles.card}>
-                <h1 className={styles.title}>{title || "The game board is being prepared"}</h1>
-                <p className={styles.message}>
+                <h1 dir="auto" className={styles.title}>
+                    {title || "The game board is being prepared"}
+                </h1>
+                <p dir="auto" className={styles.message}>
                     {message || "Without love, it cannot be seen. Please check back shortly."}
                 </p>
             </div>

@@ -858,7 +858,7 @@ func (s *service) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {
 
 	siteName := s.settingsSvc.Get(ctx, config.SettingSiteName)
 	subject := "Test email from " + siteName
-	body := fmt.Sprintf("<p>This is a test email from %s confirming your email settings are working.</p>", siteName)
+	body := fmt.Sprintf("<p>This is a test email from <bdi>%s</bdi> confirming your email settings are working.</p>", siteName)
 
 	if err := s.emailSvc.SendTest(ctx, actor.Email, subject, body); err != nil {
 		return fmt.Errorf("send test email: %w", err)

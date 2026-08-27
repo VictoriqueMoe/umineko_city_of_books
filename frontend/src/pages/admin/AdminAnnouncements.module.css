@@ -65,6 +65,17 @@
     min-height: 200px;
     color: var(--text);
     line-height: 1.6;
+    unicode-bidi: plaintext;
+    text-align: start;
+}
+
+.preview p,
+.preview li,
+.preview blockquote,
+.preview h1,
+.preview h2,
+.preview h3 {
+    unicode-bidi: plaintext;
 }
 
 .preview h1,
@@ -92,8 +103,8 @@
 }
 
 .preview blockquote {
-    border-left: 3px solid var(--gold);
-    padding-left: 1rem;
+    border-inline-start: 3px solid var(--gold);
+    padding-inline-start: 1rem;
     color: var(--text-muted);
 }
 
@@ -134,6 +145,7 @@
     color: var(--gold);
     font-size: 1rem;
     flex: 1;
+    unicode-bidi: plaintext;
 }
 
 .pinnedBadge {

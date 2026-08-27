@@ -46,6 +46,7 @@
 
 .playerName {
     font-weight: 600;
+    unicode-bidi: plaintext;
 }
 
 .colourLabel {

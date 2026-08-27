@@ -52,7 +52,11 @@ export function TruthChip({ quote, note, lang, onRemove }: TruthChipProps) {
                 <span className={styles.speaker}>{quote.character}</span>
                 <span>{quote.arc || `EP${quote.episode}`}</span>
             </div>
-            {note && <div className={styles.note}>{note}</div>}
+            {note && (
+                <div dir="auto" className={styles.note}>
+                    {note}
+                </div>
+            )}
             {onRemove && (
                 <button className={styles.remove} onClick={onRemove}>
                     {"\u2715"}

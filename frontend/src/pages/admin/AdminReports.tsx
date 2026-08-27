@@ -166,6 +166,7 @@ export function AdminReports() {
                     <label className={styles.resolveLabel}>Message to the reporter (optional):</label>
                     <textarea
                         ref={textareaRef}
+                        dir="auto"
                         className={styles.resolveTextarea}
                         value={comment}
                         onChange={e => setComment(e.target.value)}

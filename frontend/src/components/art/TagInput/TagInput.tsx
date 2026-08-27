@@ -49,6 +49,7 @@ export function TagInput({ tags, onChange, maxTags = 10 }: TagInputProps) {
                     </span>
                 ))}
                 <input
+                    dir="auto"
                     className={styles.input}
                     type="text"
                     value={input}

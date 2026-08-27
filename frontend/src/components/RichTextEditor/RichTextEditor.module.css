@@ -65,6 +65,7 @@
     font-size: 1rem;
     line-height: 1.7;
     background: var(--bg-void);
+    unicode-bidi: plaintext;
 }
 
 .content:focus {
@@ -74,6 +75,14 @@
 .content :global(.tiptap) {
     outline: none;
     min-height: 60vh;
+}
+
+.content :global(.tiptap p),
+.content :global(.tiptap h2),
+.content :global(.tiptap h3),
+.content :global(.tiptap li),
+.content :global(.tiptap blockquote) {
+    unicode-bidi: plaintext;
 }
 
 .content :global(.tiptap p) {

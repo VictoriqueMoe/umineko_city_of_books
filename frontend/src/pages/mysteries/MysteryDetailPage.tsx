@@ -179,6 +179,7 @@ function PrivateCluesDisplay({
                                 <div style={{ display: "flex", gap: "0.4rem", alignItems: "center", flex: 1 }}>
                                     <input
                                         type="text"
+                                        dir="auto"
                                         value={editClueBody}
                                         onChange={e => setEditClueBody(e.target.value)}
                                         onKeyDown={e => {
@@ -211,7 +212,7 @@ function PrivateCluesDisplay({
                                 </div>
                             ) : (
                                 <>
-                                    <span>{renderRich(clue.body)}</span>
+                                    <span dir="auto">{renderRich(clue.body)}</span>
                                     <span className={styles.clueActions}>
                                         {canEditClues && (
                                             <>
@@ -280,6 +281,7 @@ function PrivateClueInput({
             <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
                 <input
                     type="text"
+                    dir="auto"
                     value={body}
                     onChange={e => setBody(e.target.value)}
                     placeholder="Private red truth for this player..."
@@ -710,7 +712,9 @@ export function MysteryDetailPage() {
             </span>
 
             {mystery.solved && mystery.winner && (
-                <div className={styles.solvedBanner}>Mystery solved! Winner: {mystery.winner.display_name}</div>
+                <div className={styles.solvedBanner}>
+                    Mystery solved! Winner: <bdi>{mystery.winner.display_name}</bdi>
+                </div>
             )}
 
             <div className={styles.detail}>
@@ -724,7 +728,9 @@ export function MysteryDetailPage() {
                     }}
                 >
                     <div>
-                        <h1 className={styles.detailTitle}>{mystery.title}</h1>
+                        <h1 dir="auto" className={styles.detailTitle}>
+                            {mystery.title}
+                        </h1>
                         <div className={styles.detailMeta}>
                             <ProfileLink user={mystery.author} size="small" />
                             <RelativeTimestamp value={mystery.created_at} />
@@ -819,7 +825,9 @@ export function MysteryDetailPage() {
                     </div>
                 </div>
 
-                <div className={styles.detailBody}>{renderRich(mystery.body)}</div>
+                <div dir="auto" className={styles.detailBody}>
+                    {renderRich(mystery.body)}
+                </div>
 
                 {mystery.media && mystery.media.length > 0 && (
                     <div className={styles.mediaSection}>
@@ -881,7 +889,7 @@ export function MysteryDetailPage() {
                                     key={clue.id}
                                     className={`${styles.clue}${clue.truth_type === "purple" ? ` ${styles.cluePurple}` : ""}`}
                                 >
-                                    <span>{renderRich(clue.body)}</span>
+                                    <span dir="auto">{renderRich(clue.body)}</span>
                                     <span className={styles.clueActions}>
                                         <ClueCopyBtn text={clue.body} />
                                     </span>
@@ -893,6 +901,7 @@ export function MysteryDetailPage() {
                 {isAuthor && (
                     <div className={styles.composer}>
                         <textarea
+                            dir="auto"
                             className={styles.composerTextarea}
                             placeholder="Add a new red truth clue..."
                             value={newClueBody}
@@ -933,6 +942,7 @@ export function MysteryDetailPage() {
                                 </svg>
                                 <a
                                     href={att.file_url}
+                                    dir="auto"
                                     className={styles.attachmentLink}
                                     download={att.file_name}
                                     target="_blank"
@@ -999,7 +1009,9 @@ export function MysteryDetailPage() {
                                             {group.author.display_name[0]}
                                         </span>
                                     )}
-                                    <span className={styles.playerPillName}>{group.author.display_name}</span>
+                                    <span dir="auto" className={styles.playerPillName}>
+                                        {group.author.display_name}
+                                    </span>
                                     {isUnread && <span className={styles.playerPillDot} aria-label="unread" />}
                                 </button>
                             );
@@ -1030,7 +1042,9 @@ export function MysteryDetailPage() {
                             <ProfileLink user={winningAttempt.author} size="small" />
                             <RelativeTimestamp value={winningAttempt.created_at} />
                         </div>
-                        <div className={styles.pinnedWinnerBody}>{renderRich(winningAttempt.body)}</div>
+                        <div dir="auto" className={styles.pinnedWinnerBody}>
+                            {renderRich(winningAttempt.body)}
+                        </div>
                     </div>
                 )}
 
@@ -1143,6 +1157,7 @@ export function MysteryDetailPage() {
                             )}
                             <div className={styles.composer}>
                                 <textarea
+                                    dir="auto"
                                     className={styles.composerTextarea}
                                     placeholder="Declare your blue truth..."
                                     value={attemptBody}

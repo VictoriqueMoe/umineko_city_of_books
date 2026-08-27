@@ -38,14 +38,18 @@ export function SecretsListPage() {
                     {secrets.map(s => (
                         <Link key={s.id} to={`/secrets/${s.id}`} className={styles.card}>
                             <div className={styles.cardHeader}>
-                                <h2 className={styles.cardTitle}>{s.title}</h2>
+                                <h2 dir="auto" className={styles.cardTitle}>
+                                    {s.title}
+                                </h2>
                                 <span
                                     className={`${styles.status} ${s.solved ? styles.statusSolved : styles.statusOpen}`}
                                 >
                                     {s.solved ? "Solved" : "Open"}
                                 </span>
                             </div>
-                            <p className={styles.description}>{s.description}</p>
+                            <p dir="auto" className={styles.description}>
+                                {s.description}
+                            </p>
                             <div className={styles.meta}>
                                 {user && s.viewer_progress > 0 && (
                                     <span className={styles.progress}>

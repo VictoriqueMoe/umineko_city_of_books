@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import type { Journal } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -9,9 +10,13 @@ interface JournalCardProps {
     journal: Journal;
 }
 
-function entryHeading(number: number, title?: string | null): string {
+function entryHeading(number: number, title?: string | null): ReactNode {
     if (title && title.trim() !== "") {
-        return `Entry ${number}: ${title}`;
+        return (
+            <>
+                Entry {number}: <bdi>{title}</bdi>
+            </>
+        );
     }
     return `Entry ${number}`;
 }
@@ -26,7 +31,9 @@ export function JournalCard({ journal }: JournalCardProps) {
                 's Reading Journal
             </div>
             <div className={styles.header}>
-                <h3 className={styles.title}>{journal.title}</h3>
+                <h3 dir="auto" className={styles.title}>
+                    {journal.title}
+                </h3>
                 <span className={styles.work}>{workLabel(journal.work)}</span>
                 {journal.is_archived && <span className={styles.archived}>Archived</span>}
             </div>
@@ -43,7 +50,11 @@ export function JournalCard({ journal }: JournalCardProps) {
                     )}
                 </div>
             )}
-            {journal.latest_entry_excerpt && <p className={styles.body}>{journal.latest_entry_excerpt}</p>}
+            {journal.latest_entry_excerpt && (
+                <p dir="auto" className={styles.body}>
+                    {journal.latest_entry_excerpt}
+                </p>
+            )}
             <div className={styles.meta}>
                 <span>
                     {"★"} {journal.follower_count} follower{journal.follower_count === 1 ? "" : "s"}

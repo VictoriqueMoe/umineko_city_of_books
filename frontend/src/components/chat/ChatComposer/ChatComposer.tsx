@@ -302,8 +302,12 @@ export function ChatComposer({
             {replyingTo && (
                 <div className={styles.replyBar}>
                     <div className={styles.replyContent}>
-                        <span className={styles.replyLabel}>Replying to {replyingTo.senderName}</span>
-                        <span className={styles.replyPreview}>{replyingTo.bodyPreview}</span>
+                        <span className={styles.replyLabel}>
+                            Replying to <bdi>{replyingTo.senderName}</bdi>
+                        </span>
+                        <span dir="auto" className={styles.replyPreview}>
+                            {replyingTo.bodyPreview}
+                        </span>
                     </div>
                     {onCancelReply && (
                         <button className={styles.replyCancel} onClick={onCancelReply} aria-label="Cancel reply">

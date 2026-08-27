@@ -125,7 +125,9 @@ export function StreamViewers() {
                         ) : (
                             <span className={styles.viewerAvatar} />
                         )}
-                        <span className={styles.viewerName}>{v.name}</span>
+                        <span dir="auto" className={styles.viewerName}>
+                            {v.name}
+                        </span>
                     </span>
                 ))}
                 {guests > 0 && (

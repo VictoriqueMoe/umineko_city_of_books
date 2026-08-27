@@ -263,7 +263,7 @@ export function renderRich(text: string): ReactNode[] {
         }
         if (block.type === "quote") {
             nodes.push(
-                <blockquote key={key} className="rich-quote">
+                <blockquote key={key} dir="auto" className="rich-quote">
                     {renderInline(block.content, `${key}i`)}
                 </blockquote>,
             );

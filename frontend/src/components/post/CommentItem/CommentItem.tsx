@@ -92,14 +92,7 @@ function SingleComment({
     const [editBody, setEditBody] = useState(comment.body);
     const [saving, setSaving] = useState(false);
 
-    const bodyContent = useMemo(() => {
-        const gifURL = extractGif(comment.body);
-        if (gifURL) {
-            return <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />;
-        }
-
-        return <div className={styles.body}>{renderRich(comment.body)}</div>;
-    }, [comment.body]);
+    const gifURL = useMemo(() => extractGif(comment.body), [comment.body]);
 
     async function handleLike() {
         if (!user) {
@@ -152,7 +145,11 @@ function SingleComment({
         >
             <div className={styles.header}>
                 <ProfileLink user={comment.author} size="small" />
-                {replyToName && <span className={styles.replyTo}>@{replyToName}</span>}
+                {replyToName && (
+                    <span dir="auto" className={styles.replyTo}>
+                        @{replyToName}
+                    </span>
+                )}
                 <span className={styles.time}>
                     <RelativeTimestamp value={comment.created_at} variant="short" />
                     {comment.updated_at && " (edited)"}
@@ -162,6 +159,7 @@ function SingleComment({
             {editing ? (
                 <div className={styles.editArea}>
                     <textarea
+                        dir="auto"
                         className={styles.editTextarea}
                         value={editBody}
                         onChange={e => setEditBody(e.target.value)}
@@ -183,9 +181,15 @@ function SingleComment({
                 </div>
             ) : (
                 <>
-                    {bodyContent}
+                    {gifURL ? (
+                        <GifEmbed src={gifURL} imgClassName={styles.gifEmbed} />
+                    ) : (
+                        <div dir="auto" className={styles.body}>
+                            {renderRich(comment.body)}
+                        </div>
+                    )}
                     <MediaGallery media={comment.media} />
-                    <LinkPreviews body={comment.body} authorCreatedAt={comment.author?.created_at} />
+                    {!gifURL && <LinkPreviews body={comment.body} authorCreatedAt={comment.author?.created_at} />}
                 </>
             )}
 

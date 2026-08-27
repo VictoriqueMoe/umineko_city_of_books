@@ -63,7 +63,7 @@ export function AudioAttachment({ src, filename, className }: AudioAttachmentPro
     return (
         <div className={join(styles.wrapper, className)} onClick={e => e.stopPropagation()}>
             {filename && (
-                <span className={styles.filename} title={filename}>
+                <span dir="auto" className={styles.filename} title={filename}>
                     {filename}
                 </span>
             )}

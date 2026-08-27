@@ -100,12 +100,14 @@ export function GalleryDetailPage() {
                     {editing ? (
                         <div className={styles.editSection}>
                             <input
+                                dir="auto"
                                 className={styles.editInput}
                                 value={editName}
                                 onChange={e => setEditName(e.target.value)}
                                 placeholder="Gallery name"
                             />
                             <textarea
+                                dir="auto"
                                 className={styles.editTextarea}
                                 value={editDesc}
                                 onChange={e => setEditDesc(e.target.value)}
@@ -123,9 +125,13 @@ export function GalleryDetailPage() {
                         </div>
                     ) : (
                         <>
-                            <h1 className={styles.name}>{gallery.name}</h1>
+                            <h1 dir="auto" className={styles.name}>
+                                {gallery.name}
+                            </h1>
                             {gallery.description && (
-                                <div className={styles.description}>{renderRich(gallery.description)}</div>
+                                <div dir="auto" className={styles.description}>
+                                    {renderRich(gallery.description)}
+                                </div>
                             )}
                         </>
                     )}
@@ -169,7 +175,9 @@ export function GalleryDetailPage() {
                                 }}
                             />
                             <div className={styles.artInfo}>
-                                <span className={styles.artTitle}>{a.title}</span>
+                                <span dir="auto" className={styles.artTitle}>
+                                    {a.title}
+                                </span>
                                 <span className={styles.artLikes}>&#9829; {a.like_count}</span>
                             </div>
                         </Link>
@@ -193,7 +201,9 @@ export function GalleryDetailPage() {
                                 }}
                             />
                             <div className={styles.manageInfo}>
-                                <span className={styles.artTitle}>{a.title}</span>
+                                <span dir="auto" className={styles.artTitle}>
+                                    {a.title}
+                                </span>
                                 <div className={styles.manageActions}>
                                     <Button variant="secondary" size="small" onClick={() => handleSetCover(a.id)}>
                                         Set as Cover

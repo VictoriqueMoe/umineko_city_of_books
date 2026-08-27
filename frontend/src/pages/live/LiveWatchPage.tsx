@@ -342,12 +342,14 @@ export function LiveWatchPage() {
                 </div>
 
                 <div className={styles.watchMeta}>
-                    <h1 className={styles.watchTitle}>{stream.title}</h1>
+                    <h1 dir="auto" className={styles.watchTitle}>
+                        {stream.title}
+                    </h1>
                     <Link to={`/user/${stream.streamerUsername}`} className={styles.watchStreamer}>
                         {stream.streamerAvatarUrl && (
                             <img src={stream.streamerAvatarUrl} alt="" className={styles.cardAvatar} />
                         )}
-                        <span>{name}</span>
+                        <span dir="auto">{name}</span>
                     </Link>
                     <Link to="/live" className={styles.backLink}>
                         {"←"} All live streams

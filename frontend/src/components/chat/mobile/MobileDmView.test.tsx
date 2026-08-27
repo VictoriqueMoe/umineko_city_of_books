@@ -388,7 +388,7 @@ describe("MobileDmView", () => {
         renderView({ mobileView: "room", draftRecipient });
 
         // then
-        expect(screen.getByText(/Send your first message to Battler\./)).toBeInTheDocument();
+        expect(screen.getByText(/Send your first message to/)).toHaveTextContent("Send your first message to Battler.");
         expect(screen.queryByTestId("dm-messages")).not.toBeInTheDocument();
     });
 
@@ -468,7 +468,7 @@ describe("MobileDmView", () => {
         roomView({ typingNames });
 
         // then
-        expect(screen.getByText("Battler is typing...")).toBeInTheDocument();
+        expect(screen.getByText(/is typing/)).toHaveTextContent("Battler is typing...");
     });
 
     it("hides the typing indicator while the conversation is still a draft", () => {
@@ -479,7 +479,7 @@ describe("MobileDmView", () => {
         renderView({ mobileView: "room", draftRecipient: makeOther(), typingNames });
 
         // then
-        expect(screen.queryByText("Battler is typing...")).not.toBeInTheDocument();
+        expect(screen.queryByText(/is typing/)).not.toBeInTheDocument();
     });
 
     it("points the composer at the open conversation", () => {

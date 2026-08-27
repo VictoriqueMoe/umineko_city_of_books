@@ -1,4 +1,4 @@
-import type { PropsWithChildren } from "react";
+import type { PropsWithChildren, ReactNode } from "react";
 import type { ResultTone } from "./gameRoomHelpers";
 import styles from "./GameOverPanel.module.css";
 
@@ -12,9 +12,9 @@ const TONE_CLASSES: Record<ResultTone, string> = {
 type GameOverPanelProps = PropsWithChildren<{
     isOver: boolean;
     showChildren: boolean;
-    resultText: string;
+    resultText: ReactNode;
     resultTone: ResultTone;
-    reasonText?: string;
+    reasonText?: ReactNode;
 }>;
 
 export function GameOverPanel({

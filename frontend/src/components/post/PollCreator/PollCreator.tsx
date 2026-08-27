@@ -50,6 +50,7 @@ export function PollCreator({ options, onOptionsChange, duration, onDurationChan
                 {options.map((opt, i) => (
                     <div key={i} className={styles.optionRow}>
                         <input
+                            dir="auto"
                             type="text"
                             value={opt}
                             onChange={e => updateOption(i, e.target.value)}

@@ -77,7 +77,7 @@ export function NewGameInvitePage({ gameName, gameType, blurb = DEFAULT_BLURB }:
                             className={`${styles.userRow} ${selected?.id === u.id ? styles.userRowSelected : ""}`}
                             onClick={() => setSelected(u)}
                         >
-                            <span>{u.display_name}</span>
+                            <span dir="auto">{u.display_name}</span>
                             <span className={styles.subline}>@{u.username}</span>
                         </div>
                     ))}
@@ -88,11 +88,15 @@ export function NewGameInvitePage({ gameName, gameType, blurb = DEFAULT_BLURB }:
                         Cancel
                     </Button>
                     <Button variant="primary" onClick={handleInvite} disabled={!selected || inviteMutation.isPending}>
-                        {inviteMutation.isPending
-                            ? "Sending..."
-                            : selected
-                              ? `Invite ${selected.display_name}`
-                              : "Pick a player"}
+                        {inviteMutation.isPending ? (
+                            "Sending..."
+                        ) : selected ? (
+                            <>
+                                Invite <bdi>{selected.display_name}</bdi>
+                            </>
+                        ) : (
+                            "Pick a player"
+                        )}
                     </Button>
                 </div>
             </div>

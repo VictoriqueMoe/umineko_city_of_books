@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import styles from "./TypingIndicator.module.css";
 
 interface TypingIndicatorProps {
@@ -9,13 +10,34 @@ export function TypingIndicator({ names }: TypingIndicatorProps) {
         return null;
     }
 
-    let text: string;
+    let text: ReactNode;
     if (names.length === 1) {
-        text = `${names[0]} is typing...`;
+        text = (
+            <>
+                <bdi>{names[0]}</bdi>
+                {" is typing..."}
+            </>
+        );
     } else if (names.length === 2) {
-        text = `${names[0]} and ${names[1]} are typing...`;
+        text = (
+            <>
+                <bdi>{names[0]}</bdi>
+                {" and "}
+                <bdi>{names[1]}</bdi>
+                {" are typing..."}
+            </>
+        );
     } else if (names.length === 3) {
-        text = `${names[0]}, ${names[1]} and ${names[2]} are typing...`;
+        text = (
+            <>
+                <bdi>{names[0]}</bdi>
+                {", "}
+                <bdi>{names[1]}</bdi>
+                {" and "}
+                <bdi>{names[2]}</bdi>
+                {" are typing..."}
+            </>
+        );
     } else {
         text = "Multiple people are typing...";
     }

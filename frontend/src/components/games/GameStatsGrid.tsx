@@ -29,9 +29,9 @@ export function GameStatsGrid({
     return (
         <div className={styles.statsGrid}>
             <div className={styles.statsHeader}>
-                <span>{slot0Name}</span>
+                <span dir="auto">{slot0Name}</span>
                 <span>{isOver ? "" : "Live stats"}</span>
-                <span>{slot1Name}</span>
+                <span dir="auto">{slot1Name}</span>
             </div>
             {rows.map(row => (
                 <div key={row.label} className={styles.statsRow}>

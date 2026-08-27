@@ -76,7 +76,7 @@ describe("PastGamesPage", () => {
 
         // then
         expect(screen.getByText("Loading...")).toBeInTheDocument();
-        expect(screen.queryByText("Battler vs Beatrice")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: /Battler vs Beatrice/ })).not.toBeInTheDocument();
     });
 
     it("says there is nothing to browse when no game has finished", () => {
@@ -109,7 +109,7 @@ describe("PastGamesPage", () => {
         renderWithProviders(<PastGamesPage />);
 
         // then
-        expect(screen.getByText(/Battler won/)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Battler won/ })).toBeInTheDocument();
     });
 
     it("names the winner of a game the second seat took", () => {
@@ -120,7 +120,7 @@ describe("PastGamesPage", () => {
         renderWithProviders(<PastGamesPage />);
 
         // then
-        expect(screen.getByText(/Beatrice won/)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Beatrice won/ })).toBeInTheDocument();
     });
 
     it("calls a game with no winner a draw", () => {

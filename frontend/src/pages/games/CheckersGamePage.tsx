@@ -48,7 +48,11 @@ export function CheckersGamePage() {
     return (
         <GameRoomShell
             gameName="Checkers"
-            inviteCopy={name => `${name} has invited you to a checkers game. Accept to start - you will play as black.`}
+            inviteCopy={name => (
+                <>
+                    <bdi>{name}</bdi> has invited you to a checkers game. Accept to start - you will play as black.
+                </>
+            )}
             Board={CheckersBoard}
         />
     );

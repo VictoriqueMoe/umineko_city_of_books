@@ -223,7 +223,9 @@ export function RoomsListPage() {
         return (
             <Link key={room.id} to={`/rooms/${room.id}`} className={classes.join(" ")}>
                 <div className={styles.cardHeader}>
-                    <h3 className={styles.cardTitle}>{room.name}</h3>
+                    <h3 dir="auto" className={styles.cardTitle}>
+                        {room.name}
+                    </h3>
                     <div className={styles.cardBadges}>
                         {room.is_system && <span className={styles.systemBadge}>System</span>}
                         {(room.voice_count ?? 0) > 0 && (
@@ -261,7 +263,11 @@ export function RoomsListPage() {
                         )}
                     </div>
                 </div>
-                {room.description && <p className={styles.cardDesc}>{room.description}</p>}
+                {room.description && (
+                    <p dir="auto" className={styles.cardDesc}>
+                        {room.description}
+                    </p>
+                )}
                 {room.tags && room.tags.length > 0 && (
                     <div className={styles.cardTags}>
                         {room.tags.map(t => (
@@ -340,7 +346,9 @@ export function RoomsListPage() {
         return (
             <div key={room.id} className={classes.join(" ")}>
                 <div className={styles.cardHeader}>
-                    <h3 className={styles.cardTitle}>{room.name}</h3>
+                    <h3 dir="auto" className={styles.cardTitle}>
+                        {room.name}
+                    </h3>
                     <div className={styles.cardBadges}>
                         {(room.voice_count ?? 0) > 0 && (
                             <span className={styles.voiceBadge} title="Voice chat active">
@@ -361,7 +369,11 @@ export function RoomsListPage() {
                         )}
                     </div>
                 </div>
-                {room.description && <p className={styles.cardDesc}>{room.description}</p>}
+                {room.description && (
+                    <p dir="auto" className={styles.cardDesc}>
+                        {room.description}
+                    </p>
+                )}
                 {room.tags && room.tags.length > 0 && (
                     <div className={styles.cardTags}>
                         {room.tags.map(t => (

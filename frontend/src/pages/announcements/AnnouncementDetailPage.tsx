@@ -69,13 +69,19 @@ export function AnnouncementDetailPage() {
             </span>
 
             <div className={styles.detail}>
-                <h1 className={styles.detailTitle}>{announcement.title}</h1>
+                <h1 dir="auto" className={styles.detailTitle}>
+                    {announcement.title}
+                </h1>
                 <div className={styles.detailMeta}>
                     <ProfileLink user={announcement.author} size="small" />
                     <RelativeTimestamp value={announcement.created_at} />
                     {announcement.updated_at !== announcement.created_at && <span>(edited)</span>}
                 </div>
-                <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }} />
+                <div
+                    dir="auto"
+                    className={styles.body}
+                    dangerouslySetInnerHTML={{ __html: renderMarkdown(announcement.body) }}
+                />
             </div>
 
             <CommentsSection

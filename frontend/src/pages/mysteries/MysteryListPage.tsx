@@ -222,7 +222,9 @@ export function MysteryListPage() {
                                     to={`/mystery/${m.id}`}
                                     className={`${styles.card}${m.solved ? ` ${styles.cardSolved}` : ""}`}
                                 >
-                                    <div className={styles.cardTitle}>{m.title}</div>
+                                    <div dir="auto" className={styles.cardTitle}>
+                                        {m.title}
+                                    </div>
                                     <div className={styles.cardMeta}>
                                         <ProfileLink user={m.author} size="small" clickable={false} />
                                         <RelativeTimestamp value={m.created_at} />
@@ -257,7 +259,11 @@ export function MysteryListPage() {
                                         </span>
                                     </div>
                                     <div className={styles.cardTimer}>
-                                        {m.winner && <span>Winner: {m.winner.display_name}</span>}
+                                        {m.winner && (
+                                            <span>
+                                                Winner: <bdi>{m.winner.display_name}</bdi>
+                                            </span>
+                                        )}
                                         <span style={{ color: timerColour(m.created_at, m.solved) }}>
                                             {m.solved ? "Solved in " : m.paused ? "Paused at " : "Unsolved for "}
                                             <LiveTimer
@@ -268,7 +274,7 @@ export function MysteryListPage() {
                                             />
                                         </span>
                                     </div>
-                                    <p className={styles.cardPreview}>
+                                    <p dir="auto" className={styles.cardPreview}>
                                         {m.body.length > 200 ? m.body.slice(0, 200) + "..." : m.body}
                                     </p>
                                 </Link>
@@ -344,6 +350,7 @@ export function MysteryListPage() {
                                                     {leaderboard.length > 0 && entry.score === leaderboard[0].score && (
                                                         <div className={styles.topDetectiveRow}>
                                                             <span
+                                                                dir="auto"
                                                                 className={styles.topDetectiveBadge}
                                                                 title="Ranked #1 in mysteries"
                                                             >
@@ -450,6 +457,7 @@ export function MysteryListPage() {
                                                         entry.score === gmLeaderboard[0].score && (
                                                             <div className={styles.topDetectiveRow}>
                                                                 <span
+                                                                    dir="auto"
                                                                     className={styles.topGMBadge}
                                                                     title="Top ranked Game Master"
                                                                 >

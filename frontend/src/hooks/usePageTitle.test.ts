@@ -3,6 +3,10 @@ import { describe, expect, it } from "vitest";
 import { providerWrapper } from "../test-utils/render";
 import { usePageTitle } from "./usePageTitle";
 
+function isolated(title: string): string {
+    return `${String.fromCharCode(0x2068)}${title}${String.fromCharCode(0x2069)}`;
+}
+
 describe("usePageTitle", () => {
     it("appends the site name to the given title", () => {
         // given
@@ -12,7 +16,7 @@ describe("usePageTitle", () => {
         renderHook(() => usePageTitle("Theories"), { wrapper });
 
         // then
-        expect(document.title).toBe("Theories | When They Cry");
+        expect(document.title).toBe(`${isolated("Theories")} | When They Cry`);
     });
 
     it("shows the site name on its own when no title is given", () => {
@@ -48,7 +52,7 @@ describe("usePageTitle", () => {
         renderHook(() => usePageTitle("Theories"), { wrapper });
 
         // then
-        expect(document.title).toBe("(3) Theories | When They Cry");
+        expect(document.title).toBe(`(3) ${isolated("Theories")} | When They Cry`);
     });
 
     it("prefixes the unread count even without a page title", () => {
@@ -76,7 +80,7 @@ describe("usePageTitle", () => {
         renderHook(() => usePageTitle("Theories"), { wrapper });
 
         // then
-        expect(document.title).toBe("Theories | When They Cry");
+        expect(document.title).toBe(`${isolated("Theories")} | When They Cry`);
     });
 
     it("retitles the document when the page title changes", () => {
@@ -91,7 +95,7 @@ describe("usePageTitle", () => {
         rerender({ title: "Favourites" });
 
         // then
-        expect(document.title).toBe("Favourites | When They Cry");
+        expect(document.title).toBe(`${isolated("Favourites")} | When They Cry`);
     });
 
     it("uses the site name the provider supplies", () => {
@@ -102,6 +106,6 @@ describe("usePageTitle", () => {
         renderHook(() => usePageTitle("Theories"), { wrapper });
 
         // then
-        expect(document.title).toBe("Theories | City of Books");
+        expect(document.title).toBe(`${isolated("Theories")} | City of Books`);
     });
 });

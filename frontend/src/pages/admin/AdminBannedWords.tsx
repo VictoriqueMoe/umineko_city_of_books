@@ -206,7 +206,7 @@ export function AdminBannedWords() {
                                         {rule.action}
                                     </span>
                                 </td>
-                                <td>{rule.created_by_name || "\u2014"}</td>
+                                <td dir="auto">{rule.created_by_name || "\u2014"}</td>
                                 <td className={styles.date}>{formatDate(rule.created_at)}</td>
                                 <td className={styles.actions}>
                                     <Button

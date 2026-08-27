@@ -515,7 +515,7 @@ describe("JournalEntryEditorPage", () => {
         renderNew(author);
 
         // when
-        await user.click(screen.getByText("← Back to Rokkenjima Notes"));
+        await user.click(screen.getByText(/← Back to/));
 
         // then
         expect(navigate).toHaveBeenCalledWith("/journals/journal-1");

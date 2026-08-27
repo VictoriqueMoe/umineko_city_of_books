@@ -27,6 +27,7 @@ func (t *TheoryStatus) Scan(src any) error {
 	return nil
 }
 
+//goland:noinspection GoMixedReceiverTypes
 func (t TheoryStatus) Value() (driver.Value, error) {
 	return string(t), nil
 }

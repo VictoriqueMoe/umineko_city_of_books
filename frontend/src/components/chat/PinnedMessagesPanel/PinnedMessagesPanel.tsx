@@ -125,7 +125,11 @@ export function PinnedMessagesPanel({
                                             />
                                         </div>
                                     </div>
-                                    {m.body && <div className={styles.pinBody}>{renderRich(m.body)}</div>}
+                                    {m.body && (
+                                        <div dir="auto" className={styles.pinBody}>
+                                            {renderRich(m.body)}
+                                        </div>
+                                    )}
                                     {m.media && m.media.length > 0 && (
                                         <div className={styles.pinMedia}>
                                             {m.media.map(media =>

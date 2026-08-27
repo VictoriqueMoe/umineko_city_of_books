@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-import type { PostComment, User, UserProfile } from "../../../types/api";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { LinkPreview, PostComment, User, UserProfile } from "../../../types/api";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { CommentItem } from "./CommentItem";
@@ -15,6 +15,8 @@ const { likeComment, unlikeComment, deleteComment, updateComment, createComment,
     uploadMedia: vi.fn(),
 }));
 
+const { previews } = vi.hoisted(() => ({ previews: { byURL: new Map<string, LinkPreview>() } }));
+
 vi.mock("../../../api/mutations/post", () => ({
     useLikeComment: () => ({ mutateAsync: likeComment }),
     useUnlikeComment: () => ({ mutateAsync: unlikeComment }),
@@ -22,6 +24,10 @@ vi.mock("../../../api/mutations/post", () => ({
     useUpdateComment: () => ({ mutateAsync: updateComment }),
     useCreateComment: () => ({ mutateAsync: createComment }),
     useUploadCommentMedia: () => ({ mutateAsync: uploadMedia }),
+}));
+
+vi.mock("../../../api/queries/linkPreview", () => ({
+    useLinkPreview: (url: string) => ({ preview: previews.byURL.get(url), loading: false }),
 }));
 
 const EMPTY_HEART = "♡";
@@ -79,6 +85,10 @@ function ownerViewer(): UserProfile {
     return makeUser({ id: AUTHOR.id, username: AUTHOR.username, display_name: AUTHOR.display_name });
 }
 
+beforeEach(() => {
+    previews.byURL.clear();
+});
+
 describe("CommentItem", () => {
     it("shows the author, the body and how long ago it was written", () => {
         // given
@@ -115,6 +125,18 @@ describe("CommentItem", () => {
 
         // then
         expect(screen.getByAltText("GIF")).toHaveAttribute("src", "https://media.giphy.com/media/abc123/beato.gif");
+    });
+
+    it("does not repeat the GIF as a link preview when the body is nothing but a GIF link", () => {
+        // given
+        const gif = "https://media.giphy.com/media/abc123/beato.gif";
+        previews.byURL.set(gif, { url: gif, type: "image" } as LinkPreview);
+
+        // when
+        const { container } = setup({ comment: makeComment({ body: gif }) });
+
+        // then
+        expect(container.querySelectorAll(`img[src="${gif}"]`)).toHaveLength(1);
     });
 
     it("keeps the like control disabled for signed out viewers", () => {

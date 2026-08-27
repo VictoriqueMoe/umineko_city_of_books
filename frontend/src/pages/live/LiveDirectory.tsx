@@ -129,8 +129,12 @@ function StreamCard({ stream }: { stream: LiveStream }) {
                     <img src={stream.streamerAvatarUrl} alt="" className={styles.cardAvatar} />
                 )}
                 <div className={styles.cardText}>
-                    <h3 className={styles.cardTitle}>{stream.title}</h3>
-                    <p className={styles.cardStreamer}>{name}</p>
+                    <h3 dir="auto" className={styles.cardTitle}>
+                        {stream.title}
+                    </h3>
+                    <p dir="auto" className={styles.cardStreamer}>
+                        {name}
+                    </p>
                 </div>
             </div>
         </Link>

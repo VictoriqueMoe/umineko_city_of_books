@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useSecondsTick } from "../../hooks/useSecondsTick";
 import type { GameRoom, GameRoomPlayer } from "../../types/api";
 
@@ -34,7 +34,7 @@ export function gameResultLabel(
     room: GameRoom,
     viewerId: string | null,
     isSpectator: boolean,
-): { text: string; tone: ResultTone } {
+): { text: ReactNode; tone: ResultTone } {
     if (room.status !== "finished" && room.status !== "abandoned") {
         return { text: "", tone: "neutral" };
     }
@@ -46,7 +46,14 @@ export function gameResultLabel(
     }
     if (isSpectator || !viewerId) {
         const winner = room.players.find(p => p.user_id === room.winner_user_id);
-        return { text: `${winner?.display_name ?? "?"} won`, tone: "neutral" };
+        return {
+            text: (
+                <>
+                    <bdi>{winner?.display_name ?? "?"}</bdi> won
+                </>
+            ),
+            tone: "neutral",
+        };
     }
     if (room.winner_user_id === viewerId) {
         return { text: "You won", tone: "win" };

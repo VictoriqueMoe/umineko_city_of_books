@@ -485,6 +485,14 @@
     font-size: 1.05rem;
 }
 
+.chapterBody p,
+.chapterBody h2,
+.chapterBody h3,
+.chapterBody li,
+.chapterBody blockquote {
+    unicode-bidi: plaintext;
+}
+
 .chapterBody p {
     margin: 0 0 1em;
 }
@@ -504,13 +512,13 @@
 }
 
 .chapterBody blockquote {
-    border-left: 3px solid rgba(var(--gold-rgb), 0.4);
+    border-inline-start: 3px solid rgba(var(--gold-rgb), 0.4);
     padding: 0.5rem 1rem;
     margin: 1em 0;
     color: var(--text-muted);
     font-style: italic;
     background: rgba(var(--gold-rgb), 0.03);
-    border-radius: 0 4px 4px 0;
+    border-radius: 4px;
 }
 
 .chapterBody a {
@@ -525,7 +533,7 @@
 
 .chapterBody ul,
 .chapterBody ol {
-    padding-left: 1.5em;
+    padding-inline-start: 1.5em;
     margin: 0.75em 0;
 }
 

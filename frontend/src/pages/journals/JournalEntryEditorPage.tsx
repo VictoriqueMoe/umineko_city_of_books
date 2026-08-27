@@ -189,7 +189,7 @@ export function JournalEntryEditorPage() {
     return (
         <div className={styles.page}>
             <span className={styles.back} onClick={() => navigate(`/journals/${journalId}`)}>
-                &larr; Back to {journal.title}
+                &larr; Back to <bdi>{journal.title}</bdi>
             </span>
             <h2 className={styles.heading}>{isEdit ? "Edit entry" : "New entry"}</h2>
 

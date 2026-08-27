@@ -65,9 +65,14 @@ export function AdminRulesPage() {
                     </button>
                 </div>
                 {showPreview ? (
-                    <div className={styles.preview} dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />
+                    <div
+                        dir="auto"
+                        className={styles.preview}
+                        dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}
+                    />
                 ) : (
                     <textarea
+                        dir="auto"
                         className={styles.textarea}
                         placeholder="Write the rules in Markdown..."
                         value={body}

@@ -39,14 +39,18 @@ export function AnnouncementsPage() {
                         className={`${styles.card}${a.pinned ? ` ${styles.cardPinned}` : ""}`}
                     >
                         <div className={styles.cardHeader}>
-                            <span className={styles.cardTitle}>{a.title}</span>
+                            <span dir="auto" className={styles.cardTitle}>
+                                {a.title}
+                            </span>
                             {a.pinned && <span className={styles.pinnedBadge}>Pinned</span>}
                         </div>
                         <div className={styles.cardMeta}>
                             <ProfileLink user={a.author} size="small" clickable={false} />
                             <RelativeTimestamp value={a.created_at} />
                         </div>
-                        <p className={styles.cardPreview}>{preview(a.body)}</p>
+                        <p dir="auto" className={styles.cardPreview}>
+                            {preview(a.body)}
+                        </p>
                     </Link>
                 ))}
             </div>

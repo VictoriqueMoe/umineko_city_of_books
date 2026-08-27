@@ -262,7 +262,7 @@ describe("MysteryDetailPage", () => {
         renderPage(playerUser);
 
         // then
-        expect(screen.getByText("Mystery solved! Winner: Battler")).toBeInTheDocument();
+        expect(screen.getByText(/Mystery solved! Winner:/)).toHaveTextContent("Mystery solved! Winner: Battler");
         expect(screen.getByText("Solved")).toBeInTheDocument();
     });
 

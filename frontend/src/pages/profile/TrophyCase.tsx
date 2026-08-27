@@ -62,7 +62,9 @@ export function TrophyCase({ profileUserId, profileSecrets }: TrophyCaseProps) {
                                 <span className={styles.icon} style={{ color: t.color }}>
                                     {t.icon}
                                 </span>
-                                <span className={styles.title}>{t.title}</span>
+                                <span dir="auto" className={styles.title}>
+                                    {t.title}
+                                </span>
                             </>
                         );
                         if (isOwner) {

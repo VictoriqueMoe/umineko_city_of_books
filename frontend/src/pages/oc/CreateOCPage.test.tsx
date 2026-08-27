@@ -386,7 +386,7 @@ describe("CreateOCPage gallery staging", () => {
         await user.click(screen.getByRole("button", { name: "Add to gallery" }));
 
         // then
-        expect(screen.getByText("in the rose garden - pending upload")).toBeInTheDocument();
+        expect(screen.getByText(/pending upload/)).toHaveTextContent("in the rose garden - pending upload");
         expect(screen.getByPlaceholderText("Optional caption")).toHaveValue("");
         expect(screen.getByRole("button", { name: "Add to gallery" })).toBeDisabled();
     });
@@ -401,7 +401,7 @@ describe("CreateOCPage gallery staging", () => {
         await user.click(screen.getByRole("button", { name: "Add to gallery" }));
 
         // then
-        expect(screen.getByText("(no caption) - pending upload")).toBeInTheDocument();
+        expect(screen.getByText(/pending upload/)).toHaveTextContent("(no caption) - pending upload");
     });
 
     it("unstages a gallery image again", async () => {
@@ -415,7 +415,7 @@ describe("CreateOCPage gallery staging", () => {
         await user.click(screen.getByRole("button", { name: "Remove" }));
 
         // then
-        expect(screen.queryByText("(no caption) - pending upload")).not.toBeInTheDocument();
+        expect(screen.queryByText(/pending upload/)).not.toBeInTheDocument();
     });
 
     it("uploads every staged gallery image against the new character", async () => {

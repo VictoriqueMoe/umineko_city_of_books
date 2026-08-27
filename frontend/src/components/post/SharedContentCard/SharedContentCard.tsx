@@ -68,7 +68,11 @@ function PostContent({ content }: { content: SharedContentPreview }) {
     return (
         <>
             {content.author && <ProfileLink user={content.author} size="small" clickable={false} />}
-            {content.body && <p className={styles.body}>{truncate(content.body, 200)}</p>}
+            {content.body && (
+                <p dir="auto" className={styles.body}>
+                    {truncate(content.body, 200)}
+                </p>
+            )}
             <SharedMediaGrid content={content} />
             <div className={styles.stats}>
                 {content.like_count != null && content.like_count > 0 && (
@@ -97,7 +101,11 @@ function ArtContent({ content }: { content: SharedContentPreview }) {
                 />
             )}
             <div className={styles.info}>
-                {content.title && <span className={styles.title}>{content.title}</span>}
+                {content.title && (
+                    <span dir="auto" className={styles.title}>
+                        {content.title}
+                    </span>
+                )}
                 {content.author && <ProfileLink user={content.author} size="small" clickable={false} />}
             </div>
         </div>
@@ -119,7 +127,11 @@ function ShipContent({ content }: { content: SharedContentPreview }) {
                 />
             )}
             <div className={styles.info}>
-                {content.title && <span className={styles.title}>{content.title}</span>}
+                {content.title && (
+                    <span dir="auto" className={styles.title}>
+                        {content.title}
+                    </span>
+                )}
                 {content.author && <ProfileLink user={content.author} size="small" clickable={false} />}
                 {content.vote_score != null && <span className={styles.badge}>Score: {content.vote_score}</span>}
             </div>
@@ -130,7 +142,11 @@ function ShipContent({ content }: { content: SharedContentPreview }) {
 function MysteryContent({ content }: { content: SharedContentPreview }) {
     return (
         <div className={styles.info}>
-            {content.title && <span className={styles.title}>{content.title}</span>}
+            {content.title && (
+                <span dir="auto" className={styles.title}>
+                    {content.title}
+                </span>
+            )}
             <div className={styles.badges}>
                 {content.difficulty && <span className={styles.badge}>{content.difficulty}</span>}
                 <span className={styles.badge}>{content.solved ? "Solved" : "Open"}</span>
@@ -143,7 +159,11 @@ function MysteryContent({ content }: { content: SharedContentPreview }) {
 function TheoryContent({ content }: { content: SharedContentPreview }) {
     return (
         <div className={styles.info}>
-            {content.title && <span className={styles.title}>{content.title}</span>}
+            {content.title && (
+                <span dir="auto" className={styles.title}>
+                    {content.title}
+                </span>
+            )}
             <div className={styles.badges}>
                 {content.series && <span className={styles.badge}>{content.series}</span>}
                 {content.credibility_score != null && (
@@ -170,7 +190,11 @@ function FanficContent({ content }: { content: SharedContentPreview }) {
                 />
             )}
             <div className={styles.info}>
-                {content.title && <span className={styles.title}>{content.title}</span>}
+                {content.title && (
+                    <span dir="auto" className={styles.title}>
+                        {content.title}
+                    </span>
+                )}
                 <div className={styles.badges}>
                     {content.series && <span className={styles.badge}>{content.series}</span>}
                     {content.rating && <span className={styles.badge}>{content.rating}</span>}

@@ -362,7 +362,7 @@ describe("ProfilePage header", () => {
 
         // then
         expect(screen.getByText("This user has been banned")).toBeInTheDocument();
-        expect(screen.getByText("Reason: Endless witch hunting")).toBeInTheDocument();
+        expect(screen.getByText(/Reason:/)).toHaveTextContent("Reason: Endless witch hunting");
     });
 
     it("leaves the ban banner off an ordinary profile", () => {
@@ -1055,7 +1055,7 @@ describe("ProfilePage tabs", () => {
 
         // then
         expect(screen.getByText("Solved")).toBeInTheDocument();
-        expect(screen.getByText(/Winner: Ange/)).toBeInTheDocument();
+        expect(screen.getByText(/Winner:/)).toHaveTextContent("Winner: Ange");
     });
 
     it("counts the words and chapters of each fanfiction", async () => {

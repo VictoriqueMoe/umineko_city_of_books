@@ -27,9 +27,12 @@ export function SnakesAndLaddersGamePage() {
     return (
         <GameRoomShell
             gameName="Snakes &amp; Ladders"
-            inviteCopy={name =>
-                `${name} has invited you to a game of snakes and ladders. Accept to start - you both race to square 100.`
-            }
+            inviteCopy={name => (
+                <>
+                    <bdi>{name}</bdi> has invited you to a game of snakes and ladders. Accept to start - you both race
+                    to square 100.
+                </>
+            )}
             Board={SnakesAndLaddersBoard}
         />
     );

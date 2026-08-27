@@ -22,7 +22,7 @@ describe("TypingIndicator", () => {
         render(<TypingIndicator names={names} />);
 
         // then
-        expect(screen.getByText("Beatrice is typing...")).toBeInTheDocument();
+        expect(screen.getByText(/is typing/)).toHaveTextContent("Beatrice is typing...");
     });
 
     it("joins two typists with and", () => {
@@ -33,7 +33,7 @@ describe("TypingIndicator", () => {
         render(<TypingIndicator names={names} />);
 
         // then
-        expect(screen.getByText("Beatrice and Battler are typing...")).toBeInTheDocument();
+        expect(screen.getByText(/are typing/)).toHaveTextContent("Beatrice and Battler are typing...");
     });
 
     it("comma separates three typists before the final and", () => {
@@ -44,7 +44,7 @@ describe("TypingIndicator", () => {
         render(<TypingIndicator names={names} />);
 
         // then
-        expect(screen.getByText("Beatrice, Battler and Ange are typing...")).toBeInTheDocument();
+        expect(screen.getByText(/are typing/)).toHaveTextContent("Beatrice, Battler and Ange are typing...");
     });
 
     it("collapses to a generic phrase once there are more than three typists", () => {

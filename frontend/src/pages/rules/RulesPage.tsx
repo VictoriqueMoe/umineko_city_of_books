@@ -23,7 +23,7 @@ export function RulesPage() {
         <div className={styles.page}>
             <div className={styles.detail}>
                 <h1 className={styles.detailTitle}>Rules</h1>
-                <div className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />
+                <div dir="auto" className={styles.body} dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />
             </div>
         </div>
     );

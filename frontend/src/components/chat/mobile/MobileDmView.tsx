@@ -113,7 +113,9 @@ export function MobileDmView({ controller }: { controller: DmController }) {
                                 {avatarUser ? (
                                     <ProfileLink user={avatarUser} size="small" clickable={false} />
                                 ) : (
-                                    <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
+                                    <span dir="auto" className={styles.roomName}>
+                                        {getRoomDisplayName(room, user)}
+                                    </span>
                                 )}
                                 {room.unread && <span className={styles.unreadDot} aria-label="unread" />}
                             </button>
@@ -143,7 +145,9 @@ export function MobileDmView({ controller }: { controller: DmController }) {
                     {headerUser ? (
                         <ProfileLink user={headerUser} size="small" />
                     ) : (
-                        <span className={styles.topTitle}>{headerName}</span>
+                        <span dir="auto" className={styles.topTitle}>
+                            {headerName}
+                        </span>
                     )}
                 </div>
                 {activeRoom ? (
@@ -186,7 +190,9 @@ export function MobileDmView({ controller }: { controller: DmController }) {
                 />
             ) : (
                 <div className={styles.draftEmpty}>
-                    Send your first message to {draftRecipient?.display_name}.
+                    <span>
+                        Send your first message to <bdi>{draftRecipient?.display_name}</bdi>.
+                    </span>
                     <div ref={messagesEndRef} />
                 </div>
             )}

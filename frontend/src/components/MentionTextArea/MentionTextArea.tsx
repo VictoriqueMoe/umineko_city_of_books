@@ -358,12 +358,14 @@ export function MentionTextArea({
             <div className={styles.editArea}>
                 <div
                     ref={backdropRef}
+                    dir="auto"
                     className={`${styles.backdrop} ${className || ""}`}
                     style={{ minHeight: `${rows * 1.5}em` }}
                     dangerouslySetInnerHTML={{ __html: highlightedValue }}
                 />
                 <textarea
                     ref={textareaRef}
+                    dir="auto"
                     className={`${styles.textarea} ${className || ""}`}
                     style={{ "--rows": rows } as React.CSSProperties}
                     value={value}
@@ -396,7 +398,9 @@ export function MentionTextArea({
                                 </span>
                             )}
                             <div className={styles.userInfo}>
-                                <span className={styles.displayName}>{user.display_name}</span>
+                                <span dir="auto" className={styles.displayName}>
+                                    {user.display_name}
+                                </span>
                                 <span className={styles.username}>@{user.username}</span>
                                 {followLabel(user) && <span className={styles.followStatus}>{followLabel(user)}</span>}
                             </div>

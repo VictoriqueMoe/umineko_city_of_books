@@ -70,7 +70,7 @@ export function HuntPanel({ secretId, isOpen, onClose }: HuntPanelProps) {
                 )}
 
                 {state.solved ? (
-                    <div className={styles.success}>
+                    <div dir="auto" className={styles.success}>
                         {secret.solved_message || "You solved the hunt. The reward has been added to your profile."}
                     </div>
                 ) : state.closed ? (
@@ -80,7 +80,11 @@ export function HuntPanel({ secretId, isOpen, onClose }: HuntPanelProps) {
                     </div>
                 ) : (
                     <>
-                        {secret.pointer && <div className={styles.pointer}>{secret.pointer}</div>}
+                        {secret.pointer && (
+                            <div dir="auto" className={styles.pointer}>
+                                {secret.pointer}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit} className={shake ? styles.shake : undefined}>
                             <div className={styles.inputRow}>
@@ -108,7 +112,9 @@ export function HuntPanel({ secretId, isOpen, onClose }: HuntPanelProps) {
                         </form>
 
                         {!state.allPiecesCollected && secret.pending_hint && (
-                            <div className={styles.hint}>{secret.pending_hint}</div>
+                            <div dir="auto" className={styles.hint}>
+                                {secret.pending_hint}
+                            </div>
                         )}
                     </>
                 )}

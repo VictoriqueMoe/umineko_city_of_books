@@ -196,7 +196,9 @@ export function WatchPartyModal({
                 <header className={styles.header}>
                     <div className={styles.headerTitle}>
                         <span className={styles.headerLabel}>Watch party</span>
-                        <span className={styles.headerName}>{session.title || "Untitled party"}</span>
+                        <span dir="auto" className={styles.headerName}>
+                            {session.title || "Untitled party"}
+                        </span>
                     </div>
                     <div className={styles.headerActions}>
                         {hasControl && (

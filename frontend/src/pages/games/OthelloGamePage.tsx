@@ -27,7 +27,11 @@ export function OthelloGamePage() {
     return (
         <GameRoomShell
             gameName="Othello"
-            inviteCopy={name => `${name} has invited you to an othello game. Accept to start - you will play as white.`}
+            inviteCopy={name => (
+                <>
+                    <bdi>{name}</bdi> has invited you to an othello game. Accept to start - you will play as white.
+                </>
+            )}
             Board={OthelloBoard}
         />
     );

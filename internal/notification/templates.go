@@ -56,7 +56,7 @@ type EmailChangedEmailData struct {
 func render(name, subject string, data any) (string, string) {
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
-		return subject, fmt.Sprintf("<p>%s</p>", subject)
+		return subject, fmt.Sprintf(`<p dir="auto">%s</p>`, subject)
 	}
 
 	return subject, buf.String()

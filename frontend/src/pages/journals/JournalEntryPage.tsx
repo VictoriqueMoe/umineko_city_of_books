@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { useJournal, useJournalEntry } from "../../api/queries/journal";
 import { useAuth } from "../../hooks/useAuth";
@@ -27,6 +28,17 @@ import styles from "./JournalEntryPage.module.css";
 function entryHeading(number: number, title?: string | null): string {
     if (title && title.trim() !== "") {
         return `Entry ${number}: ${title}`;
+    }
+    return `Entry ${number}`;
+}
+
+function entryHeadingNode(number: number, title?: string | null): ReactNode {
+    if (title && title.trim() !== "") {
+        return (
+            <>
+                Entry {number}: <bdi>{title}</bdi>
+            </>
+        );
     }
     return `Entry ${number}`;
 }
@@ -117,7 +129,7 @@ export function JournalEntryPage() {
     return (
         <div className={styles.page}>
             <span className={styles.back} onClick={() => navigate(`/journals/${journalId}`)}>
-                &larr; Back to {journal.title}
+                &larr; Back to <bdi>{journal.title}</bdi>
             </span>
 
             <div className={styles.entry}>
@@ -126,8 +138,8 @@ export function JournalEntryPage() {
                     <RelativeTimestamp value={entry.created_at} />
                     {entry.updated_at && entry.updated_at !== entry.created_at && <span>(edited)</span>}
                 </div>
-                <h1 className={styles.title}>
-                    {entryHeading(entry.entry_number, entry.title)}
+                <h1 dir="auto" className={styles.title}>
+                    {entryHeadingNode(entry.entry_number, entry.title)}
                     {entry.is_draft && <span className={styles.draftBadge}>Draft</span>}
                 </h1>
 
@@ -145,7 +157,11 @@ export function JournalEntryPage() {
                     if (gifURL) {
                         return <GifEmbed src={gifURL} />;
                     }
-                    return <div className={styles.body}>{renderRich(entry.body)}</div>;
+                    return (
+                        <div dir="auto" className={styles.body}>
+                            {renderRich(entry.body)}
+                        </div>
+                    );
                 })()}
 
                 <MediaGallery media={entry.media} />

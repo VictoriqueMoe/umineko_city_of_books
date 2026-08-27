@@ -160,7 +160,7 @@ describe("GamesListPage", () => {
         renderPage();
 
         // then
-        expect(screen.getByText("Beatrice invited you to Chess")).toBeInTheDocument();
+        expect(screen.getByText(/invited you to/)).toHaveTextContent("Beatrice invited you to Chess");
         expect(screen.getByRole("button", { name: "View and accept" })).toBeInTheDocument();
     });
 
@@ -172,7 +172,7 @@ describe("GamesListPage", () => {
         renderPage();
 
         // then
-        expect(screen.getByText("Othello vs Beatrice")).toBeInTheDocument();
+        expect(screen.getByText(/^Othello vs/)).toHaveTextContent("Othello vs Beatrice");
         expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
         expect(screen.getByText("No pending invites.")).toBeInTheDocument();
     });
@@ -352,7 +352,7 @@ describe("GamesListPage", () => {
         renderPage();
 
         // then
-        expect(screen.getByText("Chess vs Unknown")).toBeInTheDocument();
+        expect(screen.getByText(/^Chess vs/)).toHaveTextContent("Chess vs Unknown");
     });
 
     it("links through to the live games page", () => {

@@ -520,7 +520,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
                                                 }
                                                 onClick={onClose}
                                             >
-                                                {bot.display_name}
+                                                <bdi>{bot.display_name}</bdi>
                                             </NavLink>
                                         ))}
                                     </div>

@@ -69,7 +69,7 @@ describe("LiveGamesPage", () => {
 
         // then
         expect(screen.getByText("Loading...")).toBeInTheDocument();
-        expect(screen.queryByText("Battler vs Beatrice")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: /Battler vs Beatrice/ })).not.toBeInTheDocument();
     });
 
     it("says nothing is running when no game is live", () => {
@@ -102,7 +102,7 @@ describe("LiveGamesPage", () => {
         renderWithProviders(<LiveGamesPage />);
 
         // then
-        expect(screen.getByText("Battler vs Beatrice")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Battler vs Beatrice/ })).toBeInTheDocument();
         expect(screen.getByText(/othello/)).toBeInTheDocument();
         expect(screen.getByText(/9 watching/)).toBeInTheDocument();
         expect(screen.getByRole("link", { name: /Battler vs Beatrice/ })).toHaveAttribute(
@@ -119,7 +119,7 @@ describe("LiveGamesPage", () => {
         renderWithProviders(<LiveGamesPage />);
 
         // then
-        expect(screen.getByText("? vs Beatrice")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /\? vs Beatrice/ })).toBeInTheDocument();
     });
 
     it("refreshes the live list when the page mounts", () => {

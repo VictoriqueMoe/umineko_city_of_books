@@ -200,7 +200,7 @@ export function ShipDetailPage() {
                                                 key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
                                                 className={characterPillClass(c.series)}
                                             >
-                                                {c.character_name}
+                                                <span dir="auto">{c.character_name}</span>
                                                 <button
                                                     type="button"
                                                     className={styles.removeCharBtn}
@@ -243,7 +243,9 @@ export function ShipDetailPage() {
                                 }}
                             >
                                 <div style={{ flex: 1 }}>
-                                    <h1 className={styles.detailTitle}>{ship.title}</h1>
+                                    <h1 dir="auto" className={styles.detailTitle}>
+                                        {ship.title}
+                                    </h1>
                                     <div className={styles.detailMeta}>
                                         <ProfileLink user={ship.author} size="small" />
                                         <RelativeTimestamp value={ship.created_at} />
@@ -266,7 +268,9 @@ export function ShipDetailPage() {
                             </div>
 
                             {ship.description && (
-                                <div className={styles.detailDescription}>{renderRich(ship.description)}</div>
+                                <div dir="auto" className={styles.detailDescription}>
+                                    {renderRich(ship.description)}
+                                </div>
                             )}
                         </>
                     )}

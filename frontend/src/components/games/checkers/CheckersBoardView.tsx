@@ -5,7 +5,7 @@ import { DisconnectBanner } from "../DisconnectBanner.tsx";
 import { GameOverPanel } from "../GameOverPanel.tsx";
 import { GamePlayerBar } from "../GamePlayerBar.tsx";
 import { GameStatsGrid } from "../GameStatsGrid.tsx";
-import { gameResultLabel, getMySlot, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers.ts";
+import { gameResultLabel, getMySlot, performResignWithConfirm, useDisconnectForfeit } from "../gameRoomHelpers";
 import shell from "../boardShell.module.css";
 import { DrawOfferBanner } from "../DrawOfferBanner";
 import styles from "./CheckersBoardView.module.css";

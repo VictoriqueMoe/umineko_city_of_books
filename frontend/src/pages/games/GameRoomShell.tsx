@@ -98,7 +98,9 @@ export function GameRoomShell({ gameName, inviteCopy, Board }: GameRoomShellProp
                 {isInvitee ? (
                     <p>{inviteCopy(opponent?.display_name ?? "Someone")}</p>
                 ) : (
-                    <p>Waiting for {opponent?.display_name ?? "opponent"} to accept.</p>
+                    <p>
+                        Waiting for <bdi>{opponent?.display_name ?? "opponent"}</bdi> to accept.
+                    </p>
                 )}
                 <div className={styles.actions}>
                     {isInvitee && (

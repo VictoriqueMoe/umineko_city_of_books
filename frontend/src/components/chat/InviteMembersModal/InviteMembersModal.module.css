@@ -42,6 +42,7 @@
 }
 
 .selectedChip {
+    unicode-bidi: plaintext;
     background: rgba(var(--gold-rgb), 0.15);
     border: 1px solid rgba(var(--gold-rgb), 0.3);
     color: var(--text);
@@ -81,7 +82,7 @@
     border: none;
     border-bottom: 1px solid rgba(var(--purple-rgb), 0.1);
     cursor: pointer;
-    text-align: left;
+    text-align: start;
     color: var(--text);
 }
 

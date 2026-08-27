@@ -105,7 +105,7 @@ export function AdminDashboard() {
                             ) : (
                                 <span className={styles.avatarPlaceholder}>{u.display_name[0]}</span>
                             )}
-                            <span>{u.display_name}</span>
+                            <span dir="auto">{u.display_name}</span>
                         </div>
                         <span className={styles.actionCount}>{u.action_count} actions</span>
                     </div>

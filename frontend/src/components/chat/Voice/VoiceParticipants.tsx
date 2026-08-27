@@ -106,7 +106,9 @@ function VoiceParticipant({
     return (
         <span className={`${styles.participant} ${isSpeaking ? styles.speaking : ""}`} title={name}>
             <span className={styles.dot} />
-            <span className={styles.name}>{name}</span>
+            <span dir="auto" className={styles.name}>
+                {name}
+            </span>
             {!isLocal && (
                 <button
                     type="button"

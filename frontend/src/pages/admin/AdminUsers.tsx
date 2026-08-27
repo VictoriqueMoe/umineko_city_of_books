@@ -76,7 +76,7 @@ export function AdminUsers() {
                                                 {u.username}
                                             </div>
                                         </td>
-                                        <td>{u.display_name}</td>
+                                        <td dir="auto">{u.display_name}</td>
                                         <td>
                                             <RolePill role={u.role ?? ""} userId={u.id} />
                                         </td>

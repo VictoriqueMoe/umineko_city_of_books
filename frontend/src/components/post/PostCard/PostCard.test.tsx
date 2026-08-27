@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { WSMessageHandler } from "../../../context/notificationContextValue";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { Poll, Post, PostMedia, SharedContentPreview, User, UserProfile } from "../../../types/api";
+import type { LinkPreview, Poll, Post, PostMedia, SharedContentPreview, User, UserProfile } from "../../../types/api";
 import { PostCard } from "./PostCard";
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +22,8 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
+const { previews } = vi.hoisted(() => ({ previews: { byURL: new Map<string, LinkPreview>() } }));
+
 vi.mock("../../../api/mutations/post", () => ({
     useLikePost: () => ({ mutateAsync: mocks.like }),
     useUnlikePost: () => ({ mutateAsync: mocks.unlike }),
@@ -37,6 +39,10 @@ vi.mock("../../../api/mutations/post", () => ({
 
 vi.mock("../../../api/mutations/misc", () => ({
     useCreateReport: () => ({ mutateAsync: mocks.createReport, isPending: false }),
+}));
+
+vi.mock("../../../api/queries/linkPreview", () => ({
+    useLinkPreview: (url: string) => ({ preview: previews.byURL.get(url), loading: false }),
 }));
 
 vi.mock("react-router", async importOriginal => {
@@ -108,6 +114,7 @@ beforeEach(() => {
     mocks.deletePostMedia.mockResolvedValue(undefined);
     mocks.uploadPostMedia.mockResolvedValue(makeMedia(9));
     mocks.createComment.mockResolvedValue({ id: "comment-1" });
+    previews.byURL.clear();
 });
 
 describe("PostCard", () => {
@@ -533,7 +540,7 @@ describe("PostCard", () => {
 
         // then
         expect(screen.getByText("Share to Game Board")).toBeInTheDocument();
-        expect(screen.getByText("Sharing: Without love it cannot be seen")).toBeInTheDocument();
+        expect(screen.getByText(/Sharing:/)).toHaveTextContent("Sharing: Without love it cannot be seen");
     });
 
     it("toggles the quick reply box open and shut", async () => {
@@ -585,6 +592,18 @@ describe("PostCard", () => {
         const image = container.querySelector("img");
         expect(image).toHaveAttribute("src", body);
         expect(screen.queryByText(body)).not.toBeInTheDocument();
+    });
+
+    it("does not repeat the gif as a link preview when the body is nothing but a giphy link", () => {
+        // given
+        const body = "https://media.giphy.com/media/abc123/beato.gif";
+        previews.byURL.set(body, { url: body, type: "image" } as LinkPreview);
+
+        // when
+        const { container } = renderCard(makePost({ body }));
+
+        // then
+        expect(container.querySelectorAll(`img[src="${body}"]`)).toHaveLength(1);
     });
 
     it("opens the post when the body itself is clicked", async () => {

@@ -192,11 +192,13 @@
 .botName {
     font-size: 0.95rem;
     color: var(--text);
+    unicode-bidi: plaintext;
 }
 
 .botHandle {
     font-size: 0.8rem;
     color: var(--text-muted);
+    unicode-bidi: plaintext;
 }
 
 .botMeta {

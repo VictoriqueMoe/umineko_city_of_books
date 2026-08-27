@@ -209,7 +209,7 @@ describe("ChatComposer", () => {
         await user.click(screen.getByRole("button", { name: "Cancel reply" }));
 
         // then
-        expect(screen.getByText("Replying to Battler")).toBeInTheDocument();
+        expect(screen.getByText(/Replying to/)).toHaveTextContent("Replying to Battler");
         expect(screen.getByText("an earlier claim")).toBeInTheDocument();
         expect(onCancelReply).toHaveBeenCalledOnce();
     });

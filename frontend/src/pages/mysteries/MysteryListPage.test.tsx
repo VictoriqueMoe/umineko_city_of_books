@@ -231,7 +231,7 @@ describe("MysteryListPage", () => {
         renderWithProviders(<MysteryListPage />, { route: "/mysteries" });
 
         // then
-        expect(screen.getByText("Winner: Battler")).toBeInTheDocument();
+        expect(screen.getByText(/Winner:/)).toHaveTextContent("Winner: Battler");
         expect(screen.getByText(/Solved in/)).toBeInTheDocument();
         expect(screen.getByText("2 hours")).toBeInTheDocument();
     });

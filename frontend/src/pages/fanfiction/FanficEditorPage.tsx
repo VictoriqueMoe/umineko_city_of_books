@@ -626,7 +626,10 @@ export function FanficEditorPage() {
             <div className={styles.formPage}>
                 <h1 className={styles.formHeading}>Unfinished Draft</h1>
                 <p style={{ color: "var(--text)", marginBottom: "1rem" }}>
-                    You have an unfinished draft: <strong>{draftPrompt.title}</strong>
+                    You have an unfinished draft:{" "}
+                    <strong>
+                        <bdi>{draftPrompt.title}</bdi>
+                    </strong>
                 </p>
                 <div className={styles.formActions}>
                     <Button variant="ghost" onClick={startFresh}>
@@ -789,7 +792,7 @@ export function FanficEditorPage() {
                                     key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
                                     className={styles.charPill}
                                 >
-                                    {c.character_name}
+                                    <span dir="auto">{c.character_name}</span>
                                     <button
                                         type="button"
                                         className={styles.charPillRemove}
@@ -871,7 +874,7 @@ export function FanficEditorPage() {
                         <div className={styles.charList} style={{ marginTop: "0.5rem" }}>
                             {tags.map((t, i) => (
                                 <span key={`${t}-${i}`} className={styles.tagPill}>
-                                    {t}
+                                    <span dir="auto">{t}</span>
                                     <button
                                         type="button"
                                         className={styles.charPillRemove}

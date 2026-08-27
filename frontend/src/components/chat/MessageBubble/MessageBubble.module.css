@@ -26,6 +26,7 @@
 
 .systemMessageText {
     display: inline-block;
+    unicode-bidi: plaintext;
     color: var(--text-muted);
     font-size: 0.76rem;
     letter-spacing: 0.03em;
@@ -326,6 +327,7 @@
 }
 
 .seenLabel {
+    unicode-bidi: plaintext;
     color: var(--text-muted);
     font-style: italic;
 }
@@ -369,6 +371,7 @@
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
     box-sizing: border-box;
 }
 

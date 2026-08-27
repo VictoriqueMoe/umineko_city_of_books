@@ -189,7 +189,7 @@ describe("GameHubPage", () => {
 
         // then
         expect(screen.getByText("Loading...")).toBeInTheDocument();
-        expect(screen.queryByText("Battler vs Beatrice")).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: /Battler vs Beatrice/ })).not.toBeInTheDocument();
     });
 
     it("keeps the live games on screen while only the scoreboard is still loading", () => {
@@ -200,7 +200,7 @@ describe("GameHubPage", () => {
         renderHub();
 
         // then
-        expect(screen.getByText("Battler vs Beatrice")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Battler vs Beatrice/ })).toBeInTheDocument();
     });
 
     it("waits on the scoreboard instead of calling it empty while it loads", () => {
@@ -234,7 +234,7 @@ describe("GameHubPage", () => {
         renderHub();
 
         // then
-        expect(screen.getByText("Battler vs Beatrice")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Battler vs Beatrice/ })).toBeInTheDocument();
         expect(screen.getByText("12 watching")).toBeInTheDocument();
         expect(screen.getByRole("link", { name: /Battler vs Beatrice/ })).toHaveAttribute(
             "href",
@@ -265,7 +265,7 @@ describe("GameHubPage", () => {
         renderHub();
 
         // then
-        expect(screen.getByText("Battler vs ?")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Battler vs \?/ })).toBeInTheDocument();
     });
 
     it("encourages the first finished match when the scoreboard is empty", () => {

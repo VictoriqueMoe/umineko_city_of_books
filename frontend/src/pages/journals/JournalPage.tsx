@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import type { JournalDetail, PostComment } from "../../types/api";
@@ -31,9 +32,13 @@ import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import styles from "./JournalPage.module.css";
 
-function entryHeading(number: number, title?: string | null): string {
+function entryHeading(number: number, title?: string | null): ReactNode {
     if (title && title.trim() !== "") {
-        return `Entry ${number}: ${title}`;
+        return (
+            <>
+                Entry {number}: <bdi>{title}</bdi>
+            </>
+        );
     }
     return `Entry ${number}`;
 }
@@ -139,7 +144,9 @@ export function JournalPage() {
 
             <div className={styles.detail}>
                 <div className={styles.header}>
-                    <h1 className={styles.title}>{journal.title}</h1>
+                    <h1 dir="auto" className={styles.title}>
+                        {journal.title}
+                    </h1>
                     <span className={styles.work}>{workLabel(journal.work)}</span>
                     {journal.is_archived && <span className={styles.archived}>Archived</span>}
                     {!journal.is_archived && journal.is_paused && <span className={styles.archived}>Paused</span>}
@@ -199,7 +206,7 @@ export function JournalPage() {
                         <span className={styles.spotlightTag}>Latest update</span>
                         <RelativeTimestamp value={latestEntry.created_at} className={styles.spotlightWhen} />
                     </div>
-                    <h2 className={styles.spotlightTitle}>
+                    <h2 dir="auto" className={styles.spotlightTitle}>
                         <Link to={`/journals/${journal.id}/entry/${latestEntry.entry_number}`}>
                             {entryHeading(latestEntry.entry_number, latestEntry.title)}
                         </Link>
@@ -209,7 +216,11 @@ export function JournalPage() {
                         if (gifURL) {
                             return <GifEmbed src={gifURL} />;
                         }
-                        return <div className={styles.spotlightBody}>{renderRich(latestEntry.body)}</div>;
+                        return (
+                            <div dir="auto" className={styles.spotlightBody}>
+                                {renderRich(latestEntry.body)}
+                            </div>
+                        );
                     })()}
                     {latestEntry.media.length > 0 && <MediaGallery media={latestEntry.media} />}
                     <div className={styles.spotlightFooter}>
@@ -250,7 +261,9 @@ export function JournalPage() {
                                     className={styles.tocItemLink}
                                 >
                                     <span className={styles.tocItemNumber}>#{e.entry_number}</span>
-                                    <span className={styles.tocItemTitle}>{entryHeading(e.entry_number, e.title)}</span>
+                                    <span dir="auto" className={styles.tocItemTitle}>
+                                        {entryHeading(e.entry_number, e.title)}
+                                    </span>
                                     {e.is_draft && <span className={styles.draftBadge}>Draft</span>}
                                     <span className={styles.tocItemMeta}>
                                         {e.word_count} words {"·"} <RelativeTimestamp value={e.created_at} />

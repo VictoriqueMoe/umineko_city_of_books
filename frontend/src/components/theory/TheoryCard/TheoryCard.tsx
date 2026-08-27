@@ -53,12 +53,16 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                     's Blue Truth
                 </div>
                 <div className={styles.header}>
-                    <h3 className={styles.title}>{theory.title}</h3>
+                    <h3 dir="auto" className={styles.title}>
+                        {theory.title}
+                    </h3>
                     {theory.episode > 0 && (
                         <span className={styles.episode}>{formatSeriesEpisode(seriesKey, theory.episode)}</span>
                     )}
                 </div>
-                <p className={styles.body}>{theory.body}</p>
+                <p dir="auto" className={styles.body}>
+                    {theory.body}
+                </p>
                 <div className={styles.meta}>
                     <TheoryStatusBadge status={theory.status} />
                     <CredibilityBadge score={theory.credibility_score} />

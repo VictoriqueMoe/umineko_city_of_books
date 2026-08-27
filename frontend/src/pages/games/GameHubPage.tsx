@@ -76,7 +76,8 @@ export function GameHubPage() {
                             <Link key={r.id} to={def.detailPath(r.id)} className={styles.gameRow}>
                                 <div className={styles.gameRowContent}>
                                     <span className={styles.opponentLine}>
-                                        {white?.display_name ?? "?"} vs {black?.display_name ?? "?"}
+                                        <bdi>{white?.display_name ?? "?"}</bdi> vs{" "}
+                                        <bdi>{black?.display_name ?? "?"}</bdi>
                                     </span>
                                     <span className={styles.subline}>{r.watcher_count} watching</span>
                                 </div>

@@ -172,7 +172,9 @@ export function FanficDetailPage() {
                     )}
                     <div className={styles.detailHeaderInfo}>
                         <div className={styles.detailTitleRow}>
-                            <h1 className={styles.detailTitle}>{fanfic.title}</h1>
+                            <h1 dir="auto" className={styles.detailTitle}>
+                                {fanfic.title}
+                            </h1>
                             {user && (
                                 <button
                                     className={`${styles.favouriteBtn}${fanfic.user_favourited ? ` ${styles.favouriteBtnActive}` : ""}`}
@@ -224,15 +226,19 @@ export function FanficDetailPage() {
                             <span className={`${styles.detailBadge} ${statusBadgeClass(fanfic.status)}`}>
                                 {fanfic.status}
                             </span>
-                            <span className={`${styles.detailBadge} ${styles.detailBadgeSeries}`}>{fanfic.series}</span>
-                            <span className={`${styles.detailBadge} ${styles.detailBadgeLang}`}>{fanfic.language}</span>
+                            <span dir="auto" className={`${styles.detailBadge} ${styles.detailBadgeSeries}`}>
+                                {fanfic.series}
+                            </span>
+                            <span dir="auto" className={`${styles.detailBadge} ${styles.detailBadgeLang}`}>
+                                {fanfic.language}
+                            </span>
                             {fanfic.genres.map(g => (
                                 <span key={g} className={`${styles.detailBadge} ${styles.badgeGenre}`}>
                                     {g}
                                 </span>
                             ))}
                             {fanfic.tags.map(t => (
-                                <span key={t} className={`${styles.detailBadge} ${styles.badgeTag}`}>
+                                <span key={t} dir="auto" className={`${styles.detailBadge} ${styles.badgeTag}`}>
                                     {t}
                                 </span>
                             ))}
@@ -274,13 +280,17 @@ export function FanficDetailPage() {
                                 key={`${c.series}-${c.character_id ?? c.character_name}-${i}`}
                                 className={styles.charPill}
                             >
-                                {c.character_name}
+                                <span dir="auto">{c.character_name}</span>
                             </span>
                         ))}
                     </div>
                 )}
 
-                {fanfic.summary && <div className={styles.summary}>{renderRich(fanfic.summary)}</div>}
+                {fanfic.summary && (
+                    <div dir="auto" className={styles.summary}>
+                        {renderRich(fanfic.summary)}
+                    </div>
+                )}
 
                 <div className={styles.tocSection}>
                     {fanfic.is_oneshot ? (
@@ -312,7 +322,9 @@ export function FanficDetailPage() {
                                             }
                                         >
                                             <span className={styles.tocItemNum}>{ch.chapter_number}.</span>
-                                            <span className={styles.tocItemTitle}>{ch.title}</span>
+                                            <span dir="auto" className={styles.tocItemTitle}>
+                                                {ch.title}
+                                            </span>
                                             <span className={styles.tocItemWords}>
                                                 {formatNumber(ch.word_count)} words
                                             </span>

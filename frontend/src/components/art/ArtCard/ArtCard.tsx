@@ -27,7 +27,9 @@ export function ArtCard({ art }: ArtCardProps) {
                 }}
             />
             <div className={styles.info}>
-                <span className={styles.title}>{art.title}</span>
+                <span dir="auto" className={styles.title}>
+                    {art.title}
+                </span>
                 <div className={styles.meta}>
                     <ProfileLink user={art.author} size="small" clickable={false} />
                     <span className={styles.likes}>&#9829; {art.like_count}</span>

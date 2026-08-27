@@ -219,6 +219,7 @@
 }
 
 .banReason {
+    unicode-bidi: plaintext;
     font-size: 0.82rem;
     color: var(--text);
 }

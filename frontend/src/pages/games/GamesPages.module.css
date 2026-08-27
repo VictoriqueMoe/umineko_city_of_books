@@ -63,11 +63,13 @@
 
 .opponentLine {
     font-weight: 600;
+    unicode-bidi: plaintext;
 }
 
 .subline {
     font-size: 0.85rem;
     color: var(--text-muted);
+    unicode-bidi: plaintext;
 }
 
 .statusBadge {
@@ -179,7 +181,7 @@
 .scoreboardTable th,
 .scoreboardTable td {
     padding: 0.6rem 0.75rem;
-    text-align: left;
+    text-align: start;
 }
 
 .scoreboardTable thead {

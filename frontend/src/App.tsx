@@ -153,7 +153,11 @@ function AnnouncementBanner() {
         return null;
     }
 
-    return <div className="announcement-banner">{renderRich(banner)}</div>;
+    return (
+        <div dir="auto" className="announcement-banner">
+            {renderRich(banner)}
+        </div>
+    );
 }
 
 function RouteFallback() {
@@ -187,7 +191,15 @@ function SecretClosedToast() {
     return (
         <Toast variant="arcane" duration={10000} onDismiss={() => setEvent(null)}>
             <Link to={`/secrets/${event.secret_id}`} style={{ color: "inherit" }}>
-                Uu~ <strong>{name}</strong> solved <em>{event.secret_title}</em> before you could. Try again next time.
+                Uu~{" "}
+                <strong>
+                    <bdi>{name}</bdi>
+                </strong>{" "}
+                solved{" "}
+                <em>
+                    <bdi>{event.secret_title}</bdi>
+                </em>{" "}
+                before you could. Try again next time.
             </Link>
         </Toast>
     );

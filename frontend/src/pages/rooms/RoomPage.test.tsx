@@ -1169,7 +1169,7 @@ describe("RoomPage notices", () => {
         renderRoom({ typingNames });
 
         // then
-        expect(screen.getByText("Beatrice and Ange are typing...")).toBeInTheDocument();
+        expect(screen.getByText(/are typing/)).toHaveTextContent("Beatrice and Ange are typing...");
     });
 
     it("shows a passing toast", () => {

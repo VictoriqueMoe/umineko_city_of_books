@@ -218,7 +218,7 @@ describe("ArtDetailPage content", () => {
         renderPage();
 
         // when
-        await user.click(screen.getByText("More by Ronove"));
+        await user.click(screen.getByText(/More by/));
 
         // then
         expect(mocks.navigate).toHaveBeenCalledWith("/user/ronove");

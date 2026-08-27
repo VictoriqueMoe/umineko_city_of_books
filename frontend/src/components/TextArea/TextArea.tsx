@@ -6,5 +6,5 @@ type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
 export function TextArea({ className, ...rest }: TextAreaProps) {
     const classes = [styles.textarea, className].filter(Boolean).join(" ");
 
-    return <textarea className={classes} {...rest} />;
+    return <textarea dir="auto" className={classes} {...rest} />;
 }

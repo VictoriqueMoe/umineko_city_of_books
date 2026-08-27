@@ -113,7 +113,7 @@ export function GamesListPage() {
                             <div key={r.id} className={styles.gameRow}>
                                 <div className={styles.gameRowContent}>
                                     <span className={styles.opponentLine}>
-                                        {opponent?.display_name ?? "Unknown"} invited you to{" "}
+                                        <bdi>{opponent?.display_name ?? "Unknown"}</bdi> invited you to{" "}
                                         {gameTypeLabel(r.game_type)}
                                     </span>
                                     <span className={styles.subline}>{formatFullDateTime(r.created_at)}</span>
@@ -143,7 +143,7 @@ export function GamesListPage() {
                             <div key={r.id} className={styles.gameRow}>
                                 <div className={styles.gameRowContent}>
                                     <span className={styles.opponentLine}>
-                                        {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
+                                        {gameTypeLabel(r.game_type)} vs <bdi>{opponent?.display_name ?? "Unknown"}</bdi>
                                     </span>
                                     <span className={styles.subline}>Invited {formatFullDateTime(r.created_at)}</span>
                                 </div>
@@ -170,7 +170,7 @@ export function GamesListPage() {
                             <Link key={r.id} to={`/games/${r.game_type}/${r.id}`} className={styles.gameRow}>
                                 <div className={styles.gameRowContent}>
                                     <span className={styles.opponentLine}>
-                                        {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
+                                        {gameTypeLabel(r.game_type)} vs <bdi>{opponent?.display_name ?? "Unknown"}</bdi>
                                     </span>
                                     <span className={styles.subline}>
                                         {yourTurn ? "Your turn" : "Their turn"} — updated{" "}
@@ -209,7 +209,7 @@ export function GamesListPage() {
                             <Link key={r.id} to={`/games/${r.game_type}/${r.id}`} className={styles.gameRow}>
                                 <div className={styles.gameRowContent}>
                                     <span className={styles.opponentLine}>
-                                        {gameTypeLabel(r.game_type)} vs {opponent?.display_name ?? "Unknown"}
+                                        {gameTypeLabel(r.game_type)} vs <bdi>{opponent?.display_name ?? "Unknown"}</bdi>
                                     </span>
                                     <span className={styles.subline}>
                                         {outcome} — {formatFullDateTime(r.finished_at ?? r.updated_at)}

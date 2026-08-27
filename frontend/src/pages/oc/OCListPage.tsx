@@ -126,13 +126,19 @@ export function OCListPage() {
                                 <div className={shipStyles.cardImagePlaceholder}>★</div>
                             )}
                             <div className={shipStyles.cardBody}>
-                                <h3 className={shipStyles.cardTitle}>{oc.name}</h3>
+                                <h3 dir="auto" className={shipStyles.cardTitle}>
+                                    {oc.name}
+                                </h3>
                                 <div className={shipStyles.characterPills}>
-                                    <span className={seriesPillClass(oc.series)}>
+                                    <span dir="auto" className={seriesPillClass(oc.series)}>
                                         {seriesLabel(oc.series, oc.custom_series_name)}
                                     </span>
                                 </div>
-                                {oc.description && <p className={shipStyles.cardDescription}>{oc.description}</p>}
+                                {oc.description && (
+                                    <p dir="auto" className={shipStyles.cardDescription}>
+                                        {oc.description}
+                                    </p>
+                                )}
                                 <div className={shipStyles.cardMeta}>
                                     <ProfileLink user={oc.author} size="small" clickable={false} />
                                     <RelativeTimestamp value={oc.created_at} />

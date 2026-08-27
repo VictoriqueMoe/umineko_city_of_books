@@ -87,7 +87,9 @@ export function ChatPage() {
                                     {avatarUser ? (
                                         <ProfileLink user={avatarUser} size="small" />
                                     ) : (
-                                        <span className={styles.roomName}>{getRoomDisplayName(room, user)}</span>
+                                        <span dir="auto" className={styles.roomName}>
+                                            {getRoomDisplayName(room, user)}
+                                        </span>
                                     )}
                                     {room.unread && <span className={styles.unreadDot} aria-label="unread" />}
                                 </button>
@@ -117,7 +119,9 @@ export function ChatPage() {
                             </div>
                             <div className={styles.messages}>
                                 <div className={styles.messageAreaEmpty}>
-                                    Send your first message to {draftRecipient.display_name}.
+                                    <span>
+                                        Send your first message to <bdi>{draftRecipient.display_name}</bdi>.
+                                    </span>
                                 </div>
                                 <div ref={messagesEndRef} />
                             </div>
@@ -144,7 +148,7 @@ export function ChatPage() {
                                     {getRoomAvatarUser(activeRoom, user) ? (
                                         <ProfileLink user={getRoomAvatarUser(activeRoom, user)!} size="small" />
                                     ) : (
-                                        <span>{getRoomDisplayName(activeRoom, user)}</span>
+                                        <span dir="auto">{getRoomDisplayName(activeRoom, user)}</span>
                                     )}
                                 </div>
                                 <Button variant="danger" size="small" onClick={handleDeleteChat}>

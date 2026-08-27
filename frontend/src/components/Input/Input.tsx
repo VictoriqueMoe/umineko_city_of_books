@@ -8,5 +8,5 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 export function Input({ fullWidth, className, ...rest }: InputProps) {
     const classes = [styles.input, fullWidth ? styles.fullWidth : "", className].filter(Boolean).join(" ");
 
-    return <input className={classes} {...rest} />;
+    return <input dir="auto" className={classes} {...rest} />;
 }

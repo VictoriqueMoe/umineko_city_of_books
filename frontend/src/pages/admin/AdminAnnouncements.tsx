@@ -130,9 +130,14 @@ export function AdminAnnouncements() {
                         </button>
                     </div>
                     {showPreview ? (
-                        <div className={styles.preview} dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }} />
+                        <div
+                            dir="auto"
+                            className={styles.preview}
+                            dangerouslySetInnerHTML={{ __html: renderMarkdown(body) }}
+                        />
                     ) : (
                         <textarea
+                            dir="auto"
                             className={styles.textarea}
                             placeholder="Write your announcement in Markdown..."
                             value={body}

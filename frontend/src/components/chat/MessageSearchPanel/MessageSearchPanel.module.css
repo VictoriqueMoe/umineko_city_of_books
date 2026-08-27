@@ -96,7 +96,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    text-align: left;
+    text-align: start;
     cursor: pointer;
     transition: border-color 0.15s;
 }
@@ -138,6 +138,7 @@
 }
 
 .resultSender {
+    unicode-bidi: plaintext;
     font-size: 0.85rem;
     color: var(--gold);
     font-weight: 600;

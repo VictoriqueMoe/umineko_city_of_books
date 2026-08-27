@@ -195,7 +195,7 @@ export function AdminVanityRoles() {
                                             {role.label}
                                         </span>
                                     </td>
-                                    <td>{role.label}</td>
+                                    <td dir="auto">{role.label}</td>
                                     <td>
                                         <span className={styles.colorCell}>
                                             <span className={styles.colorDot} style={{ backgroundColor: role.color }} />

@@ -71,6 +71,15 @@
     pointer-events: none;
 }
 
+.body p,
+.body li,
+.body blockquote,
+.body h1,
+.body h2,
+.body h3 {
+    unicode-bidi: plaintext;
+}
+
 .body h1,
 .body h2,
 .body h3 {

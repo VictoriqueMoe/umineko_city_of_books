@@ -99,7 +99,7 @@ describe("JournalCard", () => {
 
         // then
         expect(screen.getByText("Latest:")).toBeInTheDocument();
-        expect(screen.getByText("Entry 3: The Golden Truth")).toBeInTheDocument();
+        expect(screen.getByText(/Entry 3:/)).toHaveTextContent("Entry 3: The Golden Truth");
     });
 
     it("falls back to the bare entry number when the entry title is only whitespace", () => {
