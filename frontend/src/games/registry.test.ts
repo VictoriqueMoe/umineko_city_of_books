@@ -8,6 +8,7 @@ const EXPECTED: { type: GameType; label: string }[] = [
     { type: "othello", label: "Othello" },
     { type: "minesweeper", label: "Minesweeper" },
     { type: "snakes_and_ladders", label: "Snakes & Ladders" },
+    { type: "pong", label: "Pong" },
 ];
 
 describe("GAME_TYPES", () => {

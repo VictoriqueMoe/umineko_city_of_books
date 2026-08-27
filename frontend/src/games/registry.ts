@@ -96,6 +96,25 @@ export const GAME_TYPES: GameTypeDefinition[] = [
             "Active games are public to spectators; finished games are archived under Past Games.",
         ],
     },
+    {
+        type: "pong",
+        label: "Pong",
+        tagline: "Real-time paddle duel. Aim with the paddle, not just block with it.",
+        hubPath: "/games/pong",
+        newPath: "/games/pong/new",
+        detailPath: (id: string) => `/games/pong/${id}`,
+        available: true,
+        howToPlay: [
+            "Click Start a new pong game, pick a player by username or from your mutual followers and send the invite. Once they accept you get a three second countdown, and then the ball is live.",
+            "This one is real-time, not correspondence. Both of you are playing at once and the ball keeps moving whether you are watching or not, so stay at the court until the match ends.",
+            "Steer your paddle with the mouse, with a finger on a touchscreen, or by holding the arrow keys. All three move the paddle at the same top speed, so nobody wins on their choice of device.",
+            "Where on the paddle you hit the ball decides which way it leaves. Hit it near the centre and it comes back flat; hit it near an edge and it leaves at a steep angle. The paddle is an aiming device, not a wall, so pick your return rather than just reaching it.",
+            "Every return speeds the ball up a little, until it reaches its top speed. A long rally ends up far faster than it started, which is what turns an edge-aimed shot into a winner.",
+            "First to 7 points wins, but you must be 2 clear, so 7-6 keeps playing. If it is still level at 10-10, the next point takes it.",
+            "If either player disconnects mid-match, they have 60 seconds to come back before they forfeit. The ball keeps moving in the meantime, so the connected player carries on scoring.",
+            "Active games are public to spectators, who watch the same live court and have their own side chat that players cannot see. Finished games are archived under Past Games.",
+        ],
+    },
 ];
 
 export function gameTypeLabel(type: string): string {

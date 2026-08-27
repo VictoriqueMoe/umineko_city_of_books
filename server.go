@@ -157,6 +157,8 @@ func initServer() (*fiber.App, func()) {
 			logger.Ctx(ctx).Warn().Err(err).Msg("media processor drain incomplete")
 		}
 
+		svc.gameRoom.Shutdown(ctx)
+
 		stopJobs(ctx)
 
 		if err := cacheMgr.Close(); err != nil {

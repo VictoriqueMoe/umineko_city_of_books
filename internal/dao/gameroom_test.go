@@ -25,6 +25,73 @@ func createFinishedRoom(t *testing.T, repos *repository.Repositories, gameType s
 	return roomID
 }
 
+func TestGameRoomDAO_SetState_OnlyWritesToAnActiveRoom(t *testing.T) {
+	cases := []struct {
+		name      string
+		status    string
+		wantState string
+	}{
+		{name: "active room takes the write", status: "active", wantState: `{"ticks":9}`},
+		{name: "pending room is left alone", status: "pending", wantState: "{}"},
+		{name: "finished room is left alone", status: "finished", wantState: "{}"},
+		{name: "abandoned room is left alone", status: "abandoned", wantState: "{}"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			alice := daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
+			ctx := context.Background()
+
+			room, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+			require.NoError(t, err)
+			require.NoError(t, repos.GameRoom.SetStatus(ctx, room.ID, tc.status))
+
+			// when
+			require.NoError(t, repos.GameRoom.SetState(ctx, room.ID, `{"ticks":9}`, nil))
+
+			// then
+			got, err := repos.GameRoom.GetRoom(ctx, room.ID)
+			require.NoError(t, err)
+			assert.JSONEq(t, tc.wantState, got.StateJSON)
+		})
+	}
+}
+
+func TestGameRoomRepository_StartWritesStateOntoTheNowActiveRoom(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	alice := daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
+	bob := daotest.CreateUser(t, repos, daotest.WithDisplayName("Bob"))
+	ctx := context.Background()
+
+	room, err := repos.GameRoom.CreateInvite(ctx, repository.NewGameRoomInvite{
+		GameType:         "chess",
+		InitialStateJSON: "{}",
+		InviterID:        alice.ID,
+		OpponentID:       bob.ID,
+	})
+	require.NoError(t, err)
+
+	// when
+	require.NoError(t, repos.GameRoom.Start(ctx, repository.GameRoomStart{
+		RoomID:     room.ID,
+		UserID:     bob.ID,
+		StateJSON:  `{"phase":"countdown"}`,
+		TurnUserID: &alice.ID,
+		Status:     "active",
+	}))
+
+	// then
+	got, err := repos.GameRoom.GetRoom(ctx, room.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "active", got.Status)
+	assert.JSONEq(t, `{"phase":"countdown"}`, got.StateJSON)
+	require.NotNil(t, got.TurnUserID)
+	assert.Equal(t, alice.ID, *got.TurnUserID)
+}
+
 func TestGameRoomDAO_Scoreboard_Empty(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

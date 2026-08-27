@@ -2,6 +2,7 @@ package gameroom
 
 import (
 	"encoding/json"
+	"time"
 
 	"umineko_city_of_books/internal/dto"
 
@@ -23,6 +24,28 @@ type (
 		Finished   bool
 		WinnerSlot *int
 		Result     string
+	}
+
+	TickResult struct {
+		Scored     bool
+		Finished   bool
+		WinnerSlot *int
+		Result     string
+	}
+
+	GameSim interface {
+		Tick(step time.Duration) TickResult
+		ApplyInput(slot int, payload json.RawMessage)
+		SetConnected(slot int, connected bool)
+		Snapshot() any
+		StateJSON() (string, error)
+	}
+
+	TickingHandler interface {
+		TickInterval() time.Duration
+		SnapshotEvery() int
+		SnapshotType() string
+		NewSim(roomID uuid.UUID, stateJSON string) (GameSim, error)
 	}
 
 	GameHandler interface {

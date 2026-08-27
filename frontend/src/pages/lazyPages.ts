@@ -143,6 +143,8 @@ export const SnakesAndLaddersGamePage = named(
     () => import("./games/SnakesAndLaddersGamePage"),
     "SnakesAndLaddersGamePage",
 );
+export const NewPongGamePage = named(() => import("./games/NewPongGamePage"), "NewPongGamePage");
+export const PongGamePage = named(() => import("./games/PongGamePage"), "PongGamePage");
 
 //  Live Streaming
 export const LiveDirectoryPage = named(() => import("./live/LiveDirectory"), "LiveDirectory");

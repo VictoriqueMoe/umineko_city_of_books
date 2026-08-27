@@ -82,6 +82,7 @@ import {
     NewChessGamePage,
     NewMinesweeperGamePage,
     NewOthelloGamePage,
+    NewPongGamePage,
     NewSnakesAndLaddersGamePage,
     NotFoundPage,
     NotificationsPage,
@@ -89,6 +90,7 @@ import {
     OCListPage,
     OthelloGamePage,
     PastGamesPage,
+    PongGamePage,
     PostDetailPage,
     ProfilePage,
     QuoteBrowserPage,
@@ -392,6 +394,7 @@ function AppLayout() {
                                     path="/games/snakes_and_ladders/scoreboard"
                                     element={<Navigate to="/games/snakes_and_ladders" replace />}
                                 />
+                                <Route path="/games/pong/scoreboard" element={<Navigate to="/games/pong" replace />} />
                                 <Route path="/games/live" element={<LiveGamesPage />} />
                                 <Route path="/games/past" element={<PastGamesPage />} />
                                 <Route path="/games/chess/:id" element={<ChessGamePage />} />
@@ -399,6 +402,7 @@ function AppLayout() {
                                 <Route path="/games/othello/:id" element={<OthelloGamePage />} />
                                 <Route path="/games/minesweeper/:id" element={<MinesweeperGamePage />} />
                                 <Route path="/games/snakes_and_ladders/:id" element={<SnakesAndLaddersGamePage />} />
+                                <Route path="/games/pong/:id" element={<PongGamePage />} />
                                 <Route path="/games/:type" element={<GameHubPage />} />
                                 <Route path="/users" element={<UsersPage />} />
                                 <Route path="/user/:username" element={<ProfilePage />} />
@@ -446,6 +450,7 @@ function AppLayout() {
                                         path="/games/snakes_and_ladders/new"
                                         element={<NewSnakesAndLaddersGamePage />}
                                     />
+                                    <Route path="/games/pong/new" element={<NewPongGamePage />} />
                                     <Route path="/rooms/:roomId" element={<RoomPage />} />
                                     <Route path="/theory/:id/edit" element={<EditTheoryPage />} />
                                     <Route path="/settings" element={<SettingsPage />} />

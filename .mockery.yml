@@ -145,6 +145,8 @@ packages:
       Service:
       Notifier:
       GameHandler:
+      TickingHandler:
+      GameSim:
   umineko_city_of_books/internal/ws:
     interfaces:
       BanChecker:

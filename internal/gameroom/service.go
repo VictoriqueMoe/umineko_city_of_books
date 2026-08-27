@@ -62,6 +62,8 @@ type (
 		GetPlayerChat(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.SpectatorChatResponse, error)
 		HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID)
 		HandleClientLeave(userID, roomID uuid.UUID)
+		HandleClientInput(userID, roomID uuid.UUID, payload json.RawMessage)
+		Shutdown(ctx context.Context)
 		CancelIdleGames(ctx context.Context) (int, error)
 	}
 
@@ -92,6 +94,10 @@ type (
 
 		mu    sync.Mutex
 		rooms map[uuid.UUID]*roomState
+
+		tickMu sync.RWMutex
+		ticks  map[uuid.UUID]*tickHandle
+		tickWG sync.WaitGroup
 	}
 )
 
@@ -117,6 +123,7 @@ func NewService(
 		contentFilter: contentFilter,
 		handlers:      m,
 		rooms:         make(map[uuid.UUID]*roomState),
+		ticks:         make(map[uuid.UUID]*tickHandle),
 	}
 }
 
@@ -180,6 +187,9 @@ func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winn
 
 		return nil, err
 	}
+
+	s.stopTicker(roomID, false)
+
 	room, err := s.loadRoom(ctx, roomID)
 	if err != nil {
 		return nil, err
@@ -192,11 +202,6 @@ func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winn
 }
 
 func (s *service) broadcastTopWinner(gameType dto.GameType) {
-	bgCtx := context.Background()
-	ids, err := s.repo.GetTopWinnerIDs(bgCtx, string(gameType))
-	if err != nil {
-		return
-	}
 	var msgType string
 	switch gameType {
 	case dto.GameTypeChess:
@@ -210,6 +215,13 @@ func (s *service) broadcastTopWinner(gameType dto.GameType) {
 	default:
 		return
 	}
+
+	bgCtx := context.Background()
+	ids, err := s.repo.GetTopWinnerIDs(bgCtx, string(gameType))
+	if err != nil {
+		return
+	}
+
 	s.hub.Broadcast(ws.Message{
 		Type: msgType,
 		Data: map[string]any{
@@ -335,6 +347,10 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 	s.broadcast(room, "game_room_started", nil)
 	s.notifyTurn(ctx, room)
 	s.broadcastLiveGamesCount(ctx)
+
+	if th, tickable := handler.(TickingHandler); tickable {
+		s.startTicker(roomID, th, stateJSON, players, [2]bool{true, true})
+	}
 
 	return room, nil
 }
@@ -829,6 +845,16 @@ func (s *service) HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID
 	}
 
 	s.broadcastPresence(roomID, userID, true, isParticipant)
+
+	if isParticipant && row.Status == string(dto.GameStatusActive) {
+		s.resumeTicker(ctx, roomID)
+	}
+
+	if isParticipant {
+		s.tickerSetConnected(roomID, userID, true)
+	}
+
+	s.sendTickerSnapshot(roomID, userID)
 }
 
 func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
@@ -870,6 +896,8 @@ func (s *service) HandleClientLeave(userID, roomID uuid.UUID) {
 	s.mu.Unlock()
 
 	if timerStarted {
+		s.tickerSetConnected(roomID, userID, false)
+
 		row, err := s.repo.GetRoom(context.Background(), roomID)
 		if err == nil && row != nil && row.Status == string(dto.GameStatusActive) {
 			s.hub.SendToUser(userID, ws.Message{
@@ -919,6 +947,8 @@ func (s *service) CancelIdleGames(ctx context.Context) (int, error) {
 		if !cancelled {
 			continue
 		}
+
+		s.stopTicker(row.ID, false)
 
 		room, err := s.loadRoom(ctx, row.ID)
 		if err == nil {
@@ -997,10 +1027,14 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 		return
 	}
 	winner := winnerUserID(res.WinnerSlot, players)
+
 	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusAbandoned), winner, res.Result, row.StateJSON); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("finish room after grace expired")
 		return
 	}
+
+	s.stopTicker(roomID, false)
+
 	room, err := s.loadRoom(ctx, roomID)
 	if err != nil {
 		return

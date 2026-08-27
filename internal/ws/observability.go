@@ -40,15 +40,30 @@ var (
 			Buckets: []float64{0, 1, 5, 10, 25, 50, 100, 150, 200},
 		},
 	)
+	wsOutboundFramesDropped = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "ws_outbound_frames_dropped_total",
+			Help: "Number of outbound realtime game frames dropped because a client send buffer was full.",
+		},
+	)
+	wsInputFrames = wsInboundMessages.WithLabelValues(gameRoomInputType)
 )
 
 func init() {
-	prometheus.MustRegister(wsInboundMessages, wsInboundDropped, wsConnections, wsConnectionsTotal, wsInboundTokens)
+	prometheus.MustRegister(wsInboundMessages, wsInboundDropped, wsConnections, wsConnectionsTotal, wsInboundTokens, wsOutboundFramesDropped)
 }
 
 func recordInbound(msgType string, tokens float64) {
 	wsInboundMessages.WithLabelValues(msgType).Inc()
 	wsInboundTokens.Observe(tokens)
+}
+
+func recordInputFrame() {
+	wsInputFrames.Inc()
+}
+
+func recordFrameDropped() {
+	wsOutboundFramesDropped.Inc()
 }
 
 func recordDropped(authed bool) {

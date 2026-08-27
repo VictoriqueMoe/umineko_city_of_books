@@ -19,6 +19,11 @@ const MAX_BACKOFF = 30000;
 const KEEPALIVE_INTERVAL_MS = 20_000;
 const STALE_THRESHOLD_MS = 90_000;
 const PROBE_TIMEOUT_MS = 5_000;
+const FRAME_TYPE_SUFFIX = "_frame";
+
+function isSimulationFrame(type: string): boolean {
+    return type.endsWith(FRAME_TYPE_SUFFIX);
+}
 
 export function NotificationProvider({ children }: PropsWithChildren) {
     const { user, setUser } = useAuth();
@@ -164,7 +169,14 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         socket.onmessage = event => {
             lastMessageAtRef.current = Date.now();
             try {
-                const msg: WSMessage = absolutizeMedia(JSON.parse(event.data) as WSMessage);
+                const parsed = JSON.parse(event.data) as WSMessage;
+                if (isSimulationFrame(parsed.type)) {
+                    for (const handler of wsListenersRef.current) {
+                        handler(parsed);
+                    }
+                    return;
+                }
+                const msg: WSMessage = absolutizeMedia(parsed);
                 if (msg.type === "pong") {
                     return;
                 }

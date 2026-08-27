@@ -92,6 +92,7 @@ const (
 	GameTypeOthello       GameType = "othello"
 	GameTypeMinesweeper   GameType = "minesweeper"
 	GameTypeSnakesLadders GameType = "snakes_and_ladders"
+	GameTypePong          GameType = "pong"
 
 	GameStatusPending   GameStatus = "pending"
 	GameStatusActive    GameStatus = "active"

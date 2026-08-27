@@ -1241,7 +1241,7 @@ export interface AnnouncementListResponse extends PaginationFields {
     announcements: Announcement[];
 }
 
-export type GameType = "chess" | "checkers" | "othello" | "minesweeper" | "snakes_and_ladders";
+export type GameType = "chess" | "checkers" | "othello" | "minesweeper" | "snakes_and_ladders" | "pong";
 export type GameStatus = "pending" | "active" | "finished" | "declined" | "abandoned";
 
 export interface GameRoomPlayer {
@@ -1375,6 +1375,51 @@ export interface MinesweeperStats {
     reason: string;
 }
 
+export type PongPhase = "countdown" | "serve" | "rally" | "finished";
+
+export interface PongState {
+    phase: PongPhase;
+    width: number;
+    height: number;
+    ball_radius: number;
+    paddle_width: number;
+    paddle_height: number;
+    paddle_inset: number;
+    points_to_win: number;
+    ball_x: number;
+    ball_y: number;
+    ball_vx: number;
+    ball_vy: number;
+    ball_speed: number;
+    paddle_y: [number, number];
+    scores: [number, number];
+    hits: [number, number];
+    longest_rally: [number, number];
+    rally_hits: number;
+    top_speed: number;
+    serve_to_slot: number;
+    serve_vx: number;
+    serve_vy: number;
+    phase_remain_ms: number;
+    ticks: number;
+    started_at?: string;
+    finished_at?: string;
+    winner_slot?: number;
+    reason?: string;
+}
+
+export interface PongStats {
+    points_p0: number;
+    points_p1: number;
+    hits_p0: number;
+    hits_p1: number;
+    longest_rally_p0: number;
+    longest_rally_p1: number;
+    top_speed: number;
+    result_reason: string;
+    duration_seconds: number;
+}
+
 export interface SnakesLaddersLast {
     slot: number;
     roll: number;
@@ -1410,7 +1455,14 @@ export interface GameRoom {
     id: string;
     game_type: GameType;
     status: GameStatus;
-    state: ChessState | CheckersState | OthelloState | MinesweeperState | SnakesLaddersState | Record<string, unknown>;
+    state:
+        | ChessState
+        | CheckersState
+        | OthelloState
+        | MinesweeperState
+        | SnakesLaddersState
+        | PongState
+        | Record<string, unknown>;
     turn_user_id?: string;
     winner_user_id?: string;
     result?: string;
@@ -1420,7 +1472,14 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
-    stats?: ChessStats | CheckersStats | OthelloStats | MinesweeperStats | SnakesLaddersStats | Record<string, unknown>;
+    stats?:
+        | ChessStats
+        | CheckersStats
+        | OthelloStats
+        | MinesweeperStats
+        | SnakesLaddersStats
+        | PongStats
+        | Record<string, unknown>;
     draw_offer_from_user_id?: string;
 }
 

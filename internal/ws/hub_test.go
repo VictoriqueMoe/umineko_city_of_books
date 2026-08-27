@@ -35,6 +35,60 @@ func TestHub_IsUserInRoom_LeaveRemoves(t *testing.T) {
 	assert.False(t, hub.IsUserInRoom(roomID, userID), "user should be out after LeaveRoom")
 }
 
+func TestHub_BroadcastFrameToRoom_LeavesHeadroomForOrdinaryMessages(t *testing.T) {
+	cases := []struct {
+		name       string
+		backlog    int
+		wantSent   int
+		wantBuffer int
+	}{
+		{name: "an idle buffer takes the frame", backlog: 0, wantSent: 1, wantBuffer: 1},
+		{name: "just under the watermark takes the frame", backlog: sendBufferSize/2 - 1, wantSent: 1, wantBuffer: sendBufferSize / 2},
+		{name: "at the watermark the frame is dropped", backlog: sendBufferSize / 2, wantSent: 0, wantBuffer: sendBufferSize / 2},
+		{name: "over the watermark the frame is dropped", backlog: sendBufferSize/2 + 5, wantSent: 0, wantBuffer: sendBufferSize/2 + 5},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			hub := NewHub()
+			roomID := uuid.New()
+			viewer := NewClient(uuid.New(), nil)
+			hub.clients[viewer.UserID] = []*Client{viewer}
+			hub.JoinRoom(roomID, viewer.UserID)
+			for range tc.backlog {
+				viewer.send <- []byte("backlog")
+			}
+
+			// when
+			sent := hub.BroadcastFrameToRoom(roomID, Message{Type: "game_pong_frame"})
+
+			// then
+			assert.Equal(t, tc.wantSent, sent)
+			assert.Equal(t, tc.wantBuffer, len(viewer.send))
+		})
+	}
+}
+
+func TestHub_BroadcastFrameToRoom_NeverKillsAClientTheNextBroadcastNeeds(t *testing.T) {
+	// given
+	hub := NewHub()
+	roomID := uuid.New()
+	viewer := NewClient(uuid.New(), nil)
+	hub.clients[viewer.UserID] = []*Client{viewer}
+	hub.JoinRoom(roomID, viewer.UserID)
+
+	// when
+	for range sendBufferSize * 4 {
+		hub.BroadcastFrameToRoom(roomID, Message{Type: "game_pong_frame"})
+	}
+	hub.BroadcastToRoom(roomID, Message{Type: "chat_message"}, uuid.Nil)
+
+	// then
+	assert.LessOrEqual(t, len(viewer.send), sendBufferSize/2+1)
+	assert.Len(t, hub.clients[viewer.UserID], 1, "a frame backlog must never cost a client its connection")
+}
+
 func TestHub_BroadcastPublic_ReachesAuthedAndAnon(t *testing.T) {
 	// given
 	hub := NewHub()

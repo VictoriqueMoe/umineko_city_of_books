@@ -32,6 +32,9 @@ const (
 
 	inboundPerSecond = 100
 	inboundBurst     = 200
+
+	gameRoomInputType = "game_room_input"
+	rateLimitLogEvery = 5 * time.Second
 )
 
 type (
@@ -46,6 +49,7 @@ type (
 	GameRoomPresence interface {
 		HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID)
 		HandleClientLeave(userID, roomID uuid.UUID)
+		HandleClientInput(userID, roomID uuid.UUID, payload json.RawMessage)
 	}
 
 	WatchPartyDisconnectHandler interface {
@@ -76,6 +80,11 @@ type (
 
 	gameRoomTopicData struct {
 		RoomID string `json:"room_id"`
+	}
+
+	gameRoomInputData struct {
+		RoomID  string          `json:"room_id"`
+		Payload json.RawMessage `json:"payload"`
 	}
 )
 
@@ -200,6 +209,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 		_ = conn.SetReadDeadline(time.Now().Add(readDeadline))
 
 		limiter := rate.NewLimiter(inboundPerSecond, inboundBurst)
+		var lastLimitLog time.Time
 
 		for {
 			_, raw, err := conn.ReadMessage()
@@ -221,12 +231,33 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 			tokens := limiter.Tokens()
 			if !limiter.Allow() {
 				recordDropped(true)
-				logger.Log.Warn().Str("user_id", userID.String()).Float64("tokens", tokens).Msg("ws inbound rate limit exceeded")
+
+				if now := time.Now(); now.Sub(lastLimitLog) >= rateLimitLogEvery {
+					lastLimitLog = now
+					logger.Log.Warn().Str("user_id", userID.String()).Float64("tokens", tokens).Msg("ws inbound rate limit exceeded")
+				}
+
 				continue
 			}
 
 			var msg incomingMessage
 			if err := json.Unmarshal(raw, &msg); err != nil {
+				continue
+			}
+
+			if msg.Type == gameRoomInputType {
+				if gamePresence != nil {
+					var data gameRoomInputData
+					if err := json.Unmarshal(msg.Data, &data); err == nil {
+						roomID, perr := uuid.Parse(data.RoomID)
+						if perr == nil && joinedGameRooms[roomID] {
+							gamePresence.HandleClientInput(userID, roomID, data.Payload)
+						}
+					}
+				}
+
+				recordInputFrame()
+
 				continue
 			}
 

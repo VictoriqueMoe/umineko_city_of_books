@@ -121,6 +121,25 @@ func (c *Client) enqueue(data []byte) bool {
 	}
 }
 
+func (c *Client) enqueueLossy(data []byte) bool {
+	select {
+	case c.send <- data:
+		return true
+	case <-c.closeCh:
+		return false
+	default:
+		return false
+	}
+}
+
+func (c *Client) enqueueFrame(data []byte) bool {
+	if len(c.send) >= cap(c.send)/2 {
+		return false
+	}
+
+	return c.enqueueLossy(data)
+}
+
 // kill signals the writer to stop. Safe to call multiple times.
 func (c *Client) kill() {
 	c.closeOnce.Do(func() {
@@ -520,6 +539,36 @@ func (h *Hub) IsUserInRoom(roomID, userID uuid.UUID) bool {
 
 func (h *Hub) BroadcastToRoom(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) {
 	h.broadcastToRoomTraced(roomID, msg, excludeUserID)
+}
+
+func (h *Hub) BroadcastFrameToRoom(roomID uuid.UUID, msg Message) int {
+	h.mu.RLock()
+	var conns []*Client
+	for uid := range h.rooms[roomID] {
+		conns = append(conns, h.clients[uid]...)
+	}
+	h.mu.RUnlock()
+
+	if len(conns) == 0 {
+		return 0
+	}
+
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return 0
+	}
+
+	sent := 0
+	for _, client := range conns {
+		if client.enqueueFrame(data) {
+			sent++
+			continue
+		}
+
+		recordFrameDropped()
+	}
+
+	return sent
 }
 
 func (h *Hub) broadcastToRoomTraced(roomID uuid.UUID, msg Message, excludeUserID uuid.UUID) int {

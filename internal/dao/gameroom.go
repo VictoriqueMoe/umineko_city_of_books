@@ -157,7 +157,7 @@ func (r *gameRoomDAO) SetStatus(ctx context.Context, roomID uuid.UUID, status st
 
 func (r *gameRoomDAO) SetState(ctx context.Context, roomID uuid.UUID, stateJSON string, turnUserID *uuid.UUID, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE game_rooms SET state_json = $1, turn_user_id = $2, updated_at = NOW() WHERE id = $3`,
+		`UPDATE game_rooms SET state_json = $1, turn_user_id = $2, updated_at = NOW() WHERE id = $3 AND status = 'active'`,
 		stateJSON, turnUserID, roomID,
 	)
 	if err != nil {

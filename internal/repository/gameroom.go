@@ -147,11 +147,11 @@ func (r *gameRoomRepository) Start(ctx context.Context, spec GameRoomStart, tx .
 			return err
 		}
 
-		if err := r.dao.SetState(ctx, spec.RoomID, spec.StateJSON, spec.TurnUserID, tx); err != nil {
+		if err := r.dao.SetStatus(ctx, spec.RoomID, spec.Status, tx); err != nil {
 			return err
 		}
 
-		return r.dao.SetStatus(ctx, spec.RoomID, spec.Status, tx)
+		return r.dao.SetState(ctx, spec.RoomID, spec.StateJSON, spec.TurnUserID, tx)
 	})
 }
 
