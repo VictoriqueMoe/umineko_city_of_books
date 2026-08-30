@@ -8,12 +8,16 @@ import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingInd
 import { DmMessageList } from "../../components/chat/MessageList/DmMessageList";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { isSiteStaff } from "../../utils/permissions";
-import { forceMuteVoiceParticipant } from "../../api/endpoints";
-import { getRoomAvatarUser, getRoomDisplayName, useDmController } from "../../hooks/useDmController";
+import { getRoomAvatarUser, getRoomDisplayName } from "../../domain/chat/dm";
+import { isSiteStaff } from "../../domain/permissions";
+import { FORCE_MUTE_FAILED, useForceMuteVoiceParticipant } from "../../hooks/mutations/chat";
+import { errorMessage } from "../../utils/errorMessage";
+import { useDmController } from "../../hooks/useDmController";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { MobileDmView } from "../../components/chat/mobile/MobileDmView";
 import styles from "./ChatPage.module.css";
+
+const MESSAGE_LIST_CLASSES = { messages: styles.messages, loadMoreBar: styles.loadMoreBar };
 
 export function ChatPage() {
     const controller = useDmController();
@@ -27,7 +31,20 @@ export function ChatPage() {
         activeRoom,
         draftRecipient,
         setDraftRecipient,
+        messages,
+        hasMore,
+        loadingMore,
+        messagesContainerRef,
+        messagesContentRef,
         messagesEndRef,
+        handleDmScroll,
+        readReceipts,
+        matchesViewerMention,
+        editingMessageId,
+        startEditing,
+        cancelEditing,
+        handleDeleteMessage,
+        handleEditMessage,
         typingNames,
         voice,
         voiceEnabled,
@@ -43,6 +60,8 @@ export function ChatPage() {
         dmMutuals,
         dmError,
         dmCreating,
+        toast,
+        showToast,
         handleRoomSelect,
         handleMobileBack,
         handleSentMessage,
@@ -51,6 +70,7 @@ export function ChatPage() {
         handleDeleteChat,
         notifyTyping,
     } = controller;
+    const forceMute = useForceMuteVoiceParticipant(activeRoomId);
 
     if (!user) {
         return null;
@@ -161,13 +181,33 @@ export function ChatPage() {
                                     onLeave={voice.leave}
                                     canModerate={user ? isSiteStaff(user.role) : false}
                                     onForceMute={(id, muted) => {
-                                        forceMuteVoiceParticipant(activeRoomId ?? "", id, muted).catch(() => {});
+                                        forceMute.mutate(
+                                            { userId: id, muted },
+                                            { onError: err => showToast(errorMessage(err, FORCE_MUTE_FAILED)) },
+                                        );
                                     }}
                                 />
                             )}
                             <DmMessageList
-                                controller={controller}
-                                classes={{ messages: styles.messages, loadMoreBar: styles.loadMoreBar }}
+                                viewer={user}
+                                room={activeRoom}
+                                messages={messages}
+                                hasMore={hasMore}
+                                loadingMore={loadingMore}
+                                editingMessageId={editingMessageId}
+                                readReceipts={readReceipts}
+                                matchesViewerMention={matchesViewerMention}
+                                containerRef={messagesContainerRef}
+                                contentRef={messagesContentRef}
+                                endRef={messagesEndRef}
+                                onScroll={handleDmScroll}
+                                onLightbox={setLightboxSrc}
+                                onReply={setReplyingTo}
+                                onStartEditing={startEditing}
+                                onCancelEditing={cancelEditing}
+                                onDelete={handleDeleteMessage}
+                                onEdit={handleEditMessage}
+                                classes={MESSAGE_LIST_CLASSES}
                             />
                             <TypingIndicator names={typingNames} />
                             <ChatComposer
@@ -183,6 +223,7 @@ export function ChatPage() {
                                         enabled={voiceEnabled}
                                         status={voice.status}
                                         presenceCount={voice.presenceCount}
+                                        error={voice.error}
                                         onJoin={voice.join}
                                         onLeave={voice.leave}
                                     />
@@ -245,6 +286,7 @@ export function ChatPage() {
                     </div>
                 </Modal>
             </div>
+            {toast && <div className={styles.toast}>{toast}</div>}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </div>
     );

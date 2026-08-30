@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useAuthedUser } from "../../hooks/useAuthedUser";
-import { useSettingsForm } from "../../hooks/useSettingsForm";
+import { useProfileSettingsForm } from "../../hooks/useProfileSettingsForm";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -13,14 +13,15 @@ import { CharacterOptInSection } from "./CharacterOptInSection";
 import { ConfirmEmailPasswordModal } from "./ConfirmEmailPasswordModal";
 import { DangerZoneSection } from "./DangerZoneSection";
 import { StreamOverlaySection } from "./StreamOverlaySection";
-import { getSeriesConfig } from "../../utils/seriesConfig";
-import { useUserOCSummaries } from "../../api/queries/oc";
+import { getSeriesConfig } from "../../domain/series";
+import { HOME_PAGE_OPTIONS } from "../../domain/user/homePage";
+import { useUserOCSummaries } from "../../hooks/queries/oc";
 import styles from "./SettingsPage.module.css";
 import { WebPushToggle } from "../../components/WebPushToggle/WebPushToggle";
 
 const SPECIAL_CHARACTERS: string[] = ["Goldsmith"];
 
-function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
+function BannerSection({ form }: { form: ReturnType<typeof useProfileSettingsForm> }) {
     const containerRef = useRef<HTMLDivElement>(null);
     const [dragging, setDragging] = useState(false);
     const dragStartY = useRef(0);
@@ -114,7 +115,7 @@ function BannerSection({ form }: { form: ReturnType<typeof useSettingsForm> }) {
 export function SettingsPage() {
     usePageTitle("Settings");
     const user = useAuthedUser();
-    const form = useSettingsForm();
+    const form = useProfileSettingsForm();
     const ocSummaries = useUserOCSummaries(user.id, user.id);
     const [customFavouriteChosen, setCustomFavouriteChosen] = useState(false);
 
@@ -478,27 +479,11 @@ export function SettingsPage() {
                         <label className={styles.label}>
                             Home Page
                             <Select value={form.homePage} onChange={e => form.setHomePage(e.target.value)}>
-                                <option value="landing">Welcome (Landing)</option>
-                                <option value="rules">Rules</option>
-                                <option value="theories">Theories (Umineko)</option>
-                                <option value="theories_higurashi">Theories (Higurashi)</option>
-                                <option value="theories_ciconia">Theories (Ciconia)</option>
-                                <option value="game_board">Game Board (General)</option>
-                                <option value="game_board_umineko">Game Board (Umineko)</option>
-                                <option value="game_board_higurashi">Game Board (Higurashi)</option>
-                                <option value="game_board_ciconia">Game Board (Ciconia)</option>
-                                <option value="game_board_higanbana">Game Board (Higanbana)</option>
-                                <option value="game_board_roseguns">Game Board (Rose Guns Days)</option>
-                                <option value="gallery">Gallery (General)</option>
-                                <option value="gallery_umineko">Gallery (Umineko)</option>
-                                <option value="gallery_higurashi">Gallery (Higurashi)</option>
-                                <option value="gallery_ciconia">Gallery (Ciconia)</option>
-                                <option value="quotes">Quotes</option>
-                                <option value="mysteries">Mysteries</option>
-                                <option value="ships">Ships</option>
-                                <option value="fanfiction">Fanfiction</option>
-                                <option value="journals">Reading Journals</option>
-                                <option value="games">Games</option>
+                                {HOME_PAGE_OPTIONS.map(option => (
+                                    <option key={option.value} value={option.value}>
+                                        {option.label}
+                                    </option>
+                                ))}
                             </Select>
                         </label>
                         <label className={styles.label}>

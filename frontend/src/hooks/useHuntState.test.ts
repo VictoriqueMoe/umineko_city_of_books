@@ -1,14 +1,13 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteInfoSecret } from "../api/endpoints";
 import { makeUser } from "../test-utils/fixtures";
 import { providerWrapper } from "../test-utils/render";
-import type { UserProfile } from "../types/api";
+import type { SiteInfoSecret, UserProfile } from "../types/api";
 import { useHuntState } from "./useHuntState";
 
 const mocks = vi.hoisted(() => ({ unlock: vi.fn() }));
 
-vi.mock("../api/mutations/secret", () => ({
+vi.mock("./mutations/secret", () => ({
     useUnlockSecret: () => ({ mutateAsync: mocks.unlock }),
 }));
 

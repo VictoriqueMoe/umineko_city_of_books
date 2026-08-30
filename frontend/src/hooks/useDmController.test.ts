@@ -1,10 +1,12 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WSMessageHandler } from "../context/notificationContextValue";
+import type * as BusModule from "../api/realtime/bus";
+import type * as OutboundModule from "../api/realtime/outbound";
 import { makeUser } from "../test-utils/fixtures";
 import { providerWrapper } from "../test-utils/render";
-import type { ChatMessage, ChatRoom, User, UserProfile, WSMessage } from "../types/api";
-import { getRoomAvatarUser, getRoomDisplayName, renderSeenLabel, useDmController } from "./useDmController";
+import { makeWSHarness, type RealtimeTestEvent, type RealtimeTestNames, type WSHarness } from "../test-utils/ws";
+import type { ChatMessage, ChatRoom, User, UserProfile } from "../types/api";
+import { useDmController } from "./useDmController";
 
 const mocks = vi.hoisted(() => ({
     fetchUserRooms: vi.fn(),
@@ -21,30 +23,54 @@ const mocks = vi.hoisted(() => ({
     playRemoteAudio: vi.fn(),
 }));
 
-vi.mock("../api/queries/chat", () => ({
+const holder = vi.hoisted(() => ({ ws: null as unknown as WSHarness }));
+
+vi.mock("../api/realtime/pipeline", () => ({
+    ensureRealtimePipeline: () => {},
+    getRealtimeEpoch: () => holder.ws.getEpoch(),
+    subscribeRealtimeEpoch: (listener: () => void) => holder.ws.subscribeEpoch(listener),
+}));
+
+vi.mock("../api/realtime/bus", async importOriginal => {
+    const actual = await importOriginal<typeof BusModule>();
+
+    return {
+        ...actual,
+        subscribe: (names: RealtimeTestNames, handler: BusModule.RealtimeEventHandler) =>
+            holder.ws.subscribe(names, handler),
+    };
+});
+
+vi.mock("../api/realtime/outbound", async importOriginal => {
+    const actual = await importOriginal<typeof OutboundModule>();
+
+    return { ...actual, sendRealtime: (command: OutboundModule.RealtimeCommand) => holder.ws.sendRealtime(command) };
+});
+
+vi.mock("./queries/chat", () => ({
     fetchUserRooms: mocks.fetchUserRooms,
     fetchResolveDMRoom: mocks.fetchResolveDMRoom,
     fetchRoomMessages: mocks.fetchRoomMessages,
     fetchRoomMessagesBefore: mocks.fetchRoomMessagesBefore,
 }));
 
-vi.mock("../api/queries/misc", () => ({
+vi.mock("./queries/user", () => ({
     fetchMutualFollowers: mocks.fetchMutualFollowers,
     fetchSearchUsers: mocks.fetchSearchUsers,
 }));
 
-vi.mock("../api/mutations/chat", () => ({
+vi.mock("./mutations/chat", () => ({
     useDeleteChatRoom: () => ({ mutateAsync: mocks.deleteChatRoom }),
     useMarkChatRoomRead: () => ({ mutate: mocks.markChatRoomRead, mutateAsync: mocks.markChatRoomRead }),
     useDeleteChatMessage: () => ({ mutateAsync: mocks.deleteChatMessage }),
     useEditChatMessage: () => ({ mutateAsync: mocks.editChatMessage }),
 }));
 
-vi.mock("../components/chat/Voice/useVoiceChat", () => ({
+vi.mock("./useVoiceChat", () => ({
     useVoiceChat: () => ({ status: "idle", room: null, participantIds: [], join: () => {}, leave: () => {} }),
 }));
 
-vi.mock("../utils/sound", () => ({
+vi.mock("../platform/sound", () => ({
     playMessageSound: mocks.playMessageSound,
     playRemoteAudio: mocks.playRemoteAudio,
 }));
@@ -97,30 +123,24 @@ interface HarnessOptions {
 }
 
 function renderDm(options: HarnessOptions = {}) {
-    const handlers: WSMessageHandler[] = [];
-    const unsubscribe = vi.fn();
-    const addWSListener = vi.fn((handler: WSMessageHandler) => {
-        handlers.push(handler);
-        return unsubscribe;
-    });
-    const sendWSMessage = vi.fn();
     const wrapper = providerWrapper({
         user: options.user === undefined ? viewer : options.user,
         route: options.route ?? "/chat/room-1",
         path: options.path ?? "/chat/:roomId",
-        notification: { addWSListener, sendWSMessage },
     });
     const rendered = renderHook(() => useDmController(), { wrapper });
 
-    function emit(msg: WSMessage): void {
-        act(() => {
-            for (const handler of handlers.slice()) {
-                handler(msg);
-            }
-        });
+    function emit(event: RealtimeTestEvent): void {
+        holder.ws.emit(event);
     }
 
-    return { ...rendered, emit, sendWSMessage, addWSListener, unsubscribe };
+    return {
+        ...rendered,
+        emit,
+        sendRealtime: holder.ws.sendRealtime,
+        subscribe: holder.ws.subscribe,
+        unsubscribe: holder.ws.unsubscribe,
+    };
 }
 
 async function renderLoadedDm(options: HarnessOptions = {}) {
@@ -133,6 +153,7 @@ async function renderLoadedDm(options: HarnessOptions = {}) {
 }
 
 beforeEach(() => {
+    holder.ws = makeWSHarness();
     mocks.fetchUserRooms.mockResolvedValue({ rooms: [makeRoom()] });
     mocks.fetchRoomMessages.mockResolvedValue({ messages: [], total: 0 });
     mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [], total: 0 });
@@ -141,186 +162,6 @@ beforeEach(() => {
     mocks.fetchSearchUsers.mockResolvedValue([]);
     mocks.markChatRoomRead.mockResolvedValue(undefined);
     mocks.deleteChatRoom.mockResolvedValue(undefined);
-});
-
-describe("getRoomDisplayName", () => {
-    it("uses the name a group chat was given", () => {
-        // given
-        const room = makeRoom({ type: "group", name: "Rokkenjima" });
-
-        // when
-        const name = getRoomDisplayName(room, viewer);
-
-        // then
-        expect(name).toBe("Rokkenjima");
-    });
-
-    it("falls back to a generic label for an unnamed group chat", () => {
-        // given
-        const room = makeRoom({ type: "group", name: "" });
-
-        // when
-        const name = getRoomDisplayName(room, viewer);
-
-        // then
-        expect(name).toBe("Group Chat");
-    });
-
-    it("names a direct message after the other person", () => {
-        // given
-        const room = makeRoom();
-
-        // when
-        const name = getRoomDisplayName(room, viewer);
-
-        // then
-        expect(name).toBe("Battler");
-    });
-
-    it("falls back to a generic label when the viewer is the only member left", () => {
-        // given
-        const room = makeRoom({ members: [{ id: "u1", username: "beatrice", display_name: "Beatrice" }] });
-
-        // when
-        const name = getRoomDisplayName(room, viewer);
-
-        // then
-        expect(name).toBe("Direct Message");
-    });
-});
-
-describe("getRoomAvatarUser", () => {
-    it("picks the other person in a direct message", () => {
-        // given
-        const room = makeRoom();
-
-        // when
-        const avatarUser = getRoomAvatarUser(room, viewer);
-
-        // then
-        expect(avatarUser?.id).toBe("u2");
-    });
-
-    it("has nobody to show for a group chat", () => {
-        // given
-        const room = makeRoom({ type: "group", name: "Rokkenjima" });
-
-        // when
-        const avatarUser = getRoomAvatarUser(room, viewer);
-
-        // then
-        expect(avatarUser).toBeNull();
-    });
-
-    it("has nobody to show when the viewer is alone in the conversation", () => {
-        // given
-        const room = makeRoom({ members: [{ id: "u1", username: "beatrice", display_name: "Beatrice" }] });
-
-        // when
-        const avatarUser = getRoomAvatarUser(room, viewer);
-
-        // then
-        expect(avatarUser).toBeNull();
-    });
-});
-
-describe("renderSeenLabel", () => {
-    const readAt = "2026-08-02T10:30:00Z";
-    const time = new Date(readAt).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-
-    it("says nothing when the room has not loaded", () => {
-        // given
-        const messages = [makeMessage()];
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, undefined, "u1", {});
-
-        // then
-        expect(label).toBeNull();
-    });
-
-    it("only labels the newest message the viewer sent", () => {
-        // given
-        const messages = [
-            makeMessage({ id: "m1", sender: { id: "u1", username: "beatrice", display_name: "Beatrice" } }),
-            makeMessage({ id: "m2", sender: { id: "u1", username: "beatrice", display_name: "Beatrice" } }),
-        ];
-        const receipts = { "room-1": { u2: readAt } };
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, makeRoom(), "u1", receipts);
-
-        // then
-        expect(label).toBeNull();
-    });
-
-    it("says nothing while nobody has read anything in the room", () => {
-        // given
-        const messages = [makeMessage()];
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, makeRoom(), "u1", { "room-2": { u2: readAt } });
-
-        // then
-        expect(label).toBeNull();
-    });
-
-    it("ignores a receipt from before the message was sent", () => {
-        // given
-        const messages = [makeMessage({ created_at: "2026-08-02T11:00:00Z" })];
-        const receipts = { "room-1": { u2: readAt } };
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, makeRoom(), "u1", receipts);
-
-        // then
-        expect(label).toBeNull();
-    });
-
-    it("reports the time a direct message was read without naming the reader", () => {
-        // given
-        const messages = [makeMessage()];
-        const receipts = { "room-1": { u2: readAt } };
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, makeRoom(), "u1", receipts);
-
-        // then
-        expect(label).toBe(`seen ${time}`);
-    });
-
-    it("names the most recent reader in a group chat", () => {
-        // given
-        const room = makeRoom({
-            type: "group",
-            name: "Rokkenjima",
-            members: [
-                { id: "u1", username: "beatrice", display_name: "Beatrice" },
-                makeMember(),
-                makeMember({ id: "u3", username: "ange", display_name: "Ange" }),
-            ],
-        });
-        const messages = [makeMessage()];
-        const receipts = { "room-1": { u2: "2026-08-02T10:15:00Z", u3: readAt } };
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, room, "u1", receipts);
-
-        // then
-        expect(label).toBe(`seen by Ange ${time}`);
-    });
-
-    it("never counts the viewer's own read receipt", () => {
-        // given
-        const messages = [makeMessage()];
-        const receipts = { "room-1": { u1: readAt } };
-
-        // when
-        const label = renderSeenLabel(messages[0], 0, messages, makeRoom(), "u1", receipts);
-
-        // then
-        expect(label).toBeNull();
-    });
 });
 
 describe("useDmController conversation list", () => {
@@ -378,15 +219,15 @@ describe("useDmController conversation list", () => {
 describe("useDmController socket wiring", () => {
     it("joins the active room over the socket and leaves when the view closes", async () => {
         // given
-        const { sendWSMessage, unmount } = await renderLoadedDm();
+        const { sendRealtime, unmount } = await renderLoadedDm();
 
         // when
-        const joined = sendWSMessage.mock.calls.map(call => call[0]);
+        const joined = sendRealtime.mock.calls.map(call => call[0]);
         unmount();
 
         // then
         expect(joined).toContainEqual({ type: "join_room", data: { room_id: "room-1" } });
-        expect(sendWSMessage).toHaveBeenLastCalledWith({ type: "leave_room", data: { room_id: "room-1" } });
+        expect(sendRealtime).toHaveBeenLastCalledWith({ type: "leave_room", data: { room_id: "room-1" } });
     });
 
     it("marks the active conversation read as soon as it opens", async () => {
@@ -416,19 +257,19 @@ describe("useDmController socket wiring", () => {
 
     it("stops listening to the socket once the view goes away", async () => {
         // given
-        const { unmount, unsubscribe, addWSListener } = await renderLoadedDm();
+        const { unmount, unsubscribe, subscribe } = await renderLoadedDm();
 
         // when
         unmount();
 
         // then
-        expect(addWSListener).toHaveBeenCalled();
+        expect(subscribe).toHaveBeenCalled();
         expect(unsubscribe).toHaveBeenCalled();
     });
 
     it("announces that the viewer is typing in the active conversation", async () => {
         // given
-        const { result, sendWSMessage } = await renderLoadedDm();
+        const { result, sendRealtime } = await renderLoadedDm();
 
         // when
         act(() => {
@@ -436,7 +277,21 @@ describe("useDmController socket wiring", () => {
         });
 
         // then
-        expect(sendWSMessage).toHaveBeenCalledWith({ type: "typing", data: { room_id: "room-1" } });
+        expect(sendRealtime).toHaveBeenCalledWith({ type: "typing", data: { room_id: "room-1" } });
+    });
+
+    it("says nothing about typing while no conversation is open", async () => {
+        // given
+        const { result, sendRealtime } = await renderLoadedDm({ route: "/chat", path: "/chat" });
+        sendRealtime.mockClear();
+
+        // when
+        act(() => {
+            result.current.notifyTyping();
+        });
+
+        // then
+        expect(sendRealtime).not.toHaveBeenCalled();
     });
 });
 
@@ -607,6 +462,36 @@ describe("useDmController incoming messages", () => {
         // then
         expect(mocks.playMessageSound).not.toHaveBeenCalled();
         Reflect.deleteProperty(document, "visibilityState");
+    });
+});
+
+describe("useDmController message failures", () => {
+    it("tells the viewer why their edit was refused", async () => {
+        // given
+        mocks.editChatMessage.mockRejectedValue(new Error("that message is too old to edit"));
+        const { result } = await renderLoadedDm();
+
+        // when
+        await act(async () => {
+            await result.current.handleEditMessage(makeMessage({ id: "m1" }), "rewritten").catch(() => {});
+        });
+
+        // then
+        expect(result.current.toast).toBe("that message is too old to edit");
+    });
+
+    it("tells the viewer why their delete was refused", async () => {
+        // given
+        mocks.deleteChatMessage.mockRejectedValue(new Error("the witch forbids it"));
+        const { result } = await renderLoadedDm();
+
+        // when
+        await act(async () => {
+            await result.current.handleDeleteMessage(makeMessage({ id: "m1" }));
+        });
+
+        // then
+        expect(result.current.toast).toBe("the witch forbids it");
     });
 });
 

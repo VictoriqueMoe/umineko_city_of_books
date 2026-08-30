@@ -1,10 +1,8 @@
-import { QueryClient } from "@tanstack/react-query";
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatMessage, User } from "../../../types/api";
-import { queryKeys } from "../../../api/queryKeys";
 import { renderWithProviders } from "../../../test-utils/render";
 import { PinnedMessagesPanel } from "./PinnedMessagesPanel";
 
@@ -13,8 +11,8 @@ const { useChatRoomPinnedMessages, useUnpinChatMessage } = vi.hoisted(() => ({
     useUnpinChatMessage: vi.fn(),
 }));
 
-vi.mock("../../../api/queries/chat", () => ({ useChatRoomPinnedMessages }));
-vi.mock("../../../api/mutations/chat", () => ({ useUnpinChatMessage }));
+vi.mock("../../../hooks/queries/chat", () => ({ useChatRoomPinnedMessages }));
+vi.mock("../../../hooks/mutations/chat", () => ({ useUnpinChatMessage }));
 
 const roomId = "room-1";
 
@@ -50,26 +48,23 @@ function stubPinned(messages: ChatMessage[], loading = false) {
     return refresh;
 }
 
-function seededClient(messages: ChatMessage[]): QueryClient {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: { retry: false, gcTime: Infinity, staleTime: Infinity },
-            mutations: { retry: false },
-        },
-    });
-    queryClient.setQueryData(queryKeys.chat.pinned(roomId), { messages });
-
-    return queryClient;
+interface UnpinCallbacks {
+    onSettled?: () => void;
 }
 
 function stubUnpin(impl: (messageId: string) => Promise<unknown> = () => Promise.resolve()) {
-    const mutateAsync = vi.fn(impl);
-    useUnpinChatMessage.mockReturnValue({ mutateAsync });
+    const mutate = vi.fn((messageId: string, callbacks?: UnpinCallbacks) => {
+        impl(messageId).then(
+            () => callbacks?.onSettled?.(),
+            () => callbacks?.onSettled?.(),
+        );
+    });
+    useUnpinChatMessage.mockReturnValue({ mutate });
 
-    return mutateAsync;
+    return mutate;
 }
 
-function renderPanel(overrides: Partial<ComponentProps<typeof PinnedMessagesPanel>> = {}, queryClient?: QueryClient) {
+function renderPanel(overrides: Partial<ComponentProps<typeof PinnedMessagesPanel>> = {}) {
     const onClose = vi.fn();
     const onJump = vi.fn();
     const onLightbox = vi.fn();
@@ -83,7 +78,6 @@ function renderPanel(overrides: Partial<ComponentProps<typeof PinnedMessagesPane
             canUnpin={false}
             {...overrides}
         />,
-        { queryClient },
     );
 
     return { ...result, onClose, onJump, onLightbox };
@@ -249,23 +243,18 @@ describe("PinnedMessagesPanel", () => {
         expect(onClose).toHaveBeenCalledOnce();
     });
 
-    it("drops the message from the cached pin list once it is unpinned", async () => {
+    it("hands the unpin to the mutation and leaves the cache to it", async () => {
         // given
-        const queryClient = seededClient([makeMessage({ id: "msg-1" }), makeMessage({ id: "msg-2" })]);
         stubPinned([makeMessage({ id: "msg-1", body: "first pin" })]);
-        const mutateAsync = stubUnpin();
+        const mutate = stubUnpin();
         const user = userEvent.setup();
-        renderPanel({ canUnpin: true }, queryClient);
+        renderPanel({ canUnpin: true });
 
         // when
         await user.click(screen.getByRole("button", { name: "Unpin" }));
 
         // then
-        expect(mutateAsync).toHaveBeenCalledWith("msg-1");
-        await waitFor(() => {
-            const cached = queryClient.getQueryData<{ messages: ChatMessage[] }>(queryKeys.chat.pinned(roomId));
-            expect(cached?.messages.map(m => m.id)).toEqual(["msg-2"]);
-        });
+        expect(mutate.mock.calls[0][0]).toBe("msg-1");
     });
 
     it("shows a busy label on only the row being unpinned", async () => {
@@ -296,13 +285,12 @@ describe("PinnedMessagesPanel", () => {
         expect(screen.getAllByRole("button", { name: "Unpin" })).toHaveLength(2);
     });
 
-    it("leaves the pin list untouched when the unpin request fails", async () => {
+    it("releases the busy row when the unpin request fails", async () => {
         // given
-        const queryClient = seededClient([makeMessage({ id: "msg-1" })]);
         stubPinned([makeMessage({ id: "msg-1" })]);
         stubUnpin(() => Promise.reject(new Error("the witch forbids it")));
         const user = userEvent.setup();
-        renderPanel({ canUnpin: true }, queryClient);
+        renderPanel({ canUnpin: true });
 
         // when
         await user.click(screen.getByRole("button", { name: "Unpin" }));
@@ -311,8 +299,7 @@ describe("PinnedMessagesPanel", () => {
         await waitFor(() => {
             expect(screen.getByRole("button", { name: "Unpin" })).toBeEnabled();
         });
-        const cached = queryClient.getQueryData<{ messages: ChatMessage[] }>(queryKeys.chat.pinned(roomId));
-        expect(cached?.messages.map(m => m.id)).toEqual(["msg-1"]);
+        expect(screen.getByText("Without love it cannot be seen")).toBeInTheDocument();
     });
 
     it("opens the lightbox when a pinned image is clicked", async () => {
@@ -362,60 +349,14 @@ describe("PinnedMessagesPanel", () => {
         expect(container.querySelector("img")).toBeNull();
     });
 
-    it("refetches the pins when the refresh key changes", () => {
-        // given
-        const refresh = stubPinned([makeMessage()]);
-        stubUnpin();
-        const { rerender } = renderPanel({ refreshKey: 1 });
-        const callsBefore = refresh.mock.calls.length;
-
-        // when
-        rerender(
-            <PinnedMessagesPanel
-                roomId={roomId}
-                isOpen
-                onClose={() => {}}
-                onJump={() => {}}
-                canUnpin={false}
-                refreshKey={2}
-            />,
-        );
-
-        // then
-        expect(refresh.mock.calls.length).toBeGreaterThan(callsBefore);
-    });
-
-    it("does not refetch again when only the query result identity changes", () => {
-        // given
-        const refresh = vi.fn(() => Promise.resolve());
-        useChatRoomPinnedMessages.mockImplementation(() => ({ messages: [makeMessage()], loading: false, refresh }));
-        stubUnpin();
-        const { rerender } = renderPanel({ refreshKey: 1 });
-        const callsBefore = refresh.mock.calls.length;
-
-        // when
-        rerender(
-            <PinnedMessagesPanel
-                roomId={roomId}
-                isOpen
-                onClose={() => {}}
-                onJump={() => {}}
-                canUnpin={false}
-                refreshKey={1}
-            />,
-        );
-
-        // then
-        expect(refresh.mock.calls.length).toBe(callsBefore);
-    });
-
-    it("never refetches when no refresh key is supplied", () => {
+    it("never refetches the pins by hand", () => {
         // given
         const refresh = stubPinned([makeMessage()]);
         stubUnpin();
 
         // when
-        renderPanel({ refreshKey: undefined });
+        const { rerender } = renderPanel();
+        rerender(<PinnedMessagesPanel roomId={roomId} isOpen onClose={() => {}} onJump={() => {}} canUnpin={false} />);
 
         // then
         expect(refresh).not.toHaveBeenCalled();

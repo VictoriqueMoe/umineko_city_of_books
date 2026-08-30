@@ -1,9 +1,8 @@
 import { useState } from "react";
-import type { Quote } from "../../../types/api";
-import type { Series } from "../../../api/endpoints";
-import { useBrowseQuotes, useSearchQuotes } from "../../../api/queries/quote";
-import { useCharacterGroups } from "../../../api/queries/characters";
-import { getSeriesConfig } from "../../../utils/seriesConfig";
+import type { Quote, Series } from "../../../types/api";
+import { useBrowseQuotes, useSearchQuotes } from "../../../hooks/queries/quote";
+import { useCharacterGroups } from "../../../hooks/queries/quoteCharacters";
+import { getSeriesConfig } from "../../../domain/series";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { Modal } from "../../Modal/Modal";

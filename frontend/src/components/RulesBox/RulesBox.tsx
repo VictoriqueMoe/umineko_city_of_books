@@ -1,4 +1,4 @@
-import { useRules } from "../../api/queries/misc";
+import { useRules } from "../../hooks/queries/site";
 import styles from "./RulesBox.module.css";
 
 interface RulesBoxProps {

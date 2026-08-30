@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearAuthToken, getAuthToken, setAuthToken } from "../utils/authToken";
+import { clearAuthToken, getAuthToken, setAuthToken } from "./authToken";
 import {
     ApiError,
     absolutizeMedia,
     apiDelete,
     apiDeleteWithBody,
     apiFetch,
+    apiFetchText,
     apiPatch,
     apiPost,
     apiPostFormData,
@@ -13,6 +14,7 @@ import {
     apiUrl,
     authHeaders,
     buildQueryString,
+    postFile,
 } from "./client";
 
 const capacitor = vi.hoisted(() => ({ native: false, platform: "web" }));
@@ -235,6 +237,73 @@ describe("apiFetch", () => {
     });
 });
 
+describe("apiFetchText", () => {
+    it("calls the versioned endpoint with cookies and returns the body verbatim", async () => {
+        // given
+        const fetchMock = stubFetch(new Response("<sef/>", { status: 200, headers: { "Content-Type": "text/xml" } }));
+
+        // when
+        const result = await apiFetchText("/overlay/connector.sef");
+
+        // then
+        expect(fetchMock).toHaveBeenCalledWith("/api/v1/overlay/connector.sef", {
+            credentials: "include",
+            headers: {},
+        });
+        expect(result).toBe("<sef/>");
+    });
+
+    it("sends the native auth headers when running in the app", async () => {
+        // given
+        goNative("android");
+        setAuthToken("token-123");
+        const fetchMock = stubFetch(new Response("<sef/>", { status: 200 }));
+
+        // when
+        await apiFetchText("/overlay/connector.sef");
+
+        // then
+        expect(fetchMock).toHaveBeenCalledWith("/api/v1/overlay/connector.sef", {
+            credentials: "include",
+            headers: { "X-Client-Platform": "android", Authorization: "Bearer token-123" },
+        });
+    });
+
+    it("throws an ApiError carrying the status and the server error message", async () => {
+        // given
+        stubFetch(jsonResponse({ error: "the overlay is not yours" }, 403));
+
+        // when
+        const failure = apiFetchText("/overlay/connector.sef");
+
+        // then
+        await expect(failure).rejects.toBeInstanceOf(ApiError);
+        await expect(failure).rejects.toMatchObject({ status: 403, message: "the overlay is not yours" });
+    });
+
+    it("falls back to a generic message when the error body is not json", async () => {
+        // given
+        stubFetch(new Response("<html>gateway exploded</html>", { status: 502 }));
+
+        // when
+        const failure = apiFetchText("/overlay/connector.sef");
+
+        // then
+        await expect(failure).rejects.toMatchObject({ status: 502, message: "API error: 502", body: null });
+    });
+
+    it("captures a session token handed back in the response headers", async () => {
+        // given
+        stubFetch(new Response("<sef/>", { status: 200, headers: { "X-Session-Token": "fresh-token" } }));
+
+        // when
+        await apiFetchText("/overlay/connector.sef");
+
+        // then
+        expect(getAuthToken()).toBe("fresh-token");
+    });
+});
+
 describe("apiPost", () => {
     it("posts a json body with credentials and returns the parsed response", async () => {
         // given
@@ -388,6 +457,67 @@ describe("apiPostFormData", () => {
             "X-Client-Platform": "ios",
             Authorization: "Bearer token-123",
         });
+    });
+});
+
+describe("postFile", () => {
+    it("wraps the file in form data under the field name it was given", async () => {
+        // given
+        const file = new File(["beato"], "avatar.png", { type: "image/png" });
+        const fetchMock = stubFetch(jsonResponse({ avatar_url: "/uploads/avatar.png" }));
+
+        // when
+        const result = await postFile<{ avatar_url: string }>("/auth/avatar", "avatar", file);
+
+        // then
+        const body = fetchMock.mock.calls[0][1]?.body as FormData;
+        expect(fetchMock.mock.calls[0][0]).toBe("/api/v1/auth/avatar");
+        expect(fetchMock.mock.calls[0][1]?.method).toBe("POST");
+        expect(fetchMock.mock.calls[0][1]?.headers).toEqual({});
+        expect(body).toBeInstanceOf(FormData);
+        expect([...body.keys()]).toEqual(["avatar"]);
+        expect(body.get("avatar")).toBe(file);
+        expect(result).toEqual({ avatar_url: "/uploads/avatar.png" });
+    });
+
+    it("sends the field name it was given rather than a fixed one", async () => {
+        // given
+        const file = new File(["beato"], "cover.png", { type: "image/png" });
+        const fetchMock = stubFetch(jsonResponse({ image_url: "/uploads/cover.png" }));
+
+        // when
+        await postFile<{ image_url: string }>("/fanfics/f-1/cover", "image", file);
+
+        // then
+        const body = fetchMock.mock.calls[0][1]?.body as FormData;
+        expect([...body.keys()]).toEqual(["image"]);
+        expect(body.get("image")).toBe(file);
+    });
+});
+
+describe("defaulted request body generic", () => {
+    it("accepts a single type argument on every body-carrying verb", async () => {
+        // given
+        const fetchMock = vi
+            .fn<typeof fetch>()
+            .mockImplementation(() => Promise.resolve(jsonResponse({ status: "ok" })));
+        vi.stubGlobal("fetch", fetchMock);
+
+        // when
+        const posted = await apiPost<{ status: string }>("/theories", { title: "the golden land" });
+        const put = await apiPut<{ status: string }>("/theories/t-1", { title: "the golden land" });
+        const patched = await apiPatch<{ status: string }>("/theories/t-1", { title: "the golden land" });
+        const deleted = await apiDeleteWithBody<{ status: string }>("/theories/t-1", { reason: "retracted" });
+
+        // then
+        expect(fetchMock).toHaveBeenCalledTimes(4);
+        expect(fetchMock.mock.calls.map(call => call[1]?.method)).toEqual(["POST", "PUT", "PATCH", "DELETE"]);
+        expect([posted, put, patched, deleted]).toEqual([
+            { status: "ok" },
+            { status: "ok" },
+            { status: "ok" },
+            { status: "ok" },
+        ]);
     });
 });
 

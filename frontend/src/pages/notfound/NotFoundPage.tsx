@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { PieceTrigger } from "../../features/easterEgg";
+import { PieceTrigger } from "../../components/easterEgg";
 import styles from "./NotFoundPage.module.css";
 
 export function NotFoundPage() {

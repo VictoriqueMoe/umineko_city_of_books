@@ -1,13 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
+import { useNewAnnouncementAlert } from "../../../hooks/useNewAnnouncementAlert";
 import { useNotifications } from "../../../hooks/useNotifications";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { useSidebarBadges } from "../../../hooks/useSidebarBadges";
-import { useArtCornerCounts, useCornerCounts } from "../../../api/queries/misc";
-import { useChatbotList } from "../../../api/queries/chatbot";
-import { can, canAccessAdmin } from "../../../utils/permissions";
-import { PieceTrigger } from "../../../features/easterEgg";
+import { useArtCornerCounts } from "../../../hooks/queries/art";
+import { useCornerCounts } from "../../../hooks/queries/post";
+import { useChatbotList } from "../../../hooks/queries/chatbot";
+import { canAccessAdmin } from "../../../domain/permissions";
+import { staffPanelLabel } from "../../../domain/adminTargets";
+import { PieceTrigger } from "../../easterEgg";
 import { AppVersionInfo } from "../../AppVersionInfo/AppVersionInfo";
 import styles from "./Sidebar.module.css";
 
@@ -55,7 +58,6 @@ const GAMES_LINKS = [
 export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     const { user } = useAuth();
     const {
-        addWSListener,
         unreadCount: unreadNotifs,
         chatUnreadCount: unreadChat,
         liveGamesCount,
@@ -63,6 +65,7 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     } = useNotifications();
     const { hasUnread, hasAnyUnread, markVisited, markAllVisited, anyUnread } = useSidebarBadges();
     const siteInfo = useSiteInfo();
+    const staffPanel = staffPanelLabel(user);
     const hasRulesPage = (siteInfo.rules_page ?? "").trim().length > 0;
     const location = useLocation();
     const [newAnnouncement, setNewAnnouncement] = useState(false);
@@ -137,22 +140,8 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
     };
     const { counts: cornerCounts } = useCornerCounts();
     const { counts: artCounts } = useArtCornerCounts();
-    const pathnameRef = useRef(location.pathname);
 
-    useEffect(() => {
-        pathnameRef.current = location.pathname;
-    }, [location.pathname]);
-
-    useEffect(() => {
-        return addWSListener(msg => {
-            if (msg.type === "new_announcement") {
-                const data = msg.data as { author_id?: string };
-                if (data.author_id !== user?.id && !pathnameRef.current.startsWith("/announcement")) {
-                    setNewAnnouncement(true);
-                }
-            }
-        });
-    }, [addWSListener, user?.id]);
+    useNewAnnouncementAlert(() => setNewAnnouncement(true));
 
     return (
         <>
@@ -650,15 +639,13 @@ export function Sidebar({ open, onClose, onCollapse }: SidebarProps) {
 
                     {canAccessAdmin(user) && (
                         <div className={styles.section}>
-                            <span className={styles.sectionLabel}>
-                                {can(user, "manage_settings") ? "Admin" : "Moderation"}
-                            </span>
+                            <span className={styles.sectionLabel}>{staffPanel.navSection}</span>
                             <NavLink
                                 to="/admin"
                                 className={({ isActive }) => `${styles.link}${isActive ? ` ${styles.active}` : ""}`}
                                 onClick={onClose}
                             >
-                                {can(user, "manage_settings") ? "Admin Panel" : "Moderator Panel"}
+                                {staffPanel.navLink}
                             </NavLink>
                         </div>
                     )}

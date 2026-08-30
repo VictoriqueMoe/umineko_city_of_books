@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useSecretList } from "../../api/queries/secret";
+import { useSecretList } from "../../hooks/queries/secret";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";

@@ -23,8 +23,8 @@ const {
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/mystery", () => ({ useMystery }));
-vi.mock("../../api/mutations/mystery", () => ({
+vi.mock("../../hooks/queries/mystery", () => ({ useMystery }));
+vi.mock("../../hooks/mutations/mystery", () => ({
     useCreateMystery,
     useUpdateMystery,
     useDeleteMysteryMedia,
@@ -79,6 +79,8 @@ interface StubOptions {
     loading?: boolean;
     create?: () => Promise<{ id: string }>;
     update?: () => Promise<unknown>;
+    uploadAttachment?: () => Promise<unknown>;
+    deleteMedia?: () => Promise<unknown>;
 }
 
 function stubMystery(options: StubOptions = {}) {
@@ -89,8 +91,8 @@ function stubMystery(options: StubOptions = {}) {
     });
     const createAsync = vi.fn(options.create ?? (() => Promise.resolve({ id: "mystery-9" })));
     const updateAsync = vi.fn(options.update ?? (() => Promise.resolve({})));
-    const deleteMediaAsync = vi.fn(() => Promise.resolve({}));
-    const uploadAttachmentAsync = vi.fn(() => Promise.resolve({}));
+    const deleteMediaAsync = vi.fn(options.deleteMedia ?? (() => Promise.resolve({})));
+    const uploadAttachmentAsync = vi.fn(options.uploadAttachment ?? (() => Promise.resolve({})));
     const uploadMediaAsync = vi.fn(() => Promise.resolve({}));
     useCreateMystery.mockReturnValue({ mutateAsync: createAsync });
     useUpdateMystery.mockReturnValue({ mutateAsync: updateAsync });
@@ -331,6 +333,49 @@ describe("CreateMysteryPage", () => {
         );
     });
 
+    it("stays on the form and names the attachment that would not upload", async () => {
+        // given
+        stubMystery({ uploadAttachment: () => Promise.reject(new Error("the disk is full")) });
+        const user = userEvent.setup();
+        const { container } = renderCreatePage();
+        await fillScenario(user);
+        const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
+        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Present Mystery" }));
+
+        // then
+        expect(await screen.findByText("notes.txt was not saved: the disk is full")).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it("presents no second mystery when the refused attachment is sent again", async () => {
+        // given
+        let refuse = true;
+        const { createAsync } = stubMystery({
+            create: () => Promise.resolve({ id: "mystery-5" }),
+            uploadAttachment: () => (refuse ? Promise.reject(new Error("the disk is full")) : Promise.resolve({})),
+        });
+        const user = userEvent.setup();
+        const { container } = renderCreatePage();
+        await fillScenario(user);
+        const inputs = container.querySelectorAll<HTMLInputElement>("input[type='file']");
+        await user.upload(inputs[1], makeFile("notes.txt", "text/plain", 2048));
+        await user.click(screen.getByRole("button", { name: "Present Mystery" }));
+        await screen.findByText("notes.txt was not saved: the disk is full");
+
+        // when
+        refuse = false;
+        await user.click(screen.getByRole("button", { name: "Present Mystery" }));
+
+        // then
+        await waitFor(() => {
+            expect(navigate).toHaveBeenCalledWith("/mystery/mystery-5");
+        });
+        expect(createAsync).toHaveBeenCalledOnce();
+    });
+
     it("lists an attachment with a human readable size and lets it be dropped", async () => {
         // given
         stubMystery();
@@ -436,6 +481,26 @@ describe("CreateMysteryPage", () => {
         await waitFor(() => {
             expect(deleteMediaAsync).toHaveBeenCalledWith(11);
         });
+    });
+
+    it("names the image whose removal the server refused instead of leaving it there quietly", async () => {
+        // given
+        stubMystery({
+            mystery: makeMysteryDetail({
+                media: [{ id: 11, media_url: "/m/11.png", media_type: "image", filename: "scene.png", sort_order: 0 }],
+            }),
+            deleteMedia: () => Promise.reject(new Error("the disk is full")),
+        });
+        const user = userEvent.setup();
+        renderEditPage();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Remove on save" }));
+        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+        // then
+        expect(await screen.findByText("the removal of scene.png was not saved: the disk is full")).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
     });
 
     it("lets a marked image be spared again before saving", async () => {

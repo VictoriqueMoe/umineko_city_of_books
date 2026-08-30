@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomController } from "../../hooks/useRoomController";
@@ -17,7 +17,7 @@ vi.mock("../../hooks/useRoomController", () => ({ useRoomController: mocks.useRo
 
 vi.mock("../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
 
-vi.mock("../../api/endpoints", () => ({ forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant }));
+vi.mock("../../api/endpoints/chat", () => ({ forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant }));
 
 vi.mock("../../components/chat/mobile/MobileRoomView", () => ({
     MobileRoomView: () => <div data-testid="mobile-room-view" />,
@@ -64,8 +64,10 @@ vi.mock("../../components/chat/WatchParty/WatchPartyButton", () => ({
 }));
 
 vi.mock("../../components/chat/WatchParty/WatchPartyModal", () => ({
-    WatchPartyModal: (props: { isStarter: boolean }) => (
-        <div data-testid="watch-party-modal">{String(props.isStarter)}</div>
+    WatchPartyModal: (props: { isStarter: boolean; voiceEnabled: boolean }) => (
+        <div data-testid="watch-party-modal" data-voice={String(props.voiceEnabled)}>
+            {String(props.isStarter)}
+        </div>
     ),
 }));
 
@@ -163,21 +165,22 @@ interface ControllerOptions {
 
 function stubController(options: ControllerOptions = {}) {
     const handlers = {
-        navigate: vi.fn(),
+        backToRooms: vi.fn(),
         setMobileView: vi.fn(),
         toggleSidebar: vi.fn(),
         toggleDescExpanded: vi.fn(),
         setReplyingTo: vi.fn(),
         setLightboxSrc: vi.fn(),
         setToast: vi.fn(),
-        sendWSMessage: vi.fn(),
         setPinnedOpen: vi.fn(),
         setSearchOpen: vi.fn(),
         setEditProfileOpen: vi.fn(),
         setInviteModalOpen: vi.fn(),
         setModerationDialogOpen: vi.fn(),
         setOpenMemberMenu: vi.fn(),
+        setRoom: vi.fn(),
         setMembers: vi.fn(),
+        notifyTyping: vi.fn(),
         setNicknameDialogTarget: vi.fn(),
         setNicknameDialogValue: vi.fn(),
         setTimeoutDialogTarget: vi.fn(),
@@ -206,31 +209,101 @@ function stubController(options: ControllerOptions = {}) {
     const onlineIds = new Set(options.onlineIds ?? []);
 
     const controller = {
-        user: options.user === undefined ? viewer : options.user,
-        navigate: handlers.navigate,
-        loading: options.loading ?? false,
-        room: options.room === undefined ? makeRoom() : options.room,
-        roomId: options.roomId === undefined ? "room-1" : options.roomId,
-        members,
-        memberGroups: options.memberGroups ?? [{ label: "Members", members }],
-        presenceMapMerged: options.presenceMapMerged ?? {},
-        memberOnlineWeight: (id: string) => (onlineIds.has(id) ? 0 : 1),
-        currentMember: options.currentMember ?? null,
-        mobileView: "chat",
-        setMobileView: handlers.setMobileView,
-        sidebarCollapsed: options.sidebarCollapsed ?? false,
-        toggleSidebar: handlers.toggleSidebar,
-        descExpanded: options.descExpanded ?? false,
-        toggleDescExpanded: handlers.toggleDescExpanded,
-        typingNames: options.typingNames ?? [],
+        room: {
+            data: options.room === undefined ? makeRoom() : options.room,
+            id: options.roomId === undefined ? "room-1" : options.roomId,
+            loading: options.loading ?? false,
+            joining: options.joining ?? false,
+            viewerTimeoutUntil: undefined,
+            viewerTimedOut: false,
+            set: handlers.setRoom,
+            join: handlers.handleJoin,
+            toggleMute: handlers.handleToggleMute,
+            leave: handlers.handleLeave,
+            remove: handlers.handleDelete,
+            backToRooms: handlers.backToRooms,
+        },
+        session: {
+            viewer: options.user === undefined ? viewer : options.user,
+            messages: [],
+            hasMore: false,
+            loadingMore: false,
+            containerRef: { current: null },
+            contentRef: { current: null },
+            endRef: { current: null },
+            onScroll: vi.fn(),
+            toBottom: vi.fn(),
+            editingMessageId: null,
+            setEditingMessageId: vi.fn(),
+            replyingTo: null,
+            setReplyingTo: handlers.setReplyingTo,
+            typingNames: options.typingNames ?? [],
+            notifyTyping: handlers.notifyTyping,
+            matchesViewerMention: null,
+            onSent: handlers.handleSentMessage,
+            deleteMessage: vi.fn(),
+            editMessage: vi.fn(),
+            editLast: handlers.handleEditLast,
+            toggleReaction: vi.fn(),
+            togglePin: vi.fn(),
+        },
+        members: {
+            list: members,
+            groups: options.memberGroups ?? [{ label: "Members", members }],
+            presence: options.presenceMapMerged ?? {},
+            onlineWeight: (id: string) => (onlineIds.has(id) ? 0 : 1),
+            current: options.currentMember ?? null,
+            set: handlers.setMembers,
+        },
+        moderation: {
+            busy: options.busy ?? null,
+            setBusy: vi.fn(),
+            openMemberMenu: options.openMemberMenu ?? null,
+            setOpenMemberMenu: handlers.setOpenMemberMenu,
+            nicknameDialogTarget: options.nicknameDialogTarget ?? null,
+            setNicknameDialogTarget: handlers.setNicknameDialogTarget,
+            nicknameDialogValue: "",
+            setNicknameDialogValue: handlers.setNicknameDialogValue,
+            nicknameDialogError: options.nicknameDialogError ?? "",
+            nicknameDialogSaving: options.nicknameDialogSaving ?? false,
+            timeoutDialogTarget: options.timeoutDialogTarget ?? null,
+            setTimeoutDialogTarget: handlers.setTimeoutDialogTarget,
+            timeoutDialogAmount: "10",
+            setTimeoutDialogAmount: handlers.setTimeoutDialogAmount,
+            timeoutDialogUnit: "seconds",
+            setTimeoutDialogUnit: handlers.setTimeoutDialogUnit,
+            timeoutDialogError: options.timeoutDialogError ?? "",
+            timeoutDialogSaving: options.timeoutDialogSaving ?? false,
+            formatTimeoutUntil: (value?: string) => `until ${value ?? "never"}`,
+            openNicknameDialog: handlers.openNicknameDialog,
+            openTimeoutDialog: handlers.openTimeoutDialog,
+            handleModSetNickname: handlers.handleModSetNickname,
+            handleModUnlockNickname: handlers.handleModUnlockNickname,
+            handleSetTimeout: handlers.handleSetTimeout,
+            handleClearTimeout: handlers.handleClearTimeout,
+            handleKick: handlers.handleKick,
+            handleBan: handlers.handleBan,
+        },
+        prefs: {
+            sidebarCollapsed: options.sidebarCollapsed ?? false,
+            toggleSidebar: handlers.toggleSidebar,
+            descExpanded: options.descExpanded ?? false,
+            toggleDescExpanded: handlers.toggleDescExpanded,
+            mobileView: "chat",
+            setMobileView: handlers.setMobileView,
+        },
+        anchor: {
+            highlightedMsgId: null,
+            jumpTo: handlers.handleJumpToMessage,
+        },
         voice: {
             status: options.voiceStatus ?? "idle",
             room: options.voiceRoom ?? null,
             join: vi.fn(),
             leave: vi.fn(),
             presenceCount: 0,
+            enabled: options.voiceEnabled ?? true,
         },
-        voiceEnabled: options.voiceEnabled ?? true,
         watchParty: {
             enabled: options.watchPartyEnabled ?? true,
             screenShareEnabled: true,
@@ -246,62 +319,26 @@ function stubController(options: ControllerOptions = {}) {
             transferControl: vi.fn(),
             kick: vi.fn(),
             identify: vi.fn(),
+            invitedPartyMissing: options.invitedPartyMissing ?? false,
         },
-        invitedPartyMissing: options.invitedPartyMissing ?? false,
-        replyingTo: null,
-        setReplyingTo: handlers.setReplyingTo,
-        viewerTimeoutUntil: undefined,
-        lightboxSrc: options.lightboxSrc ?? null,
-        setLightboxSrc: handlers.setLightboxSrc,
-        toast: options.toast ?? null,
-        setToast: handlers.setToast,
-        busy: options.busy ?? null,
-        joining: options.joining ?? false,
-        sendWSMessage: handlers.sendWSMessage,
-        pinnedOpen: options.pinnedOpen ?? false,
-        setPinnedOpen: handlers.setPinnedOpen,
-        searchOpen: options.searchOpen ?? false,
-        setSearchOpen: handlers.setSearchOpen,
-        pinnedRefreshKey: 0,
-        editProfileOpen: options.editProfileOpen ?? false,
-        setEditProfileOpen: handlers.setEditProfileOpen,
-        inviteModalOpen: options.inviteModalOpen ?? false,
-        setInviteModalOpen: handlers.setInviteModalOpen,
-        moderationDialogOpen: options.moderationDialogOpen ?? false,
-        setModerationDialogOpen: handlers.setModerationDialogOpen,
-        openMemberMenu: options.openMemberMenu ?? null,
-        setOpenMemberMenu: handlers.setOpenMemberMenu,
-        setMembers: handlers.setMembers,
-        nicknameDialogTarget: options.nicknameDialogTarget ?? null,
-        setNicknameDialogTarget: handlers.setNicknameDialogTarget,
-        nicknameDialogValue: "",
-        setNicknameDialogValue: handlers.setNicknameDialogValue,
-        nicknameDialogError: options.nicknameDialogError ?? "",
-        nicknameDialogSaving: options.nicknameDialogSaving ?? false,
-        timeoutDialogTarget: options.timeoutDialogTarget ?? null,
-        setTimeoutDialogTarget: handlers.setTimeoutDialogTarget,
-        timeoutDialogAmount: "10",
-        setTimeoutDialogAmount: handlers.setTimeoutDialogAmount,
-        timeoutDialogUnit: "seconds",
-        setTimeoutDialogUnit: handlers.setTimeoutDialogUnit,
-        timeoutDialogError: options.timeoutDialogError ?? "",
-        timeoutDialogSaving: options.timeoutDialogSaving ?? false,
-        formatTimeoutUntil: (value?: string) => `until ${value ?? "never"}`,
-        openNicknameDialog: handlers.openNicknameDialog,
-        openTimeoutDialog: handlers.openTimeoutDialog,
-        handleSentMessage: handlers.handleSentMessage,
-        handleJoin: handlers.handleJoin,
-        handleModSetNickname: handlers.handleModSetNickname,
-        handleModUnlockNickname: handlers.handleModUnlockNickname,
-        handleSetTimeout: handlers.handleSetTimeout,
-        handleClearTimeout: handlers.handleClearTimeout,
-        handleKick: handlers.handleKick,
-        handleBan: handlers.handleBan,
-        handleToggleMute: handlers.handleToggleMute,
-        handleLeave: handlers.handleLeave,
-        handleDelete: handlers.handleDelete,
-        handleJumpToMessage: handlers.handleJumpToMessage,
-        handleEditLast: handlers.handleEditLast,
+        panels: {
+            pinnedOpen: options.pinnedOpen ?? false,
+            setPinnedOpen: handlers.setPinnedOpen,
+            searchOpen: options.searchOpen ?? false,
+            setSearchOpen: handlers.setSearchOpen,
+            lightboxSrc: options.lightboxSrc ?? null,
+            setLightboxSrc: handlers.setLightboxSrc,
+            editProfileOpen: options.editProfileOpen ?? false,
+            setEditProfileOpen: handlers.setEditProfileOpen,
+            inviteModalOpen: options.inviteModalOpen ?? false,
+            setInviteModalOpen: handlers.setInviteModalOpen,
+            moderationDialogOpen: options.moderationDialogOpen ?? false,
+            setModerationDialogOpen: handlers.setModerationDialogOpen,
+        },
+        toast: {
+            message: options.toast ?? null,
+            show: handlers.setToast,
+        },
     };
 
     mocks.useRoomController.mockReturnValue(controller as unknown as RoomController);
@@ -941,13 +978,13 @@ describe("RoomPage sidebar actions", () => {
     it("goes back to the rooms list from the sidebar", async () => {
         // given
         const user = userEvent.setup();
-        const { navigate } = renderRoom();
+        const { backToRooms } = renderRoom();
 
         // when
         await user.click(screen.getByRole("button", { name: "Back to rooms" }));
 
         // then
-        expect(navigate).toHaveBeenCalledWith("/rooms");
+        expect(backToRooms).toHaveBeenCalledOnce();
     });
 
     it("says it is deleting while the room is being removed", () => {
@@ -998,6 +1035,26 @@ describe("RoomPage voice and watch party", () => {
         expect(mocks.forceMuteVoiceParticipant).toHaveBeenCalledWith("room-1", "u9", true);
     });
 
+    it("tells the moderator when a force mute did not take", async () => {
+        // given
+        mocks.forceMuteVoiceParticipant.mockRejectedValue(new Error("LiveKit said no"));
+        const pointer = userEvent.setup();
+        const { setToast } = renderRoom({
+            voiceStatus: "connected",
+            voiceRoom: {},
+            room: makeRoom({ viewer_role: "host" }),
+        });
+        const bar = await screen.findByRole("button", { name: "voice bar" });
+
+        // when
+        await pointer.click(bar);
+
+        // then
+        await waitFor(() => {
+            expect(setToast).toHaveBeenCalledWith("LiveKit said no");
+        });
+    });
+
     it("gives an ordinary room the voice and watch party buttons", () => {
         // given
         const room = makeRoom({ is_system: false });
@@ -1042,6 +1099,28 @@ describe("RoomPage voice and watch party", () => {
 
         // then
         expect(await screen.findByTestId("watch-party-modal")).toHaveTextContent("false");
+    });
+
+    it("offers watch party voice when the site allows voice and screen share is on", async () => {
+        // given
+        const activeSession = { session: { started_by: viewer.id } };
+
+        // when
+        renderRoom({ activeSession, voiceEnabled: true });
+
+        // then
+        expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-voice", "true");
+    });
+
+    it("obeys the site voice setting inside a watch party", async () => {
+        // given
+        const voiceEnabled = false;
+
+        // when
+        renderRoom({ activeSession: { session: { started_by: viewer.id } }, voiceEnabled });
+
+        // then
+        expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-voice", "false");
     });
 
     it("says so when the invited watch party has already ended", () => {

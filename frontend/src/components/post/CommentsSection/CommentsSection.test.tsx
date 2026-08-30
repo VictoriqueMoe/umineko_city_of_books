@@ -15,7 +15,7 @@ const { likeComment, unlikeComment, deleteComment, updateComment, createComment,
     uploadMedia: vi.fn(),
 }));
 
-vi.mock("../../../api/mutations/post", () => ({
+vi.mock("../../../hooks/mutations/post", () => ({
     useLikeComment: () => ({ mutateAsync: likeComment }),
     useUnlikeComment: () => ({ mutateAsync: unlikeComment }),
     useDeleteComment: () => ({ mutateAsync: deleteComment }),

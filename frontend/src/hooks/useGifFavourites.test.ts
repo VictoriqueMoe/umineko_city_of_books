@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { GiphyFavourite } from "../api/endpoints";
+import type { GiphyFavourite } from "../types/api";
 import { providerWrapper } from "../test-utils/render";
 import { useGifFavourites } from "./useGifFavourites";
 

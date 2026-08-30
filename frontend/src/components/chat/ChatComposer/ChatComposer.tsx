@@ -2,11 +2,11 @@ import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } 
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
-import { useSendChatMessage, useSendFirstDMMessage } from "../../../api/mutations/chat";
-import { ApiError } from "../../../api/client";
+import { readChatSendRejection, useSendChatMessage, useSendFirstDMMessage } from "../../../hooks/mutations/chat";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { formatFullDateTime, parseServerDate } from "../../../utils/time";
+import { isTimeoutActive } from "../../../domain/chat/roomPolicy";
 import type { ChatMessage, ChatRoom, User } from "../../../types/api";
 import { GifPicker } from "../GifPicker/GifPicker";
 import styles from "./ChatComposer.module.css";
@@ -38,28 +38,18 @@ interface ChatComposerProps {
 }
 
 function formatSendError(err: unknown): string {
-    if (err instanceof ApiError) {
-        const body = err.body as { code?: string; pattern?: string; action?: string; error?: string } | null;
-        if (body?.code === "banned_word" && body.pattern) {
-            const suffix = body.action === "kick" ? " You have been kicked from this room." : "";
-            return `Message blocked by banned-word rule "${body.pattern}".${suffix}`;
-        }
-        if (body?.error) {
-            return body.error;
-        }
+    const rejection = readChatSendRejection(err);
+    if (rejection?.bannedWord) {
+        const suffix = rejection.bannedWord.kicked ? " You have been kicked from this room." : "";
+        return `Message blocked by banned-word rule "${rejection.bannedWord.pattern}".${suffix}`;
+    }
+    if (rejection?.serverMessage) {
+        return rejection.serverMessage;
     }
     if (err instanceof Error) {
         return err.message;
     }
     return "Failed to send message";
-}
-
-function isTimeoutActive(until?: string): boolean {
-    const d = parseServerDate(until);
-    if (!d) {
-        return false;
-    }
-    return d.getTime() > Date.now();
 }
 
 const TYPING_THROTTLE_MS = 2500;
@@ -91,9 +81,9 @@ export function ChatComposer({
         [],
     );
 
-    const [, setTimeoutTick] = useState(0);
+    const [nowTick, setNowTick] = useState(() => Date.now());
     const [toolbarOpen, setToolbarOpen] = useState(false);
-    const timedOut = isTimeoutActive(timeoutUntil);
+    const timedOut = isTimeoutActive(timeoutUntil, nowTick);
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [files, setFiles] = useState<File[]>([]);
@@ -103,19 +93,18 @@ export function ChatComposer({
     const sendFirstDMMessageMutation = useSendFirstDMMessage();
 
     useEffect(() => {
-        if (!timeoutUntil) {
-            return;
-        }
+        const reseed = setTimeout(() => setNowTick(Date.now()), 0);
+
         const parsed = parseServerDate(timeoutUntil);
-        if (!parsed) {
-            return;
-        }
-        const ms = parsed.getTime() - Date.now();
-        if (ms <= 0) {
-            return;
-        }
-        const timer = setTimeout(() => setTimeoutTick(t => t + 1), ms);
-        return () => clearTimeout(timer);
+        const ms = parsed ? parsed.getTime() - Date.now() : 0;
+        const expiry = ms > 0 ? setTimeout(() => setNowTick(Date.now()), ms) : null;
+
+        return () => {
+            clearTimeout(reseed);
+            if (expiry !== null) {
+                clearTimeout(expiry);
+            }
+        };
     }, [timeoutUntil]);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const lastTypingSentRef = useRef(0);

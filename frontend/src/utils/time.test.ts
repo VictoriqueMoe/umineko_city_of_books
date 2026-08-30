@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
     formatActiveLabel,
     formatDate,
+    formatDuration,
     formatExactDateTime,
     formatFullDateTime,
     formatMessageTime,
@@ -163,6 +164,18 @@ describe("relativeTime", () => {
 
         // then
         expect(result).toBe("just now");
+    });
+
+    it("is re-exported so notification lists can stamp their entries", () => {
+        // given
+        vi.useFakeTimers();
+        vi.setSystemTime(new Date("2026-01-01T12:00:00Z"));
+
+        // when
+        const stamp = relativeTime("2026-01-01T11:30:00Z");
+
+        // then
+        expect(stamp).toBe("30m ago");
     });
 });
 
@@ -538,5 +551,62 @@ describe("formatExactDateTime", () => {
         expect(result).toBe(
             new Intl.DateTimeFormat(undefined, { dateStyle: "long", timeStyle: "short" }).format(local),
         );
+    });
+});
+
+describe("formatDuration", () => {
+    it("names every level that has a value, largest first", () => {
+        // given
+        const ms = ((366 * 24 + 3) * 3600 + 4 * 60 + 5) * 1000;
+
+        // when
+        const result = formatDuration(ms);
+
+        // then
+        expect(result).toBe("1 year 1 day 3 hours 4 minutes 5 seconds");
+    });
+
+    it("skips the levels that are empty", () => {
+        // given
+        const ms = (2 * 3600 + 30) * 1000;
+
+        // when
+        const result = formatDuration(ms);
+
+        // then
+        expect(result).toBe("2 hours 30 seconds");
+    });
+
+    it("drops the plural for a single unit", () => {
+        // given
+        const ms = 60000;
+
+        // when
+        const result = formatDuration(ms);
+
+        // then
+        expect(result).toBe("1 minute");
+    });
+
+    it("says zero seconds rather than nothing at all", () => {
+        // given
+        const ms = 0;
+
+        // when
+        const result = formatDuration(ms);
+
+        // then
+        expect(result).toBe("0 seconds");
+    });
+
+    it("rounds a part second to the nearest second", () => {
+        // given
+        const ms = 1600;
+
+        // when
+        const result = formatDuration(ms);
+
+        // then
+        expect(result).toBe("2 seconds");
     });
 });

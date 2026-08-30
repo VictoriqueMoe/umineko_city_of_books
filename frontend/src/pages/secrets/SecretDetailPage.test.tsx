@@ -1,21 +1,19 @@
 import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
-import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
+import { renderWithProviders } from "../../test-utils/render";
 import type {
     PostComment,
     SecretComment,
     SecretDetailResponse,
     SecretLeaderboardEntry,
     UserProfile,
-    WSMessage,
 } from "../../types/api";
 import { SecretDetailPage } from "./SecretDetailPage";
 
 const {
-    useSecret,
+    useSecretRoom,
     useCreateSecretComment,
     useUpdateSecretComment,
     useDeleteSecretComment,
@@ -23,7 +21,7 @@ const {
     useUnlikeSecretComment,
     useUploadSecretCommentMedia,
 } = vi.hoisted(() => ({
-    useSecret: vi.fn(),
+    useSecretRoom: vi.fn(),
     useCreateSecretComment: vi.fn(),
     useUpdateSecretComment: vi.fn(),
     useDeleteSecretComment: vi.fn(),
@@ -32,8 +30,8 @@ const {
     useUploadSecretCommentMedia: vi.fn(),
 }));
 
-vi.mock("../../api/queries/secret", () => ({ useSecret }));
-vi.mock("../../api/mutations/secret", () => ({
+vi.mock("../../hooks/useSecretRoom", () => ({ useSecretRoom }));
+vi.mock("../../hooks/mutations/secret", () => ({
     useCreateSecretComment,
     useUpdateSecretComment,
     useDeleteSecretComment,
@@ -125,14 +123,18 @@ function makeDetail(overrides: Partial<SecretDetailResponse> = {}): SecretDetail
 interface StubOptions {
     detail?: SecretDetailResponse | null;
     loading?: boolean;
+    solvedByName?: string | null;
 }
 
 function stubSecret(options: StubOptions = {}) {
     const refresh = vi.fn();
-    useSecret.mockReturnValue({
-        data: options.detail === undefined ? makeDetail() : options.detail,
+    const dismissSolved = vi.fn();
+    useSecretRoom.mockReturnValue({
+        detail: options.detail === undefined ? makeDetail() : options.detail,
         loading: options.loading ?? false,
         refresh,
+        solvedByName: options.solvedByName ?? null,
+        dismissSolved,
     });
 
     const createAsync = vi.fn(() => Promise.resolve({ id: "comment-new" }));
@@ -149,38 +151,27 @@ function stubSecret(options: StubOptions = {}) {
     useUnlikeSecretComment.mockReturnValue({ mutateAsync: unlikeAsync });
     useUploadSecretCommentMedia.mockReturnValue({ mutateAsync: uploadAsync });
 
-    return { refresh, createAsync, updateAsync, deleteAsync, likeAsync, unlikeAsync, uploadAsync };
+    return { refresh, dismissSolved, createAsync, updateAsync, deleteAsync, likeAsync, unlikeAsync, uploadAsync };
 }
 
 interface PageOptions {
     user?: UserProfile | null;
     route?: string;
-    wsEpoch?: number;
-    sendWSMessage?: (msg: object) => void;
-    listeners?: ((msg: WSMessage) => void)[];
-    queryClient?: QueryClient;
 }
 
 function renderPage(options: PageOptions = {}) {
-    const listeners = options.listeners ?? [];
-
     return renderWithProviders(<SecretDetailPage />, {
         user: options.user ?? null,
         route: options.route ?? "/secrets/secret-1",
         path: "/secrets/:id",
-        queryClient: options.queryClient,
-        notification: {
-            wsEpoch: options.wsEpoch ?? 0,
-            sendWSMessage: options.sendWSMessage ?? vi.fn(),
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
-        },
     });
 }
 
 describe("SecretDetailPage", () => {
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
     it("consults the game board while the hunt is loading", () => {
         // given
         stubSecret({ loading: true, detail: null });
@@ -286,14 +277,14 @@ describe("SecretDetailPage", () => {
         expect(screen.getByRole("heading", { name: "Progress (1 hunter)" })).toBeInTheDocument();
     });
 
-    it("puts the solver first, then the deepest collections, then names in order", () => {
+    it("ranks the hunters down the page in the order the hook handed them over", () => {
         // given
         stubSecret({
             detail: makeDetail({
                 leaderboard: [
+                    makeEntry({ user: beatrice, pieces_collected: 1, solved: true }),
                     makeEntry({ user: ange, pieces_collected: 2, solved: false }),
                     makeEntry({ user: battler, pieces_collected: 2, solved: false }),
-                    makeEntry({ user: beatrice, pieces_collected: 1, solved: true }),
                 ],
             }),
         });
@@ -320,158 +311,41 @@ describe("SecretDetailPage", () => {
         expect(screen.getByText("4 / 7")).toBeInTheDocument();
     });
 
-    it("joins the hunt's live room once the socket is up", () => {
+    it("announces the moment the hook says someone spoke the witch's name", () => {
         // given
-        const { refresh } = stubSecret();
-        const sendWSMessage = vi.fn();
+        stubSecret({ solvedByName: "Beatrice" });
 
         // when
-        renderPage({ wsEpoch: 1, sendWSMessage });
-
-        // then
-        expect(sendWSMessage).toHaveBeenCalledWith({ type: "secret_join", data: { secret_id: "secret-1" } });
-        expect(refresh).toHaveBeenCalled();
-    });
-
-    it("waits for the socket before joining the hunt's live room", () => {
-        // given
-        stubSecret();
-        const sendWSMessage = vi.fn();
-
-        // when
-        renderPage({ wsEpoch: 0, sendWSMessage });
-
-        // then
-        expect(sendWSMessage).not.toHaveBeenCalled();
-    });
-
-    it("leaves the hunt's live room when the reader walks away", () => {
-        // given
-        stubSecret();
-        const sendWSMessage = vi.fn();
-        const { unmount } = renderPage({ wsEpoch: 1, sendWSMessage });
-
-        // when
-        unmount();
-
-        // then
-        expect(sendWSMessage).toHaveBeenLastCalledWith({ type: "secret_leave", data: { secret_id: "secret-1" } });
-    });
-
-    it("moves a hunter's piece count when the server announces progress", () => {
-        // given
-        stubSecret();
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = createTestQueryClient();
-        queryClient.setQueryData(["secrets", "detail", "secret-1"], makeDetail({ leaderboard: [makeEntry()] }));
-        renderPage({ listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({
-                    type: "secret_progress",
-                    data: { secret_id: "secret-1", user: beatrice, pieces_collected: 4, total_pieces: 5 },
-                });
-            }
-        });
-
-        // then
-        const cached = queryClient.getQueryData<SecretDetailResponse>(["secrets", "detail", "secret-1"]);
-        expect(cached?.leaderboard).toEqual([{ user: beatrice, pieces_collected: 4, solved: false }]);
-    });
-
-    it("adds a hunter nobody had seen before when they find their first piece", () => {
-        // given
-        stubSecret();
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = createTestQueryClient();
-        queryClient.setQueryData(["secrets", "detail", "secret-1"], makeDetail({ leaderboard: [makeEntry()] }));
-        renderPage({ listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({
-                    type: "secret_progress",
-                    data: { secret_id: "secret-1", user: ange, pieces_collected: 1, total_pieces: 5 },
-                });
-            }
-        });
-
-        // then
-        const cached = queryClient.getQueryData<SecretDetailResponse>(["secrets", "detail", "secret-1"]);
-        expect(cached?.leaderboard).toHaveLength(2);
-        expect(cached?.leaderboard[1]).toEqual({ user: ange, pieces_collected: 1, solved: false });
-    });
-
-    it("ignores progress announced for a different hunt", () => {
-        // given
-        stubSecret();
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = createTestQueryClient();
-        queryClient.setQueryData(["secrets", "detail", "secret-1"], makeDetail({ leaderboard: [makeEntry()] }));
-        renderPage({ listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({
-                    type: "secret_progress",
-                    data: { secret_id: "secret-2", user: beatrice, pieces_collected: 4, total_pieces: 5 },
-                });
-            }
-        });
-
-        // then
-        const cached = queryClient.getQueryData<SecretDetailResponse>(["secrets", "detail", "secret-1"]);
-        expect(cached?.leaderboard[0].pieces_collected).toBe(1);
-    });
-
-    it("announces the moment someone speaks the witch's name", () => {
-        // given
-        stubSecret();
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = createTestQueryClient();
-        queryClient.setQueryData(["secrets", "detail", "secret-1"], makeDetail({ leaderboard: [makeEntry()] }));
-        renderPage({ listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({
-                    type: "secret_solved",
-                    data: { secret_id: "secret-1", solver: beatrice, solved_at: "2026-07-02T10:00:00Z" },
-                });
-            }
-        });
+        renderPage();
 
         // then
         expect(screen.getByRole("status")).toHaveTextContent("Beatrice spoke the witch's name.");
-        const cached = queryClient.getQueryData<SecretDetailResponse>(["secrets", "detail", "secret-1"]);
-        expect(cached?.solved).toBe(true);
-        expect(cached?.solver).toEqual(beatrice);
-        expect(cached?.leaderboard[0].solved).toBe(true);
     });
 
-    it("stays quiet when another hunt is solved", () => {
+    it("stays quiet while nobody has spoken the name", () => {
         // given
-        stubSecret();
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        renderPage({ listeners });
+        stubSecret({ solvedByName: null });
 
         // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({
-                    type: "secret_solved",
-                    data: { secret_id: "secret-2", solver: beatrice, solved_at: "2026-07-02T10:00:00Z" },
-                });
-            }
-        });
+        renderPage();
 
         // then
         expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
+    it("tells the hook to forget the announcement once the toast has had its say", () => {
+        // given
+        vi.useFakeTimers();
+        const { dismissSolved } = stubSecret({ solvedByName: "Beatrice" });
+        renderPage();
+
+        // when
+        act(() => {
+            vi.advanceTimersByTime(6000);
+        });
+
+        // then
+        expect(dismissSolved).toHaveBeenCalledOnce();
     });
 
     it("labels the discussion with its own wording", () => {
@@ -525,7 +399,7 @@ describe("SecretDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "stub update" }));
 
         // then
-        expect(updateAsync).toHaveBeenCalledWith({ id: "comment-9", body: "edited body" });
+        expect(updateAsync).toHaveBeenCalledWith({ id: "comment-9", commentId: "comment-9", body: "edited body" });
     });
 
     it("likes, unlikes and removes a word through the hunt's own mutations", async () => {

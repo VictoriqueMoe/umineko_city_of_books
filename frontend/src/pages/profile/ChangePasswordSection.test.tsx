@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
     changePassword: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/auth", () => ({ useChangePassword: mocks.useChangePassword }));
+vi.mock("../../hooks/mutations/auth", () => ({ useChangePassword: mocks.useChangePassword }));
 
 function setup() {
     const user = userEvent.setup();

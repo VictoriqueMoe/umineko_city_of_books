@@ -44,7 +44,12 @@ func (s *service) IsRestrictedNewAccount(ctx context.Context, userID uuid.UUID) 
 	}
 
 	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil || user == nil {
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to look up the account age, the new account restriction is not being applied")
+		return false
+	}
+
+	if user == nil {
 		return false
 	}
 

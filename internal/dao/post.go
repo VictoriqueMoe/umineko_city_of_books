@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/text"
 
 	"github.com/google/uuid"
 )
@@ -525,10 +526,12 @@ func buildPlaceholders[T any](ids []T) (string, []any) {
 }
 
 func truncateBody(body string, maxLen int) string {
-	if len(body) <= maxLen {
+	clipped := text.ClampRunes(body, maxLen)
+	if len(clipped) == len(body) {
 		return body
 	}
-	return body[:maxLen] + "..."
+
+	return clipped + "..."
 }
 
 func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result map[string]*dto.SharedContentPreview, tx ...*sql.Tx) {

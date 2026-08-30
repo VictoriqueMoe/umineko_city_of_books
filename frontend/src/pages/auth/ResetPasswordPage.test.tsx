@@ -14,7 +14,7 @@ vi.mock("react-router", async () => {
     return { ...actual, useNavigate: () => mocks.navigate };
 });
 
-vi.mock("../../api/mutations/auth", () => ({
+vi.mock("../../hooks/mutations/auth", () => ({
     useResetPassword: () => ({ mutateAsync: mocks.resetPassword }),
 }));
 

@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { useHomeActivity } from "../../api/queries/sidebar";
+import { useHomeActivity } from "../../hooks/queries/sidebar";
 import type { HomeCornerActivity } from "../../types/api";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../RelativeTimestamp/RelativeTimestamp";

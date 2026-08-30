@@ -1,0 +1,11 @@
+.body {
+    padding: 1rem 0;
+    color: var(--text);
+}
+
+.actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    padding-top: 0.75rem;
+}

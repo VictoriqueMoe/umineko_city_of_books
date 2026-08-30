@@ -58,7 +58,9 @@ function makeState(overrides: Partial<CheckersState> = {}): CheckersState {
     };
 }
 
-function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
+function makeRoom(
+    overrides: Partial<GameRoom<CheckersState, CheckersStats>> = {},
+): GameRoom<CheckersState, CheckersStats> {
     return {
         id: "room-1",
         game_type: "checkers",
@@ -95,7 +97,7 @@ function makeStats(overrides: Partial<CheckersStats> = {}): CheckersStats {
     };
 }
 
-function renderBoard(room: GameRoom, viewer: User | null, isSpectator = false) {
+function renderBoard(room: GameRoom<CheckersState, CheckersStats>, viewer: User | null, isSpectator = false) {
     return renderWithProviders(
         <CheckersBoardView
             room={room}
@@ -335,7 +337,7 @@ describe("CheckersBoardView", () => {
 
     it("falls back to the opening layout when the room has no board yet", () => {
         // given
-        const room = makeRoom({ state: {} });
+        const room = makeRoom({ state: {} as CheckersState });
 
         // when
         renderBoard(room, redViewer);

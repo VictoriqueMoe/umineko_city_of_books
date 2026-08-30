@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     mutateAsync: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/misc", () => ({ useCreateReport: mocks.useCreateReport }));
+vi.mock("../../hooks/mutations/report", () => ({ useCreateReport: mocks.useCreateReport }));
 
 const reporter = makeUser({ id: "user-1", username: "battler", display_name: "Battler" });
 

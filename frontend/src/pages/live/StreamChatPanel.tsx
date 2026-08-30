@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react";
-import { joinStreamChat } from "../../api/endpoints";
-import { useAuth } from "../../hooks/useAuth";
+import { useStreamChatJoin } from "../../hooks/useStreamChatJoin";
 import { RoomChatPanel } from "../../components/chat/RoomChatPanel/RoomChatPanel";
 
 const MAX_LIVE_MESSAGES = 50;
@@ -13,38 +11,11 @@ interface StreamChatPanelProps {
     hideHeader?: boolean;
 }
 
-export function StreamChatPanel(props: StreamChatPanelProps) {
-    return <StreamChatPanelInner key={props.streamId} {...props} />;
-}
-
-function StreamChatPanelInner({ streamId, isLive, onPopOut, flush, hideHeader }: StreamChatPanelProps) {
-    const { user } = useAuth();
-    const [joined, setJoined] = useState(false);
-    const [joinError, setJoinError] = useState(false);
-
-    useEffect(() => {
-        if (!isLive || !user) {
-            return;
-        }
-        let cancelled = false;
-        joinStreamChat(streamId)
-            .then(() => {
-                if (!cancelled) {
-                    setJoined(true);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) {
-                    setJoinError(true);
-                }
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, [streamId, isLive, user]);
+export function StreamChatPanel({ streamId, isLive, onPopOut, flush, hideHeader }: StreamChatPanelProps) {
+    const { joined, failed } = useStreamChatJoin(streamId, isLive);
 
     let notice: string | null = null;
-    if (isLive && joinError) {
+    if (isLive && failed) {
         notice = "Couldn't join the chat.";
     } else if (isLive && !joined) {
         notice = "Joining chat...";

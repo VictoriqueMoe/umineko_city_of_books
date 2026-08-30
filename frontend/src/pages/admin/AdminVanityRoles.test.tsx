@@ -1,9 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { VanityRoleDefinition } from "../../api/endpoints";
 import { renderWithProviders } from "../../test-utils/render";
-import type { User } from "../../types/api";
+import type { User, VanityRoleDefinition } from "../../types/api";
 import { AdminVanityRoles } from "./AdminVanityRoles";
 
 const mocks = vi.hoisted(() => ({
@@ -17,14 +16,14 @@ const mocks = vi.hoisted(() => ({
     unassign: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({
+vi.mock("../../hooks/queries/admin", () => ({
     useVanityRoles: mocks.useVanityRoles,
     useVanityRoleUsers: mocks.useVanityRoleUsers,
 }));
 
-vi.mock("../../api/queries/misc", () => ({ useSearchUsers: mocks.useSearchUsers }));
+vi.mock("../../hooks/queries/user", () => ({ useSearchUsers: mocks.useSearchUsers }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useCreateVanityRole: () => ({ mutateAsync: mocks.create, isPending: false }),
     useUpdateVanityRole: () => ({ mutateAsync: mocks.update, isPending: false }),
     useDeleteVanityRole: () => ({ mutateAsync: mocks.remove, isPending: false }),
@@ -178,33 +177,54 @@ describe("AdminVanityRoles", () => {
         expect(await screen.findByText("that label is taken")).toBeInTheDocument();
     });
 
-    it("asks before deleting a role", async () => {
+    it("warns that every holder loses the role, and deletes nothing when the ask is refused", async () => {
         // given
         stubRoles([makeRole()]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderWithProviders(<AdminVanityRoles />);
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Vanity Role" });
+        expect(
+            within(dialog).getByText("Delete this vanity role? It will be removed from all users."),
+        ).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
         // then
-        expect(confirm).toHaveBeenCalledWith("Delete this vanity role? It will be removed from all users.");
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(mocks.remove).not.toHaveBeenCalled();
     });
 
     it("deletes the role once confirmed", async () => {
         // given
         stubRoles([makeRole({ id: "role-5" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminVanityRoles />);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Vanity Role" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
         // then
         expect(mocks.remove).toHaveBeenCalledWith("role-5");
+    });
+
+    it("reports why a role could not be deleted", async () => {
+        // given
+        stubRoles([makeRole({ id: "role-5" })]);
+        mocks.remove.mockRejectedValue(new Error("that role is still in use"));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminVanityRoles />);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Vanity Role" });
+
+        // when
+        await user.click(within(dialog).getByRole("button", { name: "Delete" }));
+
+        // then
+        expect(await screen.findByText("that role is still in use")).toBeInTheDocument();
     });
 
     it("explains that a system role is assigned automatically", async () => {

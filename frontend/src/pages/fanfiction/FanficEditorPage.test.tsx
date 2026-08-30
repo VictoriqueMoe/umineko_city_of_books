@@ -8,9 +8,9 @@ import { FanficEditorPage } from "./FanficEditorPage";
 
 const {
     useFanfic,
+    useFanficChapter,
     useFanficSeries,
     useFanficLanguages,
-    fetched,
     useCreateFanfic,
     useUpdateFanfic,
     useUploadFanficCover,
@@ -21,9 +21,9 @@ const {
     navigate,
 } = vi.hoisted(() => ({
     useFanfic: vi.fn(),
+    useFanficChapter: vi.fn(),
     useFanficSeries: vi.fn(),
     useFanficLanguages: vi.fn(),
-    fetched: { fanfic: null as unknown, chapter: null as unknown },
     useCreateFanfic: vi.fn(),
     useUpdateFanfic: vi.fn(),
     useUploadFanficCover: vi.fn(),
@@ -36,19 +36,13 @@ const {
 
 const { can } = vi.hoisted(() => ({ can: vi.fn() }));
 
-vi.mock("../../api/queries/fanfic", () => ({
+vi.mock("../../hooks/queries/fanfic", () => ({
     useFanfic,
+    useFanficChapter,
     useFanficLanguages,
     useFanficSeries,
-    fanficQueryFns: {
-        fanfic: (id: string) => ({ queryKey: ["fanfic", id], queryFn: () => Promise.resolve(fetched.fanfic) }),
-        chapter: (id: string, n: number) => ({
-            queryKey: ["fanfic", id, "chapter", n],
-            queryFn: () => Promise.resolve(fetched.chapter),
-        }),
-    },
 }));
-vi.mock("../../api/mutations/fanfic", () => ({
+vi.mock("../../hooks/mutations/fanfic", () => ({
     useCreateFanfic,
     useCreateFanficChapter,
     useDeleteFanficCover,
@@ -61,8 +55,8 @@ vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
 });
-vi.mock("../../utils/permissions", async importOriginal => {
-    const actual = await importOriginal<typeof import("../../utils/permissions")>();
+vi.mock("../../domain/permissions", async importOriginal => {
+    const actual = await importOriginal<typeof import("../../domain/permissions")>();
     can.mockImplementation(actual.can);
     return { ...actual, can };
 });
@@ -159,11 +153,15 @@ function makeChapter(overrides: Partial<FanficChapter> = {}): FanficChapter {
 
 interface StubOptions {
     fanfic?: FanficDetail | null;
+    chapter?: FanficChapter | null;
     loading?: boolean;
     series?: string[];
     languages?: string[];
     create?: () => Promise<{ id: string }>;
     update?: () => Promise<unknown>;
+    uploadCover?: () => Promise<unknown>;
+    uploadCoverFor?: () => Promise<unknown>;
+    deleteCover?: () => Promise<unknown>;
     createChapter?: () => Promise<unknown>;
     updateChapter?: () => Promise<unknown>;
 }
@@ -174,14 +172,15 @@ function stubEditor(options: StubOptions = {}) {
         loading: options.loading ?? false,
         refresh: vi.fn(),
     });
+    useFanficChapter.mockReturnValue({ chapter: options.chapter ?? null, loading: false, refresh: vi.fn() });
     useFanficSeries.mockReturnValue({ series: options.series ?? ["Umineko", "Higurashi", "Rose Guns Days"] });
     useFanficLanguages.mockReturnValue({ languages: options.languages ?? ["English", "Japanese"] });
 
     const createAsync = vi.fn(options.create ?? (() => Promise.resolve({ id: "fanfic-new" })));
     const updateAsync = vi.fn(options.update ?? (() => Promise.resolve({})));
-    const uploadCoverAsync = vi.fn(() => Promise.resolve({}));
-    const uploadCoverForAsync = vi.fn(() => Promise.resolve({}));
-    const deleteCoverAsync = vi.fn(() => Promise.resolve({}));
+    const uploadCoverAsync = vi.fn(options.uploadCover ?? (() => Promise.resolve({})));
+    const uploadCoverForAsync = vi.fn(options.uploadCoverFor ?? (() => Promise.resolve({})));
+    const deleteCoverAsync = vi.fn(options.deleteCover ?? (() => Promise.resolve({})));
     const createChapterAsync = vi.fn(options.createChapter ?? (() => Promise.resolve({})));
     const updateChapterAsync = vi.fn(options.updateChapter ?? (() => Promise.resolve({})));
     useCreateFanfic.mockReturnValue({ mutateAsync: createAsync });
@@ -201,6 +200,18 @@ function stubEditor(options: StubOptions = {}) {
         createChapterAsync,
         updateChapterAsync,
     };
+}
+
+function fileInput(container: HTMLElement): HTMLInputElement {
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]');
+    if (!input) {
+        throw new Error("the form has no cover input");
+    }
+    return input;
+}
+
+function coverFile(): File {
+    return new File(["butterflies"], "cover.png", { type: "image/png" });
 }
 
 function renderNew(user: UserProfile = author) {
@@ -808,12 +819,13 @@ describe("FanficEditorPage", () => {
 
     it("loads the existing prose when moving on to edit a one-shot", async () => {
         // given
-        const { updateAsync, updateChapterAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: true }) });
-        fetched.fanfic = makeFanfic({
-            is_oneshot: true,
-            chapters: [{ id: "chapter-1", chapter_number: 1, title: "", word_count: 3 }],
+        const { updateAsync, updateChapterAsync } = stubEditor({
+            fanfic: makeFanfic({
+                is_oneshot: true,
+                chapters: [{ id: "chapter-1", chapter_number: 1, title: "", word_count: 3 }],
+            }),
+            chapter: makeChapter({ id: "chapter-1", body: "<p>Beatrice laughed.</p>" }),
         });
-        fetched.chapter = makeChapter({ id: "chapter-1", body: "<p>Beatrice laughed.</p>" });
         const user = userEvent.setup();
         renderEdit();
 
@@ -821,6 +833,7 @@ describe("FanficEditorPage", () => {
         await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
 
         // then
+        expect(useFanficChapter).toHaveBeenCalledWith("fanfic-1", 1);
         expect(updateAsync).toHaveBeenCalledWith(expect.objectContaining({ is_oneshot: true }));
         expect(await screen.findByLabelText("story body")).toHaveValue("<p>Beatrice laughed.</p>");
         await user.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -835,8 +848,7 @@ describe("FanficEditorPage", () => {
 
     it("writes a first chapter for a one-shot that has none yet", async () => {
         // given
-        const { createChapterAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: true }) });
-        fetched.fanfic = makeFanfic({ is_oneshot: true, chapters: [] });
+        const { createChapterAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: true, chapters: [] }) });
         const user = userEvent.setup();
         renderEdit();
 
@@ -846,6 +858,7 @@ describe("FanficEditorPage", () => {
         await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
         // then
+        expect(useFanficChapter).toHaveBeenCalledWith("fanfic-1", 0);
         await waitFor(() => {
             expect(createChapterAsync).toHaveBeenCalledWith({ title: "", body: "Beatrice laughed." });
         });
@@ -881,6 +894,141 @@ describe("FanficEditorPage", () => {
 
         // then
         expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-1");
+    });
+
+    it("uploads a chosen cover against the fanfic being edited", async () => {
+        // given
+        const { uploadCoverAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: false }) });
+        const user = userEvent.setup();
+        const { container } = renderEdit();
+
+        // when
+        await user.upload(fileInput(container), coverFile());
+        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+        // then
+        await waitFor(() => {
+            expect(uploadCoverAsync).toHaveBeenCalledWith(expect.any(File));
+        });
+        expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-1");
+    });
+
+    it("says the cover was not saved rather than opening a fanfic that quietly lost it", async () => {
+        // given
+        stubEditor({
+            fanfic: makeFanfic({ is_oneshot: false }),
+            uploadCover: () => Promise.reject(new Error("The cover is too large")),
+        });
+        const user = userEvent.setup();
+        const { container } = renderEdit();
+
+        // when
+        await user.upload(fileInput(container), coverFile());
+        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+        // then
+        expect(
+            await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large"),
+        ).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it("says the cover was not saved rather than moving on to the story", async () => {
+        // given
+        stubEditor({
+            fanfic: makeFanfic({ is_oneshot: true, chapters: [] }),
+            uploadCover: () => Promise.reject(new Error("The cover is too large")),
+        });
+        const user = userEvent.setup();
+        const { container } = renderEdit();
+
+        // when
+        await user.upload(fileInput(container), coverFile());
+        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
+
+        // then
+        expect(
+            await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large"),
+        ).toBeInTheDocument();
+        expect(screen.queryByLabelText("story body")).not.toBeInTheDocument();
+    });
+
+    it("says the cover was not removed rather than opening a fanfic that still has it", async () => {
+        // given
+        stubEditor({
+            fanfic: makeFanfic({ is_oneshot: false, cover_image_url: "/covers/1.png" }),
+            deleteCover: () => Promise.reject(new Error("The witch forbids it")),
+        });
+        const user = userEvent.setup();
+        renderEdit();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Remove" }));
+        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+        // then
+        expect(
+            await screen.findByText("The fanfic was saved but its cover image was not removed: The witch forbids it"),
+        ).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it("uploads a chosen cover against the fanfic it has just created", async () => {
+        // given
+        const { uploadCoverForAsync } = stubEditor();
+        const user = userEvent.setup();
+        const { container } = renderNew();
+
+        // when
+        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
+        await user.upload(fileInput(container), coverFile());
+        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
+        await user.click(screen.getByRole("button", { name: "Publish" }));
+
+        // then
+        await waitFor(() => {
+            expect(uploadCoverForAsync).toHaveBeenCalledWith({ id: "fanfic-new", file: expect.any(File) });
+        });
+        expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-new");
+    });
+
+    it("says the cover of a new fanfic was not saved instead of leaving silently", async () => {
+        // given
+        stubEditor({ uploadCoverFor: () => Promise.reject(new Error("The cover is too large")) });
+        const user = userEvent.setup();
+        const { container } = renderNew();
+
+        // when
+        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
+        await user.upload(fileInput(container), coverFile());
+        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
+        await user.click(screen.getByRole("button", { name: "Publish" }));
+
+        // then
+        expect(
+            await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large"),
+        ).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it("never writes the fanfic twice when only its cover failed", async () => {
+        // given
+        const { createAsync } = stubEditor({
+            uploadCoverFor: () => Promise.reject(new Error("The cover is too large")),
+        });
+        const user = userEvent.setup();
+        const { container } = renderNew();
+        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
+        await user.upload(fileInput(container), coverFile());
+        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
+        await user.click(screen.getByRole("button", { name: "Publish" }));
+        await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Publish" }));
+
+        // then
+        expect(createAsync).toHaveBeenCalledTimes(1);
     });
 
     it("does not save a draft of an edit into local storage", async () => {

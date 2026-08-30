@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router";
-import { siteUrl } from "../../utils/siteOrigin";
+import { siteUrl } from "../../platform/siteOrigin";
 
 export function CanonicalTag() {
     const { pathname, search } = useLocation();

@@ -1,10 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError } from "../../../api/client";
-import type { SiteInfo } from "../../../api/endpoints";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatMessage, ChatRoom } from "../../../types/api";
+import type { ChatMessage, ChatRoom, SiteInfo } from "../../../types/api";
+import type { BannedWordRejection, ChatSendRejection } from "../../../hooks/mutations/chat";
 import { ChatComposer } from "./ChatComposer";
 
 const mocks = vi.hoisted(() => ({
@@ -12,10 +11,17 @@ const mocks = vi.hoisted(() => ({
     sendFirstDM: vi.fn(),
 }));
 
-vi.mock("../../../api/mutations/chat", () => ({
+vi.mock("../../../hooks/mutations/chat", () => ({
     useSendChatMessage: () => ({ mutateAsync: mocks.sendChatMessage }),
     useSendFirstDMMessage: () => ({ mutateAsync: mocks.sendFirstDM }),
+    readChatSendRejection: (err: unknown) => (err as { rejection?: ChatSendRejection }).rejection ?? null,
 }));
+
+function rejected(bannedWord: BannedWordRejection | null, serverMessage: string | null = null): Error {
+    const rejection: ChatSendRejection = { bannedWord, serverMessage };
+
+    return Object.assign(new Error("blocked"), { rejection });
+}
 
 vi.mock("../GifPicker/GifPicker", () => ({
     GifPicker: ({ onPick, onClose }: { onPick: (gif: { id: string; url: string }) => void; onClose: () => void }) => (
@@ -297,9 +303,7 @@ describe("ChatComposer", () => {
     it("explains a banned word rejection including the kick", async () => {
         // given
         const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(
-            new ApiError(422, "blocked", { code: "banned_word", pattern: "goats", action: "kick" }),
-        );
+        mocks.sendChatMessage.mockRejectedValue(rejected({ pattern: "goats", kicked: true }));
         renderComposer();
 
         // when
@@ -317,9 +321,7 @@ describe("ChatComposer", () => {
     it("omits the kick notice when the rule only blocks the message", async () => {
         // given
         const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(
-            new ApiError(422, "blocked", { code: "banned_word", pattern: "goats" }),
-        );
+        mocks.sendChatMessage.mockRejectedValue(rejected({ pattern: "goats", kicked: false }));
         renderComposer();
 
         // when
@@ -333,7 +335,7 @@ describe("ChatComposer", () => {
     it("surfaces the error field the server returned", async () => {
         // given
         const user = userEvent.setup();
-        mocks.sendChatMessage.mockRejectedValue(new ApiError(403, "nope", { error: "You are muted in this room" }));
+        mocks.sendChatMessage.mockRejectedValue(rejected(null, "You are muted in this room"));
         renderComposer();
 
         // when

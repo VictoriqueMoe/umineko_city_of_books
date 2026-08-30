@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useCreateJournal } from "../../api/mutations/journal";
+import { useCreateJournal } from "../../hooks/mutations/journal";
 import { JournalForm } from "../../components/journal/JournalForm/JournalForm";
 import styles from "./CreateJournalPage.module.css";
 

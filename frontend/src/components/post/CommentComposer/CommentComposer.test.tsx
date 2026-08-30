@@ -10,7 +10,7 @@ const { createComment, uploadMedia, GIF_URL } = vi.hoisted(() => ({
     GIF_URL: "https://media.giphy.com/media/abc123/beato.gif",
 }));
 
-vi.mock("../../../api/mutations/post", () => ({
+vi.mock("../../../hooks/mutations/post", () => ({
     useCreateComment: () => ({ mutateAsync: createComment }),
     useUploadCommentMedia: () => ({ mutateAsync: uploadMedia }),
 }));

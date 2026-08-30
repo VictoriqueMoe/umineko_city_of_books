@@ -16,9 +16,9 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/oc", () => ({ useOC: mocks.useOC }));
+vi.mock("../../hooks/queries/oc", () => ({ useOC: mocks.useOC }));
 
-vi.mock("../../api/mutations/oc", () => ({
+vi.mock("../../hooks/mutations/oc", () => ({
     useCreateOC: () => ({ mutateAsync: mocks.createOC }),
     useUpdateOC: () => ({ mutateAsync: mocks.updateOC }),
     useDeleteOC: () => ({ mutateAsync: mocks.deleteOC }),
@@ -306,7 +306,7 @@ describe("CreateOCPage main image", () => {
         expect(mocks.uploadImage).not.toHaveBeenCalled();
     });
 
-    it("still opens the character when the portrait upload fails", async () => {
+    it("stays on the form and names the portrait that would not upload", async () => {
         // given
         mocks.uploadImage.mockRejectedValue(new Error("the disk is full"));
         const user = userEvent.setup();
@@ -318,9 +318,29 @@ describe("CreateOCPage main image", () => {
         await user.click(screen.getByRole("button", { name: "Create OC" }));
 
         // then
+        expect(await screen.findByText("portrait.png was not saved: the disk is full")).toBeInTheDocument();
+        expect(mocks.navigate).not.toHaveBeenCalled();
+    });
+
+    it("creates no second character when the refused portrait is sent again", async () => {
+        // given
+        mocks.uploadImage.mockRejectedValue(new Error("the disk is full"));
+        const user = userEvent.setup();
+        const { container } = renderCreate();
+        await user.type(nameBox(), "Featherine Junior");
+        await user.upload(fileInputs(container)[0], imageFile());
+        await user.click(screen.getByRole("button", { name: "Create OC" }));
+        await screen.findByText("portrait.png was not saved: the disk is full");
+
+        // when
+        mocks.uploadImage.mockResolvedValue({});
+        await user.click(screen.getByRole("button", { name: "Create OC" }));
+
+        // then
         await waitFor(() => {
             expect(mocks.navigate).toHaveBeenCalledWith("/oc/oc-9");
         });
+        expect(mocks.createOC).toHaveBeenCalledOnce();
     });
 
     it("offers to replace the portrait once one has been chosen", async () => {
@@ -442,7 +462,7 @@ describe("CreateOCPage gallery staging", () => {
         expect(mocks.addGalleryImage).toHaveBeenNthCalledWith(2, { id: "oc-9", file: second, caption: "" });
     });
 
-    it("still opens the character when a gallery upload fails", async () => {
+    it("stays on the form and names the gallery image that would not upload", async () => {
         // given
         mocks.addGalleryImage.mockRejectedValue(new Error("the disk is full"));
         const user = userEvent.setup();
@@ -455,9 +475,30 @@ describe("CreateOCPage gallery staging", () => {
         await user.click(screen.getByRole("button", { name: "Create OC" }));
 
         // then
+        expect(await screen.findByText("one.png was not saved: the disk is full")).toBeInTheDocument();
+        expect(mocks.navigate).not.toHaveBeenCalled();
+    });
+
+    it("keeps the refused gallery image staged and uploads it only once on the retry", async () => {
+        // given
+        mocks.addGalleryImage.mockRejectedValue(new Error("the disk is full"));
+        const user = userEvent.setup();
+        const { container } = renderCreate();
+        await user.type(nameBox(), "Featherine Junior");
+        await user.upload(fileInputs(container)[1], imageFile("one.png"));
+        await user.click(screen.getByRole("button", { name: "Add to gallery" }));
+        await user.click(screen.getByRole("button", { name: "Create OC" }));
+        await screen.findByText("one.png was not saved: the disk is full");
+
+        // when
+        mocks.addGalleryImage.mockResolvedValue({});
+        await user.click(screen.getByRole("button", { name: "Create OC" }));
+
+        // then
         await waitFor(() => {
             expect(mocks.navigate).toHaveBeenCalledWith("/oc/oc-9");
         });
+        expect(mocks.addGalleryImage).toHaveBeenCalledTimes(2);
     });
 });
 

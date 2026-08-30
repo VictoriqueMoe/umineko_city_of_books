@@ -1,8 +1,8 @@
 import { screen } from "@testing-library/react";
 import { Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
-import type { UserProfile } from "../../types/api";
-import type { Permission, SiteRole } from "../../utils/permissions";
+import type { SiteRole, UserProfile } from "../../types/api";
+import type { Permission } from "../../domain/permissions";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { ProtectedRoute } from "./ProtectedRoute";

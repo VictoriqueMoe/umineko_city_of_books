@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import { useResendVerification } from "../../api/mutations/auth";
+import { useResendVerification } from "../../hooks/mutations/auth";
 import styles from "./VerifyEmailBanner.module.css";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;

@@ -67,7 +67,7 @@ function makeState(overrides: Partial<PongState> = {}): PongState {
     };
 }
 
-function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
+function makeRoom(overrides: Partial<GameRoom<PongState, PongStats>> = {}): GameRoom<PongState, PongStats> {
     return {
         id: "room-1",
         game_type: "pong",
@@ -100,7 +100,7 @@ function makeStats(overrides: Partial<PongStats> = {}): PongStats {
     };
 }
 
-function renderBoard(room: GameRoom, viewer: User | null, isSpectator = false) {
+function renderBoard(room: GameRoom<PongState, PongStats>, viewer: User | null, isSpectator = false) {
     return renderWithProviders(
         <PongBoardView room={room} viewer={viewer} isSpectator={isSpectator} onResign={onResign} />,
     );
@@ -145,18 +145,6 @@ describe("PongBoardView", () => {
         expect(screen.getByText("Watching a live match")).toBeInTheDocument();
     });
 
-    it("waits for the room state before drawing a court", () => {
-        // given
-        const room = makeRoom({ state: undefined });
-
-        // when
-        renderBoard(room, playerOne);
-
-        // then
-        expect(screen.getByText("Loading game...")).toBeInTheDocument();
-        expect(screen.queryByTestId("pong-court")).not.toBeInTheDocument();
-    });
-
     it("counts out the match once it is over", () => {
         // given
         const room = makeRoom({
@@ -195,7 +183,7 @@ describe("PongBoardView", () => {
         const room = makeRoom({
             status: "finished",
             winner_user_id: "u-one",
-            stats: { total_rolls: 24, final_p0: 100 } as unknown as GameRoom["stats"],
+            stats: { total_rolls: 24, final_p0: 100 } as unknown as PongStats,
         });
 
         // when

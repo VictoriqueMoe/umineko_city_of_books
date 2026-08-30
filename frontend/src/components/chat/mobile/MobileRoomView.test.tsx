@@ -1,18 +1,34 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomController } from "../../../hooks/useRoomController";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatRoom, ChatRoomMember, User } from "../../../types/api";
+import type { ChatRoom, ChatRoomMember, User, UserProfile } from "../../../types/api";
 import { MobileRoomView } from "./MobileRoomView";
 
-const mocks = vi.hoisted(() => ({ forceMuteVoiceParticipant: vi.fn(() => Promise.resolve()) }));
+const mocks = vi.hoisted(() => ({
+    forceMuteVoiceParticipant: vi.fn<
+        (roomId: string | null | undefined, userId: string, muted: boolean) => Promise<void>
+    >(() => Promise.resolve()),
+}));
 
-vi.mock("../../../api/endpoints", async importOriginal => {
-    const actual = await importOriginal<typeof import("../../../api/endpoints")>();
+vi.mock("../../../hooks/mutations/chat", async importOriginal => {
+    const actual = await importOriginal<typeof import("../../../hooks/mutations/chat")>();
 
-    return { ...actual, forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant };
+    return {
+        ...actual,
+        useForceMuteVoiceParticipant: (roomId: string | null | undefined) => ({
+            mutate: (
+                variables: { userId: string; muted: boolean },
+                callbacks?: { onError?: (err: unknown) => void },
+            ) => {
+                mocks
+                    .forceMuteVoiceParticipant(roomId, variables.userId, variables.muted)
+                    .catch((err: unknown) => callbacks?.onError?.(err));
+            },
+        }),
+    };
 });
 
 vi.mock("../MessageList/RoomMessageList", () => ({
@@ -87,8 +103,8 @@ vi.mock("../WatchParty/WatchPartyButton", () => ({
 }));
 
 vi.mock("../WatchParty/WatchPartyModal", () => ({
-    WatchPartyModal: ({ isStarter }: { isStarter: boolean }) => (
-        <div data-testid="watch-party-modal" data-is-starter={String(isStarter)} />
+    WatchPartyModal: ({ isStarter, voiceEnabled }: { isStarter: boolean; voiceEnabled: boolean }) => (
+        <div data-testid="watch-party-modal" data-is-starter={String(isStarter)} data-voice={String(voiceEnabled)} />
     ),
 }));
 
@@ -175,6 +191,7 @@ function makeVoice(overrides: Record<string, unknown> = {}): RoomController["voi
         room: null,
         participantIds: [],
         presenceCount: 0,
+        enabled: true,
         join: vi.fn(),
         leave: vi.fn(),
         ...overrides,
@@ -207,88 +224,201 @@ function makeWatchParty(overrides: Record<string, unknown> = {}): RoomController
     return base as unknown as RoomController["watchParty"];
 }
 
-function makeController(overrides: Partial<RoomController> = {}): RoomController {
-    const base = {
-        user: viewer,
-        navigate: vi.fn(),
-        room: makeRoom(),
-        roomId: "room-1",
-        members: [selfMember, makeMember()],
-        memberGroups: [{ label: "Members", members: [selfMember, makeMember()] }],
-        presenceMapMerged: {},
-        currentMember: selfMember,
-        mobileView: "chat",
-        setMobileView: vi.fn(),
-        scrollToBottom: vi.fn(),
-        typingNames: [],
-        voice: makeVoice(),
-        voiceEnabled: true,
-        watchParty: makeWatchParty(),
-        invitedPartyMissing: false,
-        replyingTo: null,
-        setReplyingTo: vi.fn(),
-        viewerTimeoutUntil: undefined,
-        lightboxSrc: null,
-        setLightboxSrc: vi.fn(),
-        toast: "",
-        setToast: vi.fn(),
-        busy: "",
-        sendWSMessage: vi.fn(),
-        pinnedOpen: false,
-        setPinnedOpen: vi.fn(),
-        searchOpen: false,
-        setSearchOpen: vi.fn(),
-        pinnedRefreshKey: 0,
-        editProfileOpen: false,
-        setEditProfileOpen: vi.fn(),
-        inviteModalOpen: false,
-        setInviteModalOpen: vi.fn(),
-        moderationDialogOpen: false,
-        setModerationDialogOpen: vi.fn(),
-        openMemberMenu: null,
-        setOpenMemberMenu: vi.fn(),
-        setMembers: vi.fn(),
-        nicknameDialogTarget: null,
-        setNicknameDialogTarget: vi.fn(),
-        nicknameDialogValue: "",
-        setNicknameDialogValue: vi.fn(),
-        nicknameDialogError: "",
-        nicknameDialogSaving: false,
-        timeoutDialogTarget: null,
-        setTimeoutDialogTarget: vi.fn(),
-        timeoutDialogAmount: "10",
-        setTimeoutDialogAmount: vi.fn(),
-        timeoutDialogUnit: "seconds",
-        setTimeoutDialogUnit: vi.fn(),
-        timeoutDialogError: "",
-        timeoutDialogSaving: false,
-        openNicknameDialog: vi.fn(),
-        openTimeoutDialog: vi.fn(),
-        handleSentMessage: vi.fn(),
-        handleModSetNickname: vi.fn(),
-        handleModUnlockNickname: vi.fn(),
-        handleSetTimeout: vi.fn(),
-        handleClearTimeout: vi.fn(),
-        handleKick: vi.fn(),
-        handleBan: vi.fn(),
-        handleToggleMute: vi.fn(),
-        handleLeave: vi.fn(),
-        handleDelete: vi.fn(),
-        handleJumpToMessage: vi.fn(),
-        handleEditLast: vi.fn(),
-    };
-
-    return { ...base, ...overrides } as unknown as RoomController;
+interface MemberGroupStub {
+    label: string;
+    members: ChatRoomMember[];
 }
 
-function renderView(overrides: Partial<RoomController> = {}) {
+interface ControllerOverrides {
+    user?: UserProfile | null;
+    room?: ChatRoom | null;
+    backToRooms?: () => void;
+    members?: ChatRoomMember[];
+    memberGroups?: MemberGroupStub[];
+    presenceMapMerged?: Record<string, string>;
+    currentMember?: ChatRoomMember | null;
+    mobileView?: "members" | "chat";
+    setMobileView?: (view: "members" | "chat") => void;
+    typingNames?: string[];
+    voice?: RoomController["voice"];
+    voiceEnabled?: boolean;
+    watchParty?: RoomController["watchParty"];
+    invitedPartyMissing?: boolean;
+    viewerTimeoutUntil?: string;
+    lightboxSrc?: string | null;
+    setLightboxSrc?: (src: string | null) => void;
+    toast?: string;
+    setToast?: (message: string) => void;
+    busy?: string;
+    pinnedOpen?: boolean;
+    setPinnedOpen?: (open: boolean) => void;
+    searchOpen?: boolean;
+    setSearchOpen?: (open: boolean) => void;
+    editProfileOpen?: boolean;
+    setEditProfileOpen?: (open: boolean) => void;
+    inviteModalOpen?: boolean;
+    setInviteModalOpen?: (open: boolean) => void;
+    moderationDialogOpen?: boolean;
+    setModerationDialogOpen?: (open: boolean) => void;
+    openMemberMenu?: string | null;
+    setOpenMemberMenu?: (id: string | null) => void;
+    setMembers?: () => void;
+    nicknameDialogTarget?: ChatRoomMember | null;
+    setNicknameDialogTarget?: (member: ChatRoomMember | null) => void;
+    nicknameDialogValue?: string;
+    setNicknameDialogValue?: (value: string) => void;
+    nicknameDialogError?: string;
+    nicknameDialogSaving?: boolean;
+    timeoutDialogTarget?: ChatRoomMember | null;
+    setTimeoutDialogTarget?: (member: ChatRoomMember | null) => void;
+    timeoutDialogAmount?: string;
+    setTimeoutDialogAmount?: (value: string) => void;
+    timeoutDialogUnit?: string;
+    setTimeoutDialogUnit?: (value: string) => void;
+    timeoutDialogError?: string;
+    timeoutDialogSaving?: boolean;
+    openNicknameDialog?: (member: ChatRoomMember) => void;
+    openTimeoutDialog?: (member: ChatRoomMember) => void;
+    handleSentMessage?: () => void;
+    handleModSetNickname?: () => void;
+    handleModUnlockNickname?: (userId: string) => void;
+    handleSetTimeout?: () => void;
+    handleClearTimeout?: (userId: string) => void;
+    handleKick?: (userId: string) => void;
+    handleBan?: (userId: string) => void;
+    handleToggleMute?: () => void;
+    handleLeave?: () => void;
+    handleDelete?: () => void;
+    handleJumpToMessage?: () => void;
+    handleEditLast?: () => void;
+}
+
+function makeController(overrides: ControllerOverrides = {}): RoomController {
+    const members = overrides.members ?? [selfMember, makeMember()];
+    const base = {
+        room: {
+            data: "room" in overrides ? (overrides.room ?? null) : makeRoom(),
+            id: "room-1",
+            loading: false,
+            joining: false,
+            viewerTimeoutUntil: overrides.viewerTimeoutUntil,
+            viewerTimedOut: false,
+            set: vi.fn(),
+            join: vi.fn(),
+            toggleMute: overrides.handleToggleMute ?? vi.fn(),
+            leave: overrides.handleLeave ?? vi.fn(),
+            remove: overrides.handleDelete ?? vi.fn(),
+            backToRooms: overrides.backToRooms ?? vi.fn(),
+        },
+        session: {
+            viewer: "user" in overrides ? (overrides.user ?? null) : viewer,
+            messages: [],
+            hasMore: false,
+            loadingMore: false,
+            containerRef: { current: null },
+            contentRef: { current: null },
+            endRef: { current: null },
+            onScroll: vi.fn(),
+            toBottom: vi.fn(),
+            editingMessageId: null,
+            setEditingMessageId: vi.fn(),
+            replyingTo: null,
+            setReplyingTo: vi.fn(),
+            typingNames: overrides.typingNames ?? [],
+            notifyTyping: vi.fn(),
+            matchesViewerMention: null,
+            onSent: overrides.handleSentMessage ?? vi.fn(),
+            deleteMessage: vi.fn(),
+            editMessage: vi.fn(),
+            editLast: overrides.handleEditLast ?? vi.fn(),
+            toggleReaction: vi.fn(),
+            togglePin: vi.fn(),
+        },
+        members: {
+            list: members,
+            groups: overrides.memberGroups ?? [{ label: "Members", members }],
+            presence: overrides.presenceMapMerged ?? {},
+            onlineWeight: () => 1,
+            current: overrides.currentMember ?? selfMember,
+            set: overrides.setMembers ?? vi.fn(),
+        },
+        moderation: {
+            busy: overrides.busy ?? "",
+            setBusy: vi.fn(),
+            openMemberMenu: overrides.openMemberMenu ?? null,
+            setOpenMemberMenu: overrides.setOpenMemberMenu ?? vi.fn(),
+            nicknameDialogTarget: overrides.nicknameDialogTarget ?? null,
+            setNicknameDialogTarget: overrides.setNicknameDialogTarget ?? vi.fn(),
+            nicknameDialogValue: overrides.nicknameDialogValue ?? "",
+            setNicknameDialogValue: overrides.setNicknameDialogValue ?? vi.fn(),
+            nicknameDialogError: overrides.nicknameDialogError ?? "",
+            nicknameDialogSaving: overrides.nicknameDialogSaving ?? false,
+            timeoutDialogTarget: overrides.timeoutDialogTarget ?? null,
+            setTimeoutDialogTarget: overrides.setTimeoutDialogTarget ?? vi.fn(),
+            timeoutDialogAmount: overrides.timeoutDialogAmount ?? "10",
+            setTimeoutDialogAmount: overrides.setTimeoutDialogAmount ?? vi.fn(),
+            timeoutDialogUnit: overrides.timeoutDialogUnit ?? "seconds",
+            setTimeoutDialogUnit: overrides.setTimeoutDialogUnit ?? vi.fn(),
+            timeoutDialogError: overrides.timeoutDialogError ?? "",
+            timeoutDialogSaving: overrides.timeoutDialogSaving ?? false,
+            formatTimeoutUntil: (value?: string) => `until ${value ?? "never"}`,
+            openNicknameDialog: overrides.openNicknameDialog ?? vi.fn(),
+            openTimeoutDialog: overrides.openTimeoutDialog ?? vi.fn(),
+            handleModSetNickname: overrides.handleModSetNickname ?? vi.fn(),
+            handleModUnlockNickname: overrides.handleModUnlockNickname ?? vi.fn(),
+            handleSetTimeout: overrides.handleSetTimeout ?? vi.fn(),
+            handleClearTimeout: overrides.handleClearTimeout ?? vi.fn(),
+            handleKick: overrides.handleKick ?? vi.fn(),
+            handleBan: overrides.handleBan ?? vi.fn(),
+        },
+        prefs: {
+            sidebarCollapsed: false,
+            toggleSidebar: vi.fn(),
+            descExpanded: false,
+            toggleDescExpanded: vi.fn(),
+            mobileView: overrides.mobileView ?? "chat",
+            setMobileView: overrides.setMobileView ?? vi.fn(),
+        },
+        anchor: {
+            highlightedMsgId: null,
+            jumpTo: overrides.handleJumpToMessage ?? vi.fn(),
+        },
+        voice: { ...(overrides.voice ?? makeVoice()), enabled: overrides.voiceEnabled ?? true },
+        watchParty: {
+            ...(overrides.watchParty ?? makeWatchParty()),
+            invitedPartyMissing: overrides.invitedPartyMissing ?? false,
+        },
+        panels: {
+            pinnedOpen: overrides.pinnedOpen ?? false,
+            setPinnedOpen: overrides.setPinnedOpen ?? vi.fn(),
+            searchOpen: overrides.searchOpen ?? false,
+            setSearchOpen: overrides.setSearchOpen ?? vi.fn(),
+            lightboxSrc: overrides.lightboxSrc ?? null,
+            setLightboxSrc: overrides.setLightboxSrc ?? vi.fn(),
+            editProfileOpen: overrides.editProfileOpen ?? false,
+            setEditProfileOpen: overrides.setEditProfileOpen ?? vi.fn(),
+            inviteModalOpen: overrides.inviteModalOpen ?? false,
+            setInviteModalOpen: overrides.setInviteModalOpen ?? vi.fn(),
+            moderationDialogOpen: overrides.moderationDialogOpen ?? false,
+            setModerationDialogOpen: overrides.setModerationDialogOpen ?? vi.fn(),
+        },
+        toast: {
+            message: overrides.toast ?? "",
+            show: overrides.setToast ?? vi.fn(),
+        },
+    };
+
+    return base as unknown as RoomController;
+}
+
+function renderView(overrides: ControllerOverrides = {}) {
     const controller = makeController(overrides);
     const result = renderWithProviders(<MobileRoomView controller={controller} />);
 
     return { ...result, controller };
 }
 
-function membersView(overrides: Partial<RoomController> = {}) {
+function membersView(overrides: ControllerOverrides = {}) {
     return renderView({ mobileView: "members", ...overrides });
 }
 
@@ -376,15 +506,15 @@ describe("MobileRoomView chat view", () => {
 
     it("goes back to the room directory", async () => {
         // given
-        const navigate = vi.fn();
+        const backToRooms = vi.fn();
         const user = userEvent.setup();
-        renderView({ navigate });
+        renderView({ backToRooms });
 
         // when
         await user.click(screen.getByLabelText("Back to rooms"));
 
         // then
-        expect(navigate).toHaveBeenCalledWith("/rooms");
+        expect(backToRooms).toHaveBeenCalledOnce();
     });
 
     it("opens the search, the pins and the member list from the top bar", async () => {
@@ -485,6 +615,23 @@ describe("MobileRoomView chat view", () => {
         expect(mocks.forceMuteVoiceParticipant).toHaveBeenCalledWith("room-1", "battler", true);
     });
 
+    it("tells the moderator when a server mute did not take", async () => {
+        // given
+        mocks.forceMuteVoiceParticipant.mockRejectedValue(new Error("LiveKit said no"));
+        const setToast = vi.fn();
+        const user = userEvent.setup();
+        renderView({ setToast, voice: makeVoice({ status: "connected", room: { name: "voice" } }) });
+        await screen.findByTestId("voice-bar");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "server mute battler" }));
+
+        // then
+        await waitFor(() => {
+            expect(setToast).toHaveBeenCalledWith("LiveKit said no");
+        });
+    });
+
     it("gives the composer the room, the mention pool and the viewer's timeout", () => {
         // given
         const viewerTimeoutUntil = "2026-08-02T12:00:00Z";
@@ -577,6 +724,34 @@ describe("MobileRoomView chat view", () => {
 
         // then
         expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-is-starter", "false");
+    });
+
+    it("offers watch party voice when the site allows voice and screen share is on", async () => {
+        // given
+        const watchParty = makeWatchParty({
+            activeSession: { session: { started_by: "u1" } },
+            screenShareEnabled: true,
+        });
+
+        // when
+        renderView({ watchParty, voiceEnabled: true });
+
+        // then
+        expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-voice", "true");
+    });
+
+    it("obeys the site voice setting inside a watch party", async () => {
+        // given
+        const watchParty = makeWatchParty({
+            activeSession: { session: { started_by: "u1" } },
+            screenShareEnabled: true,
+        });
+
+        // when
+        renderView({ watchParty, voiceEnabled: false });
+
+        // then
+        expect(await screen.findByTestId("watch-party-modal")).toHaveAttribute("data-voice", "false");
     });
 
     it("reports a single invitation in the singular", async () => {
@@ -712,6 +887,41 @@ describe("MobileRoomView members view", () => {
 
         // then
         expect(screen.getByText("Host")).toBeInTheDocument();
+    });
+
+    it("marks a member who is timed out", () => {
+        // given
+        const memberGroups = [{ label: "Members", members: [makeMember({ timeout_until: "2026-09-01T00:00:00Z" })] }];
+
+        // when
+        membersView({ memberGroups });
+
+        // then
+        expect(screen.getByLabelText("Timed out until until 2026-09-01T00:00:00Z")).toBeInTheDocument();
+    });
+
+    it("says whether a member is watching the room right now", () => {
+        // given
+        const presenceMapMerged = { u2: "active" };
+
+        // when
+        membersView({ presenceMapMerged, memberGroups: [{ label: "Members", members: [makeMember()] }] });
+
+        // then
+        expect(screen.getByLabelText("Active in this room")).toBeInTheDocument();
+    });
+
+    it("leaves the online and offline headings off the phone roster", () => {
+        // given
+        const memberGroups = [{ label: "Everyone", members: [makeMember()] }];
+
+        // when
+        membersView({ memberGroups });
+
+        // then
+        expect(screen.getByText("Everyone")).toBeInTheDocument();
+        expect(screen.queryByText("Online")).not.toBeInTheDocument();
+        expect(screen.queryByText("Offline")).not.toBeInTheDocument();
     });
 
     it("offers the invite control to the host of an ordinary room only", () => {

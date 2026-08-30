@@ -1,18 +1,21 @@
 package authz
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -35,6 +38,24 @@ func newTestService(t *testing.T) (*service, *testDeps) {
 	svc := NewService(deps.roleRepo, deps.userRepo, deps.permRepo, deps.settingsSvc).(*service)
 
 	return svc, deps
+}
+
+func captureLogs(t *testing.T) *bytes.Buffer {
+	t.Helper()
+
+	buf := new(bytes.Buffer)
+	previousLogger := logger.Log
+	previousLevel := zerolog.GlobalLevel()
+
+	logger.Log = zerolog.New(buf)
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+
+	t.Cleanup(func() {
+		logger.Log = previousLogger
+		zerolog.SetGlobalLevel(previousLevel)
+	})
+
+	return buf
 }
 
 func seededModeratorTable() map[string][]string {
@@ -519,7 +540,7 @@ func TestIsRestrictedNewAccount(t *testing.T) {
 		{name: "a member past the window is not", hours: 24, user: &model.User{CreatedAt: time.Now().Add(-48 * time.Hour).Format(time.RFC3339)}, want: false},
 		{name: "brand new staff are exempt", hours: 24, user: &model.User{CreatedAt: time.Now().Format(time.RFC3339), Role: string(role.RoleModerator)}, want: false},
 		{name: "a zero threshold disables the rule", hours: 0, user: &model.User{CreatedAt: time.Now().Format(time.RFC3339)}, want: false},
-		{name: "a lookup failure does not restrict", hours: 24, user: nil, err: errors.New("db down"), want: false},
+		{name: "a lookup failure deliberately fails open rather than calling an established member new", hours: 24, user: nil, err: errors.New("db down"), want: false},
 		{name: "a missing user does not restrict", hours: 24, user: nil, want: false},
 	}
 
@@ -538,6 +559,46 @@ func TestIsRestrictedNewAccount(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestIsRestrictedNewAccount_Logging(t *testing.T) {
+	tests := []struct {
+		name    string
+		user    *model.User
+		err     error
+		wantLog bool
+	}{
+		{name: "a lookup failure is reported so the disabled gate is visible in Loki", err: errors.New("db down"), wantLog: true},
+		{name: "a deleted account is an ordinary outcome and stays silent", wantLog: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			logs := captureLogs(t)
+			svc, deps := newTestService(t)
+			userID := uuid.New()
+			deps.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingNewAccountHours).Return(24)
+			deps.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(tc.user, tc.err)
+
+			// when
+			got := svc.IsRestrictedNewAccount(context.Background(), userID)
+
+			// then
+			assert.False(t, got)
+
+			if !tc.wantLog {
+				assert.Empty(t, logs.String())
+				return
+			}
+
+			written := logs.String()
+			assert.Contains(t, written, `"level":"error"`)
+			assert.Contains(t, written, `"error":"db down"`)
+			assert.Contains(t, written, `"user_id":"`+userID.String()+`"`)
+			assert.Contains(t, written, "the new account restriction is not being applied")
 		})
 	}
 }

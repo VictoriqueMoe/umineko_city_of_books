@@ -3,14 +3,16 @@ import { marked } from "marked";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import DOMPurify from "dompurify";
 import type { Announcement } from "../../types/api";
-import { useAdminAnnouncements } from "../../api/queries/admin";
+import { useAdminAnnouncements } from "../../hooks/queries/admin";
 import {
     useCreateAnnouncement,
     useDeleteAnnouncement,
     usePinAnnouncement,
     useUpdateAnnouncement,
-} from "../../api/mutations/admin";
+} from "../../hooks/mutations/admin";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { Input } from "../../components/Input/Input";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
@@ -34,6 +36,7 @@ export function AdminAnnouncements() {
     const [body, setBody] = useState("");
     const [showPreview, setShowPreview] = useState(false);
     const [error, setError] = useState("");
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
     const saving = createMutation.isPending || updateMutation.isPending;
 
@@ -68,19 +71,23 @@ export function AdminAnnouncements() {
                 await updateMutation.mutateAsync({ id: editingId, title: title.trim(), body: body.trim() });
             }
             cancelEdit();
-        } catch {
-            // ignore
+        } catch (e) {
+            setError(errorMessage(e, "Failed to save the announcement"));
         }
     }
 
-    async function handleDelete(id: string) {
-        if (!window.confirm("Delete this announcement?")) {
+    async function confirmDelete() {
+        const id = pendingDeleteId;
+        if (!id) {
             return;
         }
+
+        setPendingDeleteId(null);
+
         try {
             await deleteMutation.mutateAsync(id);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to delete the announcement");
+            setError(errorMessage(e, "Failed to delete the announcement"));
         }
     }
 
@@ -88,7 +95,7 @@ export function AdminAnnouncements() {
         try {
             await pinMutation.mutateAsync({ id, pinned: !pinned });
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to change the pinned state");
+            setError(errorMessage(e, "Failed to change the pinned state"));
         }
     }
 
@@ -183,13 +190,23 @@ export function AdminAnnouncements() {
                             <Button variant="ghost" size="small" onClick={() => handlePin(a.id, a.pinned)}>
                                 {a.pinned ? "Unpin" : "Pin"}
                             </Button>
-                            <Button variant="danger" size="small" onClick={() => handleDelete(a.id)}>
+                            <Button variant="danger" size="small" onClick={() => setPendingDeleteId(a.id)}>
                                 Delete
                             </Button>
                         </div>
                     </div>
                 ))}
             </div>
+
+            <ConfirmDialog
+                open={pendingDeleteId !== null}
+                title="Delete Announcement"
+                body="Delete this announcement?"
+                confirmLabel="Delete"
+                destructive
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDeleteId(null)}
+            />
         </div>
     );
 }

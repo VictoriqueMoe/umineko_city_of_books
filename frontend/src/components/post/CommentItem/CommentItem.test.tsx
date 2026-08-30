@@ -17,7 +17,7 @@ const { likeComment, unlikeComment, deleteComment, updateComment, createComment,
 
 const { previews } = vi.hoisted(() => ({ previews: { byURL: new Map<string, LinkPreview>() } }));
 
-vi.mock("../../../api/mutations/post", () => ({
+vi.mock("../../../hooks/mutations/post", () => ({
     useLikeComment: () => ({ mutateAsync: likeComment }),
     useUnlikeComment: () => ({ mutateAsync: unlikeComment }),
     useDeleteComment: () => ({ mutateAsync: deleteComment }),
@@ -26,7 +26,7 @@ vi.mock("../../../api/mutations/post", () => ({
     useUploadCommentMedia: () => ({ mutateAsync: uploadMedia }),
 }));
 
-vi.mock("../../../api/queries/linkPreview", () => ({
+vi.mock("../../../hooks/queries/linkPreview", () => ({
     useLinkPreview: (url: string) => ({ preview: previews.byURL.get(url), loading: false }),
 }));
 

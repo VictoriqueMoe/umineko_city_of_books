@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -668,9 +669,7 @@ func (s *service) postChat(ctx context.Context, roomID, userID uuid.UUID, body s
 	if body == "" {
 		return nil, ErrEmptyChat
 	}
-	if len(body) > maxChatBodyLen {
-		body = body[:maxChatBodyLen]
-	}
+	body = text.ClampRunes(body, maxChatBodyLen)
 
 	row, err := s.repo.GetRoom(ctx, roomID)
 	if err != nil {

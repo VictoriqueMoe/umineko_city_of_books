@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { useLatestAnnouncement } from "../../api/queries/announcement";
+import { useLatestAnnouncement } from "../../hooks/queries/announcement";
 import { ProfileLink } from "../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../RelativeTimestamp/RelativeTimestamp";
 import styles from "./AnnouncementCard.module.css";

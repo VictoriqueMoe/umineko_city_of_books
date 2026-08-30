@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ChatRoom, User } from "../../../types/api";
-import { useMutualFollowers, useSearchUsers } from "../../../api/queries/misc";
-import { useCreateGroupRoom } from "../../../api/mutations/chat";
+import { useMutualFollowers, useSearchUsers } from "../../../hooks/queries/user";
+import { useCreateGroupRoom } from "../../../hooks/mutations/chat";
 import { Modal } from "../../Modal/Modal";
 import { Input } from "../../Input/Input";
 import { Button } from "../../Button/Button";
@@ -13,7 +13,7 @@ import {
     isRoomTagCommitKey,
     MAX_ROOM_TAGS,
     removeRoomTag,
-} from "../../../utils/roomTags";
+} from "../../../domain/chat/roomTags";
 import styles from "./CreateRoomModal.module.css";
 
 interface CreateRoomModalProps {

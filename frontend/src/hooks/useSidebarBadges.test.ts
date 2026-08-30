@@ -1,10 +1,22 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WSMessageHandler } from "../context/notificationContextValue";
+import type * as BusModule from "../api/realtime/bus";
 import { makeUser } from "../test-utils/fixtures";
 import { providerWrapper, type ProviderOptions } from "../test-utils/render";
-import type { WSMessage } from "../types/api";
+import { makeWSHarness, type RealtimeTestNames, type WSHarness } from "../test-utils/ws";
 import { useSidebarBadges } from "./useSidebarBadges";
+
+const holder = vi.hoisted(() => ({ ws: null as unknown as WSHarness }));
+
+vi.mock("../api/realtime/bus", async importOriginal => {
+    const actual = await importOriginal<typeof BusModule>();
+
+    return {
+        ...actual,
+        subscribe: (names: RealtimeTestNames, handler: BusModule.RealtimeEventHandler) =>
+            holder.ws.subscribe(names, handler),
+    };
+});
 
 const mocks = vi.hoisted(() => ({
     activity: null as { activity: Record<string, string> } | null,
@@ -14,12 +26,12 @@ const mocks = vi.hoisted(() => ({
     markVisitedAsync: vi.fn(),
 }));
 
-vi.mock("../api/queries/sidebar", () => ({
+vi.mock("./queries/sidebar", () => ({
     useSidebarActivity: () => ({ data: mocks.activity, loading: false }),
     useSidebarLastVisited: () => ({ data: mocks.visited, loading: false, refresh: mocks.refreshVisited }),
 }));
 
-vi.mock("../api/mutations/sidebar", () => ({
+vi.mock("./mutations/sidebar", () => ({
     useMarkSidebarVisited: () => ({ mutate: mocks.markVisitedMutate, mutateAsync: mocks.markVisitedAsync }),
 }));
 
@@ -40,26 +52,12 @@ function setup(options: ProviderOptions = {}) {
     return renderHook(() => useSidebarBadges(), { wrapper });
 }
 
-function captureWS() {
-    const handlers: WSMessageHandler[] = [];
-
-    const addWSListener = vi.fn((handler: WSMessageHandler) => {
-        handlers.push(handler);
-        return () => {};
-    });
-
-    function emit(msg: WSMessage) {
-        act(() => {
-            for (const handler of handlers) {
-                handler(msg);
-            }
-        });
-    }
-
-    return { addWSListener, emit };
+function announceActivity(data: { key?: string; at?: string }) {
+    holder.ws.emit({ type: "sidebar_activity", data });
 }
 
 beforeEach(() => {
+    holder.ws = makeWSHarness();
     mocks.activity = null;
     mocks.visited = null;
     mocks.markVisitedAsync.mockResolvedValue(undefined);
@@ -79,15 +77,18 @@ describe("useSidebarBadges for a signed out visitor", () => {
         expect(result.current.anyUnread).toBe(false);
     });
 
-    it("does not listen for activity announcements", () => {
+    it("ignores an activity announcement", () => {
         // given
-        const ws = captureWS();
+        setActivity({});
+        setVisited({});
+        const { result } = setup({ user: null });
 
         // when
-        setup({ user: null, notification: { addWSListener: ws.addWSListener } });
+        announceActivity({ key: "chat", at: "2026-01-05T10:00:00Z" });
 
         // then
-        expect(ws.addWSListener).not.toHaveBeenCalled();
+        expect(result.current.hasUnread("chat")).toBe(false);
+        expect(result.current.anyUnread).toBe(false);
     });
 
     it("ignores requests to mark sections as visited", () => {
@@ -353,12 +354,11 @@ describe("useSidebarBadges live announcements", () => {
         // given
         setActivity({});
         setVisited({ chat: "2026-01-05T09:00:00Z" });
-        const ws = captureWS();
-        const { result } = setup({ notification: { addWSListener: ws.addWSListener } });
+        const { result } = setup();
         expect(result.current.hasUnread("chat")).toBe(false);
 
         // when
-        ws.emit({ type: "sidebar_activity", data: { key: "chat", at: "2026-01-05T10:00:00Z" } });
+        announceActivity({ key: "chat", at: "2026-01-05T10:00:00Z" });
 
         // then
         expect(result.current.hasUnread("chat")).toBe(true);
@@ -368,11 +368,10 @@ describe("useSidebarBadges live announcements", () => {
         // given
         setActivity({ chat: "2026-01-05T10:00:00Z" });
         setVisited({ chat: "2026-01-05T09:00:00Z" });
-        const ws = captureWS();
-        const { result } = setup({ notification: { addWSListener: ws.addWSListener } });
+        const { result } = setup();
 
         // when
-        ws.emit({ type: "sidebar_activity", data: { key: "chat", at: "2026-01-04T10:00:00Z" } });
+        announceActivity({ key: "chat", at: "2026-01-04T10:00:00Z" });
 
         // then
         expect(result.current.hasUnread("chat")).toBe(true);
@@ -382,9 +381,8 @@ describe("useSidebarBadges live announcements", () => {
         // given
         setActivity({ chat: "2026-01-05T10:00:00Z" });
         setVisited({ chat: "2026-01-05T09:00:00Z" });
-        const ws = captureWS();
-        const { result, rerender } = setup({ notification: { addWSListener: ws.addWSListener } });
-        ws.emit({ type: "sidebar_activity", data: { key: "chat", at: "2026-01-05T10:30:00Z" } });
+        const { result, rerender } = setup();
+        announceActivity({ key: "chat", at: "2026-01-05T10:30:00Z" });
 
         // when
         setActivity({ chat: "2026-01-05T11:00:00Z" });
@@ -399,28 +397,27 @@ describe("useSidebarBadges live announcements", () => {
         // given
         setActivity({});
         setVisited({ chat: "2026-01-05 10:30:00" });
-        const ws = captureWS();
-        const { result } = setup({ notification: { addWSListener: ws.addWSListener } });
-        ws.emit({ type: "sidebar_activity", data: { key: "chat", at: "2026-01-05 11:00:00" } });
+        const { result } = setup();
+        announceActivity({ key: "chat", at: "2026-01-05 11:00:00" });
 
         // when
-        ws.emit({ type: "sidebar_activity", data: { key: "chat", at: "2026-01-05T10:00:00Z" } });
+        announceActivity({ key: "chat", at: "2026-01-05T10:00:00Z" });
 
         // then
         expect(result.current.hasUnread("chat")).toBe(true);
     });
 
-    it("ignores websocket messages of any other type", () => {
+    it("listens for activity announcements alone", () => {
         // given
         setActivity({});
         setVisited({});
-        const ws = captureWS();
-        const { result } = setup({ notification: { addWSListener: ws.addWSListener } });
+        const { result } = setup();
 
         // when
-        ws.emit({ type: "notification", data: { key: "chat", at: "2026-01-05T10:00:00Z" } });
+        holder.ws.emit({ type: "notification", data: { key: "chat", at: "2026-01-05T10:00:00Z" } });
 
         // then
+        expect(holder.ws.subscribe.mock.calls[0][0]).toBe("sidebar_activity");
         expect(result.current.hasUnread("chat")).toBe(false);
     });
 
@@ -428,11 +425,10 @@ describe("useSidebarBadges live announcements", () => {
         // given
         setActivity({});
         setVisited({});
-        const ws = captureWS();
-        const { result } = setup({ notification: { addWSListener: ws.addWSListener } });
+        const { result } = setup();
 
         // when
-        ws.emit({ type: "sidebar_activity", data: { at: "2026-01-05T10:00:00Z" } });
+        announceActivity({ at: "2026-01-05T10:00:00Z" });
 
         // then
         expect(result.current.anyUnread).toBe(false);
@@ -442,11 +438,10 @@ describe("useSidebarBadges live announcements", () => {
         // given
         setActivity({});
         setVisited({});
-        const ws = captureWS();
-        const { result } = setup({ notification: { addWSListener: ws.addWSListener } });
+        const { result } = setup();
 
         // when
-        ws.emit({ type: "sidebar_activity", data: { key: "chat" } });
+        announceActivity({ key: "chat" });
 
         // then
         expect(result.current.anyUnread).toBe(false);

@@ -576,3 +576,15 @@
     outline: none;
     border-color: rgba(var(--gold-rgb), 0.55);
 }
+
+.voiceError {
+    display: block;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgba(229, 57, 53, 0.5);
+    border-radius: 6px;
+    background: rgba(229, 57, 53, 0.12);
+    color: #ef9a9a;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    word-break: break-word;
+}

@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PermissionCatalogueItem, RolePermissionsItem, VanityRolePermissionsItem } from "../../api/endpoints";
+import type { PermissionCatalogueItem, RolePermissionsItem, VanityRolePermissionsItem } from "../../types/api";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { AdminPermissions } from "./AdminPermissions";
@@ -12,11 +12,11 @@ const mocks = vi.hoisted(() => ({
     saveVanity: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({
+vi.mock("../../hooks/queries/admin", () => ({
     useAdminPermissions: mocks.useAdminPermissions,
 }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useUpdateRolePermissions: () => ({ mutate: mocks.saveRole, isPending: false }),
     useUpdateVanityRolePermissions: () => ({ mutate: mocks.saveVanity, isPending: false }),
 }));

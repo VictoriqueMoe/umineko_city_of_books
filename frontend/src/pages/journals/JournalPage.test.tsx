@@ -34,8 +34,8 @@ const {
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/journal", () => ({ useJournal }));
-vi.mock("../../api/mutations/journal", () => ({
+vi.mock("../../hooks/queries/journal", () => ({ useJournal }));
+vi.mock("../../hooks/mutations/journal", () => ({
     useCreateJournalComment,
     useDeleteJournal,
     useDeleteJournalComment,
@@ -130,10 +130,7 @@ function makeJournal(overrides: Partial<JournalDetail> = {}): JournalDetail {
 interface StubOptions {
     journal?: JournalDetail | null;
     loading?: boolean;
-    follow?: () => Promise<unknown>;
-    unfollow?: () => Promise<unknown>;
     remove?: () => Promise<unknown>;
-    setPaused?: () => Promise<unknown>;
 }
 
 function stubJournal(options: StubOptions = {}) {
@@ -144,14 +141,14 @@ function stubJournal(options: StubOptions = {}) {
         refresh,
     });
 
-    const followAsync = vi.fn(options.follow ?? (() => Promise.resolve({})));
-    const unfollowAsync = vi.fn(options.unfollow ?? (() => Promise.resolve({})));
+    const follow = vi.fn();
+    const unfollow = vi.fn();
     const deleteAsync = vi.fn(options.remove ?? (() => Promise.resolve({})));
-    const setPausedAsync = vi.fn(options.setPaused ?? (() => Promise.resolve({})));
-    useFollowJournal.mockReturnValue({ mutateAsync: followAsync });
-    useUnfollowJournal.mockReturnValue({ mutateAsync: unfollowAsync });
+    const setPaused = vi.fn();
+    useFollowJournal.mockReturnValue({ mutate: follow });
+    useUnfollowJournal.mockReturnValue({ mutate: unfollow });
     useDeleteJournal.mockReturnValue({ mutateAsync: deleteAsync });
-    useSetJournalPaused.mockReturnValue({ mutateAsync: setPausedAsync });
+    useSetJournalPaused.mockReturnValue({ mutate: setPaused });
     for (const hook of [
         useCreateJournalComment,
         useUpdateJournalComment,
@@ -163,7 +160,7 @@ function stubJournal(options: StubOptions = {}) {
         hook.mockReturnValue({ mutateAsync: vi.fn(() => Promise.resolve({ id: "comment-1" })) });
     }
 
-    return { refresh, followAsync, unfollowAsync, deleteAsync, setPausedAsync };
+    return { refresh, follow, unfollow, deleteAsync, setPaused };
 }
 
 function renderPage(user: UserProfile | null, route = "/journals/journal-1") {
@@ -264,7 +261,7 @@ describe("JournalPage", () => {
 
     it("follows the journal for a signed in reader", async () => {
         // given
-        const { followAsync } = stubJournal();
+        const { follow } = stubJournal();
         const user = userEvent.setup();
         renderPage(stranger);
 
@@ -272,12 +269,12 @@ describe("JournalPage", () => {
         await user.click(screen.getByRole("button", { name: "Follow" }));
 
         // then
-        expect(followAsync).toHaveBeenCalledWith("journal-1");
+        expect(follow).toHaveBeenCalledWith("journal-1");
     });
 
     it("unfollows a journal the reader already follows", async () => {
         // given
-        const { unfollowAsync } = stubJournal({ journal: makeJournal({ is_following: true }) });
+        const { unfollow } = stubJournal({ journal: makeJournal({ is_following: true }) });
         const user = userEvent.setup();
         renderPage(stranger);
 
@@ -285,12 +282,12 @@ describe("JournalPage", () => {
         await user.click(screen.getByRole("button", { name: "Following" }));
 
         // then
-        expect(unfollowAsync).toHaveBeenCalledWith("journal-1");
+        expect(unfollow).toHaveBeenCalledWith("journal-1");
     });
 
-    it("puts the follow state back when following fails", async () => {
+    it("leaves the follow state to the mutation rather than writing the cache itself", async () => {
         // given
-        stubJournal({ follow: () => Promise.reject(new Error("nope")) });
+        stubJournal();
         const queryClient = createTestQueryClient();
         const setQueryData = vi.spyOn(queryClient, "setQueryData");
         const user = userEvent.setup();
@@ -305,13 +302,7 @@ describe("JournalPage", () => {
         await user.click(screen.getByRole("button", { name: "Follow" }));
 
         // then
-        await waitFor(() => {
-            expect(setQueryData).toHaveBeenCalledTimes(2);
-        });
-        const optimistic = setQueryData.mock.calls[0][1] as (prev: JournalDetail) => JournalDetail;
-        const rollback = setQueryData.mock.calls[1][1] as (prev: JournalDetail) => JournalDetail;
-        expect(optimistic(makeJournal()).is_following).toBe(true);
-        expect(rollback(makeJournal()).is_following).toBe(false);
+        expect(setQueryData).not.toHaveBeenCalled();
     });
 
     it("keeps the edit and delete controls away from an unrelated reader", () => {
@@ -394,6 +385,57 @@ describe("JournalPage", () => {
 
         // then
         expect(navigate).not.toHaveBeenCalledWith("/journals");
+    });
+
+    it("says why the journal could not be deleted instead of doing nothing", async () => {
+        // given
+        stubJournal({ remove: () => Promise.reject(new Error("the servants refused")) });
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderPage(author);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+
+        // then
+        expect(await screen.findByRole("alert")).toHaveTextContent("the servants refused");
+    });
+
+    it("falls back to its own wording when the delete failure carries no message", async () => {
+        // given
+        stubJournal({ remove: () => Promise.reject(new Error("")) });
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderPage(author);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+
+        // then
+        expect(await screen.findByRole("alert")).toHaveTextContent("Could not delete this journal.");
+    });
+
+    it("clears a past delete failure when the reader tries again", async () => {
+        // given
+        const remove = vi
+            .fn<() => Promise<unknown>>()
+            .mockRejectedValueOnce(new Error("the servants refused"))
+            .mockResolvedValueOnce(undefined);
+        stubJournal({ remove });
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderPage(author);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+
+        // then
+        await waitFor(() => {
+            expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+        });
+        expect(navigate).toHaveBeenCalledWith("/journals");
     });
 
     it("offers a report button to everyone but the author", () => {
@@ -565,6 +607,32 @@ describe("JournalPage", () => {
 
         // then
         expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    });
+
+    it("asks the mutation to pause a running journal", async () => {
+        // given
+        const { setPaused } = stubJournal();
+        const user = userEvent.setup();
+        renderPage(author);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Pause" }));
+
+        // then
+        expect(setPaused).toHaveBeenCalledWith({ id: "journal-1", paused: true });
+    });
+
+    it("asks the mutation to resume a paused journal", async () => {
+        // given
+        const { setPaused } = stubJournal({ journal: makeJournal({ is_paused: true }) });
+        const user = userEvent.setup();
+        renderPage(author);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Resume" }));
+
+        // then
+        expect(setPaused).toHaveBeenCalledWith({ id: "journal-1", paused: false });
     });
 
     it("offers to resume an already paused journal", () => {

@@ -1,7 +1,7 @@
 import { act, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteInfo } from "../../api/endpoints";
+import type { SiteInfo } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { NativeUpdateBanner } from "./NativeUpdateBanner";
 

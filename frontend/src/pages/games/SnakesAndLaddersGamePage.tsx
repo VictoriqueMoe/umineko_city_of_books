@@ -1,8 +1,9 @@
-import { useResignGame, useSubmitGameAction } from "../../api/mutations/gameRoom";
+import { useResignGame, useSubmitGameAction } from "../../hooks/mutations/gameRoom";
 import { SnakesAndLaddersBoardView } from "../../components/games/snakesandladders/SnakesAndLaddersBoardView";
+import type { SnakesLaddersState, SnakesLaddersStats } from "../../types/api";
 import { GameRoomShell, type GameBoardProps } from "./GameRoomShell";
 
-function SnakesAndLaddersBoard({ room, viewer, isSpectator }: GameBoardProps) {
+function SnakesAndLaddersBoard({ room, viewer, isSpectator }: GameBoardProps<SnakesLaddersState, SnakesLaddersStats>) {
     const submitAction = useSubmitGameAction(room.id);
     const resign = useResignGame();
 

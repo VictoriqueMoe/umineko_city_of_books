@@ -23,7 +23,7 @@ const { createResponse, pickerQuote } = vi.hoisted(() => ({
     },
 }));
 
-vi.mock("../../../api/mutations/theory", () => ({
+vi.mock("../../../hooks/mutations/theory", () => ({
     useCreateResponse: () => ({ mutateAsync: createResponse }),
 }));
 

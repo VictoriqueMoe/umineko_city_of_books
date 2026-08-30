@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import { isNativeApp } from "../../utils/authToken";
-import { applyOtaUpdate, hasOtaUpdate } from "../../utils/appUpdate";
+import { isNativeApp } from "../../platform/capabilities";
+import { applyOtaUpdate, hasOtaUpdate, subscribeOtaReady } from "../../platform/appUpdate";
 import styles from "./StaleVersionBanner.module.css";
 
 export function StaleVersionBanner() {
@@ -15,14 +15,9 @@ export function StaleVersionBanner() {
             return;
         }
 
-        function onReady() {
+        return subscribeOtaReady(() => {
             setOtaReady(true);
-        }
-
-        window.addEventListener("ota-update-ready", onReady);
-        return () => {
-            window.removeEventListener("ota-update-ready", onReady);
-        };
+        });
     }, [native]);
 
     function handleApply() {

@@ -1,35 +1,21 @@
 import { act, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WSMessage } from "../../types/api";
-import type { WSMessageHandler } from "../../context/notificationContextValue";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
+import { emitRealtimeEvent, type RealtimeTestEvent } from "../../test-utils/ws";
 import { GameForfeitWarning } from "./GameForfeitWarning";
 
-let listeners: WSMessageHandler[] = [];
-
-function addWSListener(handler: WSMessageHandler): () => void {
-    listeners.push(handler);
-    return () => {
-        listeners = listeners.filter(existing => existing !== handler);
-    };
-}
-
-function emit(msg: WSMessage): void {
-    act(() => {
-        for (const listener of [...listeners]) {
-            listener(msg);
-        }
-    });
+function emit(event: RealtimeTestEvent): void {
+    emitRealtimeEvent(event);
 }
 
 const player = makeUser({ id: "user-1", username: "battler", display_name: "Battler" });
 
 function renderWarning(user = player) {
-    return renderWithProviders(<GameForfeitWarning />, { user, notification: { addWSListener } });
+    return renderWithProviders(<GameForfeitWarning />, { user });
 }
 
-function warning(overrides: Record<string, unknown> = {}): WSMessage {
+function warning(overrides: Record<string, unknown> = {}): RealtimeTestEvent {
     return {
         type: "game_forfeit_warning",
         data: {
@@ -44,14 +30,13 @@ function warning(overrides: Record<string, unknown> = {}): WSMessage {
 
 describe("GameForfeitWarning", () => {
     beforeEach(() => {
-        listeners = [];
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-02-01T12:00:00Z"));
     });
 
     it("shows nothing until a forfeit warning arrives", () => {
         // given
-        const noMessages: WSMessage[] = [];
+        const noMessages: RealtimeTestEvent[] = [];
 
         // when
         const { container } = renderWarning();
@@ -60,7 +45,6 @@ describe("GameForfeitWarning", () => {
         }
 
         // then
-        expect(listeners).toHaveLength(1);
         expect(container).toBeEmptyDOMElement();
     });
 
@@ -208,10 +192,7 @@ describe("GameForfeitWarning", () => {
 
     it("stays quiet when nobody is signed in", () => {
         // given
-        const { container } = renderWithProviders(<GameForfeitWarning />, {
-            user: null,
-            notification: { addWSListener },
-        });
+        const { container } = renderWithProviders(<GameForfeitWarning />, { user: null });
 
         // when
         emit({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: "user-1" } });

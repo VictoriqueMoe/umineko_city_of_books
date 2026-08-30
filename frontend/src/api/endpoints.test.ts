@@ -1,15 +1,87 @@
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import { apiDelete, apiDeleteWithBody, apiFetch, apiPatch, apiPost, apiPostFormData, apiPut } from "./client";
-import { clearAuthToken } from "../utils/authToken";
-import * as api from "./endpoints";
+import {
+    apiDelete,
+    apiDeleteWithBody,
+    apiFetch,
+    apiFetchText,
+    apiPatch,
+    apiPost,
+    apiPostFormData,
+    apiPut,
+} from "./client";
+import { clearAuthToken } from "./authToken";
+import * as adminEndpoints from "./endpoints/admin";
+import * as announcementEndpoints from "./endpoints/announcement";
+import * as artEndpoints from "./endpoints/art";
+import * as authEndpoints from "./endpoints/auth";
+import * as characterEndpoints from "./endpoints/character";
+import * as chatEndpoints from "./endpoints/chat";
+import * as chatbotEndpoints from "./endpoints/chatbot";
+import * as commentsEndpoints from "./endpoints/comments";
+import * as fanficEndpoints from "./endpoints/fanfic";
+import * as gameRoomEndpoints from "./endpoints/gameRoom";
+import * as giphyEndpoints from "./endpoints/giphy";
+import * as journalEndpoints from "./endpoints/journal";
+import * as linkPreviewEndpoints from "./endpoints/linkPreview";
+import * as mysteryEndpoints from "./endpoints/mystery";
+import * as notificationEndpoints from "./endpoints/notification";
+import * as ocEndpoints from "./endpoints/oc";
+import * as overlayEndpoints from "./endpoints/overlay";
+import * as postEndpoints from "./endpoints/post";
+import * as quoteEndpoints from "./endpoints/quote";
+import * as reportEndpoints from "./endpoints/report";
+import * as searchEndpoints from "./endpoints/search";
+import * as secretEndpoints from "./endpoints/secret";
+import * as shipEndpoints from "./endpoints/ship";
+import * as sidebarEndpoints from "./endpoints/sidebar";
+import * as siteEndpoints from "./endpoints/site";
+import * as streamEndpoints from "./endpoints/stream";
+import * as theoryEndpoints from "./endpoints/theory";
+import * as userEndpoints from "./endpoints/user";
+import * as watchPartyEndpoints from "./endpoints/watchParty";
 
-vi.mock("../utils/authToken", () => ({
+const api = {
+    ...adminEndpoints,
+    ...announcementEndpoints,
+    ...artEndpoints,
+    ...authEndpoints,
+    ...characterEndpoints,
+    ...chatEndpoints,
+    ...chatbotEndpoints,
+    ...commentsEndpoints,
+    ...fanficEndpoints,
+    ...gameRoomEndpoints,
+    ...giphyEndpoints,
+    ...journalEndpoints,
+    ...linkPreviewEndpoints,
+    ...mysteryEndpoints,
+    ...notificationEndpoints,
+    ...ocEndpoints,
+    ...overlayEndpoints,
+    ...postEndpoints,
+    ...quoteEndpoints,
+    ...reportEndpoints,
+    ...searchEndpoints,
+    ...secretEndpoints,
+    ...shipEndpoints,
+    ...sidebarEndpoints,
+    ...siteEndpoints,
+    ...streamEndpoints,
+    ...theoryEndpoints,
+    ...userEndpoints,
+    ...watchPartyEndpoints,
+};
+
+vi.mock("./authToken", () => ({
     clearAuthToken: vi.fn(),
-    isNativeApp: () => false,
-    clientPlatform: () => "web",
     getAuthToken: () => null,
     setAuthToken: vi.fn(),
     loadAuthToken: vi.fn(),
+}));
+
+vi.mock("../platform/capabilities", () => ({
+    isNativeApp: () => false,
+    clientPlatform: () => "web",
 }));
 
 vi.mock("./client", async importOriginal => {
@@ -17,6 +89,7 @@ vi.mock("./client", async importOriginal => {
     return {
         ...actual,
         apiFetch: vi.fn(),
+        apiFetchText: vi.fn(),
         apiPost: vi.fn(),
         apiPut: vi.fn(),
         apiPatch: vi.fn(),
@@ -34,6 +107,7 @@ interface RequestCase {
 }
 
 const fetchMock = vi.mocked(apiFetch);
+const fetchTextMock = vi.mocked(apiFetchText);
 const postMock = vi.mocked(apiPost);
 const putMock = vi.mocked(apiPut);
 const patchMock = vi.mocked(apiPatch);
@@ -44,6 +118,7 @@ const globalFetch = vi.fn();
 
 beforeEach(() => {
     fetchMock.mockResolvedValue({});
+    fetchTextMock.mockResolvedValue("");
     postMock.mockResolvedValue({});
     putMock.mockResolvedValue({});
     patchMock.mockResolvedValue({});
@@ -197,13 +272,13 @@ describe("query string building", () => {
             request: ["/chat/rooms/r-1/messages?before=2026-01-01T00%3A00%3A00Z&limit=50"],
         },
         {
-            name: "getVanityRoleUsers always sends a limit",
+            name: "getVanityRoleUsers builds its own query string rather than using buildQueryString, and always sends a limit",
             call: () => api.getVanityRoleUsers("role-1", {}),
             transport: fetchMock,
             request: ["/admin/vanity-roles/role-1/users?limit=20"],
         },
         {
-            name: "getVanityRoleUsers percent encodes the search term",
+            name: "getVanityRoleUsers builds its own query string rather than using buildQueryString, so a space in the search term is percent encoded as %20 and not as +",
             call: () => api.getVanityRoleUsers("role-1", { search: "a b", limit: 5, offset: 10 }),
             transport: fetchMock,
             request: ["/admin/vanity-roles/role-1/users?search=a%20b&limit=5&offset=10"],
@@ -783,30 +858,17 @@ describe("response unwrapping", () => {
         expect(result).toEqual(["Beatrice"]);
     });
 
-    it("getMe returns null without asking for a profile when nobody is signed in", async () => {
+    it("getSession asks the session endpoint and asks for nothing else", async () => {
         // given
         fetchMock.mockResolvedValue({ authenticated: false });
 
         // when
-        const result = await api.getMe();
+        const result = await api.getSession();
 
         // then
-        expect(result).toBeNull();
         expect(fetchMock).toHaveBeenCalledTimes(1);
         expect(fetchMock).toHaveBeenCalledWith("/auth/session");
-    });
-
-    it("getMe fetches the profile of the signed in username", async () => {
-        // given
-        const profile = { username: "kujo" };
-        fetchMock.mockResolvedValueOnce({ authenticated: true, username: "kujo" }).mockResolvedValueOnce(profile);
-
-        // when
-        const result = await api.getMe();
-
-        // then
-        expect(fetchMock).toHaveBeenNthCalledWith(2, "/users/kujo");
-        expect(result).toEqual({ ...profile, permissions: [] });
+        expect(result).toEqual({ authenticated: false });
     });
 });
 
@@ -910,30 +972,16 @@ describe("session and overlay helpers", () => {
         expect(clearToken).toHaveBeenCalledOnce();
     });
 
-    it("fetchOverlayConnectorSEF returns the connector file as text", async () => {
+    it("fetchOverlayConnectorSEF reads the connector file through the text transport", async () => {
         // given
-        globalFetch.mockResolvedValue({ ok: true, text: () => Promise.resolve("<sef/>") });
+        fetchTextMock.mockResolvedValue("<sef/>");
 
         // when
         const result = await api.fetchOverlayConnectorSEF();
 
         // then
-        expect(globalFetch).toHaveBeenCalledWith("/api/v1/overlay/connector.sef", {
-            credentials: "include",
-            headers: {},
-        });
+        expect(fetchTextMock).toHaveBeenCalledWith("/overlay/connector.sef");
         expect(result).toBe("<sef/>");
-    });
-
-    it("fetchOverlayConnectorSEF explains that the download failed", async () => {
-        // given
-        globalFetch.mockResolvedValue({ ok: false, status: 500 });
-
-        // when
-        const attempt = api.fetchOverlayConnectorSEF();
-
-        // then
-        await expect(attempt).rejects.toThrow("Could not download the connector file.");
     });
 });
 

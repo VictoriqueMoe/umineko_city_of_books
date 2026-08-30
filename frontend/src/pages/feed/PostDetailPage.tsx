@@ -1,11 +1,9 @@
-import { useEffect } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import { usePost } from "../../api/queries/post";
+import { usePost } from "../../hooks/queries/post";
 import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import type { WSMessage } from "../../types/api";
+import { usePostCommentEvents } from "../../hooks/usePostEvents";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -21,24 +19,11 @@ export function PostDetailPage() {
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
-    const { addWSListener } = useNotifications();
-
     const fetchPost = () => {
         refresh();
     };
 
-    useEffect(() => {
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type !== "post_comment") {
-                return;
-            }
-
-            const data = msg.data as { post_id?: string };
-            if (data.post_id === id) {
-                refresh();
-            }
-        });
-    }, [addWSListener, id, refresh]);
+    usePostCommentEvents(id ?? "", refresh);
 
     useScrollToHash(!loading && !!post, highlightedComment ? `comment-${highlightedComment}` : null);
 

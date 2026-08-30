@@ -1,6 +1,6 @@
 import type { SubmitEvent } from "react";
 import { useSearchParams } from "react-router";
-import { useSiteSearch } from "../../api/queries/search";
+import { useSiteSearch } from "../../hooks/queries/search";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Input } from "../../components/Input/Input";
 import { Button } from "../../components/Button/Button";

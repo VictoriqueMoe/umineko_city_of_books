@@ -1,7 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BannedGiphyEntry } from "../../api/endpoints";
+import type { BannedGiphyEntry } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { AdminBannedGifs } from "./AdminBannedGifs";
 
@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
     remove: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useBannedGifs: mocks.useBannedGifs }));
+vi.mock("../../hooks/queries/admin", () => ({ useBannedGifs: mocks.useBannedGifs }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useAddBannedGif: () => ({ mutateAsync: mocks.add, isPending: false }),
     useRemoveBannedGif: () => ({ mutateAsync: mocks.remove, isPending: false }),
 }));
@@ -155,32 +155,52 @@ describe("AdminBannedGifs", () => {
         expect(await screen.findByText("that is not a Giphy link")).toBeInTheDocument();
     });
 
-    it("asks before lifting a ban", async () => {
+    it("names the kind and the value when it asks, and lifts nothing when the ask is refused", async () => {
         // given
         stubEntries([makeEntry()]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderWithProviders(<AdminBannedGifs />);
 
         // when
         await user.click(screen.getByRole("button", { name: "Remove" }));
+        const dialog = await screen.findByRole("dialog", { name: "Lift Ban" });
+        expect(within(dialog).getByText(/Remove gif/)).toBeInTheDocument();
+        expect(within(dialog).getByText('"abc123"')).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
         // then
-        expect(confirm).toHaveBeenCalledWith('Remove gif "abc123" from the banlist?');
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(mocks.remove).not.toHaveBeenCalled();
     });
 
     it("lifts the ban on both the kind and the value once confirmed", async () => {
         // given
         stubEntries([makeEntry({ kind: "user", value: "Larperine" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminBannedGifs />);
+        await user.click(screen.getByRole("button", { name: "Remove" }));
+        const dialog = await screen.findByRole("dialog", { name: "Lift Ban" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Remove" }));
+        await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
         // then
         expect(mocks.remove).toHaveBeenCalledWith({ kind: "user", value: "Larperine" });
+    });
+
+    it("reports why a ban could not be lifted", async () => {
+        // given
+        stubEntries([makeEntry()]);
+        mocks.remove.mockRejectedValue(new Error("that entry is already gone"));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminBannedGifs />);
+        await user.click(screen.getByRole("button", { name: "Remove" }));
+        const dialog = await screen.findByRole("dialog", { name: "Lift Ban" });
+
+        // when
+        await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+
+        // then
+        expect(await screen.findByText("that entry is already gone")).toBeInTheDocument();
     });
 });

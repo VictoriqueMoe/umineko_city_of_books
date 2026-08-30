@@ -1,9 +1,10 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { SpectatorMessage, WSMessage } from "../../../types/api";
+import { emitRealtimeEvent, makeWSHarness, type WSHarness } from "../../../test-utils/ws";
+import type { SpectatorMessage } from "../../../types/api";
 import { GameChat } from "./GameChat";
 
 const endpoints = vi.hoisted(() => ({
@@ -13,7 +14,15 @@ const endpoints = vi.hoisted(() => ({
     postPlayerChat: vi.fn(),
 }));
 
-vi.mock("../../../api/endpoints.ts", () => endpoints);
+const holder = vi.hoisted(() => ({ ws: null as unknown as WSHarness }));
+
+vi.mock("../../../api/endpoints/gameRoom", () => endpoints);
+
+vi.mock("../../../api/realtime/pipeline", () => ({
+    ensureRealtimePipeline: () => {},
+    getRealtimeEpoch: () => holder.ws.getEpoch(),
+    subscribeRealtimeEpoch: (listener: () => void) => holder.ws.subscribeEpoch(listener),
+}));
 
 const SPECTATOR_PLACEHOLDER = "Chat with other watchers...";
 const PLAYER_PLACEHOLDER = "Message your opponent...";
@@ -33,6 +42,7 @@ function makeMessage(overrides: Partial<SpectatorMessage> = {}): SpectatorMessag
 
 describe("GameChat", () => {
     beforeEach(() => {
+        holder.ws = makeWSHarness();
         endpoints.getSpectatorChat.mockResolvedValue({ messages: [] });
         endpoints.getPlayerChat.mockResolvedValue({ messages: [] });
         endpoints.postSpectatorChat.mockResolvedValue(makeMessage({ id: "m-sent", body: "hello" }));
@@ -107,6 +117,22 @@ describe("GameChat", () => {
 
         // then
         expect(await screen.findByText("No messages yet. Say hello.")).toBeInTheDocument();
+    });
+
+    it("fetches the history again once the socket has reconnected", async () => {
+        // given
+        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, { user: viewer });
+        await waitFor(() => {
+            expect(endpoints.getSpectatorChat).toHaveBeenCalledTimes(1);
+        });
+
+        // when
+        holder.ws.reconnect();
+
+        // then
+        await waitFor(() => {
+            expect(endpoints.getSpectatorChat).toHaveBeenCalledTimes(2);
+        });
     });
 
     it("asks a signed out visitor to sign in first", () => {
@@ -206,24 +232,13 @@ describe("GameChat", () => {
 
     it("adds a message that arrives over the socket", async () => {
         // given
-        let listener: ((msg: WSMessage) => void) | null = null;
-        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, {
-            user: viewer,
-            notification: {
-                addWSListener: fn => {
-                    listener = fn;
-                    return () => {};
-                },
-            },
-        });
+        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, { user: viewer });
         await screen.findByText("No messages yet. Say hello.");
 
         // when
-        act(() => {
-            listener?.({
-                type: "spectator_chat_message",
-                data: { room_id: "room-1", message: makeMessage({ id: "m-ws", body: "beato is watching" }) },
-            } as WSMessage);
+        emitRealtimeEvent({
+            type: "spectator_chat_message",
+            data: { room_id: "room-1", message: makeMessage({ id: "m-ws", body: "beato is watching" }) },
         });
 
         // then
@@ -232,24 +247,13 @@ describe("GameChat", () => {
 
     it("ignores a socket message meant for another room", async () => {
         // given
-        let listener: ((msg: WSMessage) => void) | null = null;
-        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, {
-            user: viewer,
-            notification: {
-                addWSListener: fn => {
-                    listener = fn;
-                    return () => {};
-                },
-            },
-        });
+        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, { user: viewer });
         await screen.findByText("No messages yet. Say hello.");
 
         // when
-        act(() => {
-            listener?.({
-                type: "spectator_chat_message",
-                data: { room_id: "room-2", message: makeMessage({ id: "m-ws", body: "somewhere else" }) },
-            } as WSMessage);
+        emitRealtimeEvent({
+            type: "spectator_chat_message",
+            data: { room_id: "room-2", message: makeMessage({ id: "m-ws", body: "somewhere else" }) },
         });
 
         // then
@@ -258,24 +262,13 @@ describe("GameChat", () => {
 
     it("ignores a socket message of another kind", async () => {
         // given
-        let listener: ((msg: WSMessage) => void) | null = null;
-        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, {
-            user: viewer,
-            notification: {
-                addWSListener: fn => {
-                    listener = fn;
-                    return () => {};
-                },
-            },
-        });
+        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, { user: viewer });
         await screen.findByText("No messages yet. Say hello.");
 
         // when
-        act(() => {
-            listener?.({
-                type: "player_chat_message",
-                data: { room_id: "room-1", message: makeMessage({ id: "m-ws", body: "wrong channel" }) },
-            } as WSMessage);
+        emitRealtimeEvent({
+            type: "player_chat_message",
+            data: { room_id: "room-1", message: makeMessage({ id: "m-ws", body: "wrong channel" }) },
         });
 
         // then
@@ -284,25 +277,14 @@ describe("GameChat", () => {
 
     it("never shows the same message twice", async () => {
         // given
-        let listener: ((msg: WSMessage) => void) | null = null;
         endpoints.getSpectatorChat.mockResolvedValue({ messages: [makeMessage({ id: "m-dup", body: "only once" })] });
-        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, {
-            user: viewer,
-            notification: {
-                addWSListener: fn => {
-                    listener = fn;
-                    return () => {};
-                },
-            },
-        });
+        renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, { user: viewer });
         await screen.findByText("only once");
 
         // when
-        act(() => {
-            listener?.({
-                type: "spectator_chat_message",
-                data: { room_id: "room-1", message: makeMessage({ id: "m-dup", body: "only once" }) },
-            } as WSMessage);
+        emitRealtimeEvent({
+            type: "spectator_chat_message",
+            data: { room_id: "room-1", message: makeMessage({ id: "m-dup", body: "only once" }) },
         });
 
         // then

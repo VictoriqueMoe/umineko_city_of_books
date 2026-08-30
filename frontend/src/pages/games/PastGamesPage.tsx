@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useFinishedGameRooms } from "../../api/queries/gameRoom";
+import { useFinishedGameRooms } from "../../hooks/queries/gameRoom";
 import { Button } from "../../components/Button/Button";
 import { formatFullDateTime } from "../../utils/time";
 import styles from "./GamesPages.module.css";

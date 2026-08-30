@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ApiError } from "../../../api/client";
-import type { GiphyFavourite, GiphyGif, GiphyImage } from "../../../api/endpoints";
-import { useGiphySearch, useGiphyTrending } from "../../../api/queries/giphy";
+import type { GiphyFavourite, GiphyGif, GiphyImage } from "../../../types/api";
+import { useGiphySearch, useGiphyTrending } from "../../../hooks/queries/giphy";
 import { useAuth } from "../../../hooks/useAuth";
 import { useGifFavourites } from "../../../hooks/useGifFavourites";
 import { parseServerDate } from "../../../utils/time";
@@ -91,14 +90,12 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
     const trendingQuery = useGiphyTrending(0, 0, browseEnabled && !debouncedQuery);
     const giphyData = debouncedQuery ? searchQuery.data : trendingQuery.data;
     const giphyError = debouncedQuery ? searchQuery.error : trendingQuery.error;
+    const giphyRateLimit = debouncedQuery ? searchQuery.rateLimit : trendingQuery.rateLimit;
     const giphyLoading = debouncedQuery ? searchQuery.loading : trendingQuery.loading;
     const giphyRefetch = debouncedQuery ? searchQuery.refresh : trendingQuery.refresh;
 
-    if (giphyError instanceof ApiError && giphyError.status === 429 && rateLimitedUntil === null) {
-        const resetIso = (giphyError.body as { reset_at?: string } | null)?.reset_at;
-        if (resetIso) {
-            setRateLimitedUntil(parseServerDate(resetIso));
-        }
+    if (giphyRateLimit && giphyRateLimit.resetAt && rateLimitedUntil === null) {
+        setRateLimitedUntil(parseServerDate(giphyRateLimit.resetAt));
     }
 
     const results: Item[] = useMemo(() => {
@@ -112,12 +109,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
         return items;
     }, [giphyData]);
     const loading = giphyLoading;
-    const error =
-        giphyError instanceof ApiError && giphyError.status === 429
-            ? ""
-            : giphyError instanceof Error
-              ? giphyError.message
-              : "";
+    const error = giphyRateLimit ? "" : giphyError instanceof Error ? giphyError.message : "";
 
     useEffect(() => {
         if (!rateLimitedUntil) {
@@ -183,7 +175,7 @@ export function GifPicker({ onPick, onClose }: GifPickerProps) {
         ? rateLimitedUntil.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
         : "";
 
-    const rateLimited = rateLimitedUntil !== null || (giphyError instanceof ApiError && giphyError.status === 429);
+    const rateLimited = rateLimitedUntil !== null || giphyRateLimit !== null;
     const rateLimitMessage = resetClock
         ? `GIF search is paused. Try again at ${resetClock}.`
         : "GIF search is paused. Try again shortly.";

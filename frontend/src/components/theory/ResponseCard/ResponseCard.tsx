@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router";
-import type { Response as TheoryResponse } from "../../../types/api";
+import type { Series, TheoryResponse } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { useVote } from "../../../hooks/useVote";
-import { useDeleteResponse, useVoteResponse } from "../../../api/mutations/theory";
-import type { Series } from "../../../api/endpoints";
+import { useDeleteResponse, useVoteResponse } from "../../../hooks/mutations/theory";
 import { Button } from "../../Button/Button";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { VoteButton } from "../VoteButton/VoteButton";
 import { EvidenceList } from "../EvidenceList/EvidenceList";
 import { ResponseEditor } from "../ResponseEditor/ResponseEditor";
 import { ReportButton } from "../../ReportButton/ReportButton";
-import { can } from "../../../utils/permissions";
-import { renderRich } from "../../../utils/richText";
+import { contentPermissions } from "../../../domain/contentPermissions";
+import { renderRich } from "../../richText/richText";
 import styles from "./ResponseCard.module.css";
 
 interface ResponseCardProps {
@@ -54,6 +53,8 @@ function ResponseCard({
     const { score, userVote, vote } = useVote(response.vote_score, response.user_vote ?? 0, voteFn);
 
     const richBody = useMemo(() => renderRich(response.body), [response.body]);
+
+    const { canDelete } = contentPermissions(user, { family: "response", authorId: response.author.id });
 
     async function handleDelete() {
         if (!window.confirm("Are you sure you want to delete this response?")) {
@@ -106,7 +107,7 @@ function ResponseCard({
                                 Mark as the refutation
                             </Button>
                         )}
-                        {user && (user.id === response.author.id || can(user, "delete_any_response")) && (
+                        {canDelete && (
                             <Button variant="danger" size="small" onClick={handleDelete}>
                                 Delete
                             </Button>

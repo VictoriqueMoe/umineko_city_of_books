@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
-import { clearInstallPrompt, getInstallPrompt, subscribeInstallPrompt } from "../../utils/installPrompt";
+import { clearInstallPrompt, getInstallPrompt, subscribeInstallPrompt } from "../../platform/installPrompt";
 import styles from "./InstallPrompt.module.css";
 
 const DISMISSED_KEY = "dismissed_install_prompt";

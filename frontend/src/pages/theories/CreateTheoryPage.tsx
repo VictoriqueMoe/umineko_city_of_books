@@ -1,10 +1,10 @@
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Series } from "../../api/endpoints";
-import { useCreateTheory } from "../../api/mutations/theory";
+import type { Series } from "../../types/api";
+import { useCreateTheory } from "../../hooks/mutations/theory";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
-import { getSeriesConfig } from "../../utils/seriesConfig";
+import { getSeriesConfig } from "../../domain/series";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";
 
 export function CreateTheoryPage({ series = "umineko" }: { series?: Series }) {

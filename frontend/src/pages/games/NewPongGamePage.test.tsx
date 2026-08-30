@@ -13,8 +13,8 @@ const { useMutualFollowers, useSearchUsers, useInviteToGame, navigate } = vi.hoi
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/misc", () => ({ useMutualFollowers, useSearchUsers }));
-vi.mock("../../api/mutations/gameRoom", () => ({ useInviteToGame }));
+vi.mock("../../hooks/queries/user", () => ({ useMutualFollowers, useSearchUsers }));
+vi.mock("../../hooks/mutations/gameRoom", () => ({ useInviteToGame }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

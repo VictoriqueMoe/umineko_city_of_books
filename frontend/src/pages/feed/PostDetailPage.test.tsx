@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
+import { emitRealtimeEvent } from "../../test-utils/ws";
 import type { PostComment, PostDetail, UserProfile } from "../../types/api";
 import { PostDetailPage } from "./PostDetailPage";
 
@@ -11,7 +12,7 @@ const { usePost, navigate } = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/post", () => ({ usePost }));
+vi.mock("../../hooks/queries/post", () => ({ usePost }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
@@ -265,5 +266,43 @@ describe("PostDetailPage", () => {
 
         // then
         expect(refresh).toHaveBeenCalledOnce();
+    });
+});
+
+describe("PostDetailPage live comments", () => {
+    it("refetches when a comment lands on the post being read", () => {
+        // given
+        const { refresh } = stubPost();
+        renderPage(reader, "/game-board/post-1");
+
+        // when
+        emitRealtimeEvent({ type: "post_comment", data: { post_id: "post-1", comment_id: "c9" } });
+
+        // then
+        expect(refresh).toHaveBeenCalledOnce();
+    });
+
+    it("leaves the post alone when the comment belongs to another post", () => {
+        // given
+        const { refresh } = stubPost();
+        renderPage(reader, "/game-board/post-1");
+
+        // when
+        emitRealtimeEvent({ type: "post_comment", data: { post_id: "post-2", comment_id: "c9" } });
+
+        // then
+        expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it("ignores websocket traffic that is not a comment", () => {
+        // given
+        const { refresh } = stubPost();
+        renderPage(reader, "/game-board/post-1");
+
+        // when
+        emitRealtimeEvent({ type: "post_like", data: { post_id: "post-1", delta: 1 } });
+
+        // then
+        expect(refresh).not.toHaveBeenCalled();
     });
 });

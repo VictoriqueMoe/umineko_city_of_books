@@ -1,10 +1,9 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { BlockedUserItem } from "../../api/endpoints";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { UserProfile } from "../../types/api";
+import type { BlockedUserItem, UserProfile } from "../../types/api";
 import { BlockedUsersSection } from "./BlockedUsersSection";
 
 const mocks = vi.hoisted(() => ({
@@ -13,8 +12,8 @@ const mocks = vi.hoisted(() => ({
     unblock: vi.fn(),
 }));
 
-vi.mock("../../api/queries/user", () => ({ useBlockedUsers: mocks.useBlockedUsers }));
-vi.mock("../../api/mutations/misc", () => ({ useUnblockUser: mocks.useUnblockUser }));
+vi.mock("../../hooks/queries/user", () => ({ useBlockedUsers: mocks.useBlockedUsers }));
+vi.mock("../../hooks/mutations/user", () => ({ useUnblockUser: mocks.useUnblockUser }));
 
 function makeBlocked(overrides: Partial<BlockedUserItem> = {}): BlockedUserItem {
     return {

@@ -18,8 +18,8 @@ const { useFanficList, useFanficSeries, useFanficLanguages, useCharactersFlat, u
     }),
 );
 
-vi.mock("../../api/queries/fanfic", () => ({ useFanficList, useFanficSeries, useFanficLanguages }));
-vi.mock("../../api/queries/characters", () => ({ useCharactersFlat, useOCCharacters }));
+vi.mock("../../hooks/queries/fanfic", () => ({ useFanficList, useFanficSeries, useFanficLanguages, useOCCharacters }));
+vi.mock("../../hooks/queries/quoteCharacters", () => ({ useCharactersFlat }));
 vi.mock("../../components/RulesBox/RulesBox", () => ({
     RulesBox: (props: { page: string }) => <div>{`rules for ${props.page}`}</div>,
 }));

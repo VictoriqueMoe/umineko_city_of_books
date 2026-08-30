@@ -8,7 +8,7 @@ import { MessageSearchPanel } from "./MessageSearchPanel";
 
 const { useRoomMessageSearch } = vi.hoisted(() => ({ useRoomMessageSearch: vi.fn() }));
 
-vi.mock("../../../api/queries/search", () => ({ useRoomMessageSearch }));
+vi.mock("../../../hooks/queries/search", () => ({ useRoomMessageSearch }));
 
 const roomId = "room-1";
 

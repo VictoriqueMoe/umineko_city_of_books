@@ -8,7 +8,7 @@ import { PollDisplay } from "./PollDisplay";
 
 const { votePoll } = vi.hoisted(() => ({ votePoll: vi.fn() }));
 
-vi.mock("../../../api/mutations/post", () => ({
+vi.mock("../../../hooks/mutations/post", () => ({
     useVotePoll: () => ({ mutateAsync: votePoll }),
 }));
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { WatchPartyParticipant } from "../../../types/api";
-import type { SiteRole } from "../../../utils/permissions";
+import type { SiteRole, WatchPartyParticipant } from "../../../types/api";
+import { watchPartyControlContext, watchPartyRowControls } from "../../../domain/watchParty/control";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import styles from "./WatchParty.module.css";
 
@@ -14,31 +14,6 @@ interface WatchPartyParticipantsProps {
     onKick: (userId: string) => Promise<void>;
 }
 
-function siteRoleRank(role: SiteRole | undefined): number {
-    switch (role) {
-        case "super_admin": {
-            return 4;
-        }
-        case "admin": {
-            return 3;
-        }
-        case "moderator": {
-            return 2;
-        }
-        default: {
-            return 0;
-        }
-    }
-}
-
-function effectiveRank(role: SiteRole | undefined, isOwner: boolean): number {
-    const rank = siteRoleRank(role);
-    if (isOwner && rank < 1) {
-        return 1;
-    }
-    return rank;
-}
-
 export function WatchPartyParticipants({
     participants,
     viewerUserId,
@@ -50,11 +25,8 @@ export function WatchPartyParticipants({
 }: WatchPartyParticipantsProps) {
     const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
-    const viewerIsOwner = viewerUserId === ownerUserId;
-    const viewerRank = effectiveRank(viewerRole, viewerIsOwner);
-    const controller = participants.find(p => p.has_control);
-    const controllerRank = controller ? effectiveRank(controller.user.role, controller.user.id === ownerUserId) : 0;
-    const canOutrankController = !controller || viewerRank > controllerRank;
+    const viewer = { userId: viewerUserId, role: viewerRole, hasControl: viewerHasControl };
+    const context = watchPartyControlContext(participants, viewer, ownerUserId);
 
     const runAction = async (rowUserId: string, action: () => Promise<void>) => {
         setBusyUserId(rowUserId);
@@ -73,28 +45,13 @@ export function WatchPartyParticipants({
             </span>
             <ul className={styles.participantStripList}>
                 {participants.map(p => {
-                    const isSelf = p.user.id === viewerUserId;
                     const isOwner = p.user.id === ownerUserId;
-                    const targetRank = effectiveRank(p.user.role, isOwner);
-
-                    let transferLabel: string | null = null;
-                    let transferTarget: string | null = null;
-                    if (isSelf) {
-                        if (!p.has_control && canOutrankController) {
-                            transferLabel = "Reclaim control";
-                            transferTarget = viewerUserId;
-                        }
-                    } else if (p.has_control) {
-                        if (canOutrankController) {
-                            transferLabel = "Reclaim";
-                            transferTarget = viewerUserId;
-                        }
-                    } else if (viewerHasControl || canOutrankController) {
-                        transferLabel = "Pass control";
-                        transferTarget = p.user.id;
-                    }
-
-                    const canKick = !isSelf && viewerRank > targetRank;
+                    const { transferLabel, transferTarget, canKick } = watchPartyRowControls(
+                        p,
+                        viewer,
+                        ownerUserId,
+                        context,
+                    );
 
                     return (
                         <li key={p.user.id} className={styles.participantPill}>

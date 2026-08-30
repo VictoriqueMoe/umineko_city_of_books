@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useGameScoreboard, useLiveGameRooms } from "../../api/queries/gameRoom";
+import { useGameScoreboard, useLiveGameRooms } from "../../hooks/queries/gameRoom";
 import { gameTypeFor } from "../../games/registry";
 import { Button } from "../../components/Button/Button";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";

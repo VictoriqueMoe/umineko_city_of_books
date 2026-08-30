@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useLinkPreview } from "../../api/queries/linkPreview";
+import { useLinkPreview } from "../../hooks/queries/linkPreview";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { extractYouTubeIDs } from "../../utils/youtube";
 import { YouTubeEmbed } from "../chat/YouTubeEmbed/YouTubeEmbed";

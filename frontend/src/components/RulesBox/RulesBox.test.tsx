@@ -5,7 +5,7 @@ import { RulesBox } from "./RulesBox";
 
 const { useRules } = vi.hoisted(() => ({ useRules: vi.fn() }));
 
-vi.mock("../../api/queries/misc", () => ({ useRules }));
+vi.mock("../../hooks/queries/site", () => ({ useRules }));
 
 beforeEach(() => {
     useRules.mockReturnValue({ rules: "", loading: false });

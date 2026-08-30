@@ -1,62 +1,20 @@
-import { useEffect } from "react";
 import { useParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useNotifications } from "../../hooks/useNotifications";
-import { queryKeys } from "../../api/queryKeys";
-import { getStream } from "../../api/endpoints";
-import type { WSMessage } from "../../types/api";
-import { STREAM_CHAT_POPOUT_CLOSED } from "../../utils/streamChatPopout";
+import { useStreamDetail } from "../../hooks/useLiveStream";
+import { useStreamChatPopoutReporter } from "../../hooks/useStreamPopout";
+import { LIVE_STATUS } from "../../domain/live/playback";
 import { StreamChatPanel } from "./StreamChatPanel";
 import styles from "./live.module.css";
 
 export function StreamChatPopout() {
     const { streamID } = useParams<{ streamID: string }>();
-    const qc = useQueryClient();
-    const { addWSListener } = useNotifications();
 
-    const streamQuery = useQuery({
-        queryKey: queryKeys.streams.detail(streamID),
-        queryFn: () => getStream(streamID as string),
-        enabled: !!streamID,
-    });
+    const { stream, loading } = useStreamDetail(streamID);
 
-    const stream = streamQuery.data;
     usePageTitle(stream ? `Chat: ${stream.title}` : "Stream chat");
+    useStreamChatPopoutReporter(streamID);
 
-    useEffect(() => {
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type !== "stream_live" && msg.type !== "stream_offline") {
-                return;
-            }
-
-            const data = msg.data as { id?: string; streamId?: string };
-            if (data.id === streamID || data.streamId === streamID) {
-                qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamID) });
-            }
-        });
-    }, [addWSListener, qc, streamID]);
-
-    useEffect(() => {
-        const opener = window.opener as Window | null;
-        if (!opener || !streamID) {
-            return;
-        }
-
-        const notify = () => {
-            if (opener.closed) {
-                return;
-            }
-            opener.postMessage({ type: STREAM_CHAT_POPOUT_CLOSED, streamId: streamID }, window.location.origin);
-        };
-
-        window.addEventListener("pagehide", notify);
-        return () => {
-            window.removeEventListener("pagehide", notify);
-        };
-    }, [streamID]);
-
-    if (streamQuery.isLoading) {
+    if (loading) {
         return <div className="loading">Loading chat...</div>;
     }
 
@@ -66,7 +24,7 @@ export function StreamChatPopout() {
 
     return (
         <div className={styles.popoutPage}>
-            <StreamChatPanel streamId={stream.id} isLive={stream.status === "live"} />
+            <StreamChatPanel streamId={stream.id} isLive={stream.status === LIVE_STATUS} />
         </div>
     );
 }

@@ -102,6 +102,16 @@
     font-size: 0.9rem;
 }
 
+.error {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(var(--rose-rgb), 0.18);
+    border: 1px solid rgba(var(--rose-rgb), 0.45);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.85rem;
+}
+
 .commentsSection {
     margin-top: 1rem;
 }

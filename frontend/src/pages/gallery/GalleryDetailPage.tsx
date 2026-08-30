@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useGallery } from "../../api/queries/art";
-import { useDeleteGallery, useSetArtGallery, useSetGalleryCover, useUpdateGallery } from "../../api/mutations/art";
+import { useGallery } from "../../hooks/queries/art";
+import { useDeleteGallery, useSetArtGallery, useSetGalleryCover, useUpdateGallery } from "../../hooks/mutations/art";
 import { useAuth } from "../../hooks/useAuth";
 import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Pagination } from "../../components/Pagination/Pagination";
-import { renderRich } from "../../utils/richText";
+import { renderRich } from "../../components/richText/richText";
 import styles from "./GalleryDetailPage.module.css";
 
 export function GalleryDetailPage() {

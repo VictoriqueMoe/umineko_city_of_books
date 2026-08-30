@@ -1,14 +1,16 @@
 import { type SubmitEvent, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useMystery } from "../../api/queries/mystery";
+import { useMystery } from "../../hooks/queries/mystery";
 import {
     useCreateMystery,
     useDeleteMysteryMedia,
     useUpdateMystery,
     useUploadMysteryAttachmentToAny,
     useUploadMysteryMediaToAny,
-} from "../../api/mutations/mystery";
+} from "../../hooks/mutations/mystery";
+import { formatSize } from "../../utils/fileValidation";
+import { type UploadFailure, uploadFailure, uploadFailureMessage } from "../../domain/uploadFailures";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { TextArea } from "../../components/TextArea/TextArea";
@@ -50,6 +52,7 @@ export function CreateMysteryPage() {
     const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [createdMysteryId, setCreatedMysteryId] = useState("");
     const { mystery: editMystery, loading: editFetchLoading } = useMystery(isEdit ? (editId ?? "") : "");
     const editLoading = isEdit && editFetchLoading;
     const createMutation = useCreateMystery();
@@ -64,6 +67,10 @@ export function CreateMysteryPage() {
         setPendingMediaDeletions(prev =>
             prev.includes(mediaId) ? prev.filter(id => id !== mediaId) : [...prev, mediaId],
         );
+    }
+
+    function mediaLabel(mediaId: number): string {
+        return existingMedia.find(item => item.id === mediaId)?.filename ?? `image ${mediaId}`;
     }
 
     const sourceId = isEdit ? (editMystery?.id ?? null) : "new";
@@ -138,54 +145,66 @@ export function CreateMysteryPage() {
         setError("");
         try {
             const validClues = clues.filter(c => c.body.trim());
+            const payload = {
+                title: title.trim(),
+                body: body.trim(),
+                difficulty,
+                free_for_all: freeForAll,
+                keep_open_after_solve: keepOpenAfterSolve,
+                knox_contract: knox,
+                clues: validClues,
+            };
+
+            let targetId = editId ?? createdMysteryId;
             if (isEdit && editId) {
-                await updateMutation.mutateAsync({
-                    title: title.trim(),
-                    body: body.trim(),
-                    difficulty,
-                    free_for_all: freeForAll,
-                    keep_open_after_solve: keepOpenAfterSolve,
-                    knox_contract: knox,
-                    clues: validClues,
-                });
-                for (const mediaId of pendingMediaDeletions) {
-                    try {
-                        await deleteMediaMutation.mutateAsync(mediaId);
-                    } catch {}
-                }
-                for (const file of attachments) {
-                    try {
-                        await uploadAttachmentMutation.mutateAsync({ mysteryId: editId, file });
-                    } catch {}
-                }
-                for (const file of mediaFiles) {
-                    try {
-                        await uploadMediaMutation.mutateAsync({ mysteryId: editId, file });
-                    } catch {}
-                }
-                navigate(`/mystery/${editId}`);
-            } else {
-                const result = await createMutation.mutateAsync({
-                    title: title.trim(),
-                    body: body.trim(),
-                    difficulty,
-                    free_for_all: freeForAll,
-                    keep_open_after_solve: keepOpenAfterSolve,
-                    knox_contract: knox,
-                    clues: validClues,
-                });
-                for (const file of attachments) {
-                    try {
-                        await uploadAttachmentMutation.mutateAsync({ mysteryId: result.id, file });
-                    } catch {}
-                }
-                for (const file of mediaFiles) {
-                    try {
-                        await uploadMediaMutation.mutateAsync({ mysteryId: result.id, file });
-                    } catch {}
-                }
-                navigate(`/mystery/${result.id}`);
+                await updateMutation.mutateAsync(payload);
+            } else if (!createdMysteryId) {
+                const result = await createMutation.mutateAsync(payload);
+                targetId = result.id;
+                setCreatedMysteryId(targetId);
             }
+
+            const failures: UploadFailure[] = [];
+
+            const stillPresent: number[] = [];
+            for (const mediaId of pendingMediaDeletions) {
+                try {
+                    await deleteMediaMutation.mutateAsync(mediaId);
+                } catch (thrown) {
+                    stillPresent.push(mediaId);
+                    failures.push(uploadFailure(`the removal of ${mediaLabel(mediaId)}`, thrown));
+                }
+            }
+            setPendingMediaDeletions(stillPresent);
+
+            const unsentAttachments: File[] = [];
+            for (const file of attachments) {
+                try {
+                    await uploadAttachmentMutation.mutateAsync({ mysteryId: targetId, file });
+                } catch (thrown) {
+                    unsentAttachments.push(file);
+                    failures.push(uploadFailure(file.name, thrown));
+                }
+            }
+            setAttachments(unsentAttachments);
+
+            const unsentMedia: File[] = [];
+            for (const file of mediaFiles) {
+                try {
+                    await uploadMediaMutation.mutateAsync({ mysteryId: targetId, file });
+                } catch (thrown) {
+                    unsentMedia.push(file);
+                    failures.push(uploadFailure(file.name, thrown));
+                }
+            }
+            setMediaFiles(unsentMedia);
+
+            if (failures.length > 0) {
+                setError(uploadFailureMessage(failures));
+                return;
+            }
+
+            navigate(`/mystery/${targetId}`);
         } catch (err) {
             setError(
                 err instanceof Error ? err.message : isEdit ? "Failed to update mystery" : "Failed to create mystery",
@@ -364,13 +383,7 @@ export function CreateMysteryPage() {
                             <span dir="auto" className={styles.attachmentLink}>
                                 {file.name}
                             </span>
-                            <span className={styles.attachmentSize}>
-                                {file.size < 1024
-                                    ? `${file.size} B`
-                                    : file.size < 1024 * 1024
-                                      ? `${(file.size / 1024).toFixed(1)} KB`
-                                      : `${(file.size / (1024 * 1024)).toFixed(1)} MB`}
-                            </span>
+                            <span className={styles.attachmentSize}>{formatSize(file.size)}</span>
                             <button
                                 type="button"
                                 className={styles.attachmentDelete}

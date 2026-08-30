@@ -1,3 +1,13 @@
+export type RoomsListScope = "hosted" | "joined" | "discover";
+
+export interface RoomsListParams {
+    search: string;
+    rpOnly: boolean;
+    tagFilter: string;
+    includeArchived: boolean;
+    pages: number;
+}
+
 export const queryKeys = {
     theory: {
         all: ["theory"] as const,
@@ -38,6 +48,8 @@ export const queryKeys = {
     journal: {
         all: ["journal"] as const,
         detail: (id: string) => ["journal", "detail", id] as const,
+        entry: (journalId: string, entryNumber: number) =>
+            ["journal", "detail", journalId, "entry", entryNumber] as const,
         feed: (params: Record<string, unknown> = {}) => ["journal", "feed", params] as const,
     },
     fanfic: {
@@ -64,6 +76,8 @@ export const queryKeys = {
         finished: (gameType: string, page: Record<string, unknown>) =>
             ["gameRoom", "finished", gameType, page] as const,
         scoreboard: (gameType: string) => ["gameRoom", "scoreboard", gameType] as const,
+        spectatorChat: (id: string) => ["gameRoom", "spectator-chat", id] as const,
+        playerChat: (id: string) => ["gameRoom", "player-chat", id] as const,
     },
     chat: {
         room: (id: string) => ["chat", "room", id] as const,
@@ -75,9 +89,9 @@ export const queryKeys = {
         roomBans: (id: string) => ["chat", "rooms", id, "bans"] as const,
         roomBannedWords: (id: string) => ["chat", "rooms", id, "banned-words"] as const,
         roomsList: () => ["chat", "rooms-list"] as const,
-        roomsListJoined: () => ["chat", "rooms-list", "joined"] as const,
-        roomsListDiscover: () => ["chat", "rooms-list", "discover"] as const,
-        roomsListHosted: () => ["chat", "rooms-list", "hosted"] as const,
+        roomsListJoined: (params?: RoomsListParams) => roomsListKey("joined", params),
+        roomsListDiscover: (params?: RoomsListParams) => roomsListKey("discover", params),
+        roomsListHosted: (params?: RoomsListParams) => roomsListKey("hosted", params),
         dmResolve: (recipientId: string) => ["chat", "dm-resolve", recipientId] as const,
         unreadCount: () => ["chat", "unread-count"] as const,
     },
@@ -100,6 +114,34 @@ export const queryKeys = {
     streams: {
         live: () => ["streams", "live"] as const,
         detail: (id: string | undefined) => ["streams", "detail", id] as const,
+        mine: () => ["streams", "mine"] as const,
+        credentials: () => ["streams", "credentials"] as const,
+    },
+    watchParty: {
+        all: ["watch-party"] as const,
+        list: (roomId: string | null | undefined) => ["watch-party", "list", roomId ?? null] as const,
+    },
+    overlay: {
+        all: ["overlay"] as const,
+        connection: () => ["overlay", "connection"] as const,
+    },
+    user: {
+        posts: (userId: string, params: Record<string, unknown> = {}) => ["user", userId, "posts", params] as const,
+        art: (userId: string, params: Record<string, unknown> = {}) => ["user", userId, "art", params] as const,
+        galleries: (userId: string, params: Record<string, unknown> = {}) =>
+            ["user", userId, "galleries", params] as const,
+        ships: (userId: string, params: Record<string, unknown> = {}) => ["user", userId, "ships", params] as const,
+        mysteries: (userId: string, params: Record<string, unknown> = {}) =>
+            ["user", userId, "mysteries", params] as const,
+        fanfics: (userId: string, params: Record<string, unknown> = {}) => ["user", userId, "fanfics", params] as const,
+        fanficFavourites: (userId: string, params: Record<string, unknown> = {}) =>
+            ["user", userId, "fanfic-favourites", params] as const,
+        journals: (userId: string, params: Record<string, unknown> = {}) =>
+            ["user", userId, "journals", params] as const,
+        followedJournals: (userId: string, params: Record<string, unknown> = {}) =>
+            ["user", userId, "followed-journals", params] as const,
+        activity: (username: string, params: Record<string, unknown> = {}) =>
+            ["user", username, "activity", params] as const,
     },
     users: {
         byId: (id: string) => ["users", id] as const,
@@ -128,6 +170,10 @@ export const queryKeys = {
     quotes: {
         search: (params: Record<string, unknown>) => ["quotes", "search", params] as const,
         browse: (params: Record<string, unknown>) => ["quotes", "browse", params] as const,
+        byAudioId: (series: string, audioId: string, lang?: string) =>
+            ["quotes", "audio", series, audioId, lang ?? null] as const,
+        byIndex: (series: string, index: number, lang?: string) =>
+            ["quotes", "index", series, index, lang ?? null] as const,
     },
     linkPreview: (url: string) => ["link-preview", url] as const,
     search: {
@@ -173,6 +219,7 @@ export const queryKeys = {
         announcements: () => ["admin", "announcements"] as const,
         users: (params: Record<string, unknown> = {}) => ["admin", "users", params] as const,
         invites: () => ["admin", "invites"] as const,
+        invitesList: (limit: number, offset: number) => ["admin", "invites", limit, offset] as const,
         reports: (params: Record<string, unknown> = {}) => ["admin", "reports", params] as const,
         auditLog: (params: Record<string, unknown> = {}) => ["admin", "audit-log", params] as const,
         bannedGifs: () => ["admin", "banned-gifs"] as const,
@@ -188,4 +235,21 @@ export const queryKeys = {
 
 function id(value: string): string {
     return value;
+}
+
+function roomsListKey(scope: RoomsListScope, params?: RoomsListParams) {
+    if (!params) {
+        return ["chat", "rooms-list", scope] as const;
+    }
+
+    return [
+        "chat",
+        "rooms-list",
+        scope,
+        params.search,
+        params.rpOnly,
+        params.tagFilter,
+        params.includeArchived,
+        params.pages,
+    ] as const;
 }

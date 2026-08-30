@@ -138,3 +138,19 @@
     border-color: #e53935;
     color: #e53935;
 }
+
+.joinError {
+    display: inline-flex;
+    align-items: center;
+    max-width: 16rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid rgba(229, 57, 53, 0.5);
+    border-radius: 6px;
+    background: rgba(229, 57, 53, 0.12);
+    color: #ef9a9a;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

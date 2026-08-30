@@ -25,7 +25,7 @@ const DIRECTIONS: Array<[number, number]> = [
 ];
 
 interface OthelloBoardViewProps {
-    room: GameRoom;
+    room: GameRoom<OthelloState, OthelloStats>;
     viewer: User | null;
     isSpectator: boolean;
     onMove: (move: { square: string }) => Promise<void>;
@@ -161,8 +161,8 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
-    const state = room.state as Partial<OthelloState> | undefined;
-    const stateBoard = state?.board;
+    const state = room.state;
+    const stateBoard = state.board;
     const grid = useMemo(() => {
         if (stateBoard && stateBoard.length === 64) {
             return parseBoard(stateBoard);
@@ -186,12 +186,12 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
     const turnUserSlot = room.players.find(p => p.user_id === room.turn_user_id)?.slot ?? null;
     const opponentPassed =
         room.status === "active" &&
-        state?.last_move !== undefined &&
+        state.last_move !== undefined &&
         state.last_move !== null &&
         turnUserSlot !== null &&
         state.last_move.slot === turnUserSlot;
 
-    const lastMove = state?.last_move;
+    const lastMove = state.last_move;
     const lastMoveSquareKey = useMemo(() => {
         if (!lastMove) {
             return null;
@@ -256,9 +256,9 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
 
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
-    const statsAvailable = isOthelloStats(room.stats);
-    const showStats = statsAvailable && (isOver || (room.status === "active" && isSpectator));
-    const reasonText = statsAvailable && room.stats ? formatReason((room.stats as OthelloStats).result_reason) : "";
+    const stats = isOthelloStats(room.stats) ? room.stats : null;
+    const showStats = stats !== null && (isOver || (room.status === "active" && isSpectator));
+    const reasonText = stats ? formatReason(stats.result_reason) : "";
 
     const displayRows: number[] = [];
     for (let r = BOARD_SIZE - 1; r >= 0; r--) {
@@ -349,40 +349,40 @@ export function OthelloBoardView({ room, viewer, isSpectator, onMove, onResign }
                 resultTone={result.tone}
                 reasonText={reasonText}
             >
-                {showStats && statsAvailable && (
+                {showStats && stats && (
                     <GameStatsGrid
                         slot0Name={room.players.find(p => p.slot === SLOT_BLACK)?.display_name ?? "Black"}
                         slot1Name={room.players.find(p => p.slot === SLOT_WHITE)?.display_name ?? "White"}
                         isOver={isOver}
                         rows={[
                             {
-                                slot0: (room.stats as OthelloStats).black_discs,
+                                slot0: stats.black_discs,
                                 label: "Discs",
-                                slot1: (room.stats as OthelloStats).white_discs,
+                                slot1: stats.white_discs,
                             },
                             {
-                                slot0: (room.stats as OthelloStats).black_moves,
+                                slot0: stats.black_moves,
                                 label: "Moves",
-                                slot1: (room.stats as OthelloStats).white_moves,
+                                slot1: stats.white_moves,
                             },
                             {
-                                slot0: (room.stats as OthelloStats).black_flips,
+                                slot0: stats.black_flips,
                                 label: "Flips",
-                                slot1: (room.stats as OthelloStats).white_flips,
+                                slot1: stats.white_flips,
                             },
                             {
-                                slot0: (room.stats as OthelloStats).black_corners,
+                                slot0: stats.black_corners,
                                 label: "Corners",
-                                slot1: (room.stats as OthelloStats).white_corners,
+                                slot1: stats.white_corners,
                             },
                             {
-                                slot0: (room.stats as OthelloStats).black_passes,
+                                slot0: stats.black_passes,
                                 label: "Passes",
-                                slot1: (room.stats as OthelloStats).white_passes,
+                                slot1: stats.white_passes,
                             },
                         ]}
                         totalLabel="Total moves"
-                        totalValue={(room.stats as OthelloStats).total_moves}
+                        totalValue={stats.total_moves}
                         durationSeconds={liveDurationSeconds}
                     />
                 )}

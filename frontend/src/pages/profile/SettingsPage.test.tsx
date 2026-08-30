@@ -1,26 +1,26 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { useSettingsForm } from "../../hooks/useSettingsForm";
+import type { useProfileSettingsForm } from "../../hooks/useProfileSettingsForm";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { OCSummary } from "../../types/api";
 import { SettingsPage } from "./SettingsPage";
 
 const mocks = vi.hoisted(() => ({
-    useSettingsForm: vi.fn(),
+    useProfileSettingsForm: vi.fn(),
     useUserOCSummaries: vi.fn(),
 }));
 
-vi.mock("../../hooks/useSettingsForm", () => ({ useSettingsForm: mocks.useSettingsForm }));
-vi.mock("../../api/queries/oc", () => ({ useUserOCSummaries: mocks.useUserOCSummaries }));
+vi.mock("../../hooks/useProfileSettingsForm", () => ({ useProfileSettingsForm: mocks.useProfileSettingsForm }));
+vi.mock("../../hooks/queries/oc", () => ({ useUserOCSummaries: mocks.useUserOCSummaries }));
 vi.mock("./BlockedUsersSection", () => ({ BlockedUsersSection: () => <div data-testid="blocked-users" /> }));
 vi.mock("./ChangePasswordSection", () => ({ ChangePasswordSection: () => <div data-testid="change-password" /> }));
 vi.mock("./CharacterOptInSection", () => ({ CharacterOptInSection: () => <div data-testid="character-opt-in" /> }));
 vi.mock("./StreamOverlaySection", () => ({ StreamOverlaySection: () => <div data-testid="stream-overlay" /> }));
 vi.mock("./DangerZoneSection", () => ({ DangerZoneSection: () => <div data-testid="danger-zone" /> }));
 
-type SettingsForm = ReturnType<typeof useSettingsForm>;
+type SettingsForm = ReturnType<typeof useProfileSettingsForm>;
 
 const viewer = makeUser({ id: "me", username: "beatrice", display_name: "Beatrice" });
 
@@ -134,7 +134,7 @@ interface SetupOptions {
 
 function setup(options: SetupOptions = {}) {
     const form = makeForm(options.form);
-    mocks.useSettingsForm.mockReturnValue(form);
+    mocks.useProfileSettingsForm.mockReturnValue(form);
     mocks.useUserOCSummaries.mockReturnValue({ summaries: options.ocs ?? [], loading: false });
 
     const user = userEvent.setup();

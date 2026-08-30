@@ -20,7 +20,7 @@ import shell from "../boardShell.module.css";
 import styles from "./MinesweeperBoardView.module.css";
 
 interface MinesweeperBoardViewProps {
-    room: GameRoom;
+    room: GameRoom<MinesweeperState, MinesweeperStats>;
     viewer: User | null;
     isSpectator: boolean;
     onAction: (action: Record<string, unknown>) => Promise<void>;
@@ -81,30 +81,29 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
     const lastAudioPhaseRef = useRef<string | null>(null);
     const lastExplosionKeyRef = useRef<string | null>(null);
 
-    const state = room.state as MinesweeperState | undefined;
+    const state = room.state;
     const viewerId = viewer?.id ?? null;
     const mySlot = getMySlot(room, viewerId);
     const visibleSlot = mySlot ?? 0;
     const opponentSlot = 1 - visibleSlot;
 
-    const myCharId = state?.characters?.[visibleSlot] ?? "";
-    const oppCharId = state?.characters?.[opponentSlot] ?? "";
+    const myCharId = state.characters[visibleSlot] ?? "";
+    const oppCharId = state.characters[opponentSlot] ?? "";
     const myCharacter = useMemo<CharacterDef | undefined>(() => findCharacter(myCharId), [myCharId]);
     const opponentCharacter = useMemo<CharacterDef | undefined>(() => findCharacter(oppCharId), [oppCharId]);
 
     const roomFinished = room.status === "finished" || room.status === "abandoned";
-    const { clientPhase, markIntroPlayed } = useMinesweeperView(state ?? null, roomFinished);
+    const { clientPhase, markIntroPlayed } = useMinesweeperView(state, roomFinished);
     const { myExpr, opExpr } = useCharacterMood({
-        state: state ?? null,
+        state,
         mySlot: visibleSlot,
         myCharacter,
         opponentCharacter,
     });
-    const winnerSlot = state?.winner_slot;
-    const audioPrimaryChar =
-        isSpectator && winnerSlot !== undefined ? (state?.characters?.[winnerSlot] ?? "") : myCharId;
+    const winnerSlot = state.winner_slot;
+    const audioPrimaryChar = isSpectator && winnerSlot !== undefined ? (state.characters[winnerSlot] ?? "") : myCharId;
     const audioSecondaryChar =
-        isSpectator && winnerSlot !== undefined ? (state?.characters?.[1 - winnerSlot] ?? "") : oppCharId;
+        isSpectator && winnerSlot !== undefined ? (state.characters[1 - winnerSlot] ?? "") : oppCharId;
     const audio = useGameAudio(
         (audioPrimaryChar || "") as CharacterId | "",
         (audioSecondaryChar || "") as CharacterId | "",
@@ -113,9 +112,6 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
     const { offlinePlayer, forfeitRemaining, liveDurationSeconds } = useDisconnectForfeit(room);
 
     useEffect(() => {
-        if (!state) {
-            return;
-        }
         const prev = lastAudioPhaseRef.current;
         const next = roomFinished ? "finished" : (state.phase ?? null);
         if (next === prev) {
@@ -138,7 +134,7 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
         }
     }, [state, roomFinished, isSpectator, audio, visibleSlot]);
 
-    const minesPlacedNow = state?.mines_placed ?? false;
+    const minesPlacedNow = state.mines_placed;
     const [trackedMinesPlaced, setTrackedMinesPlaced] = useState(minesPlacedNow);
     if (trackedMinesPlaced !== minesPlacedNow) {
         setTrackedMinesPlaced(minesPlacedNow);
@@ -148,7 +144,7 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
     }
 
     useEffect(() => {
-        if (!state || state.reason !== "mine_hit") {
+        if (state.reason !== "mine_hit") {
             return;
         }
         const key = `${state.finished_at ?? ""}-${state.hit_mine_x ?? ""}-${state.hit_mine_y ?? ""}`;
@@ -183,7 +179,7 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
     }
 
     async function handleReveal(x: number, y: number) {
-        if (state && !state.mines_placed) {
+        if (!state.mines_placed) {
             setLocalPendingClick({ x, y });
         }
         await submit({ type: "reveal", x, y });
@@ -206,19 +202,14 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
 
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
-    const statsAvailable = isMinesweeperStats(room.stats);
-    const finishedWinnerSlot = (state as MinesweeperState | undefined)?.winner_slot;
+    const stats = isMinesweeperStats(room.stats) ? room.stats : null;
+    const finishedWinnerSlot = state.winner_slot;
     const loserPlayer =
         finishedWinnerSlot !== undefined ? room.players.find(p => p.slot !== finishedWinnerSlot) : undefined;
     const loserName = loserPlayer?.display_name;
-    const reasonText =
-        statsAvailable && room.stats ? formatReason((room.stats as MinesweeperStats).reason, loserName) : "";
+    const reasonText = stats ? formatReason(stats.reason, loserName) : "";
 
-    if (!state) {
-        return <div className={shell.wrapper}>Loading game...</div>;
-    }
-
-    const slotMineCount = state.mine_count ?? 0;
+    const slotMineCount = state.mine_count;
     let myFlags = 0;
     const flaggedArr = state.flagged?.[visibleSlot] ?? [];
     for (let i = 0; i < flaggedArr.length; i++) {
@@ -378,30 +369,30 @@ export function MinesweeperBoardView({ room, viewer, isSpectator, onAction, onRe
 
             <GameOverPanel
                 isOver={isOver}
-                showChildren={statsAvailable && (isOver || (room.status === "active" && isSpectator))}
+                showChildren={stats !== null && (isOver || (room.status === "active" && isSpectator))}
                 resultText={result.text}
                 resultTone={result.tone}
                 reasonText={reasonText}
             >
-                {statsAvailable && room.stats && (
+                {stats && (
                     <GameStatsGrid
                         slot0Name={room.players.find(p => p.slot === 0)?.display_name ?? "P1"}
                         slot1Name={room.players.find(p => p.slot === 1)?.display_name ?? "P2"}
                         isOver={isOver}
                         rows={[
                             {
-                                slot0: (room.stats as MinesweeperStats).revealed_p0,
+                                slot0: stats.revealed_p0,
                                 label: "Cells revealed",
-                                slot1: (room.stats as MinesweeperStats).revealed_p1,
+                                slot1: stats.revealed_p1,
                             },
                             {
-                                slot0: (room.stats as MinesweeperStats).flags_p0,
+                                slot0: stats.flags_p0,
                                 label: "Flags placed",
-                                slot1: (room.stats as MinesweeperStats).flags_p1,
+                                slot1: stats.flags_p1,
                             },
                         ]}
                         totalLabel="Duration"
-                        totalValue={(room.stats as MinesweeperStats).duration_seconds}
+                        totalValue={stats.duration_seconds}
                         durationSeconds={liveDurationSeconds}
                     />
                 )}

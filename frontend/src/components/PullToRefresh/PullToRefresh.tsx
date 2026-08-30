@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { queryClient } from "../../api/queryClient";
-import { isNativeApp } from "../../utils/authToken";
+import { useRefreshAll } from "../../hooks/useRefreshAll";
+import { isNativeApp } from "../../platform/capabilities";
 import styles from "./PullToRefresh.module.css";
 
 const MAX_PULL = 110;
@@ -11,6 +11,7 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
     const [pull, setPull] = useState(0);
     const [refreshing, setRefreshing] = useState(false);
     const [dragging, setDragging] = useState(false);
+    const refreshAll = useRefreshAll();
 
     const pullRef = useRef(0);
     const refreshingRef = useRef(false);
@@ -82,7 +83,7 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
 
             const settle = new Promise<void>(resolve => window.setTimeout(resolve, MIN_SPIN_MS));
 
-            Promise.all([queryClient.refetchQueries({ type: "active" }), settle])
+            Promise.all([refreshAll(), settle])
                 .catch(() => {})
                 .finally(finishRefresh);
         }
@@ -114,7 +115,7 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
             document.removeEventListener("touchend", onTouchEnd);
             document.removeEventListener("touchcancel", onTouchEnd);
         };
-    }, []);
+    }, [refreshAll]);
 
     const ready = pull >= THRESHOLD;
     const visible = pull > 0 || refreshing;

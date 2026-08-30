@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../../api/mutations/post", () => ({
+vi.mock("../../../hooks/mutations/post", () => ({
     useCreatePost: () => ({ mutateAsync: mocks.createPost }),
     useUploadPostMediaById: () => ({ mutateAsync: mocks.uploadMedia }),
 }));

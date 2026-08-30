@@ -39,7 +39,14 @@ export interface QuoteSearchResponse extends PaginationFields {
     results: QuoteSearchResult[];
 }
 
-import type { SiteRole } from "../utils/permissions";
+export type Series = "umineko" | "higurashi" | "ciconia";
+
+export interface CharacterGroups {
+    main: Record<string, string>;
+    additional: Record<string, string>;
+}
+
+export type SiteRole = "super_admin" | "admin" | "moderator";
 
 export interface User {
     id: string;
@@ -48,10 +55,15 @@ export interface User {
     avatar_url?: string;
     created_at?: string;
     role?: SiteRole;
+    vanity_roles?: VanityRoleDefinition[];
     banned?: boolean;
     ban_reason?: string;
     locked?: boolean;
     lock_reason?: string;
+}
+
+export interface PublicUser extends User {
+    online: boolean;
 }
 
 export interface EvidenceItem {
@@ -81,7 +93,7 @@ export interface Theory {
 
 export interface TheoryDetail extends Theory {
     evidence: EvidenceItem[];
-    responses: Response[];
+    responses: TheoryResponse[];
     refuted_by_response_id?: string;
     refuted_by?: User;
     refuted_at?: string;
@@ -91,14 +103,14 @@ export interface TheoryListResponse extends PaginationFields {
     theories: Theory[];
 }
 
-export interface Response {
+export interface TheoryResponse {
     id: string;
     parent_id?: string;
     author: User;
     side: "with_love" | "without_love";
     body: string;
     evidence: EvidenceItem[];
-    replies?: Response[];
+    replies?: TheoryResponse[];
     vote_score: number;
     user_vote?: number;
     created_at: string;
@@ -143,7 +155,6 @@ export interface UserProfile {
     pronoun_subject: string;
     pronoun_possessive: string;
     role?: SiteRole;
-    permissions?: string[];
     online: boolean;
     social_twitter: string;
     social_discord: string;
@@ -168,6 +179,16 @@ export interface UserProfile {
     locked?: boolean;
     lock_reason?: string;
     private?: UserPrivateFields;
+}
+
+export interface SessionResponse {
+    authenticated: boolean;
+    username?: string;
+    permissions?: string[];
+}
+
+export interface SessionUser extends UserProfile {
+    permissions?: string[];
 }
 
 export interface UserPrivateFields {
@@ -295,6 +316,11 @@ export interface Poll {
     duration_seconds: number;
 }
 
+export interface CreatePollPayload {
+    options: { label: string }[];
+    duration_seconds: number;
+}
+
 export interface SharedContentPreview {
     id: string;
     content_type: string;
@@ -341,7 +367,7 @@ export interface PostDetail extends Post {
     viewer_blocked: boolean;
 }
 
-interface CommentFields {
+export interface CommentBase {
     id: string;
     parent_id?: string;
     author: User;
@@ -349,11 +375,12 @@ interface CommentFields {
     media: PostMedia[];
     like_count: number;
     user_liked: boolean;
+    replies?: CommentBase[];
     created_at: string;
     updated_at?: string;
 }
 
-export interface PostComment extends CommentFields {
+export interface PostComment extends CommentBase {
     replies?: PostComment[];
 }
 
@@ -366,6 +393,19 @@ export interface FollowStats {
     following_count: number;
     is_following: boolean;
     follows_you: boolean;
+}
+
+export interface BlockStatus {
+    blocking: boolean;
+    blocked_by: boolean;
+}
+
+export interface BlockedUserItem {
+    id: string;
+    username: string;
+    display_name: string;
+    avatar_url: string;
+    blocked_at: string;
 }
 
 export type JournalWork = "general" | "umineko" | "higurashi" | "ciconia" | "higanbana" | "roseguns";
@@ -391,7 +431,8 @@ export interface Journal {
     archived_at?: string;
 }
 
-export interface JournalComment extends PostComment {
+export interface JournalComment extends CommentBase {
+    replies?: JournalComment[];
     is_author: boolean;
     entry_id?: string;
 }
@@ -623,8 +664,147 @@ export interface AdminIPMatches {
     users: AdminUserItem[];
 }
 
+export interface InviteItem {
+    code: string;
+    created_by: string;
+    used_by?: string;
+    used_at?: string;
+    created_at: string;
+}
+
+export interface InviteListResponse extends PaginationFields {
+    invites: InviteItem[];
+}
+
+export interface ReportItem {
+    id: number;
+    reporter_name: string;
+    reporter_avatar_url: string;
+    target_type: string;
+    target_id: string;
+    context_id?: string;
+    reason: string;
+    status: string;
+    resolved_by?: string;
+    created_at: string;
+}
+
+export interface ReportListResponse extends PaginationFields {
+    reports: ReportItem[];
+}
+
 export interface SiteSettings {
     [key: string]: string;
+}
+
+export interface VanityRoleDefinition {
+    id: string;
+    label: string;
+    color: string;
+    is_system: boolean;
+    sort_order: number;
+}
+
+export interface VanityRoleUsersResponse extends PaginationFields {
+    users: { id: string; username: string; display_name: string; avatar_url: string }[];
+}
+
+export interface PermissionCatalogueItem {
+    permission: string;
+    label: string;
+    vanity_assignable: boolean;
+}
+
+export interface RolePermissionsItem {
+    role: string;
+    label: string;
+    permissions: string[];
+}
+
+export interface VanityRolePermissionsItem {
+    id: string;
+    label: string;
+    color: string;
+    sort_order: number;
+    permissions: string[];
+}
+
+export interface PermissionSettingsResponse {
+    permissions: PermissionCatalogueItem[];
+    roles: RolePermissionsItem[];
+    vanity_roles: VanityRolePermissionsItem[];
+}
+
+export interface SiteInfoSecretPiece {
+    id: string;
+    letter?: string;
+    tile?: number;
+}
+
+export interface SiteInfoSecret {
+    id: string;
+    title: string;
+    description: string;
+    vanity_role_id?: string;
+    icon?: string;
+    pointer?: string;
+    solved_message?: string;
+    ready_placeholder?: string;
+    pending_hint?: string;
+    solved: boolean;
+    pieces: SiteInfoSecretPiece[];
+}
+
+export interface WebPushConfig {
+    vapid_key: string;
+    api_key: string;
+    project_id: string;
+    sender_id: string;
+    app_id: string;
+}
+
+export interface OtaManifest {
+    version: string;
+    path: string;
+    checksum: string;
+    session_key: string;
+}
+
+export interface SiteInfo {
+    site_name: string;
+    site_description: string;
+    registration_type: string;
+    announcement_banner: string;
+    default_theme: string;
+    maintenance_mode: boolean;
+    maintenance_title: string;
+    maintenance_message: string;
+    turnstile_enabled: boolean;
+    turnstile_site_key: string;
+    voice_enabled: boolean;
+    email_enabled: boolean;
+    chatbot_enabled: boolean;
+    chatbot_require_permission: boolean;
+    max_image_size: number;
+    max_video_size: number;
+    private_mode: boolean;
+    max_audio_size: number;
+    new_account_hours: number;
+    top_detective_ids: string[];
+    top_gm_ids: string[];
+    top_chess_ids: string[];
+    top_checkers_ids: string[];
+    top_othello_ids: string[];
+    top_minesweeper_ids: string[];
+    vanity_roles: VanityRoleDefinition[];
+    vanity_role_assignments: Record<string, string[]>;
+    listed_secrets: SiteInfoSecret[];
+    rules_page: string;
+    version: string;
+    app_latest_version: string;
+    app_download_url: string;
+    push_enabled: boolean;
+    web_push: WebPushConfig;
 }
 
 export interface Art {
@@ -653,7 +833,7 @@ export interface ArtDetail extends Art {
     viewer_blocked: boolean;
 }
 
-export interface ArtComment extends CommentFields {
+export interface ArtComment extends CommentBase {
     replies?: ArtComment[];
 }
 
@@ -744,6 +924,11 @@ export interface ChatRoomBan {
     created_at: string;
 }
 
+export interface VoiceTokenResponse {
+    token: string;
+    url: string;
+}
+
 export interface WatchPartyParticipant {
     user: User;
     has_control: boolean;
@@ -826,6 +1011,46 @@ export interface WatchPartyKickedEvent {
     reason?: string;
 }
 
+export type StreamDefaultMode = "webrtc" | "hls";
+
+export interface LiveStream {
+    id: string;
+    userId: string;
+    title: string;
+    status: string;
+    viewerCount: number;
+    thumbnailUrl?: string;
+    startedAt?: string;
+    streamerUsername: string;
+    streamerDisplayName: string;
+    streamerAvatarUrl: string;
+    defaultMode: StreamDefaultMode;
+    hlsUrl?: string;
+}
+
+export interface StreamOwner {
+    stream: LiveStream;
+    whipUrl: string;
+    streamKey: string;
+}
+
+export interface StreamCredentials {
+    whipUrl: string;
+    streamKey: string;
+    hlsEnabled: boolean;
+}
+
+export interface LiveStreamListResponse {
+    streams: LiveStream[];
+    enabled: boolean;
+}
+
+export interface OverlayConnection {
+    token: string;
+    connect_url: string;
+    connected: boolean;
+}
+
 export type BannedWordMatchMode = "substring" | "whole_word" | "regex";
 export type BannedWordAction = "delete" | "kick";
 
@@ -881,9 +1106,54 @@ export interface ChatMessage {
     sender_member_avatar_url?: string;
 }
 
-export interface ChatMessageListResponse {
+export interface ChatMessageListResponse extends PaginationFields {
     messages: ChatMessage[];
+}
+
+export interface GiphyImage {
+    url: string;
+    width: string;
+    height: string;
+}
+
+export interface GiphyGif {
+    id: string;
+    title: string;
+    url: string;
+    images: Record<string, GiphyImage>;
+}
+
+export interface GiphyPagination {
+    total_count: number;
+    count: number;
+    offset: number;
+}
+
+export interface GiphyResponse {
+    data: GiphyGif[];
+    pagination: GiphyPagination;
+}
+
+export interface GiphyFavourite {
+    giphy_id: string;
+    url: string;
+    title: string;
+    preview_url: string;
+    width: number;
+    height: number;
+}
+
+export interface GiphyFavouritesResponse {
+    data: GiphyFavourite[];
     total: number;
+}
+
+export interface BannedGiphyEntry {
+    kind: "gif" | "user";
+    value: string;
+    reason: string;
+    created_at: string;
+    created_by?: string;
 }
 
 export interface Mystery {
@@ -927,7 +1197,7 @@ export interface MysteryAttempt {
     created_at: string;
 }
 
-export interface MysteryComment extends CommentFields {
+export interface MysteryComment extends CommentBase {
     replies?: MysteryComment[];
 }
 
@@ -984,7 +1254,7 @@ export interface MysteryListResponse extends PaginationFields {
     mysteries: Mystery[];
 }
 
-export interface SecretComment extends CommentFields {
+export interface SecretComment extends CommentBase {
     replies?: SecretComment[];
 }
 
@@ -1137,7 +1407,7 @@ export interface Announcement {
     comments?: AnnouncementComment[];
 }
 
-export interface AnnouncementComment extends CommentFields {
+export interface AnnouncementComment extends CommentBase {
     replies?: AnnouncementComment[];
 }
 
@@ -1164,7 +1434,7 @@ export interface Ship {
     updated_at?: string;
 }
 
-export interface ShipComment extends CommentFields {
+export interface ShipComment extends CommentBase {
     replies?: ShipComment[];
 }
 
@@ -1205,7 +1475,7 @@ export interface OC {
     updated_at?: string;
 }
 
-export interface OCComment extends CommentFields {
+export interface OCComment extends CommentBase {
     replies?: OCComment[];
 }
 
@@ -1451,18 +1721,11 @@ export interface SnakesLaddersStats {
     duration_seconds: number;
 }
 
-export interface GameRoom {
+export interface GameRoom<TState = unknown, TStats = unknown> {
     id: string;
     game_type: GameType;
     status: GameStatus;
-    state:
-        | ChessState
-        | CheckersState
-        | OthelloState
-        | MinesweeperState
-        | SnakesLaddersState
-        | PongState
-        | Record<string, unknown>;
+    state: TState;
     turn_user_id?: string;
     winner_user_id?: string;
     result?: string;
@@ -1472,14 +1735,7 @@ export interface GameRoom {
     finished_at?: string;
     players: GameRoomPlayer[];
     watcher_count: number;
-    stats?:
-        | ChessStats
-        | CheckersStats
-        | OthelloStats
-        | MinesweeperStats
-        | SnakesLaddersStats
-        | PongStats
-        | Record<string, unknown>;
+    stats?: TStats;
     draw_offer_from_user_id?: string;
 }
 

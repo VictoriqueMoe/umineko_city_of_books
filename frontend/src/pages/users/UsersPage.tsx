@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
-import type { PublicUser } from "../../api/endpoints";
-import { useUsersPublic } from "../../api/queries/misc";
+import type { PublicUser } from "../../types/api";
+import { useUsersPublic } from "../../hooks/queries/user";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Input } from "../../components/Input/Input";
-import { PieceTrigger } from "../../features/easterEgg";
-import { ROLE_GROUPS } from "../../utils/permissions";
+import { PieceTrigger } from "../../components/easterEgg";
+import { ROLE_GROUPS } from "../../domain/permissions";
 import styles from "./UsersPage.module.css";
 
 export function UsersPage() {

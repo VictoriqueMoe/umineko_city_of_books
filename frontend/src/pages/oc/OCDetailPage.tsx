@@ -2,25 +2,16 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import { useOC } from "../../api/queries/oc";
-import {
-    useCreateOCComment,
-    useDeleteOCComment,
-    useFavouriteOC,
-    useLikeOCComment,
-    useUnlikeOCComment,
-    useUpdateOCComment,
-    useUploadOCCommentMedia,
-    useVoteOC,
-} from "../../api/mutations/oc";
+import { useOC } from "../../hooks/queries/oc";
+import { useFavouriteOC, useVoteOC } from "../../hooks/mutations/oc";
 import { useAuth } from "../../hooks/useAuth";
+import { useCommentHandlers } from "../../hooks/useCommentHandlers";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
-import { renderRich } from "../../utils/richText";
-import type { PostComment } from "../../types/api";
+import { renderRich } from "../../components/richText/richText";
 import shipStyles from "../ships/ShipPages.module.css";
 
 export function OCDetailPage() {
@@ -33,12 +24,11 @@ export function OCDetailPage() {
 
     const voteMutation = useVoteOC(id ?? "");
     const favouriteMutation = useFavouriteOC();
-    const createComment = useCreateOCComment(id ?? "");
-    const updateComment = useUpdateOCComment();
-    const deleteComment = useDeleteOCComment();
-    const likeComment = useLikeOCComment();
-    const unlikeComment = useUnlikeOCComment();
-    const uploadCommentMedia = useUploadOCCommentMedia();
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
+        "oc",
+        id ?? "",
+        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
+    );
     const [error, setError] = useState("");
     const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null);
     const hash = location.hash;
@@ -184,7 +174,7 @@ export function OCDetailPage() {
             )}
 
             <CommentsSection
-                comments={(oc.comments ?? []) as unknown as PostComment[]}
+                comments={oc.comments ?? []}
                 targetId={oc.id}
                 user={currentUser}
                 onChanged={refresh}
@@ -193,12 +183,12 @@ export function OCDetailPage() {
                 highlightedId={highlightedComment ?? undefined}
                 linkPrefix="/oc"
                 reportType="oc_comment"
-                likeFn={commentId => likeComment.mutateAsync(commentId).then(() => {})}
-                unlikeFn={commentId => unlikeComment.mutateAsync(commentId).then(() => {})}
-                deleteFn={commentId => deleteComment.mutateAsync(commentId).then(() => {})}
-                updateFn={(commentId, body) => updateComment.mutateAsync({ id: commentId, body }).then(() => {})}
-                createCommentFn={(_ocId, body, parentId) => createComment.mutateAsync({ body, parentId })}
-                uploadMediaFn={(commentId, file) => uploadCommentMedia.mutateAsync({ commentId, file })}
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadMediaFn}
             />
 
             <div style={{ marginTop: "1rem" }}>

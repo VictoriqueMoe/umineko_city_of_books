@@ -1,21 +1,11 @@
-import { useEffect } from "react";
 import { Link } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useNotifications } from "../../hooks/useNotifications";
-import { useLiveGameRooms } from "../../api/queries/gameRoom";
-import { queryKeys } from "../../api/queryKeys";
+import { useLiveGameRooms } from "../../hooks/queries/gameRoom";
 import styles from "./GamesPages.module.css";
 
 export function LiveGamesPage() {
     usePageTitle("Live Games");
-    const { liveGamesCount } = useNotifications();
     const { rooms, loading, error } = useLiveGameRooms();
-    const queryClient = useQueryClient();
-
-    useEffect(() => {
-        queryClient.invalidateQueries({ queryKey: queryKeys.gameRoom.live() });
-    }, [liveGamesCount, queryClient]);
 
     return (
         <div className={styles.page}>

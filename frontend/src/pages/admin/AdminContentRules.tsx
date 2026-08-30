@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useAdminSettings } from "../../api/queries/admin";
-import { useUpdateAdminSettings } from "../../api/mutations/admin";
+import { useAdminSettings } from "../../hooks/queries/admin";
+import { useUpdateAdminSettings } from "../../hooks/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
 import { TextArea } from "../../components/TextArea/TextArea";
 import type { SiteSettings } from "../../types/api";
@@ -49,7 +50,7 @@ export function AdminContentRules() {
             await updateSettingsMutation.mutateAsync(settings);
             setSuccess("Rules saved successfully");
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to save rules");
+            setError(errorMessage(e, "Failed to save rules"));
         }
     }
 

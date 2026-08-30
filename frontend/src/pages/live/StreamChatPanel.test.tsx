@@ -1,25 +1,39 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { ChatMessage, UserProfile, WSMessage } from "../../types/api";
+import { emitRealtimeEvent, type RealtimeTestEvent } from "../../test-utils/ws";
+import type { ChatMessage, UserProfile } from "../../types/api";
 import { StreamChatPanel } from "./StreamChatPanel";
 
 const mocks = vi.hoisted(() => ({
     joinStreamChat: vi.fn(),
+    getStreamViewerToken: vi.fn(),
+    resetStreamCredentials: vi.fn(),
+    startStream: vi.fn(),
+    stopStream: vi.fn(),
+    updateStreamTitle: vi.fn(),
+    uploadStreamThumbnail: vi.fn(),
     useMessageHistory: vi.fn(),
     useBlockedUserIds: vi.fn(),
     handleEditMessage: vi.fn(),
-    handleIncomingChatMessage: vi.fn(),
-    applySharedChatWSBranch: vi.fn(),
+    markReadDebounced: vi.fn(),
     addMessage: vi.fn(),
     scrollToBottomInstant: vi.fn(),
     handleScroll: vi.fn(),
     setMessages: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints", () => ({ joinStreamChat: mocks.joinStreamChat }));
+vi.mock("../../api/endpoints/stream", () => ({
+    joinStreamChat: mocks.joinStreamChat,
+    getStreamViewerToken: mocks.getStreamViewerToken,
+    resetStreamCredentials: mocks.resetStreamCredentials,
+    startStream: mocks.startStream,
+    stopStream: mocks.stopStream,
+    updateStreamTitle: mocks.updateStreamTitle,
+    uploadStreamThumbnail: mocks.uploadStreamThumbnail,
+}));
 
 vi.mock("../../hooks/useMessageHistory", () => ({ useMessageHistory: mocks.useMessageHistory }));
 
@@ -29,9 +43,8 @@ vi.mock("../../hooks/useChatMessageHandlers", () => ({
     useChatMessageHandlers: () => ({ handleEditMessage: mocks.handleEditMessage }),
 }));
 
-vi.mock("../../utils/chatStream", () => ({
-    handleIncomingChatMessage: mocks.handleIncomingChatMessage,
-    applySharedChatWSBranch: mocks.applySharedChatWSBranch,
+vi.mock("../../hooks/chat/useDebouncedMarkChatRoomRead", () => ({
+    useDebouncedMarkChatRoomRead: () => mocks.markReadDebounced,
 }));
 
 vi.mock("../../components/chat/MessageBubble/MessageBubble", () => ({
@@ -95,25 +108,14 @@ function renderPanel(
         onPopOut?: () => void;
     } = {},
 ) {
-    const listeners: ((msg: WSMessage) => void)[] = [];
-    const result = renderWithProviders(
+    return renderWithProviders(
         <StreamChatPanel
             streamId={options.streamId ?? "stream-1"}
             isLive={options.isLive ?? true}
             onPopOut={options.onPopOut}
         />,
-        {
-            user: options.user === undefined ? viewer : options.user,
-            notification: {
-                addWSListener: listener => {
-                    listeners.push(listener);
-                    return () => {};
-                },
-            },
-        },
+        { user: options.user === undefined ? viewer : options.user },
     );
-
-    return { ...result, listeners };
 }
 
 beforeEach(() => {
@@ -263,7 +265,7 @@ describe("StreamChatPanel messages", () => {
         expect(screen.getByTestId("bubble")).toHaveAttribute("data-blocked", "true");
     });
 
-    it("invites the viewer to scroll up when there is older history", () => {
+    it("invites the viewer to scroll up when there is older history", async () => {
         // given
         stubHistory({ hasMore: true, loadingMore: false });
 
@@ -271,10 +273,11 @@ describe("StreamChatPanel messages", () => {
         renderPanel();
 
         // then
+        await screen.findByTestId("composer");
         expect(screen.getByText("Scroll up for more")).toBeInTheDocument();
     });
 
-    it("says it is fetching while older history is on its way", () => {
+    it("says it is fetching while older history is on its way", async () => {
         // given
         stubHistory({ hasMore: true, loadingMore: true });
 
@@ -282,57 +285,70 @@ describe("StreamChatPanel messages", () => {
         renderPanel();
 
         // then
+        await screen.findByTestId("composer");
         expect(screen.getByText("Loading older messages...")).toBeInTheDocument();
     });
 });
 
 describe("StreamChatPanel live updates", () => {
-    it("hands an incoming chat message to the stream handler", async () => {
+    function lastPatch(): (current: ChatMessage[]) => ChatMessage[] {
+        const calls = mocks.setMessages.mock.calls;
+
+        return calls[calls.length - 1][0] as (current: ChatMessage[]) => ChatMessage[];
+    }
+
+    it("takes an incoming chat message for the stream it joined", async () => {
         // given
-        const { listeners } = renderPanel({ streamId: "stream-4" });
-        await waitFor(() => expect(listeners.length).toBeGreaterThan(0));
-        const incoming = makeMessage({ room_id: "stream-4" });
+        renderPanel({ streamId: "stream-4" });
+        await screen.findByTestId("composer");
+        const incoming = makeMessage({ id: "m-live", room_id: "stream-4" });
 
         // when
-        listeners[listeners.length - 1]({ type: "chat_message", data: incoming });
+        emitRealtimeEvent({ type: "chat_message", data: incoming });
 
         // then
-        expect(mocks.handleIncomingChatMessage).toHaveBeenCalledWith(
-            incoming,
-            "stream-4",
-            mocks.setMessages,
-            expect.any(Function),
-        );
-        expect(mocks.applySharedChatWSBranch).not.toHaveBeenCalled();
+        expect(lastPatch()([])).toEqual([incoming]);
+        expect(mocks.markReadDebounced).toHaveBeenCalledExactlyOnceWith("stream-4");
     });
 
-    it("passes any other chat event to the shared branch", async () => {
+    it("leaves a chat message for another room alone", async () => {
         // given
-        const { listeners } = renderPanel({ streamId: "stream-4" });
-        await waitFor(() => expect(listeners.length).toBeGreaterThan(0));
-        const event: WSMessage = { type: "chat_message_deleted", data: { room_id: "stream-4", id: "m1" } };
+        renderPanel({ streamId: "stream-4" });
+        await screen.findByTestId("composer");
 
         // when
-        listeners[listeners.length - 1](event);
+        emitRealtimeEvent({ type: "chat_message", data: makeMessage({ room_id: "stream-9" }) });
 
         // then
-        expect(mocks.applySharedChatWSBranch).toHaveBeenCalledWith(
-            event,
-            expect.objectContaining({ activeRoomId: "stream-4", setMessages: mocks.setMessages }),
-        );
+        expect(mocks.setMessages).not.toHaveBeenCalled();
+        expect(mocks.markReadDebounced).not.toHaveBeenCalled();
+    });
+
+    it("drops a message deleted in the stream's own room", async () => {
+        // given
+        renderPanel({ streamId: "stream-4" });
+        await screen.findByTestId("composer");
+        const event: RealtimeTestEvent = {
+            type: "chat_message_deleted",
+            data: { room_id: "stream-4", message_id: "m1" },
+        };
+
+        // when
+        emitRealtimeEvent(event);
+
+        // then
+        expect(lastPatch()([makeMessage({ id: "m1", room_id: "stream-4" })])).toEqual([]);
     });
 
     it("ignores live chat events while the stream is offline", () => {
         // given
-        const { listeners } = renderPanel({ isLive: false });
+        renderPanel({ isLive: false });
 
         // when
-        for (const listener of listeners) {
-            listener({ type: "chat_message", data: makeMessage() });
-        }
+        emitRealtimeEvent({ type: "chat_message", data: makeMessage() });
 
         // then
-        expect(mocks.handleIncomingChatMessage).not.toHaveBeenCalled();
+        expect(mocks.setMessages).not.toHaveBeenCalled();
     });
 });
 
@@ -361,6 +377,47 @@ describe("StreamChatPanel lightbox", () => {
         await waitFor(() => {
             expect(mocks.joinStreamChat).toHaveBeenCalledWith("stream-2");
         });
+    });
+});
+
+describe("StreamChatPanel switching stream", () => {
+    it("drops back to joining until the new stream has let it in", async () => {
+        // given
+        const { rerender } = renderPanel({ streamId: "stream-1" });
+        expect(await screen.findByTestId("composer")).toHaveTextContent("stream-1");
+        let letIn = () => {};
+        mocks.joinStreamChat.mockReturnValue(
+            new Promise<void>(resolve => {
+                letIn = resolve;
+            }),
+        );
+
+        // when
+        rerender(<StreamChatPanel streamId="stream-2" isLive />);
+
+        // then
+        expect(screen.getByText("Joining chat...")).toBeInTheDocument();
+        expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+        expect(mocks.useMessageHistory).toHaveBeenLastCalledWith(undefined, 50);
+        await act(async () => {
+            letIn();
+        });
+        expect(await screen.findByTestId("composer")).toHaveTextContent("stream-2");
+    });
+
+    it("forgets a failed join once the viewer moves to another stream", async () => {
+        // given
+        mocks.joinStreamChat.mockRejectedValueOnce(new Error("no room at the inn"));
+        const { rerender } = renderPanel({ streamId: "stream-1" });
+        await screen.findByText("Couldn't join the chat.");
+        mocks.joinStreamChat.mockResolvedValue(undefined);
+
+        // when
+        rerender(<StreamChatPanel streamId="stream-2" isLive />);
+
+        // then
+        expect(screen.queryByText("Couldn't join the chat.")).not.toBeInTheDocument();
+        expect(await screen.findByTestId("composer")).toHaveTextContent("stream-2");
     });
 });
 

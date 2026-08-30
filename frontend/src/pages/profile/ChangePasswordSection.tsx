@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useChangePassword } from "../../api/mutations/auth";
+import { useChangePassword } from "../../hooks/mutations/auth";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import styles from "./SettingsPage.module.css";

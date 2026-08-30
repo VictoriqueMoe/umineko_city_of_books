@@ -24,8 +24,8 @@ const {
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/journal", () => ({ useJournal, useJournalEntry }));
-vi.mock("../../api/mutations/journal", () => ({
+vi.mock("../../hooks/queries/journal", () => ({ useJournal, useJournalEntry }));
+vi.mock("../../hooks/mutations/journal", () => ({
     useCreateJournalEntry,
     useDeleteJournalEntryMedia,
     useUpdateJournalEntry,

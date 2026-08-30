@@ -6,7 +6,7 @@ import { LinkPreviews } from "./LinkPreviews";
 
 const { previews } = vi.hoisted(() => ({ previews: { byURL: new Map<string, LinkPreview>() } }));
 
-vi.mock("../../api/queries/linkPreview", () => ({
+vi.mock("../../hooks/queries/linkPreview", () => ({
     useLinkPreview: (url: string) => ({ preview: previews.byURL.get(url), loading: false }),
 }));
 

@@ -12,8 +12,8 @@ const { useMutualFollowers, useSearchUsers } = vi.hoisted(() => ({
 
 const { useInviteChatRoomMembers } = vi.hoisted(() => ({ useInviteChatRoomMembers: vi.fn() }));
 
-vi.mock("../../../api/queries/misc", () => ({ useMutualFollowers, useSearchUsers }));
-vi.mock("../../../api/mutations/chat", () => ({ useInviteChatRoomMembers }));
+vi.mock("../../../hooks/queries/user", () => ({ useMutualFollowers, useSearchUsers }));
+vi.mock("../../../hooks/mutations/chat", () => ({ useInviteChatRoomMembers }));
 
 const roomId = "room-1";
 

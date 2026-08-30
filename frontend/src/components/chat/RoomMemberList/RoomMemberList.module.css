@@ -1,0 +1,271 @@
+.memberList {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.memberList[data-variant="desktop"] {
+    padding: 0.5rem 0;
+}
+
+.memberList[data-variant="mobile"] {
+    min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.4rem 0;
+}
+
+.memberGroupHeader {
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+.memberList[data-variant="desktop"] .memberGroupHeader {
+    padding: 0.35rem 0.85rem 0.2rem;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    border-top: 1px solid rgba(var(--purple-rgb), 0.18);
+    margin-top: 0.35rem;
+}
+
+.memberList[data-variant="desktop"] .memberGroup:first-child .memberGroupHeader {
+    border-top: none;
+    margin-top: 0;
+}
+
+.memberList[data-variant="mobile"] .memberGroupHeader {
+    padding: 0.5rem 0.85rem 0.25rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+}
+
+.memberStatusHeader {
+    padding: 0.2rem 0.85rem 0.1rem 1.1rem;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    opacity: 0.65;
+}
+
+.memberRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.85rem;
+    position: relative;
+}
+
+.memberList[data-variant="desktop"] .memberRow:hover {
+    background: rgba(var(--purple-rgb), 0.1);
+}
+
+.presenceDot {
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.memberList[data-variant="desktop"] .presenceDot {
+    width: 10px;
+    height: 10px;
+    cursor: help;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.memberList[data-variant="mobile"] .presenceDot {
+    width: 9px;
+    height: 9px;
+}
+
+.memberList[data-variant="desktop"] .presenceActive {
+    background: #3ecf5a;
+    box-shadow: 0 0 6px rgba(62, 207, 90, 0.6);
+}
+
+.memberList[data-variant="desktop"] .presenceIdle {
+    background: #e8c14a;
+    box-shadow: 0 0 6px rgba(232, 193, 74, 0.5);
+}
+
+.memberList[data-variant="desktop"] .presenceAway {
+    background: #c94040;
+    box-shadow: 0 0 6px rgba(201, 64, 64, 0.4);
+}
+
+.memberList[data-variant="mobile"] .presenceActive {
+    background: #3ed47a;
+}
+
+.memberList[data-variant="mobile"] .presenceIdle {
+    background: #e0b341;
+}
+
+.memberList[data-variant="mobile"] .presenceAway {
+    background: rgba(var(--text-muted-rgb, 150, 140, 170), 0.6);
+}
+
+.hostBadge {
+    color: var(--gold);
+    font-size: 0.6rem;
+    text-transform: uppercase;
+}
+
+.memberList[data-variant="desktop"] .hostBadge {
+    background: rgba(var(--gold-rgb), 0.18);
+    border: 1px solid rgba(var(--gold-rgb), 0.4);
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    letter-spacing: 0.05em;
+}
+
+.memberList[data-variant="mobile"] .hostBadge {
+    font-weight: 700;
+    border: 1px solid rgba(var(--gold-rgb), 0.5);
+    padding: 0.05rem 0.3rem;
+    border-radius: 4px;
+}
+
+.ghostBadge {
+    font-size: 0.9rem;
+    opacity: 0.75;
+    cursor: help;
+}
+
+.timeoutIcon {
+    color: #ff7070;
+    font-size: 0.95rem;
+    line-height: 1;
+    cursor: help;
+    flex-shrink: 0;
+}
+
+.editSelfBtn,
+.modActionsBtn {
+    background: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.editSelfBtn {
+    margin-left: auto;
+}
+
+.memberActions {
+    margin-left: auto;
+    position: relative;
+    display: inline-flex;
+}
+
+.memberList[data-variant="desktop"] .editSelfBtn {
+    border: 1px solid rgba(var(--gold-rgb), 0.35);
+    color: var(--gold);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    transition: background 0.15s;
+}
+
+.memberList[data-variant="desktop"] .editSelfBtn:hover {
+    background: rgba(var(--gold-rgb), 0.15);
+}
+
+.memberList[data-variant="desktop"] .modActionsBtn {
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    color: var(--text-muted);
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+.memberList[data-variant="desktop"] .modActionsBtn:hover {
+    background: rgba(var(--purple-rgb), 0.2);
+    color: var(--text);
+}
+
+.memberList[data-variant="mobile"] .editSelfBtn,
+.memberList[data-variant="mobile"] .modActionsBtn {
+    border: none;
+    color: var(--gold);
+    font-size: 1.25rem;
+    padding: 0.4rem 0.5rem;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.memberList[data-variant="mobile"] .editSelfBtn:active,
+.memberList[data-variant="mobile"] .modActionsBtn:active {
+    background: rgba(var(--purple-rgb), 0.25);
+}
+
+.modActionsMenu {
+    position: absolute;
+    right: 0;
+    background: var(--bg-card);
+    display: flex;
+    flex-direction: column;
+}
+
+.memberList[data-variant="desktop"] .modActionsMenu {
+    top: 26px;
+    border: 1px solid rgba(var(--purple-rgb), 0.45);
+    border-radius: 6px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    padding: 0.25rem;
+    z-index: 50;
+    min-width: 170px;
+}
+
+.memberList[data-variant="mobile"] .modActionsMenu {
+    top: 100%;
+    border: 1px solid rgba(var(--purple-rgb), 0.4);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+    z-index: 5;
+    min-width: 180px;
+    overflow: hidden;
+}
+
+.modActionsMenu button {
+    background: none;
+    border: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+}
+
+.memberList[data-variant="desktop"] .modActionsMenu button {
+    padding: 0.45rem 0.6rem;
+    font-size: 0.85rem;
+    border-radius: 4px;
+}
+
+.memberList[data-variant="desktop"] .modActionsMenu button:hover {
+    background: rgba(var(--purple-rgb), 0.2);
+}
+
+.memberList[data-variant="desktop"] .modActionsMenu button.danger {
+    color: #ff8080;
+}
+
+.memberList[data-variant="desktop"] .modActionsMenu button.danger:hover {
+    background: rgba(255, 51, 51, 0.15);
+}
+
+.memberList[data-variant="mobile"] .modActionsMenu button {
+    padding: 0.7rem 0.9rem;
+    font-size: 0.9rem;
+}
+
+.memberList[data-variant="mobile"] .modActionsMenu button:active {
+    background: rgba(var(--purple-rgb), 0.25);
+}
+
+.memberList[data-variant="mobile"] .modActionsMenu button.danger {
+    color: #ff6b6b;
+}

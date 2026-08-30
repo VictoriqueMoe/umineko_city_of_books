@@ -1,6 +1,6 @@
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import { useQuickSearch } from "../../../api/queries/search";
+import { useQuickSearch } from "../../../hooks/queries/search";
 import { useClickOutside } from "../../../hooks/useClickOutside";
 import { SearchResultRow } from "./SearchResultRow";
 import { SEARCH_GROUP_LABEL, SEARCH_GROUP_ORDER, SEARCH_TYPE_META, type SearchTypeGroup } from "./searchTypeMeta";

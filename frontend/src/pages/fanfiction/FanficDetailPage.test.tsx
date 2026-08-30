@@ -34,8 +34,8 @@ const {
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/fanfic", () => ({ useFanfic }));
-vi.mock("../../api/mutations/fanfic", () => ({
+vi.mock("../../hooks/queries/fanfic", () => ({ useFanfic }));
+vi.mock("../../hooks/mutations/fanfic", () => ({
     useCreateFanficComment,
     useDeleteFanfic,
     useDeleteFanficChapter,
@@ -420,6 +420,20 @@ describe("FanficDetailPage", () => {
             expect(screen.getByRole("heading", { name: "Golden Land" })).toBeInTheDocument();
         });
         expect(navigate).not.toHaveBeenCalledWith("/fanfiction");
+    });
+
+    it("says why the story could not be deleted", async () => {
+        // given
+        stubFanfic({ removeFanfic: () => Promise.reject(new Error("the archive is sealed")) });
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderPage(author);
+
+        // when
+        await user.click(storyButton("Delete"));
+
+        // then
+        expect(await screen.findByText("the archive is sealed")).toBeInTheDocument();
     });
 
     it("opens a one-shot straight at its only chapter", async () => {

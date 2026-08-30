@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useFanficChapter } from "../../api/queries/fanfic";
-import { useCreateFanficChapter, useUpdateFanficChapter } from "../../api/mutations/fanfic";
+import { useFanficChapter } from "../../hooks/queries/fanfic";
+import { useCreateFanficChapter, useUpdateFanficChapter } from "../../hooks/mutations/fanfic";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";

@@ -1,13 +1,12 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { RoomController } from "../../../hooks/useRoomController";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatMessage, ChatRoom, User } from "../../../types/api";
-import { RoomMessageList } from "./RoomMessageList";
+import type { ChatMessage, ChatRoom, User, UserProfile } from "../../../types/api";
+import { RoomMessageList, type RoomMessageListProps } from "./RoomMessageList";
 
-const mocks = vi.hoisted(() => ({ useBlockedUserIds: vi.fn() }));
+const mocks = vi.hoisted(() => ({ useBlockedUserIds: vi.fn(), replyHandlers: [] as unknown[] }));
 
 vi.mock("../../../hooks/useBlockedUserIds", () => ({ useBlockedUserIds: mocks.useBlockedUserIds }));
 
@@ -46,39 +45,43 @@ vi.mock("../MessageBubble/MessageBubble", () => ({
         onReactionToggle?: (msg: ChatMessage, emoji: string) => void;
         onEditStart?: (msg: ChatMessage) => void;
         onEditCancel?: () => void;
-    }) => (
-        <div
-            data-testid={`bubble-${message.id}`}
-            data-own={String(isOwn)}
-            data-blocked={String(senderBlocked)}
-            data-highlighted={String(highlighted)}
-            data-notifies={String(notifiesViewer)}
-            data-editing={String(editing)}
-            data-can-pin={String(canPin)}
-            data-moderate={String(canModerate)}
-            data-can-react={String(canReact)}
-            data-can-edit={String(canEdit)}
-            data-staff={String(senderIsStaff)}
-            data-has-pin-handler={String(Boolean(onPinToggle))}
-        >
-            <span>{message.body}</span>
-            <button type="button" onClick={() => onReply?.(message)}>
-                reply to {message.id}
-            </button>
-            <button type="button" onClick={() => onReactionToggle?.(message, "❤")}>
-                react to {message.id}
-            </button>
-            <button type="button" onClick={() => onPinToggle?.(message)}>
-                pin {message.id}
-            </button>
-            <button type="button" onClick={() => onEditStart?.(message)}>
-                edit {message.id}
-            </button>
-            <button type="button" onClick={() => onEditCancel?.()}>
-                cancel {message.id}
-            </button>
-        </div>
-    ),
+    }) => {
+        mocks.replyHandlers.push(onReply);
+
+        return (
+            <div
+                data-testid={`bubble-${message.id}`}
+                data-own={String(isOwn)}
+                data-blocked={String(senderBlocked)}
+                data-highlighted={String(highlighted)}
+                data-notifies={String(notifiesViewer)}
+                data-editing={String(editing)}
+                data-can-pin={String(canPin)}
+                data-moderate={String(canModerate)}
+                data-can-react={String(canReact)}
+                data-can-edit={String(canEdit)}
+                data-staff={String(senderIsStaff)}
+                data-has-pin-handler={String(Boolean(onPinToggle))}
+            >
+                <span>{message.body}</span>
+                <button type="button" onClick={() => onReply?.(message)}>
+                    reply to {message.id}
+                </button>
+                <button type="button" onClick={() => onReactionToggle?.(message, "❤")}>
+                    react to {message.id}
+                </button>
+                <button type="button" onClick={() => onPinToggle?.(message)}>
+                    pin {message.id}
+                </button>
+                <button type="button" onClick={() => onEditStart?.(message)}>
+                    edit {message.id}
+                </button>
+                <button type="button" onClick={() => onEditCancel?.()}>
+                    cancel {message.id}
+                </button>
+            </div>
+        );
+    },
 }));
 
 const classes = { messages: "messages", loadMoreBar: "load-more", empty: "empty" };
@@ -125,67 +128,63 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     };
 }
 
-function makeController(overrides: Partial<RoomController> = {}): RoomController {
-    const base = {
-        user: viewer,
-        room: makeRoom(),
-        messages: [],
-        hasMore: false,
-        loadingMore: false,
-        messagesContainerRef: { current: null },
-        messagesContentRef: { current: null },
-        messagesEndRef: { current: null },
-        handleMessagesScroll: vi.fn(),
-        highlightedMsgId: null,
-        matchesViewerMention: null,
-        viewerTimedOut: false,
-        setLightboxSrc: vi.fn(),
-        setReplyingTo: vi.fn(),
-        editingMessageId: null,
-        setEditingMessageId: vi.fn(),
-        handleReactionToggle: vi.fn(),
-        handlePinToggle: vi.fn(),
-        handleDeleteMessage: vi.fn(),
-        handleEditMessage: vi.fn(),
-    };
-
-    return { ...base, ...overrides } as unknown as RoomController;
+interface ListOptions {
+    user?: UserProfile;
+    room?: ChatRoom;
+    messages?: ChatMessage[];
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    highlightedMessageId?: string | null;
+    matchesViewerMention?: ((body: string) => boolean) | null;
+    viewerTimedOut?: boolean;
+    editingMessageId?: string | null;
+    onReply?: RoomMessageListProps["onReply"];
+    onStartEditing?: RoomMessageListProps["onStartEditing"];
+    onCancelEditing?: RoomMessageListProps["onCancelEditing"];
+    onToggleReaction?: RoomMessageListProps["onToggleReaction"];
+    onTogglePin?: RoomMessageListProps["onTogglePin"];
 }
 
-function renderList(overrides: Partial<RoomController> = {}) {
-    const controller = makeController(overrides);
-    const result = renderWithProviders(<RoomMessageList controller={controller} classes={classes} />);
+function makeProps(options: ListOptions = {}): RoomMessageListProps {
+    return {
+        viewer: options.user ?? viewer,
+        room: options.room ?? makeRoom(),
+        messages: options.messages ?? [],
+        hasMore: options.hasMore ?? false,
+        loadingMore: options.loadingMore ?? false,
+        highlightedMessageId: options.highlightedMessageId ?? null,
+        editingMessageId: options.editingMessageId ?? null,
+        viewerTimedOut: options.viewerTimedOut ?? false,
+        matchesViewerMention: options.matchesViewerMention ?? null,
+        containerRef: { current: null },
+        contentRef: { current: null },
+        endRef: { current: null },
+        onScroll: vi.fn(),
+        onLightbox: vi.fn(),
+        onReply: options.onReply ?? vi.fn(),
+        onStartEditing: options.onStartEditing ?? vi.fn(),
+        onCancelEditing: options.onCancelEditing ?? vi.fn(),
+        onToggleReaction: options.onToggleReaction ?? vi.fn(),
+        onTogglePin: options.onTogglePin ?? vi.fn(),
+        onDelete: vi.fn(),
+        onEdit: vi.fn(),
+        classes,
+    };
+}
 
-    return { ...result, controller };
+function renderList(options: ListOptions = {}) {
+    const props = makeProps(options);
+    const result = renderWithProviders(<RoomMessageList {...props} />);
+
+    return { ...result, props };
 }
 
 beforeEach(() => {
     mocks.useBlockedUserIds.mockReturnValue(new Set<string>());
+    mocks.replyHandlers.length = 0;
 });
 
 describe("RoomMessageList", () => {
-    it("renders nothing until the viewer is known", () => {
-        // given
-        const user = null;
-
-        // when
-        const { container } = renderList({ user, messages: [makeMessage()] });
-
-        // then
-        expect(container).toBeEmptyDOMElement();
-    });
-
-    it("renders nothing until the room has loaded", () => {
-        // given
-        const room = undefined;
-
-        // when
-        const { container } = renderList({ room, messages: [makeMessage()] });
-
-        // then
-        expect(container).toBeEmptyDOMElement();
-    });
-
     it("greets the viewer when nobody has spoken in the room yet", () => {
         // given
         const messages: ChatMessage[] = [];
@@ -263,10 +262,10 @@ describe("RoomMessageList", () => {
 
     it("highlights only the message the viewer jumped to", () => {
         // given
-        const highlightedMsgId = "m2";
+        const highlightedMessageId = "m2";
 
         // when
-        renderList({ highlightedMsgId, messages: [makeMessage({ id: "m1" }), makeMessage({ id: "m2" })] });
+        renderList({ highlightedMessageId, messages: [makeMessage({ id: "m1" }), makeMessage({ id: "m2" })] });
 
         // then
         expect(screen.getByTestId("bubble-m1")).toHaveAttribute("data-highlighted", "false");
@@ -376,15 +375,15 @@ describe("RoomMessageList", () => {
 
     it("quotes a short body whole when the viewer replies", async () => {
         // given
-        const setReplyingTo = vi.fn();
+        const onReply = vi.fn();
         const user = userEvent.setup();
-        renderList({ setReplyingTo, messages: [makeMessage({ id: "m1", body: "a short claim" })] });
+        renderList({ onReply, messages: [makeMessage({ id: "m1", body: "a short claim" })] });
 
         // when
         await user.click(screen.getByRole("button", { name: "reply to m1" }));
 
         // then
-        expect(setReplyingTo).toHaveBeenCalledWith({
+        expect(onReply).toHaveBeenCalledWith({
             id: "m1",
             senderName: "Battler",
             bodyPreview: "a short claim",
@@ -393,35 +392,37 @@ describe("RoomMessageList", () => {
 
     it("truncates a long body when the viewer replies to it", async () => {
         // given
-        const setReplyingTo = vi.fn();
+        const onReply = vi.fn();
         const body = "x".repeat(120);
         const user = userEvent.setup();
-        renderList({ setReplyingTo, messages: [makeMessage({ id: "m1", body })] });
+        renderList({ onReply, messages: [makeMessage({ id: "m1", body })] });
 
         // when
         await user.click(screen.getByRole("button", { name: "reply to m1" }));
 
         // then
-        expect(setReplyingTo).toHaveBeenCalledWith({
+        expect(onReply).toHaveBeenCalledWith({
             id: "m1",
             senderName: "Battler",
             bodyPreview: `${"x".repeat(80)}...`,
         });
     });
 
-    it("opens and closes the editor through the controller", async () => {
+    it("opens and closes the editor through the handlers it was given", async () => {
         // given
-        const setEditingMessageId = vi.fn();
+        const onStartEditing = vi.fn();
+        const onCancelEditing = vi.fn();
+        const message = makeMessage({ id: "m1" });
         const user = userEvent.setup();
-        renderList({ setEditingMessageId, messages: [makeMessage({ id: "m1" })] });
+        renderList({ onStartEditing, onCancelEditing, messages: [message] });
 
         // when
         await user.click(screen.getByRole("button", { name: "edit m1" }));
         await user.click(screen.getByRole("button", { name: "cancel m1" }));
 
         // then
-        expect(setEditingMessageId).toHaveBeenNthCalledWith(1, "m1");
-        expect(setEditingMessageId).toHaveBeenNthCalledWith(2, null);
+        expect(onStartEditing).toHaveBeenCalledExactlyOnceWith(message);
+        expect(onCancelEditing).toHaveBeenCalledOnce();
     });
 
     it("puts only the chosen message into edit mode", () => {
@@ -436,35 +437,30 @@ describe("RoomMessageList", () => {
         expect(screen.getByTestId("bubble-m2")).toHaveAttribute("data-editing", "true");
     });
 
-    it("sends a reaction to the controller with the emoji that was picked", async () => {
+    it("sends a reaction up with the emoji that was picked", async () => {
         // given
-        const handleReactionToggle = vi.fn();
+        const onToggleReaction = vi.fn();
         const message = makeMessage({ id: "m1" });
         const user = userEvent.setup();
-        renderList({ handleReactionToggle, messages: [message] });
+        renderList({ onToggleReaction, messages: [message] });
 
         // when
         await user.click(screen.getByRole("button", { name: "react to m1" }));
 
         // then
-        expect(handleReactionToggle).toHaveBeenCalledWith(message, "❤");
+        expect(onToggleReaction).toHaveBeenCalledWith(message, "❤");
     });
 
-    it("uses the newest controller handlers after the room re-renders", async () => {
+    it("uses the newest reaction handler after the page re-renders", async () => {
         // given
         const stale = vi.fn();
         const fresh = vi.fn();
         const message = makeMessage({ id: "m1" });
         const user = userEvent.setup();
-        const { rerender } = renderList({ handleReactionToggle: stale, messages: [message] });
+        const { rerender } = renderList({ onToggleReaction: stale, messages: [message] });
 
         // when
-        rerender(
-            <RoomMessageList
-                controller={makeController({ handleReactionToggle: fresh, messages: [message] })}
-                classes={classes}
-            />,
-        );
+        rerender(<RoomMessageList {...makeProps({ onToggleReaction: fresh, messages: [message] })} />);
         await user.click(screen.getByRole("button", { name: "react to m1" }));
 
         // then
@@ -472,17 +468,42 @@ describe("RoomMessageList", () => {
         expect(stale).not.toHaveBeenCalled();
     });
 
-    it("pins through the newest controller handler as well", async () => {
+    it("keeps one reply handler across a re-render so a memoised bubble is not invalidated", () => {
         // given
-        const handlePinToggle = vi.fn();
+        const props = makeProps({ messages: [makeMessage({ id: "m1" })] });
+
+        // when
+        const { rerender } = renderWithProviders(<RoomMessageList {...props} />);
+        rerender(<RoomMessageList {...props} hasMore={true} />);
+
+        // then
+        expect(mocks.replyHandlers).toHaveLength(2);
+        expect(mocks.replyHandlers[0]).toBe(mocks.replyHandlers[1]);
+    });
+
+    it("skips the whole list when nothing it renders has changed", () => {
+        // given
+        const props = makeProps({ messages: [makeMessage({ id: "m1" })] });
+
+        // when
+        const { rerender } = renderWithProviders(<RoomMessageList {...props} />);
+        rerender(<RoomMessageList {...props} />);
+
+        // then
+        expect(mocks.replyHandlers).toHaveLength(1);
+    });
+
+    it("pins through the handler it was given", async () => {
+        // given
+        const onTogglePin = vi.fn();
         const message = makeMessage({ id: "m1" });
         const user = userEvent.setup();
-        renderList({ handlePinToggle, room: makeRoom({ viewer_role: "host" }), messages: [message] });
+        renderList({ onTogglePin, room: makeRoom({ viewer_role: "host" }), messages: [message] });
 
         // when
         await user.click(screen.getByRole("button", { name: "pin m1" }));
 
         // then
-        expect(handlePinToggle).toHaveBeenCalledWith(message);
+        expect(onTogglePin).toHaveBeenCalledWith(message);
     });
 });

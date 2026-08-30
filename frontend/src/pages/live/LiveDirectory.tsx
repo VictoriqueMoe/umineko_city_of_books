@@ -1,70 +1,18 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import { listLiveStreams, type LiveStream, type LiveStreamListResponse } from "../../api/endpoints";
-import { queryKeys } from "../../api/queryKeys";
-import type { WSMessage } from "../../types/api";
+import { useLiveDirectory } from "../../hooks/useLiveDirectory";
+import type { LiveStream } from "../../types/api";
 import { GoLivePanel } from "../../components/live/GoLivePanel";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import styles from "./live.module.css";
 
 export function LiveDirectory() {
     usePageTitle("Live");
-    const qc = useQueryClient();
     const { user } = useAuth();
-    const { addWSListener } = useNotifications();
+    const { streams, enabled, loading } = useLiveDirectory();
     const [showGoLive, setShowGoLive] = useState(false);
-
-    const query = useQuery({
-        queryKey: queryKeys.streams.live(),
-        queryFn: listLiveStreams,
-    });
-
-    useEffect(() => {
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type === "stream_live" || msg.type === "stream_offline") {
-                qc.invalidateQueries({ queryKey: queryKeys.streams.live() });
-                return;
-            }
-
-            if (msg.type === "stream_viewers") {
-                const data = msg.data as { streamId: string; viewerCount: number };
-                qc.setQueryData<LiveStreamListResponse>(["streams", "live"], prev => {
-                    if (!prev) {
-                        return prev;
-                    }
-
-                    return {
-                        ...prev,
-                        streams: prev.streams.map(s =>
-                            s.id === data.streamId ? { ...s, viewerCount: data.viewerCount } : s,
-                        ),
-                    };
-                });
-                return;
-            }
-
-            if (msg.type === "stream_title") {
-                const data = msg.data as { streamId: string; title: string };
-                qc.setQueryData<LiveStreamListResponse>(["streams", "live"], prev => {
-                    if (!prev) {
-                        return prev;
-                    }
-
-                    return {
-                        ...prev,
-                        streams: prev.streams.map(s => (s.id === data.streamId ? { ...s, title: data.title } : s)),
-                    };
-                });
-            }
-        });
-    }, [addWSListener, qc]);
-
-    const streams = query.data?.streams ?? [];
-    const enabled = query.data?.enabled ?? false;
 
     return (
         <div className={styles.page}>
@@ -87,13 +35,11 @@ export function LiveDirectory() {
 
             {!enabled && <div className="empty-state">Live streaming is currently disabled.</div>}
 
-            {user && enabled && showGoLive && (
-                <GoLivePanel onChanged={() => qc.invalidateQueries({ queryKey: queryKeys.streams.live() })} />
-            )}
+            {user && enabled && showGoLive && <GoLivePanel />}
 
-            {enabled && query.isLoading && <div className="loading">Loading streams...</div>}
+            {enabled && loading && <div className="loading">Loading streams...</div>}
 
-            {enabled && !query.isLoading && streams.length === 0 && (
+            {enabled && !loading && streams.length === 0 && (
                 <div className="empty-state">No one is live right now. Be the first!</div>
             )}
 

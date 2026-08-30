@@ -1,4 +1,4 @@
-import { useAdminStats } from "../../api/queries/admin";
+import { useAdminStats } from "../../hooks/queries/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import styles from "./AdminDashboard.module.css";
 

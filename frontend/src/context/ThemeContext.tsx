@@ -2,7 +2,7 @@ import { type PropsWithChildren, useCallback, useEffect, useLayoutEffect, useMem
 import type { FontType, ThemeType } from "../types/app";
 import { useSiteInfo } from "../hooks/useSiteInfo";
 import { useAuth } from "../hooks/useAuth";
-import { useUpdateAppearance } from "../api/mutations/auth";
+import { useUpdateAppearance } from "../hooks/mutations/auth";
 import { ThemeContext } from "./themeContextValue";
 
 const STORAGE_KEY = "ut-theme";

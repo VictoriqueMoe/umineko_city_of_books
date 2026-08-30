@@ -7,7 +7,7 @@ import { MentionResolverContext } from "./mentionResolverContextValue";
 
 const { resolveUsernames } = vi.hoisted(() => ({ resolveUsernames: vi.fn() }));
 
-vi.mock("../api/endpoints", () => ({ resolveUsernames }));
+vi.mock("../api/endpoints/user", () => ({ resolveUsernames }));
 
 const BATCH_WINDOW_MS = 60;
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { isNativeApp } from "../utils/authToken";
+import { isNativeApp } from "../platform/capabilities";
 
-const MOBILE_QUERY = "(max-width: 960px)";
+export const MOBILE_QUERY = "(max-width: 960px)";
 
 function readIsMobile(): boolean {
     if (isNativeApp()) {

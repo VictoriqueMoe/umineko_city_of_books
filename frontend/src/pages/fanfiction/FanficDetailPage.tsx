@@ -2,29 +2,25 @@ import { useCallback, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import type { PostComment } from "../../types/api";
-import { useFanfic } from "../../api/queries/fanfic";
+import { useFanfic } from "../../hooks/queries/fanfic";
 import {
-    useCreateFanficComment,
     useDeleteFanfic,
     useDeleteFanficChapter,
-    useDeleteFanficComment,
     useFavouriteFanfic,
-    useLikeFanficComment,
     useUnfavouriteFanfic,
-    useUnlikeFanficComment,
-    useUpdateFanficComment,
-    useUploadFanficCommentMedia,
-} from "../../api/mutations/fanfic";
+} from "../../hooks/mutations/fanfic";
 import { useAuth } from "../../hooks/useAuth";
-import { can } from "../../utils/permissions";
+import { useCommentHandlers } from "../../hooks/useCommentHandlers";
+import { contentPermissions } from "../../domain/contentPermissions";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
-import { renderRich } from "../../utils/richText";
+import { renderRich } from "../../components/richText/richText";
 import styles from "./FanficPages.module.css";
 
 function ratingBadgeClass(rating: string): string {
@@ -71,6 +67,7 @@ export function FanficDetailPage() {
     useScrollToHash(!loading && !!fanfic, highlightedComment ? `comment-${highlightedComment}` : null);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [favouriting, setFavouriting] = useState(false);
+    const [actionError, setActionError] = useState("");
     usePageTitle(fanfic?.title ?? "Fanfic");
 
     const fetchFanfic = useCallback(() => {
@@ -81,36 +78,10 @@ export function FanficDetailPage() {
     const unfavouriteMutation = useUnfavouriteFanfic();
     const deleteFanficMutation = useDeleteFanfic();
     const deleteChapterMutation = useDeleteFanficChapter(fanficId);
-    const createCommentMutation = useCreateFanficComment(fanficId);
-    const updateCommentMutation = useUpdateFanficComment(fanficId);
-    const deleteCommentMutation = useDeleteFanficComment(fanficId);
-    const likeCommentMutation = useLikeFanficComment(fanficId);
-    const unlikeCommentMutation = useUnlikeFanficComment(fanficId);
-    const uploadCommentMediaMutation = useUploadFanficCommentMedia(fanficId);
-    const likeCommentFn = useCallback(
-        (commentId: string) => likeCommentMutation.mutateAsync(commentId).then(() => {}),
-        [likeCommentMutation],
-    );
-    const unlikeCommentFn = useCallback(
-        (commentId: string) => unlikeCommentMutation.mutateAsync(commentId).then(() => {}),
-        [unlikeCommentMutation],
-    );
-    const deleteCommentFn = useCallback(
-        (commentId: string) => deleteCommentMutation.mutateAsync(commentId).then(() => {}),
-        [deleteCommentMutation],
-    );
-    const updateCommentFn = useCallback(
-        (commentId: string, body: string) => updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {}),
-        [updateCommentMutation],
-    );
-    const createCommentFn = useCallback(
-        (_postId: string, body: string, parentId?: string) =>
-            createCommentMutation.mutateAsync({ body, parentId }).then(c => ({ id: c.id })),
-        [createCommentMutation],
-    );
-    const uploadCommentMediaFn = useCallback(
-        (commentId: string, file: File) => uploadCommentMediaMutation.mutateAsync({ commentId, file }),
-        [uploadCommentMediaMutation],
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
+        "fanfic",
+        fanficId,
+        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
     );
 
     async function handleFavourite() {
@@ -136,10 +107,13 @@ export function FanficDetailPage() {
         if (!fanfic || !window.confirm("Delete this fanfic? This cannot be undone.")) {
             return;
         }
+        setActionError("");
         try {
             await deleteFanficMutation.mutateAsync(fanfic.id);
             navigate("/fanfiction");
-        } catch {}
+        } catch (thrown) {
+            setActionError(errorMessage(thrown, "Failed to delete fanfic"));
+        }
     }
 
     if (loading) {
@@ -150,15 +124,15 @@ export function FanficDetailPage() {
         return <div className="empty-state">Fanfic not found.</div>;
     }
 
-    const isAuthor = user?.id === fanfic.author.id;
-    const canEdit = isAuthor || can(user, "edit_any_post");
-    const canDelete = isAuthor || can(user, "delete_any_post");
+    const { canEdit, canDelete } = contentPermissions(user, { family: "fanfic", authorId: fanfic.author.id });
 
     return (
         <div className={styles.page}>
             <span className={styles.back} onClick={() => navigate("/fanfiction")}>
                 &larr; All Fanfiction
             </span>
+
+            {actionError && <ErrorBanner message={actionError} />}
 
             <div className={styles.detail}>
                 <div className={styles.detailHeader}>
@@ -370,7 +344,7 @@ export function FanficDetailPage() {
             </div>
 
             <CommentsSection
-                comments={(fanfic.comments ?? []) as unknown as PostComment[]}
+                comments={fanfic.comments ?? []}
                 targetId={fanfic.id}
                 user={user}
                 onChanged={fetchFanfic}
@@ -379,12 +353,12 @@ export function FanficDetailPage() {
                 linkPrefix="/fanfiction"
                 reportType="fanfic_comment"
                 highlightedId={highlightedComment ?? undefined}
-                likeFn={likeCommentFn}
-                unlikeFn={unlikeCommentFn}
-                deleteFn={deleteCommentFn}
-                updateFn={updateCommentFn}
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
                 createCommentFn={createCommentFn}
-                uploadMediaFn={uploadCommentMediaFn}
+                uploadMediaFn={uploadMediaFn}
             />
 
             {lightboxOpen && fanfic.cover_image_url && (

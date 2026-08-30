@@ -1,8 +1,9 @@
-import { useResignGame } from "../../api/mutations/gameRoom";
+import { useResignGame } from "../../hooks/mutations/gameRoom";
 import { PongBoardView } from "../../components/games/pong/PongBoardView";
+import type { PongState, PongStats } from "../../types/api";
 import { GameRoomShell, type GameBoardProps } from "./GameRoomShell";
 
-function PongBoard({ room, viewer, isSpectator }: GameBoardProps) {
+function PongBoard({ room, viewer, isSpectator }: GameBoardProps<PongState, PongStats>) {
     const resign = useResignGame();
 
     return (

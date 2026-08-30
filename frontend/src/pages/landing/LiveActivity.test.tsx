@@ -7,7 +7,7 @@ import { LiveActivity } from "./LiveActivity";
 
 const { homeActivity } = vi.hoisted(() => ({ homeActivity: { data: null as HomeActivityResponse | null } }));
 
-vi.mock("../../api/queries/sidebar", () => ({
+vi.mock("../../hooks/queries/sidebar", () => ({
     useHomeActivity: () => homeActivity,
 }));
 

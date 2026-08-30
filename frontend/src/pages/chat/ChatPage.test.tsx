@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DmController } from "../../hooks/useDmController";
@@ -20,7 +20,7 @@ vi.mock("../../hooks/useDmController", async importOriginal => {
 
 vi.mock("../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
 
-vi.mock("../../api/endpoints", () => ({ forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant }));
+vi.mock("../../api/endpoints/chat", () => ({ forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant }));
 
 vi.mock("../../components/chat/mobile/MobileDmView", () => ({
     MobileDmView: () => <div data-testid="mobile-dm-view" />,
@@ -101,6 +101,7 @@ interface ControllerOptions {
     dmMutuals?: User[];
     dmError?: string;
     dmCreating?: boolean;
+    toast?: string | null;
 }
 
 function stubController(options: ControllerOptions = {}) {
@@ -117,6 +118,7 @@ function stubController(options: ControllerOptions = {}) {
         handleEditLast: vi.fn(),
         handleDeleteChat: vi.fn(),
         notifyTyping: vi.fn(),
+        showToast: vi.fn(),
         voiceLeave: vi.fn(),
         voiceJoin: vi.fn(),
     };
@@ -152,6 +154,8 @@ function stubController(options: ControllerOptions = {}) {
         dmMutuals: options.dmMutuals ?? [],
         dmError: options.dmError ?? "",
         dmCreating: options.dmCreating ?? false,
+        toast: options.toast ?? null,
+        showToast: handlers.showToast,
         handleRoomSelect: handlers.handleRoomSelect,
         handleMobileBack: handlers.handleMobileBack,
         handleSentMessage: handlers.handleSentMessage,
@@ -432,6 +436,27 @@ describe("ChatPage voice", () => {
 
         // then
         expect(mocks.forceMuteVoiceParticipant).toHaveBeenCalledWith("room-5", "u9", true);
+    });
+
+    it("tells the moderator when a server mute did not take", async () => {
+        // given
+        mocks.forceMuteVoiceParticipant.mockRejectedValue(new Error("LiveKit said no"));
+        const user = userEvent.setup();
+        const { showToast } = renderChat({
+            user: makeUser({ id: "viewer-1", role: "moderator" }),
+            activeRoom: makeRoom({ id: "room-5" }),
+            activeRoomId: "room-5",
+            voiceStatus: "connected",
+            voiceRoom: {},
+        });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "voice bar" }));
+
+        // then
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith("LiveKit said no");
+        });
     });
 });
 

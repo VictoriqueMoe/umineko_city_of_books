@@ -8,7 +8,7 @@ import { JournalsFeedPage } from "./FeedPage";
 
 const { useJournalFeed } = vi.hoisted(() => ({ useJournalFeed: vi.fn() }));
 
-vi.mock("../../api/queries/journal", () => ({ useJournalFeed }));
+vi.mock("../../hooks/queries/journal", () => ({ useJournalFeed }));
 vi.mock("../../components/RulesBox/RulesBox", () => ({
     RulesBox: (props: { page: string }) => <div>{`rules for ${props.page}`}</div>,
 }));

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useAdminUsers: mocks.useAdminUsers }));
+vi.mock("../../hooks/queries/admin", () => ({ useAdminUsers: mocks.useAdminUsers }));
 
 vi.mock("react-router", async () => {
     const actual = await vi.importActual<typeof import("react-router")>("react-router");

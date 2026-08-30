@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useAuthedUser } from "../../hooks/useAuthedUser";
-import { useProfile } from "../../api/queries/profile";
-import { useUpdateChatbotOptIn } from "../../api/mutations/auth";
+import { useProfile } from "../../hooks/queries/profile";
+import { useUpdateChatbotOptIn } from "../../hooks/mutations/auth";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import styles from "./SettingsPage.module.css";

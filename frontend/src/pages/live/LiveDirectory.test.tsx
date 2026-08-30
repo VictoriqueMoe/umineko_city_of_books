@@ -1,22 +1,22 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LiveStream, LiveStreamListResponse } from "../../api/endpoints";
 import { makeUser } from "../../test-utils/fixtures";
-import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
-import type { WSMessage } from "../../types/api";
+import { renderWithProviders } from "../../test-utils/render";
+import type { LiveStream, LiveStreamListResponse } from "../../types/api";
 import { LiveDirectory } from "./LiveDirectory";
 
-const mocks = vi.hoisted(() => ({ listLiveStreams: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+    listLiveStreams: vi.fn(),
+    getStream: vi.fn(),
+    getMyStream: vi.fn(),
+    getStreamCredentials: vi.fn(),
+}));
 
-vi.mock("../../api/endpoints", () => ({ listLiveStreams: mocks.listLiveStreams }));
+vi.mock("../../api/endpoints/stream", () => mocks);
 
 vi.mock("../../components/live/GoLivePanel", () => ({
-    GoLivePanel: (props: { onChanged?: () => void }) => (
-        <button type="button" onClick={props.onChanged}>
-            go live panel
-        </button>
-    ),
+    GoLivePanel: () => <div>go live panel</div>,
 }));
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
@@ -42,20 +42,7 @@ function stubStreams(response: Partial<LiveStreamListResponse> = {}) {
 }
 
 function renderDirectory(options: { user?: ReturnType<typeof makeUser> | null } = {}) {
-    const listeners: ((msg: WSMessage) => void)[] = [];
-    const queryClient = createTestQueryClient();
-    const result = renderWithProviders(<LiveDirectory />, {
-        user: options.user ?? null,
-        queryClient,
-        notification: {
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
-        },
-    });
-
-    return { ...result, listeners, queryClient };
+    return renderWithProviders(<LiveDirectory />, { user: options.user ?? null });
 }
 
 beforeEach(() => {
@@ -120,9 +107,9 @@ describe("LiveDirectory", () => {
         await user.click(goLive);
 
         // then
-        expect(screen.getByRole("button", { name: "go live panel" })).toBeInTheDocument();
+        expect(screen.getByText("go live panel")).toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: "Close" }));
-        expect(screen.queryByRole("button", { name: "go live panel" })).not.toBeInTheDocument();
+        expect(screen.queryByText("go live panel")).not.toBeInTheDocument();
     });
 
     it("lists each live stream with its title, streamer and watcher count", async () => {
@@ -177,79 +164,5 @@ describe("LiveDirectory", () => {
         const sources = Array.from(container.querySelectorAll("img")).map(img => img.getAttribute("src"));
         expect(sources).toContain("/media/thumb.png");
         expect(sources.filter(src => src === "/media/avatar.png")).toHaveLength(1);
-    });
-
-    it("refetches the directory when a stream goes live", async () => {
-        // given
-        const { listeners, queryClient } = renderDirectory();
-        await screen.findByText("No one is live right now. Be the first!");
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "stream_live", data: {} });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["streams", "live"] });
-    });
-
-    it("refetches the directory when a stream goes offline", async () => {
-        // given
-        const { listeners, queryClient } = renderDirectory();
-        await screen.findByText("No one is live right now. Be the first!");
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "stream_offline", data: {} });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["streams", "live"] });
-    });
-
-    it("updates a single stream's watcher count in place", async () => {
-        // given
-        stubStreams({ streams: [makeStream({ id: "stream-9", viewerCount: 2 })] });
-        const { listeners } = renderDirectory();
-        await screen.findByText("Reading Episode 4");
-
-        // when
-        listeners[0]({ type: "stream_viewers", data: { streamId: "stream-9", viewerCount: 44 } });
-
-        // then
-        await waitFor(() => {
-            expect(screen.getByText(/44/)).toBeInTheDocument();
-        });
-    });
-
-    it("updates a single stream's title in place", async () => {
-        // given
-        stubStreams({ streams: [makeStream({ id: "stream-9" })] });
-        const { listeners } = renderDirectory();
-        await screen.findByText("Reading Episode 4");
-
-        // when
-        listeners[0]({ type: "stream_title", data: { streamId: "stream-9", title: "Now solving the epitaph" } });
-
-        // then
-        await waitFor(() => {
-            expect(screen.getByText("Now solving the epitaph")).toBeInTheDocument();
-        });
-    });
-
-    it("leaves other streams alone when one of them changes title", async () => {
-        // given
-        stubStreams({
-            streams: [makeStream({ id: "stream-9" }), makeStream({ id: "stream-8", title: "Higurashi marathon" })],
-        });
-        const { listeners } = renderDirectory();
-        await screen.findByText("Higurashi marathon");
-
-        // when
-        listeners[0]({ type: "stream_title", data: { streamId: "stream-9", title: "Now solving the epitaph" } });
-
-        // then
-        await waitFor(() => {
-            expect(screen.getByText("Now solving the epitaph")).toBeInTheDocument();
-        });
-        expect(screen.getByText("Higurashi marathon")).toBeInTheDocument();
     });
 });

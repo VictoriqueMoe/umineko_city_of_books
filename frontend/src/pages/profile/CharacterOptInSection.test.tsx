@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteInfo } from "../../api/endpoints";
+import type { SiteInfo } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { makeUser } from "../../test-utils/fixtures";
 import { CharacterOptInSection } from "./CharacterOptInSection";
@@ -12,8 +12,8 @@ const mocks = vi.hoisted(() => ({
     pending: false,
 }));
 
-vi.mock("../../api/queries/profile", () => ({ useProfile: mocks.useProfile }));
-vi.mock("../../api/mutations/auth", () => ({
+vi.mock("../../hooks/queries/profile", () => ({ useProfile: mocks.useProfile }));
+vi.mock("../../hooks/mutations/auth", () => ({
     useUpdateChatbotOptIn: () => ({ mutate: mocks.mutate, isPending: mocks.pending }),
 }));
 

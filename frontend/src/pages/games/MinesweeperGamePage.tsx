@@ -1,8 +1,9 @@
-import { useResignGame, useSubmitGameAction } from "../../api/mutations/gameRoom";
+import { useResignGame, useSubmitGameAction } from "../../hooks/mutations/gameRoom";
 import { MinesweeperBoardView } from "../../components/games/minesweeper/MinesweeperBoardView";
+import type { MinesweeperState, MinesweeperStats } from "../../types/api";
 import { GameRoomShell, type GameBoardProps } from "./GameRoomShell";
 
-function MinesweeperBoard({ room, viewer, isSpectator }: GameBoardProps) {
+function MinesweeperBoard({ room, viewer, isSpectator }: GameBoardProps<MinesweeperState, MinesweeperStats>) {
     const submitAction = useSubmitGameAction(room.id);
     const resign = useResignGame();
 

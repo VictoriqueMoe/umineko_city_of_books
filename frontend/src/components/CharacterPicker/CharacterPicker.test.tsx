@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
     useUserOCSummaries: vi.fn(),
 }));
 
-vi.mock("../../api/queries/character", () => ({ useCharacterList: mocks.useCharacterList }));
-vi.mock("../../api/queries/oc", () => ({ useUserOCSummaries: mocks.useUserOCSummaries }));
+vi.mock("../../hooks/queries/character", () => ({ useCharacterList: mocks.useCharacterList }));
+vi.mock("../../hooks/queries/oc", () => ({ useUserOCSummaries: mocks.useUserOCSummaries }));
 
 const author = makeUser({ id: "user-1" });
 

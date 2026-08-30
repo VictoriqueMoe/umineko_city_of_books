@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router";
-import { recordLocation } from "../../utils/lastLocation";
+import { recordLocation } from "../../platform/lastLocation";
 
 export function LastLocationTracker() {
     const location = useLocation();

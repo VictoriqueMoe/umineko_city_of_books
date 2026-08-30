@@ -3,7 +3,7 @@ import type { JournalWork } from "../../../types/api";
 import { Input } from "../../Input/Input";
 import { Select } from "../../Select/Select";
 import { Button } from "../../Button/Button";
-import { JOURNAL_WORKS } from "../../../utils/journalWorks";
+import { JOURNAL_WORKS } from "../../../domain/journal";
 import styles from "./JournalForm.module.css";
 
 interface JournalFormProps {

@@ -2,7 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useImperativeHandle, type Ref } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteInfo } from "../../api/endpoints";
+import type { SiteInfo } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { LoginPage } from "./LoginPage";
 
@@ -43,7 +43,7 @@ vi.mock("react-router", async () => {
     return { ...actual, useNavigate: () => mocks.navigate };
 });
 
-vi.mock("../../utils/lastLocation", () => ({ getLastLocation: mocks.getLastLocation }));
+vi.mock("../../platform/lastLocation", () => ({ getLastLocation: mocks.getLastLocation }));
 
 function setup(siteInfo: Partial<SiteInfo> = {}) {
     const user = userEvent.setup();

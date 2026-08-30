@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
@@ -13,9 +13,9 @@ const mocks = vi.hoisted(() => ({
     pin: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useAdminAnnouncements: mocks.useAdminAnnouncements }));
+vi.mock("../../hooks/queries/admin", () => ({ useAdminAnnouncements: mocks.useAdminAnnouncements }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useCreateAnnouncement: () => ({ mutateAsync: mocks.create, isPending: false }),
     useUpdateAnnouncement: () => ({ mutateAsync: mocks.update, isPending: false }),
     useDeleteAnnouncement: () => ({ mutateAsync: mocks.remove, isPending: false }),
@@ -128,6 +128,55 @@ describe("AdminAnnouncements", () => {
         expect(await screen.findByRole("button", { name: "Create Announcement" })).toBeInTheDocument();
     });
 
+    it("reports why an announcement could not be published", async () => {
+        // given
+        stubAnnouncements([]);
+        mocks.create.mockRejectedValue(new Error("the golden land refuses"));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminAnnouncements />);
+        await user.click(screen.getByRole("button", { name: "Create Announcement" }));
+        await user.type(screen.getByPlaceholderText("Announcement title..."), "The witch returns");
+        await user.type(screen.getByPlaceholderText("Write your announcement in Markdown..."), "A new game.");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Publish" }));
+
+        // then
+        expect(await screen.findByText("the golden land refuses")).toBeInTheDocument();
+    });
+
+    it("falls back to a plain message when a failed save gives no reason", async () => {
+        // given
+        stubAnnouncements([]);
+        mocks.create.mockRejectedValue(new Error(""));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminAnnouncements />);
+        await user.click(screen.getByRole("button", { name: "Create Announcement" }));
+        await user.type(screen.getByPlaceholderText("Announcement title..."), "The witch returns");
+        await user.type(screen.getByPlaceholderText("Write your announcement in Markdown..."), "A new game.");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Publish" }));
+
+        // then
+        expect(await screen.findByText("Failed to save the announcement")).toBeInTheDocument();
+    });
+
+    it("reports why an edit could not be saved", async () => {
+        // given
+        stubAnnouncements([makeAnnouncement({ id: "ann-9" })]);
+        mocks.update.mockRejectedValue(new Error("the golden land refuses"));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminAnnouncements />);
+        await user.click(screen.getByRole("button", { name: "Edit" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+
+        // then
+        expect(await screen.findByText("the golden land refuses")).toBeInTheDocument();
+    });
+
     it("keeps the editor open when publishing fails", async () => {
         // given
         stubAnnouncements([]);
@@ -210,30 +259,33 @@ describe("AdminAnnouncements", () => {
         expect(screen.queryByPlaceholderText("Write your announcement in Markdown...")).not.toBeInTheDocument();
     });
 
-    it("asks before deleting an announcement", async () => {
+    it("asks before deleting an announcement and deletes nothing when the ask is refused", async () => {
         // given
         stubAnnouncements([makeAnnouncement()]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderWithProviders(<AdminAnnouncements />);
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Announcement" });
+        expect(within(dialog).getByText("Delete this announcement?")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
         // then
-        expect(confirm).toHaveBeenCalledWith("Delete this announcement?");
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(mocks.remove).not.toHaveBeenCalled();
     });
 
     it("deletes the announcement once confirmed", async () => {
         // given
         stubAnnouncements([makeAnnouncement({ id: "ann-4" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminAnnouncements />);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Announcement" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
         // then
         expect(mocks.remove).toHaveBeenCalledWith("ann-4");
@@ -243,12 +295,13 @@ describe("AdminAnnouncements", () => {
         // given
         stubAnnouncements([makeAnnouncement({ id: "ann-4" })]);
         mocks.remove.mockRejectedValue(new Error("the golden land refuses"));
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminAnnouncements />);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Announcement" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
         // then
         expect(await screen.findByText("the golden land refuses")).toBeInTheDocument();

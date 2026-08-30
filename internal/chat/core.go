@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -374,14 +375,9 @@ func (c *core) normaliseRoomInput(ctx context.Context, rawName, rawDescription s
 		return "", "", nil, err
 	}
 
-	if len(name) > maxRoomNameLength {
-		name = name[:maxRoomNameLength]
-	}
+	name = text.ClampRunes(name, maxRoomNameLength)
 
-	description := strings.TrimSpace(rawDescription)
-	if len(description) > maxRoomDescriptionLength {
-		description = description[:maxRoomDescriptionLength]
-	}
+	description := text.ClampRunes(strings.TrimSpace(rawDescription), maxRoomDescriptionLength)
 
 	return name, description, sanitizeTags(rawTags), nil
 }

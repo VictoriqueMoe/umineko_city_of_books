@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { User } from "../../../types/api";
-import { useMutualFollowers, useSearchUsers } from "../../../api/queries/misc";
-import { useInviteChatRoomMembers } from "../../../api/mutations/chat";
+import { useMutualFollowers, useSearchUsers } from "../../../hooks/queries/user";
+import { useInviteChatRoomMembers } from "../../../hooks/mutations/chat";
 import { Modal } from "../../Modal/Modal";
 import { Input } from "../../Input/Input";
 import { Button } from "../../Button/Button";

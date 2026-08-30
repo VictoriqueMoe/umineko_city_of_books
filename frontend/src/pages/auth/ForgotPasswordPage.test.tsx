@@ -2,7 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useImperativeHandle, type Ref } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PublicUser, SiteInfo } from "../../api/endpoints";
+import type { PublicUser, SiteInfo } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { ForgotPasswordPage } from "./ForgotPasswordPage";
 
@@ -42,11 +42,11 @@ vi.mock("react-router", async () => {
     return { ...actual, useNavigate: () => mocks.navigate };
 });
 
-vi.mock("../../api/mutations/auth", () => ({
+vi.mock("../../hooks/mutations/auth", () => ({
     useForgotPassword: () => ({ mutateAsync: mocks.forgotPassword }),
 }));
 
-vi.mock("../../api/queries/auth", () => ({ useStaff: mocks.useStaff }));
+vi.mock("../../hooks/queries/site", () => ({ useStaff: mocks.useStaff }));
 
 const SENT_NOTICE =
     "If an account with that username exists and has an email address, a reset link has been sent to it.";

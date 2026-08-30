@@ -1,4 +1,5 @@
-import { clientPlatform, getAuthToken, isNativeApp, setAuthToken } from "../utils/authToken";
+import { getAuthToken, setAuthToken } from "./authToken";
+import { clientPlatform, isNativeApp } from "../platform/capabilities";
 
 const API_ORIGIN = import.meta.env.VITE_API_BASE ?? "";
 const API_PREFIX = "/api/v1";
@@ -81,18 +82,33 @@ function captureSessionToken(response: Response): void {
     }
 }
 
+async function failIfNotOk(response: Response): Promise<void> {
+    if (response.ok) {
+        return;
+    }
+
+    const body = await response.json().catch(() => null);
+    const message = (body as { error?: string } | null)?.error ?? `API error: ${response.status}`;
+    throw new ApiError(response.status, message, body);
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
     captureSessionToken(response);
 
-    if (!response.ok) {
-        const body = await response.json().catch(() => null);
-        const message = (body as { error?: string } | null)?.error ?? `API error: ${response.status}`;
-        throw new ApiError(response.status, message, body);
-    }
+    await failIfNotOk(response);
+
     if (response.status === 204 || response.headers.get("content-length") === "0") {
         return undefined as T;
     }
     return absolutizeMedia<T>(await response.json());
+}
+
+async function handleTextResponse(response: Response): Promise<string> {
+    captureSessionToken(response);
+
+    await failIfNotOk(response);
+
+    return response.text();
 }
 
 export async function apiFetch<T>(path: string): Promise<T> {
@@ -103,7 +119,15 @@ export async function apiFetch<T>(path: string): Promise<T> {
     return handleResponse<T>(response);
 }
 
-export async function apiPost<T, B>(path: string, body: B): Promise<T> {
+export async function apiFetchText(path: string): Promise<string> {
+    const response = await fetch(endpoint(path), {
+        credentials: "include",
+        headers: authHeaders(),
+    });
+    return handleTextResponse(response);
+}
+
+export async function apiPost<T, B = unknown>(path: string, body: B): Promise<T> {
     const response = await fetch(endpoint(path), {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -113,7 +137,7 @@ export async function apiPost<T, B>(path: string, body: B): Promise<T> {
     return handleResponse<T>(response);
 }
 
-export async function apiPut<T, B>(path: string, body: B): Promise<T> {
+export async function apiPut<T, B = unknown>(path: string, body: B): Promise<T> {
     const response = await fetch(endpoint(path), {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -123,7 +147,7 @@ export async function apiPut<T, B>(path: string, body: B): Promise<T> {
     return handleResponse<T>(response);
 }
 
-export async function apiPatch<T, B>(path: string, body: B): Promise<T> {
+export async function apiPatch<T, B = unknown>(path: string, body: B): Promise<T> {
     const response = await fetch(endpoint(path), {
         method: "PATCH",
         headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -142,7 +166,7 @@ export async function apiDelete<T>(path: string): Promise<T> {
     return handleResponse<T>(response);
 }
 
-export async function apiDeleteWithBody<T, B>(path: string, body: B): Promise<T> {
+export async function apiDeleteWithBody<T, B = unknown>(path: string, body: B): Promise<T> {
     const response = await fetch(endpoint(path), {
         method: "DELETE",
         headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -160,6 +184,13 @@ export async function apiPostFormData<T>(path: string, formData: FormData): Prom
         headers: authHeaders(),
     });
     return handleResponse<T>(response);
+}
+
+export async function postFile<T>(path: string, field: string, file: File): Promise<T> {
+    const formData = new FormData();
+    formData.append(field, file);
+
+    return apiPostFormData<T>(path, formData);
 }
 
 const ZERO_MEANS_UNSET_KEYS = new Set(["offset", "page"]);

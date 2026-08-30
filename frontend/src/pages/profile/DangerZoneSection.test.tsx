@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     setUser: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/auth", () => ({ useDeleteAccount: mocks.useDeleteAccount }));
+vi.mock("../../hooks/mutations/auth", () => ({ useDeleteAccount: mocks.useDeleteAccount }));
 
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import type { Poll } from "../../../types/api";
-import { useVotePoll } from "../../../api/mutations/post";
+import { useVotePoll } from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
 import { parseServerDate } from "../../../utils/time";
 import { Button } from "../../Button/Button";

@@ -1,18 +1,16 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
-import { queryKeys } from "../../api/queryKeys";
 import { renderWithProviders } from "../../test-utils/render";
-import type { Notification, WSMessage } from "../../types/api";
+import type { Notification } from "../../types/api";
 import { NotificationsPage } from "./NotificationsPage";
 
-const { useNotificationsQuery, navigate } = vi.hoisted(() => ({
-    useNotificationsQuery: vi.fn(),
+const { useNotificationFeed, navigate } = vi.hoisted(() => ({
+    useNotificationFeed: vi.fn(),
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/notification", () => ({ useNotifications: useNotificationsQuery }));
+vi.mock("../../hooks/useNotificationFeed", () => ({ useNotificationFeed }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };
@@ -20,8 +18,6 @@ vi.mock("react-router", async importOriginal => {
 
 const beatrice = { id: "user-1", username: "beatrice", display_name: "Beatrice" };
 const ange = { id: "user-2", username: "ange", display_name: "Ange" };
-
-const listKey = queryKeys.notifications.list({ limit: 50, offset: 0 });
 
 function makeNotification(overrides: Partial<Notification> = {}): Notification {
     return {
@@ -58,55 +54,41 @@ interface StubOptions {
     notifications?: Notification[];
     total?: number;
     loading?: boolean;
+    markingId?: number | null;
+    markRead?: (notif: Notification) => Promise<void>;
+    markAllRead?: () => Promise<void>;
 }
 
-function stubQuery(options: StubOptions = {}) {
-    const refresh = vi.fn(() => Promise.resolve(undefined));
-    useNotificationsQuery.mockReturnValue({
-        notifications: options.notifications ?? [],
-        total: options.total ?? options.notifications?.length ?? 0,
+function stubFeed(options: StubOptions = {}) {
+    const notifications = options.notifications ?? [];
+    const total = options.total ?? notifications.length;
+    const markRead = vi.fn(options.markRead ?? (() => Promise.resolve()));
+    const markAllRead = vi.fn(options.markAllRead ?? (() => Promise.resolve()));
+    const loadMore = vi.fn();
+
+    useNotificationFeed.mockReturnValue({
+        notifications,
+        total,
         loading: options.loading ?? false,
-        refresh,
+        hasMore: notifications.length < total,
+        loadMore,
+        markingId: options.markingId ?? null,
+        markRead,
+        markAllRead,
     });
 
-    return { refresh };
-}
-
-function seededClient(notifications: Notification[]): QueryClient {
-    const client = new QueryClient({
-        defaultOptions: { queries: { retry: false, gcTime: Infinity }, mutations: { retry: false } },
-    });
-    client.setQueryData(listKey, { notifications, total: notifications.length });
-
-    return client;
-}
-
-function cachedList(client: QueryClient) {
-    return client.getQueryData<{ notifications: Notification[]; total: number }>(listKey);
+    return { markRead, markAllRead, loadMore };
 }
 
 interface PageOptions {
     unreadCount?: number;
-    markRead?: (id: number) => Promise<void>;
-    markAllRead?: () => Promise<void>;
-    listeners?: ((msg: WSMessage) => void)[];
-    queryClient?: QueryClient;
 }
 
 function renderPage(options: PageOptions = {}) {
-    const listeners = options.listeners ?? [];
-
     return renderWithProviders(<NotificationsPage />, {
         route: "/notifications",
-        queryClient: options.queryClient,
         notification: {
             unreadCount: options.unreadCount ?? 0,
-            markRead: options.markRead ?? (() => Promise.resolve()),
-            markAllRead: options.markAllRead ?? (() => Promise.resolve()),
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
         },
     });
 }
@@ -114,7 +96,7 @@ function renderPage(options: PageOptions = {}) {
 describe("NotificationsPage", () => {
     it("waits while the first page of notifications is loading", () => {
         // given
-        stubQuery({ loading: true, notifications: [] });
+        stubFeed({ loading: true, notifications: [] });
 
         // when
         renderPage();
@@ -125,7 +107,7 @@ describe("NotificationsPage", () => {
 
     it("says the inbox is empty when nothing has ever arrived", () => {
         // given
-        stubQuery({ notifications: [] });
+        stubFeed({ notifications: [] });
 
         // when
         renderPage();
@@ -135,20 +117,20 @@ describe("NotificationsPage", () => {
         expect(screen.queryByRole("button", { name: /Unread/ })).not.toBeInTheDocument();
     });
 
-    it("asks for the first fifty notifications", () => {
+    it("shows the feed the hook handed it", () => {
         // given
-        stubQuery();
+        stubFeed({ notifications: [liked] });
 
         // when
-        renderPage();
+        renderPage({ unreadCount: 1 });
 
         // then
-        expect(useNotificationsQuery).toHaveBeenLastCalledWith(50, 0);
+        expect(screen.getByText("liked your post")).toHaveTextContent("Beatrice liked your post");
     });
 
     it("opens on the unread tab and leaves the read ones out", () => {
         // given
-        stubQuery({ notifications: [liked, followed] });
+        stubFeed({ notifications: [liked, followed] });
 
         // when
         renderPage({ unreadCount: 1 });
@@ -160,7 +142,7 @@ describe("NotificationsPage", () => {
 
     it("says there is nothing unread once everything has been read", () => {
         // given
-        stubQuery({ notifications: [followed] });
+        stubFeed({ notifications: [followed] });
 
         // when
         renderPage({ unreadCount: 0 });
@@ -171,7 +153,7 @@ describe("NotificationsPage", () => {
 
     it("hides the mark all button when nothing is unread", () => {
         // given
-        stubQuery({ notifications: [followed] });
+        stubFeed({ notifications: [followed] });
 
         // when
         renderPage({ unreadCount: 0 });
@@ -180,43 +162,38 @@ describe("NotificationsPage", () => {
         expect(screen.queryByRole("button", { name: "Mark all as read" })).not.toBeInTheDocument();
     });
 
-    it("marks the whole inbox read and stops showing them as unread", async () => {
+    it("asks the feed to mark the whole inbox read", async () => {
         // given
-        stubQuery({ notifications: [liked, artLiked] });
-        const markAllRead = vi.fn(() => Promise.resolve());
-        const queryClient = seededClient([liked, artLiked]);
+        const { markAllRead } = stubFeed({ notifications: [liked, artLiked] });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 2, markAllRead, queryClient });
+        renderPage({ unreadCount: 2 });
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark all as read" }));
 
         // then
         expect(markAllRead).toHaveBeenCalledOnce();
-        expect(cachedList(queryClient)?.notifications.every(n => n.read)).toBe(true);
     });
 
     it("marks a notification read and follows it to the content it points at", async () => {
         // given
-        stubQuery({ notifications: [liked] });
-        const markRead = vi.fn(() => Promise.resolve());
+        const { markRead } = stubFeed({ notifications: [liked] });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 1, markRead });
+        renderPage({ unreadCount: 1 });
 
         // when
         await user.click(screen.getByText("liked your post"));
 
         // then
-        expect(markRead).toHaveBeenCalledWith(1);
+        expect(markRead).toHaveBeenCalledWith(liked);
         expect(navigate).toHaveBeenCalledWith("/game-board/post-1");
     });
 
     it("does not mark an already read notification again", async () => {
         // given
-        stubQuery({ notifications: [followed] });
-        const markRead = vi.fn(() => Promise.resolve());
+        const { markRead } = stubFeed({ notifications: [followed] });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 0, markRead });
+        renderPage({ unreadCount: 0 });
         await user.click(screen.getByRole("button", { name: "All" }));
 
         // when
@@ -229,30 +206,24 @@ describe("NotificationsPage", () => {
 
     it("keeps the reader in place when they only dismiss a notification", async () => {
         // given
-        stubQuery({ notifications: [liked] });
-        const markRead = vi.fn(() => Promise.resolve());
-        const queryClient = seededClient([liked]);
+        const { markRead } = stubFeed({ notifications: [liked] });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 1, markRead, queryClient });
+        renderPage({ unreadCount: 1 });
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark as read" }));
 
         // then
-        expect(markRead).toHaveBeenCalledWith(1);
+        expect(markRead).toHaveBeenCalledWith(liked);
         expect(navigate).not.toHaveBeenCalled();
-        expect(cachedList(queryClient)?.notifications[0].read).toBe(true);
     });
 
-    it("shows the dismissal is in flight while the server is still thinking", async () => {
+    it("shows the dismissal is in flight while the feed says it is still marking", async () => {
         // given
-        stubQuery({ notifications: [liked] });
-        const markRead = vi.fn(() => new Promise<void>(() => {}));
-        const user = userEvent.setup();
-        renderPage({ unreadCount: 1, markRead });
+        stubFeed({ notifications: [liked], markingId: 1 });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Mark as read" }));
+        renderPage({ unreadCount: 1 });
 
         // then
         await waitFor(() => expect(screen.getByRole("button", { name: "Marking..." })).toBeDisabled());
@@ -260,7 +231,7 @@ describe("NotificationsPage", () => {
 
     it("offers a tab for every category that has something in it", () => {
         // given
-        stubQuery({ notifications: [liked, followed, artLiked] });
+        stubFeed({ notifications: [liked, followed, artLiked] });
 
         // when
         renderPage({ unreadCount: 2 });
@@ -274,7 +245,7 @@ describe("NotificationsPage", () => {
 
     it("badges a category tab with how many of its notifications are unread", () => {
         // given
-        stubQuery({ notifications: [liked, followed, artLiked] });
+        stubFeed({ notifications: [liked, followed, artLiked] });
 
         // when
         renderPage({ unreadCount: 2 });
@@ -287,7 +258,7 @@ describe("NotificationsPage", () => {
 
     it("groups everything by category once the reader asks for all of it", async () => {
         // given
-        stubQuery({ notifications: [liked, followed, artLiked] });
+        stubFeed({ notifications: [liked, followed, artLiked] });
         const user = userEvent.setup();
         renderPage({ unreadCount: 2 });
 
@@ -302,7 +273,7 @@ describe("NotificationsPage", () => {
 
     it("narrows the list to the single category the reader picked", async () => {
         // given
-        stubQuery({ notifications: [liked, followed, artLiked] });
+        stubFeed({ notifications: [liked, followed, artLiked] });
         const user = userEvent.setup();
         renderPage({ unreadCount: 2 });
 
@@ -317,7 +288,7 @@ describe("NotificationsPage", () => {
 
     it("hides the load more button when the whole inbox is already on screen", () => {
         // given
-        stubQuery({ notifications: [liked], total: 1 });
+        stubFeed({ notifications: [liked], total: 1 });
 
         // when
         renderPage({ unreadCount: 1 });
@@ -326,9 +297,9 @@ describe("NotificationsPage", () => {
         expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
     });
 
-    it("asks for a bigger page of the inbox when there is more to see", async () => {
+    it("asks the feed for a bigger page when there is more to see", async () => {
         // given
-        stubQuery({ notifications: [liked], total: 80 });
+        const { loadMore } = stubFeed({ notifications: [liked], total: 80 });
         const user = userEvent.setup();
         renderPage({ unreadCount: 1 });
 
@@ -336,12 +307,12 @@ describe("NotificationsPage", () => {
         await user.click(screen.getByRole("button", { name: "Load more" }));
 
         // then
-        expect(useNotificationsQuery).toHaveBeenLastCalledWith(100, 0);
+        expect(loadMore).toHaveBeenCalledOnce();
     });
 
-    it("keeps growing the page every time the reader asks for more", async () => {
+    it("keeps asking every time the reader wants more", async () => {
         // given
-        stubQuery({ notifications: [liked], total: 300 });
+        const { loadMore } = stubFeed({ notifications: [liked], total: 300 });
         const user = userEvent.setup();
         renderPage({ unreadCount: 1 });
 
@@ -350,29 +321,14 @@ describe("NotificationsPage", () => {
         await user.click(screen.getByRole("button", { name: "Load more" }));
 
         // then
-        expect(useNotificationsQuery).toHaveBeenLastCalledWith(150, 0);
-    });
-
-    it("subscribes to the socket once and keeps that listener through a filter change", async () => {
-        // given
-        stubQuery({ notifications: [liked, followed] });
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const user = userEvent.setup();
-        renderPage({ unreadCount: 1, listeners });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "All" }));
-
-        // then
-        expect(listeners).toHaveLength(1);
+        expect(loadMore).toHaveBeenCalledTimes(2);
     });
 
     it("still follows the notification when marking it read fails", async () => {
         // given
-        stubQuery({ notifications: [liked] });
-        const markRead = vi.fn(() => Promise.reject(new Error("the servants are asleep")));
+        stubFeed({ notifications: [liked], markRead: () => Promise.reject(new Error("the servants are asleep")) });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 1, markRead });
+        renderPage({ unreadCount: 1 });
 
         // when
         await user.click(screen.getByText("liked your post"));
@@ -381,96 +337,38 @@ describe("NotificationsPage", () => {
         expect(navigate).toHaveBeenCalledWith("/game-board/post-1");
     });
 
-    it("offers the dismissal again when marking one read fails", async () => {
+    it("keeps the dismissal offered when marking one read fails", async () => {
         // given
-        stubQuery({ notifications: [liked] });
-        const markRead = vi.fn(() => Promise.reject(new Error("the servants are asleep")));
-        const queryClient = seededClient([liked]);
+        stubFeed({ notifications: [liked], markRead: () => Promise.reject(new Error("the servants are asleep")) });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 1, markRead, queryClient });
+        renderPage({ unreadCount: 1 });
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark as read" }));
 
         // then
         expect(await screen.findByRole("button", { name: "Mark as read" })).toBeEnabled();
-        expect(cachedList(queryClient)?.notifications[0].read).toBe(false);
     });
 
-    it("leaves the inbox unread when marking everything read fails", async () => {
+    it("stays on its feet when marking everything read fails", async () => {
         // given
-        stubQuery({ notifications: [liked, artLiked] });
-        const markAllRead = vi.fn(() => Promise.reject(new Error("the servants are asleep")));
-        const queryClient = seededClient([liked, artLiked]);
+        stubFeed({
+            notifications: [liked, artLiked],
+            markAllRead: () => Promise.reject(new Error("the servants are asleep")),
+        });
         const user = userEvent.setup();
-        renderPage({ unreadCount: 2, markAllRead, queryClient });
+        renderPage({ unreadCount: 2 });
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark all as read" }));
 
         // then
-        expect(cachedList(queryClient)?.notifications.every(n => !n.read)).toBe(true);
-    });
-
-    it("drops a live notification straight into the cached list", () => {
-        // given
-        stubQuery({ notifications: [liked] });
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = seededClient([liked]);
-        renderPage({ unreadCount: 1, listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({ type: "notification", data: artLiked });
-            }
-        });
-
-        // then
-        expect(cachedList(queryClient)?.notifications.map(n => n.id)).toEqual([3, 1]);
-        expect(cachedList(queryClient)?.total).toBe(2);
-    });
-
-    it("refuses to list the same live notification twice", () => {
-        // given
-        stubQuery({ notifications: [liked] });
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = seededClient([liked]);
-        renderPage({ unreadCount: 1, listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({ type: "notification", data: liked });
-            }
-        });
-
-        // then
-        expect(cachedList(queryClient)?.notifications).toHaveLength(1);
-        expect(cachedList(queryClient)?.total).toBe(1);
-    });
-
-    it("ignores socket traffic that is not a notification", () => {
-        // given
-        stubQuery({ notifications: [liked] });
-        const listeners: ((msg: WSMessage) => void)[] = [];
-        const queryClient = seededClient([liked]);
-        renderPage({ unreadCount: 1, listeners, queryClient });
-
-        // when
-        act(() => {
-            for (const listener of listeners) {
-                listener({ type: "presence", data: artLiked });
-            }
-        });
-
-        // then
-        expect(cachedList(queryClient)?.notifications).toHaveLength(1);
+        expect(screen.getByText("liked your post")).toBeInTheDocument();
     });
 
     it("shows a bundled chat room notification as the server worded it", () => {
         // given
-        stubQuery({
+        stubFeed({
             notifications: [
                 makeNotification({
                     id: 7,
@@ -492,7 +390,7 @@ describe("NotificationsPage", () => {
 
     it("names the staff role behind an edit to the reader's content", () => {
         // given
-        stubQuery({
+        stubFeed({
             notifications: [
                 makeNotification({
                     id: 8,
@@ -515,7 +413,7 @@ describe("NotificationsPage", () => {
 
     it("falls back to the plain wording when there is no actor to name", () => {
         // given
-        stubQuery({
+        stubFeed({
             notifications: [
                 makeNotification({
                     id: 9,

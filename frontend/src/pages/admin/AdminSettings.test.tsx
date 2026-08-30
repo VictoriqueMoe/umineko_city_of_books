@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
@@ -16,13 +16,13 @@ const mocks = vi.hoisted(() => ({
     savePending: false,
 }));
 
-vi.mock("../../api/queries/admin", () => ({
+vi.mock("../../hooks/queries/admin", () => ({
     useAdminSettings: mocks.useAdminSettings,
     useChatbotModels: mocks.useChatbotModels,
     useAdminPermissions: mocks.useAdminPermissions,
 }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useUpdateAdminSettings: () => ({ mutateAsync: mocks.update, isPending: mocks.savePending }),
     useSendTestEmail: () => ({ mutateAsync: mocks.sendTestEmail, isPending: false }),
     useTestChatbotModel: () => ({ mutateAsync: mocks.testModel, isPending: false }),
@@ -717,78 +717,6 @@ describe("AdminSettings chatbot opt in role", () => {
     });
 });
 
-describe("AdminSettings validation", () => {
-    it("refuses to save while the max body size is still zero", async () => {
-        // given
-        stubSettings({});
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(screen.getByText("Max body size must be greater than 0")).toBeInTheDocument();
-        expect(mocks.update).not.toHaveBeenCalled();
-    });
-
-    it("refuses an image limit that is larger than the whole request limit", async () => {
-        // given
-        stubSettings({ ...VALID, max_image_size: String(60 * 1024 * 1024) });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(screen.getByText("Max image size (60 MB) cannot exceed max body size (50 MB)")).toBeInTheDocument();
-        expect(mocks.update).not.toHaveBeenCalled();
-    });
-
-    it("refuses a session shorter than a day", async () => {
-        // given
-        stubSettings({ ...VALID, session_duration_days: "0" });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(screen.getByText("Session duration must be at least 1 day")).toBeInTheDocument();
-    });
-
-    it("refuses to switch voice chat on without the LiveKit credentials", async () => {
-        // given
-        stubSettings({ ...VALID, voice_enabled: "true" });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(screen.getByText("Voice chat requires LiveKit URL, API key and API secret")).toBeInTheDocument();
-        expect(mocks.update).not.toHaveBeenCalled();
-    });
-
-    it("refuses the Cloudflare email provider without its credentials", async () => {
-        // given
-        stubSettings({ ...VALID, email_provider: "cloudflare" });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(
-            screen.getByText("Cloudflare email requires account ID, API token and from address"),
-        ).toBeInTheDocument();
-    });
-});
-
 describe("AdminSettings saving", () => {
     it("saves the loaded settings untouched when nothing was edited", async () => {
         // given
@@ -843,70 +771,6 @@ describe("AdminSettings saving", () => {
 
         // then
         expect(screen.getByRole("button", { name: "Saving..." })).toBeDisabled();
-    });
-});
-
-describe("AdminSettings unit conversion", () => {
-    it("shows the file size limits in megabytes", () => {
-        // given
-        stubSettings({ ...VALID });
-
-        // when
-        renderWithProviders(<AdminSettings />);
-
-        // then
-        expect(numberInput("Max Image Size (MB)")).toHaveValue(10);
-        expect(numberInput("Max Body Size (MB)")).toHaveValue(50);
-    });
-
-    it("stores a size typed in megabytes as bytes", async () => {
-        // given
-        stubSettings({ ...VALID });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        fireEvent.change(numberInput("Max Image Size (MB)"), { target: { value: "8" } });
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(mocks.update).toHaveBeenCalledWith({ ...VALID, max_image_size: String(8 * 1024 * 1024) });
-    });
-
-    it("treats a size that is not a number as zero", () => {
-        // given
-        stubSettings({ ...VALID, max_video_size: "not a number" });
-
-        // when
-        renderWithProviders(<AdminSettings />);
-
-        // then
-        expect(numberInput("Max Video Size (MB)")).toHaveValue(0);
-    });
-
-    it("shows the image pixel ceiling in megapixels", () => {
-        // given
-        stubSettings({ ...VALID });
-
-        // when
-        renderWithProviders(<AdminSettings />);
-
-        // then
-        expect(numberInput("Max Image Pixels (megapixels)")).toHaveValue(24);
-    });
-
-    it("stores a pixel ceiling typed in megapixels as pixels", async () => {
-        // given
-        stubSettings({ ...VALID });
-        const user = userEvent.setup();
-        renderWithProviders(<AdminSettings />);
-
-        // when
-        fireEvent.change(numberInput("Max Image Pixels (megapixels)"), { target: { value: "12" } });
-        await user.click(screen.getByRole("button", { name: "Save Settings" }));
-
-        // then
-        expect(mocks.update).toHaveBeenCalledWith({ ...VALID, max_image_pixels: "12000000" });
     });
 });
 

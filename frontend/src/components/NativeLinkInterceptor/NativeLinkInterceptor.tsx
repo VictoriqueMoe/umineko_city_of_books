@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router";
 import { Capacitor } from "@capacitor/core";
-import { isInternalOrigin } from "../../utils/siteOrigin";
+import { isInternalOrigin } from "../../platform/siteOrigin";
 
 export function NativeLinkInterceptor() {
     const navigate = useNavigate();

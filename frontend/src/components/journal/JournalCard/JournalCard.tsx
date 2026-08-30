@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import type { Journal } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
-import { workLabel } from "../../../utils/journalWorks";
+import { workLabel } from "../../../domain/journal";
 import styles from "./JournalCard.module.css";
 
 interface JournalCardProps {

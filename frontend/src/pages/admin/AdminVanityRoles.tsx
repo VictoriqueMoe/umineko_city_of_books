@@ -1,16 +1,18 @@
 import { useState } from "react";
-import type { VanityRoleDefinition } from "../../api/endpoints";
-import { useVanityRoles, useVanityRoleUsers } from "../../api/queries/admin";
+import type { VanityRoleDefinition } from "../../types/api";
+import { useVanityRoles, useVanityRoleUsers } from "../../hooks/queries/admin";
 import {
     useAssignVanityRole,
     useCreateVanityRole,
     useDeleteVanityRole,
     useUnassignVanityRole,
     useUpdateVanityRole,
-} from "../../api/mutations/admin";
-import { useSearchUsers } from "../../api/queries/misc";
+} from "../../hooks/mutations/admin";
+import { useSearchUsers } from "../../hooks/queries/user";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -38,6 +40,8 @@ export function AdminVanityRoles() {
     const [formLabel, setFormLabel] = useState("");
     const [formColor, setFormColor] = useState("#888888");
     const [formOrder, setFormOrder] = useState(0);
+
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
     const [managingRole, setManagingRole] = useState<VanityRoleDefinition | null>(null);
     const [userSearch, setUserSearch] = useState("");
@@ -94,18 +98,22 @@ export function AdminVanityRoles() {
             }
             closeForm();
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to save");
+            setError(errorMessage(e, "Failed to save"));
         }
     }
 
-    async function handleDelete(id: string) {
-        if (!window.confirm("Delete this vanity role? It will be removed from all users.")) {
+    async function confirmDelete() {
+        const id = pendingDeleteId;
+        if (!id) {
             return;
         }
+
+        setPendingDeleteId(null);
+
         try {
             await deleteRoleMutation.mutateAsync(id);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to delete");
+            setError(errorMessage(e, "Failed to delete"));
         }
     }
 
@@ -128,7 +136,7 @@ export function AdminVanityRoles() {
             await assignMutation.mutateAsync({ roleId: managingRole.id, userId });
             setUserSearch("");
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to assign");
+            setError(errorMessage(e, "Failed to assign"));
         } finally {
             setAssigning(null);
         }
@@ -142,7 +150,7 @@ export function AdminVanityRoles() {
         try {
             await unassignMutation.mutateAsync({ roleId: managingRole.id, userId });
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to remove");
+            setError(errorMessage(e, "Failed to remove"));
         } finally {
             setAssigning(null);
         }
@@ -218,7 +226,11 @@ export function AdminVanityRoles() {
                                             Users
                                         </Button>
                                         {!role.is_system && (
-                                            <Button variant="danger" size="small" onClick={() => handleDelete(role.id)}>
+                                            <Button
+                                                variant="danger"
+                                                size="small"
+                                                onClick={() => setPendingDeleteId(role.id)}
+                                            >
                                                 Delete
                                             </Button>
                                         )}
@@ -368,6 +380,16 @@ export function AdminVanityRoles() {
                     </div>
                 </div>
             </Modal>
+
+            <ConfirmDialog
+                open={pendingDeleteId !== null}
+                title="Delete Vanity Role"
+                body="Delete this vanity role? It will be removed from all users."
+                confirmLabel="Delete"
+                destructive
+                onConfirm={confirmDelete}
+                onCancel={() => setPendingDeleteId(null)}
+            />
         </div>
     );
 }

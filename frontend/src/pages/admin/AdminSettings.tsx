@@ -1,292 +1,42 @@
-import { useId, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
-import { useAdminPermissions, useAdminSettings, useChatbotModels } from "../../api/queries/admin";
-import {
-    useSendTestEmail,
-    useTestChatbotModel,
-    useUpdateAdminSettings,
-    useUploadOGDefaultImage,
-} from "../../api/mutations/admin";
-import { usePageTitle } from "../../hooks/usePageTitle";
-import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
-import { DRONEBL_CLASSES, parseIgnoredClasses, toggleIgnoredClass } from "../../utils/dronebl";
-import {
-    KNOWN_CRAWLER_FEEDS,
-    customFeeds,
-    isKnownFeedEnabled,
-    replaceCustomFeeds,
-    toggleKnownFeed,
-} from "../../utils/crawlerFeeds";
-import type { CrawlerFeed } from "../../utils/crawlerFeeds";
-import type { SiteSettings } from "../../types/api";
+import { DRONEBL_CLASSES } from "../../domain/dronebl";
+import { KNOWN_CRAWLER_FEEDS } from "../../domain/crawlerFeeds";
+import { isEnabled } from "../../domain/siteSettings";
+import { useAdminSettingsForm } from "../../hooks/useAdminSettingsForm";
 import { ChatbotKeyGate } from "./ChatbotKeyGate";
 import styles from "./AdminSettings.module.css";
-
-const BYTES_PER_MB = 1024 * 1024;
-const PIXELS_PER_MP = 1_000_000;
-const CHATBOT_PERMISSION = "use_chatbot";
 
 type EmailProvider = "smtp" | "cloudflare";
 const EMAIL_PROVIDER_SMTP: EmailProvider = "smtp";
 const EMAIL_PROVIDER_CLOUDFLARE: EmailProvider = "cloudflare";
 
 export function AdminSettings() {
-    usePageTitle("Admin - Settings");
-    const { site_name } = useSiteInfo();
-    const baseID = useId();
-    const { settings: loadedSettings, loading } = useAdminSettings();
-    const { models, modelsError, loading: modelsLoading, refresh: refreshModels } = useChatbotModels();
-    const updateSettingsMutation = useUpdateAdminSettings();
-    const sendTestEmailMutation = useSendTestEmail();
-    const testModelMutation = useTestChatbotModel();
-    const uploadOGImageMutation = useUploadOGDefaultImage();
-    const ogImageInputRef = useRef<HTMLInputElement>(null);
-    const [draft, setDraft] = useState<SiteSettings>({});
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [testMessage, setTestMessage] = useState("");
-    const [testError, setTestError] = useState("");
-    const [modelTestMessage, setModelTestMessage] = useState("");
-    const [modelTestError, setModelTestError] = useState("");
-    const [ogImageError, setOGImageError] = useState("");
-    const [customDraft, setCustomDraft] = useState<CrawlerFeed[] | null>(null);
-
-    const saving = updateSettingsMutation.isPending;
-    const settings: SiteSettings = { ...(loadedSettings ?? {}), ...draft };
-    const ignoredClasses = parseIgnoredClasses(settings.dronebl_ignored_classes ?? "");
-    const custom = customDraft ?? customFeeds(settings.crawler_feeds ?? "");
-
-    function writeCustomFeeds(next: CrawlerFeed[]) {
-        setCustomDraft(next);
-        updateField("crawler_feeds", replaceCustomFeeds(settings.crawler_feeds ?? "", next));
-    }
-
-    function updateCustomFeed(index: number, patch: Partial<CrawlerFeed>) {
-        writeCustomFeeds(custom.map((entry, i) => (i === index ? { ...entry, ...patch } : entry)));
-    }
-
-    function addCustomFeed() {
-        writeCustomFeeds([...custom, { name: "", url: "" }]);
-    }
-
-    function removeCustomFeed(index: number) {
-        writeCustomFeeds(custom.filter((_, i) => i !== index));
-    }
-
-    const chatbotKeySaved = (loadedSettings?.chatbot_api_key ?? "").trim() !== "";
-    const chatbotLocked = !chatbotKeySaved || models.length === 0;
-
-    const restrictChatbots = settings.chatbot_enabled === "true" && settings.chatbot_require_permission === "true";
-    const { vanityRoles, loading: rolesLoading } = useAdminPermissions(restrictChatbots);
-    const optInRoles = vanityRoles.filter(role => role.permissions.includes(CHATBOT_PERMISSION));
-    const optInRoleID = (settings.chatbot_opt_in_role ?? "").trim();
-    const optInRoleListed = optInRoles.some(role => role.id === optInRoleID);
-
-    function fieldID(name: string) {
-        return `${baseID}-${name}`;
-    }
-
-    function updateField(key: string, value: string) {
-        setDraft(prev => ({ ...prev, [key]: value }));
-        setSuccess("");
-    }
-
-    function toggleField(key: string, enabled: boolean) {
-        updateField(key, enabled ? "true" : "false");
-    }
-
-    function getNumber(key: string): string {
-        return settings[key] ?? "0";
-    }
-
-    function getMB(key: string): string {
-        const bytes = parseInt(settings[key] ?? "0", 10);
-        if (isNaN(bytes)) {
-            return "0";
-        }
-        return String(Math.round(bytes / BYTES_PER_MB));
-    }
-
-    function setMB(key: string, mb: string) {
-        const mbNum = parseFloat(mb);
-        if (isNaN(mbNum)) {
-            updateField(key, "0");
-        } else {
-            updateField(key, String(Math.round(mbNum * BYTES_PER_MB)));
-        }
-    }
-
-    function getMP(key: string): string {
-        const pixels = parseInt(settings[key] ?? "0", 10);
-        if (isNaN(pixels)) {
-            return "0";
-        }
-        return String(pixels / PIXELS_PER_MP);
-    }
-
-    function setMP(key: string, mp: string) {
-        const mpNum = parseFloat(mp);
-        if (isNaN(mpNum)) {
-            updateField(key, "0");
-        } else {
-            updateField(key, String(Math.round(mpNum * PIXELS_PER_MP)));
-        }
-    }
-
-    function validateSettings(): string | null {
-        const maxBody = parseInt(settings.max_body_size ?? "0", 10);
-        const maxImage = parseInt(settings.max_image_size ?? "0", 10);
-        const maxImagePixels = parseInt(settings.max_image_pixels ?? "0", 10);
-        const maxVideo = parseInt(settings.max_video_size ?? "0", 10);
-        const maxAudio = parseInt(settings.max_audio_size ?? "0", 10);
-        const maxGeneral = parseInt(settings.max_general_size ?? "0", 10);
-        const minPassword = parseInt(settings.min_password_length ?? "0", 10);
-        const sessionDays = parseInt(settings.session_duration_days ?? "0", 10);
-        const maxTheories = parseInt(settings.max_theories_per_day ?? "0", 10);
-        const maxResponses = parseInt(settings.max_responses_per_day ?? "0", 10);
-
-        if (maxBody <= 0) {
-            return "Max body size must be greater than 0";
-        }
-        if (maxImage <= 0) {
-            return "Max image size must be greater than 0";
-        }
-        if (maxImagePixels <= 0) {
-            return "Max image pixels must be greater than 0";
-        }
-        if (maxImage > maxBody) {
-            return `Max image size (${Math.round(maxImage / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
-        }
-        if (maxVideo > maxBody) {
-            return `Max video size (${Math.round(maxVideo / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
-        }
-        if (maxAudio > maxBody) {
-            return `Max audio size (${Math.round(maxAudio / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
-        }
-        if (maxGeneral > maxBody) {
-            return `Max general size (${Math.round(maxGeneral / BYTES_PER_MB)} MB) cannot exceed max body size (${Math.round(maxBody / BYTES_PER_MB)} MB)`;
-        }
-        if (minPassword < 1) {
-            return "Minimum password length must be at least 1";
-        }
-        if (sessionDays < 1) {
-            return "Session duration must be at least 1 day";
-        }
-        if (maxTheories < 0) {
-            return "Max theories per day cannot be negative";
-        }
-        if (maxResponses < 0) {
-            return "Max responses per day cannot be negative";
-        }
-        if (settings.voice_enabled === "true") {
-            if (!settings.livekit_url || !settings.livekit_api_key || !settings.livekit_api_secret) {
-                return "Voice chat requires LiveKit URL, API key and API secret";
-            }
-        }
-        if (settings.chatbot_enabled === "true") {
-            const maxOutputTokens = parseInt(settings.chatbot_max_output_tokens ?? "0", 10);
-            const contextMessages = parseInt(settings.chatbot_context_messages ?? "0", 10);
-            const maxReplyChain = parseInt(settings.chatbot_max_reply_chain ?? "0", 10);
-            const replyCooldown = parseInt(settings.chatbot_reply_cooldown_seconds ?? "0", 10);
-            const maxRepliesPerUser = parseInt(settings.chatbot_max_replies_per_user_per_day ?? "0", 10);
-            const maxRepliesPerDay = parseInt(settings.chatbot_max_replies_per_day ?? "0", 10);
-
-            if (maxOutputTokens < 1) {
-                return "Chatbot max output tokens must be at least 1";
-            }
-            if (contextMessages < 0) {
-                return "Chatbot context messages cannot be negative";
-            }
-            if (maxReplyChain < 0) {
-                return "Chatbot max reply chain cannot be negative";
-            }
-            if (replyCooldown < 0) {
-                return "Chatbot reply cooldown cannot be negative";
-            }
-            if (maxRepliesPerUser < 0) {
-                return "Chatbot max replies per user per day cannot be negative";
-            }
-            if (maxRepliesPerDay < 0) {
-                return "Chatbot max replies per day cannot be negative";
-            }
-        }
-        if (settings.chatbot_require_permission === "true" && optInRoleID === "") {
-            if (settings.chatbot_enabled !== "true") {
-                return "Restricting characters to a permission requires an opt-in role. Switch Enable Chatbot on to choose one.";
-            }
-            return "Restricting characters to a permission requires an opt-in role so members can opt in";
-        }
-        if (settings.email_provider === EMAIL_PROVIDER_CLOUDFLARE) {
-            if (!settings.cloudflare_account_id || !settings.cloudflare_api_token || !settings.cloudflare_email_from) {
-                return "Cloudflare email requires account ID, API token and from address";
-            }
-        }
-        return null;
-    }
-
-    async function handleSave() {
-        const validationError = validateSettings();
-        if (validationError) {
-            setError(validationError);
-            return;
-        }
-
-        setError("");
-        setSuccess("");
-        try {
-            await updateSettingsMutation.mutateAsync(settings);
-            setSuccess("Settings saved successfully");
-        } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to save settings");
-        }
-    }
-
-    async function handleOGImageSelected(e: ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        e.target.value = "";
-        if (!file) {
-            return;
-        }
-
-        setOGImageError("");
-        try {
-            const res = await uploadOGImageMutation.mutateAsync(file);
-            updateField("og_default_image", res.image_url);
-        } catch (err) {
-            setOGImageError(err instanceof Error ? err.message : "Failed to upload image");
-        }
-    }
-
-    async function handleTestModel() {
-        setModelTestMessage("");
-        setModelTestError("");
-        try {
-            const result = await testModelMutation.mutateAsync((settings.chatbot_model ?? "").trim());
-
-            if (result.ok) {
-                setModelTestMessage("The model answered. Save your changes to put it live.");
-            } else {
-                setModelTestError(result.error ?? "The model did not answer");
-            }
-        } catch (e) {
-            setModelTestError(e instanceof Error ? e.message : "Failed to reach the model");
-        }
-    }
-
-    async function handleSendTestEmail() {
-        setTestMessage("");
-        setTestError("");
-        try {
-            await sendTestEmailMutation.mutateAsync();
-            setTestMessage("Test email sent. Check your inbox.");
-        } catch (e) {
-            setTestError(e instanceof Error ? e.message : "Failed to send test email");
-        }
-    }
+    const {
+        loading,
+        saving,
+        settings,
+        error,
+        success,
+        defaultSiteName,
+        fieldID,
+        updateField,
+        toggleField,
+        getNumber,
+        getMB,
+        setMB,
+        getMP,
+        setMP,
+        save,
+        ogImageInputRef,
+        dronebl,
+        feeds,
+        ogImage,
+        emailTest,
+        chatbot,
+    } = useAdminSettingsForm();
 
     if (loading) {
         return <div className={styles.loading}>Loading settings...</div>;
@@ -313,10 +63,10 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Maintenance Mode"
                         description="Put the site into maintenance mode"
-                        enabled={settings.maintenance_mode === "true"}
+                        enabled={isEnabled(settings.maintenance_mode)}
                         onChange={v => toggleField("maintenance_mode", v)}
                     />
-                    {settings.maintenance_mode === "true" && (
+                    {isEnabled(settings.maintenance_mode) && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>Maintenance Title</span>
@@ -347,7 +97,7 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Require a login for everything"
                         description="Nobody who is not signed in can see or do anything: no pages, no API, no uploads, no link previews, and search engines are told to index nothing. Signing in, resetting a password and verifying an email keep working."
-                        enabled={settings.private_mode === "true"}
+                        enabled={isEnabled(settings.private_mode)}
                         onChange={v => toggleField("private_mode", v)}
                     />
                 </div>
@@ -359,10 +109,10 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Enable DroneBL"
                         description="Refuse requests from addresses listed on the DroneBL public abuse blocklist. Signed-in members are never blocked, and a blocked visitor can still reach the login page."
-                        enabled={settings.dronebl_enabled === "true"}
+                        enabled={isEnabled(settings.dronebl_enabled)}
                         onChange={v => toggleField("dronebl_enabled", v)}
                     />
-                    {settings.dronebl_enabled === "true" && (
+                    {isEnabled(settings.dronebl_enabled) && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>Listings To Ignore</span>
@@ -373,22 +123,13 @@ export function AdminSettings() {
                                 </span>
                                 <div className={styles.classGrid}>
                                     {DRONEBL_CLASSES.map(cls => {
-                                        const ignored = ignoredClasses.has(cls.id);
+                                        const ignored = dronebl.ignoredClasses.has(cls.id);
                                         return (
                                             <label key={cls.id} className={styles.classRow}>
                                                 <input
                                                     type="checkbox"
                                                     checked={ignored}
-                                                    onChange={e =>
-                                                        updateField(
-                                                            "dronebl_ignored_classes",
-                                                            toggleIgnoredClass(
-                                                                settings.dronebl_ignored_classes ?? "",
-                                                                cls.id,
-                                                                e.target.checked,
-                                                            ),
-                                                        )
-                                                    }
+                                                    onChange={e => dronebl.toggleClass(cls.id, e.target.checked)}
                                                 />
                                                 <span className={styles.className}>
                                                     {cls.label} <code className={styles.classId}>{cls.id}</code>
@@ -423,17 +164,8 @@ export function AdminSettings() {
                                         <label key={known.name} className={styles.classRow}>
                                             <input
                                                 type="checkbox"
-                                                checked={isKnownFeedEnabled(settings.crawler_feeds ?? "", known)}
-                                                onChange={e =>
-                                                    updateField(
-                                                        "crawler_feeds",
-                                                        toggleKnownFeed(
-                                                            settings.crawler_feeds ?? "",
-                                                            known,
-                                                            e.target.checked,
-                                                        ),
-                                                    )
-                                                }
+                                                checked={feeds.isKnownEnabled(known)}
+                                                onChange={e => feeds.toggleKnown(known, e.target.checked)}
                                             />
                                             <span className={styles.className}>{known.label}</span>
                                         </label>
@@ -448,17 +180,17 @@ export function AdminSettings() {
                                     that fails will block the save.
                                 </span>
                                 <div className={styles.feedList}>
-                                    {custom.map((entry, i) => (
+                                    {feeds.custom.map((entry, i) => (
                                         <div key={i} className={styles.feedRow}>
                                             <Input
                                                 value={entry.name}
-                                                onChange={e => updateCustomFeed(i, { name: e.target.value })}
+                                                onChange={e => feeds.update(i, { name: e.target.value })}
                                                 placeholder="name"
                                                 aria-label={`Feed ${i + 1} name`}
                                             />
                                             <Input
                                                 value={entry.url}
-                                                onChange={e => updateCustomFeed(i, { url: e.target.value })}
+                                                onChange={e => feeds.update(i, { url: e.target.value })}
                                                 placeholder="https://example.com/ranges.json"
                                                 aria-label={`Feed ${i + 1} url`}
                                                 fullWidth
@@ -466,7 +198,7 @@ export function AdminSettings() {
                                             <button
                                                 type="button"
                                                 className={styles.feedRemove}
-                                                onClick={() => removeCustomFeed(i)}
+                                                onClick={() => feeds.remove(i)}
                                                 aria-label={`Remove feed ${i + 1}`}
                                             >
                                                 &times;
@@ -475,7 +207,7 @@ export function AdminSettings() {
                                     ))}
                                 </div>
                                 <div>
-                                    <Button variant="ghost" size="small" onClick={addCustomFeed}>
+                                    <Button variant="ghost" size="small" onClick={feeds.add}>
                                         + Add Feed
                                     </Button>
                                 </div>
@@ -491,10 +223,10 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Enable Turnstile"
                         description="Require Cloudflare Turnstile verification on login and registration"
-                        enabled={settings.turnstile_enabled === "true"}
+                        enabled={isEnabled(settings.turnstile_enabled)}
                         onChange={v => toggleField("turnstile_enabled", v)}
                     />
-                    {settings.turnstile_enabled === "true" && (
+                    {isEnabled(settings.turnstile_enabled) && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>Site Key</span>
@@ -554,16 +286,16 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Enable Voice Chat"
                         description="Allow voice calls in chat rooms and DMs (requires a self-hosted LiveKit server)"
-                        enabled={settings.voice_enabled === "true"}
+                        enabled={isEnabled(settings.voice_enabled)}
                         onChange={v => toggleField("voice_enabled", v)}
                     />
                     <ToggleSwitch
                         label="Enable Live Streaming"
                         description="Let members broadcast from OBS (WHIP) to a public /live page anyone can watch (requires the LiveKit ingress service)"
-                        enabled={settings.streaming_enabled === "true"}
+                        enabled={isEnabled(settings.streaming_enabled)}
                         onChange={v => toggleField("streaming_enabled", v)}
                     />
-                    {(settings.voice_enabled === "true" || settings.streaming_enabled === "true") && (
+                    {(isEnabled(settings.voice_enabled) || isEnabled(settings.streaming_enabled)) && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>LiveKit URL</span>
@@ -595,7 +327,7 @@ export function AdminSettings() {
                             </div>
                         </>
                     )}
-                    {settings.streaming_enabled === "true" && (
+                    {isEnabled(settings.streaming_enabled) && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>Max Concurrent Streams</span>
@@ -610,10 +342,10 @@ export function AdminSettings() {
                             <ToggleSwitch
                                 label="Enable Smooth (HLS) playback"
                                 description="Record each live broadcaster to HLS so viewers can pick a buffered, freeze-resistant stream a few seconds behind live (requires the LiveKit egress service)"
-                                enabled={settings.stream_hls_enabled === "true"}
+                                enabled={isEnabled(settings.stream_hls_enabled)}
                                 onChange={v => toggleField("stream_hls_enabled", v)}
                             />
-                            {settings.stream_hls_enabled === "true" && (
+                            {isEnabled(settings.stream_hls_enabled) && (
                                 <div className={styles.field}>
                                     <span className={styles.fieldLabel}>HLS Output Directory</span>
                                     <Input
@@ -635,7 +367,7 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Enable Push Notifications"
                         description="Send native push notifications to the mobile app when a recipient is offline (requires FCM_CREDENTIALS_FILE on the server)"
-                        enabled={settings.push_enabled === "true"}
+                        enabled={isEnabled(settings.push_enabled)}
                         onChange={v => toggleField("push_enabled", v)}
                     />
                     <div className={styles.field}>
@@ -716,10 +448,10 @@ export function AdminSettings() {
                     <ToggleSwitch
                         label="Enable Chatbot"
                         description="Let members talk to bot accounts by mentioning or replying to them in chat"
-                        enabled={settings.chatbot_enabled === "true"}
+                        enabled={isEnabled(settings.chatbot_enabled)}
                         onChange={v => toggleField("chatbot_enabled", v)}
                     />
-                    {settings.chatbot_enabled === "true" && (
+                    {isEnabled(settings.chatbot_enabled) && (
                         <>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>API Key</span>
@@ -736,12 +468,12 @@ export function AdminSettings() {
                                     your spending controls.
                                 </span>
                             </div>
-                            {chatbotLocked && (
+                            {chatbot.locked && (
                                 <ChatbotKeyGate
-                                    apiKeySaved={chatbotKeySaved}
-                                    checking={modelsLoading}
-                                    reason={modelsError}
-                                    onRetry={refreshModels}
+                                    apiKeySaved={chatbot.keySaved}
+                                    checking={chatbot.modelsLoading}
+                                    reason={chatbot.modelsError}
+                                    onRetry={chatbot.refreshModels}
                                 />
                             )}
                             <div className={styles.field}>
@@ -752,7 +484,7 @@ export function AdminSettings() {
                                     onChange={e => updateField("chatbot_admin_key", e.target.value)}
                                     fullWidth
                                     placeholder="Optional, for reading the billed spend"
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     Optional organisation admin key used only to read back what has actually been
@@ -771,12 +503,12 @@ export function AdminSettings() {
                                     fullWidth
                                     placeholder="gpt-5.6-luna"
                                     aria-describedby={fieldID("chatbot-model-hint")}
-                                    list={models.length > 0 ? fieldID("chatbot-model-options") : undefined}
-                                    disabled={chatbotLocked}
+                                    list={chatbot.models.length > 0 ? fieldID("chatbot-model-options") : undefined}
+                                    disabled={chatbot.locked}
                                 />
-                                {models.length > 0 && (
+                                {chatbot.models.length > 0 && (
                                     <datalist id={fieldID("chatbot-model-options")}>
-                                        {models.map(model => (
+                                        {chatbot.models.map(model => (
                                             <option key={model} value={model} />
                                         ))}
                                     </datalist>
@@ -789,24 +521,22 @@ export function AdminSettings() {
                                 </span>
                                 <Button
                                     variant="secondary"
-                                    onClick={handleTestModel}
+                                    onClick={chatbot.testModel}
                                     disabled={
-                                        testModelMutation.isPending ||
-                                        chatbotLocked ||
-                                        !(settings.chatbot_model ?? "").trim()
+                                        chatbot.testing || chatbot.locked || !(settings.chatbot_model ?? "").trim()
                                     }
                                 >
-                                    {testModelMutation.isPending ? "Testing..." : "Test model"}
+                                    {chatbot.testing ? "Testing..." : "Test model"}
                                 </Button>
-                                {modelTestMessage && <span className={styles.success}>{modelTestMessage}</span>}
-                                {modelTestError && <span className={styles.saveError}>{modelTestError}</span>}
+                                {chatbot.testMessage && <span className={styles.success}>{chatbot.testMessage}</span>}
+                                {chatbot.testError && <span className={styles.saveError}>{chatbot.testError}</span>}
                             </div>
                             <div className={styles.field}>
                                 <span className={styles.fieldLabel}>Reasoning Effort</span>
                                 <Select
                                     value={settings.chatbot_reasoning_effort ?? "low"}
                                     onChange={e => updateField("chatbot_reasoning_effort", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 >
                                     <option value="none">None</option>
                                     <option value="low">Low</option>
@@ -827,7 +557,7 @@ export function AdminSettings() {
                                 <Select
                                     value={settings.chatbot_verbosity ?? ""}
                                     onChange={e => updateField("chatbot_verbosity", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 >
                                     <option value="">Provider default</option>
                                     <option value="low">Low</option>
@@ -847,7 +577,7 @@ export function AdminSettings() {
                                     type="number"
                                     value={getNumber("chatbot_max_output_tokens")}
                                     onChange={e => updateField("chatbot_max_output_tokens", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     The hard ceiling on a single reply, counting reasoning tokens and visible text
@@ -863,7 +593,7 @@ export function AdminSettings() {
                                     type="number"
                                     value={getNumber("chatbot_context_messages")}
                                     onChange={e => updateField("chatbot_context_messages", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     How many recent messages from the room are sent along with the question so the bot
@@ -877,7 +607,7 @@ export function AdminSettings() {
                                     type="number"
                                     value={getNumber("chatbot_max_reply_chain")}
                                     onChange={e => updateField("chatbot_max_reply_chain", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     How far back a chain of replies is followed when someone answers a bot, so a long
@@ -888,28 +618,28 @@ export function AdminSettings() {
                             <ToggleSwitch
                                 label="Restrict To Chatbot Permission"
                                 description="Only members granted the Summon Chatbots permission can get a reply. Grant it on the Permissions page, to Moderator or to any vanity role."
-                                enabled={settings.chatbot_require_permission === "true"}
+                                enabled={isEnabled(settings.chatbot_require_permission)}
                                 onChange={v => toggleField("chatbot_require_permission", v)}
                             />
-                            {restrictChatbots && (
+                            {chatbot.restrict && (
                                 <div className={styles.field}>
                                     <label className={styles.fieldLabel} htmlFor={fieldID("chatbot-opt-in-role")}>
                                         Opt In Role
                                     </label>
                                     <Select
                                         id={fieldID("chatbot-opt-in-role")}
-                                        value={optInRoleID}
+                                        value={chatbot.optInRoleID}
                                         onChange={e => updateField("chatbot_opt_in_role", e.target.value)}
                                         aria-describedby={fieldID("chatbot-opt-in-role-hint")}
-                                        disabled={rolesLoading}
+                                        disabled={chatbot.rolesLoading}
                                     >
                                         <option value="">Select a role...</option>
-                                        {optInRoleID !== "" && !optInRoleListed && (
-                                            <option value={optInRoleID}>
+                                        {chatbot.optInRoleID !== "" && !chatbot.optInRoleListed && (
+                                            <option value={chatbot.optInRoleID}>
                                                 The saved role no longer carries Summon Chatbots
                                             </option>
                                         )}
-                                        {optInRoles.map(role => (
+                                        {chatbot.optInRoles.map(role => (
                                             <option key={role.id} value={role.id}>
                                                 {role.label}
                                             </option>
@@ -921,7 +651,7 @@ export function AdminSettings() {
                                         granted with it. Only roles that already hold Summon Chatbots are offered, and
                                         moving to a different role moves everyone who opted in across to it.
                                     </span>
-                                    {!rolesLoading && optInRoles.length === 0 && (
+                                    {!chatbot.rolesLoading && chatbot.optInRoles.length === 0 && (
                                         <span className={styles.saveError}>
                                             No vanity role holds Summon Chatbots yet. Grant it to one on the Permissions
                                             page before restricting characters.
@@ -935,7 +665,7 @@ export function AdminSettings() {
                                     type="number"
                                     value={getNumber("chatbot_reply_cooldown_seconds")}
                                     onChange={e => updateField("chatbot_reply_cooldown_seconds", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     The minimum wait between one member's replies. It stops someone hammering a bot in a
@@ -948,7 +678,7 @@ export function AdminSettings() {
                                     type="number"
                                     value={getNumber("chatbot_max_replies_per_user_per_day")}
                                     onChange={e => updateField("chatbot_max_replies_per_user_per_day", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     How many replies one member can pull out of the bots in the last 24 hours. This is a
@@ -964,7 +694,7 @@ export function AdminSettings() {
                                     type="number"
                                     value={getNumber("chatbot_max_replies_per_day")}
                                     onChange={e => updateField("chatbot_max_replies_per_day", e.target.value)}
-                                    disabled={chatbotLocked}
+                                    disabled={chatbot.locked}
                                 />
                                 <span className={styles.fieldHint}>
                                     The ceiling across every member and every bot in the last 24 hours, also a rolling
@@ -1261,15 +991,11 @@ export function AdminSettings() {
                         <span className={styles.fieldLabel}>
                             Sends a test email to your own account using the saved settings. Save changes first.
                         </span>
-                        <Button
-                            variant="secondary"
-                            onClick={handleSendTestEmail}
-                            disabled={sendTestEmailMutation.isPending}
-                        >
-                            {sendTestEmailMutation.isPending ? "Sending..." : "Send test email"}
+                        <Button variant="secondary" onClick={emailTest.send} disabled={emailTest.sending}>
+                            {emailTest.sending ? "Sending..." : "Send test email"}
                         </Button>
-                        {testMessage && <span className={styles.success}>{testMessage}</span>}
-                        {testError && <span className={styles.saveError}>{testError}</span>}
+                        {emailTest.message && <span className={styles.success}>{emailTest.message}</span>}
+                        {emailTest.error && <span className={styles.saveError}>{emailTest.error}</span>}
                     </div>
                 </div>
             </div>
@@ -1351,38 +1077,34 @@ export function AdminSettings() {
                             platforms, and the page has no image of its own. JPG only.
                         </span>
                         <div className={styles.embedActions}>
-                            <Button
-                                variant="secondary"
-                                onClick={() => ogImageInputRef.current?.click()}
-                                disabled={uploadOGImageMutation.isPending}
-                            >
-                                {uploadOGImageMutation.isPending ? "Uploading..." : "Upload image"}
+                            <Button variant="secondary" onClick={ogImage.choose} disabled={ogImage.uploading}>
+                                {ogImage.uploading ? "Uploading..." : "Upload image"}
                             </Button>
-                            {(settings.og_default_image ?? "") !== "" && (
-                                <Button variant="secondary" onClick={() => updateField("og_default_image", "")}>
+                            {ogImage.hasCustom && (
+                                <Button variant="secondary" onClick={ogImage.clear}>
                                     Reset to built-in
                                 </Button>
                             )}
-                            {ogImageError && <span className={styles.saveError}>{ogImageError}</span>}
+                            {ogImage.error && <span className={styles.saveError}>{ogImage.error}</span>}
                         </div>
                         <input
                             ref={ogImageInputRef}
                             type="file"
                             accept="image/jpeg,.jpg"
                             className={styles.hiddenInput}
-                            onChange={handleOGImageSelected}
+                            onChange={ogImage.onSelected}
                         />
                     </div>
                     <EmbedPreviews
                         image={settings.og_default_image || "/Featherine.jpg"}
-                        siteName={settings.site_name ?? site_name}
+                        siteName={settings.site_name ?? defaultSiteName}
                         baseURL={settings.base_url ?? ""}
                     />
                 </div>
             </div>
 
             <div className={styles.saveRow}>
-                <Button variant="primary" onClick={handleSave} disabled={saving}>
+                <Button variant="primary" onClick={save} disabled={saving}>
                     {saving ? "Saving..." : "Save Settings"}
                 </Button>
                 {error && <span className={styles.saveError}>{error}</span>}

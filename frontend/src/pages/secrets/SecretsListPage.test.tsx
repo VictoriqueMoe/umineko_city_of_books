@@ -7,7 +7,7 @@ import { SecretsListPage } from "./SecretsListPage";
 
 const { useSecretList } = vi.hoisted(() => ({ useSecretList: vi.fn() }));
 
-vi.mock("../../api/queries/secret", () => ({ useSecretList }));
+vi.mock("../../hooks/queries/secret", () => ({ useSecretList }));
 
 const beatrice = { id: "user-1", username: "beatrice", display_name: "Beatrice" };
 const ange = { id: "user-2", username: "ange", display_name: "Ange" };

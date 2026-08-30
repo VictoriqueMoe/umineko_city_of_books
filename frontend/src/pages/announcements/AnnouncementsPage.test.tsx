@@ -7,7 +7,7 @@ import { AnnouncementsPage } from "./AnnouncementsPage";
 
 const { useAnnouncementList } = vi.hoisted(() => ({ useAnnouncementList: vi.fn() }));
 
-vi.mock("../../api/queries/announcement", () => ({ useAnnouncementList }));
+vi.mock("../../hooks/queries/announcement", () => ({ useAnnouncementList }));
 
 const author = { id: "author-1", username: "beatrice", display_name: "Beatrice" };
 

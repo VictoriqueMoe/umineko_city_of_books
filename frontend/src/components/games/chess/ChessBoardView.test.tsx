@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChessStats, GameRoom, GameRoomPlayer, User } from "../../../types/api";
+import type { ChessState, ChessStats, GameRoom, GameRoomPlayer, User } from "../../../types/api";
 import { ChessBoardView } from "./ChessBoardView";
 
 interface StubBoardOptions {
@@ -113,7 +113,7 @@ function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
     };
 }
 
-function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
+function makeRoom(overrides: Partial<GameRoom<ChessState, ChessStats>> = {}): GameRoom<ChessState, ChessStats> {
     return {
         id: "room-1",
         game_type: "chess",
@@ -148,7 +148,7 @@ function makeStats(overrides: Partial<ChessStats> = {}): ChessStats {
     };
 }
 
-function renderBoard(room: GameRoom, viewer: User | null, isSpectator = false) {
+function renderBoard(room: GameRoom<ChessState, ChessStats>, viewer: User | null, isSpectator = false) {
     return renderWithProviders(
         <ChessBoardView
             room={room}
@@ -193,7 +193,7 @@ describe("ChessBoardView", () => {
 
     it("falls back to the opening position when the room has no board yet", () => {
         // given
-        const room = makeRoom({ state: {} });
+        const room = makeRoom({ state: {} as ChessState });
 
         // when
         renderBoard(room, whiteViewer);

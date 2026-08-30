@@ -8,7 +8,7 @@ import { SiteInfoContext } from "./siteInfoContextValue";
 
 const { useSiteInfoQuery } = vi.hoisted(() => ({ useSiteInfoQuery: vi.fn() }));
 
-vi.mock("../api/queries/auth", () => ({ useSiteInfoQuery }));
+vi.mock("../hooks/queries/site", () => ({ useSiteInfoQuery }));
 
 function Probe() {
     const siteInfo = useContext(SiteInfoContext);
@@ -73,24 +73,9 @@ describe("SiteInfoProvider", () => {
         expect(screen.getByText("site: City of Books")).toBeInTheDocument();
     });
 
-    it("refetches when a site-info-refresh event arrives and the data is stale", () => {
-        // given
-        const refresh = stubQuery(makeSiteInfo(), Date.now() - 10_000);
-        renderWithProviders(
-            <SiteInfoProvider>
-                <Probe />
-            </SiteInfoProvider>,
-        );
-
-        // when
-        window.dispatchEvent(new Event("site-info-refresh"));
-
-        // then
-        expect(refresh).toHaveBeenCalledOnce();
-    });
-
     it("swallows a failed refetch instead of leaving the rejection unhandled", async () => {
         // given
+        setVisibility("visible");
         let calls = 0;
         function failingRefresh() {
             calls += 1;
@@ -112,7 +97,7 @@ describe("SiteInfoProvider", () => {
         );
 
         // when
-        window.dispatchEvent(new Event("site-info-refresh"));
+        document.dispatchEvent(new Event("visibilitychange"));
         await new Promise(resolve => setTimeout(resolve, 0));
         rejectionWatcher.off("unhandledRejection", record);
 
@@ -123,6 +108,7 @@ describe("SiteInfoProvider", () => {
 
     it("ignores a refresh event that arrives while the data is still fresh", () => {
         // given
+        setVisibility("visible");
         const refresh = stubQuery(makeSiteInfo(), Date.now());
         renderWithProviders(
             <SiteInfoProvider>
@@ -131,7 +117,7 @@ describe("SiteInfoProvider", () => {
         );
 
         // when
-        window.dispatchEvent(new Event("site-info-refresh"));
+        document.dispatchEvent(new Event("visibilitychange"));
 
         // then
         expect(refresh).not.toHaveBeenCalled();
@@ -141,6 +127,7 @@ describe("SiteInfoProvider", () => {
         // given
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-08-02T12:00:00Z"));
+        setVisibility("visible");
         const refresh = stubQuery(makeSiteInfo(), Date.now() - 2000);
         renderWithProviders(
             <SiteInfoProvider>
@@ -149,7 +136,7 @@ describe("SiteInfoProvider", () => {
         );
 
         // when
-        window.dispatchEvent(new Event("site-info-refresh"));
+        document.dispatchEvent(new Event("visibilitychange"));
 
         // then
         expect(refresh).toHaveBeenCalledOnce();
@@ -191,6 +178,7 @@ describe("SiteInfoProvider", () => {
 
     it("stops listening for refresh events once it is unmounted", () => {
         // given
+        setVisibility("visible");
         const refresh = stubQuery(makeSiteInfo(), Date.now() - 10_000);
         const { unmount } = renderWithProviders(
             <SiteInfoProvider>
@@ -200,7 +188,6 @@ describe("SiteInfoProvider", () => {
 
         // when
         unmount();
-        window.dispatchEvent(new Event("site-info-refresh"));
         document.dispatchEvent(new Event("visibilitychange"));
 
         // then

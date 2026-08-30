@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { App } from "@capacitor/app";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
-import { isNativeApp } from "../../utils/authToken";
+import { isNativeApp } from "../../platform/capabilities";
 import styles from "./AppVersionInfo.module.css";
 
 export function AppVersionInfo() {

@@ -1,26 +1,33 @@
-import { act, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LiveStream, StreamCredentials, StreamOwner } from "../../api/endpoints";
-import type { WSMessageHandler } from "../../context/notificationContextValue";
 import { renderWithProviders } from "../../test-utils/render";
-import type { WSMessage } from "../../types/api";
+import { emitRealtimeEvent } from "../../test-utils/ws";
+import type { LiveStream, StreamCredentials, StreamDefaultMode, StreamOwner } from "../../types/api";
 import { GoLivePanel } from "./GoLivePanel";
 
 const streams = vi.hoisted(() => ({
     getMyStream: vi.fn(),
+    getStream: vi.fn(),
     getStreamCredentials: vi.fn(),
+    getStreamViewerToken: vi.fn(),
+    joinStreamChat: vi.fn(),
+    listLiveStreams: vi.fn(),
     resetStreamCredentials: vi.fn(),
     startStream: vi.fn(),
     stopStream: vi.fn(),
     updateStreamTitle: vi.fn(),
+    uploadStreamThumbnail: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints", () => streams);
+vi.mock("../../api/endpoints/stream", () => streams);
 
 const WHIP_URL = "https://ingest.example/whip";
 const STREAM_KEY = "sk_beatrice_1986";
 const STREAM_ID = "stream-1";
+
+let serverOwner: StreamOwner | null;
+let serverCredentials: StreamCredentials;
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
     return {
@@ -45,33 +52,12 @@ function makeCreds(overrides: Partial<StreamCredentials> = {}): StreamCredential
     return { whipUrl: WHIP_URL, streamKey: STREAM_KEY, hlsEnabled: false, ...overrides };
 }
 
-function captureWS() {
-    const handlers: WSMessageHandler[] = [];
-
-    function addWSListener(handler: WSMessageHandler) {
-        handlers.push(handler);
-        return () => {};
-    }
-
-    function emit(msg: WSMessage) {
-        act(() => {
-            for (const handler of handlers) {
-                handler(msg);
-            }
-        });
-    }
-
-    return { addWSListener, emit };
-}
-
-async function renderPanel(onChanged = vi.fn(), ws = captureWS()) {
-    const result = renderWithProviders(<GoLivePanel onChanged={onChanged} />, {
-        notification: { addWSListener: ws.addWSListener },
-    });
+async function renderPanel() {
+    const result = renderWithProviders(<GoLivePanel />);
     await screen.findByRole("heading");
     await waitFor(() => expect(streams.getStreamCredentials).toHaveBeenCalled());
 
-    return { ...result, onChanged, emit: ws.emit };
+    return result;
 }
 
 function titleBox(): HTMLElement {
@@ -88,12 +74,38 @@ async function openSetup(user: ReturnType<typeof userEvent.setup>) {
 
 describe("GoLivePanel", () => {
     beforeEach(() => {
-        streams.getMyStream.mockResolvedValue(null);
-        streams.getStreamCredentials.mockResolvedValue(makeCreds());
-        streams.resetStreamCredentials.mockResolvedValue(makeCreds({ streamKey: "sk_new_key" }));
-        streams.startStream.mockResolvedValue(makeOwner());
-        streams.stopStream.mockResolvedValue(undefined);
-        streams.updateStreamTitle.mockResolvedValue(makeStream({ title: "A new title" }));
+        localStorage.clear();
+        serverOwner = null;
+        serverCredentials = makeCreds();
+
+        streams.getMyStream.mockImplementation(() => Promise.resolve(serverOwner));
+        streams.getStreamCredentials.mockImplementation(() => Promise.resolve(serverCredentials));
+        streams.startStream.mockImplementation((title: string, mode: StreamDefaultMode) => {
+            serverOwner = makeOwner({ title, defaultMode: mode });
+
+            return Promise.resolve(serverOwner);
+        });
+        streams.stopStream.mockImplementation(() => {
+            serverOwner = null;
+
+            return Promise.resolve(undefined);
+        });
+        streams.updateStreamTitle.mockImplementation((_streamId: string, title: string) => {
+            const current = serverOwner;
+
+            if (!current) {
+                return Promise.reject(new Error("not live"));
+            }
+
+            serverOwner = { ...current, stream: { ...current.stream, title } };
+
+            return Promise.resolve(serverOwner.stream);
+        });
+        streams.resetStreamCredentials.mockImplementation(() => {
+            serverCredentials = makeCreds({ streamKey: "sk_new_key" });
+
+            return Promise.resolve(serverCredentials);
+        });
     });
 
     afterEach(() => {
@@ -128,7 +140,7 @@ describe("GoLivePanel", () => {
     it("starts the stream on low latency with no bitrate when smooth playback is off", async () => {
         // given
         const user = userEvent.setup();
-        const { onChanged } = await renderPanel();
+        await renderPanel();
 
         // when
         await user.type(titleBox(), "  Tea with the witch  ");
@@ -136,7 +148,6 @@ describe("GoLivePanel", () => {
 
         // then
         await waitFor(() => expect(streams.startStream).toHaveBeenCalledWith("Tea with the witch", "webrtc", 0));
-        expect(onChanged).toHaveBeenCalledOnce();
         expect(localStorage.getItem("stream.bitrateKbps")).toBeNull();
     });
 
@@ -171,7 +182,7 @@ describe("GoLivePanel", () => {
     it("apologises in general terms when the failure carries no message", async () => {
         // given
         const user = userEvent.setup();
-        streams.startStream.mockRejectedValue("something odd");
+        streams.startStream.mockRejectedValue({});
         await renderPanel();
 
         // when
@@ -184,7 +195,7 @@ describe("GoLivePanel", () => {
 
     it("keeps the playback choice and the bitrate hidden when smooth playback is unavailable", async () => {
         // given
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: false }));
+        serverCredentials = makeCreds({ hlsEnabled: false });
 
         // when
         await renderPanel();
@@ -197,7 +208,7 @@ describe("GoLivePanel", () => {
     it("keeps go live out of reach until the bitrate is sensible", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
         await user.type(titleBox(), "Tea with the witch");
 
@@ -211,7 +222,7 @@ describe("GoLivePanel", () => {
     it("refuses a bitrate above the ceiling", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
         await user.type(titleBox(), "Tea with the witch");
 
@@ -225,7 +236,7 @@ describe("GoLivePanel", () => {
     it("sends the chosen playback mode and bitrate and remembers the bitrate", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
 
         // when
@@ -242,7 +253,7 @@ describe("GoLivePanel", () => {
     it("starts out with the bitrate used last time", async () => {
         // given
         localStorage.setItem("stream.bitrateKbps", "8500");
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
 
         // when
         await renderPanel();
@@ -253,7 +264,7 @@ describe("GoLivePanel", () => {
 
     it("announces the stream once it is live", async () => {
         // given
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
 
         // when
         await renderPanel();
@@ -267,8 +278,8 @@ describe("GoLivePanel", () => {
     it("stops the stream and offers the go live form again", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live" }));
-        const { onChanged } = await renderPanel();
+        serverOwner = makeOwner({ status: "live" });
+        await renderPanel();
         await screen.findByRole("button", { name: "Stop streaming" });
 
         // when
@@ -277,13 +288,12 @@ describe("GoLivePanel", () => {
         // then
         await waitFor(() => expect(streams.stopStream).toHaveBeenCalledWith(STREAM_ID));
         expect(await screen.findByRole("heading", { name: "Go live" })).toBeInTheDocument();
-        expect(onChanged).toHaveBeenCalledOnce();
     });
 
     it("says why the stream would not stop", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live" }));
+        serverOwner = makeOwner({ status: "live" });
         streams.stopStream.mockRejectedValue(new Error("The ingest is wedged"));
         await renderPanel();
         await screen.findByRole("button", { name: "Stop streaming" });
@@ -298,7 +308,7 @@ describe("GoLivePanel", () => {
     it("opens the title for editing with the current title already in it", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
         await renderPanel();
         await screen.findByRole("button", { name: "Edit title" });
 
@@ -313,7 +323,7 @@ describe("GoLivePanel", () => {
     it("saves a changed title and shows it back", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
         await renderPanel();
         await screen.findByRole("button", { name: "Edit title" });
         await user.click(screen.getByRole("button", { name: "Edit title" }));
@@ -331,7 +341,7 @@ describe("GoLivePanel", () => {
     it("abandons the edit when it is cancelled", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
         await renderPanel();
         await screen.findByRole("button", { name: "Edit title" });
         await user.click(screen.getByRole("button", { name: "Edit title" }));
@@ -347,7 +357,7 @@ describe("GoLivePanel", () => {
     it("says why the title would not save", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
         streams.updateStreamTitle.mockRejectedValue(new Error("That title is not allowed"));
         await renderPanel();
         await screen.findByRole("button", { name: "Edit title" });
@@ -364,12 +374,12 @@ describe("GoLivePanel", () => {
 
     it("flips to live when the server says the stream went live", async () => {
         // given
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "pending" }));
-        const { emit } = await renderPanel();
+        serverOwner = makeOwner({ status: "pending" });
+        await renderPanel();
         await screen.findByRole("heading", { name: "Going live..." });
 
         // when
-        emit({ type: "stream_live", data: makeStream({ status: "live" }) } as WSMessage);
+        emitRealtimeEvent({ type: "stream_live", data: makeStream({ status: "live" }) });
 
         // then
         expect(await screen.findByRole("heading", { name: "You're live" })).toBeInTheDocument();
@@ -377,12 +387,12 @@ describe("GoLivePanel", () => {
 
     it("takes on a title that was changed somewhere else", async () => {
         // given
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
-        const { emit } = await renderPanel();
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
+        await renderPanel();
         await screen.findByRole("heading", { name: "You're live" });
 
         // when
-        emit({ type: "stream_title", data: { streamId: STREAM_ID, title: "Cake with the witch" } } as WSMessage);
+        emitRealtimeEvent({ type: "stream_title", data: { streamId: STREAM_ID, title: "Cake with the witch" } });
 
         // then
         expect(await screen.findByText("Cake with the witch")).toBeInTheDocument();
@@ -390,27 +400,26 @@ describe("GoLivePanel", () => {
 
     it("returns to the go live form when the server says the stream went offline", async () => {
         // given
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live" }));
-        const { emit, onChanged } = await renderPanel();
+        serverOwner = makeOwner({ status: "live" });
+        await renderPanel();
         await screen.findByRole("heading", { name: "You're live" });
 
         // when
-        emit({ type: "stream_offline", data: { streamId: STREAM_ID } } as WSMessage);
+        emitRealtimeEvent({ type: "stream_offline", data: { streamId: STREAM_ID } });
 
         // then
         expect(await screen.findByRole("heading", { name: "Go live" })).toBeInTheDocument();
-        expect(onChanged).toHaveBeenCalledOnce();
     });
 
     it("pays no attention to news about somebody else's stream", async () => {
         // given
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live", title: "Tea with the witch" }));
-        const { emit } = await renderPanel();
+        serverOwner = makeOwner({ status: "live", title: "Tea with the witch" });
+        await renderPanel();
         await screen.findByRole("heading", { name: "You're live" });
 
         // when
-        emit({ type: "stream_title", data: { streamId: "stream-other", title: "Not mine" } } as WSMessage);
-        emit({ type: "stream_offline", data: { streamId: "stream-other" } } as WSMessage);
+        emitRealtimeEvent({ type: "stream_title", data: { streamId: "stream-other", title: "Not mine" } });
+        emitRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-other" } });
 
         // then
         expect(screen.getByRole("heading", { name: "You're live" })).toBeInTheDocument();
@@ -445,7 +454,7 @@ describe("GoLivePanel", () => {
     it("mentions the bitrate calculator only when smooth playback is available", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
 
         // when
@@ -487,7 +496,7 @@ describe("GoLivePanel", () => {
     it("will not reset the key while a stream of your own is up", async () => {
         // given
         const user = userEvent.setup();
-        streams.getMyStream.mockResolvedValue(makeOwner({ status: "live" }));
+        serverOwner = makeOwner({ status: "live" });
         await renderPanel();
 
         // when
@@ -555,10 +564,21 @@ describe("GoLivePanel", () => {
         expect(screen.queryByRole("button", { name: /OBS streaming setup/ })).not.toBeInTheDocument();
     });
 
+    it("owns up when the owner view could not be loaded, rather than looking idle", async () => {
+        // given
+        streams.getMyStream.mockRejectedValue(new Error("The stream service is down"));
+
+        // when
+        renderWithProviders(<GoLivePanel />);
+
+        // then
+        expect(await screen.findByText("The stream service is down")).toBeInTheDocument();
+    });
+
     it("suggests a bitrate for 1080p at sixty frames a second", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
 
         // when
@@ -574,7 +594,7 @@ describe("GoLivePanel", () => {
     it("recalculates the bitrate for a smaller, slower picture", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
         await openSetup(user);
 
@@ -589,7 +609,7 @@ describe("GoLivePanel", () => {
     it("fills the bitrate in from the calculator", async () => {
         // given
         const user = userEvent.setup();
-        streams.getStreamCredentials.mockResolvedValue(makeCreds({ hlsEnabled: true }));
+        serverCredentials = makeCreds({ hlsEnabled: true });
         await renderPanel();
         await openSetup(user);
 

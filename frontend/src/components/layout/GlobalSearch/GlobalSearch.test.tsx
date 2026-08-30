@@ -13,7 +13,7 @@ vi.mock("react-router", async () => {
     return { ...actual, useNavigate: () => navigate };
 });
 
-vi.mock("../../../api/queries/search", () => ({ useQuickSearch }));
+vi.mock("../../../hooks/queries/search", () => ({ useQuickSearch }));
 
 function makeResult(overrides: Partial<SearchResult> = {}): SearchResult {
     return {

@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/ship", () => ({
+vi.mock("../../hooks/mutations/ship", () => ({
     useCreateShip: () => ({ mutateAsync: mocks.createShip }),
     useUploadShipImageById: () => ({ mutateAsync: mocks.uploadImage }),
 }));
@@ -266,7 +266,7 @@ describe("CreateShipPage submitting", () => {
         expect(mocks.uploadImage).not.toHaveBeenCalled();
     });
 
-    it("still opens the ship when the image upload fails", async () => {
+    it("stays on the form and names the image that would not upload", async () => {
         // given
         mocks.uploadImage.mockRejectedValue(new Error("the disk is full"));
         const user = userEvent.setup();
@@ -278,9 +278,29 @@ describe("CreateShipPage submitting", () => {
         await user.click(declareButton());
 
         // then
+        expect(await screen.findByText("ship.png was not saved: the disk is full")).toBeInTheDocument();
+        expect(mocks.navigate).not.toHaveBeenCalled();
+    });
+
+    it("declares no second ship when the refused image is sent again", async () => {
+        // given
+        mocks.uploadImage.mockRejectedValue(new Error("the disk is full"));
+        const user = userEvent.setup();
+        const { container } = renderPage();
+        await fillValidForm(user);
+        await user.upload(fileInput(container), imageFile());
+        await user.click(declareButton());
+        await screen.findByText("ship.png was not saved: the disk is full");
+
+        // when
+        mocks.uploadImage.mockResolvedValue({});
+        await user.click(declareButton());
+
+        // then
         await waitFor(() => {
             expect(mocks.navigate).toHaveBeenCalledWith("/ships/ship-9");
         });
+        expect(mocks.createShip).toHaveBeenCalledOnce();
     });
 
     it("reports why the ship could not be declared", async () => {

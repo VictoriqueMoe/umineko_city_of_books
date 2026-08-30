@@ -16,7 +16,7 @@ vi.mock("react-router", async () => {
 
 const verifyMutation = { mutateAsync: mocks.verifyEmail };
 
-vi.mock("../../api/mutations/auth", () => ({
+vi.mock("../../hooks/mutations/auth", () => ({
     useVerifyEmail: () => verifyMutation,
 }));
 

@@ -1,13 +1,12 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { SiteInfo, SiteInfoSecret, VanityRoleDefinition } from "../../api/endpoints";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { UserProfile } from "../../types/api";
+import type { SiteInfo, SiteInfoSecret, UserProfile, VanityRoleDefinition } from "../../types/api";
 import { TrophyCase } from "./TrophyCase";
 
-vi.mock("../../features/easterEgg", () => ({
+vi.mock("../../components/easterEgg", () => ({
     HuntPanel: ({ secretId, onClose }: { secretId: string; isOpen: boolean; onClose: () => void }) => (
         <div data-testid="hunt-panel">
             <span>hunt panel for {secretId}</span>

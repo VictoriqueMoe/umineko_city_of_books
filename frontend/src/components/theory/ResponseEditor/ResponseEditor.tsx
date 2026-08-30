@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import type { Series } from "../../../api/endpoints";
-import { useCreateResponse } from "../../../api/mutations/theory";
+import type { Series } from "../../../types/api";
+import { useCreateResponse } from "../../../hooks/mutations/theory";
 import { useEvidence } from "../../../hooks/useEvidence";
-import { getSeriesConfig } from "../../../utils/seriesConfig";
+import { getSeriesConfig } from "../../../domain/series";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
 import { TextArea } from "../../TextArea/TextArea";

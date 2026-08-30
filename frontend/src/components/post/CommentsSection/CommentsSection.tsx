@@ -1,16 +1,18 @@
-import type { PostComment, UserProfile } from "../../../types/api";
+import type { CommentBase, UserProfile } from "../../../types/api";
 import { CommentItem } from "../CommentItem/CommentItem";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import styles from "./CommentsSection.module.css";
+
+const noChangeHandler = () => {};
 
 type CreateCommentFn = (targetId: string, body: string, parentId?: string) => Promise<{ id: string }>;
 type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
 
 interface CommentsSectionProps {
-    comments: PostComment[] | null | undefined;
+    comments: CommentBase[] | null | undefined;
     targetId: string;
     user: UserProfile | null | undefined;
-    onChanged: () => void;
+    onChanged?: () => void;
     title?: string;
     emptyText?: string | null;
     blockedText?: string;
@@ -32,7 +34,7 @@ export function CommentsSection({
     comments,
     targetId,
     user,
-    onChanged,
+    onChanged = noChangeHandler,
     title = "Comments",
     emptyText = "No comments yet.",
     blockedText = "You cannot interact with this post.",

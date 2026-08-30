@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ShipCharacter } from "../../types/api";
-import { useCharacterList } from "../../api/queries/character";
-import { useUserOCSummaries } from "../../api/queries/oc";
+import { useCharacterList } from "../../hooks/queries/character";
+import { useUserOCSummaries } from "../../hooks/queries/oc";
 import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";

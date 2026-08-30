@@ -1,229 +1,54 @@
-import { useEffect, useState } from "react";
-import {
-    getMyStream,
-    getStreamCredentials,
-    type LiveStream,
-    resetStreamCredentials,
-    startStream,
-    stopStream,
-    type StreamCredentials,
-    type StreamDefaultMode,
-    type StreamOwner,
-    updateStreamTitle,
-} from "../../api/endpoints";
-import { useNotifications } from "../../hooks/useNotifications";
-import type { WSMessage } from "../../types/api";
+import { useState } from "react";
+import { FPS_OPTIONS, MAX_BITRATE, MIN_BITRATE, STREAM_RESOLUTIONS } from "../../domain/live/bitrate";
+import { LIVE_STATUS } from "../../domain/live/playback";
+import { useGoLive } from "../../hooks/useGoLive";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
 import styles from "./GoLivePanel.module.css";
 
-const STREAM_RESOLUTIONS = [
-    { label: "720p", pixels: 1280 * 720 },
-    { label: "1080p", pixels: 1920 * 1080 },
-    { label: "1440p", pixels: 2560 * 1440 },
-    { label: "4K", pixels: 3840 * 2160 },
-];
+export function GoLivePanel() {
+    const {
+        owner,
+        ownerError,
+        credentials,
+        credentialsError,
+        smoothAvailable,
+        title,
+        setTitle,
+        defaultMode,
+        setDefaultMode,
+        bitrate,
+        setBitrate,
+        calculator,
+        titleEdit,
+        start,
+        stop,
+        resetCredentials,
+        canStart,
+        busy,
+        starting,
+        stopping,
+        resetting,
+        error,
+        copied,
+        copy,
+    } = useGoLive();
 
-const FPS_OPTIONS = [30, 60];
-
-const BITRATE_STORAGE_KEY = "stream.bitrateKbps";
-const MIN_BITRATE = 500;
-const MAX_BITRATE = 50000;
-
-interface GoLivePanelProps {
-    onChanged?: () => void;
-}
-
-export function GoLivePanel({ onChanged }: GoLivePanelProps) {
-    const { addWSListener } = useNotifications();
-    const [owner, setOwner] = useState<StreamOwner | null>(null);
-    const [creds, setCreds] = useState<StreamCredentials | null>(null);
-    const [credsError, setCredsError] = useState(false);
-    const [title, setTitle] = useState("");
-    const [defaultMode, setDefaultMode] = useState<StreamDefaultMode>("webrtc");
-    const [resIdx, setResIdx] = useState(1);
-    const [calcFps, setCalcFps] = useState(60);
-    const [bitrate, setBitrate] = useState(() => localStorage.getItem(BITRATE_STORAGE_KEY) ?? "");
-    const [busy, setBusy] = useState(false);
-    const [resetting, setResetting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [copied, setCopied] = useState<string | null>(null);
     const [setupOpen, setSetupOpen] = useState(false);
-    const [editingTitle, setEditingTitle] = useState(false);
-    const [titleDraft, setTitleDraft] = useState("");
-    const [savingTitle, setSavingTitle] = useState(false);
-
-    const bitrateNum = Number(bitrate);
-    const bitrateValid = Number.isFinite(bitrateNum) && bitrateNum >= MIN_BITRATE && bitrateNum <= MAX_BITRATE;
-    const smoothAvailable = creds?.hlsEnabled === true;
-
-    useEffect(() => {
-        getMyStream()
-            .then(setOwner)
-            .catch(() => {});
-        getStreamCredentials()
-            .then(setCreds)
-            .catch(() => setCredsError(true));
-    }, []);
-
-    const ownerStreamId = owner?.stream.id;
-
-    useEffect(() => {
-        if (!ownerStreamId) {
-            return;
-        }
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type === "stream_live") {
-                const data = msg.data as LiveStream;
-                if (data.id === ownerStreamId) {
-                    setOwner(prev => (prev ? { ...prev, stream: { ...prev.stream, status: "live" } } : prev));
-                }
-                return;
-            }
-            if (msg.type === "stream_title") {
-                const data = msg.data as { streamId: string; title: string };
-                if (data.streamId === ownerStreamId) {
-                    setOwner(prev => (prev ? { ...prev, stream: { ...prev.stream, title: data.title } } : prev));
-                }
-                return;
-            }
-            if (msg.type === "stream_offline") {
-                const data = msg.data as { streamId: string };
-                if (data.streamId === ownerStreamId) {
-                    setOwner(null);
-                    setTitle("");
-                    onChanged?.();
-                }
-            }
-        });
-    }, [ownerStreamId, addWSListener, onChanged]);
-
-    async function handleStart() {
-        const trimmed = title.trim();
-        if (!trimmed) {
-            return;
-        }
-        if (smoothAvailable && !bitrateValid) {
-            return;
-        }
-
-        setBusy(true);
-        setError(null);
-
-        try {
-            const kbps = smoothAvailable ? Math.round(bitrateNum) : 0;
-            const mode = smoothAvailable ? defaultMode : "webrtc";
-            if (smoothAvailable) {
-                localStorage.setItem(BITRATE_STORAGE_KEY, String(kbps));
-            }
-            const result = await startStream(trimmed, mode, kbps);
-            setOwner(result);
-            setCreds(prev => ({
-                whipUrl: result.whipUrl,
-                streamKey: result.streamKey,
-                hlsEnabled: prev?.hlsEnabled ?? false,
-            }));
-            onChanged?.();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not start the stream.");
-        } finally {
-            setBusy(false);
-        }
-    }
-
-    async function handleStop() {
-        if (!owner) {
-            return;
-        }
-
-        setBusy(true);
-        setError(null);
-
-        try {
-            await stopStream(owner.stream.id);
-            setOwner(null);
-            setTitle("");
-            onChanged?.();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not stop the stream.");
-        } finally {
-            setBusy(false);
-        }
-    }
-
-    async function handleUpdateTitle() {
-        if (!owner) {
-            return;
-        }
-        const trimmed = titleDraft.trim();
-        if (!trimmed || trimmed === owner.stream.title) {
-            setEditingTitle(false);
-            return;
-        }
-
-        setSavingTitle(true);
-        setError(null);
-
-        try {
-            const updated = await updateStreamTitle(owner.stream.id, trimmed);
-            setOwner(prev => (prev ? { ...prev, stream: { ...prev.stream, title: updated.title } } : prev));
-            setEditingTitle(false);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not update the title.");
-        } finally {
-            setSavingTitle(false);
-        }
-    }
-
-    async function handleReset() {
-        if (owner) {
-            return;
-        }
-        if (
-            !window.confirm("Reset your stream key? You'll need to paste the new key into OBS before your next stream.")
-        ) {
-            return;
-        }
-
-        setResetting(true);
-        setError(null);
-
-        try {
-            const next = await resetStreamCredentials();
-            setCreds(next);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not reset your stream key.");
-        } finally {
-            setResetting(false);
-        }
-    }
-
-    function copy(label: string, value: string) {
-        navigator.clipboard
-            .writeText(value)
-            .then(() => setCopied(label))
-            .catch(() => {});
-    }
-
-    const pixelsPerSecond = STREAM_RESOLUTIONS[resIdx].pixels * calcFps;
-    const kbpsAt = (bpp: number) => Math.round((pixelsPerSecond * bpp) / 1000 / 500) * 500;
-    const lowKbps = kbpsAt(0.07);
-    const highKbps = kbpsAt(0.12);
-    const typicalKbps = kbpsAt(0.095);
 
     return (
         <div className={styles.panel}>
             {owner ? (
-                owner.stream.status === "live" ? (
+                owner.stream.status === LIVE_STATUS ? (
                     <>
                         <h2 className={styles.heading}>You're live</h2>
-                        {editingTitle ? (
+                        {titleEdit.editing ? (
                             <div className={styles.field}>
                                 <Input
                                     type="text"
                                     placeholder="Stream title"
-                                    value={titleDraft}
-                                    onChange={e => setTitleDraft(e.target.value)}
+                                    value={titleEdit.draft}
+                                    onChange={e => titleEdit.setDraft(e.target.value)}
                                     maxLength={120}
                                     fullWidth
                                 />
@@ -231,20 +56,16 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                     <Button
                                         size="small"
                                         variant="primary"
-                                        onClick={() => handleUpdateTitle()}
-                                        disabled={
-                                            savingTitle ||
-                                            !titleDraft.trim() ||
-                                            titleDraft.trim() === owner.stream.title
-                                        }
+                                        onClick={titleEdit.save}
+                                        disabled={!titleEdit.canSave}
                                     >
-                                        {savingTitle ? "Saving..." : "Save title"}
+                                        {titleEdit.saving ? "Saving..." : "Save title"}
                                     </Button>
                                     <Button
                                         size="small"
                                         variant="secondary"
-                                        onClick={() => setEditingTitle(false)}
-                                        disabled={savingTitle}
+                                        onClick={titleEdit.cancel}
+                                        disabled={titleEdit.saving}
                                     >
                                         Cancel
                                     </Button>
@@ -259,22 +80,15 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                     is live. Stop here or close OBS to end it.
                                 </p>
                                 <div className={styles.actions}>
-                                    <Button
-                                        size="small"
-                                        variant="ghost"
-                                        onClick={() => {
-                                            setTitleDraft(owner.stream.title);
-                                            setEditingTitle(true);
-                                        }}
-                                    >
+                                    <Button size="small" variant="ghost" onClick={titleEdit.open}>
                                         Edit title
                                     </Button>
                                 </div>
                             </div>
                         )}
                         <div className={styles.actions}>
-                            <Button variant="danger" onClick={() => handleStop()} disabled={busy}>
-                                {busy ? "Stopping..." : "Stop streaming"}
+                            <Button variant="danger" onClick={stop} disabled={busy}>
+                                {stopping ? "Stopping..." : "Stop streaming"}
                             </Button>
                         </div>
                     </>
@@ -286,8 +100,8 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                             OBS was already streaming, stop and start it again so it connects to this stream.
                         </p>
                         <div className={styles.actions}>
-                            <Button variant="danger" onClick={() => handleStop()} disabled={busy}>
-                                {busy ? "Cancelling..." : "Cancel"}
+                            <Button variant="danger" onClick={stop} disabled={busy}>
+                                {stopping ? "Cancelling..." : "Cancel"}
                             </Button>
                         </div>
                     </>
@@ -351,20 +165,17 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                         </div>
                     )}
                     <div className={styles.actions}>
-                        <Button
-                            variant="primary"
-                            onClick={() => handleStart()}
-                            disabled={busy || !title.trim() || (smoothAvailable && !bitrateValid)}
-                        >
-                            {busy ? "Starting..." : "Go live"}
+                        <Button variant="primary" onClick={start} disabled={!canStart}>
+                            {starting ? "Starting..." : "Go live"}
                         </Button>
                     </div>
                 </>
             )}
 
             {error && <p className={styles.error}>{error}</p>}
+            {ownerError && <p className={styles.error}>{ownerError}</p>}
 
-            {creds && (
+            {credentials && (
                 <div className={styles.disclosure}>
                     <button
                         type="button"
@@ -400,11 +211,11 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                 <div className={styles.field}>
                                     <span className={styles.fieldLabel}>WHIP server</span>
                                     <div className={styles.copyRow}>
-                                        <code className={styles.code}>{creds.whipUrl}</code>
+                                        <code className={styles.code}>{credentials.whipUrl}</code>
                                         <Button
                                             size="small"
                                             variant="secondary"
-                                            onClick={() => copy("url", creds.whipUrl)}
+                                            onClick={() => copy("url", credentials.whipUrl)}
                                         >
                                             {copied === "url" ? "Copied" : "Copy"}
                                         </Button>
@@ -414,11 +225,11 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                 <div className={styles.field}>
                                     <span className={styles.fieldLabel}>Stream key (bearer token)</span>
                                     <div className={styles.copyRow}>
-                                        <code className={styles.code}>{creds.streamKey}</code>
+                                        <code className={styles.code}>{credentials.streamKey}</code>
                                         <Button
                                             size="small"
                                             variant="secondary"
-                                            onClick={() => copy("key", creds.streamKey)}
+                                            onClick={() => copy("key", credentials.streamKey)}
                                         >
                                             {copied === "key" ? "Copied" : "Copy"}
                                         </Button>
@@ -429,7 +240,7 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                     <Button
                                         size="small"
                                         variant="ghost"
-                                        onClick={() => handleReset()}
+                                        onClick={resetCredentials}
                                         disabled={resetting || !!owner}
                                     >
                                         {resetting ? "Resetting..." : "Reset stream key"}
@@ -487,8 +298,12 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                                     <button
                                                         key={r.label}
                                                         type="button"
-                                                        className={i === resIdx ? styles.pillActive : styles.pill}
-                                                        onClick={() => setResIdx(i)}
+                                                        className={
+                                                            i === calculator.resolutionIndex
+                                                                ? styles.pillActive
+                                                                : styles.pill
+                                                        }
+                                                        onClick={() => calculator.setResolutionIndex(i)}
                                                     >
                                                         {r.label}
                                                     </button>
@@ -502,8 +317,10 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                                     <button
                                                         key={f}
                                                         type="button"
-                                                        className={f === calcFps ? styles.pillActive : styles.pill}
-                                                        onClick={() => setCalcFps(f)}
+                                                        className={
+                                                            f === calculator.fps ? styles.pillActive : styles.pill
+                                                        }
+                                                        onClick={() => calculator.setFps(f)}
                                                     >
                                                         {f} fps
                                                     </button>
@@ -512,20 +329,16 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                                         </div>
                                         <div className={styles.calcResult}>
                                             <span className={styles.calcResultMain}>
-                                                {typicalKbps.toLocaleString()}
+                                                {calculator.recommendation.typical.toLocaleString()}
                                                 <span className={styles.calcUnit}> Kbps</span>
                                             </span>
                                             <span className={styles.calcResultSub}>
-                                                {lowKbps.toLocaleString()} to {highKbps.toLocaleString()} range, set as
-                                                CBR
+                                                {calculator.recommendation.low.toLocaleString()} to{" "}
+                                                {calculator.recommendation.high.toLocaleString()} range, set as CBR
                                             </span>
                                         </div>
-                                        <Button
-                                            size="small"
-                                            variant="secondary"
-                                            onClick={() => setBitrate(String(typicalKbps))}
-                                        >
-                                            Use {typicalKbps.toLocaleString()} Kbps
+                                        <Button size="small" variant="secondary" onClick={calculator.applyTypical}>
+                                            Use {calculator.recommendation.typical.toLocaleString()} Kbps
                                         </Button>
                                     </div>
                                 </section>
@@ -541,7 +354,9 @@ export function GoLivePanel({ onChanged }: GoLivePanelProps) {
                     )}
                 </div>
             )}
-            {credsError && <p className={styles.hint}>Could not load your stream key. Reload the page to try again.</p>}
+            {credentialsError && (
+                <p className={styles.hint}>Could not load your stream key. Reload the page to try again.</p>
+            )}
         </div>
     );
 }

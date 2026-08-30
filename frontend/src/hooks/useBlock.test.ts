@@ -10,11 +10,11 @@ const mocks = vi.hoisted(() => ({
     refresh: vi.fn(),
 }));
 
-vi.mock("../api/queries/misc", () => ({
+vi.mock("./queries/user", () => ({
     useBlockStatus: mocks.useBlockStatus,
 }));
 
-vi.mock("../api/mutations/misc", () => ({
+vi.mock("./mutations/user", () => ({
     useBlockUser: () => ({ mutateAsync: mocks.block }),
     useUnblockUser: () => ({ mutateAsync: mocks.unblock }),
 }));

@@ -1,13 +1,15 @@
 import { useState } from "react";
-import { useGlobalBannedWords } from "../../api/queries/admin";
+import { useGlobalBannedWords } from "../../hooks/queries/admin";
 import {
     useCreateGlobalBannedWord,
     useDeleteGlobalBannedWord,
     useUpdateGlobalBannedWord,
-} from "../../api/mutations/admin";
+} from "../../hooks/mutations/admin";
 import type { BannedWordAction, BannedWordMatchMode, BannedWordRule } from "../../types/api";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { Input } from "../../components/Input/Input";
 import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminBannedWords.module.css";
@@ -24,7 +26,7 @@ function validateRegex(pattern: string, mode: BannedWordMatchMode): string {
         new RegExp(pattern);
         return "";
     } catch (e) {
-        return e instanceof Error ? e.message : "Invalid regex";
+        return errorMessage(e, "Invalid regex");
     }
 }
 
@@ -41,6 +43,7 @@ export function AdminBannedWords() {
     const [action, setAction] = useState<BannedWordAction>("delete");
     const [removing, setRemoving] = useState<string | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [pendingRemoval, setPendingRemoval] = useState<BannedWordRule | null>(null);
 
     const saving = createMutation.isPending || updateMutation.isPending;
 
@@ -86,19 +89,23 @@ export function AdminBannedWords() {
             }
             resetForm();
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to save rule");
+            setError(errorMessage(e, "Failed to save rule"));
         }
     }
 
-    async function handleRemove(rule: BannedWordRule) {
-        if (!window.confirm(`Remove global rule for pattern "${rule.pattern}"?`)) {
+    async function confirmRemove() {
+        const rule = pendingRemoval;
+        if (!rule) {
             return;
         }
+
+        setPendingRemoval(null);
         setRemoving(rule.id);
+
         try {
             await deleteMutation.mutateAsync(rule.id);
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to remove rule");
+            setError(errorMessage(e, "Failed to remove rule"));
         } finally {
             setRemoving(null);
         }
@@ -220,7 +227,7 @@ export function AdminBannedWords() {
                                     <Button
                                         variant="danger"
                                         size="small"
-                                        onClick={() => handleRemove(rule)}
+                                        onClick={() => setPendingRemoval(rule)}
                                         disabled={removing === rule.id}
                                     >
                                         {removing === rule.id ? "..." : "Remove"}
@@ -231,6 +238,20 @@ export function AdminBannedWords() {
                     </tbody>
                 </table>
             )}
+
+            <ConfirmDialog
+                open={pendingRemoval !== null}
+                title="Remove Rule"
+                body={
+                    <>
+                        Remove global rule for pattern <bdi>"{pendingRemoval?.pattern}"</bdi>?
+                    </>
+                }
+                confirmLabel="Remove"
+                destructive
+                onConfirm={confirmRemove}
+                onCancel={() => setPendingRemoval(null)}
+            />
         </div>
     );
 }

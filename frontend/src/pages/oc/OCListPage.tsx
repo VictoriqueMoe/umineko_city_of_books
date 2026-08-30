@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useOCList } from "../../api/queries/oc";
+import { useOCList } from "../../hooks/queries/oc";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";

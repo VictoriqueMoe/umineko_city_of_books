@@ -9,7 +9,6 @@ import type {
     UpdateGroupRoomRequest,
     User,
 } from "../../../types/api";
-import { ApiError } from "../../../api/client";
 import { renderWithProviders } from "../../../test-utils/render";
 import { RoomModerationDialog } from "./RoomModerationDialog";
 
@@ -32,13 +31,14 @@ const {
     useUpdateChatRoom: vi.fn(),
 }));
 
-vi.mock("../../../api/queries/chat", () => ({ useChatRoomBans, useChatRoomBannedWords }));
-vi.mock("../../../api/mutations/chat", () => ({
+vi.mock("../../../hooks/queries/chat", () => ({ useChatRoomBans, useChatRoomBannedWords }));
+vi.mock("../../../hooks/mutations/chat", () => ({
     useUnbanChatRoomMember,
     useCreateChatRoomBannedWord,
     useUpdateChatRoomBannedWord,
     useDeleteChatRoomBannedWord,
     useUpdateChatRoom,
+    readBotsWillBeKicked: (err: unknown) => (err as { bots?: User[] }).bots ?? null,
 }));
 
 const roomId = "room-1";
@@ -159,12 +159,8 @@ async function openRoomTab(user: ReturnType<typeof userEvent.setup>) {
     await user.click(screen.getByRole("button", { name: "Room" }));
 }
 
-function botsError(bots: User[]): ApiError {
-    return new ApiError(409, "turning roleplay off will remove 2 bots from this room", {
-        error: "turning roleplay off will remove 2 bots from this room",
-        code: "bots_will_be_kicked",
-        bots,
-    });
+function botsError(bots: User[]): Error {
+    return Object.assign(new Error("turning roleplay off will remove 2 bots from this room"), { bots });
 }
 
 async function openWordsTab(user: ReturnType<typeof userEvent.setup>) {

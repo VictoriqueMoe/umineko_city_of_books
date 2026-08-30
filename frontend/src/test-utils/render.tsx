@@ -2,14 +2,13 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderOptions, type RenderResult } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { MemoryRouter, Route, Routes } from "react-router";
-import type { SiteInfo } from "../api/endpoints";
 import { AuthContext, type AuthContextValue } from "../context/authContextValue";
 import { GifFavouritesContext, type GifFavouritesContextValue } from "../context/gifFavouritesContextValue";
 import { MentionResolverContext, type MentionResolverContextValue } from "../context/mentionResolverContextValue";
 import { NotificationContext, type NotificationContextValue } from "../context/notificationContextValue";
 import { ThemeContext, type ThemeContextValue } from "../context/themeContextValue";
 import { SiteInfoContext } from "../context/siteInfoContextValue";
-import type { UserProfile } from "../types/api";
+import type { SessionUser, SiteInfo } from "../types/api";
 import {
     makeAuthContext,
     makeGifFavouritesContext,
@@ -19,7 +18,7 @@ import {
 } from "./fixtures";
 
 export interface ProviderOptions {
-    user?: UserProfile | null;
+    user?: SessionUser | null;
     auth?: Partial<AuthContextValue>;
     siteInfo?: Partial<SiteInfo>;
     notification?: Partial<NotificationContextValue>;

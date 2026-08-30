@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import type { ShipCharacter } from "../../types/api";
-import { useShipList } from "../../api/queries/ship";
+import { useShipList } from "../../hooks/queries/ship";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -12,7 +12,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
-import { PieceTrigger } from "../../features/easterEgg";
+import { PieceTrigger } from "../../components/easterEgg";
 import styles from "./ShipPages.module.css";
 
 function characterPillClass(series: string): string {

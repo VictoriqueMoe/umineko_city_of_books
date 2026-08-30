@@ -8,7 +8,7 @@ import { AnnouncementCard } from "./AnnouncementCard";
 
 const { useLatestAnnouncement } = vi.hoisted(() => ({ useLatestAnnouncement: vi.fn() }));
 
-vi.mock("../../api/queries/announcement", () => ({ useLatestAnnouncement }));
+vi.mock("../../hooks/queries/announcement", () => ({ useLatestAnnouncement }));
 
 const DISMISSED_KEY = "dismissed_announcement";
 

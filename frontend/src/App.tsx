@@ -1,12 +1,13 @@
-import { Suspense, useEffect, useLayoutEffect, useState } from "react";
-import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
+import { Suspense, useLayoutEffect, useState, type ReactElement } from "react";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { useSiteInfo } from "./hooks/useSiteInfo";
 import { useTheme } from "./hooks/useTheme";
 import { useAuth } from "./hooks/useAuth";
 import { useSidebarCollapsed } from "./hooks/useSidebarCollapsed";
-import { canAccessAdmin } from "./utils/permissions";
-import { ensureNotificationPermission } from "./utils/notifications";
-import { initPush } from "./utils/push";
+import { usePushNotifications } from "./hooks/usePushNotifications";
+import { MOBILE_QUERY } from "./hooks/useIsMobile";
+import { canAccessAdmin } from "./domain/permissions";
+import { homePageRoute, HOME_PAGE_FALLBACK } from "./domain/user/homePage";
 import { Header } from "./components/layout/Header/Header";
 import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
@@ -20,12 +21,11 @@ import { PullToRefresh } from "./components/PullToRefresh/PullToRefresh";
 import { LockBanner } from "./components/LockBanner/LockBanner";
 import { VerifyEmailBanner } from "./components/VerifyEmailBanner/VerifyEmailBanner";
 import { InstallPrompt } from "./components/InstallPrompt/InstallPrompt";
-import { initWebPushRouting, resumeWebPush } from "./utils/webPush";
-import { Toast } from "./components/Toast/Toast";
+import { SecretClosedToast } from "./components/secrets/SecretClosedToast/SecretClosedToast";
 import { GameForfeitWarning } from "./components/GameForfeitWarning/GameForfeitWarning";
 import { MaintenancePage } from "./pages/maintenance/MaintenancePage";
 import { LandingPage } from "./pages/landing/LandingPage";
-import { renderRich } from "./utils/richText";
+import { renderRich } from "./components/richText/richText";
 import {
     AdminAnnouncementsPage,
     AdminAuditLog,
@@ -114,34 +114,10 @@ import {
     VerifyEmailPage,
 } from "./pages/lazyPages";
 
-const homePageRoutes: Record<string, string> = {
-    landing: "/welcome",
-    rules: "/rules",
-    theories: "/theories",
-    theories_higurashi: "/theories/higurashi",
-    theories_ciconia: "/theories/ciconia",
-    game_board: "/game-board",
-    game_board_umineko: "/game-board/umineko",
-    game_board_higurashi: "/game-board/higurashi",
-    game_board_ciconia: "/game-board/ciconia",
-    game_board_higanbana: "/game-board/higanbana",
-    game_board_roseguns: "/game-board/roseguns",
-    gallery: "/gallery",
-    gallery_umineko: "/gallery/umineko",
-    gallery_higurashi: "/gallery/higurashi",
-    gallery_ciconia: "/gallery/ciconia",
-    quotes: "/quotes",
-    mysteries: "/mysteries",
-    ships: "/ships",
-    fanfiction: "/fanfiction",
-    journals: "/journals",
-    games: "/games",
-};
-
 function HomePage() {
     const { user } = useAuth();
-    const target = homePageRoutes[user?.private?.home_page ?? "landing"] ?? "/welcome";
-    if (target === "/welcome") {
+    const target = homePageRoute(user?.private?.home_page);
+    if (target === HOME_PAGE_FALLBACK) {
         return <LandingPage />;
     }
     return <Navigate to={target} replace />;
@@ -166,52 +142,19 @@ function RouteFallback() {
     return <div className="loading">Loading...</div>;
 }
 
-interface SecretClosedDetail {
-    secret_id: string;
-    secret_title: string;
-    solver: { display_name: string; username: string };
-}
-
-function SecretClosedToast() {
-    const [event, setEvent] = useState<SecretClosedDetail | null>(null);
-
-    useEffect(() => {
-        function handler(e: Event) {
-            const detail = (e as CustomEvent<SecretClosedDetail>).detail;
-            if (detail && detail.secret_id && detail.solver) {
-                setEvent(detail);
-            }
-        }
-        window.addEventListener("secret-closed", handler);
-        return () => window.removeEventListener("secret-closed", handler);
-    }, []);
-
-    if (!event) {
-        return null;
-    }
-    const name = event.solver.display_name || event.solver.username;
-    return (
-        <Toast variant="arcane" duration={10000} onDismiss={() => setEvent(null)}>
-            <Link to={`/secrets/${event.secret_id}`} style={{ color: "inherit" }}>
-                Uu~{" "}
-                <strong>
-                    <bdi>{name}</bdi>
-                </strong>{" "}
-                solved{" "}
-                <em>
-                    <bdi>{event.secret_title}</bdi>
-                </em>{" "}
-                before you could. Try again next time.
-            </Link>
-        </Toast>
-    );
-}
-
 const CHAT_LAYOUT_ROUTES = [/^\/rooms\/[^/]+$/, /^\/chat(\/|$)/, /^\/live\/[^/]+$/];
 
 const STREAM_CHAT_POPOUT_ROUTE = /^\/live\/[^/]+\/chat$/;
 
-const PRIVATE_MODE_ROUTES = new Set(["/login", "/forgot-password", "/reset-password", "/set-email", "/verify-email"]);
+const PUBLIC_AUTH_ROUTES: { path: string; element: ReactElement }[] = [
+    { path: "/login", element: <LoginPage /> },
+    { path: "/forgot-password", element: <ForgotPasswordPage /> },
+    { path: "/reset-password", element: <ResetPasswordPage /> },
+    { path: "/set-email", element: <SetEmailPage /> },
+    { path: "/verify-email", element: <VerifyEmailPage /> },
+];
+
+const PUBLIC_AUTH_PATHS = new Set(PUBLIC_AUTH_ROUTES.map(route => route.path));
 
 function isChatLayoutPath(pathname: string): boolean {
     for (const pattern of CHAT_LAYOUT_ROUTES) {
@@ -235,19 +178,8 @@ function AppLayout() {
     const chatLayout = isChatLayoutPath(pathname);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
-    const navigate = useNavigate();
 
-    useEffect(() => {
-        if (!user) {
-            return;
-        }
-
-        ensureNotificationPermission().catch(() => {});
-        initPush(navigate).catch(() => {});
-        resumeWebPush(siteInfo.web_push).catch(() => {});
-
-        return initWebPushRouting(navigate);
-    }, [user, navigate, siteInfo.web_push]);
+    usePushNotifications();
 
     useLayoutEffect(() => {
         if (!chatLayout) {
@@ -271,7 +203,7 @@ function AppLayout() {
     }
 
     if (siteInfo.private_mode && !user) {
-        if (!PRIVATE_MODE_ROUTES.has(pathname)) {
+        if (!PUBLIC_AUTH_PATHS.has(pathname)) {
             return <Navigate to="/login" replace state={{ from: pathname }} />;
         }
 
@@ -279,11 +211,9 @@ function AppLayout() {
             <div className="app-private">
                 <Suspense fallback={<RouteFallback />}>
                     <Routes>
-                        <Route path="/login" element={<LoginPage />} />
-                        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-                        <Route path="/reset-password" element={<ResetPasswordPage />} />
-                        <Route path="/set-email" element={<SetEmailPage />} />
-                        <Route path="/verify-email" element={<VerifyEmailPage />} />
+                        {PUBLIC_AUTH_ROUTES.map(route => (
+                            <Route key={route.path} path={route.path} element={route.element} />
+                        ))}
                     </Routes>
                 </Suspense>
             </div>
@@ -301,7 +231,7 @@ function AppLayout() {
     }
 
     const toggleSidebar = () => {
-        if (window.matchMedia("(max-width: 960px)").matches) {
+        if (window.matchMedia(MOBILE_QUERY).matches) {
             setSidebarOpen(prev => !prev);
         } else {
             setSidebarCollapsed(prev => !prev);

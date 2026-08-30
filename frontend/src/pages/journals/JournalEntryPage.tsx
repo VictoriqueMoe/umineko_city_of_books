@@ -1,28 +1,22 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useJournal, useJournalEntry } from "../../api/queries/journal";
+import { useJournal, useJournalEntry } from "../../hooks/queries/journal";
 import { useAuth } from "../../hooks/useAuth";
+import { useCommentHandlers } from "../../hooks/useCommentHandlers";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import { can } from "../../utils/permissions";
+import { contentPermissions, type ContentSubject } from "../../domain/contentPermissions";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
+import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
-import {
-    useCreateJournalComment,
-    useDeleteJournalComment,
-    useDeleteJournalEntry,
-    useLikeJournalComment,
-    useUnlikeJournalComment,
-    useUpdateJournalComment,
-    useUploadJournalCommentMedia,
-} from "../../api/mutations/journal";
-import { renderRich } from "../../utils/richText";
+import { useDeleteJournalEntry } from "../../hooks/mutations/journal";
+import { renderRich } from "../../components/richText/richText";
 import { extractGif } from "../../utils/gif";
 import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
-import type { PostComment } from "../../types/api";
 import styles from "./JournalEntryPage.module.css";
 
 function entryHeading(number: number, title?: string | null): string {
@@ -58,13 +52,13 @@ export function JournalEntryPage() {
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
     useScrollToHash(!loading && !!entry, highlightedComment ? `comment-${highlightedComment}` : null);
 
-    const createCommentMutation = useCreateJournalComment(journalId ?? "", entry?.id);
-    const updateCommentMutation = useUpdateJournalComment(journalId ?? "");
-    const deleteCommentMutation = useDeleteJournalComment(journalId ?? "");
-    const likeCommentMutation = useLikeJournalComment(journalId ?? "");
-    const unlikeCommentMutation = useUnlikeJournalComment(journalId ?? "");
-    const uploadMediaMutation = useUploadJournalCommentMedia(journalId ?? "");
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
+        "journal",
+        journalId ?? "",
+        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"], entryId: entry?.id },
+    );
     const deleteEntryMutation = useDeleteJournalEntry(journalId ?? "");
+    const [deleteError, setDeleteError] = useState("");
 
     if (loading) {
         return <div className="loading">Loading entry...</div>;
@@ -73,34 +67,27 @@ export function JournalEntryPage() {
         return <div className="empty-state">Entry not found.</div>;
     }
 
-    const isOwner = user?.id === journal.author.id;
-    const canEdit = isOwner || can(user, "edit_any_journal");
-    const canDelete = isOwner || can(user, "delete_any_journal");
+    const subject: ContentSubject = { family: "journal_entry", authorId: journal.author.id };
+    const { canEdit, canDelete } = contentPermissions(user, subject);
     const canComment = user && !journal.is_archived;
 
     async function handleDeleteEntry() {
         if (!window.confirm("Delete this entry? This cannot be undone.")) {
             return;
         }
+        setDeleteError("");
         try {
             await deleteEntryMutation.mutateAsync(entry!.id);
             navigate(`/journals/${journalId}`);
-        } catch {}
+        } catch (thrown) {
+            setDeleteError(errorMessage(thrown, "Failed to delete this entry"));
+        }
     }
 
     function navigateTo(target: number) {
         navigate(`/journals/${journalId}/entry/${target}`);
         window.scrollTo({ top: 0, behavior: "smooth" });
     }
-
-    const likeFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
-    const unlikeFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
-    const deleteFn = (commentId: string) => deleteCommentMutation.mutateAsync(commentId);
-    const updateFn = (commentId: string, body: string) =>
-        updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => undefined);
-    const createCommentFn = (_postId: string, body: string, parentId?: string) =>
-        createCommentMutation.mutateAsync({ body, parentId });
-    const uploadMediaFn = (commentId: string, file: File) => uploadMediaMutation.mutateAsync({ commentId, file });
 
     function navButtons() {
         return (
@@ -183,11 +170,13 @@ export function JournalEntryPage() {
                     )}
                 </div>
 
+                {deleteError && <ErrorBanner message={deleteError} />}
+
                 {navButtons()}
             </div>
 
             <CommentsSection
-                comments={comments as unknown as PostComment[]}
+                comments={comments}
                 targetId={entry.id}
                 user={canComment ? user : null}
                 onChanged={() => refresh()}

@@ -1,9 +1,8 @@
-import type { SiteInfo } from "../api/endpoints";
 import type { AuthContextValue } from "../context/authContextValue";
 import type { GifFavouritesContextValue } from "../context/gifFavouritesContextValue";
 import type { NotificationContextValue } from "../context/notificationContextValue";
 import type { ThemeContextValue } from "../context/themeContextValue";
-import type { UserProfile, UserStats } from "../types/api";
+import type { SessionUser, SiteInfo, UserStats } from "../types/api";
 
 export function makeStats(overrides: Partial<UserStats> = {}): UserStats {
     return {
@@ -17,7 +16,7 @@ export function makeStats(overrides: Partial<UserStats> = {}): UserStats {
     };
 }
 
-export function makeUser(overrides: Partial<UserProfile> = {}): UserProfile {
+export function makeUser(overrides: Partial<SessionUser> = {}): SessionUser {
     return {
         id: "00000000-0000-0000-0000-000000000001",
         username: "beatrice",

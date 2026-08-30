@@ -1,9 +1,10 @@
 import { type PropsWithChildren, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { UserProfile } from "../types/api";
+import type { SessionUser } from "../types/api";
 import { AuthContext } from "./authContextValue";
-import { useMe } from "../api/queries/auth";
-import { useLogin, useLogout, useRegister } from "../api/mutations/auth";
+import { useMe } from "../hooks/queries/auth";
+import { useLogin, useLogout, useRegister } from "../hooks/mutations/auth";
+import { queryKeys } from "../api/queryKeys";
 
 export function AuthProvider({ children }: PropsWithChildren) {
     const qc = useQueryClient();
@@ -11,8 +12,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const user = me;
 
     const setUser = useCallback(
-        (next: UserProfile | null) => {
-            qc.setQueryData<UserProfile | null>(["auth", "me"], next);
+        (next: SessionUser | null) => {
+            qc.setQueryData<SessionUser | null>(queryKeys.auth.me(), next);
         },
         [qc],
     );

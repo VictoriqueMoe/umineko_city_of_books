@@ -26,8 +26,8 @@ const {
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/announcement", () => ({ useAnnouncement }));
-vi.mock("../../api/mutations/announcement", () => ({
+vi.mock("../../hooks/queries/announcement", () => ({ useAnnouncement }));
+vi.mock("../../hooks/mutations/announcement", () => ({
     useCreateAnnouncementComment,
     useUpdateAnnouncementComment,
     useDeleteAnnouncementComment,
@@ -326,7 +326,7 @@ describe("AnnouncementDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "stub update" }));
 
         // then
-        expect(updateAsync).toHaveBeenCalledWith({ id: "comment-9", body: "edited body" });
+        expect(updateAsync).toHaveBeenCalledWith({ id: "comment-9", commentId: "comment-9", body: "edited body" });
     });
 
     it("likes, unlikes and removes a comment through the announcement's own mutations", async () => {

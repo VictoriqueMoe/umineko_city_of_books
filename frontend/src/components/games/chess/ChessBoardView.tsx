@@ -38,7 +38,7 @@ function parseUci(input: string): ParsedUci | null {
 }
 
 interface ChessBoardViewProps {
-    room: GameRoom;
+    room: GameRoom<ChessState, ChessStats>;
     viewer: User | null;
     isSpectator: boolean;
     onMove: (move: { from: string; to: string; promotion?: string }) => Promise<void>;
@@ -97,7 +97,7 @@ export function ChessBoardView({
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [coordInput, setCoordInput] = useState("");
-    const state = room.state as ChessState;
+    const state = room.state;
 
     const viewerId = viewer?.id ?? null;
     const mySlot = getMySlot(room, viewerId);
@@ -106,8 +106,8 @@ export function ChessBoardView({
 
     const { offlinePlayer, forfeitRemaining, liveDurationSeconds } = useDisconnectForfeit(room);
 
-    const stateFen = state?.fen;
-    const statePgn = state?.pgn;
+    const stateFen = state.fen;
+    const statePgn = state.pgn;
 
     const game = useMemo(() => {
         const g = new Chess();
@@ -302,9 +302,9 @@ export function ChessBoardView({
 
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
-    const statsAvailable = isChessStats(room.stats);
-    const showStats = statsAvailable && (isOver || (room.status === "active" && isSpectator));
-    const reasonText = statsAvailable && room.stats ? formatReason((room.stats as ChessStats).result_reason) : "";
+    const stats = isChessStats(room.stats) ? room.stats : null;
+    const showStats = stats !== null && (isOver || (room.status === "active" && isSpectator));
+    const reasonText = stats ? formatReason(stats.result_reason) : "";
 
     return (
         <div className={shell.wrapper}>
@@ -322,7 +322,7 @@ export function ChessBoardView({
             <div className={shell.boardContainer}>
                 <Chessboard
                     options={{
-                        position: state?.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+                        position: state.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
                         boardOrientation: orientation,
                         allowDragging: isMyTurn,
                         squareStyles,
@@ -357,30 +357,30 @@ export function ChessBoardView({
                 resultTone={result.tone}
                 reasonText={reasonText}
             >
-                {showStats && statsAvailable && (
+                {showStats && stats && (
                     <GameStatsGrid
                         slot0Name={room.players.find(p => p.slot === 0)?.display_name ?? "White"}
                         slot1Name={room.players.find(p => p.slot === 1)?.display_name ?? "Black"}
                         isOver={isOver}
                         rows={[
                             {
-                                slot0: (room.stats as ChessStats).white_moves,
+                                slot0: stats.white_moves,
                                 label: "Moves",
-                                slot1: (room.stats as ChessStats).black_moves,
+                                slot1: stats.black_moves,
                             },
                             {
-                                slot0: (room.stats as ChessStats).white_captures,
+                                slot0: stats.white_captures,
                                 label: "Captures",
-                                slot1: (room.stats as ChessStats).black_captures,
+                                slot1: stats.black_captures,
                             },
                             {
-                                slot0: (room.stats as ChessStats).white_checks,
+                                slot0: stats.white_checks,
                                 label: "Checks given",
-                                slot1: (room.stats as ChessStats).black_checks,
+                                slot1: stats.black_checks,
                             },
                         ]}
                         totalLabel="Total ply"
-                        totalValue={(room.stats as ChessStats).total_ply}
+                        totalValue={stats.total_ply}
                         durationSeconds={liveDurationSeconds}
                     />
                 )}

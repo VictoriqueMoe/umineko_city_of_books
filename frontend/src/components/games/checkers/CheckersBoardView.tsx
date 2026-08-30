@@ -15,7 +15,7 @@ const SLOT_RED = 0;
 const SLOT_BLACK = 1;
 
 interface CheckersBoardViewProps {
-    room: GameRoom;
+    room: GameRoom<CheckersState, CheckersStats>;
     viewer: User | null;
     isSpectator: boolean;
     onMove: (move: { from: string; path: string[] }) => Promise<void>;
@@ -250,8 +250,8 @@ export function CheckersBoardView({
     const [jumpPath, setJumpPath] = useState<Coord[]>([]);
     const [jumpOriginPiece, setJumpOriginPiece] = useState<CellChar | null>(null);
 
-    const state = room.state as Partial<CheckersState> | undefined;
-    const stateBoard = state?.board;
+    const state = room.state;
+    const stateBoard = state.board;
     const persistedGrid = useMemo(() => {
         if (stateBoard && stateBoard.length === 64) {
             return parseBoard(stateBoard);
@@ -471,9 +471,9 @@ export function CheckersBoardView({
 
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
-    const statsAvailable = isCheckersStats(room.stats);
-    const showStats = statsAvailable && (isOver || (room.status === "active" && isSpectator));
-    const reasonText = statsAvailable && room.stats ? formatReason((room.stats as CheckersStats).result_reason) : "";
+    const stats = isCheckersStats(room.stats) ? room.stats : null;
+    const showStats = stats !== null && (isOver || (room.status === "active" && isSpectator));
+    const reasonText = stats ? formatReason(stats.result_reason) : "";
 
     const highlightTargets = new Set<string>();
     for (const j of availableTargets.jumps) {
@@ -485,7 +485,7 @@ export function CheckersBoardView({
 
     const lastMovePathSet = new Set<string>();
     const lastMoveCapturedSet = new Set<string>();
-    if (state?.last_move) {
+    if (state.last_move) {
         const squareToKey = (sq: string): string | null => {
             if (sq.length !== 2) {
                 return null;
@@ -607,35 +607,35 @@ export function CheckersBoardView({
                 resultTone={result.tone}
                 reasonText={reasonText}
             >
-                {showStats && statsAvailable && (
+                {showStats && stats && (
                     <GameStatsGrid
                         slot0Name={room.players.find(p => p.slot === SLOT_RED)?.display_name ?? "Red"}
                         slot1Name={room.players.find(p => p.slot === SLOT_BLACK)?.display_name ?? "Black"}
                         isOver={isOver}
                         rows={[
                             {
-                                slot0: (room.stats as CheckersStats).red_moves,
+                                slot0: stats.red_moves,
                                 label: "Moves",
-                                slot1: (room.stats as CheckersStats).black_moves,
+                                slot1: stats.black_moves,
                             },
                             {
-                                slot0: (room.stats as CheckersStats).red_captures,
+                                slot0: stats.red_captures,
                                 label: "Captures",
-                                slot1: (room.stats as CheckersStats).black_captures,
+                                slot1: stats.black_captures,
                             },
                             {
-                                slot0: (room.stats as CheckersStats).red_crownings,
+                                slot0: stats.red_crownings,
                                 label: "Kings crowned",
-                                slot1: (room.stats as CheckersStats).black_crownings,
+                                slot1: stats.black_crownings,
                             },
                             {
-                                slot0: (room.stats as CheckersStats).red_pieces_left,
+                                slot0: stats.red_pieces_left,
                                 label: "Pieces left",
-                                slot1: (room.stats as CheckersStats).black_pieces_left,
+                                slot1: stats.black_pieces_left,
                             },
                         ]}
                         totalLabel="Total moves"
-                        totalValue={(room.stats as CheckersStats).total_moves}
+                        totalValue={stats.total_moves}
                         durationSeconds={liveDurationSeconds}
                     />
                 )}

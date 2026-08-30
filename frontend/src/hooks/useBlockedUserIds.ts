@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useBlockedUsers } from "../api/queries/user";
+import { useBlockedUsers } from "./queries/user";
 import { useAuth } from "./useAuth";
 
 export function useBlockedUserIds(): Set<string> {

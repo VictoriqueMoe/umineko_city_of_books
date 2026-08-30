@@ -4,11 +4,12 @@ import {
     useOfferDraw,
     useResignGame,
     useSubmitGameAction,
-} from "../../api/mutations/gameRoom";
+} from "../../hooks/mutations/gameRoom";
 import { ChessBoardView } from "../../components/games/chess/ChessBoardView";
+import type { ChessState, ChessStats } from "../../types/api";
 import { GameRoomShell, type GameBoardProps } from "./GameRoomShell";
 
-function ChessBoard({ room, viewer, isSpectator }: GameBoardProps) {
+function ChessBoard({ room, viewer, isSpectator }: GameBoardProps<ChessState, ChessStats>) {
     const submitAction = useSubmitGameAction(room.id);
     const resign = useResignGame();
     const offerDraw = useOfferDraw();

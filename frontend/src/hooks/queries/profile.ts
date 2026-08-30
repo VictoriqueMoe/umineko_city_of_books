@@ -1,0 +1,15 @@
+﻿import { useQuery } from "@tanstack/react-query";
+import { getUserProfile } from "../../api/endpoints/user";
+import { queryKeys } from "../../api/queryKeys";
+
+export function useProfile(username: string) {
+    const query = useQuery({
+        queryKey: queryKeys.profile.byUsername(username),
+        queryFn: () => getUserProfile(username),
+        enabled: !!username,
+    });
+    return {
+        profile: query.data ?? null,
+        loading: query.isLoading,
+    };
+}

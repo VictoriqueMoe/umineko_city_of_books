@@ -2,21 +2,13 @@ import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import type { PostComment, ShipCharacter } from "../../types/api";
-import { useShip } from "../../api/queries/ship";
-import {
-    useCreateShipComment,
-    useDeleteShip,
-    useDeleteShipComment,
-    useLikeShipComment,
-    useUnlikeShipComment,
-    useUpdateShip,
-    useUpdateShipComment,
-    useUploadShipCommentMedia,
-    useVoteShip,
-} from "../../api/mutations/ship";
+import type { ShipCharacter } from "../../types/api";
+import { useShip } from "../../hooks/queries/ship";
+import { useDeleteShip, useUpdateShip, useVoteShip } from "../../hooks/mutations/ship";
 import { useAuth } from "../../hooks/useAuth";
-import { can } from "../../utils/permissions";
+import { useCommentHandlers } from "../../hooks/useCommentHandlers";
+import { contentPermissions } from "../../domain/contentPermissions";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
@@ -25,7 +17,7 @@ import { CommentsSection } from "../../components/post/CommentsSection/CommentsS
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
-import { renderRich } from "../../utils/richText";
+import { renderRich } from "../../components/richText/richText";
 import { CharacterPills } from "./ShipsListPage";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
@@ -56,18 +48,18 @@ export function ShipDetailPage() {
     const [editChars, setEditChars] = useState<ShipCharacter[]>([]);
     const [saving, setSaving] = useState(false);
     const [editError, setEditError] = useState("");
+    const [voteError, setVoteError] = useState("");
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 
     const voteShipMutation = useVoteShip(ship?.id ?? "");
     const deleteShipMutation = useDeleteShip();
     const updateShipMutation = useUpdateShip(ship?.id ?? "");
-    const likeCommentMutation = useLikeShipComment(ship?.id ?? "");
-    const unlikeCommentMutation = useUnlikeShipComment(ship?.id ?? "");
-    const deleteCommentMutation = useDeleteShipComment(ship?.id ?? "");
-    const updateCommentMutation = useUpdateShipComment(ship?.id ?? "");
-    const createCommentMutation = useCreateShipComment(ship?.id ?? "");
-    const uploadCommentMediaMutation = useUploadShipCommentMedia(ship?.id ?? "");
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
+        "ship",
+        ship?.id ?? "",
+        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
+    );
 
     const fetchShip = () => {
         refresh();
@@ -82,9 +74,12 @@ export function ShipDetailPage() {
         const current = ship.user_vote ?? 0;
         const newValue = current === value ? 0 : value;
         setVoting(true);
+        setVoteError("");
         try {
             await voteShipMutation.mutateAsync(newValue);
-        } catch {}
+        } catch (thrown) {
+            setVoteError(errorMessage(thrown, "Failed to record your vote"));
+        }
         setVoting(false);
     }
 
@@ -157,9 +152,7 @@ export function ShipDetailPage() {
         return <div className="empty-state">Ship not found.</div>;
     }
 
-    const isAuthor = user?.id === ship.author.id;
-    const canEdit = isAuthor || can(user, "edit_any_post");
-    const canDelete = isAuthor || can(user, "delete_any_post");
+    const { canEdit, canDelete } = contentPermissions(user, { family: "ship", authorId: ship.author.id });
     const userVote = ship.user_vote ?? 0;
 
     return (
@@ -288,11 +281,12 @@ export function ShipDetailPage() {
                         </Button>
                         <ShareButton contentId={ship.id} contentType="ship" contentTitle={ship.title} />
                     </div>
+                    {voteError && <ErrorBanner message={voteError} />}
                 </div>
             </div>
 
             <CommentsSection
-                comments={(ship.comments ?? []) as unknown as PostComment[]}
+                comments={ship.comments ?? []}
                 targetId={ship.id}
                 user={user}
                 onChanged={fetchShip}
@@ -301,14 +295,12 @@ export function ShipDetailPage() {
                 highlightedId={highlightedComment ?? undefined}
                 linkPrefix="/ships"
                 reportType="ship_comment"
-                likeFn={commentId => likeCommentMutation.mutateAsync(commentId).then(() => {})}
-                unlikeFn={commentId => unlikeCommentMutation.mutateAsync(commentId).then(() => {})}
-                deleteFn={commentId => deleteCommentMutation.mutateAsync(commentId).then(() => {})}
-                updateFn={(commentId, body) =>
-                    updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => {})
-                }
-                createCommentFn={(_shipId, body, parentId) => createCommentMutation.mutateAsync({ body, parentId })}
-                uploadMediaFn={(commentId, file) => uploadCommentMediaMutation.mutateAsync({ commentId, file })}
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
+                createCommentFn={createCommentFn}
+                uploadMediaFn={uploadMediaFn}
             />
 
             {lightboxOpen && (ship.image_url || ship.thumbnail_url) && (

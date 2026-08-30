@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { TheorySort } from "../../types/app";
-import { useTheoryFeed } from "../../api/queries/theory";
+import { useTheoryFeed } from "../../hooks/queries/theory";
+import { hasNextPage, usePageOffset } from "../../hooks/usePageOffset";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
@@ -10,9 +11,9 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
-import type { Series } from "../../api/endpoints";
-import { getSeriesConfig } from "../../utils/seriesConfig";
-import { PieceTrigger } from "../../features/easterEgg";
+import type { Series } from "../../types/api";
+import { getSeriesConfig } from "../../domain/series";
+import { PieceTrigger } from "../../components/easterEgg";
 import styles from "./FeedPage.module.css";
 
 type SortCategory = "new" | "popular" | "controversial" | "credibility";
@@ -54,13 +55,15 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
         return () => clearTimeout(debounceRef.current);
     }, [searchInput]);
 
-    const { theories, total, loading, offset, limit, goNext, goPrev, hasNext, hasPrev } = useTheoryFeed(
+    const page = usePageOffset({ limit: 20 });
+    const { theories, total, loading } = useTheoryFeed({
         sort,
         episode,
-        undefined,
         search,
         series,
-    );
+        offset: page.offset,
+        limit: page.limit,
+    });
 
     function handleSortClick(category: SortCategory) {
         const current = getCategory(sort);
@@ -144,13 +147,13 @@ export function FeedPage({ series = "umineko" }: { series?: Series }) {
 
             {!loading && (
                 <Pagination
-                    offset={offset}
-                    limit={limit}
+                    offset={page.offset}
+                    limit={page.limit}
                     total={total}
-                    hasNext={hasNext}
-                    hasPrev={hasPrev}
-                    onNext={goNext}
-                    onPrev={goPrev}
+                    hasNext={hasNextPage(page, total)}
+                    hasPrev={page.hasPrev}
+                    onNext={page.goNext}
+                    onPrev={page.goPrev}
                 />
             )}
         </div>

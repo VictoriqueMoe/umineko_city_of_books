@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { useAuth } from "../../hooks/useAuth";
 import { useTheme } from "../../hooks/useTheme";
-import { HuntPanel } from "../../features/easterEgg";
+import { HuntPanel } from "../../components/easterEgg";
 import styles from "./TrophyCase.module.css";
 
 interface TrophyCaseProps {

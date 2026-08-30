@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useOC } from "../../api/queries/oc";
+import { useOC } from "../../hooks/queries/oc";
 import {
     useAddOCGalleryImage,
     useCreateOC,
@@ -9,12 +9,13 @@ import {
     useDeleteOCGalleryImage,
     useUpdateOC,
     useUploadOCImageById,
-} from "../../api/mutations/oc";
+} from "../../hooks/mutations/oc";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Select } from "../../components/Select/Select";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
+import { type UploadFailure, uploadFailure, uploadFailureMessage } from "../../domain/uploadFailures";
 import type { OCDetail, OCImage } from "../../types/api";
 import shipStyles from "../ships/ShipPages.module.css";
 
@@ -50,6 +51,7 @@ function OCForm({ editing, initial, id }: FormProps) {
     const [galleryCaption, setGalleryCaption] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [createdOCId, setCreatedOCId] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -142,28 +144,53 @@ function OCForm({ editing, initial, id }: FormProps) {
                 series,
                 custom_series_name: series === "custom" ? customSeriesName.trim() : "",
             };
-            let targetId = id ?? "";
+            let targetId = createdOCId || (id ?? "");
             if (editing) {
                 await updateMutation.mutateAsync(payload);
-            } else {
+            } else if (!createdOCId) {
                 const result = await createMutation.mutateAsync(payload);
                 targetId = result.id;
+                setCreatedOCId(targetId);
             }
+
+            const failures: UploadFailure[] = [];
+
             if (imageReplaced && imageFile && targetId) {
                 try {
                     await uploadImageMutation.mutateAsync({ id: targetId, file: imageFile });
-                } catch {}
+                    setImageReplaced(false);
+                } catch (thrown) {
+                    failures.push(uploadFailure(imageFile.name, thrown));
+                }
             }
+
+            const stillPresent = new Set<number>();
             for (const removedID of removedExistingIDs) {
                 try {
                     await deleteGalleryMutation.mutateAsync({ ocId: targetId, imageId: removedID });
-                } catch {}
+                } catch (thrown) {
+                    stillPresent.add(removedID);
+                    failures.push(uploadFailure(`the removal of image ${removedID}`, thrown));
+                }
             }
+            setRemovedExistingIDs(stillPresent);
+
+            const stillPending: PendingGalleryImage[] = [];
             for (const item of pendingGallery) {
                 try {
                     await addGalleryMutation.mutateAsync({ id: targetId, file: item.file, caption: item.caption });
-                } catch {}
+                } catch (thrown) {
+                    stillPending.push(item);
+                    failures.push(uploadFailure(item.file.name, thrown));
+                }
             }
+            setPendingGallery(stillPending);
+
+            if (failures.length > 0) {
+                setError(uploadFailureMessage(failures));
+                return;
+            }
+
             navigate(`/oc/${targetId}`);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to save oc");

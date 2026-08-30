@@ -7,7 +7,7 @@ import { PastGamesPage } from "./PastGamesPage";
 
 const { useFinishedGameRooms } = vi.hoisted(() => ({ useFinishedGameRooms: vi.fn() }));
 
-vi.mock("../../api/queries/gameRoom", () => ({ useFinishedGameRooms }));
+vi.mock("../../hooks/queries/gameRoom", () => ({ useFinishedGameRooms }));
 
 function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
     const id = overrides.user_id ?? "player-0";

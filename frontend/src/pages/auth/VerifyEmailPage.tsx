@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { useVerifyEmail } from "../../api/mutations/auth";
+import { useVerifyEmail } from "../../hooks/mutations/auth";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { Button } from "../../components/Button/Button";
 import styles from "./LoginPage.module.css";

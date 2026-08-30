@@ -1,15 +1,29 @@
 import { screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
-import type { WSMessage } from "../../types/api";
-import { STREAM_CHAT_POPOUT_CLOSED } from "../../utils/streamChatPopout";
+import { emitRealtimeEvent } from "../../test-utils/ws";
+import type { LiveStream } from "../../types/api";
+import { STREAM_CHAT_POPOUT_CLOSED } from "../../platform/streamChatPopout";
 import { StreamChatPopout } from "./StreamChatPopout";
 
 const mocks = vi.hoisted(() => ({
     getStream: vi.fn(),
+    getStreamViewerToken: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints", () => ({ getStream: mocks.getStream }));
+vi.mock("../../api/endpoints/stream", () => ({
+    listLiveStreams: vi.fn(),
+    getStream: mocks.getStream,
+    getMyStream: vi.fn(),
+    getStreamCredentials: vi.fn(),
+    getStreamViewerToken: mocks.getStreamViewerToken,
+    joinStreamChat: vi.fn(),
+    resetStreamCredentials: vi.fn(),
+    startStream: vi.fn(),
+    stopStream: vi.fn(),
+    updateStreamTitle: vi.fn(),
+    uploadStreamThumbnail: vi.fn(),
+}));
 
 vi.mock("./StreamChatPanel", () => ({
     StreamChatPanel: (props: { streamId: string; isLive: boolean; onPopOut?: () => void }) => (
@@ -22,37 +36,26 @@ vi.mock("./StreamChatPanel", () => ({
     ),
 }));
 
-interface StreamOptions {
-    id?: string;
-    title?: string;
-    status?: string;
-}
-
-function makeStream(options: StreamOptions = {}) {
+function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
     return {
-        id: options.id ?? "stream-1",
-        title: options.title ?? "Tea party",
-        status: options.status ?? "live",
+        id: "stream-1",
         userId: "streamer-1",
+        title: "Tea party",
+        status: "live",
+        viewerCount: 0,
         streamerUsername: "beatrice",
         streamerDisplayName: "Beatrice",
+        streamerAvatarUrl: "",
+        defaultMode: "webrtc",
+        ...overrides,
     };
 }
 
 function renderPopout(streamId = "stream-1") {
-    const listeners: ((msg: WSMessage) => void)[] = [];
-    const result = renderWithProviders(<StreamChatPopout />, {
+    return renderWithProviders(<StreamChatPopout />, {
         route: `/live/${streamId}/chat`,
         path: "/live/:streamID/chat",
-        notification: {
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
-        },
     });
-
-    return { ...result, listeners };
 }
 
 beforeEach(() => {
@@ -125,14 +128,12 @@ describe("StreamChatPopout", () => {
 
     it("re-reads the stream when it is told the stream went offline", async () => {
         // given
-        const { listeners } = renderPopout("stream-1");
+        renderPopout("stream-1");
         await screen.findByTestId("panel");
         mocks.getStream.mockClear();
 
         // when
-        for (const listener of listeners) {
-            listener({ type: "stream_offline", data: { streamId: "stream-1" } } as WSMessage);
-        }
+        emitRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-1" } });
 
         // then
         await waitFor(() => {
@@ -142,14 +143,12 @@ describe("StreamChatPopout", () => {
 
     it("ignores news about a stream it is not showing", async () => {
         // given
-        const { listeners } = renderPopout("stream-1");
+        renderPopout("stream-1");
         await screen.findByTestId("panel");
         mocks.getStream.mockClear();
 
         // when
-        for (const listener of listeners) {
-            listener({ type: "stream_offline", data: { streamId: "some-other-stream" } } as WSMessage);
-        }
+        emitRealtimeEvent({ type: "stream_offline", data: { streamId: "some-other-stream" } });
 
         // then
         expect(mocks.getStream).not.toHaveBeenCalled();
@@ -195,5 +194,16 @@ describe("StreamChatPopout", () => {
 
         // then
         expect(await screen.findByTestId("panel")).toBeInTheDocument();
+    });
+
+    it("never joins the stream's livekit room, it only carries the chat", async () => {
+        // given
+        renderPopout("stream-1");
+
+        // when
+        await screen.findByTestId("panel");
+
+        // then
+        expect(mocks.getStreamViewerToken).not.toHaveBeenCalled();
     });
 });

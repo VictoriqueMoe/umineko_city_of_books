@@ -1,50 +1,19 @@
-import { useState } from "react";
 import { ToggleSwitch } from "../ToggleSwitch/ToggleSwitch";
-import { useSiteInfo } from "../../hooks/useSiteInfo";
-import {
-    disableWebPush,
-    enableWebPush,
-    webPushConfigured,
-    webPushEnabled,
-    webPushSupported,
-} from "../../utils/webPush";
+import { useWebPush } from "../../hooks/useWebPush";
 import styles from "./WebPushToggle.module.css";
 
 export function WebPushToggle() {
-    const siteInfo = useSiteInfo();
-    const [enabled, setEnabled] = useState(() => webPushEnabled());
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState("");
+    const { available, enabled, busy, error, setEnabled } = useWebPush();
 
-    const config = siteInfo.web_push;
-
-    if (!siteInfo.push_enabled || !webPushConfigured(config) || !webPushSupported()) {
+    if (!available) {
         return null;
-    }
-
-    function handleChange(next: boolean) {
-        setBusy(true);
-        setError("");
-
-        const action = next ? enableWebPush(config) : disableWebPush(config);
-
-        action
-            .then(() => setEnabled(next))
-            .catch((err: unknown) => {
-                const reason = err instanceof Error ? err.message : String(err);
-
-                setError(
-                    next ? `Could not turn notifications on: ${reason}` : `Could not turn notifications off: ${reason}`,
-                );
-            })
-            .finally(() => setBusy(false));
     }
 
     return (
         <div className={styles.wrapper}>
             <ToggleSwitch
                 enabled={enabled}
-                onChange={handleChange}
+                onChange={setEnabled}
                 disabled={busy}
                 label="Push Notifications"
                 description="Get notified on this device even when the site is closed. Turn this on separately on each device you use."

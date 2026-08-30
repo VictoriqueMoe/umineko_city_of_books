@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router";
-import { useAdminUsers } from "../../api/queries/admin";
+import { useAdminUsers } from "../../hooks/queries/admin";
+import { hasNextPage, usePageOffset } from "../../hooks/usePageOffset";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Input } from "../../components/Input/Input";
@@ -14,14 +15,14 @@ const LIMIT = 20;
 export function AdminUsers() {
     usePageTitle("Admin - Users");
     const navigate = useNavigate();
-    const [offset, setOffset] = useState(0);
+    const page = usePageOffset({ limit: LIMIT });
     const [search, setSearch] = useState("");
     const [committed, setCommitted] = useState("");
-    const { users, total, loading, error } = useAdminUsers(committed, LIMIT, offset);
+    const { users, total, loading, error } = useAdminUsers(committed, page.limit, page.offset);
 
     function handleSearch(e: React.SubmitEvent) {
         e.preventDefault();
-        setOffset(0);
+        page.reset();
         setCommitted(search);
     }
 
@@ -95,13 +96,13 @@ export function AdminUsers() {
                     )}
 
                     <Pagination
-                        offset={offset}
-                        limit={LIMIT}
+                        offset={page.offset}
+                        limit={page.limit}
                         total={total}
-                        hasNext={offset + LIMIT < total}
-                        hasPrev={offset > 0}
-                        onNext={() => setOffset(prev => prev + LIMIT)}
-                        onPrev={() => setOffset(prev => Math.max(0, prev - LIMIT))}
+                        hasNext={hasNextPage(page, total)}
+                        hasPrev={page.hasPrev}
+                        onNext={page.goNext}
+                        onPrev={page.goPrev}
                     />
                 </>
             )}

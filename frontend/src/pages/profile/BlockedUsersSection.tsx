@@ -1,5 +1,5 @@
-import { useBlockedUsers } from "../../api/queries/user";
-import { useUnblockUser } from "../../api/mutations/misc";
+import { useBlockedUsers } from "../../hooks/queries/user";
+import { useUnblockUser } from "../../hooks/mutations/user";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { useAuth } from "../../hooks/useAuth";

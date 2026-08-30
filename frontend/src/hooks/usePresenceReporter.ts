@@ -1,16 +1,13 @@
 import { useEffect, useRef } from "react";
+import { REALTIME_COMMANDS, sendRealtime, type ViewerState } from "../api/realtime/outbound";
+import { useRealtimeStatus } from "../api/realtime/useRealtime";
 
 const IDLE_AFTER_MS = 60_000;
 
-interface Options {
-    roomId: string | undefined;
-    sendWSMessage: (msg: object) => void;
-    wsEpoch: number;
-}
-
-export function usePresenceReporter({ roomId, sendWSMessage, wsEpoch }: Options): void {
-    const lastSentRef = useRef<"active" | "idle" | null>(null);
+export function usePresenceReporter(roomId: string | undefined): void {
+    const lastSentRef = useRef<ViewerState | null>(null);
     const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const epoch = useRealtimeStatus();
 
     useEffect(() => {
         if (!roomId) {
@@ -18,12 +15,12 @@ export function usePresenceReporter({ roomId, sendWSMessage, wsEpoch }: Options)
         }
         lastSentRef.current = null;
 
-        const report = (state: "active" | "idle") => {
+        const report = (state: ViewerState) => {
             if (lastSentRef.current === state) {
                 return;
             }
             lastSentRef.current = state;
-            sendWSMessage({ type: "viewer_state", data: { room_id: roomId, state } });
+            sendRealtime({ type: REALTIME_COMMANDS.VIEWER_STATE, data: { room_id: roomId, state } });
         };
 
         const clearIdleTimer = () => {
@@ -80,5 +77,5 @@ export function usePresenceReporter({ roomId, sendWSMessage, wsEpoch }: Options)
             window.removeEventListener("touchstart", onActivity);
             document.removeEventListener("visibilitychange", onVisibilityChange);
         };
-    }, [roomId, sendWSMessage, wsEpoch]);
+    }, [roomId, epoch]);
 }

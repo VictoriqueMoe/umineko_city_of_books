@@ -12,7 +12,7 @@ import { PongCourt } from "./PongCourt";
 import styles from "./PongBoardView.module.css";
 
 interface PongBoardViewProps {
-    room: GameRoom;
+    room: GameRoom<PongState, PongStats>;
     viewer: User | null;
     isSpectator: boolean;
     onResign: () => Promise<void>;
@@ -53,13 +53,12 @@ export function PongBoardView({ room, viewer, isSpectator, onResign }: PongBoard
 
     const viewerId = viewer?.id ?? null;
     const mySlot = getMySlot(room, viewerId);
-    const state = room.state as PongState | undefined;
+    const state = room.state;
 
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
-    const statsAvailable = isPongStats(room.stats);
-    const stats = statsAvailable ? (room.stats as PongStats) : null;
-    const showStats = statsAvailable && (isOver || (room.status === "active" && isSpectator));
+    const stats = isPongStats(room.stats) ? room.stats : null;
+    const showStats = stats !== null && (isOver || (room.status === "active" && isSpectator));
 
     async function handleResign() {
         if (submitting) {
@@ -72,10 +71,6 @@ export function PongBoardView({ room, viewer, isSpectator, onResign }: PongBoard
         const next = !muted;
         setPongMuted(next);
         setMuted(next);
-    }
-
-    if (!state) {
-        return <div className={shell.wrapper}>Loading game...</div>;
     }
 
     const scoreLine = `Score ${state.scores[0]} - ${state.scores[1]}, first to ${state.points_to_win}`;

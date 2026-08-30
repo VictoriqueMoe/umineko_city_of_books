@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { DmController } from "../../../hooks/useDmController";
@@ -7,12 +7,28 @@ import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatRoom, User } from "../../../types/api";
 import { MobileDmView } from "./MobileDmView";
 
-const mocks = vi.hoisted(() => ({ forceMuteVoiceParticipant: vi.fn(() => Promise.resolve()) }));
+const mocks = vi.hoisted(() => ({
+    forceMuteVoiceParticipant: vi.fn<
+        (roomId: string | null | undefined, userId: string, muted: boolean) => Promise<void>
+    >(() => Promise.resolve()),
+}));
 
-vi.mock("../../../api/endpoints", async importOriginal => {
-    const actual = await importOriginal<typeof import("../../../api/endpoints")>();
+vi.mock("../../../hooks/mutations/chat", async importOriginal => {
+    const actual = await importOriginal<typeof import("../../../hooks/mutations/chat")>();
 
-    return { ...actual, forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant };
+    return {
+        ...actual,
+        useForceMuteVoiceParticipant: (roomId: string | null | undefined) => ({
+            mutate: (
+                variables: { userId: string; muted: boolean },
+                callbacks?: { onError?: (err: unknown) => void },
+            ) => {
+                mocks
+                    .forceMuteVoiceParticipant(roomId, variables.userId, variables.muted)
+                    .catch((err: unknown) => callbacks?.onError?.(err));
+            },
+        }),
+    };
 });
 
 vi.mock("../MessageList/DmMessageList", () => ({
@@ -131,6 +147,8 @@ function makeController(overrides: Partial<DmController> = {}): DmController {
         dmMutuals: [],
         dmError: "",
         dmCreating: false,
+        toast: null,
+        showToast: vi.fn(),
         handleRoomSelect: vi.fn(),
         handleMobileBack: vi.fn(),
         handleSentMessage: vi.fn(),
@@ -458,6 +476,22 @@ describe("MobileDmView", () => {
 
         // then
         expect(mocks.forceMuteVoiceParticipant).toHaveBeenCalledWith("room-1", "battler", true);
+    });
+
+    it("tells the moderator when a server mute did not take", async () => {
+        // given
+        mocks.forceMuteVoiceParticipant.mockRejectedValue(new Error("LiveKit said no"));
+        const showToast = vi.fn();
+        const user = userEvent.setup();
+        roomView({ showToast, voice: makeVoice({ status: "connected", room: { name: "voice" } }) });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "server mute battler" }));
+
+        // then
+        await waitFor(() => {
+            expect(showToast).toHaveBeenCalledWith("LiveKit said no");
+        });
     });
 
     it("only shows who is typing inside a real conversation", () => {

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
-import type { SiteInfoSecret } from "../api/endpoints";
-import { useUnlockSecret } from "../api/mutations/secret";
+import type { SiteInfoSecret } from "../types/api";
+import { useUnlockSecret } from "./mutations/secret";
 import { useTheme } from "./useTheme.ts";
 import { useAuth } from "./useAuth.ts";
 import { useSiteInfo } from "./useSiteInfo";

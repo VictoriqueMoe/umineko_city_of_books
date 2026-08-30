@@ -12,7 +12,7 @@ const { useGameScoreboard, useLiveGameRooms, navigate } = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/gameRoom", () => ({ useGameScoreboard, useLiveGameRooms }));
+vi.mock("../../hooks/queries/gameRoom", () => ({ useGameScoreboard, useLiveGameRooms }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

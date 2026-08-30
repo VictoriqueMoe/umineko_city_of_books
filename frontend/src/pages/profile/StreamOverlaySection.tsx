@@ -1,107 +1,14 @@
-import { useEffect, useState } from "react";
-import {
-    fetchOverlayConnectorSEF,
-    getOverlayConnection,
-    type OverlayConnection,
-    resetOverlayToken,
-    testOverlay,
-} from "../../api/endpoints";
+import { useState } from "react";
 import { Button } from "../../components/Button/Button";
+import { useStreamOverlay } from "../../hooks/useStreamOverlay";
 import settings from "./SettingsPage.module.css";
 import styles from "./StreamOverlaySection.module.css";
 
 export function StreamOverlaySection() {
-    const [conn, setConn] = useState<OverlayConnection | null>(null);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [downloading, setDownloading] = useState(false);
-    const [resetting, setResetting] = useState(false);
-    const [testing, setTesting] = useState(false);
-    const [copied, setCopied] = useState(false);
+    const overlay = useStreamOverlay();
     const [setupOpen, setSetupOpen] = useState(false);
 
-    useEffect(() => {
-        getOverlayConnection()
-            .then(setConn)
-            .catch(() => setError("Could not load your overlay connection."));
-    }, []);
-
-    async function handleDownload() {
-        setDownloading(true);
-        setError("");
-        try {
-            const sef = await fetchOverlayConnectorSEF();
-            const blob = new Blob([sef], { type: "text/plain" });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = "overlay-connector.sef";
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not download the connector.");
-        } finally {
-            setDownloading(false);
-        }
-    }
-
-    async function handleReset() {
-        const confirmed = window.confirm(
-            "Reset your overlay token? Your current connector file will stop working and you'll need to download and re-import the new one.",
-        );
-        if (!confirmed) {
-            return;
-        }
-
-        setResetting(true);
-        setError("");
-        setSuccess("");
-        try {
-            const next = await resetOverlayToken();
-            setConn(next);
-            setCopied(false);
-            setSuccess("Token reset. Download the new connector below.");
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Could not reset your token.");
-        } finally {
-            setResetting(false);
-        }
-    }
-
-    async function handleTest() {
-        setTesting(true);
-        setError("");
-        setSuccess("");
-        try {
-            await testOverlay();
-            setSuccess("Test overlay sent. Check your SAMMI overlay.");
-            setConn(prev => (prev ? { ...prev, connected: true } : prev));
-        } catch (err) {
-            setError(
-                err instanceof Error
-                    ? err.message
-                    : "Could not send a test overlay. Make sure SAMMI is open and connected.",
-            );
-            setConn(prev => (prev ? { ...prev, connected: false } : prev));
-        } finally {
-            setTesting(false);
-        }
-    }
-
-    function copyToken() {
-        if (!conn) {
-            return;
-        }
-        navigator.clipboard
-            .writeText(conn.token)
-            .then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-            })
-            .catch(() => {});
-    }
+    const connection = overlay.connection;
 
     return (
         <div className={settings.section}>
@@ -111,39 +18,56 @@ export function StreamOverlaySection() {
                 SAMMI. Download the connector, import it into SAMMI, and your events appear live on stream.
             </p>
 
-            {error && <div className={settings.error}>{error}</div>}
-            {success && <div className={settings.success}>{success}</div>}
+            {overlay.loading && <p className={settings.mutedText}>Loading your overlay connection...</p>}
 
-            {conn && (
+            {overlay.loadError !== "" && (
+                <>
+                    <div className={settings.error} role="alert">
+                        {overlay.loadError}
+                    </div>
+                    <p className={settings.mutedText}>
+                        The overlay controls stay hidden until this loads. Reload the page to try again.
+                    </p>
+                </>
+            )}
+
+            {overlay.actionError !== "" && (
+                <div className={settings.error} role="alert">
+                    {overlay.actionError}
+                </div>
+            )}
+            {overlay.success !== "" && <div className={settings.success}>{overlay.success}</div>}
+
+            {connection && (
                 <>
                     <div className={styles.statusRow}>
-                        <span className={conn.connected ? styles.statusOn : styles.statusOff}>
-                            {conn.connected ? "SAMMI connected" : "SAMMI not connected"}
+                        <span className={connection.connected ? styles.statusOn : styles.statusOff}>
+                            {connection.connected ? "SAMMI connected" : "SAMMI not connected"}
                         </span>
                     </div>
 
                     <div className={styles.actions}>
-                        <Button variant="primary" onClick={() => handleDownload()} disabled={downloading}>
-                            {downloading ? "Preparing..." : "Download SAMMI connector (.sef)"}
+                        <Button variant="primary" onClick={overlay.downloadConnector} disabled={overlay.downloading}>
+                            {overlay.downloading ? "Preparing..." : "Download SAMMI connector (.sef)"}
                         </Button>
-                        <Button variant="secondary" onClick={() => handleTest()} disabled={testing}>
-                            {testing ? "Sending..." : "Send test overlay"}
+                        <Button variant="secondary" onClick={overlay.sendTestOverlay} disabled={overlay.testing}>
+                            {overlay.testing ? "Sending..." : "Send test overlay"}
                         </Button>
                     </div>
 
                     <label className={settings.label}>
                         Connection token
                         <div className={styles.copyRow}>
-                            <code className={styles.code}>{conn.token}</code>
-                            <Button size="small" variant="secondary" onClick={() => copyToken()}>
-                                {copied ? "Copied" : "Copy"}
+                            <code className={styles.code}>{connection.token}</code>
+                            <Button size="small" variant="secondary" onClick={overlay.copyToken}>
+                                {overlay.copied ? "Copied" : "Copy"}
                             </Button>
                         </div>
                     </label>
 
                     <div className={styles.resetRow}>
-                        <Button size="small" variant="ghost" onClick={() => handleReset()} disabled={resetting}>
-                            {resetting ? "Resetting..." : "Reset token"}
+                        <Button size="small" variant="ghost" onClick={overlay.resetToken} disabled={overlay.resetting}>
+                            {overlay.resetting ? "Resetting..." : "Reset token"}
                         </Button>
                         <span className={settings.mutedText}>
                             Use this if your token leaks. You'll need to re-download the connector.

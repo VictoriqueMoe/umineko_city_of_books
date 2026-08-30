@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { VanityRoleDefinition } from "../../api/endpoints";
+import type { VanityRoleDefinition } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { RolePill } from "./RolePill";
 

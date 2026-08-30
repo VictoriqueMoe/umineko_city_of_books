@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/text"
 
 	"github.com/google/uuid"
 )
@@ -46,7 +47,7 @@ func truncate(body string, limit int) string {
 		return body
 	}
 
-	return body[:limit] + "..."
+	return text.ClampBytes(body, limit) + "..."
 }
 
 func fitBudget(messages []openai.Message, pinned int) []openai.Message {
@@ -60,7 +61,7 @@ func fitBudget(messages []openai.Message, pinned int) []openai.Message {
 	}
 
 	drop := pinned
-	for drop < len(messages)-1 && total > promptCharBudget {
+	for drop < len(messages)-1 && total > promptByteBudget {
 		total -= len(messages[drop].Content)
 		drop++
 	}

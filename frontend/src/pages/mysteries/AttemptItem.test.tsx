@@ -15,7 +15,7 @@ const { useCreateMysteryAttempt, useDeleteMysteryAttempt, useMarkMysterySolved, 
     }),
 );
 
-vi.mock("../../api/mutations/mystery", () => ({
+vi.mock("../../hooks/mutations/mystery", () => ({
     useCreateMysteryAttempt,
     useDeleteMysteryAttempt,
     useMarkMysterySolved,
@@ -69,21 +69,17 @@ interface RenderOptions {
 }
 
 function renderAttempt(options: RenderOptions = {}) {
-    const onRefresh = vi.fn();
-    const result = renderWithProviders(
+    return renderWithProviders(
         <AttemptItem
             attempt={options.attempt ?? makeAttempt()}
             mysteryId="mystery-1"
             isAuthor={options.isAuthor ?? false}
-            onRefresh={onRefresh}
             mysterySolved={options.mysterySolved ?? false}
             mysteryPaused={options.mysteryPaused ?? false}
             authorAlreadyWon={options.authorAlreadyWon ?? false}
         />,
         { user: options.viewer ?? null, route: "/mystery/mystery-1" },
     );
-
-    return { ...result, onRefresh };
 }
 
 describe("AttemptItem", () => {
@@ -232,7 +228,6 @@ describe("AttemptItem", () => {
                 attempt={makeAttempt({ vote_score: 9, user_vote: 1 })}
                 mysteryId="mystery-1"
                 isAuthor={false}
-                onRefresh={vi.fn()}
                 mysterySolved={false}
                 mysteryPaused={false}
                 authorAlreadyWon={false}
@@ -305,11 +300,11 @@ describe("AttemptItem", () => {
         expect(screen.getByRole("button", { name: "Reply" })).toBeInTheDocument();
     });
 
-    it("posts a trimmed reply against the attempt and refreshes the board", async () => {
+    it("posts a trimmed reply against the attempt and closes the composer", async () => {
         // given
         const { replyAsync } = stubMutations();
         const user = userEvent.setup();
-        const { onRefresh } = renderAttempt({ viewer: playerUser });
+        renderAttempt({ viewer: playerUser });
         await user.click(screen.getByRole("button", { name: "Reply" }));
 
         // when
@@ -319,9 +314,8 @@ describe("AttemptItem", () => {
         // then
         expect(replyAsync).toHaveBeenCalledWith({ body: "The window was never shut.", parentId: "attempt-1" });
         await waitFor(() => {
-            expect(onRefresh).toHaveBeenCalledOnce();
+            expect(screen.queryByPlaceholderText("Reply...")).not.toBeInTheDocument();
         });
-        expect(screen.queryByPlaceholderText("Reply...")).not.toBeInTheDocument();
     });
 
     it("refuses to send an empty reply", async () => {
@@ -403,20 +397,19 @@ describe("AttemptItem", () => {
         expect(markSolvedAsync).not.toHaveBeenCalled();
     });
 
-    it("crowns the attempt and refreshes the board once confirmed", async () => {
+    it("crowns the attempt once the game master confirms", async () => {
         // given
         const { markSolvedAsync } = stubMutations();
         vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
-        const { onRefresh } = renderAttempt({ viewer: gameMasterUser, isAuthor: true });
+        renderAttempt({ viewer: gameMasterUser, isAuthor: true });
 
         // when
         await user.click(screen.getByRole("button", { name: "Select Winner" }));
 
         // then
-        expect(markSolvedAsync).toHaveBeenCalledWith("attempt-1");
         await waitFor(() => {
-            expect(onRefresh).toHaveBeenCalledOnce();
+            expect(markSolvedAsync).toHaveBeenCalledWith("attempt-1");
         });
     });
 
@@ -437,21 +430,20 @@ describe("AttemptItem", () => {
         expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     });
 
-    it("asks before deleting and refreshes the board afterwards", async () => {
+    it("asks before deleting and then deletes the attempt", async () => {
         // given
         const { deleteAsync } = stubMutations();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
-        const { onRefresh } = renderAttempt({ viewer: playerUser });
+        renderAttempt({ viewer: playerUser });
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete" }));
 
         // then
         expect(confirm).toHaveBeenCalledWith("Delete this attempt?");
-        expect(deleteAsync).toHaveBeenCalledWith("attempt-1");
         await waitFor(() => {
-            expect(onRefresh).toHaveBeenCalledOnce();
+            expect(deleteAsync).toHaveBeenCalledWith("attempt-1");
         });
     });
 

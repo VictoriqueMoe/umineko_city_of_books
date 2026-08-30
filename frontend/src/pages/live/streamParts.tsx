@@ -1,18 +1,14 @@
 import { useEffect, useState } from "react";
 import { Track } from "livekit-client";
 import { VideoTrack, useParticipants, useTracks } from "@livekit/components-react";
-import { absolutizeMedia } from "../../api/client";
+import { UPTIME_TICK_MS, streamUptimeLabel } from "../../domain/live/uptime";
+import { countViewers } from "../../domain/live/viewers";
+import { useViewerRoster } from "../../hooks/useViewerRoster";
 import styles from "./live.module.css";
-
-interface ViewerMeta {
-    userId?: string;
-    username?: string;
-    avatarUrl?: string;
-}
 
 export function ViewerCountReporter({ onChange }: { onChange: (count: number) => void }) {
     const participants = useParticipants();
-    const count = participants.filter(p => p.identity.startsWith("viewer_")).length;
+    const count = countViewers(participants);
 
     useEffect(() => {
         onChange(count);
@@ -21,47 +17,27 @@ export function ViewerCountReporter({ onChange }: { onChange: (count: number) =>
     return null;
 }
 
-function formatElapsed(ms: number): string {
-    const total = Math.max(0, Math.floor(ms / 1000));
-    const hours = Math.floor(total / 3600);
-    const minutes = Math.floor((total % 3600) / 60);
-    const seconds = total % 60;
-
-    const mm = minutes.toString().padStart(2, "0");
-    const ss = seconds.toString().padStart(2, "0");
-
-    if (hours > 0) {
-        return `${hours}:${mm}:${ss}`;
-    }
-
-    return `${mm}:${ss}`;
-}
-
 export function StreamUptime({ startedAt }: { startedAt?: string }) {
     const [now, setNow] = useState(() => Date.now());
 
     useEffect(() => {
         const id = window.setInterval(() => {
             setNow(Date.now());
-        }, 1000);
+        }, UPTIME_TICK_MS);
         return () => {
             window.clearInterval(id);
         };
     }, []);
 
-    if (!startedAt) {
-        return null;
-    }
-
-    const start = Date.parse(startedAt);
-    if (Number.isNaN(start)) {
+    const label = streamUptimeLabel(startedAt, now);
+    if (label === null) {
         return null;
     }
 
     return (
         <span className={styles.uptime} title="Live for">
             <span className={styles.uptimeDot} />
-            {formatElapsed(now - start)}
+            {label}
         </span>
     );
 }
@@ -71,7 +47,7 @@ export function StreamStage() {
     const participants = useParticipants();
 
     const video = tracks.find(t => t.publication?.kind === Track.Kind.Video) ?? null;
-    const viewerCount = participants.filter(p => p.identity.startsWith("viewer_")).length;
+    const viewerCount = countViewers(participants);
 
     return (
         <>
@@ -89,50 +65,29 @@ export function StreamStage() {
 
 export function StreamViewers() {
     const participants = useParticipants();
-    const viewers = participants.filter(p => p.identity.startsWith("viewer_"));
-
-    const named = new Map<string, { name: string; avatar?: string }>();
-    let guests = 0;
-    for (let i = 0; i < viewers.length; i++) {
-        const p = viewers[i];
-        let meta: ViewerMeta | null = null;
-        if (p.metadata) {
-            try {
-                meta = absolutizeMedia(JSON.parse(p.metadata) as ViewerMeta);
-            } catch {
-                meta = null;
-            }
-        }
-        if (meta?.userId) {
-            named.set(meta.userId, { name: p.name || meta.username || "Member", avatar: meta.avatarUrl });
-        } else {
-            guests += 1;
-        }
-    }
-
-    const namedList = Array.from(named.entries());
+    const roster = useViewerRoster(participants);
 
     return (
         <div className={styles.viewers}>
             <span className={styles.viewersCount}>
-                {"\u{1F441}"} {viewers.length} watching
+                {"\u{1F441}"} {roster.total} watching
             </span>
             <div className={styles.viewersList}>
-                {namedList.map(([userId, v]) => (
-                    <span key={userId} className={styles.viewerChip} title={v.name}>
-                        {v.avatar ? (
-                            <img src={v.avatar} alt="" className={styles.viewerAvatar} />
+                {roster.named.map(viewer => (
+                    <span key={viewer.userId} className={styles.viewerChip} title={viewer.name}>
+                        {viewer.avatar ? (
+                            <img src={viewer.avatar} alt="" className={styles.viewerAvatar} />
                         ) : (
                             <span className={styles.viewerAvatar} />
                         )}
                         <span dir="auto" className={styles.viewerName}>
-                            {v.name}
+                            {viewer.name}
                         </span>
                     </span>
                 ))}
-                {guests > 0 && (
+                {roster.guests > 0 && (
                     <span className={`${styles.viewerChip} ${styles.guestChip}`}>
-                        {guests} guest{guests === 1 ? "" : "s"}
+                        {roster.guests} guest{roster.guests === 1 ? "" : "s"}
                     </span>
                 )}
             </div>

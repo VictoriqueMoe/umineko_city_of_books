@@ -14,9 +14,9 @@ const mocks = vi.hoisted(() => ({
     refresh: vi.fn(),
 }));
 
-vi.mock("../../api/queries/post", () => ({ usePostFeed: mocks.usePostFeed }));
+vi.mock("../../hooks/queries/post", () => ({ usePostFeed: mocks.usePostFeed }));
 
-vi.mock("../../api/mutations/post", () => ({
+vi.mock("../../hooks/mutations/post", () => ({
     useResolveSuggestion: () => ({ mutateAsync: mocks.resolve }),
     useUnresolveSuggestion: () => ({ mutateAsync: mocks.unresolve }),
 }));

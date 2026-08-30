@@ -4,7 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
-import { PieceTrigger } from "../../features/easterEgg";
+import { PieceTrigger } from "../../components/easterEgg";
 import { LiveActivity } from "./LiveActivity";
 import styles from "./LandingPage.module.css";
 

@@ -7,7 +7,7 @@ import { SearchPage } from "./SearchPage";
 
 const mocks = vi.hoisted(() => ({ useSiteSearch: vi.fn() }));
 
-vi.mock("../../api/queries/search", () => ({ useSiteSearch: mocks.useSiteSearch }));
+vi.mock("../../hooks/queries/search", () => ({ useSiteSearch: mocks.useSiteSearch }));
 
 vi.mock("../../components/layout/GlobalSearch/SearchResultRow", () => ({
     SearchResultRow: ({ result }: { result: SearchResult }) => <div data-testid="search-result">{result.title}</div>,

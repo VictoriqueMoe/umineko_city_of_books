@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useCreateComment, useUploadCommentMedia } from "../../../api/mutations/post";
+import { useCreateComment, useUploadCommentMedia } from "../../../hooks/mutations/post";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";

@@ -10,11 +10,11 @@ const mocks = vi.hoisted(() => ({
     refresh: vi.fn(),
 }));
 
-vi.mock("../api/queries/misc", () => ({
+vi.mock("./queries/user", () => ({
     useFollowStats: mocks.useFollowStats,
 }));
 
-vi.mock("../api/mutations/misc", () => ({
+vi.mock("./mutations/user", () => ({
     useFollowUser: () => ({ mutateAsync: mocks.follow }),
     useUnfollowUser: () => ({ mutateAsync: mocks.unfollow }),
 }));

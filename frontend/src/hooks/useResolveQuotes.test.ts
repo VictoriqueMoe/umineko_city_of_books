@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Series } from "../api/endpoints";
-import type { EvidenceItem, Quote } from "../types/api";
+import type { EvidenceItem, Quote, Series } from "../types/api";
+import { providerWrapper } from "../test-utils/render";
 import { useResolveQuotes } from "./useResolveQuotes";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
@@ -50,7 +50,10 @@ interface ResolveProps {
 }
 
 function setup(props: ResolveProps) {
-    return renderHook(p => useResolveQuotes(p.evidence, p.series), { initialProps: props });
+    return renderHook(p => useResolveQuotes(p.evidence, p.series), {
+        initialProps: props,
+        wrapper: providerWrapper(),
+    });
 }
 
 beforeEach(() => {

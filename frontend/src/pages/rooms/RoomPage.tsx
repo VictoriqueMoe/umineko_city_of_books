@@ -1,135 +1,60 @@
-import { Fragment, lazy, Suspense, useMemo } from "react";
-import { isSiteStaff } from "../../utils/permissions";
-import { effectiveMemberUser, memberModPermissions } from "../../utils/chatMembers";
+import { lazy, Suspense, useMemo } from "react";
+import { roomViewerPolicy } from "../../domain/chat/roomPolicy";
 import { useRoomController } from "../../hooks/useRoomController";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { MobileRoomView } from "../../components/chat/mobile/MobileRoomView";
 import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
 import { Button } from "../../components/Button/Button";
 import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
-import { EditRoomProfileDialog } from "../../components/chat/EditRoomProfileDialog/EditRoomProfileDialog";
-import { RoomModerationDialog } from "../../components/chat/RoomModerationDialog/RoomModerationDialog";
-import { InviteMembersModal } from "../../components/chat/InviteMembersModal/InviteMembersModal";
 import { RoomMessageList } from "../../components/chat/MessageList/RoomMessageList";
-import { PinnedMessagesPanel } from "../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel";
-import { MessageSearchPanel } from "../../components/chat/MessageSearchPanel/MessageSearchPanel";
+import { RoomMemberDialogs } from "../../components/chat/RoomMemberDialogs/RoomMemberDialogs";
+import { RoomMemberList } from "../../components/chat/RoomMemberList/RoomMemberList";
+import { RoomOverlays } from "../../components/chat/RoomOverlays/RoomOverlays";
 import { WatchPartyButton } from "../../components/chat/WatchParty/WatchPartyButton";
-const WatchPartyModal = lazy(() =>
-    import("../../components/chat/WatchParty/WatchPartyModal").then(m => ({ default: m.WatchPartyModal })),
-);
 const VoiceBar = lazy(() => import("../../components/chat/Voice/VoiceBar").then(m => ({ default: m.VoiceBar })));
 import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
-import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { forceMuteVoiceParticipant } from "../../api/endpoints";
+import { FORCE_MUTE_FAILED, useForceMuteVoiceParticipant } from "../../hooks/mutations/chat";
+import { errorMessage } from "../../utils/errorMessage";
 import styles from "./RoomPage.module.css";
+
+const MESSAGE_LIST_CLASSES = {
+    messages: styles.messages,
+    loadMoreBar: styles.loadMoreBar,
+    empty: styles.messagesEmpty,
+};
 
 export function RoomPage() {
     const controller = useRoomController();
     const isMobile = useIsMobile();
-    const {
-        user,
-        navigate,
-        loading,
-        room,
-        roomId,
-        members,
-        memberGroups,
-        presenceMapMerged,
-        memberOnlineWeight,
-        currentMember,
-        mobileView,
-        setMobileView,
-        sidebarCollapsed,
-        toggleSidebar,
-        descExpanded,
-        toggleDescExpanded,
-        typingNames,
-        voice,
-        voiceEnabled,
-        watchParty,
-        invitedPartyMissing,
-        replyingTo,
-        setReplyingTo,
-        viewerTimeoutUntil,
-        lightboxSrc,
-        setLightboxSrc,
-        toast,
-        setToast,
-        busy,
-        joining,
-        sendWSMessage,
-        pinnedOpen,
-        setPinnedOpen,
-        searchOpen,
-        setSearchOpen,
-        pinnedRefreshKey,
-        editProfileOpen,
-        setEditProfileOpen,
-        inviteModalOpen,
-        setInviteModalOpen,
-        moderationDialogOpen,
-        setModerationDialogOpen,
-        openMemberMenu,
-        setOpenMemberMenu,
-        setRoom,
-        setMembers,
-        nicknameDialogTarget,
-        setNicknameDialogTarget,
-        nicknameDialogValue,
-        setNicknameDialogValue,
-        nicknameDialogError,
-        nicknameDialogSaving,
-        timeoutDialogTarget,
-        setTimeoutDialogTarget,
-        timeoutDialogAmount,
-        setTimeoutDialogAmount,
-        timeoutDialogUnit,
-        setTimeoutDialogUnit,
-        timeoutDialogError,
-        timeoutDialogSaving,
-        formatTimeoutUntil,
-        openNicknameDialog,
-        openTimeoutDialog,
-        handleSentMessage,
-        handleJoin,
-        handleModSetNickname,
-        handleModUnlockNickname,
-        handleSetTimeout,
-        handleClearTimeout,
-        handleKick,
-        handleBan,
-        handleToggleMute,
-        handleLeave,
-        handleDelete,
-        handleJumpToMessage,
-        handleEditLast,
-    } = controller;
+    const { room, session, members, moderation, prefs, anchor, voice, watchParty, panels, toast } = controller;
+    const user = session.viewer;
+    const forceMute = useForceMuteVoiceParticipant(room.id);
 
-    const mentionPool = useMemo(() => members.map(m => m.user), [members]);
-    const existingMemberIds = useMemo(() => new Set(members.map(m => m.user.id)), [members]);
+    const mentionPool = useMemo(() => members.list.map(m => m.user), [members.list]);
+    const existingMemberIds = useMemo(() => new Set(members.list.map(m => m.user.id)), [members.list]);
 
     if (!user) {
         return null;
     }
 
-    if (loading) {
+    if (room.loading) {
         return <div className="loading">Loading room...</div>;
     }
 
-    if (!room) {
+    if (!room.data) {
         return (
             <div className={styles.notMember}>
                 <p>You're not a member of this room.</p>
-                {roomId && (
-                    <Button variant="primary" size="small" onClick={handleJoin} disabled={joining}>
-                        {joining ? "Joining..." : "Try to Join"}
+                {room.id && (
+                    <Button variant="primary" size="small" onClick={room.join} disabled={room.joining}>
+                        {room.joining ? "Joining..." : "Try to Join"}
                     </Button>
                 )}
-                <Button variant="ghost" size="small" onClick={() => navigate("/rooms")}>
+                <Button variant="ghost" size="small" onClick={room.backToRooms}>
                     Back to Rooms
                 </Button>
-                {toast && <div className={styles.toast}>{toast}</div>}
+                {toast.message && <div className={styles.toast}>{toast.message}</div>}
             </div>
         );
     }
@@ -138,17 +63,25 @@ export function RoomPage() {
         return <MobileRoomView controller={controller} />;
     }
 
-    const isHost = room.viewer_role === "host";
-    const isSystem = room.is_system;
-    const isSiteMod = isSiteStaff(user.role);
-    const canModerateRoom = isHost || isSiteMod;
+    const currentRoom = room.data;
+    const { isHost, isSystem, isSiteMod, canModerateRoom } = roomViewerPolicy(currentRoom, user);
+
+    const memberActions = {
+        editSelf: () => panels.setEditProfileOpen(true),
+        openNicknameDialog: moderation.openNicknameDialog,
+        unlockNickname: moderation.handleModUnlockNickname,
+        kick: moderation.handleKick,
+        ban: moderation.handleBan,
+        openTimeoutDialog: moderation.openTimeoutDialog,
+        clearTimeout: moderation.handleClearTimeout,
+    };
 
     return (
         <div className={styles.roomWrapper}>
             <div
                 className={styles.roomLayout}
-                data-mobile-view={mobileView}
-                data-sidebar-collapsed={sidebarCollapsed ? "true" : "false"}
+                data-mobile-view={prefs.mobileView}
+                data-sidebar-collapsed={prefs.sidebarCollapsed ? "true" : "false"}
             >
                 <aside className={styles.sidebar}>
                     <div className={styles.sidebarHeader}>
@@ -156,23 +89,23 @@ export function RoomPage() {
                             type="button"
                             className={styles.backButton}
                             onClick={() => {
-                                if (mobileView === "members") {
-                                    setMobileView("chat");
+                                if (prefs.mobileView === "members") {
+                                    prefs.setMobileView("chat");
                                 } else {
-                                    navigate("/rooms");
+                                    room.backToRooms();
                                 }
                             }}
-                            aria-label={mobileView === "members" ? "Back to chat" : "Back to rooms"}
+                            aria-label={prefs.mobileView === "members" ? "Back to chat" : "Back to rooms"}
                         >
                             {"←"}
                         </button>
                         <span className={styles.sidebarTitle}>Members</span>
-                        <span className={styles.memberCount}>{members.length}</span>
+                        <span className={styles.memberCount}>{members.list.length}</span>
                         {canModerateRoom && !isSystem && (
                             <button
                                 type="button"
                                 className={styles.inviteButton}
-                                onClick={() => setInviteModalOpen(true)}
+                                onClick={() => panels.setInviteModalOpen(true)}
                             >
                                 + Invite
                             </button>
@@ -180,225 +113,76 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.sidebarCollapseBtn}
-                            onClick={toggleSidebar}
+                            onClick={prefs.toggleSidebar}
                             aria-label="Hide members"
                             data-tooltip="Hide members"
                         >
                             {"◀"}
                         </button>
                     </div>
-                    <div className={styles.memberList}>
-                        {memberGroups.map(group => (
-                            <div key={group.label} className={styles.memberGroup}>
-                                <div className={styles.memberGroupHeader}>{group.label}</div>
-                                {group.members.map((m, memberIndex) => {
-                                    const effectiveUser = effectiveMemberUser(m);
-                                    const {
-                                        isSelf,
-                                        timeoutIsActive,
-                                        canKick: canKickTarget,
-                                        canEditNickname: canEditTargetNickname,
-                                        canTimeout: canTimeoutTarget,
-                                        canClearTimeout: canClearTimeoutTarget,
-                                        canActOnMember,
-                                    } = memberModPermissions(m, {
-                                        selfId: user.id,
-                                        isSystem,
-                                        isSiteMod,
-                                        canModerateRoom,
-                                    });
-                                    const menuOpen = openMemberMenu === m.user.id;
-                                    const presence = presenceMapMerged[m.user.id];
-                                    const presenceClass =
-                                        presence === "active"
-                                            ? styles.presenceActive
-                                            : presence === "idle"
-                                              ? styles.presenceIdle
-                                              : styles.presenceAway;
-                                    const presenceTitle =
-                                        presence === "active"
-                                            ? "Active in this room"
-                                            : presence === "idle"
-                                              ? "Idle or tab in background"
-                                              : "Not currently viewing";
-                                    const isOnline = memberOnlineWeight(m.user.id) === 0;
-                                    const prevMember = memberIndex > 0 ? group.members[memberIndex - 1] : null;
-                                    const prevOnline = prevMember ? memberOnlineWeight(prevMember.user.id) === 0 : null;
-                                    const showStatusHeader =
-                                        group.label !== "In Voice" && (memberIndex === 0 || isOnline !== prevOnline);
-                                    return (
-                                        <Fragment key={m.user.id}>
-                                            {showStatusHeader && (
-                                                <div className={styles.memberStatusHeader}>
-                                                    {isOnline ? "Online" : "Offline"}
-                                                </div>
-                                            )}
-                                            <div className={styles.memberRow}>
-                                                <span
-                                                    className={`${styles.presenceDot} ${presenceClass}`}
-                                                    title={presenceTitle}
-                                                    aria-label={presenceTitle}
-                                                />
-                                                <ProfileLink user={effectiveUser} size="small" />
-                                                {m.role === "host" && <span className={styles.hostBadge}>Host</span>}
-                                                {m.ghost && (
-                                                    <span
-                                                        className={styles.ghostBadge}
-                                                        title="Ghost member — not visible to non-staff"
-                                                    >
-                                                        {"👻"}
-                                                    </span>
-                                                )}
-                                                {timeoutIsActive && (
-                                                    <span
-                                                        className={styles.timeoutIcon}
-                                                        title={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
-                                                        aria-label={`Timed out until ${formatTimeoutUntil(m.timeout_until)}`}
-                                                    >
-                                                        {"⏱"}
-                                                    </span>
-                                                )}
-                                                {isSelf && (
-                                                    <button
-                                                        type="button"
-                                                        className={styles.editSelfBtn}
-                                                        onClick={() => setEditProfileOpen(true)}
-                                                        title="Edit profile in this room"
-                                                        aria-label="Edit profile in this room"
-                                                    >
-                                                        {"✎"}
-                                                    </button>
-                                                )}
-                                                {canActOnMember && (
-                                                    <div className={styles.memberActions}>
-                                                        <button
-                                                            type="button"
-                                                            className={styles.modActionsBtn}
-                                                            onClick={() =>
-                                                                setOpenMemberMenu(prev =>
-                                                                    prev === m.user.id ? null : m.user.id,
-                                                                )
-                                                            }
-                                                            aria-label="Moderator actions"
-                                                            title="Moderator actions"
-                                                        >
-                                                            {"⋮"}
-                                                        </button>
-                                                        {menuOpen && (
-                                                            <div
-                                                                className={styles.modActionsMenu}
-                                                                onMouseLeave={() => setOpenMemberMenu(null)}
-                                                            >
-                                                                {canEditTargetNickname && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openNicknameDialog(m)}
-                                                                    >
-                                                                        Change nickname
-                                                                    </button>
-                                                                )}
-                                                                {canEditTargetNickname && m.nickname_locked && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() =>
-                                                                            handleModUnlockNickname(m.user.id)
-                                                                        }
-                                                                        disabled={busy === m.user.id}
-                                                                    >
-                                                                        Reset/unlock nickname
-                                                                    </button>
-                                                                )}
-                                                                {canKickTarget && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className={styles.danger}
-                                                                        onClick={() => {
-                                                                            setOpenMemberMenu(null);
-                                                                            handleKick(m.user.id);
-                                                                        }}
-                                                                        disabled={busy === m.user.id}
-                                                                    >
-                                                                        Kick member
-                                                                    </button>
-                                                                )}
-                                                                {canKickTarget && (
-                                                                    <button
-                                                                        type="button"
-                                                                        className={styles.danger}
-                                                                        onClick={() => {
-                                                                            setOpenMemberMenu(null);
-                                                                            handleBan(m.user.id);
-                                                                        }}
-                                                                        disabled={busy === m.user.id}
-                                                                    >
-                                                                        Ban from room
-                                                                    </button>
-                                                                )}
-                                                                {canTimeoutTarget && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => openTimeoutDialog(m)}
-                                                                    >
-                                                                        Set timeout
-                                                                    </button>
-                                                                )}
-                                                                {canClearTimeoutTarget && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleClearTimeout(m.user.id)}
-                                                                        disabled={busy === `timeout:${m.user.id}`}
-                                                                    >
-                                                                        Remove timeout
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </Fragment>
-                                    );
-                                })}
-                            </div>
-                        ))}
-                    </div>
+                    <RoomMemberList
+                        variant="desktop"
+                        groups={members.groups}
+                        presence={members.presence}
+                        onlineWeight={members.onlineWeight}
+                        viewer={{ selfId: user.id, isSystem, isSiteMod, canModerateRoom }}
+                        openMemberMenu={moderation.openMemberMenu}
+                        setOpenMemberMenu={moderation.setOpenMemberMenu}
+                        busy={moderation.busy}
+                        formatTimeoutUntil={moderation.formatTimeoutUntil}
+                        actions={memberActions}
+                    />
                     <div className={styles.sidebarFooter}>
                         <Button
                             variant="secondary"
                             size="small"
-                            onClick={handleToggleMute}
-                            disabled={busy === "mute"}
-                            title={room.viewer_muted ? "Unmute notifications" : "Mute notifications"}
+                            onClick={room.toggleMute}
+                            disabled={moderation.busy === "mute"}
+                            title={currentRoom.viewer_muted ? "Unmute notifications" : "Mute notifications"}
                         >
-                            {busy === "mute"
+                            {moderation.busy === "mute"
                                 ? "..."
-                                : room.viewer_muted
+                                : currentRoom.viewer_muted
                                   ? "Unmute notifications"
                                   : "Mute notifications"}
                         </Button>
                         {!isSystem && canModerateRoom && (
-                            <Button variant="secondary" size="small" onClick={() => setModerationDialogOpen(true)}>
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={() => panels.setModerationDialogOpen(true)}
+                            >
                                 Moderation
                             </Button>
                         )}
                         {!isSystem && canModerateRoom && (
-                            <Button variant="danger" size="small" onClick={handleDelete} disabled={busy === "delete"}>
-                                {busy === "delete" ? "Deleting..." : "Delete Room"}
+                            <Button
+                                variant="danger"
+                                size="small"
+                                onClick={room.remove}
+                                disabled={moderation.busy === "delete"}
+                            >
+                                {moderation.busy === "delete" ? "Deleting..." : "Delete Room"}
                             </Button>
                         )}
                         {!isSystem && !isHost && (
-                            <Button variant="danger" size="small" onClick={handleLeave} disabled={busy === "self"}>
-                                {busy === "self" ? "Leaving..." : "Leave Room"}
+                            <Button
+                                variant="danger"
+                                size="small"
+                                onClick={room.leave}
+                                disabled={moderation.busy === "self"}
+                            >
+                                {moderation.busy === "self" ? "Leaving..." : "Leave Room"}
                             </Button>
                         )}
                     </div>
                 </aside>
 
-                {sidebarCollapsed && (
+                {prefs.sidebarCollapsed && (
                     <button
                         type="button"
                         className={styles.sidebarExpandRail}
-                        onClick={toggleSidebar}
+                        onClick={prefs.toggleSidebar}
                         aria-label="Show members"
                         title="Show members"
                     >
@@ -410,7 +194,7 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.mobileMembersBtn}
-                            onClick={() => setMobileView("members")}
+                            onClick={() => prefs.setMobileView("members")}
                             aria-label="Members"
                         >
                             {"☰"}
@@ -418,20 +202,20 @@ export function RoomPage() {
                         <div className={styles.roomHeaderInfo}>
                             <div className={styles.roomTitleRow}>
                                 <span dir="auto" className={styles.roomTitle}>
-                                    {room.name}
+                                    {currentRoom.name}
                                 </span>
-                                {room.is_system && <span className={styles.rpBadge}>Staff</span>}
-                                {room.is_rp && <span className={styles.rpBadge}>RP</span>}
+                                {currentRoom.is_system && <span className={styles.rpBadge}>Staff</span>}
+                                {currentRoom.is_rp && <span className={styles.rpBadge}>RP</span>}
                             </div>
                             <span className={styles.roomMeta}>
-                                {room.member_count ?? room.members.length} members
-                                {room.is_public ? " · public" : " · private"}
+                                {currentRoom.member_count ?? currentRoom.members.length} members
+                                {currentRoom.is_public ? " · public" : " · private"}
                             </span>
                         </div>
                         <button
                             type="button"
                             className={styles.pinHeaderBtn}
-                            onClick={() => setSearchOpen(true)}
+                            onClick={() => panels.setSearchOpen(true)}
                             aria-label="Search messages"
                             title="Search messages"
                         >
@@ -440,27 +224,27 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.pinHeaderBtn}
-                            onClick={() => setPinnedOpen(true)}
+                            onClick={() => panels.setPinnedOpen(true)}
                             aria-label="Pinned messages"
                             title="Pinned messages"
                         >
                             {"📌"}
                         </button>
                     </div>
-                    {(room.description || (room.tags && room.tags.length > 0)) && (
-                        <div className={styles.roomInfoCollapsible} data-expanded={descExpanded}>
-                            <button type="button" className={styles.roomInfoToggle} onClick={toggleDescExpanded}>
-                                {descExpanded ? "Hide info ▲" : "Show info ▼"}
+                    {(currentRoom.description || (currentRoom.tags && currentRoom.tags.length > 0)) && (
+                        <div className={styles.roomInfoCollapsible} data-expanded={prefs.descExpanded}>
+                            <button type="button" className={styles.roomInfoToggle} onClick={prefs.toggleDescExpanded}>
+                                {prefs.descExpanded ? "Hide info ▲" : "Show info ▼"}
                             </button>
                             <div className={styles.roomInfoContent}>
-                                {room.description && (
+                                {currentRoom.description && (
                                     <div dir="auto" className={styles.roomDescription}>
-                                        {room.description}
+                                        {currentRoom.description}
                                     </div>
                                 )}
-                                {room.tags && room.tags.length > 0 && (
+                                {currentRoom.tags && currentRoom.tags.length > 0 && (
                                     <div className={styles.roomTags}>
-                                        {room.tags.map(t => (
+                                        {currentRoom.tags.map(t => (
                                             <span key={t} className={styles.roomTag}>
                                                 #{t}
                                             </span>
@@ -478,38 +262,58 @@ export function RoomPage() {
                                 onLeave={voice.leave}
                                 canModerate={canModerateRoom}
                                 onForceMute={(id, muted) => {
-                                    forceMuteVoiceParticipant(roomId ?? "", id, muted).catch(() => {});
+                                    forceMute.mutate(
+                                        { userId: id, muted },
+                                        { onError: err => toast.show(errorMessage(err, FORCE_MUTE_FAILED)) },
+                                    );
                                 }}
                             />
                         </Suspense>
                     )}
 
                     <RoomMessageList
-                        controller={controller}
-                        classes={{
-                            messages: styles.messages,
-                            loadMoreBar: styles.loadMoreBar,
-                            empty: styles.messagesEmpty,
-                        }}
+                        viewer={user}
+                        room={currentRoom}
+                        messages={session.messages}
+                        hasMore={session.hasMore}
+                        loadingMore={session.loadingMore}
+                        highlightedMessageId={anchor.highlightedMsgId}
+                        editingMessageId={session.editingMessageId}
+                        viewerTimedOut={room.viewerTimedOut}
+                        matchesViewerMention={session.matchesViewerMention}
+                        containerRef={session.containerRef}
+                        contentRef={session.contentRef}
+                        endRef={session.endRef}
+                        onScroll={session.onScroll}
+                        onLightbox={panels.setLightboxSrc}
+                        onReply={session.setReplyingTo}
+                        onStartEditing={session.startEditing}
+                        onCancelEditing={session.cancelEditing}
+                        onToggleReaction={session.toggleReaction}
+                        onTogglePin={session.togglePin}
+                        onDelete={session.deleteMessage}
+                        onEdit={session.editMessage}
+                        classes={MESSAGE_LIST_CLASSES}
                     />
-                    <TypingIndicator names={typingNames} />
+                    <TypingIndicator names={session.typingNames} />
                     <ChatComposer
-                        roomId={room.id}
+                        roomId={currentRoom.id}
                         draftRecipientId={null}
-                        onSent={handleSentMessage}
+                        onSent={session.onSent}
                         mentionPool={mentionPool}
-                        replyingTo={replyingTo}
-                        onCancelReply={() => setReplyingTo(null)}
-                        onTyping={() => sendWSMessage({ type: "typing", data: { room_id: room.id } })}
-                        onEditLast={handleEditLast}
-                        timeoutUntil={viewerTimeoutUntil}
+                        replyingTo={session.replyingTo}
+                        onCancelReply={() => session.setReplyingTo(null)}
+                        onTyping={session.notifyTyping}
+                        onEditLast={session.editLast}
+                        timeoutUntil={room.viewerTimeoutUntil}
                         extraActions={
                             !isSystem && user ? (
                                 <>
                                     <VoiceButton
-                                        enabled={voiceEnabled}
+                                        enabled={voice.enabled}
                                         status={voice.status}
                                         presenceCount={voice.presenceCount}
+                                        error={voice.error}
                                         onJoin={voice.join}
                                         onLeave={voice.leave}
                                     />
@@ -531,178 +335,97 @@ export function RoomPage() {
                 </div>
             </div>
 
-            {mobileView === "members" && (
+            {prefs.mobileView === "members" && (
                 <button
                     type="button"
                     className={styles.mobileBackToChat}
-                    onClick={() => setMobileView("chat")}
+                    onClick={() => prefs.setMobileView("chat")}
                     aria-label="Back to chat"
                 >
                     {"← Back to chat"}
                 </button>
             )}
 
-            {searchOpen && (
-                <MessageSearchPanel
-                    roomId={room.id}
-                    isOpen={searchOpen}
-                    onClose={() => setSearchOpen(false)}
-                    onJump={handleJumpToMessage}
-                />
-            )}
-
-            <PinnedMessagesPanel
-                roomId={room.id}
-                isOpen={pinnedOpen}
-                onClose={() => setPinnedOpen(false)}
-                onJump={handleJumpToMessage}
-                canUnpin={canModerateRoom}
-                refreshKey={pinnedRefreshKey}
-                onLightbox={setLightboxSrc}
-            />
-
-            <EditRoomProfileDialog
-                key={`${room.id}:${currentMember?.user.id ?? ""}:${editProfileOpen ? "open" : "closed"}`}
-                isOpen={editProfileOpen}
-                roomId={room.id}
-                currentMember={currentMember}
-                onClose={() => setEditProfileOpen(false)}
-                onSaved={updated => {
-                    setMembers(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+            <RoomOverlays
+                room={currentRoom}
+                viewer={user}
+                viewerIsStaff={isSiteMod}
+                canModerateRoom={canModerateRoom}
+                voiceEnabled={voice.enabled}
+                onJump={anchor.jumpTo}
+                onLightbox={panels.setLightboxSrc}
+                search={{ open: panels.searchOpen, onClose: () => panels.setSearchOpen(false) }}
+                pinned={{ open: panels.pinnedOpen, onClose: () => panels.setPinnedOpen(false) }}
+                editProfile={{
+                    open: panels.editProfileOpen,
+                    currentMember: members.current,
+                    onClose: () => panels.setEditProfileOpen(false),
+                    onSaved: updated => {
+                        members.set(prev => prev.map(m => (m.user.id === updated.user.id ? updated : m)));
+                    },
+                }}
+                roomModeration={{
+                    open: panels.moderationDialogOpen,
+                    onClose: () => panels.setModerationDialogOpen(false),
+                    onSaved: updated => room.set(updated),
+                }}
+                watchParty={{
+                    active: watchParty.activeSession,
+                    screenShareEnabled: watchParty.screenShareEnabled,
+                    onClose: () => watchParty.close(),
+                    onLeave: watchParty.leave,
+                    onEnd: watchParty.end,
+                    onTransferControl: watchParty.transferControl,
+                    onKick: watchParty.kick,
+                    onIdentify: watchParty.identify,
+                }}
+                invite={{
+                    open: panels.inviteModalOpen,
+                    existingMemberIds,
+                    onClose: () => panels.setInviteModalOpen(false),
+                    onInvited: result => {
+                        if (result.invited_count > 0) {
+                            toast.show(
+                                result.invited_count === 1
+                                    ? "1 member invited"
+                                    : `${result.invited_count} members invited`,
+                            );
+                        } else if (result.skipped_count > 0) {
+                            toast.show("No one invited (all were already members or blocked)");
+                        }
+                    },
                 }}
             />
 
-            <RoomModerationDialog
-                isOpen={moderationDialogOpen}
-                room={room}
-                onClose={() => setModerationDialogOpen(false)}
-                onSaved={updated => setRoom(updated)}
-            />
-
-            {watchParty.activeSession && user && (
-                <Suspense fallback={null}>
-                    <WatchPartyModal
-                        isOpen={true}
-                        onClose={() => watchParty.close()}
-                        active={watchParty.activeSession}
-                        viewerUserId={user.id}
-                        viewerRole={user.role}
-                        isStarter={watchParty.activeSession.session.started_by === user.id}
-                        viewerIsStaff={isSiteStaff(user.role)}
-                        voiceEnabled={watchParty.screenShareEnabled}
-                        onLeave={watchParty.leave}
-                        onEnd={watchParty.end}
-                        onTransferControl={watchParty.transferControl}
-                        onKick={watchParty.kick}
-                        onIdentify={watchParty.identify}
-                    />
-                </Suspense>
-            )}
-
-            <InviteMembersModal
-                isOpen={inviteModalOpen}
-                roomId={room.id}
-                existingMemberIds={existingMemberIds}
-                onClose={() => setInviteModalOpen(false)}
-                onInvited={result => {
-                    if (result.invited_count > 0) {
-                        setToast(
-                            result.invited_count === 1 ? "1 member invited" : `${result.invited_count} members invited`,
-                        );
-                    } else if (result.skipped_count > 0) {
-                        setToast("No one invited (all were already members or blocked)");
-                    }
+            <RoomMemberDialogs
+                variant="desktop"
+                nickname={{
+                    target: moderation.nicknameDialogTarget,
+                    value: moderation.nicknameDialogValue,
+                    error: moderation.nicknameDialogError,
+                    saving: moderation.nicknameDialogSaving,
+                    onValueChange: moderation.setNicknameDialogValue,
+                    onCancel: () => moderation.setNicknameDialogTarget(null),
+                    onSave: moderation.handleModSetNickname,
+                }}
+                timeout={{
+                    target: moderation.timeoutDialogTarget,
+                    amount: moderation.timeoutDialogAmount,
+                    unit: moderation.timeoutDialogUnit,
+                    error: moderation.timeoutDialogError,
+                    saving: moderation.timeoutDialogSaving,
+                    onAmountChange: moderation.setTimeoutDialogAmount,
+                    onUnitChange: moderation.setTimeoutDialogUnit,
+                    onCancel: () => moderation.setTimeoutDialogTarget(null),
+                    onSave: moderation.handleSetTimeout,
                 }}
             />
 
-            {nicknameDialogTarget && (
-                <div className={styles.nicknameDialogOverlay} onClick={() => setNicknameDialogTarget(null)}>
-                    <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
-                        <h3>
-                            Change nickname for <bdi>{nicknameDialogTarget.user.display_name}</bdi>
-                        </h3>
-                        <input
-                            type="text"
-                            dir="auto"
-                            value={nicknameDialogValue}
-                            maxLength={32}
-                            onChange={e => setNicknameDialogValue(e.target.value)}
-                            placeholder="Nickname (leave blank to clear)"
-                            autoFocus
-                        />
-                        {nicknameDialogError && <div className={styles.dialogError}>{nicknameDialogError}</div>}
-                        <div className={styles.nicknameDialogActions}>
-                            <Button
-                                variant="ghost"
-                                size="small"
-                                onClick={() => setNicknameDialogTarget(null)}
-                                disabled={nicknameDialogSaving}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="primary"
-                                size="small"
-                                onClick={handleModSetNickname}
-                                disabled={nicknameDialogSaving}
-                            >
-                                {nicknameDialogSaving ? "Saving..." : "Save"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
+            {watchParty.invitedPartyMissing && (
+                <div className={styles.endedPartyNotice}>That watch party has ended.</div>
             )}
-
-            {timeoutDialogTarget && (
-                <div className={styles.nicknameDialogOverlay} onClick={() => setTimeoutDialogTarget(null)}>
-                    <div className={styles.nicknameDialog} onClick={e => e.stopPropagation()}>
-                        <h3>
-                            Set timeout for <bdi>{timeoutDialogTarget.user.display_name}</bdi>
-                        </h3>
-                        <div className={styles.timeoutDialogRow}>
-                            <input
-                                type="number"
-                                min={1}
-                                step={1}
-                                value={timeoutDialogAmount}
-                                onChange={e => setTimeoutDialogAmount(e.target.value)}
-                                autoFocus
-                            />
-                            <select value={timeoutDialogUnit} onChange={e => setTimeoutDialogUnit(e.target.value)}>
-                                <option value="seconds">seconds</option>
-                                <option value="hours">hours</option>
-                                <option value="weeks">weeks</option>
-                                <option value="years">years</option>
-                                <option value="decades">decades</option>
-                                <option value="centuries">centuries</option>
-                            </select>
-                        </div>
-                        {timeoutDialogError && <div className={styles.dialogError}>{timeoutDialogError}</div>}
-                        <div className={styles.nicknameDialogActions}>
-                            <Button
-                                variant="ghost"
-                                size="small"
-                                onClick={() => setTimeoutDialogTarget(null)}
-                                disabled={timeoutDialogSaving}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="danger"
-                                size="small"
-                                onClick={handleSetTimeout}
-                                disabled={timeoutDialogSaving}
-                            >
-                                {timeoutDialogSaving ? "Saving..." : "Set timeout"}
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {invitedPartyMissing && <div className={styles.endedPartyNotice}>That watch party has ended.</div>}
-            {toast && <div className={styles.toast}>{toast}</div>}
-            {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
+            {toast.message && <div className={styles.toast}>{toast.message}</div>}
+            {panels.lightboxSrc && <Lightbox src={panels.lightboxSrc} onClose={() => panels.setLightboxSrc(null)} />}
         </div>
     );
 }

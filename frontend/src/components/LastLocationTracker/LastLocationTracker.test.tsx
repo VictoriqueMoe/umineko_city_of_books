@@ -7,7 +7,7 @@ import { LastLocationTracker } from "./LastLocationTracker";
 
 const { recordLocation } = vi.hoisted(() => ({ recordLocation: vi.fn() }));
 
-vi.mock("../../utils/lastLocation", () => ({ recordLocation }));
+vi.mock("../../platform/lastLocation", () => ({ recordLocation }));
 
 describe("LastLocationTracker", () => {
     it("renders nothing of its own", () => {

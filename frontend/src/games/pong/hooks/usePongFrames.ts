@@ -1,27 +1,24 @@
 import { useEffect, useRef, type RefObject } from "react";
-import { useNotifications } from "../../../hooks/useNotifications";
-import type { WSMessage } from "../../../types/api";
+import { useRealtimeEvent } from "../../../api/realtime/useRealtime";
 import { pushFrame, type BufferedFrame } from "../interpolate";
 import { PONG_FRAME_TYPE, type PongFrame } from "../types";
 
 export function usePongFrames(roomId: string | undefined): RefObject<BufferedFrame[]> {
-    const { addWSListener } = useNotifications();
     const bufferRef = useRef<BufferedFrame[]>([]);
 
     useEffect(() => {
         bufferRef.current = [];
+    }, [roomId]);
 
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type !== PONG_FRAME_TYPE) {
-                return;
-            }
-            const frame = msg.data as PongFrame | null;
-            if (!frame || frame.room_id !== roomId) {
-                return;
-            }
-            bufferRef.current = pushFrame(bufferRef.current, frame, Date.now());
-        });
-    }, [addWSListener, roomId]);
+    useRealtimeEvent(PONG_FRAME_TYPE, event => {
+        const frame: PongFrame | null = event.data;
+
+        if (!frame || frame.room_id !== roomId) {
+            return;
+        }
+
+        bufferRef.current = pushFrame(bufferRef.current, frame, Date.now());
+    });
 
     return bufferRef;
 }

@@ -7,7 +7,7 @@ import { OCListPage } from "./OCListPage";
 
 const mocks = vi.hoisted(() => ({ useOCList: vi.fn() }));
 
-vi.mock("../../api/queries/oc", () => ({ useOCList: mocks.useOCList }));
+vi.mock("../../hooks/queries/oc", () => ({ useOCList: mocks.useOCList }));
 
 function makeOC(overrides: Partial<OC> = {}): OC {
     return {

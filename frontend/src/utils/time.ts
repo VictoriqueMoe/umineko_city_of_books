@@ -18,6 +18,32 @@ export function parseServerDate(input: string | null | undefined): Date | null {
     return d;
 }
 
+const YEAR_SECONDS = 31536000;
+const DAY_SECONDS = 86400;
+const HOUR_SECONDS = 3600;
+const MINUTE_SECONDS = 60;
+
+export function formatDuration(ms: number): string {
+    const totalSeconds = Math.round(ms / 1000);
+    const levels: [number, string][] = [
+        [Math.floor(totalSeconds / YEAR_SECONDS), "years"],
+        [Math.floor((totalSeconds % YEAR_SECONDS) / DAY_SECONDS), "days"],
+        [Math.floor(((totalSeconds % YEAR_SECONDS) % DAY_SECONDS) / HOUR_SECONDS), "hours"],
+        [Math.floor((((totalSeconds % YEAR_SECONDS) % DAY_SECONDS) % HOUR_SECONDS) / MINUTE_SECONDS), "minutes"],
+        [Math.floor((((totalSeconds % YEAR_SECONDS) % DAY_SECONDS) % HOUR_SECONDS) % MINUTE_SECONDS), "seconds"],
+    ];
+
+    let result = "";
+    for (const [value, label] of levels) {
+        if (value === 0) {
+            continue;
+        }
+        result += ` ${value} ${value === 1 ? label.slice(0, -1) : label}`;
+    }
+
+    return result.trim() || "0 seconds";
+}
+
 function diffSeconds(dateStr: string | null | undefined): number | null {
     const d = parseServerDate(dateStr);
     if (!d) {

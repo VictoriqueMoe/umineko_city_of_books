@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router";
-import { useCreatePost } from "../../../api/mutations/post";
+import { useCreatePost } from "../../../hooks/mutations/post";
 import { Modal } from "../../Modal/Modal";
 import { Select } from "../../Select/Select";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";

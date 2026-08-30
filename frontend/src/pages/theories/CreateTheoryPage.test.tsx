@@ -10,7 +10,7 @@ const { useCreateTheory, navigate } = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/theory", () => ({ useCreateTheory }));
+vi.mock("../../hooks/mutations/theory", () => ({ useCreateTheory }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

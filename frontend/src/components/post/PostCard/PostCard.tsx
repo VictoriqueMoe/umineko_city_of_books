@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Post, PostMedia } from "../../../types/api";
 import {
@@ -8,12 +8,12 @@ import {
     useUnlikePost,
     useUpdatePost,
     useUploadPostMedia,
-} from "../../../api/mutations/post";
+} from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { can } from "../../../utils/permissions";
+import { usePostLikeEvents } from "../../../hooks/usePostEvents";
+import { can } from "../../../domain/permissions";
 import { extractGif } from "../../../utils/gif";
-import { renderRich } from "../../../utils/richText";
+import { renderRich } from "../../richText/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ReportButton } from "../../ReportButton/ReportButton";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
@@ -26,7 +26,7 @@ import { ShareDialog } from "../ShareDialog/ShareDialog";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { Button } from "../../Button/Button";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
-import { siteUrl } from "../../../utils/siteOrigin";
+import { siteUrl } from "../../../platform/siteOrigin";
 import styles from "./PostCard.module.css";
 
 interface PostCardProps {
@@ -39,7 +39,6 @@ interface PostCardProps {
 export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps) {
     const navigate = useNavigate();
     const { user } = useAuth();
-    const { addWSListener } = useNotifications();
     const [liked, setLiked] = useState(post.user_liked);
     const [likeCount, setLikeCount] = useState(post.like_count);
     const [editing, setEditing] = useState(false);
@@ -62,20 +61,14 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
 
     const gifURL = useMemo(() => extractGif(displayBody), [displayBody]);
 
-    useEffect(() => {
-        return addWSListener(msg => {
-            if (msg.type === "post_like") {
-                const data = msg.data as { post_id: string; delta: number };
-                if (data.post_id === post.id) {
-                    if (pendingLikeRef.current > 0) {
-                        pendingLikeRef.current -= 1;
-                        return;
-                    }
-                    setLikeCount(c => c + data.delta);
-                }
-            }
-        });
-    }, [addWSListener, post.id]);
+    usePostLikeEvents(post.id, delta => {
+        if (pendingLikeRef.current > 0) {
+            pendingLikeRef.current -= 1;
+            return;
+        }
+
+        setLikeCount(c => c + delta);
+    });
 
     async function handleLike() {
         if (!user) {

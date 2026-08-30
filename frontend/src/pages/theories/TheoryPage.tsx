@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useTheory } from "../../api/queries/theory";
+import { useTheory } from "../../hooks/queries/theory";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import { useDeleteTheory, useVoteTheory } from "../../api/mutations/theory";
+import { useDeleteTheory, useVoteTheory } from "../../hooks/mutations/theory";
 import { useVote } from "../../hooks/useVote";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Series } from "../../api/endpoints";
+import type { Series } from "../../types/api";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
@@ -17,12 +17,12 @@ import { ResponseEditor } from "../../components/theory/ResponseEditor/ResponseE
 import { CredibilityBadge } from "../../components/theory/CredibilityBadge/CredibilityBadge";
 import { TheoryStatusBadge } from "../../components/theory/TheoryStatusBadge/TheoryStatusBadge";
 import { RefutationStamp } from "../../components/theory/RefutationStamp/RefutationStamp";
-import { renderRich } from "../../utils/richText";
-import { useRefuteTheory } from "../../api/mutations/theory";
+import { renderRich } from "../../components/richText/richText";
+import { useRefuteTheory } from "../../hooks/mutations/theory";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
 import { ShareButton } from "../../components/ShareButton/ShareButton";
-import { can } from "../../utils/permissions";
-import { formatSeriesEpisode, getSeriesConfig, userProgressForSeries } from "../../utils/seriesConfig";
+import { contentPermissions, type ContentSubject, isContentOwner } from "../../domain/contentPermissions";
+import { formatSeriesEpisode, getSeriesConfig, userProgressForSeries } from "../../domain/series";
 import styles from "./TheoryPage.module.css";
 
 export function TheoryPage() {
@@ -50,9 +50,9 @@ export function TheoryPage() {
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const refuteMutation = useRefuteTheory(theoryId);
 
-    const isAuthor = user && theory && user.id === theory.author.id;
-    const canEdit = isAuthor || can(user, "edit_any_theory");
-    const canDelete = isAuthor || can(user, "delete_any_theory");
+    const subject: ContentSubject = { family: "theory", authorId: theory?.author.id };
+    const isAuthor = isContentOwner(user, subject);
+    const { canEdit, canDelete } = contentPermissions(user, subject);
 
     async function handleDelete() {
         if (!window.confirm("Are you sure you want to delete this theory?")) {

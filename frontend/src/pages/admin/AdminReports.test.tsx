@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReportItem } from "../../api/endpoints";
+import type { ReportItem } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { AdminReports } from "./AdminReports";
 
@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useReports: mocks.useReports }));
+vi.mock("../../hooks/queries/report", () => ({ useReports: mocks.useReports }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/report", () => ({
     useResolveReport: () => ({ mutateAsync: mocks.resolve, isPending: false }),
 }));
 

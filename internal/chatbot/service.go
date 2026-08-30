@@ -34,7 +34,7 @@ const (
 	typingInterval   = 3 * time.Second
 	messageBodyMax   = 20000
 	replyQuoteMax    = 160
-	promptCharBudget = 200000
+	promptByteBudget = 200000
 	safetyIDSalt     = "umineko-chatbot-safety-id:"
 	shutdownMessage  = "chatbot worker pool drained"
 	refusalCooldown  = 10 * time.Minute

@@ -15,9 +15,9 @@ const mocks = vi.hoisted(() => ({
     noop: vi.fn(),
 }));
 
-vi.mock("../../api/queries/ship", () => ({ useShip: mocks.useShip }));
+vi.mock("../../hooks/queries/ship", () => ({ useShip: mocks.useShip }));
 
-vi.mock("../../api/mutations/ship", () => ({
+vi.mock("../../hooks/mutations/ship", () => ({
     useVoteShip: () => ({ mutateAsync: mocks.vote }),
     useDeleteShip: () => ({ mutateAsync: mocks.deleteShip }),
     useUpdateShip: () => ({ mutateAsync: mocks.updateShip }),
@@ -294,6 +294,39 @@ describe("ShipDetailPage voting", () => {
         // then
         await waitFor(() => {
             expect(screen.getByRole("button", { name: "△" })).toBeEnabled();
+        });
+    });
+
+    it("says why a vote the server rejects did not count", async () => {
+        // given
+        mocks.vote.mockRejectedValue(new Error("too many votes"));
+        stubShip();
+        const user = userEvent.setup();
+        renderPage();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "△" }));
+
+        // then
+        expect(await screen.findByText("too many votes")).toBeInTheDocument();
+    });
+
+    it("clears the vote complaint once a later vote goes through", async () => {
+        // given
+        mocks.vote.mockRejectedValue(new Error("too many votes"));
+        stubShip();
+        const user = userEvent.setup();
+        renderPage();
+        await user.click(screen.getByRole("button", { name: "△" }));
+        await screen.findByText("too many votes");
+
+        // when
+        mocks.vote.mockResolvedValue({});
+        await user.click(screen.getByRole("button", { name: "▽" }));
+
+        // then
+        await waitFor(() => {
+            expect(screen.queryByText("too many votes")).not.toBeInTheDocument();
         });
     });
 });

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { User } from "../../types/api";
-import { fetchSearchUsers } from "../../api/queries/misc";
-import { COLOUR_CLASS, type ColourTag, colourRegex } from "../../utils/colours";
+import { type MentionSuggestion, useMentionSearch } from "../../hooks/useMentionSearch";
+import { COLOUR_CLASS, type ColourTag, colourRegex } from "../richText/colours";
 import { Butterfly } from "../Butterfly/Butterfly";
 import styles from "./MentionTextArea.module.css";
 
@@ -61,12 +61,7 @@ function makeParticles(): Particle[] {
     return out;
 }
 
-interface SearchResult extends User {
-    viewer_follows: boolean;
-    follows_viewer: boolean;
-}
-
-function followLabel(r: SearchResult): string | null {
+function followLabel(r: MentionSuggestion): string | null {
     if (r.viewer_follows && r.follows_viewer) {
         return "You follow each other";
     }
@@ -158,11 +153,12 @@ export function MentionTextArea({
         lastHeightRef.current = next;
         ta.style.height = next;
     }, [value]);
-    const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
+    const [suggestions, setSuggestions] = useState<MentionSuggestion[]>([]);
     const [showDropdown, setShowDropdown] = useState(false);
     const [mentionStart, setMentionStart] = useState(-1);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+    const searchMentions = useMentionSearch();
 
     const getMentionQuery = useCallback(() => {
         const textarea = textareaRef.current;
@@ -217,28 +213,17 @@ export function MentionTextArea({
                     return;
                 }
 
-                fetchSearchUsers(mention.query)
-                    .then(users => {
-                        const results = users as SearchResult[];
-                        results.sort((a, b) => {
-                            const aScore = (a.viewer_follows ? 2 : 0) + (a.follows_viewer ? 1 : 0);
-                            const bScore = (b.viewer_follows ? 2 : 0) + (b.follows_viewer ? 1 : 0);
-                            return bScore - aScore;
-                        });
-                        setSuggestions(results);
-                        setShowDropdown(results.length > 0);
-                        setSelectedIndex(0);
-                    })
-                    .catch(() => {
-                        setSuggestions([]);
-                        setShowDropdown(false);
-                    });
+                searchMentions(mention.query).then(results => {
+                    setSuggestions(results);
+                    setShowDropdown(results.length > 0);
+                    setSelectedIndex(0);
+                });
             },
             mentionPool ? 0 : 150,
         );
 
         return () => clearTimeout(debounceRef.current);
-    }, [value, getMentionQuery, mentionPool]);
+    }, [value, getMentionQuery, mentionPool, searchMentions]);
 
     function syncScroll() {
         if (textareaRef.current && backdropRef.current) {

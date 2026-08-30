@@ -8,28 +8,27 @@ import type {
     BannedWordAction,
     BannedWordMatchMode,
     BannedWordRule,
-    BotsWillBeKickedResponse,
     ChatRoom,
     CreateBannedWordRequest,
     UpdateGroupRoomRequest,
     User,
 } from "../../../types/api";
-import { ApiError } from "../../../api/client";
-import { useChatRoomBannedWords, useChatRoomBans } from "../../../api/queries/chat";
+import { useChatRoomBannedWords, useChatRoomBans } from "../../../hooks/queries/chat";
 import {
+    readBotsWillBeKicked,
     useCreateChatRoomBannedWord,
     useDeleteChatRoomBannedWord,
     useUnbanChatRoomMember,
     useUpdateChatRoom,
     useUpdateChatRoomBannedWord,
-} from "../../../api/mutations/chat";
+} from "../../../hooks/mutations/chat";
 import {
     addRoomTags,
     finaliseRoomTags,
     isRoomTagCommitKey,
     MAX_ROOM_TAGS,
     removeRoomTag,
-} from "../../../utils/roomTags";
+} from "../../../domain/chat/roomTags";
 import { formatFullDateTime } from "../../../utils/time";
 import styles from "./RoomModerationDialog.module.css";
 
@@ -46,19 +45,6 @@ type PendingConfirm = { kind: "public" } | { kind: "bots"; bots: User[] };
 
 function formatDate(s: string): string {
     return formatFullDateTime(s, "en-GB");
-}
-
-function botsFromError(err: unknown): User[] | null {
-    if (!(err instanceof ApiError) || err.status !== 409) {
-        return null;
-    }
-
-    const body = err.body as BotsWillBeKickedResponse | null;
-    if (!body || body.code !== "bots_will_be_kicked") {
-        return null;
-    }
-
-    return body.bots ?? [];
 }
 
 function botLabel(bot: User): string {
@@ -178,7 +164,7 @@ export function RoomModerationDialog({ isOpen, room, onClose, onSaved }: RoomMod
             onSaved(updated);
             onClose();
         } catch (e) {
-            const bots = botsFromError(e);
+            const bots = readBotsWillBeKicked(e);
             if (bots) {
                 setPendingConfirm({ kind: "bots", bots });
                 return;

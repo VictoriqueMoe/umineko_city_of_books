@@ -9,7 +9,7 @@ import { ThemeProvider } from "./ThemeContext";
 
 const { updateAppearance } = vi.hoisted(() => ({ updateAppearance: vi.fn() }));
 
-vi.mock("../api/mutations/auth", () => ({
+vi.mock("../hooks/mutations/auth", () => ({
     useUpdateAppearance: () => ({ mutate: updateAppearance }),
 }));
 

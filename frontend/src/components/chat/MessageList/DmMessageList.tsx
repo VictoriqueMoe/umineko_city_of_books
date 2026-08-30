@@ -1,87 +1,114 @@
-import { isSiteStaff } from "../../../utils/permissions";
-import { renderSeenLabel, type DmController } from "../../../hooks/useDmController";
+import { memo, useCallback, type Ref } from "react";
+import { seenLabel } from "../../../domain/chat/dm";
+import { isSiteStaff } from "../../../domain/permissions";
+import type { ChatMessage, ChatRoom, UserProfile } from "../../../types/api";
+import { type ReplyTarget } from "../ChatComposer/ChatComposer";
 import { MessageBubble } from "../MessageBubble/MessageBubble";
 
-interface DmMessageListClasses {
+const REPLY_PREVIEW_MAX = 80;
+
+export interface DmMessageListClasses {
     messages: string;
     loadMoreBar: string;
 }
 
-interface DmMessageListProps {
-    controller: DmController;
+export interface DmMessageListProps {
+    viewer: UserProfile;
+    room: ChatRoom;
+    messages: ChatMessage[];
+    hasMore: boolean;
+    loadingMore: boolean;
+    editingMessageId: string | null;
+    readReceipts: Record<string, Record<string, string>>;
+    matchesViewerMention: ((body: string) => boolean) | null;
+    containerRef: Ref<HTMLDivElement>;
+    contentRef: Ref<HTMLDivElement>;
+    endRef: Ref<HTMLDivElement>;
+    onScroll: () => void;
+    onLightbox: (src: string) => void;
+    onReply: (target: ReplyTarget) => void;
+    onStartEditing: (message: ChatMessage) => void;
+    onCancelEditing: () => void;
+    onDelete: (message: ChatMessage) => void;
+    onEdit: (message: ChatMessage, body: string) => Promise<void>;
     classes: DmMessageListClasses;
 }
 
-export function DmMessageList({ controller, classes }: DmMessageListProps) {
-    const {
-        user,
-        activeRoom,
-        messages,
-        hasMore,
-        loadingMore,
-        messagesContainerRef,
-        messagesContentRef,
-        messagesEndRef,
-        handleDmScroll,
-        readReceipts,
-        matchesViewerMention,
-        setLightboxSrc,
-        setReplyingTo,
-        handleDeleteMessage,
-        handleEditMessage,
-        editingMessageId,
-        setEditingMessageId,
-    } = controller;
+function replyPreview(body: string): string {
+    return body.length > REPLY_PREVIEW_MAX ? body.slice(0, REPLY_PREVIEW_MAX) + "..." : body;
+}
 
-    if (!user || !activeRoom) {
-        return null;
-    }
+function DmMessageListBase({
+    viewer,
+    room,
+    messages,
+    hasMore,
+    loadingMore,
+    editingMessageId,
+    readReceipts,
+    matchesViewerMention,
+    containerRef,
+    contentRef,
+    endRef,
+    onScroll,
+    onLightbox,
+    onReply,
+    onStartEditing,
+    onCancelEditing,
+    onDelete,
+    onEdit,
+    classes,
+}: DmMessageListProps) {
+    const isSiteMod = isSiteStaff(viewer.role);
 
-    const isSiteMod = isSiteStaff(user.role);
+    const handleReply = useCallback(
+        (message: ChatMessage) => {
+            onReply({
+                id: message.id,
+                senderName: message.sender.display_name,
+                bodyPreview: replyPreview(message.body),
+            });
+        },
+        [onReply],
+    );
 
     return (
-        <div className={classes.messages} ref={messagesContainerRef} onScroll={handleDmScroll}>
-            <div ref={messagesContentRef} style={{ display: "flex", flexDirection: "column", gap: "inherit" }}>
+        <div className={classes.messages} ref={containerRef} onScroll={onScroll}>
+            <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: "inherit" }}>
                 {hasMore && (
                     <div className={classes.loadMoreBar}>
                         {loadingMore ? "Loading older messages..." : "Scroll up for more"}
                     </div>
                 )}
                 {messages.map((msg, idx) => {
-                    const isOwn = msg.sender.id === user.id;
-                    const seenLabel = isOwn
-                        ? renderSeenLabel(msg, idx, messages, activeRoom, user.id, readReceipts)
-                        : null;
+                    const isOwn = msg.sender.id === viewer.id;
+                    const label = isOwn ? seenLabel(msg, idx, messages, room, viewer.id, readReceipts) : null;
                     return (
                         <MessageBubble
                             key={msg.id}
                             message={msg}
                             isOwn={isOwn}
                             notifiesViewer={
-                                msg.reply_to?.sender_id === user.id ||
+                                msg.reply_to?.sender_id === viewer.id ||
                                 (matchesViewerMention ? matchesViewerMention(msg.body) : false)
                             }
-                            seenLabel={seenLabel}
-                            onLightbox={setLightboxSrc}
-                            onReply={m =>
-                                setReplyingTo({
-                                    id: m.id,
-                                    senderName: m.sender.display_name,
-                                    bodyPreview: m.body.length > 80 ? m.body.slice(0, 80) + "..." : m.body,
-                                })
-                            }
-                            onDelete={handleDeleteMessage}
-                            onEdit={handleEditMessage}
-                            onEditStart={m => setEditingMessageId(m.id)}
-                            onEditCancel={() => setEditingMessageId(null)}
+                            seenLabel={label}
+                            onLightbox={onLightbox}
+                            onReply={handleReply}
+                            onDelete={onDelete}
+                            onEdit={onEdit}
+                            onEditStart={onStartEditing}
+                            onEditCancel={onCancelEditing}
                             editing={editingMessageId === msg.id}
                             canModerate={isSiteMod}
                             senderIsStaff={isSiteStaff(msg.sender.role)}
                         />
                     );
                 })}
-                <div ref={messagesEndRef} />
+                <div ref={endRef} />
             </div>
         </div>
     );
 }
+
+export const DmMessageList = memo(DmMessageListBase);

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useNavigate, useParams } from "react-router";
 import DOMPurify from "dompurify";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useFanfic, useFanficChapter } from "../../api/queries/fanfic";
+import { useFanfic, useFanficChapter } from "../../hooks/queries/fanfic";
 import { Button } from "../../components/Button/Button";
 import styles from "./FanficPages.module.css";
 

@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { ChatMessage, UserProfile } from "../types/api";
-import { useDeleteChatMessage, useEditChatMessage } from "../api/mutations/chat";
-import { applyChatMessageEdited } from "../utils/chatStream";
+import { useDeleteChatMessage, useEditChatMessage } from "./mutations/chat";
+import { applyChatMessageEdited } from "../domain/chat/messagePatches";
 
 interface UseChatMessageHandlersOptions {
     user: UserProfile | null;
@@ -47,7 +47,7 @@ export function useChatMessageHandlers({
         async (message: ChatMessage, newBody: string) => {
             try {
                 const updated = await editMessage({ messageId: message.id, body: newBody });
-                applyChatMessageEdited(updated, setMessages);
+                setMessages(prev => applyChatMessageEdited(prev, updated));
             } catch (err) {
                 if (onError) {
                     onError(err instanceof Error ? err.message : "Failed to edit message");

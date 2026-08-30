@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
     useAdminStats: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useAdminStats: mocks.useAdminStats }));
+vi.mock("../../hooks/queries/admin", () => ({ useAdminStats: mocks.useAdminStats }));
 
 function makeAdminStats(overrides: Partial<AdminStats> = {}): AdminStats {
     return {

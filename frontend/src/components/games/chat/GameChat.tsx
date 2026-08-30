@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import * as api from "../../../api/endpoints.ts";
-import type { SpectatorChatResponse, SpectatorMessage, WSMessage } from "../../../types/api.ts";
-import { useAuth } from "../../../hooks/useAuth.ts";
-import { useNotifications } from "../../../hooks/useNotifications.ts";
-import { Button } from "../../Button/Button.tsx";
-import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp.tsx";
+import { usePostPlayerChat, usePostSpectatorChat } from "../../../hooks/mutations/gameRoom";
+import { usePlayerChat, useSpectatorChat } from "../../../hooks/queries/gameRoom";
+import { useAuth } from "../../../hooks/useAuth";
+import { useGameChatMessages, type GameChatEventName } from "../../../hooks/useGameChatMessages";
+import { Button } from "../../Button/Button";
+import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import styles from "./SpectatorChat.module.css";
 
 export type GameChatVariant = "spectator" | "player";
@@ -20,9 +20,7 @@ interface VariantConfig {
     rightMeta: string;
     emptyText: string;
     placeholder: string;
-    fetch: (roomId: string) => Promise<SpectatorChatResponse>;
-    post: (roomId: string, body: string) => Promise<SpectatorMessage>;
-    wsType: string;
+    wsType: GameChatEventName;
 }
 
 function configFor(variant: GameChatVariant, watcherCount: number): VariantConfig {
@@ -32,8 +30,6 @@ function configFor(variant: GameChatVariant, watcherCount: number): VariantConfi
             rightMeta: "Private",
             emptyText: "Only you and your opponent can see this chat.",
             placeholder: "Message your opponent...",
-            fetch: api.getPlayerChat,
-            post: api.postPlayerChat,
             wsType: "player_chat_message",
         };
     }
@@ -42,56 +38,25 @@ function configFor(variant: GameChatVariant, watcherCount: number): VariantConfi
         rightMeta: `${watcherCount} watching`,
         emptyText: "No messages yet. Say hello.",
         placeholder: "Chat with other watchers...",
-        fetch: api.getSpectatorChat,
-        post: api.postSpectatorChat,
         wsType: "spectator_chat_message",
     };
 }
 
 export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
+    const isPlayer = variant === "player";
+    const spectatorHistory = useSpectatorChat(roomId, !isPlayer);
+    const playerHistory = usePlayerChat(roomId, isPlayer);
+    const postSpectatorMessage = usePostSpectatorChat(roomId);
+    const postPlayerMessage = usePostPlayerChat(roomId);
+    const history = isPlayer ? playerHistory : spectatorHistory;
+    const post = isPlayer ? postPlayerMessage : postSpectatorMessage;
+
     const cfg = useMemo(() => configFor(variant, watcherCount), [variant, watcherCount]);
     const { user } = useAuth();
-    const { addWSListener, wsEpoch } = useNotifications();
-    const [messages, setMessages] = useState<SpectatorMessage[]>([]);
+    const messages = useGameChatMessages(roomId, cfg.wsType, history);
     const [body, setBody] = useState("");
-    const [sending, setSending] = useState(false);
     const [error, setError] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
-
-    const fetchChat = cfg.fetch;
-    useEffect(() => {
-        let cancelled = false;
-        fetchChat(roomId)
-            .then(resp => {
-                if (cancelled) {
-                    return;
-                }
-                setMessages(resp.messages ?? []);
-            })
-            .catch(() => {});
-        return () => {
-            cancelled = true;
-        };
-    }, [roomId, wsEpoch, fetchChat]);
-
-    const wsType = cfg.wsType;
-    useEffect(() => {
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type !== wsType) {
-                return;
-            }
-            const data = msg.data as { room_id?: string; message?: SpectatorMessage };
-            if (data.room_id !== roomId || !data.message) {
-                return;
-            }
-            setMessages(prev => {
-                if (prev.some(m => m.id === data.message!.id)) {
-                    return prev;
-                }
-                return [...prev, data.message as SpectatorMessage];
-            });
-        });
-    }, [addWSListener, roomId, wsType]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -101,24 +66,16 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
 
     async function handleSend() {
         const trimmed = body.trim();
-        if (!trimmed || sending) {
+        if (!trimmed || post.isPending) {
             return;
         }
-        setSending(true);
         setError("");
+
         try {
-            const sent = await cfg.post(roomId, trimmed);
-            setMessages(prev => {
-                if (prev.some(m => m.id === sent.id)) {
-                    return prev;
-                }
-                return [...prev, sent];
-            });
+            await post.mutateAsync(trimmed);
             setBody("");
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to send");
-        } finally {
-            setSending(false);
         }
     }
 
@@ -165,9 +122,14 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
                         onChange={e => setBody(e.target.value)}
                         onKeyDown={handleKey}
                         maxLength={500}
-                        disabled={sending}
+                        disabled={post.isPending}
                     />
-                    <Button variant="primary" size="small" onClick={handleSend} disabled={sending || !body.trim()}>
+                    <Button
+                        variant="primary"
+                        size="small"
+                        onClick={handleSend}
+                        disabled={post.isPending || !body.trim()}
+                    >
                         Send
                     </Button>
                 </div>

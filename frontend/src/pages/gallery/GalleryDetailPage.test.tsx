@@ -15,9 +15,9 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/art", () => ({ useGallery: mocks.useGallery }));
+vi.mock("../../hooks/queries/art", () => ({ useGallery: mocks.useGallery }));
 
-vi.mock("../../api/mutations/art", () => ({
+vi.mock("../../hooks/mutations/art", () => ({
     useDeleteGallery: () => ({ mutateAsync: mocks.deleteGallery }),
     useUpdateGallery: () => ({ mutateAsync: mocks.updateGallery }),
     useSetGalleryCover: () => ({ mutateAsync: mocks.setGalleryCover }),

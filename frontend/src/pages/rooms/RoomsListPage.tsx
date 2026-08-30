@@ -1,301 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import type { ChatRoom, WSMessage } from "../../types/api";
-import { listMyChatRooms, listPublicChatRooms } from "../../api/endpoints";
-import { useJoinChatRoom } from "../../api/mutations/chat";
-import { useUserRooms } from "../../api/queries/chat";
-import { queryKeys } from "../../api/queryKeys";
+import { useRoomsDirectory } from "../../hooks/chat/useRoomsDirectory";
+import type { ChatRoom } from "../../types/api";
 import { Button } from "../../components/Button/Button";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { Input } from "../../components/Input/Input";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
-import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { CreateRoomModal } from "../../components/chat/CreateRoomModal/CreateRoomModal";
-import { isSiteStaff } from "../../utils/permissions";
-import { PieceTrigger } from "../../features/easterEgg";
+import { RoomCard } from "../../components/chat/RoomCard/RoomCard";
+import { isSiteStaff } from "../../domain/permissions";
+import { PieceTrigger } from "../../components/easterEgg";
 import styles from "./RoomsPages.module.css";
 
-const PAGE_SIZE = 20;
-const HOT_THRESHOLD = 50;
-
-interface FilterState {
-    search: string;
-    rpOnly: boolean;
-    tagFilter: string;
-    includeArchived: boolean;
-}
-
-function listKey(scope: string, filters: FilterState, pages: number): readonly unknown[] {
-    return [
-        "chat",
-        "rooms-list",
-        scope,
-        filters.search,
-        filters.rpOnly,
-        filters.tagFilter,
-        filters.includeArchived,
-        pages,
-    ];
-}
+const GHOST_JOIN_TITLE = "Join silently, no system message, hidden from member list except to staff";
 
 export function RoomsListPage() {
     usePageTitle("Chat Rooms");
-    const navigate = useNavigate();
-    const qc = useQueryClient();
     const { user } = useAuth();
-    const { addWSListener } = useNotifications();
-    const [searchInput, setSearchInput] = useState("");
-    const [search, setSearch] = useState("");
-    const [rpOnly, setRpOnly] = useState(false);
-    const [tagFilter, setTagFilter] = useState("");
-    const [includeArchived, setIncludeArchived] = useState(false);
-    const [pages, setPages] = useState<{ key: string; hosted: number; joined: number; discover: number }>({
-        key: "",
-        hosted: 1,
-        joined: 1,
-        discover: 1,
-    });
-    const [showCreate, setShowCreate] = useState(false);
-    const [joining, setJoining] = useState<string | null>(null);
-    const [joinError, setJoinError] = useState("");
-    const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-    const joinRoomMutation = useJoinChatRoom();
-
-    const filters: FilterState = useMemo(
-        () => ({ search, rpOnly, tagFilter, includeArchived }),
-        [search, rpOnly, tagFilter, includeArchived],
-    );
-
-    const filtersKey = `${filters.search}|${filters.rpOnly}|${filters.tagFilter}|${filters.includeArchived}`;
-    const activePages = pages.key === filtersKey ? pages : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
-    const hostedPages = activePages.hosted;
-    const joinedPages = activePages.joined;
-    const discoverPages = activePages.discover;
-
-    function loadMoreHosted() {
-        setPages(prev => {
-            const base = prev.key === filtersKey ? prev : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
-            return { ...base, hosted: base.hosted + 1 };
-        });
-    }
-    function loadMoreJoined() {
-        setPages(prev => {
-            const base = prev.key === filtersKey ? prev : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
-            return { ...base, joined: base.joined + 1 };
-        });
-    }
-    function loadMoreDiscover() {
-        setPages(prev => {
-            const base = prev.key === filtersKey ? prev : { key: filtersKey, hosted: 1, joined: 1, discover: 1 };
-            return { ...base, discover: base.discover + 1 };
-        });
-    }
-
-    const hostedQuery = useQuery({
-        queryKey: listKey("hosted", filters, hostedPages),
-        queryFn: () =>
-            listMyChatRooms({
-                role: "host",
-                search: filters.search,
-                rp: filters.rpOnly,
-                tag: filters.tagFilter || undefined,
-                includeArchived: filters.includeArchived,
-                limit: PAGE_SIZE * hostedPages,
-                offset: 0,
-            }),
-        enabled: !!user,
-    });
-    const joinedQuery = useQuery({
-        queryKey: listKey("joined", filters, joinedPages),
-        queryFn: () =>
-            listMyChatRooms({
-                role: "member",
-                search: filters.search,
-                rp: filters.rpOnly,
-                tag: filters.tagFilter || undefined,
-                includeArchived: filters.includeArchived,
-                limit: PAGE_SIZE * joinedPages,
-                offset: 0,
-            }),
-        enabled: !!user,
-    });
-    const discoverQuery = useQuery({
-        queryKey: listKey("discover", filters, discoverPages),
-        queryFn: () =>
-            listPublicChatRooms({
-                search: filters.search,
-                rp: filters.rpOnly,
-                tag: filters.tagFilter || undefined,
-                includeArchived: filters.includeArchived,
-                limit: PAGE_SIZE * discoverPages,
-                offset: 0,
-            }),
-    });
-
-    const userRoomsQuery = useUserRooms(!!user);
-
-    const hosted = {
-        items: hostedQuery.data?.rooms ?? [],
-        total: hostedQuery.data?.total ?? 0,
-        loading: hostedQuery.isFetching,
-    };
-    const joined = {
-        items: joinedQuery.data?.rooms ?? [],
-        total: joinedQuery.data?.total ?? 0,
-        loading: joinedQuery.isFetching,
-    };
-    const discover = {
-        items: discoverQuery.data?.rooms ?? [],
-        total: discoverQuery.data?.total ?? 0,
-        loading: discoverQuery.isFetching,
-    };
-    const systemRooms = userRoomsQuery.rooms.filter(r => r.is_system);
-
-    useEffect(() => {
-        clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-            setSearch(searchInput);
-        }, 250);
-        return () => clearTimeout(debounceRef.current);
-    }, [searchInput]);
-
-    useEffect(() => {
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type === "chat_room_invited") {
-                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListJoined() });
-                qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
-                return;
-            }
-            if (msg.type === "chat_room_updated") {
-                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
-                qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
-                return;
-            }
-            if (msg.type === "chat_kicked" || msg.type === "chat_room_deleted") {
-                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
-                qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
-                return;
-            }
-            if (msg.type === "voice_presence") {
-                qc.invalidateQueries({ queryKey: queryKeys.chat.roomsList() });
-            }
-        });
-    }, [addWSListener, qc]);
-
-    async function handleJoin(room: ChatRoom, ghost = false) {
-        setJoining(room.id);
-        setJoinError("");
-        try {
-            const joinedRoom = await joinRoomMutation.mutateAsync({ roomId: room.id, ghost });
-            qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListJoined() });
-            qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListDiscover() });
-            navigate(`/rooms/${joinedRoom.id}`);
-        } catch (err) {
-            setJoinError(err instanceof Error ? err.message : "Could not join that room.");
-        } finally {
-            setJoining(null);
-        }
-    }
+    const { hosted, joined, discover, systemRooms, filters, join, create } = useRoomsDirectory();
 
     function renderMemberCard(room: ChatRoom) {
-        const classes = [styles.card];
-        const isHot = !room.archived_at && (room.hot_score ?? 0) >= HOT_THRESHOLD;
-        if (room.is_system) {
-            classes.push(styles.systemCard);
-        }
-        if (room.viewer_ghost) {
-            classes.push(styles.ghostCard);
-        }
-        if (room.viewer_muted) {
-            classes.push(styles.mutedCard);
-        }
-        if (room.archived_at) {
-            classes.push(styles.archivedCard);
-        }
-        if (isHot) {
-            classes.push(styles.hotCard);
-        }
-        return (
-            <Link key={room.id} to={`/rooms/${room.id}`} className={classes.join(" ")}>
-                <div className={styles.cardHeader}>
-                    <h3 dir="auto" className={styles.cardTitle}>
-                        {room.name}
-                    </h3>
-                    <div className={styles.cardBadges}>
-                        {room.is_system && <span className={styles.systemBadge}>System</span>}
-                        {(room.voice_count ?? 0) > 0 && (
-                            <span className={styles.voiceBadge} title="Voice chat active">
-                                {"\u{1F50A}"} {room.voice_count}
-                            </span>
-                        )}
-                        {room.viewer_role === "host" && <span className={styles.hostBadge}>Host</span>}
-                        {room.viewer_ghost && (
-                            <span className={styles.ghostBadge} title="You joined silently as a ghost">
-                                👻 Ghost
-                            </span>
-                        )}
-                        {room.viewer_muted && (
-                            <span className={styles.mutedBadge} title="Notifications muted">
-                                🔕 Muted
-                            </span>
-                        )}
-                        {room.is_rp && <span className={styles.rpBadge}>RP</span>}
-                        {!room.is_system &&
-                            (room.is_public ? (
-                                <span className={styles.publicBadge}>Public</span>
-                            ) : (
-                                <span className={styles.privateBadge}>Private</span>
-                            ))}
-                        {room.archived_at && (
-                            <span className={styles.archivedBadge} title="No recent messages">
-                                Archived
-                            </span>
-                        )}
-                        {isHot && (
-                            <span className={styles.hotBadge} title="Lots of activity in the last 24 hours">
-                                Hot
-                            </span>
-                        )}
-                    </div>
-                </div>
-                {room.description && (
-                    <p dir="auto" className={styles.cardDesc}>
-                        {room.description}
-                    </p>
-                )}
-                {room.tags && room.tags.length > 0 && (
-                    <div className={styles.cardTags}>
-                        {room.tags.map(t => (
-                            <button
-                                key={t}
-                                className={styles.cardTag}
-                                onClick={e => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setTagFilter(t);
-                                }}
-                            >
-                                #{t}
-                            </button>
-                        ))}
-                    </div>
-                )}
-                <div className={styles.cardMeta}>
-                    <span>
-                        {"\u2605"} {room.member_count ?? room.members.length} members
-                    </span>
-                    <RelativeTimestamp value={room.last_message_at} variant="active" className={styles.cardActivity} />
-                </div>
-            </Link>
-        );
+        return <RoomCard key={room.id} variant="member" room={room} onTagClick={filters.setTagFilter} />;
     }
 
-    const filterActive = search !== "" || rpOnly || tagFilter !== "";
     const hostedFiltered = hosted.items.filter(r => !r.is_system);
     const joinedFiltered = joined.items.filter(r => !r.is_system);
 
@@ -335,84 +63,38 @@ export function RoomsListPage() {
     }
 
     function renderDiscoverCard(room: ChatRoom) {
-        const classes = [styles.card];
-        const isHot = !room.archived_at && (room.hot_score ?? 0) >= HOT_THRESHOLD;
-        if (room.archived_at) {
-            classes.push(styles.archivedCard);
-        }
-        if (isHot) {
-            classes.push(styles.hotCard);
-        }
         return (
-            <div key={room.id} className={classes.join(" ")}>
-                <div className={styles.cardHeader}>
-                    <h3 dir="auto" className={styles.cardTitle}>
-                        {room.name}
-                    </h3>
-                    <div className={styles.cardBadges}>
-                        {(room.voice_count ?? 0) > 0 && (
-                            <span className={styles.voiceBadge} title="Voice chat active">
-                                {"\u{1F50A}"} {room.voice_count}
-                            </span>
-                        )}
-                        {room.is_rp && <span className={styles.rpBadge}>RP</span>}
-                        <span className={styles.publicBadge}>Public</span>
-                        {room.archived_at && (
-                            <span className={styles.archivedBadge} title="No recent messages">
-                                Archived
-                            </span>
-                        )}
-                        {isHot && (
-                            <span className={styles.hotBadge} title="Lots of activity in the last 24 hours">
-                                Hot
-                            </span>
-                        )}
-                    </div>
-                </div>
-                {room.description && (
-                    <p dir="auto" className={styles.cardDesc}>
-                        {room.description}
-                    </p>
-                )}
-                {room.tags && room.tags.length > 0 && (
-                    <div className={styles.cardTags}>
-                        {room.tags.map(t => (
-                            <button key={t} className={styles.cardTag} onClick={() => setTagFilter(t)}>
-                                #{t}
-                            </button>
-                        ))}
-                    </div>
-                )}
-                <div className={styles.cardMeta}>
-                    <span>
-                        {"\u2605"} {room.member_count ?? room.members.length} members
-                    </span>
-                    <RelativeTimestamp value={room.last_message_at} variant="active" className={styles.cardActivity} />
-                </div>
-                {user && (
-                    <div className={styles.cardActions}>
-                        <Button
-                            variant="primary"
-                            size="small"
-                            onClick={() => handleJoin(room)}
-                            disabled={joining === room.id}
-                        >
-                            {joining === room.id ? "Joining..." : "Join Room"}
-                        </Button>
-                        {isSiteStaff(user.role) && (
+            <RoomCard
+                key={room.id}
+                variant="discover"
+                room={room}
+                onTagClick={filters.setTagFilter}
+                actions={
+                    user ? (
+                        <>
                             <Button
-                                variant="ghost"
+                                variant="primary"
                                 size="small"
-                                onClick={() => handleJoin(room, true)}
-                                disabled={joining === room.id}
-                                title="Join silently — no system message, hidden from member list except to staff"
+                                onClick={() => join.join(room)}
+                                disabled={join.pending === room.id}
                             >
-                                👻 Ghost
+                                {join.pending === room.id ? "Joining..." : "Join Room"}
                             </Button>
-                        )}
-                    </div>
-                )}
-            </div>
+                            {isSiteStaff(user.role) && (
+                                <Button
+                                    variant="ghost"
+                                    size="small"
+                                    onClick={() => join.join(room, true)}
+                                    disabled={join.pending === room.id}
+                                    title={GHOST_JOIN_TITLE}
+                                >
+                                    👻 Ghost
+                                </Button>
+                            )}
+                        </>
+                    ) : null
+                }
+            />
         );
     }
 
@@ -421,7 +103,7 @@ export function RoomsListPage() {
             <div className={styles.pageHeader}>
                 <h1 className={styles.pageTitle}>Chat Rooms</h1>
                 {user && (
-                    <Button variant="primary" size="small" onClick={() => setShowCreate(true)}>
+                    <Button variant="primary" size="small" onClick={create.open}>
                         + New Room <PieceTrigger pieceId="piece_03" />
                     </Button>
                 )}
@@ -447,29 +129,29 @@ export function RoomsListPage() {
                 <Input
                     type="text"
                     placeholder="Search rooms..."
-                    value={searchInput}
-                    onChange={e => setSearchInput(e.target.value)}
+                    value={filters.searchInput}
+                    onChange={e => filters.setSearchInput(e.target.value)}
                     className={styles.searchInput}
                 />
                 <div className={styles.filterRow}>
                     <button
-                        className={`${styles.filterChip}${rpOnly ? ` ${styles.filterChipActive}` : ""}`}
-                        onClick={() => setRpOnly(prev => !prev)}
+                        className={`${styles.filterChip}${filters.rpOnly ? ` ${styles.filterChipActive}` : ""}`}
+                        onClick={filters.toggleRpOnly}
                     >
                         RP only
                     </button>
                     <button
-                        className={`${styles.filterChip}${includeArchived ? ` ${styles.filterChipActive}` : ""}`}
-                        onClick={() => setIncludeArchived(prev => !prev)}
+                        className={`${styles.filterChip}${filters.includeArchived ? ` ${styles.filterChipActive}` : ""}`}
+                        onClick={filters.toggleIncludeArchived}
                     >
                         Include archived
                     </button>
-                    {tagFilter && (
+                    {filters.tagFilter && (
                         <button
                             className={`${styles.filterChip} ${styles.filterChipActive}`}
-                            onClick={() => setTagFilter("")}
+                            onClick={() => filters.setTagFilter("")}
                         >
-                            #{tagFilter} x
+                            #{filters.tagFilter} x
                         </button>
                     )}
                 </div>
@@ -485,7 +167,7 @@ export function RoomsListPage() {
                     )}
                     {!hosted.loading && hostedFiltered.length === 0 && (
                         <div className="empty-state">
-                            {filterActive
+                            {filters.active
                                 ? "No rooms you host match the filters."
                                 : "You haven't created any rooms yet."}
                         </div>
@@ -493,7 +175,12 @@ export function RoomsListPage() {
                     {hostedFiltered.length > 0 && renderGroupedGrid(hostedFiltered, renderMemberCard)}
                     {hosted.items.length < hosted.total && (
                         <div className={styles.loadMoreRow}>
-                            <Button variant="secondary" size="small" onClick={loadMoreHosted} disabled={hosted.loading}>
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={hosted.loadMore}
+                                disabled={hosted.loading}
+                            >
                                 {hosted.loading ? "Loading..." : "Load more"}
                             </Button>
                         </div>
@@ -520,7 +207,7 @@ export function RoomsListPage() {
                     )}
                     {!joined.loading && joinedFiltered.length === 0 && systemRooms.length === 0 && (
                         <div className="empty-state">
-                            {filterActive
+                            {filters.active
                                 ? "No joined rooms match the filters."
                                 : "You haven't joined any rooms yet. Browse below or create one."}
                         </div>
@@ -529,7 +216,12 @@ export function RoomsListPage() {
                         renderGroupedGrid(joinedFiltered, renderMemberCard, systemRooms.length > 0)}
                     {joined.items.length < joined.total && (
                         <div className={styles.loadMoreRow}>
-                            <Button variant="secondary" size="small" onClick={loadMoreJoined} disabled={joined.loading}>
+                            <Button
+                                variant="secondary"
+                                size="small"
+                                onClick={joined.loadMore}
+                                disabled={joined.loading}
+                            >
                                 {joined.loading ? "Loading..." : "Load more"}
                             </Button>
                         </div>
@@ -541,13 +233,13 @@ export function RoomsListPage() {
                 <h2 className={styles.sectionTitle}>
                     Discover Public Rooms{discover.total > 0 ? ` (${discover.total})` : ""}
                 </h2>
-                {joinError && <ErrorBanner message={joinError} />}
+                {join.error && <ErrorBanner message={join.error} />}
                 {discover.loading && discover.items.length === 0 && (
                     <div className="loading">Loading public rooms...</div>
                 )}
                 {!discover.loading && discover.items.length === 0 && (
                     <div className="empty-state">
-                        {filterActive
+                        {filters.active
                             ? "No public rooms match your search."
                             : "No public rooms yet. Create the first one!"}
                     </div>
@@ -555,21 +247,19 @@ export function RoomsListPage() {
                 {discover.items.length > 0 && renderGroupedGrid(discover.items, renderDiscoverCard)}
                 {discover.items.length < discover.total && (
                     <div className={styles.loadMoreRow}>
-                        <Button variant="secondary" size="small" onClick={loadMoreDiscover} disabled={discover.loading}>
+                        <Button
+                            variant="secondary"
+                            size="small"
+                            onClick={discover.loadMore}
+                            disabled={discover.loading}
+                        >
                             {discover.loading ? "Loading..." : "Load more"}
                         </Button>
                     </div>
                 )}
             </section>
 
-            <CreateRoomModal
-                isOpen={showCreate}
-                onClose={() => setShowCreate(false)}
-                onCreated={room => {
-                    qc.invalidateQueries({ queryKey: queryKeys.chat.roomsListHosted() });
-                    navigate(`/rooms/${room.id}`);
-                }}
-            />
+            <CreateRoomModal isOpen={create.isOpen} onClose={create.close} onCreated={create.onCreated} />
         </div>
     );
 }

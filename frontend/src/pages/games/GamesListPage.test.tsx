@@ -13,8 +13,8 @@ const { useMyGameRooms, useDeclineGameInvite, useCancelGameInvite, navigate } = 
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/gameRoom", () => ({ useMyGameRooms }));
-vi.mock("../../api/mutations/gameRoom", () => ({ useDeclineGameInvite, useCancelGameInvite }));
+vi.mock("../../hooks/queries/gameRoom", () => ({ useMyGameRooms }));
+vi.mock("../../hooks/mutations/gameRoom", () => ({ useDeclineGameInvite, useCancelGameInvite }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

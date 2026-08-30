@@ -1,13 +1,13 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PublicUser } from "../../api/endpoints";
+import type { PublicUser } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { UsersPage } from "./UsersPage";
 
 const mocks = vi.hoisted(() => ({ useUsersPublic: vi.fn() }));
 
-vi.mock("../../api/queries/misc", () => ({ useUsersPublic: mocks.useUsersPublic }));
+vi.mock("../../hooks/queries/user", () => ({ useUsersPublic: mocks.useUsersPublic }));
 
 function makePublicUser(overrides: Partial<PublicUser> = {}): PublicUser {
     return {

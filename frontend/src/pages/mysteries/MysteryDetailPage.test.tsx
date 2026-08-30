@@ -29,8 +29,8 @@ const mocked = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/mystery", () => ({ useMystery: mocked.useMystery }));
-vi.mock("../../api/mutations/mystery", () => ({
+vi.mock("../../hooks/queries/mystery", () => ({ useMystery: mocked.useMystery }));
+vi.mock("../../hooks/mutations/mystery", () => ({
     useAddMysteryClue: mocked.useAddMysteryClue,
     useCloseMystery: mocked.useCloseMystery,
     useCreateMysteryAttempt: mocked.useCreateMysteryAttempt,
@@ -385,7 +385,7 @@ describe("MysteryDetailPage", () => {
         expect(deleteMystery).not.toHaveBeenCalled();
     });
 
-    it("pauses the mystery and refreshes the board", async () => {
+    it("pauses the mystery and leaves the refetch to the mutation", async () => {
         // given
         const { setPaused, refresh } = stubMystery();
         const user = userEvent.setup();
@@ -395,10 +395,10 @@ describe("MysteryDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "Pause" }));
 
         // then
-        expect(setPaused).toHaveBeenCalledWith(true);
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(setPaused).toHaveBeenCalledWith(true);
         });
+        expect(refresh).not.toHaveBeenCalled();
     });
 
     it("offers to resume a paused mystery and hides the away toggle meanwhile", async () => {
@@ -454,10 +454,10 @@ describe("MysteryDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "Mark Permanently Solved" }));
 
         // then
-        expect(closeMystery).toHaveBeenCalled();
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(closeMystery).toHaveBeenCalled();
         });
+        expect(refresh).not.toHaveBeenCalled();
     });
 
     it("does not offer to close a mystery that is not ongoing", () => {
@@ -532,9 +532,9 @@ describe("MysteryDetailPage", () => {
         // then
         expect(addClue).toHaveBeenCalledWith({ body: "The window was latched", truthType: "red" });
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(screen.getByPlaceholderText("Add a new red truth clue...")).toHaveValue("");
         });
-        expect(screen.getByPlaceholderText("Add a new red truth clue...")).toHaveValue("");
+        expect(refresh).not.toHaveBeenCalled();
     });
 
     it("keeps the red truth composer away from the pieces", () => {
@@ -743,9 +743,9 @@ describe("MysteryDetailPage", () => {
         // then
         expect(createAttempt).toHaveBeenCalledWith({ body: "The chain was faked" });
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(screen.getByPlaceholderText("Declare your blue truth...")).toHaveValue("");
         });
-        expect(screen.getByPlaceholderText("Declare your blue truth...")).toHaveValue("");
+        expect(refresh).not.toHaveBeenCalled();
     });
 
     it("closes the composer and explains the pause to the pieces", () => {
@@ -875,10 +875,14 @@ describe("MysteryDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "Add private Red Truth" }));
 
         // then
-        expect(addClue).toHaveBeenCalledWith({ body: "Your key is a lie", truthType: "red", playerId: "player-1" });
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(addClue).toHaveBeenCalledWith({
+                body: "Your key is a lie",
+                truthType: "red",
+                playerId: "player-1",
+            });
         });
+        expect(refresh).not.toHaveBeenCalled();
     });
 
     it("keeps the private red truth composer away from the pieces", () => {
@@ -931,10 +935,10 @@ describe("MysteryDetailPage", () => {
         await user.upload(input, new File(["evidence"], "notes.pdf", { type: "application/pdf" }));
 
         // then
-        expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File));
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File));
         });
+        expect(refresh).not.toHaveBeenCalled();
     });
 
     it("reports why an attachment could not be uploaded", async () => {
@@ -1004,9 +1008,9 @@ describe("MysteryDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "Upload 1" }));
 
         // then
-        expect(uploadMedia).toHaveBeenCalledWith(expect.any(File));
         await waitFor(() => {
-            expect(refresh).toHaveBeenCalled();
+            expect(uploadMedia).toHaveBeenCalledWith(expect.any(File));
         });
+        expect(refresh).not.toHaveBeenCalled();
     });
 });

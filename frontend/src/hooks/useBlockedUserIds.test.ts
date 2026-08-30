@@ -1,12 +1,12 @@
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { BlockedUserItem } from "../api/endpoints";
-import { useBlockedUsers } from "../api/queries/user";
+import type { BlockedUserItem } from "../types/api";
+import { useBlockedUsers } from "./queries/user";
 import { makeUser } from "../test-utils/fixtures";
 import { providerWrapper } from "../test-utils/render";
 import { useBlockedUserIds } from "./useBlockedUserIds";
 
-vi.mock("../api/queries/user", () => ({
+vi.mock("./queries/user", () => ({
     useBlockedUsers: vi.fn(),
 }));
 

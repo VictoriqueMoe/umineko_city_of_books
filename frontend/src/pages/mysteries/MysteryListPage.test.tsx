@@ -12,7 +12,7 @@ const { useMysteryList, useMysteryLeaderboard, useGMLeaderboard } = vi.hoisted((
     useGMLeaderboard: vi.fn(),
 }));
 
-vi.mock("../../api/queries/mystery", () => ({ useMysteryList, useMysteryLeaderboard, useGMLeaderboard }));
+vi.mock("../../hooks/queries/mystery", () => ({ useMysteryList, useMysteryLeaderboard, useGMLeaderboard }));
 vi.mock("../../components/RulesBox/RulesBox", () => ({
     RulesBox: ({ page }: { page: string }) => <div data-testid="rules-box">{page}</div>,
 }));
@@ -213,6 +213,30 @@ describe("MysteryListPage", () => {
         expect(screen.getByText("GM Away")).toBeInTheDocument();
         expect(screen.getByText("Free-for-all")).toBeInTheDocument();
         expect(screen.getByText(/Unsolved for/)).toBeInTheDocument();
+    });
+
+    it("badges an ongoing mystery on the card and counts its solvers", () => {
+        // given
+        stubMysteries({ mysteries: [makeMystery({ keep_open_after_solve: true, solver_count: 3 })] });
+
+        // when
+        renderWithProviders(<MysteryListPage />, { route: "/mysteries" });
+
+        // then
+        const card = screen.getByRole("link", { name: /The sealed guest room/ });
+        expect(within(card).getByText("Ongoing")).toBeInTheDocument();
+        expect(within(card).getByText("3 solvers")).toBeInTheDocument();
+    });
+
+    it("drops the ongoing badge from the card once the mystery is solved", () => {
+        // given
+        stubMysteries({ mysteries: [makeMystery({ keep_open_after_solve: true, solved: true })] });
+
+        // when
+        renderWithProviders(<MysteryListPage />, { route: "/mysteries" });
+
+        // then
+        expect(screen.queryByText("Ongoing")).not.toBeInTheDocument();
     });
 
     it("names the winner and how long the solved mystery took", () => {

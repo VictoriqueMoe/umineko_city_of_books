@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { SiteInfoSecret } from "../../api/endpoints";
+import type { SiteInfoSecret } from "../../types/api";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { NotFoundPage } from "./NotFoundPage";

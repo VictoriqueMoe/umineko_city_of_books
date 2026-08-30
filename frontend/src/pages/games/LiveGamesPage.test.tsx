@@ -1,13 +1,12 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { queryKeys } from "../../api/queryKeys";
-import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
+import { renderWithProviders } from "../../test-utils/render";
 import type { GameRoom, GameRoomPlayer } from "../../types/api";
 import { LiveGamesPage } from "./LiveGamesPage";
 
 const { useLiveGameRooms } = vi.hoisted(() => ({ useLiveGameRooms: vi.fn() }));
 
-vi.mock("../../api/queries/gameRoom", () => ({ useLiveGameRooms }));
+vi.mock("../../hooks/queries/gameRoom", () => ({ useLiveGameRooms }));
 
 function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
     const id = overrides.user_id ?? "player-0";
@@ -120,19 +119,6 @@ describe("LiveGamesPage", () => {
 
         // then
         expect(screen.getByRole("link", { name: /\? vs Beatrice/ })).toBeInTheDocument();
-    });
-
-    it("refreshes the live list when the page mounts", () => {
-        // given
-        stubLive();
-        const queryClient = createTestQueryClient();
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        renderWithProviders(<LiveGamesPage />, { queryClient });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.gameRoom.live() });
     });
 
     it("keeps every live room, not just the first few", () => {

@@ -1,9 +1,8 @@
 import { Link } from "react-router";
-import { useHomeActivity } from "../../api/queries/sidebar";
-import type { HomeActivityEntry, HomeEcho, HomeMember, HomePublicRoom } from "../../types/api";
+import { useHomeActivity } from "../../hooks/queries/sidebar";
+import type { HomeActivityEntry, HomeEcho, HomeMember, HomePublicRoom, Series } from "../../types/api";
 import { useAuth } from "../../hooks/useAuth";
-import { userProgressForSeries } from "../../utils/seriesConfig";
-import type { Series } from "../../api/endpoints";
+import { userProgressForSeries } from "../../domain/series";
 import { Butterfly } from "../../components/Butterfly/Butterfly";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";

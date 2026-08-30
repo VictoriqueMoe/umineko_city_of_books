@@ -16,8 +16,8 @@ const { useGameRoom, useAcceptGameInvite, useDeclineGameInvite, useSubmitGameAct
         navigate: vi.fn(),
     }));
 
-vi.mock("../../api/queries/gameRoom", () => ({ useGameRoom }));
-vi.mock("../../api/mutations/gameRoom", () => ({
+vi.mock("../../hooks/queries/gameRoom", () => ({ useGameRoom }));
+vi.mock("../../hooks/mutations/gameRoom", () => ({
     useAcceptGameInvite,
     useDeclineGameInvite,
     useResignGame,
@@ -209,6 +209,18 @@ describe("MinesweeperGamePage", () => {
         // then
         expect(screen.getByText(/invites are private/)).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+    });
+
+    it("holds a declined invite back from the board, which never got a state", () => {
+        // given
+        stubRoom({ room: makeRoom({ status: "declined" }) });
+
+        // when
+        renderGame();
+
+        // then
+        expect(screen.getByText("This match never started. The invite was declined or cancelled.")).toBeInTheDocument();
+        expect(screen.queryByLabelText("minesweeper board")).not.toBeInTheDocument();
     });
 
     it("explains the simultaneous race to the invitee", () => {

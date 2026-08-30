@@ -1,260 +1,44 @@
-import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { useAuth } from "../../hooks/useAuth";
-import { useProfile } from "../../api/queries/profile";
-import { usePageTitle } from "../../hooks/usePageTitle";
-import { useTheoryFeed } from "../../api/queries/theory";
-import { useFollow } from "../../hooks/useFollow";
-import { useBlock } from "../../hooks/useBlock";
-import {
-    useUserActivity,
-    useUserArt,
-    useUserFanficFavourites,
-    useUserFanfics,
-    useUserFollowedJournals,
-    useUserGalleries,
-    useUserJournals,
-    useUserMysteries,
-    useUserPosts,
-    useUserShips,
-} from "../../api/queries/user";
-import { useUserOCs } from "../../api/queries/oc";
-import { useFollowers, useFollowing } from "../../api/queries/misc";
-import { useCreateGallery } from "../../api/mutations/art";
-import { parseServerDate } from "../../utils/time";
-import { can } from "../../utils/permissions";
-import { renderRich } from "../../utils/richText";
+import { useProfilePage, type ProfileTab } from "../../hooks/useProfilePage";
+import { formatDate, formatDOBWithAge, socialEntries, socialHref } from "../../domain/profile";
+import { renderRich } from "../../components/richText/richText";
 import { Button } from "../../components/Button/Button";
+import { ListSection } from "../../components/ListSection/ListSection";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { TheoryCard } from "../../components/theory/TheoryCard/TheoryCard";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { JournalCard } from "../../components/journal/JournalCard/JournalCard";
 import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
-import { Pagination } from "../../components/Pagination/Pagination";
+import { GalleryCard } from "../../components/art/GalleryCard/GalleryCard";
 import { RolePill } from "../../components/RolePill/RolePill";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
+import { CreateGalleryInline } from "./CreateGalleryInline";
 import { TrophyCase } from "./TrophyCase";
-import { HuntsInProgress } from "../../features/easterEgg";
+import { HuntsInProgress } from "../../components/easterEgg";
 import styles from "./ProfilePage.module.css";
 
-const SOCIAL_LABELS: Record<string, string> = {
-    social_twitter: "Twitter / X",
-    social_discord: "Discord",
-    social_waifulist: "WaifuList",
-    social_tumblr: "Tumblr",
-    social_github: "GitHub",
-    social_bluesky: "Bluesky",
-};
-
-function formatDate(iso: string): string {
-    const d = parseServerDate(iso);
-    if (!d) {
-        return "";
-    }
-    return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
-}
-
-function formatDOBWithAge(value: string): string {
-    const parts = value.split("-");
-    if (parts.length !== 3) {
-        return value;
-    }
-
-    const year = Number(parts[0]);
-    const month = Number(parts[1]);
-    const day = Number(parts[2]);
-
-    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-        return value;
-    }
-
-    const parsed = new Date(Date.UTC(year, month - 1, day));
-    if (Number.isNaN(parsed.getTime())) {
-        return value;
-    }
-
-    const now = new Date();
-    let age = now.getUTCFullYear() - year;
-    if (now.getUTCMonth() + 1 < month || (now.getUTCMonth() + 1 === month && now.getUTCDate() < day)) {
-        age -= 1;
-    }
-
-    const ageLabel = age === 1 ? "year old" : "years old";
-    if (age < 0) {
-        return parsed.toLocaleDateString(undefined, {
-            year: "numeric",
-            month: "long",
-            day: "2-digit",
-            timeZone: "UTC",
-        });
-    }
-
-    const formatted = parsed.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "long",
-        day: "2-digit",
-        timeZone: "UTC",
-    });
-
-    return `${formatted} (${age} ${ageLabel})`;
-}
-
-function socialUrl(key: string, value: string): string {
-    if (value.startsWith("http://") || value.startsWith("https://")) {
-        return value;
-    }
-    switch (key) {
-        case "social_twitter":
-            return `https://x.com/${value}`;
-        case "social_github":
-            return `https://github.com/${value}`;
-        case "social_bluesky":
-            return `https://bsky.app/profile/${value.replace(/^@/, "")}`;
-        case "social_tumblr":
-            return `https://${value}.tumblr.com`;
-        case "social_waifulist":
-            return value.includes("/") ? `https://${value}` : `https://waifulist.moe/${value}`;
-        default:
-            return value;
-    }
-}
-
-type TabType =
-    | "posts"
-    | "theories"
-    | "art"
-    | "galleries"
-    | "ships"
-    | "ocs"
-    | "mysteries"
-    | "fanfics"
-    | "fanfic-favourites"
-    | "journals"
-    | "journal-follows"
-    | "activity"
-    | "followers"
-    | "following";
+const TABS: { tab: ProfileTab; label: string }[] = [
+    { tab: "posts", label: "Posts" },
+    { tab: "theories", label: "Theories" },
+    { tab: "art", label: "Art" },
+    { tab: "galleries", label: "Galleries" },
+    { tab: "ships", label: "Ships" },
+    { tab: "ocs", label: "OCs" },
+    { tab: "mysteries", label: "Mysteries" },
+    { tab: "fanfics", label: "Fanfictions" },
+    { tab: "fanfic-favourites", label: "Saved Fics" },
+    { tab: "journals", label: "Journals" },
+    { tab: "journal-follows", label: "Following Journals" },
+    { tab: "activity", label: "Activity" },
+];
 
 export function ProfilePage() {
     const { username } = useParams<{ username: string }>();
     const navigate = useNavigate();
-    const { user: currentUser } = useAuth();
-    const { profile, loading } = useProfile(username ?? "");
-    usePageTitle(profile?.display_name ?? "Profile");
-    const [explicitTab, setExplicitTab] = useState<TabType | null>(null);
-    const activeTab: TabType = explicitTab ?? (profile?.private?.default_profile_tab as TabType | undefined) ?? "posts";
-    const setActiveTab = setExplicitTab as (tab: TabType) => void;
-    const follow = useFollow(profile?.id ?? "");
-    const blockHook = useBlock(profile?.id ?? "");
-    const canManageUser = can(currentUser, "view_users") && !!profile && currentUser?.id !== profile.id;
+    const page = useProfilePage(username ?? "");
+    const { profile, viewer, follow, block, activeTab, setActiveTab } = page;
 
-    const {
-        theories,
-        total,
-        loading: theoriesLoading,
-        offset,
-        limit,
-        goNext,
-        goPrev,
-        hasNext,
-        hasPrev,
-    } = useTheoryFeed("new", 0, profile?.id);
-
-    const profileID = profile?.id ?? "";
-    const [postsOffset, setPostsOffset] = useState(0);
-    const postsLimit = 20;
-    const postsQuery = useUserPosts(activeTab === "posts" ? profileID : "", postsLimit, postsOffset);
-    const userPosts = postsQuery.posts;
-    const postsTotal = postsQuery.total;
-    const postsLoading = postsQuery.loading;
-
-    const [artOffset, setArtOffset] = useState(0);
-    const artLimit = 24;
-    const artQuery = useUserArt(activeTab === "art" ? profileID : "", artLimit, artOffset);
-    const userArt = artQuery.art;
-    const artTotal = artQuery.total;
-    const artLoading = artQuery.loading;
-
-    const galleriesQuery = useUserGalleries(activeTab === "galleries" ? profileID : "");
-    const userGalleries = galleriesQuery.galleries;
-    const galleriesLoading = galleriesQuery.loading;
-
-    const [shipsOffset, setShipsOffset] = useState(0);
-    const shipsLimit = 20;
-    const shipsQuery = useUserShips(activeTab === "ships" ? profileID : "", shipsLimit, shipsOffset);
-    const userShips = shipsQuery.ships;
-    const shipsTotal = shipsQuery.total;
-    const shipsLoading = shipsQuery.loading;
-
-    const ocsQuery = useUserOCs(activeTab === "ocs" ? profileID : "");
-    const userOCs = ocsQuery.ocs;
-    const ocsLoading = ocsQuery.loading;
-
-    const [mysteriesOffset, setMysteriesOffset] = useState(0);
-    const mysteriesLimit = 20;
-    const mysteriesQuery = useUserMysteries(
-        activeTab === "mysteries" ? profileID : "",
-        mysteriesLimit,
-        mysteriesOffset,
-    );
-    const userMysteries = mysteriesQuery.mysteries;
-    const mysteriesTotal = mysteriesQuery.total;
-    const mysteriesLoading = mysteriesQuery.loading;
-
-    const [fanficsOffset, setFanficsOffset] = useState(0);
-    const fanficsLimit = 20;
-    const fanficsQuery = useUserFanfics(activeTab === "fanfics" ? profileID : "", fanficsLimit, fanficsOffset);
-    const userFanfics = fanficsQuery.fanfics;
-    const fanficsTotal = fanficsQuery.total;
-    const fanficsLoading = fanficsQuery.loading;
-
-    const [favouritesOffset, setFavouritesOffset] = useState(0);
-    const favouritesLimit = 20;
-    const favouritesQuery = useUserFanficFavourites(
-        activeTab === "fanfic-favourites" ? profileID : "",
-        favouritesLimit,
-        favouritesOffset,
-    );
-    const userFavourites = favouritesQuery.fanfics;
-    const favouritesTotal = favouritesQuery.total;
-    const favouritesLoading = favouritesQuery.loading;
-
-    const [journalsOffset, setJournalsOffset] = useState(0);
-    const journalsLimit = 20;
-    const journalsQuery = useUserJournals(activeTab === "journals" ? profileID : "", journalsLimit, journalsOffset);
-    const userJournals = journalsQuery.journals;
-    const journalsTotal = journalsQuery.total;
-    const journalsLoading = journalsQuery.loading;
-
-    const [followedJournalsOffset, setFollowedJournalsOffset] = useState(0);
-    const followedJournalsLimit = 20;
-    const followedJournalsQuery = useUserFollowedJournals(
-        activeTab === "journal-follows" ? profileID : "",
-        followedJournalsLimit,
-        followedJournalsOffset,
-    );
-    const followedJournals = followedJournalsQuery.journals;
-    const followedJournalsTotal = followedJournalsQuery.total;
-    const followedJournalsLoading = followedJournalsQuery.loading;
-
-    const [activityOffset, setActivityOffset] = useState(0);
-    const activityLimit = 20;
-    const activityQuery = useUserActivity(
-        activeTab === "activity" ? (username ?? "") : "",
-        activityLimit,
-        activityOffset,
-    );
-    const activityItems = activityQuery.activity;
-    const activityTotal = activityQuery.total;
-    const activityLoading = activityQuery.loading;
-
-    const followersQuery = useFollowers(activeTab === "followers" && profile?.id ? profile.id : "");
-    const followingQuery = useFollowing(activeTab === "following" && profile?.id ? profile.id : "");
-    const followList = activeTab === "followers" ? followersQuery.users : followingQuery.users;
-    const followListLoading =
-        activeTab === "followers" ? followersQuery.loading : activeTab === "following" ? followingQuery.loading : false;
-
-    if (loading) {
+    if (page.loading) {
         return <div className="loading">Consulting the game board...</div>;
     }
 
@@ -270,32 +54,8 @@ export function ProfilePage() {
         );
     }
 
-    const socialEntries = Object.entries(SOCIAL_LABELS)
-        .map(([key, label]) => ({
-            key,
-            label,
-            value: profile[key as keyof typeof profile] as string,
-        }))
-        .filter(entry => entry.value);
-
-    if (profile.website) {
-        socialEntries.push({
-            key: "website",
-            label: "Website",
-            value: profile.website,
-        });
-    }
-
-    if (profile.email) {
-        socialEntries.push({
-            key: "email",
-            label: "Email",
-            value: profile.email,
-        });
-    }
-
+    const socials = socialEntries(profile);
     const showGender = profile.gender && profile.gender !== "Prefer not to say";
-
     const isBanned = profile.banned === true;
 
     return (
@@ -341,7 +101,7 @@ export function ProfilePage() {
                     <span dir="auto" className={styles.username}>
                         @{profile.username}
                     </span>
-                    {currentUser && currentUser.id !== profile.id && follow.stats && (
+                    {viewer && viewer.id !== profile.id && follow.stats && (
                         <div className={styles.followRow}>
                             <Button
                                 variant={follow.stats.is_following ? "secondary" : "primary"}
@@ -350,7 +110,7 @@ export function ProfilePage() {
                             >
                                 {follow.stats.is_following ? "Unfollow" : "Follow"}
                             </Button>
-                            {profile.dms_enabled && !blockHook.status?.blocking && !blockHook.status?.blocked_by && (
+                            {profile.dms_enabled && !block.status?.blocking && !block.status?.blocked_by && (
                                 <Button
                                     variant="secondary"
                                     size="small"
@@ -360,23 +120,21 @@ export function ProfilePage() {
                                 </Button>
                             )}
                             {follow.stats.follows_you && <span className={styles.followsYou}>Follows you</span>}
-                            {blockHook.status && !profile.role && (
-                                <Button variant="ghost" size="small" onClick={blockHook.toggleBlock}>
-                                    {blockHook.status.blocking ? "Unblock" : "Block"}
+                            {block.status && !profile.role && (
+                                <Button variant="ghost" size="small" onClick={block.toggleBlock}>
+                                    {block.status.blocking ? "Unblock" : "Block"}
                                 </Button>
                             )}
                         </div>
                     )}
-                    {canManageUser && (
+                    {page.canManageUser && (
                         <div className={styles.followRow}>
                             <Button variant="ghost" size="small" onClick={() => navigate(`/admin/users/${profile.id}`)}>
                                 Manage account
                             </Button>
                         </div>
                     )}
-                    {blockHook.status?.blocked_by && (
-                        <div className={styles.blockedBanner}>This user has blocked you.</div>
-                    )}
+                    {block.status?.blocked_by && <div className={styles.blockedBanner}>This user has blocked you.</div>}
                     <div className={styles.metaRow}>
                         {showGender && (
                             <span dir="auto" className={styles.metaItem}>
@@ -388,7 +146,9 @@ export function ProfilePage() {
                                 {profile.pronoun_subject}/{profile.pronoun_possessive}
                             </span>
                         )}
-                        {profile.dob && <span className={styles.metaItem}>Born {formatDOBWithAge(profile.dob)}</span>}
+                        {profile.dob && (
+                            <span className={styles.metaItem}>Born {formatDOBWithAge(profile.dob, new Date())}</span>
+                        )}
                         <span className={styles.metaItem}>Joined {formatDate(profile.created_at)}</span>
                     </div>
                 </div>
@@ -398,9 +158,9 @@ export function ProfilePage() {
                 {profile.bio ? renderRich(profile.bio) : "This player has not written a bio yet."}
             </div>
 
-            {socialEntries.length > 0 && (
+            {socials.length > 0 && (
                 <div className={styles.socialRow}>
-                    {socialEntries.map(entry => (
+                    {socials.map(entry => (
                         <span key={entry.key} className={styles.socialChip}>
                             <span className={styles.socialChipLabel}>{entry.label}</span>
                             {entry.key === "social_discord" ? (
@@ -411,15 +171,7 @@ export function ProfilePage() {
                                 <a
                                     dir="auto"
                                     className={styles.socialChipValue}
-                                    href={
-                                        entry.key === "website"
-                                            ? entry.value.startsWith("http")
-                                                ? entry.value
-                                                : `https://${entry.value}`
-                                            : entry.key === "email"
-                                              ? `mailto:${entry.value}`
-                                              : socialUrl(entry.key, entry.value)
-                                    }
+                                    href={socialHref(entry)}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                 >
@@ -491,626 +243,302 @@ export function ProfilePage() {
             <TrophyCase profileUserId={profile.id} profileSecrets={profile.secrets} />
 
             <div className={styles.tabs}>
-                <button
-                    className={`${styles.tab} ${activeTab === "posts" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("posts")}
-                >
-                    Posts
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "theories" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("theories")}
-                >
-                    Theories
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "art" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("art")}
-                >
-                    Art
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "galleries" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("galleries")}
-                >
-                    Galleries
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "ships" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("ships")}
-                >
-                    Ships
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "ocs" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("ocs")}
-                >
-                    OCs
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "mysteries" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("mysteries")}
-                >
-                    Mysteries
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "fanfics" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("fanfics")}
-                >
-                    Fanfictions
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "fanfic-favourites" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("fanfic-favourites")}
-                >
-                    Saved Fics
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "journals" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("journals")}
-                >
-                    Journals
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "journal-follows" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("journal-follows")}
-                >
-                    Following Journals
-                </button>
-                <button
-                    className={`${styles.tab} ${activeTab === "activity" ? styles.tabActive : ""}`}
-                    onClick={() => setActiveTab("activity")}
-                >
-                    Activity
-                </button>
+                {TABS.map(({ tab, label }) => (
+                    <button
+                        key={tab}
+                        className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ""}`}
+                        onClick={() => setActiveTab(tab)}
+                    >
+                        {label}
+                    </button>
+                ))}
             </div>
 
             {activeTab === "posts" && (
                 <div className={styles.tabContent}>
-                    {postsLoading && <div className="loading">Loading posts...</div>}
-                    {!postsLoading && userPosts.length === 0 && <div className="empty-state">No posts yet.</div>}
-                    {!postsLoading &&
-                        userPosts.map(p => <PostCard key={p.id} post={p} onDelete={() => postsQuery.refresh()} />)}
-                    {!postsLoading && postsTotal > postsLimit && (
-                        <Pagination
-                            offset={postsOffset}
-                            limit={postsLimit}
-                            total={postsTotal}
-                            hasNext={postsOffset + postsLimit < postsTotal}
-                            hasPrev={postsOffset > 0}
-                            onNext={() => setPostsOffset(postsOffset + postsLimit)}
-                            onPrev={() => setPostsOffset(Math.max(0, postsOffset - postsLimit))}
-                        />
-                    )}
+                    <ListSection {...page.posts} loadingText="Loading posts..." emptyText="No posts yet.">
+                        {items => items.map(p => <PostCard key={p.id} post={p} onDelete={() => page.refreshPosts()} />)}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "theories" && (
                 <div className={styles.tabContent}>
-                    {theoriesLoading && <div className="loading">Loading theories...</div>}
-
-                    {!theoriesLoading && theories.length === 0 && (
-                        <div className="empty-state">This player has not declared any theories yet.</div>
-                    )}
-
-                    {!theoriesLoading && theories.map(theory => <TheoryCard key={theory.id} theory={theory} />)}
-
-                    {!theoriesLoading && total > 0 && (
-                        <Pagination
-                            offset={offset}
-                            limit={limit}
-                            total={total}
-                            hasNext={hasNext}
-                            hasPrev={hasPrev}
-                            onNext={goNext}
-                            onPrev={goPrev}
-                        />
-                    )}
+                    <ListSection
+                        {...page.theories}
+                        loadingText="Loading theories..."
+                        emptyText="This player has not declared any theories yet."
+                    >
+                        {items => items.map(theory => <TheoryCard key={theory.id} theory={theory} />)}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "art" && (
                 <div className={styles.tabContent}>
-                    {artLoading && <div className="loading">Loading art...</div>}
-                    {!artLoading && userArt.length === 0 && <div className="empty-state">No art yet.</div>}
-                    {!artLoading && userArt.length > 0 && <ArtGrid art={userArt} />}
-                    {!artLoading && artTotal > artLimit && (
-                        <Pagination
-                            offset={artOffset}
-                            limit={artLimit}
-                            total={artTotal}
-                            hasNext={artOffset + artLimit < artTotal}
-                            hasPrev={artOffset > 0}
-                            onNext={() => setArtOffset(artOffset + artLimit)}
-                            onPrev={() => setArtOffset(Math.max(0, artOffset - artLimit))}
-                        />
-                    )}
+                    <ListSection {...page.art} loadingText="Loading art..." emptyText="No art yet.">
+                        {items => <ArtGrid art={items} />}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "galleries" && (
                 <div className={styles.tabContent}>
-                    {currentUser && profile && currentUser.id === profile.id && (
-                        <CreateGalleryInline onCreated={() => galleriesQuery.refresh()} />
+                    {viewer && viewer.id === profile.id && (
+                        <CreateGalleryInline onCreated={() => page.refreshGalleries()} />
                     )}
-                    {galleriesLoading && <div className="loading">Loading galleries...</div>}
-                    {!galleriesLoading && userGalleries.length === 0 && (
-                        <div className="empty-state">No galleries yet.</div>
-                    )}
-                    {!galleriesLoading && (
-                        <div className={styles.galleryGrid}>
-                            {userGalleries.map(g => (
-                                <Link key={g.id} to={`/gallery/view/${g.id}`} className={styles.galleryCard}>
-                                    <div className={styles.galleryCover}>
-                                        {g.cover_thumbnail_url || g.cover_image_url ? (
-                                            <img
-                                                src={g.cover_thumbnail_url || g.cover_image_url}
-                                                alt=""
-                                                className={styles.galleryCoverImage}
-                                            />
-                                        ) : g.preview_images && g.preview_images.length > 0 ? (
-                                            <ProfileGalleryPreview images={g.preview_images} />
-                                        ) : (
-                                            <div className={styles.galleryCoverPlaceholder}>Empty</div>
-                                        )}
-                                    </div>
-                                    <div className={styles.galleryInfo}>
-                                        <span dir="auto" className={styles.galleryName}>
-                                            {g.name}
-                                        </span>
-                                        <span className={styles.galleryCount}>{g.art_count} pieces</span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
+                    <ListSection {...page.galleries} loadingText="Loading galleries..." emptyText="No galleries yet.">
+                        {items => (
+                            <div className={styles.galleryGrid}>
+                                {items.map(g => (
+                                    <GalleryCard key={g.id} gallery={g} />
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "ocs" && (
                 <div className={styles.tabContent}>
-                    {ocsLoading && <div className="loading">Loading OCs...</div>}
-                    {!ocsLoading && userOCs.length === 0 && <div className="empty-state">No OCs created yet.</div>}
-                    {!ocsLoading && userOCs.length > 0 && (
-                        <div className={styles.shipList}>
-                            {userOCs.map(oc => (
-                                <Link key={oc.id} to={`/oc/${oc.id}`} className={styles.shipCard}>
-                                    {(oc.thumbnail_url || oc.image_url) && (
-                                        <img
-                                            className={styles.shipThumb}
-                                            src={oc.thumbnail_url || oc.image_url}
-                                            alt={oc.name}
-                                        />
-                                    )}
-                                    <div className={styles.shipInfo}>
-                                        <span dir="auto" className={styles.shipTitle}>
-                                            {oc.name}
-                                        </span>
-                                        <span dir="auto" className={styles.shipMeta}>
-                                            {oc.series === "custom" ? (oc.custom_series_name ?? "Custom") : oc.series}
-                                        </span>
-                                        <span className={styles.shipMeta}>
-                                            {oc.vote_score > 0 ? "+" : ""}
-                                            {oc.vote_score} &middot; ♥ {oc.favourite_count} &middot; {oc.comment_count}{" "}
-                                            comment
-                                            {oc.comment_count !== 1 ? "s" : ""}
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
+                    <ListSection {...page.ocs} loadingText="Loading OCs..." emptyText="No OCs created yet.">
+                        {items => (
+                            <div className={styles.shipList}>
+                                {items.map(oc => (
+                                    <Link key={oc.id} to={`/oc/${oc.id}`} className={styles.shipCard}>
+                                        {(oc.thumbnail_url || oc.image_url) && (
+                                            <img
+                                                className={styles.shipThumb}
+                                                src={oc.thumbnail_url || oc.image_url}
+                                                alt={oc.name}
+                                            />
+                                        )}
+                                        <div className={styles.shipInfo}>
+                                            <span dir="auto" className={styles.shipTitle}>
+                                                {oc.name}
+                                            </span>
+                                            <span dir="auto" className={styles.shipMeta}>
+                                                {oc.series === "custom"
+                                                    ? (oc.custom_series_name ?? "Custom")
+                                                    : oc.series}
+                                            </span>
+                                            <span className={styles.shipMeta}>
+                                                {oc.vote_score > 0 ? "+" : ""}
+                                                {oc.vote_score} &middot; ♥ {oc.favourite_count} &middot;{" "}
+                                                {oc.comment_count} comment
+                                                {oc.comment_count !== 1 ? "s" : ""}
+                                            </span>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "ships" && (
                 <div className={styles.tabContent}>
-                    {shipsLoading && <div className="loading">Loading ships...</div>}
-                    {!shipsLoading && userShips.length === 0 && (
-                        <div className="empty-state">No ships declared yet.</div>
-                    )}
-                    {!shipsLoading && userShips.length > 0 && (
-                        <div className={styles.shipList}>
-                            {userShips.map(s => (
-                                <Link key={s.id} to={`/ships/${s.id}`} className={styles.shipCard}>
-                                    {(s.thumbnail_url || s.image_url) && (
-                                        <img
-                                            className={styles.shipThumb}
-                                            src={s.thumbnail_url || s.image_url}
-                                            alt={s.title}
-                                        />
-                                    )}
-                                    <div className={styles.shipInfo}>
-                                        <span dir="auto" className={styles.shipTitle}>
-                                            {s.title}
-                                        </span>
-                                        <span dir="auto" className={styles.shipMeta}>
-                                            {s.characters.map(c => c.character_name).join(" × ")}
-                                        </span>
-                                        <span className={styles.shipMeta}>
-                                            {s.vote_score > 0 ? "+" : ""}
-                                            {s.vote_score} &middot; {s.comment_count} comment
-                                            {s.comment_count !== 1 ? "s" : ""}
-                                            {s.is_crackship && " \u00B7 Crackship"}
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                    {!shipsLoading && shipsTotal > shipsLimit && (
-                        <Pagination
-                            offset={shipsOffset}
-                            limit={shipsLimit}
-                            total={shipsTotal}
-                            hasNext={shipsOffset + shipsLimit < shipsTotal}
-                            hasPrev={shipsOffset > 0}
-                            onNext={() => setShipsOffset(shipsOffset + shipsLimit)}
-                            onPrev={() => setShipsOffset(Math.max(0, shipsOffset - shipsLimit))}
-                        />
-                    )}
+                    <ListSection {...page.ships} loadingText="Loading ships..." emptyText="No ships declared yet.">
+                        {items => (
+                            <div className={styles.shipList}>
+                                {items.map(s => (
+                                    <Link key={s.id} to={`/ships/${s.id}`} className={styles.shipCard}>
+                                        {(s.thumbnail_url || s.image_url) && (
+                                            <img
+                                                className={styles.shipThumb}
+                                                src={s.thumbnail_url || s.image_url}
+                                                alt={s.title}
+                                            />
+                                        )}
+                                        <div className={styles.shipInfo}>
+                                            <span dir="auto" className={styles.shipTitle}>
+                                                {s.title}
+                                            </span>
+                                            <span dir="auto" className={styles.shipMeta}>
+                                                {s.characters.map(c => c.character_name).join(" × ")}
+                                            </span>
+                                            <span className={styles.shipMeta}>
+                                                {s.vote_score > 0 ? "+" : ""}
+                                                {s.vote_score} &middot; {s.comment_count} comment
+                                                {s.comment_count !== 1 ? "s" : ""}
+                                                {s.is_crackship && " · Crackship"}
+                                            </span>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "mysteries" && (
                 <div className={styles.tabContent}>
-                    {mysteriesLoading && <div className="loading">Loading mysteries...</div>}
-                    {!mysteriesLoading && userMysteries.length === 0 && (
-                        <div className="empty-state">No mysteries declared yet.</div>
-                    )}
-                    {!mysteriesLoading && userMysteries.length > 0 && (
-                        <div className={styles.mysteryList}>
-                            {userMysteries.map(m => (
-                                <Link key={m.id} to={`/mystery/${m.id}`} className={styles.mysteryCard}>
-                                    <div className={styles.mysteryHeader}>
-                                        <span dir="auto" className={styles.mysteryTitle}>
-                                            {m.title}
+                    <ListSection
+                        {...page.mysteries}
+                        loadingText="Loading mysteries..."
+                        emptyText="No mysteries declared yet."
+                    >
+                        {items => (
+                            <div className={styles.mysteryList}>
+                                {items.map(m => (
+                                    <Link key={m.id} to={`/mystery/${m.id}`} className={styles.mysteryCard}>
+                                        <div className={styles.mysteryHeader}>
+                                            <span dir="auto" className={styles.mysteryTitle}>
+                                                {m.title}
+                                            </span>
+                                            <span
+                                                className={`${styles.mysteryBadge} ${m.solved ? styles.mysteryBadgeSolved : styles.mysteryBadgeOpen}`}
+                                            >
+                                                {m.solved ? "Solved" : "Open"}
+                                            </span>
+                                        </div>
+                                        <span className={styles.mysteryMeta}>
+                                            Difficulty: {m.difficulty} &middot; {m.attempt_count} attempt
+                                            {m.attempt_count !== 1 ? "s" : ""} &middot; {m.clue_count} clue
+                                            {m.clue_count !== 1 ? "s" : ""}
+                                            {m.winner && (
+                                                <>
+                                                    {" · Winner: "}
+                                                    <bdi>{m.winner.display_name}</bdi>
+                                                </>
+                                            )}
                                         </span>
-                                        <span
-                                            className={`${styles.mysteryBadge} ${m.solved ? styles.mysteryBadgeSolved : styles.mysteryBadgeOpen}`}
-                                        >
-                                            {m.solved ? "Solved" : "Open"}
-                                        </span>
-                                    </div>
-                                    <span className={styles.mysteryMeta}>
-                                        Difficulty: {m.difficulty} &middot; {m.attempt_count} attempt
-                                        {m.attempt_count !== 1 ? "s" : ""} &middot; {m.clue_count} clue
-                                        {m.clue_count !== 1 ? "s" : ""}
-                                        {m.winner && (
-                                            <>
-                                                {" \u00B7 Winner: "}
-                                                <bdi>{m.winner.display_name}</bdi>
-                                            </>
-                                        )}
-                                    </span>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                    {!mysteriesLoading && mysteriesTotal > mysteriesLimit && (
-                        <Pagination
-                            offset={mysteriesOffset}
-                            limit={mysteriesLimit}
-                            total={mysteriesTotal}
-                            hasNext={mysteriesOffset + mysteriesLimit < mysteriesTotal}
-                            hasPrev={mysteriesOffset > 0}
-                            onNext={() => setMysteriesOffset(mysteriesOffset + mysteriesLimit)}
-                            onPrev={() => setMysteriesOffset(Math.max(0, mysteriesOffset - mysteriesLimit))}
-                        />
-                    )}
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "fanfics" && (
                 <div className={styles.tabContent}>
-                    {fanficsLoading && <div className="loading">Loading fanfics...</div>}
-                    {!fanficsLoading && userFanfics.length === 0 && (
-                        <div className="empty-state">No fanfics written yet.</div>
-                    )}
-                    {!fanficsLoading && userFanfics.length > 0 && (
-                        <div className={styles.shipList}>
-                            {userFanfics.map(f => (
-                                <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
-                                    <div className={styles.shipInfo}>
-                                        <span dir="auto" className={styles.shipTitle}>
-                                            {f.title}
-                                        </span>
-                                        <span className={styles.shipMeta}>
-                                            <bdi>{f.series}</bdi> &middot; {f.word_count.toLocaleString()} words
-                                            &middot; {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                    {!fanficsLoading && fanficsTotal > fanficsLimit && (
-                        <Pagination
-                            offset={fanficsOffset}
-                            limit={fanficsLimit}
-                            total={fanficsTotal}
-                            hasNext={fanficsOffset + fanficsLimit < fanficsTotal}
-                            hasPrev={fanficsOffset > 0}
-                            onNext={() => setFanficsOffset(fanficsOffset + fanficsLimit)}
-                            onPrev={() => setFanficsOffset(Math.max(0, fanficsOffset - fanficsLimit))}
-                        />
-                    )}
+                    <ListSection {...page.fanfics} loadingText="Loading fanfics..." emptyText="No fanfics written yet.">
+                        {items => (
+                            <div className={styles.shipList}>
+                                {items.map(f => (
+                                    <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
+                                        <div className={styles.shipInfo}>
+                                            <span dir="auto" className={styles.shipTitle}>
+                                                {f.title}
+                                            </span>
+                                            <span className={styles.shipMeta}>
+                                                <bdi>{f.series}</bdi> &middot; {f.word_count.toLocaleString()} words
+                                                &middot; {f.chapter_count}{" "}
+                                                {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                            </span>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "fanfic-favourites" && (
                 <div className={styles.tabContent}>
-                    {favouritesLoading && <div className="loading">Loading favourites...</div>}
-                    {!favouritesLoading && userFavourites.length === 0 && (
-                        <div className="empty-state">No favourites saved yet.</div>
-                    )}
-                    {!favouritesLoading && userFavourites.length > 0 && (
-                        <div className={styles.shipList}>
-                            {userFavourites.map(f => (
-                                <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
-                                    <div className={styles.shipInfo}>
-                                        <span dir="auto" className={styles.shipTitle}>
-                                            {f.title}
-                                        </span>
-                                        <span className={styles.shipMeta}>
-                                            <bdi>{f.series}</bdi> &middot; {f.word_count.toLocaleString()} words
-                                            &middot; {f.chapter_count} {f.chapter_count === 1 ? "chapter" : "chapters"}
-                                        </span>
-                                    </div>
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                    {!favouritesLoading && favouritesTotal > favouritesLimit && (
-                        <Pagination
-                            offset={favouritesOffset}
-                            limit={favouritesLimit}
-                            total={favouritesTotal}
-                            hasNext={favouritesOffset + favouritesLimit < favouritesTotal}
-                            hasPrev={favouritesOffset > 0}
-                            onNext={() => setFavouritesOffset(favouritesOffset + favouritesLimit)}
-                            onPrev={() => setFavouritesOffset(Math.max(0, favouritesOffset - favouritesLimit))}
-                        />
-                    )}
+                    <ListSection
+                        {...page.favourites}
+                        loadingText="Loading favourites..."
+                        emptyText="No favourites saved yet."
+                    >
+                        {items => (
+                            <div className={styles.shipList}>
+                                {items.map(f => (
+                                    <Link key={f.id} to={`/fanfiction/${f.id}`} className={styles.shipCard}>
+                                        <div className={styles.shipInfo}>
+                                            <span dir="auto" className={styles.shipTitle}>
+                                                {f.title}
+                                            </span>
+                                            <span className={styles.shipMeta}>
+                                                <bdi>{f.series}</bdi> &middot; {f.word_count.toLocaleString()} words
+                                                &middot; {f.chapter_count}{" "}
+                                                {f.chapter_count === 1 ? "chapter" : "chapters"}
+                                            </span>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "journals" && (
                 <div className={styles.tabContent}>
-                    {journalsLoading && <div className="loading">Loading journals...</div>}
-                    {!journalsLoading && userJournals.length === 0 && (
-                        <div className="empty-state">No reading journals yet.</div>
-                    )}
-                    {!journalsLoading && userJournals.map(j => <JournalCard key={j.id} journal={j} />)}
-                    {!journalsLoading && journalsTotal > journalsLimit && (
-                        <Pagination
-                            offset={journalsOffset}
-                            limit={journalsLimit}
-                            total={journalsTotal}
-                            hasNext={journalsOffset + journalsLimit < journalsTotal}
-                            hasPrev={journalsOffset > 0}
-                            onNext={() => setJournalsOffset(journalsOffset + journalsLimit)}
-                            onPrev={() => setJournalsOffset(Math.max(0, journalsOffset - journalsLimit))}
-                        />
-                    )}
+                    <ListSection
+                        {...page.journals}
+                        loadingText="Loading journals..."
+                        emptyText="No reading journals yet."
+                    >
+                        {items => items.map(j => <JournalCard key={j.id} journal={j} />)}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "journal-follows" && (
                 <div className={styles.tabContent}>
-                    {followedJournalsLoading && <div className="loading">Loading followed journals...</div>}
-                    {!followedJournalsLoading && followedJournals.length === 0 && (
-                        <div className="empty-state">Not following any journals yet.</div>
-                    )}
-                    {!followedJournalsLoading && followedJournals.map(j => <JournalCard key={j.id} journal={j} />)}
-                    {!followedJournalsLoading && followedJournalsTotal > followedJournalsLimit && (
-                        <Pagination
-                            offset={followedJournalsOffset}
-                            limit={followedJournalsLimit}
-                            total={followedJournalsTotal}
-                            hasNext={followedJournalsOffset + followedJournalsLimit < followedJournalsTotal}
-                            hasPrev={followedJournalsOffset > 0}
-                            onNext={() => setFollowedJournalsOffset(followedJournalsOffset + followedJournalsLimit)}
-                            onPrev={() =>
-                                setFollowedJournalsOffset(Math.max(0, followedJournalsOffset - followedJournalsLimit))
-                            }
-                        />
-                    )}
+                    <ListSection
+                        {...page.followedJournals}
+                        loadingText="Loading followed journals..."
+                        emptyText="Not following any journals yet."
+                    >
+                        {items => items.map(j => <JournalCard key={j.id} journal={j} />)}
+                    </ListSection>
                 </div>
             )}
 
             {activeTab === "activity" && (
                 <div className={styles.tabContent}>
-                    {activityLoading && <div className="loading">Loading activity...</div>}
-
-                    {!activityLoading && activityItems.length === 0 && (
-                        <div className="empty-state">No activity yet.</div>
-                    )}
-
-                    {!activityLoading &&
-                        activityItems.map((item, i) => (
-                            <Link
-                                key={`${item.type}-${item.theory_id}-${item.created_at}-${i}`}
-                                to={`/theory/${item.theory_id}`}
-                                className={styles.activityItem}
-                            >
-                                <div className={styles.activityHeader}>
-                                    <span className={styles.activityType}>
-                                        {item.type === "theory"
-                                            ? "Created theory"
-                                            : `Responded ${item.side === "with_love" ? "with love" : "without love"}`}
-                                    </span>
-                                    <span className={styles.activityDate}>{formatDate(item.created_at)}</span>
-                                </div>
-                                <div dir="auto" className={styles.activityTitle}>
-                                    {item.theory_title}
-                                </div>
-                                <div dir="auto" className={styles.activityBody}>
-                                    {item.body.length > 200 ? `${item.body.substring(0, 200)}...` : item.body}
-                                </div>
-                            </Link>
-                        ))}
-
-                    {!activityLoading && activityTotal > activityLimit && (
-                        <Pagination
-                            offset={activityOffset}
-                            limit={activityLimit}
-                            total={activityTotal}
-                            hasNext={activityOffset + activityLimit < activityTotal}
-                            hasPrev={activityOffset > 0}
-                            onNext={() => setActivityOffset(prev => prev + activityLimit)}
-                            onPrev={() => setActivityOffset(prev => Math.max(0, prev - activityLimit))}
-                        />
-                    )}
+                    <ListSection {...page.activity} loadingText="Loading activity..." emptyText="No activity yet.">
+                        {items =>
+                            items.map((item, i) => (
+                                <Link
+                                    key={`${item.type}-${item.theory_id}-${item.created_at}-${i}`}
+                                    to={`/theory/${item.theory_id}`}
+                                    className={styles.activityItem}
+                                >
+                                    <div className={styles.activityHeader}>
+                                        <span className={styles.activityType}>
+                                            {item.type === "theory"
+                                                ? "Created theory"
+                                                : `Responded ${item.side === "with_love" ? "with love" : "without love"}`}
+                                        </span>
+                                        <span className={styles.activityDate}>{formatDate(item.created_at)}</span>
+                                    </div>
+                                    <div dir="auto" className={styles.activityTitle}>
+                                        {item.theory_title}
+                                    </div>
+                                    <div dir="auto" className={styles.activityBody}>
+                                        {item.body.length > 200 ? `${item.body.substring(0, 200)}...` : item.body}
+                                    </div>
+                                </Link>
+                            ))
+                        }
+                    </ListSection>
                 </div>
             )}
 
             {(activeTab === "followers" || activeTab === "following") && (
                 <div className={styles.tabContent}>
-                    {followListLoading && <div className="loading">Loading...</div>}
-                    {!followListLoading && followList.length === 0 && (
-                        <div className="empty-state">
-                            {activeTab === "followers" ? "No followers yet." : "Not following anyone yet."}
-                        </div>
-                    )}
-                    {!followListLoading && (
-                        <div className={styles.followList}>
-                            {followList.map(u => (
-                                <ProfileLink key={u.id} user={u} size="medium" />
-                            ))}
-                        </div>
-                    )}
+                    <ListSection
+                        {...page.followList}
+                        loadingText="Loading..."
+                        emptyText={activeTab === "followers" ? "No followers yet." : "Not following anyone yet."}
+                    >
+                        {items => (
+                            <div className={styles.followList}>
+                                {items.map(u => (
+                                    <ProfileLink key={u.id} user={u} size="medium" />
+                                ))}
+                            </div>
+                        )}
+                    </ListSection>
                 </div>
             )}
-        </div>
-    );
-}
-
-function CreateGalleryInline({ onCreated }: { onCreated: () => void }) {
-    const [open, setOpen] = useState(false);
-    const [name, setName] = useState("");
-    const [description, setDescription] = useState("");
-    const createGalleryMutation = useCreateGallery();
-    const submitting = createGalleryMutation.isPending;
-
-    async function handleCreate() {
-        if (!name.trim() || submitting) {
-            return;
-        }
-        try {
-            await createGalleryMutation.mutateAsync({ name: name.trim(), description: description.trim() });
-            setName("");
-            setDescription("");
-            setOpen(false);
-            onCreated();
-        } catch {
-            return;
-        }
-    }
-
-    if (!open) {
-        return (
-            <div style={{ marginBottom: "1rem" }}>
-                <Button variant="primary" size="small" onClick={() => setOpen(true)}>
-                    Create Gallery
-                </Button>
-            </div>
-        );
-    }
-
-    return (
-        <div className={styles.galleryCard} style={{ padding: "1rem", cursor: "default", marginBottom: "1rem" }}>
-            <input
-                type="text"
-                dir="auto"
-                placeholder="Gallery name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                style={{
-                    width: "100%",
-                    padding: "0.5rem 0.75rem",
-                    border: "1px solid rgba(var(--gold-rgb), 0.2)",
-                    borderRadius: "6px",
-                    background: "var(--bg-card)",
-                    color: "var(--text)",
-                    fontSize: "0.9rem",
-                    marginBottom: "0.5rem",
-                    boxSizing: "border-box",
-                }}
-            />
-            <textarea
-                dir="auto"
-                placeholder="Description (optional)"
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                rows={2}
-                style={{
-                    width: "100%",
-                    padding: "0.5rem 0.75rem",
-                    border: "1px solid rgba(var(--gold-rgb), 0.2)",
-                    borderRadius: "6px",
-                    background: "var(--bg-card)",
-                    color: "var(--text)",
-                    fontSize: "0.9rem",
-                    marginBottom: "0.5rem",
-                    resize: "vertical",
-                    boxSizing: "border-box",
-                }}
-            />
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-                <Button variant="secondary" size="small" onClick={() => setOpen(false)}>
-                    Cancel
-                </Button>
-                <Button variant="primary" size="small" onClick={handleCreate} disabled={!name.trim() || submitting}>
-                    {submitting ? "Creating..." : "Create"}
-                </Button>
-            </div>
-        </div>
-    );
-}
-
-function ProfilePreviewImg({
-    img,
-    className,
-}: {
-    img: { thumbnail_url: string; full_url: string };
-    className: string;
-}) {
-    return (
-        <img
-            src={img.thumbnail_url || img.full_url}
-            alt=""
-            className={className}
-            onError={e => {
-                if (e.currentTarget.src !== img.full_url) {
-                    e.currentTarget.src = img.full_url;
-                }
-            }}
-        />
-    );
-}
-
-function ProfileGalleryPreview({ images }: { images: { thumbnail_url: string; full_url: string }[] }) {
-    if (images.length === 1) {
-        return <ProfilePreviewImg img={images[0]} className={styles.galleryCoverImage} />;
-    }
-
-    if (images.length === 2) {
-        return (
-            <div className={styles.galleryPreview2}>
-                <ProfilePreviewImg img={images[0]} className={styles.galleryPreviewImg} />
-                <ProfilePreviewImg img={images[1]} className={styles.galleryPreviewImg} />
-            </div>
-        );
-    }
-
-    return (
-        <div className={styles.galleryPreview3}>
-            <ProfilePreviewImg img={images[0]} className={styles.galleryPreviewMain} />
-            <div className={styles.galleryPreviewSide}>
-                <ProfilePreviewImg img={images[1]} className={styles.galleryPreviewImg} />
-                {images[2] && <ProfilePreviewImg img={images[2]} className={styles.galleryPreviewImg} />}
-            </div>
         </div>
     );
 }

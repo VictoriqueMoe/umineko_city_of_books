@@ -12,8 +12,8 @@ const { useJournal, useUpdateJournal, navigate } = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/journal", () => ({ useJournal }));
-vi.mock("../../api/mutations/journal", () => ({ useUpdateJournal }));
+vi.mock("../../hooks/queries/journal", () => ({ useJournal }));
+vi.mock("../../hooks/mutations/journal", () => ({ useUpdateJournal }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

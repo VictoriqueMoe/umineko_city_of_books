@@ -30,8 +30,8 @@ const {
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/journal", () => ({ useJournal, useJournalEntry }));
-vi.mock("../../api/mutations/journal", () => ({
+vi.mock("../../hooks/queries/journal", () => ({ useJournal, useJournalEntry }));
+vi.mock("../../hooks/mutations/journal", () => ({
     useCreateJournalComment,
     useDeleteJournalComment,
     useDeleteJournalEntry,
@@ -418,6 +418,20 @@ describe("JournalEntryPage", () => {
 
         // then
         expect(navigate).not.toHaveBeenCalledWith("/journals/journal-1");
+    });
+
+    it("says why the entry could not be deleted", async () => {
+        // given
+        stubEntry({ remove: () => Promise.reject(new Error("the journal is sealed")) });
+        vi.spyOn(window, "confirm").mockReturnValue(true);
+        const user = userEvent.setup();
+        renderPage(author);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete entry" }));
+
+        // then
+        expect(await screen.findByText("the journal is sealed")).toBeInTheDocument();
     });
 
     it("hangs the discussion off the entry rather than the journal", () => {

@@ -110,7 +110,9 @@ function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
     };
 }
 
-function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
+function makeRoom(
+    overrides: Partial<GameRoom<MinesweeperState, MinesweeperStats>> = {},
+): GameRoom<MinesweeperState, MinesweeperStats> {
     return {
         id: "room-1",
         game_type: "minesweeper",
@@ -141,7 +143,7 @@ function makeStats(overrides: Partial<MinesweeperStats> = {}): MinesweeperStats 
     };
 }
 
-function renderView(room: GameRoom, viewer: User | null, isSpectator = false) {
+function renderView(room: GameRoom<MinesweeperState, MinesweeperStats>, viewer: User | null, isSpectator = false) {
     return renderWithProviders(
         <MinesweeperBoardView
             room={room}
@@ -153,7 +155,11 @@ function renderView(room: GameRoom, viewer: User | null, isSpectator = false) {
     );
 }
 
-async function renderPlaying(room: GameRoom, viewer: User | null, isSpectator = false) {
+async function renderPlaying(
+    room: GameRoom<MinesweeperState, MinesweeperStats>,
+    viewer: User | null,
+    isSpectator = false,
+) {
     const user = userEvent.setup();
     const result = renderView(room, viewer, isSpectator);
     await user.click(screen.getByRole("button", { name: "finish intro" }));
@@ -165,17 +171,6 @@ describe("MinesweeperBoardView", () => {
         mobile.value = false;
         onAction.mockResolvedValue(undefined);
         onResign.mockResolvedValue(undefined);
-    });
-
-    it("waits politely while the room has no game state", () => {
-        // given
-        const room = { ...makeRoom(), state: undefined as unknown as GameRoom["state"] };
-
-        // when
-        renderView(room, playerOne);
-
-        // then
-        expect(screen.getByText("Loading game...")).toBeInTheDocument();
     });
 
     it("holds the council until both witches are picked", () => {

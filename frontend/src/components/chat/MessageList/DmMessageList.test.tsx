@@ -1,11 +1,12 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
-import type { DmController } from "../../../hooks/useDmController";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatMessage, ChatRoom, User } from "../../../types/api";
-import { DmMessageList } from "./DmMessageList";
+import type { ChatMessage, ChatRoom, User, UserProfile } from "../../../types/api";
+import { DmMessageList, type DmMessageListProps } from "./DmMessageList";
+
+const spies = vi.hoisted(() => ({ replyHandlers: [] as unknown[] }));
 
 vi.mock("../MessageBubble/MessageBubble", () => ({
     MessageBubble: ({
@@ -30,28 +31,32 @@ vi.mock("../MessageBubble/MessageBubble", () => ({
         onReply?: (msg: ChatMessage) => void;
         onEditStart?: (msg: ChatMessage) => void;
         onEditCancel?: () => void;
-    }) => (
-        <div
-            data-testid={`bubble-${message.id}`}
-            data-own={String(isOwn)}
-            data-notifies={String(notifiesViewer)}
-            data-seen={seenLabel ?? ""}
-            data-editing={String(editing)}
-            data-moderate={String(canModerate)}
-            data-staff={String(senderIsStaff)}
-        >
-            <span>{message.body}</span>
-            <button type="button" onClick={() => onReply?.(message)}>
-                reply to {message.id}
-            </button>
-            <button type="button" onClick={() => onEditStart?.(message)}>
-                edit {message.id}
-            </button>
-            <button type="button" onClick={() => onEditCancel?.()}>
-                cancel {message.id}
-            </button>
-        </div>
-    ),
+    }) => {
+        spies.replyHandlers.push(onReply);
+
+        return (
+            <div
+                data-testid={`bubble-${message.id}`}
+                data-own={String(isOwn)}
+                data-notifies={String(notifiesViewer)}
+                data-seen={seenLabel ?? ""}
+                data-editing={String(editing)}
+                data-moderate={String(canModerate)}
+                data-staff={String(senderIsStaff)}
+            >
+                <span>{message.body}</span>
+                <button type="button" onClick={() => onReply?.(message)}>
+                    reply to {message.id}
+                </button>
+                <button type="button" onClick={() => onEditStart?.(message)}>
+                    edit {message.id}
+                </button>
+                <button type="button" onClick={() => onEditCancel?.()}>
+                    cancel {message.id}
+                </button>
+            </div>
+        );
+    },
 }));
 
 const classes = { messages: "messages", loadMoreBar: "load-more" };
@@ -97,60 +102,56 @@ function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     };
 }
 
-function makeController(overrides: Partial<DmController> = {}): DmController {
-    const base = {
-        user: viewer,
-        activeRoom: makeRoom(),
-        messages: [],
-        hasMore: false,
-        loadingMore: false,
-        messagesContainerRef: { current: null },
-        messagesContentRef: { current: null },
-        messagesEndRef: { current: null },
-        handleDmScroll: vi.fn(),
-        readReceipts: {},
-        matchesViewerMention: null,
-        setLightboxSrc: vi.fn(),
-        setReplyingTo: vi.fn(),
-        handleDeleteMessage: vi.fn(),
-        handleEditMessage: vi.fn(),
-        editingMessageId: null,
-        setEditingMessageId: vi.fn(),
+interface ListOptions {
+    user?: UserProfile;
+    room?: ChatRoom;
+    messages?: ChatMessage[];
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    editingMessageId?: string | null;
+    readReceipts?: Record<string, Record<string, string>>;
+    matchesViewerMention?: ((body: string) => boolean) | null;
+    onReply?: DmMessageListProps["onReply"];
+    onStartEditing?: DmMessageListProps["onStartEditing"];
+    onCancelEditing?: DmMessageListProps["onCancelEditing"];
+}
+
+function makeProps(options: ListOptions = {}): DmMessageListProps {
+    return {
+        viewer: options.user ?? viewer,
+        room: options.room ?? makeRoom(),
+        messages: options.messages ?? [],
+        hasMore: options.hasMore ?? false,
+        loadingMore: options.loadingMore ?? false,
+        editingMessageId: options.editingMessageId ?? null,
+        readReceipts: options.readReceipts ?? {},
+        matchesViewerMention: options.matchesViewerMention ?? null,
+        containerRef: { current: null },
+        contentRef: { current: null },
+        endRef: { current: null },
+        onScroll: vi.fn(),
+        onLightbox: vi.fn(),
+        onReply: options.onReply ?? vi.fn(),
+        onStartEditing: options.onStartEditing ?? vi.fn(),
+        onCancelEditing: options.onCancelEditing ?? vi.fn(),
+        onDelete: vi.fn(),
+        onEdit: vi.fn(),
+        classes,
     };
-
-    return { ...base, ...overrides } as unknown as DmController;
 }
 
-function renderList(overrides: Partial<DmController> = {}) {
-    const controller = makeController(overrides);
-    const result = renderWithProviders(<DmMessageList controller={controller} classes={classes} />);
+function renderList(options: ListOptions = {}) {
+    const props = makeProps(options);
+    const result = renderWithProviders(<DmMessageList {...props} />);
 
-    return { ...result, controller };
+    return { ...result, props };
 }
+
+beforeEach(() => {
+    spies.replyHandlers.length = 0;
+});
 
 describe("DmMessageList", () => {
-    it("renders nothing until the viewer is known", () => {
-        // given
-        const user = null;
-
-        // when
-        const { container } = renderList({ user, messages: [makeMessage()] });
-
-        // then
-        expect(container).toBeEmptyDOMElement();
-    });
-
-    it("renders nothing until a conversation is open", () => {
-        // given
-        const activeRoom = undefined;
-
-        // when
-        const { container } = renderList({ activeRoom, messages: [makeMessage()] });
-
-        // then
-        expect(container).toBeEmptyDOMElement();
-    });
-
     it("renders every message in the conversation in the order it was given", () => {
         // given
         const messages = [
@@ -282,15 +283,15 @@ describe("DmMessageList", () => {
 
     it("quotes a short body whole when the viewer replies", async () => {
         // given
-        const setReplyingTo = vi.fn();
+        const onReply = vi.fn();
         const user = userEvent.setup();
-        renderList({ setReplyingTo, messages: [makeMessage({ id: "m1", body: "a short claim" })] });
+        renderList({ onReply, messages: [makeMessage({ id: "m1", body: "a short claim" })] });
 
         // when
         await user.click(screen.getByRole("button", { name: "reply to m1" }));
 
         // then
-        expect(setReplyingTo).toHaveBeenCalledWith({
+        expect(onReply).toHaveBeenCalledWith({
             id: "m1",
             senderName: "Battler",
             bodyPreview: "a short claim",
@@ -299,46 +300,72 @@ describe("DmMessageList", () => {
 
     it("truncates a long body when the viewer replies to it", async () => {
         // given
-        const setReplyingTo = vi.fn();
+        const onReply = vi.fn();
         const body = "x".repeat(120);
         const user = userEvent.setup();
-        renderList({ setReplyingTo, messages: [makeMessage({ id: "m1", body })] });
+        renderList({ onReply, messages: [makeMessage({ id: "m1", body })] });
 
         // when
         await user.click(screen.getByRole("button", { name: "reply to m1" }));
 
         // then
-        expect(setReplyingTo).toHaveBeenCalledWith({
+        expect(onReply).toHaveBeenCalledWith({
             id: "m1",
             senderName: "Battler",
             bodyPreview: `${"x".repeat(80)}...`,
         });
     });
 
+    it("keeps one reply handler across a re-render so a memoised bubble is not invalidated", () => {
+        // given
+        const props = makeProps({ messages: [makeMessage({ id: "m1" })] });
+
+        // when
+        const { rerender } = renderWithProviders(<DmMessageList {...props} />);
+        rerender(<DmMessageList {...props} hasMore={true} />);
+
+        // then
+        expect(spies.replyHandlers).toHaveLength(2);
+        expect(spies.replyHandlers[0]).toBe(spies.replyHandlers[1]);
+    });
+
+    it("skips the whole list when nothing it renders has changed", () => {
+        // given
+        const props = makeProps({ messages: [makeMessage({ id: "m1" })] });
+
+        // when
+        const { rerender } = renderWithProviders(<DmMessageList {...props} />);
+        rerender(<DmMessageList {...props} />);
+
+        // then
+        expect(spies.replyHandlers).toHaveLength(1);
+    });
+
     it("opens the editor for the message the viewer chose", async () => {
         // given
-        const setEditingMessageId = vi.fn();
+        const onStartEditing = vi.fn();
+        const message = makeMessage({ id: "m1" });
         const user = userEvent.setup();
-        renderList({ setEditingMessageId, messages: [makeMessage({ id: "m1" })] });
+        renderList({ onStartEditing, messages: [message] });
 
         // when
         await user.click(screen.getByRole("button", { name: "edit m1" }));
 
         // then
-        expect(setEditingMessageId).toHaveBeenCalledWith("m1");
+        expect(onStartEditing).toHaveBeenCalledWith(message);
     });
 
     it("closes the editor when the viewer abandons the edit", async () => {
         // given
-        const setEditingMessageId = vi.fn();
+        const onCancelEditing = vi.fn();
         const user = userEvent.setup();
-        renderList({ setEditingMessageId, messages: [makeMessage({ id: "m1" })] });
+        renderList({ onCancelEditing, messages: [makeMessage({ id: "m1" })] });
 
         // when
         await user.click(screen.getByRole("button", { name: "cancel m1" }));
 
         // then
-        expect(setEditingMessageId).toHaveBeenCalledWith(null);
+        expect(onCancelEditing).toHaveBeenCalledOnce();
     });
 
     it("puts only the chosen message into edit mode", () => {

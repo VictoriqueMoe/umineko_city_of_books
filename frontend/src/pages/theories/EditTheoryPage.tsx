@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import type { Series } from "../../api/endpoints";
-import { useTheory } from "../../api/queries/theory";
-import { useUpdateTheory } from "../../api/mutations/theory";
+import type { Series } from "../../types/api";
+import { useTheory } from "../../hooks/queries/theory";
+import { useUpdateTheory } from "../../hooks/mutations/theory";
 import { Button } from "../../components/Button/Button";
 import { TheoryForm } from "../../components/theory/TheoryForm/TheoryForm";
 import formStyles from "../../components/theory/TheoryForm/TheoryForm.module.css";

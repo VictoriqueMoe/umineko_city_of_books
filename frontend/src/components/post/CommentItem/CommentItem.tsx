@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
-import type { PostComment } from "../../../types/api";
-import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } from "../../../api/mutations/post";
+import type { CommentBase } from "../../../types/api";
+import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
-import { can } from "../../../utils/permissions";
+import { can } from "../../../domain/permissions";
 import { extractGif } from "../../../utils/gif";
-import { renderRich } from "../../../utils/richText";
+import { renderRich } from "../../richText/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
@@ -13,14 +13,14 @@ import { LinkPreviews } from "../../LinkPreviews/LinkPreviews";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import { Button } from "../../Button/Button";
 import { ReportButton } from "../../ReportButton/ReportButton";
-import { siteUrl } from "../../../utils/siteOrigin";
+import { siteUrl } from "../../../platform/siteOrigin";
 import styles from "./CommentItem.module.css";
 
 type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
 type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
 
 interface CommentItemProps {
-    comment: PostComment;
+    comment: CommentBase;
     postId: string;
     onDelete: () => void;
     highlightedId?: string;
@@ -37,10 +37,10 @@ interface CommentItemProps {
     viewerBlocked?: boolean;
 }
 
-function flattenReplies(comment: PostComment): { reply: PostComment; replyToName: string }[] {
-    const result: { reply: PostComment; replyToName: string }[] = [];
+function flattenReplies(comment: CommentBase): { reply: CommentBase; replyToName: string }[] {
+    const result: { reply: CommentBase; replyToName: string }[] = [];
 
-    function walk(c: PostComment, parentName: string) {
+    function walk(c: CommentBase, parentName: string) {
         for (const reply of c.replies ?? []) {
             result.push({ reply, replyToName: parentName });
             walk(reply, reply.author.display_name);

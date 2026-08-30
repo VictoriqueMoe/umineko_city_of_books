@@ -11,7 +11,7 @@ const { useResendVerification, mutateAsync } = vi.hoisted(() => ({
     mutateAsync: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/auth", () => ({ useResendVerification }));
+vi.mock("../../hooks/mutations/auth", () => ({ useResendVerification }));
 
 function unverified(overrides: Partial<UserProfile> = {}): UserProfile {
     return makeUser({

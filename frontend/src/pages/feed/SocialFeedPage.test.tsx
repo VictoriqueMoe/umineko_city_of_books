@@ -11,8 +11,8 @@ const { usePostFeed, useUpdateGameBoardSort } = vi.hoisted(() => ({
     useUpdateGameBoardSort: vi.fn(),
 }));
 
-vi.mock("../../api/queries/post", () => ({ usePostFeed }));
-vi.mock("../../api/mutations/auth", () => ({ useUpdateGameBoardSort }));
+vi.mock("../../hooks/queries/post", () => ({ usePostFeed }));
+vi.mock("../../hooks/mutations/auth", () => ({ useUpdateGameBoardSort }));
 vi.mock("../../components/AnnouncementCard/AnnouncementCard", () => ({
     AnnouncementCard: () => <div data-testid="announcement-card" />,
 }));

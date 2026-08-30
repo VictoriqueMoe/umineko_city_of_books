@@ -1,9 +1,9 @@
 import { useNavigate, useParams } from "react-router";
-import { useJournal } from "../../api/queries/journal";
-import { useUpdateJournal } from "../../api/mutations/journal";
+import { useJournal } from "../../hooks/queries/journal";
+import { useUpdateJournal } from "../../hooks/mutations/journal";
 import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { can } from "../../utils/permissions";
+import { contentPermissions } from "../../domain/contentPermissions";
 import { JournalForm } from "../../components/journal/JournalForm/JournalForm";
 import styles from "./CreateJournalPage.module.css";
 
@@ -23,8 +23,8 @@ export function EditJournalPage() {
         return <div className="empty-state">Journal not found.</div>;
     }
 
-    const isOwner = user.id === journal.author.id;
-    if (!isOwner && !can(user, "edit_any_journal")) {
+    const { canEdit } = contentPermissions(user, { family: "journal", authorId: journal.author.id });
+    if (!canEdit) {
         return <div className="empty-state">You can't edit this journal.</div>;
     }
 

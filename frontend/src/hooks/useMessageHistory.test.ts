@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
     fetchRoomMessagesBefore: vi.fn(),
 }));
 
-vi.mock("../api/queries/chat", () => ({
+vi.mock("./queries/chat", () => ({
     fetchRoomMessages: mocks.fetchRoomMessages,
     fetchRoomMessagesBefore: mocks.fetchRoomMessagesBefore,
 }));

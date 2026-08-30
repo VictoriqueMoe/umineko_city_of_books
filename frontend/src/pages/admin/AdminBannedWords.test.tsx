@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
@@ -12,9 +12,9 @@ const mocks = vi.hoisted(() => ({
     remove: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useGlobalBannedWords: mocks.useGlobalBannedWords }));
+vi.mock("../../hooks/queries/admin", () => ({ useGlobalBannedWords: mocks.useGlobalBannedWords }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useCreateGlobalBannedWord: () => ({ mutateAsync: mocks.create, isPending: false }),
     useUpdateGlobalBannedWord: () => ({ mutateAsync: mocks.update, isPending: false }),
     useDeleteGlobalBannedWord: () => ({ mutateAsync: mocks.remove, isPending: false }),
@@ -241,32 +241,52 @@ describe("AdminBannedWords", () => {
         expect(await screen.findByText("that pattern is already banned")).toBeInTheDocument();
     });
 
-    it("asks before removing a rule", async () => {
+    it("names the pattern when it asks, and removes nothing when the ask is refused", async () => {
         // given
         stubRules([makeRule()]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderWithProviders(<AdminBannedWords />);
 
         // when
         await user.click(screen.getByRole("button", { name: "Remove" }));
+        const dialog = await screen.findByRole("dialog", { name: "Remove Rule" });
+        expect(within(dialog).getByText(/Remove global rule for pattern/)).toBeInTheDocument();
+        expect(within(dialog).getByText('"goat"')).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
         // then
-        expect(confirm).toHaveBeenCalledWith('Remove global rule for pattern "goat"?');
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(mocks.remove).not.toHaveBeenCalled();
     });
 
     it("removes the rule once confirmed", async () => {
         // given
         stubRules([makeRule({ id: "rule-3" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminBannedWords />);
+        await user.click(screen.getByRole("button", { name: "Remove" }));
+        const dialog = await screen.findByRole("dialog", { name: "Remove Rule" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Remove" }));
+        await user.click(within(dialog).getByRole("button", { name: "Remove" }));
 
         // then
         expect(mocks.remove).toHaveBeenCalledWith("rule-3");
+    });
+
+    it("reports why a rule could not be removed", async () => {
+        // given
+        stubRules([makeRule({ id: "rule-3" })]);
+        mocks.remove.mockRejectedValue(new Error("that rule is pinned by a room"));
+        const user = userEvent.setup();
+        renderWithProviders(<AdminBannedWords />);
+        await user.click(screen.getByRole("button", { name: "Remove" }));
+        const dialog = await screen.findByRole("dialog", { name: "Remove Rule" });
+
+        // when
+        await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+
+        // then
+        expect(await screen.findByText("that rule is pinned by a room")).toBeInTheDocument();
     });
 });

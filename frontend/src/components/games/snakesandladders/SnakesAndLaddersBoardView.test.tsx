@@ -55,7 +55,9 @@ function makeState(overrides: Partial<SnakesLaddersState> = {}): SnakesLaddersSt
     };
 }
 
-function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
+function makeRoom(
+    overrides: Partial<GameRoom<SnakesLaddersState, SnakesLaddersStats>> = {},
+): GameRoom<SnakesLaddersState, SnakesLaddersStats> {
     return {
         id: "room-1",
         game_type: "snakes_and_ladders",
@@ -91,7 +93,7 @@ function makeStats(overrides: Partial<SnakesLaddersStats> = {}): SnakesLaddersSt
     };
 }
 
-function renderBoard(room: GameRoom, viewer: User | null, isSpectator = false) {
+function renderBoard(room: GameRoom<SnakesLaddersState, SnakesLaddersStats>, viewer: User | null, isSpectator = false) {
     return renderWithProviders(
         <SnakesAndLaddersBoardView
             room={room}

@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useAuth } from "../hooks/useAuth";
 import { makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, renderWithProviders } from "../test-utils/render";
-import type { UserProfile } from "../types/api";
+import type { SessionUser } from "../types/api";
 import { AuthProvider } from "./AuthContext";
 
 const { useMe, refresh, login, register, logout } = vi.hoisted(() => ({
@@ -16,15 +16,15 @@ const { useMe, refresh, login, register, logout } = vi.hoisted(() => ({
     logout: vi.fn(),
 }));
 
-vi.mock("../api/queries/auth", () => ({ useMe }));
+vi.mock("../hooks/queries/auth", () => ({ useMe }));
 
-vi.mock("../api/mutations/auth", () => ({
+vi.mock("../hooks/mutations/auth", () => ({
     useLogin: () => ({ mutateAsync: login }),
     useRegister: () => ({ mutateAsync: register }),
     useLogout: () => ({ mutateAsync: logout }),
 }));
 
-function Probe({ next }: { next: UserProfile | null }) {
+function Probe({ next }: { next: SessionUser | null }) {
     const { user, loading, setUser, loginUser, registerUser, logoutUser } = useAuth();
     const [outcome, setOutcome] = useState("idle");
 
@@ -73,7 +73,7 @@ function Probe({ next }: { next: UserProfile | null }) {
     );
 }
 
-function renderProvider(me: UserProfile | null, loading = false, next: UserProfile | null = null) {
+function renderProvider(me: SessionUser | null, loading = false, next: SessionUser | null = null) {
     useMe.mockReturnValue({ me, loading, refresh });
     const queryClient = createTestQueryClient();
 

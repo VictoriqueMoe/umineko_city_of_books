@@ -3,8 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { AdminUserDetail as AdminUserDetailType, AdminUserItem, AuditLogEntry } from "../../types/api";
-import type { SiteRole } from "../../utils/permissions";
+import type { AdminUserDetail as AdminUserDetailType, AdminUserItem, AuditLogEntry, SiteRole } from "../../types/api";
 import { AdminUserDetail } from "./AdminUserDetail";
 
 const mocks = vi.hoisted(() => ({
@@ -32,13 +31,13 @@ const mocks = vi.hoisted(() => ({
     forceLogout: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({
+vi.mock("../../hooks/queries/admin", () => ({
     useAdminUser: mocks.useAdminUser,
     useUserAuditLog: mocks.useUserAuditLog,
     useUserIPMatches: mocks.useUserIPMatches,
 }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useSetUserRole: () => ({ mutateAsync: mocks.setRole, isPending: false }),
     useRemoveUserRole: () => ({ mutateAsync: mocks.removeRole, isPending: false }),
     useBanUser: () => ({ mutateAsync: mocks.ban, isPending: false }),
@@ -385,16 +384,39 @@ describe("AdminUserDetail email management", () => {
     it("warns before taking a verified address away", async () => {
         // given
         stubTarget(makeTarget({ email_verified: true }));
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderDetail("admin");
 
         // when
         await user.click(screen.getByRole("button", { name: "Mark Unverified" }));
 
+        // then the warning spells out what the user loses
+        expect(
+            screen.getByText(
+                "Mark this email unverified? The user will be blocked from posting, commenting and messaging until they verify it again.",
+            ),
+        ).toBeInTheDocument();
+
+        // when the warning is declined
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
         // then
-        expect(confirm).toHaveBeenCalled();
         expect(mocks.unverifyEmail).not.toHaveBeenCalled();
+    });
+
+    it("takes the verification away once the warning is accepted", async () => {
+        // given
+        stubTarget(makeTarget({ email_verified: true }));
+        const user = userEvent.setup();
+        renderDetail("admin");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Mark Unverified" }));
+        await user.click(screen.getByRole("button", { name: "Unverify" }));
+
+        // then
+        expect(mocks.unverifyEmail).toHaveBeenCalledWith("target-1");
+        expect(await screen.findByText("Email marked as unverified")).toBeInTheDocument();
     });
 
     it("holds the email save back until the address actually changes", async () => {
@@ -723,12 +745,12 @@ describe("AdminUserDetail sessions, password and deletion", () => {
     it("warns before revoking every session", async () => {
         // given
         stubTarget(makeTarget());
-        vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderDetail("admin");
 
         // when
         await user.click(screen.getByRole("button", { name: "Revoke All Sessions" }));
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
 
         // then
         expect(mocks.forceLogout).not.toHaveBeenCalled();
@@ -737,12 +759,12 @@ describe("AdminUserDetail sessions, password and deletion", () => {
     it("revokes every session once the warning is accepted", async () => {
         // given
         stubTarget(makeTarget());
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderDetail("admin");
 
         // when
         await user.click(screen.getByRole("button", { name: "Revoke All Sessions" }));
+        await user.click(screen.getByRole("button", { name: "Revoke Sessions" }));
 
         // then
         expect(mocks.forceLogout).toHaveBeenCalledWith("target-1");
@@ -753,12 +775,12 @@ describe("AdminUserDetail sessions, password and deletion", () => {
         // given
         stubTarget(makeTarget());
         mocks.resetPassword.mockResolvedValue({ password: "kakera-golden-77" });
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderDetail("admin");
 
         // when
         await user.click(screen.getByRole("button", { name: "Reset Password" }));
+        await user.click(screen.getByRole("button", { name: "Reset" }));
 
         // then
         expect(mocks.resetPassword).toHaveBeenCalledWith("target-1");
@@ -768,12 +790,12 @@ describe("AdminUserDetail sessions, password and deletion", () => {
     it("leaves the password alone when the warning is dismissed", async () => {
         // given
         stubTarget(makeTarget());
-        vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderDetail("admin");
 
         // when
         await user.click(screen.getByRole("button", { name: "Reset Password" }));
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
 
         // then
         expect(mocks.resetPassword).not.toHaveBeenCalled();
@@ -872,6 +894,36 @@ describe("AdminUserDetail mystery scores", () => {
 
         // then
         expect(within(field).getByRole("textbox")).toHaveValue("12");
+    });
+
+    it("reports why a detective score save was refused instead of swallowing it", async () => {
+        // given
+        stubTarget(makeTarget());
+        mocks.detectiveScore.mockRejectedValue(new Error("the score ledger is sealed"));
+        const user = userEvent.setup();
+        renderDetail("admin");
+        const field = fieldFor("Detective Score");
+
+        // when
+        await user.click(within(field).getByRole("button", { name: "Save" }));
+
+        // then
+        expect(await screen.findByText("the score ledger is sealed")).toBeInTheDocument();
+    });
+
+    it("reports why a game master score save was refused instead of swallowing it", async () => {
+        // given a failure that carries no reason of its own
+        stubTarget(makeTarget());
+        mocks.gmScore.mockRejectedValue(new Error(""));
+        const user = userEvent.setup();
+        renderDetail("admin");
+        const field = fieldFor("Game Master Score");
+
+        // when
+        await user.click(within(field).getByRole("button", { name: "Save" }));
+
+        // then
+        expect(await screen.findByText("Failed to update game master score")).toBeInTheDocument();
     });
 });
 

@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	userpkg "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/ws"
@@ -181,8 +182,8 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	if !validProfileTabs[req.DefaultProfileTab] {
 		return ErrInvalidDefaultProfileTab
 	}
-	req.PronounSubject = capLen(req.PronounSubject, maxPronounLength)
-	req.PronounPossessive = capLen(req.PronounPossessive, maxPronounLength)
+	req.PronounSubject = text.ClampRunes(req.PronounSubject, maxPronounLength)
+	req.PronounPossessive = text.ClampRunes(req.PronounPossessive, maxPronounLength)
 
 	req.BannerPosition = min(max(req.BannerPosition, 0), 100)
 	req.EpisodeProgress = max(req.EpisodeProgress, 0)
@@ -237,13 +238,6 @@ func (s *service) broadcastProfileChange(userID uuid.UUID, fields map[string]any
 		Type: "profile_changed",
 		Data: data,
 	})
-}
-
-func capLen(s string, max int) string {
-	if len(s) <= max {
-		return s
-	}
-	return s[:max]
 }
 
 func validateDOB(dob string) error {

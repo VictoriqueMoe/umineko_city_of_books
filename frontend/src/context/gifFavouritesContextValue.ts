@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { GiphyFavourite } from "../api/endpoints";
+import type { GiphyFavourite } from "../types/api";
 
 export interface GifFavouritesContextValue {
     favourites: GiphyFavourite[];

@@ -1,26 +1,13 @@
 import { useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import type { ArtDetail } from "../../types/api";
-import { useArt } from "../../api/queries/art";
-import { queryKeys } from "../../api/queryKeys";
-import {
-    useCreateArtComment,
-    useDeleteArt,
-    useDeleteArtComment,
-    useLikeArt,
-    useLikeArtComment,
-    useUnlikeArt,
-    useUnlikeArtComment,
-    useUpdateArt,
-    useUpdateArtComment,
-    useUploadArtCommentMedia,
-} from "../../api/mutations/art";
+import { useArt } from "../../hooks/queries/art";
+import { useDeleteArt, useLikeArt, useUnlikeArt, useUpdateArt } from "../../hooks/mutations/art";
 import { useAuth } from "../../hooks/useAuth";
-import { can } from "../../utils/permissions";
-import { renderRich } from "../../utils/richText";
+import { useCommentHandlers } from "../../hooks/useCommentHandlers";
+import { contentPermissions, isContentOwner, type ContentSubject } from "../../domain/contentPermissions";
+import { renderRich } from "../../components/richText/richText";
 import { parseServerDate } from "../../utils/time";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
@@ -39,7 +26,6 @@ export function ArtDetailPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const qc = useQueryClient();
     const { art, loading, refresh } = useArt(id ?? "");
     usePageTitle(art?.title ?? "Art");
     const liked = art?.user_liked ?? false;
@@ -59,35 +45,21 @@ export function ArtDetailPage() {
     const unlikeArtMutation = useUnlikeArt();
     const deleteArtMutation = useDeleteArt();
     const updateArtMutation = useUpdateArt(id ?? "");
-    const createCommentMutation = useCreateArtComment(id ?? "");
-    const updateCommentMutation = useUpdateArtComment(id ?? "");
-    const deleteCommentMutation = useDeleteArtComment(id ?? "");
-    const likeCommentMutation = useLikeArtComment(id ?? "");
-    const unlikeCommentMutation = useUnlikeArtComment(id ?? "");
-    const uploadMediaMutation = useUploadArtCommentMedia(id ?? "");
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
+        "art",
+        id ?? "",
+        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
+    );
 
     useScrollToHash(!loading && !!art, highlightedComment ? `comment-${highlightedComment}` : null);
-
-    function applyLikeOverlay(delta: number, nextLiked: boolean) {
-        if (!id) {
-            return;
-        }
-        qc.setQueryData<ArtDetail>(queryKeys.art.detail(id), prev =>
-            prev ? { ...prev, user_liked: nextLiked, like_count: prev.like_count + delta } : prev,
-        );
-    }
 
     async function handleLike() {
         if (!id) {
             return;
         }
-        if (liked) {
-            applyLikeOverlay(-1, false);
-            await unlikeArtMutation.mutateAsync(id).catch(() => applyLikeOverlay(1, true));
-        } else {
-            applyLikeOverlay(1, true);
-            await likeArtMutation.mutateAsync(id).catch(() => applyLikeOverlay(-1, false));
-        }
+
+        const mutation = liked ? unlikeArtMutation : likeArtMutation;
+        await mutation.mutateAsync(id).catch(() => undefined);
     }
 
     async function handleDelete() {
@@ -131,18 +103,9 @@ export function ArtDetailPage() {
         return <div className="empty-state">Art not found.</div>;
     }
 
-    const isAuthor = user && user.id === art.author.id;
-    const canEdit = isAuthor || can(user, "edit_any_post");
-    const canDelete = isAuthor || can(user, "delete_any_post");
-
-    const likeCommentFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
-    const unlikeCommentFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
-    const deleteCommentFn = (commentId: string) => deleteCommentMutation.mutateAsync(commentId);
-    const updateCommentFn = (commentId: string, body: string) =>
-        updateCommentMutation.mutateAsync({ commentId, body }).then(() => undefined);
-    const createCommentFn = (_postId: string, body: string, parentId?: string) =>
-        createCommentMutation.mutateAsync({ body, parentId });
-    const uploadMediaFn = (commentId: string, file: File) => uploadMediaMutation.mutateAsync({ commentId, file });
+    const subject: ContentSubject = { family: "art", authorId: art.author.id };
+    const isAuthor = isContentOwner(user, subject);
+    const { canEdit, canDelete } = contentPermissions(user, subject);
 
     return (
         <div className={styles.page}>
@@ -281,10 +244,10 @@ export function ArtDetailPage() {
                 highlightedId={highlightedComment ?? undefined}
                 linkPrefix="/gallery/art"
                 reportType="art_comment"
-                likeFn={likeCommentFn}
-                unlikeFn={unlikeCommentFn}
-                deleteFn={deleteCommentFn}
-                updateFn={updateCommentFn}
+                likeFn={likeFn}
+                unlikeFn={unlikeFn}
+                deleteFn={deleteFn}
+                updateFn={updateFn}
                 createCommentFn={createCommentFn}
                 uploadMediaFn={uploadMediaFn}
             />

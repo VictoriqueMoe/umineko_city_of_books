@@ -1,8 +1,8 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError } from "../../../api/client";
-import type { GiphyFavourite, GiphyGif } from "../../../api/endpoints";
+import type { GiphyRateLimit } from "../../../hooks/queries/giphy";
+import type { GiphyFavourite, GiphyGif } from "../../../types/api";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { GifPicker } from "./GifPicker";
@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     trendingRefresh: vi.fn(),
 }));
 
-vi.mock("../../../api/queries/giphy", () => ({
+vi.mock("../../../hooks/queries/giphy", () => ({
     useGiphySearch: mocks.useGiphySearch,
     useGiphyTrending: mocks.useGiphyTrending,
 }));
@@ -23,6 +23,7 @@ interface QueryResult {
     data?: { data: GiphyGif[] };
     loading?: boolean;
     error?: unknown;
+    rateLimit?: GiphyRateLimit | null;
 }
 
 function makeGif(overrides: Partial<GiphyGif> = {}): GiphyGif {
@@ -55,6 +56,7 @@ function setTrending(result: QueryResult) {
         data: result.data,
         loading: result.loading ?? false,
         error: result.error ?? null,
+        rateLimit: result.rateLimit ?? null,
         refresh: mocks.trendingRefresh,
     });
 }
@@ -67,6 +69,7 @@ beforeEach(() => {
         data: undefined,
         loading: false,
         error: null,
+        rateLimit: null,
         refresh: mocks.searchRefresh,
     });
 });
@@ -402,7 +405,10 @@ describe("GifPicker", () => {
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-08-02T09:00:00Z"));
         const resetAt = new Date("2026-08-02T09:30:00Z");
-        setTrending({ error: new ApiError(429, "too many requests", { reset_at: "2026-08-02T09:30:00Z" }) });
+        setTrending({
+            error: new Error("too many requests"),
+            rateLimit: { resetAt: "2026-08-02T09:30:00Z" },
+        });
 
         // when
         renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
@@ -416,7 +422,7 @@ describe("GifPicker", () => {
 
     it("still says browsing is paused when the rate limit carries no reset time", () => {
         // given
-        setTrending({ error: new ApiError(429, "too many requests", {}) });
+        setTrending({ error: new Error("too many requests"), rateLimit: { resetAt: null } });
 
         // when
         renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
@@ -432,17 +438,18 @@ describe("GifPicker", () => {
         // given
         vi.useFakeTimers();
         vi.setSystemTime(new Date("2026-08-02T09:00:00Z"));
-        let currentError: unknown = new ApiError(429, "too many requests", { reset_at: "2026-08-02T09:30:00Z" });
+        let currentRateLimit: GiphyRateLimit | null = { resetAt: "2026-08-02T09:30:00Z" };
         mocks.useGiphyTrending.mockImplementation(() => ({
             data: undefined,
             loading: false,
-            error: currentError,
+            error: currentRateLimit ? new Error("too many requests") : null,
+            rateLimit: currentRateLimit,
             refresh: mocks.trendingRefresh,
         }));
         renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
 
         // when
-        currentError = null;
+        currentRateLimit = null;
         act(() => {
             vi.advanceTimersByTime(30 * 60 * 1000 + 500);
         });

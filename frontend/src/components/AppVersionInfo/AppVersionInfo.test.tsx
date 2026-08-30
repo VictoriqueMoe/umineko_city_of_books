@@ -8,7 +8,7 @@ const { isNativeApp, getInfo, current } = vi.hoisted(() => ({
     current: vi.fn(),
 }));
 
-vi.mock("../../utils/authToken", () => ({ isNativeApp }));
+vi.mock("../../platform/capabilities", () => ({ isNativeApp }));
 vi.mock("@capacitor/app", () => ({ App: { getInfo } }));
 vi.mock("@capgo/capacitor-updater", () => ({ CapacitorUpdater: { current } }));
 

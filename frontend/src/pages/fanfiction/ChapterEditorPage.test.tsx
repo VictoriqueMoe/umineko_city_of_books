@@ -12,8 +12,8 @@ const { useFanficChapter, useCreateFanficChapter, useUpdateFanficChapter, naviga
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/fanfic", () => ({ useFanficChapter }));
-vi.mock("../../api/mutations/fanfic", () => ({ useCreateFanficChapter, useUpdateFanficChapter }));
+vi.mock("../../hooks/queries/fanfic", () => ({ useFanficChapter }));
+vi.mock("../../hooks/mutations/fanfic", () => ({ useCreateFanficChapter, useUpdateFanficChapter }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

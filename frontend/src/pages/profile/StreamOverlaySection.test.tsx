@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OverlayConnection } from "../../api/endpoints";
+import type { OverlayConnection } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { StreamOverlaySection } from "./StreamOverlaySection";
 
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     testOverlay: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints", () => ({
+vi.mock("../../api/endpoints/overlay", () => ({
     getOverlayConnection: mocks.getOverlayConnection,
     fetchOverlayConnectorSEF: mocks.fetchOverlayConnectorSEF,
     resetOverlayToken: mocks.resetOverlayToken,
@@ -28,6 +28,8 @@ function makeConnection(overrides: Partial<OverlayConnection> = {}): OverlayConn
     };
 }
 
+let stored: OverlayConnection;
+
 async function setup() {
     const user = userEvent.setup();
     const result = renderWithProviders(<StreamOverlaySection />);
@@ -37,9 +39,14 @@ async function setup() {
 }
 
 beforeEach(() => {
-    mocks.getOverlayConnection.mockResolvedValue(makeConnection());
+    stored = makeConnection();
+    mocks.getOverlayConnection.mockImplementation(() => Promise.resolve(stored));
     mocks.fetchOverlayConnectorSEF.mockResolvedValue("sef-file-body");
-    mocks.resetOverlayToken.mockResolvedValue(makeConnection({ token: "overlay-token-456" }));
+    mocks.resetOverlayToken.mockImplementation(() => {
+        stored = makeConnection({ token: "overlay-token-456" });
+
+        return Promise.resolve(stored);
+    });
     mocks.testOverlay.mockResolvedValue({ ok: true });
     vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 });
@@ -49,21 +56,57 @@ afterEach(() => {
 });
 
 describe("StreamOverlaySection", () => {
-    it("apologises when the connection cannot be loaded", async () => {
+    it("tells the streamer why the connection could not be loaded", async () => {
         // given
-        mocks.getOverlayConnection.mockRejectedValue(new Error("nope"));
+        mocks.getOverlayConnection.mockRejectedValue(new Error("Your streaming permission was revoked."));
 
         // when
         await setup();
 
         // then
-        expect(await screen.findByText("Could not load your overlay connection.")).toBeInTheDocument();
-        expect(screen.queryByText("Connection token")).not.toBeInTheDocument();
+        expect(await screen.findByRole("alert")).toHaveTextContent("Your streaming permission was revoked.");
+        expect(screen.queryByRole("button", { name: "Reset token" })).not.toBeInTheDocument();
+    });
+
+    it("says the controls are hidden rather than rendering an empty panel", async () => {
+        // given
+        mocks.getOverlayConnection.mockRejectedValue(new Error("Your streaming permission was revoked."));
+
+        // when
+        await setup();
+
+        // then
+        expect(
+            await screen.findByText("The overlay controls stay hidden until this loads. Reload the page to try again."),
+        ).toBeInTheDocument();
+    });
+
+    it("apologises when the connection cannot be loaded", async () => {
+        // given
+        mocks.getOverlayConnection.mockRejectedValue(new Error(""));
+
+        // when
+        await setup();
+
+        // then
+        expect(await screen.findByRole("alert")).toHaveTextContent("Could not load your overlay connection.");
+    });
+
+    it("does not look like a failure while the connection is still loading", async () => {
+        // given
+        mocks.getOverlayConnection.mockImplementation(() => new Promise<OverlayConnection>(() => {}));
+
+        // when
+        await setup();
+
+        // then
+        expect(await screen.findByText("Loading your overlay connection...")).toBeInTheDocument();
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
     it("reports that SAMMI has not connected yet", async () => {
         // given
-        mocks.getOverlayConnection.mockResolvedValue(makeConnection({ connected: false }));
+        stored = makeConnection({ connected: false });
 
         // when
         await setup();
@@ -74,7 +117,7 @@ describe("StreamOverlaySection", () => {
 
     it("reports that SAMMI is connected", async () => {
         // given
-        mocks.getOverlayConnection.mockResolvedValue(makeConnection({ connected: true }));
+        stored = makeConnection({ connected: true });
 
         // when
         await setup();
@@ -156,7 +199,9 @@ describe("StreamOverlaySection", () => {
 
         // then
         expect(mocks.fetchOverlayConnectorSEF).toHaveBeenCalledOnce();
-        expect(createObjectURL).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(createObjectURL).toHaveBeenCalledOnce();
+        });
     });
 
     it("explains why the connector could not be downloaded", async () => {
@@ -187,7 +232,7 @@ describe("StreamOverlaySection", () => {
 
     it("marks the overlay as disconnected when the test fails", async () => {
         // given
-        mocks.getOverlayConnection.mockResolvedValue(makeConnection({ connected: true }));
+        stored = makeConnection({ connected: true });
         mocks.testOverlay.mockRejectedValue(new Error("SAMMI is not listening."));
         const { user } = await setup();
         await screen.findByText("overlay-token-123");

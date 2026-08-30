@@ -1,13 +1,13 @@
 import { useState } from "react";
-import type { Series } from "../../api/endpoints";
-import { useBrowseQuotes } from "../../api/queries/quote";
-import { useCharacterGroups } from "../../api/queries/characters";
+import type { Series } from "../../types/api";
+import { useBrowseQuotes } from "../../hooks/queries/quote";
+import { useCharacterGroups } from "../../hooks/queries/quoteCharacters";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { getSeriesConfig } from "../../utils/seriesConfig";
+import { getSeriesConfig } from "../../domain/series";
 import { TruthCard } from "../../components/truth/TruthCard/TruthCard";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { Select } from "../../components/Select/Select";
-import { PieceTrigger } from "../../features/easterEgg";
+import { PieceTrigger } from "../../components/easterEgg";
 import styles from "./QuoteBrowserPage.module.css";
 
 const TRUTH_TYPES = ["red", "blue", "gold", "purple"] as const;

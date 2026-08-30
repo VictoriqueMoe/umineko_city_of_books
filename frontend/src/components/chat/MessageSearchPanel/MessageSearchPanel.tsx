@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import DOMPurify from "dompurify";
 import type { SearchResult } from "../../../types/api";
-import { useRoomMessageSearch } from "../../../api/queries/search";
+import { useRoomMessageSearch } from "../../../hooks/queries/search";
 import { Pagination } from "../../Pagination/Pagination";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import styles from "./MessageSearchPanel.module.css";

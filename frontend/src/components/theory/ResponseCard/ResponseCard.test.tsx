@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test-utils/render";
 import { makeUser } from "../../../test-utils/fixtures";
-import type { Response as TheoryResponse } from "../../../types/api";
+import type { TheoryResponse } from "../../../types/api";
 import { ResponseList } from "./ResponseCard";
 
 const { voteResponse, deleteResponse, createResponse } = vi.hoisted(() => ({
@@ -12,7 +12,7 @@ const { voteResponse, deleteResponse, createResponse } = vi.hoisted(() => ({
     createResponse: vi.fn(() => Promise.resolve()),
 }));
 
-vi.mock("../../../api/mutations/theory", () => ({
+vi.mock("../../../hooks/mutations/theory", () => ({
     useVoteResponse: () => ({ mutateAsync: voteResponse }),
     useDeleteResponse: () => ({ mutateAsync: deleteResponse }),
     useCreateResponse: () => ({ mutateAsync: createResponse }),

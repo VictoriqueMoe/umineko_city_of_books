@@ -1,22 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Room, RoomEvent } from "livekit-client";
 import { RoomAudioRenderer, RoomContext, StartAudio } from "@livekit/components-react";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useNotifications } from "../../hooks/useNotifications";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import {
-    getStream,
-    getStreamViewerToken,
-    type LiveStream,
-    type StreamDefaultMode,
-    uploadStreamThumbnail,
-} from "../../api/endpoints";
-import type { WSMessage } from "../../types/api";
-import { queryKeys } from "../../api/queryKeys";
-import { STREAM_CHAT_POPOUT_CLOSED, openStreamChatPopout } from "../../utils/streamChatPopout";
-import { useAuth } from "../../hooks/useAuth";
+import { useLiveStream } from "../../hooks/useLiveStream";
+import { useStreamChatPopout } from "../../hooks/useStreamPopout";
+import { useStreamThumbnailCapture } from "../../hooks/useStreamThumbnailCapture";
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
 import { StreamStage, StreamUptime, StreamViewers } from "./streamParts";
@@ -26,58 +15,25 @@ import styles from "./live.module.css";
 
 export function LiveWatchPage() {
     const { streamID } = useParams<{ streamID: string }>();
-    const qc = useQueryClient();
-    const { addWSListener } = useNotifications();
-    const { user } = useAuth();
     const isMobile = useIsMobile();
 
-    const streamQuery = useQuery({
-        queryKey: queryKeys.streams.detail(streamID),
-        queryFn: () => getStream(streamID as string),
-        enabled: !!streamID,
-    });
+    const { stream, loading, plan, room, error, showOwnPreview, setShowOwnPreview, setMode } = useLiveStream(streamID);
+    const { isLive, mode, isOwnStream } = plan;
 
-    const stream = streamQuery.data;
     usePageTitle(stream ? stream.title : "Live");
 
-    const [room, setRoom] = useState<Room | null>(null);
-    const [error, setError] = useState<string | null>(null);
     const [volume, setVolume] = useState(1);
-    const roomRef = useRef<Room | null>(null);
     const stageRef = useRef<HTMLDivElement>(null);
-    const [modeOverride, setModeOverride] = useState<StreamDefaultMode | null>(null);
-    const [showOwnPreview, setShowOwnPreview] = useState(false);
-    const [chatPoppedOut, setChatPoppedOut] = useState(false);
-    const chatPopoutRef = useRef<Window | null>(null);
 
-    const isLive = stream?.status === "live";
-    const mode: StreamDefaultMode =
-        modeOverride ?? (stream?.defaultMode === "hls" && stream?.hlsUrl ? "hls" : "webrtc");
-    const isOwnStream = !!user && !!stream && user.id === stream.userId;
-    const showsPlayback = !isOwnStream || showOwnPreview;
-    const wantsMedia = showsPlayback && mode === "webrtc";
-    const wantsRoom = wantsMedia || !showsPlayback;
+    const thumbnails = useStreamThumbnailCapture({
+        streamId: streamID,
+        isOwnStream,
+        isLive,
+        room,
+        stageRef,
+    });
 
-    function handlePopOutChat() {
-        if (!streamID) {
-            return;
-        }
-
-        const opened = openStreamChatPopout(streamID);
-        if (!opened) {
-            return;
-        }
-
-        chatPopoutRef.current = opened;
-        setChatPoppedOut(true);
-        opened.focus();
-    }
-
-    function handleBringChatBack() {
-        chatPopoutRef.current?.close();
-        chatPopoutRef.current = null;
-        setChatPoppedOut(false);
-    }
+    const chat = useStreamChatPopout(streamID);
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -91,149 +47,7 @@ export function LiveWatchPage() {
         el.requestFullscreen().catch(() => {});
     }
 
-    useEffect(() => {
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type === "stream_offline") {
-                const data = msg.data as { streamId: string };
-                if (data.streamId === streamID) {
-                    qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamID) });
-                }
-                return;
-            }
-
-            if (msg.type === "stream_live") {
-                const data = msg.data as LiveStream;
-                if (data.id === streamID) {
-                    qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamID) });
-                }
-                return;
-            }
-
-            if (msg.type === "stream_title") {
-                const data = msg.data as { streamId: string; title: string };
-                if (data.streamId === streamID) {
-                    qc.setQueryData<LiveStream>(["streams", "detail", streamID], prev =>
-                        prev ? { ...prev, title: data.title } : prev,
-                    );
-                }
-            }
-        });
-    }, [addWSListener, qc, streamID]);
-
-    useEffect(() => {
-        if (!chatPoppedOut) {
-            return;
-        }
-
-        const onMessage = (event: MessageEvent) => {
-            if (event.origin !== window.location.origin) {
-                return;
-            }
-
-            const data = event.data as { type?: string; streamId?: string };
-            if (data?.type === STREAM_CHAT_POPOUT_CLOSED && data.streamId === streamID) {
-                chatPopoutRef.current = null;
-                setChatPoppedOut(false);
-            }
-        };
-
-        window.addEventListener("message", onMessage);
-        return () => {
-            window.removeEventListener("message", onMessage);
-        };
-    }, [chatPoppedOut, streamID]);
-
-    useEffect(() => {
-        if (!streamID || !isLive || !wantsRoom) {
-            return;
-        }
-
-        let aborted = false;
-        const lkRoom = new Room();
-        roomRef.current = lkRoom;
-
-        lkRoom.on(RoomEvent.Connected, () => {
-            if (!aborted) {
-                setRoom(lkRoom);
-            }
-        });
-        lkRoom.on(RoomEvent.Disconnected, () => {
-            setRoom(prev => (prev === lkRoom ? null : prev));
-        });
-
-        getStreamViewerToken(streamID)
-            .then(({ token, url }) => {
-                if (aborted) {
-                    return undefined;
-                }
-
-                return lkRoom.connect(url, token, { autoSubscribe: wantsMedia });
-            })
-            .catch(() => {
-                if (!aborted) {
-                    setError("Could not connect to this stream.");
-                }
-            });
-
-        return () => {
-            aborted = true;
-            if (roomRef.current === lkRoom) {
-                roomRef.current = null;
-            }
-            lkRoom.disconnect().catch(() => {});
-        };
-    }, [streamID, isLive, wantsRoom, wantsMedia]);
-
-    useEffect(() => {
-        if (!isOwnStream || !isLive || !room || !streamID) {
-            return;
-        }
-
-        let stopped = false;
-
-        const capture = () => {
-            if (stopped || document.visibilityState !== "visible") {
-                return;
-            }
-
-            const video = stageRef.current?.querySelector<HTMLVideoElement>("video");
-            if (!video || video.videoWidth === 0) {
-                return;
-            }
-
-            const width = 480;
-            const height = Math.round((video.videoHeight / video.videoWidth) * width) || 270;
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const context = canvas.getContext("2d");
-            if (!context) {
-                return;
-            }
-
-            context.drawImage(video, 0, 0, width, height);
-            canvas.toBlob(
-                blob => {
-                    if (blob && !stopped) {
-                        uploadStreamThumbnail(streamID, blob).catch(() => {});
-                    }
-                },
-                "image/webp",
-                0.7,
-            );
-        };
-
-        const initial = window.setTimeout(capture, 8000);
-        const interval = window.setInterval(capture, 50000);
-
-        return () => {
-            stopped = true;
-            window.clearTimeout(initial);
-            window.clearInterval(interval);
-        };
-    }, [isOwnStream, isLive, room, streamID]);
-
-    if (streamQuery.isLoading) {
+    if (loading) {
         return <div className="loading">Loading stream...</div>;
     }
 
@@ -260,10 +74,11 @@ export function LiveWatchPage() {
                 stageRef={stageRef}
                 onToggleFullscreen={toggleFullscreen}
                 mode={mode}
-                onModeChange={setModeOverride}
+                onModeChange={setMode}
                 isOwnStream={isOwnStream}
                 showOwnPreview={showOwnPreview}
                 onToggleOwnPreview={setShowOwnPreview}
+                thumbnailError={thumbnails.lastError}
             />
         );
     }
@@ -314,7 +129,7 @@ export function LiveWatchPage() {
                             <button
                                 type="button"
                                 className={mode === "webrtc" ? styles.modeBtnActive : styles.modeBtn}
-                                onClick={() => setModeOverride("webrtc")}
+                                onClick={() => setMode("webrtc")}
                                 title="Sub-second latency, may stutter on a weak connection"
                             >
                                 Low latency
@@ -322,7 +137,7 @@ export function LiveWatchPage() {
                             <button
                                 type="button"
                                 className={mode === "hls" ? styles.modeBtnActive : styles.modeBtn}
-                                onClick={() => setModeOverride("hls")}
+                                onClick={() => setMode("hls")}
                                 title="A few seconds behind, but smooth"
                             >
                                 Smooth
@@ -354,8 +169,13 @@ export function LiveWatchPage() {
                     <Link to="/live" className={styles.backLink}>
                         {"←"} All live streams
                     </Link>
-                    {chatPoppedOut && (
-                        <button type="button" className={styles.chatRestoreBtn} onClick={handleBringChatBack}>
+                    {thumbnails.lastError && (
+                        <p role="status" className={styles.thumbnailWarning}>
+                            {thumbnails.lastError}
+                        </p>
+                    )}
+                    {chat.poppedOut && (
+                        <button type="button" className={styles.chatRestoreBtn} onClick={chat.bringBack}>
                             Chat is in its own window. Bring it back
                         </button>
                     )}
@@ -368,9 +188,9 @@ export function LiveWatchPage() {
                 )}
             </div>
 
-            {!chatPoppedOut && (
+            {!chat.poppedOut && (
                 <aside className={styles.watchSidebar}>
-                    <StreamChatPanel streamId={stream.id} isLive={isLive} onPopOut={handlePopOutChat} />
+                    <StreamChatPanel streamId={stream.id} isLive={isLive} onPopOut={chat.popOut} />
                 </aside>
             )}
         </div>

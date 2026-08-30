@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCreateReport } from "../../api/mutations/misc";
+import { useCreateReport } from "../../hooks/mutations/report";
 import { useAuth } from "../../hooks/useAuth";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";

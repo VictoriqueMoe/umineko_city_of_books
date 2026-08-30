@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import { layerRules, migrationExemptions } from "./eslint.layers.js";
 
 export default tseslint.config(
     { ignores: ["dist/**", "dist-app/**", "android/**", "ios/**", "scripts/**", "node_modules/**"] },
@@ -37,4 +38,6 @@ export default tseslint.config(
             ],
         },
     },
+    ...layerRules,
+    ...migrationExemptions,
 );

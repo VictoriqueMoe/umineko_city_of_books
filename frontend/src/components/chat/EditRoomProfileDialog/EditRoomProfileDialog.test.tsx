@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
     clearAvatar: vi.fn(),
 }));
 
-vi.mock("../../../api/mutations/chat", () => ({
+vi.mock("../../../hooks/mutations/chat", () => ({
     useUpdateChatRoomNickname: mocks.useUpdateChatRoomNickname,
     useUploadChatRoomAvatar: mocks.useUploadChatRoomAvatar,
     useClearChatRoomAvatar: mocks.useClearChatRoomAvatar,

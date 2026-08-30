@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { useFollowStats } from "../api/queries/misc";
-import { useFollowUser, useUnfollowUser } from "../api/mutations/misc";
+import { useFollowStats } from "./queries/user";
+import { useFollowUser, useUnfollowUser } from "./mutations/user";
 
 export function useFollow(userId: string) {
     const { stats, loading, refresh } = useFollowStats(userId);

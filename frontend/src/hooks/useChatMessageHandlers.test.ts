@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
     editMessage: vi.fn(),
 }));
 
-vi.mock("../api/mutations/chat", () => ({
+vi.mock("./mutations/chat", () => ({
     useDeleteChatMessage: () => ({ mutateAsync: mocks.deleteMessage }),
     useEditChatMessage: () => ({ mutateAsync: mocks.editMessage }),
 }));

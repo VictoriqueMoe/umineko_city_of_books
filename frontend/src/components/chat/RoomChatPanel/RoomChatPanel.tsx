@@ -1,17 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router";
 import { useAuth } from "../../../hooks/useAuth";
-import { useNotifications } from "../../../hooks/useNotifications";
-import { useMessageHistory } from "../../../hooks/useMessageHistory";
-import { useChatMessageHandlers } from "../../../hooks/useChatMessageHandlers";
 import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
+import { useChatSession } from "../../../hooks/chat/useChatSession";
 import { MessageBubble } from "../MessageBubble/MessageBubble";
 import { Lightbox } from "../../Lightbox/Lightbox";
 import { ChatComposer, type ChatComposerHandle, type ReplyTarget } from "../ChatComposer/ChatComposer";
-import { handleIncomingChatMessage, applySharedChatWSBranch } from "../../../utils/chatStream";
-import type { ChatMessage, UserProfile, WSMessage } from "../../../types/api";
+import type { ChatMessage, UserProfile } from "../../../types/api";
 import styles from "./RoomChatPanel.module.css";
+
+const ENDED_NOTICE = "This chat has ended.";
 
 function panelClass(flush?: boolean): string {
     if (flush) {
@@ -65,52 +64,23 @@ function RoomChatPanelInner({
     hideHeader,
     user,
 }: RoomChatPanelProps & { user: UserProfile }) {
-    const { addWSListener } = useNotifications();
     const blockedIDs = useBlockedUserIds();
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
-    const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
     const composerRef = useRef<ChatComposerHandle>(null);
 
-    const {
-        messages,
-        setMessages,
-        hasMore,
-        loadingMore,
-        containerRef,
-        contentRef,
-        endRef,
-        scrollToBottomInstant,
-        handleScroll,
-        addMessage,
-    } = useMessageHistory(roomId, editingMessageId === null ? maxMessages : undefined);
-
-    const { handleEditMessage } = useChatMessageHandlers({
-        user,
-        messages,
-        setMessages,
-        setEditingMessageId,
-    });
-
-    useEffect(() => {
-        if (!roomId) {
-            return;
-        }
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type === "chat_message") {
-                handleIncomingChatMessage(msg.data as ChatMessage, roomId, setMessages, () => scrollToBottomInstant());
-                return;
-            }
-            applySharedChatWSBranch(msg, { activeRoomId: roomId, setMessages, noteTyping: () => {} });
-        });
-    }, [roomId, addWSListener, setMessages, scrollToBottomInstant]);
+    const session = useChatSession({ roomId, user, maxMessages, scrollMode: "instant" });
+    const { messages, status } = session;
+    const { hasMore, loadingMore, addMessage } = session.history;
+    const { containerRef, contentRef, endRef, onScroll, toBottomInstant } = session.scroll;
+    const { messageId: editingMessageId, start: startEditing, cancel: cancelEditing, save: saveEdit } = session.editing;
 
     const handleSent = useCallback(
         (message: ChatMessage) => {
             addMessage(message);
-            scrollToBottomInstant({ force: true });
+            toBottomInstant({ force: true });
         },
-        [addMessage, scrollToBottomInstant],
+        [addMessage, toBottomInstant],
     );
 
     const handleReply = useCallback((message: ChatMessage) => {
@@ -121,14 +91,10 @@ function RoomChatPanelInner({
         });
     }, []);
 
-    const handleEditStart = useCallback((message: ChatMessage) => {
-        setEditingMessageId(message.id);
-    }, []);
-
     const handleEditCancel = useCallback(() => {
-        setEditingMessageId(null);
+        cancelEditing();
         composerRef.current?.focus();
-    }, []);
+    }, [cancelEditing]);
 
     const handleCancelReply = useCallback(() => {
         setReplyingTo(null);
@@ -137,6 +103,8 @@ function RoomChatPanelInner({
     const handleLightboxClose = useCallback(() => {
         setLightboxSrc(null);
     }, []);
+
+    const endedNotice = closedNotice ?? (status === "ended" ? ENDED_NOTICE : null);
 
     return (
         <div className={panelClass(flush)}>
@@ -156,7 +124,7 @@ function RoomChatPanelInner({
                     )}
                 </div>
             )}
-            <div className={styles.chatMessages} ref={containerRef} onScroll={handleScroll}>
+            <div className={styles.chatMessages} ref={containerRef} onScroll={onScroll}>
                 <div ref={contentRef} className={styles.chatContent}>
                     {notice && <div className={styles.chatNotice}>{notice}</div>}
                     {hasMore && (
@@ -172,8 +140,8 @@ function RoomChatPanelInner({
                             senderBlocked={blockedIDs.has(m.sender.id)}
                             onLightbox={setLightboxSrc}
                             onReply={handleReply}
-                            onEdit={handleEditMessage}
-                            onEditStart={handleEditStart}
+                            onEdit={saveEdit}
+                            onEditStart={startEditing}
                             onEditCancel={handleEditCancel}
                             editing={editingMessageId === m.id}
                         />
@@ -181,7 +149,7 @@ function RoomChatPanelInner({
                     <div ref={endRef} />
                 </div>
             </div>
-            {canSend && roomId && (
+            {canSend && roomId && status === "live" && (
                 <ChatComposer
                     ref={composerRef}
                     roomId={roomId}
@@ -193,7 +161,7 @@ function RoomChatPanelInner({
                     compact
                 />
             )}
-            {closedNotice && <div className={styles.chatEnded}>{closedNotice}</div>}
+            {endedNotice && <div className={styles.chatEnded}>{endedNotice}</div>}
             {lightboxSrc && createPortal(<Lightbox src={lightboxSrc} onClose={handleLightboxClose} />, document.body)}
         </div>
     );

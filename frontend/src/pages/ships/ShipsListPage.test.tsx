@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
     useRules: vi.fn(),
 }));
 
-vi.mock("../../api/queries/ship", () => ({ useShipList: mocks.useShipList }));
-vi.mock("../../api/queries/misc", () => ({ useRules: mocks.useRules }));
+vi.mock("../../hooks/queries/ship", () => ({ useShipList: mocks.useShipList }));
+vi.mock("../../hooks/queries/site", () => ({ useRules: mocks.useRules }));
 
 function makeCharacter(overrides: Partial<ShipCharacter> = {}): ShipCharacter {
     return {

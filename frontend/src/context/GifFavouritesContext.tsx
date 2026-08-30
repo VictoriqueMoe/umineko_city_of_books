@@ -1,7 +1,7 @@
 import { type PropsWithChildren, useCallback, useMemo } from "react";
-import type { GiphyFavourite } from "../api/endpoints";
-import { useGiphyFavourites } from "../api/queries/giphy";
-import { useAddGiphyFavourite, useRemoveGiphyFavourite } from "../api/mutations/giphy";
+import type { GiphyFavourite } from "../types/api";
+import { useGiphyFavourites } from "../hooks/queries/giphy";
+import { useAddGiphyFavourite, useRemoveGiphyFavourite } from "../hooks/mutations/giphy";
 import { useAuth } from "../hooks/useAuth";
 import { GifFavouritesContext } from "./gifFavouritesContextValue";
 

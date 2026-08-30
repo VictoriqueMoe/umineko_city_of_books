@@ -1,10 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { queryKeys } from "../../api/queryKeys";
 import { makeUser } from "../../test-utils/fixtures";
 import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
-import type { ChatRoom, UserProfile, WSMessage } from "../../types/api";
+import type { ChatRoom, UserProfile } from "../../types/api";
 import { RoomsListPage } from "./RoomsListPage";
 
 const mocks = vi.hoisted(() => ({
@@ -14,7 +13,7 @@ const mocks = vi.hoisted(() => ({
     joinMutateAsync: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints", () => ({
+vi.mock("../../api/endpoints/chat", () => ({
     listMyChatRooms: mocks.listMyChatRooms,
     listPublicChatRooms: mocks.listPublicChatRooms,
     getUserRooms: mocks.getUserRooms,
@@ -28,7 +27,7 @@ vi.mock("../../api/endpoints", () => ({
     resolveDMRoom: vi.fn(),
 }));
 
-vi.mock("../../api/mutations/chat", () => ({
+vi.mock("../../hooks/mutations/chat", () => ({
     useJoinChatRoom: () => ({ mutateAsync: mocks.joinMutateAsync }),
 }));
 
@@ -95,20 +94,13 @@ function stubLists(options: ListOptions = {}) {
 }
 
 function renderList(options: { user?: UserProfile | null } = {}) {
-    const listeners: ((msg: WSMessage) => void)[] = [];
     const queryClient = createTestQueryClient();
     const result = renderWithProviders(<RoomsListPage />, {
         user: options.user === undefined ? viewer : options.user,
         queryClient,
-        notification: {
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
-        },
     });
 
-    return { ...result, listeners, queryClient };
+    return { ...result, queryClient };
 }
 
 beforeEach(() => {
@@ -474,6 +466,21 @@ describe("RoomsListPage filters", () => {
         expect(await screen.findByRole("button", { name: "#horror x" })).toBeInTheDocument();
     });
 
+    it("filters by a tag on a joined room without opening it", async () => {
+        // given
+        const user = userEvent.setup();
+        stubLists({ joined: [makeRoom({ id: "room-1", tags: ["horror"] })] });
+        renderList();
+        const tag = await screen.findByRole("button", { name: "#horror" });
+
+        // when
+        await user.click(tag);
+
+        // then
+        expect(await screen.findByRole("button", { name: "#horror x" })).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: /Tea Parlour/ })).toBeInTheDocument();
+    });
+
     it("clears the tag filter when the chip is clicked", async () => {
         // given
         const user = userEvent.setup();
@@ -580,73 +587,5 @@ describe("RoomsListPage paging", () => {
         // then
         await screen.findByText("Tea Parlour");
         expect(screen.queryByRole("button", { name: "Load more" })).not.toBeInTheDocument();
-    });
-});
-
-describe("RoomsListPage live updates", () => {
-    it("refreshes the joined and pinned rooms on an invitation", async () => {
-        // given
-        const { listeners, queryClient } = renderList();
-        await screen.findByRole("heading", { name: /My Rooms/ });
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "chat_room_invited", data: {} });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["chat", "rooms-list", "joined"] });
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
-    });
-
-    it("refreshes every list when the member is kicked", async () => {
-        // given
-        const { listeners, queryClient } = renderList();
-        await screen.findByRole("heading", { name: /My Rooms/ });
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "chat_kicked", data: {} });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["chat", "rooms-list"] });
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: queryKeys.chat.userRooms() });
-    });
-
-    it("reads the pinned rooms from the shared user rooms entry", async () => {
-        // given
-        stubLists({ system: [makeRoom({ id: "room-sys", name: "Staff Lounge", is_system: true })] });
-
-        // when
-        const { queryClient } = renderList();
-
-        // then
-        await screen.findByRole("link", { name: /Staff Lounge/ });
-        expect(queryClient.getQueryData(queryKeys.chat.userRooms())).toBeDefined();
-    });
-
-    it("refreshes the lists when voice presence changes", async () => {
-        // given
-        const { listeners, queryClient } = renderList();
-        await screen.findByRole("heading", { name: /My Rooms/ });
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "voice_presence", data: {} });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["chat", "rooms-list"] });
-    });
-
-    it("ignores chat events it does not care about", async () => {
-        // given
-        const { listeners, queryClient } = renderList();
-        await screen.findByRole("heading", { name: /My Rooms/ });
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "chat_message", data: {} });
-
-        // then
-        expect(invalidateQueries).not.toHaveBeenCalled();
     });
 });

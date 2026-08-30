@@ -11,12 +11,12 @@ const mocks = vi.hoisted(() => ({
     useCharacterGroups: vi.fn(),
 }));
 
-vi.mock("../../../api/queries/quote", () => ({
+vi.mock("../../../hooks/queries/quote", () => ({
     useSearchQuotes: mocks.useSearchQuotes,
     useBrowseQuotes: mocks.useBrowseQuotes,
 }));
 
-vi.mock("../../../api/queries/characters", () => ({
+vi.mock("../../../hooks/queries/quoteCharacters", () => ({
     useCharacterGroups: mocks.useCharacterGroups,
 }));
 

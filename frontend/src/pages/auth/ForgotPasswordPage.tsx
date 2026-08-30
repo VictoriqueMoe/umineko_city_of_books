@@ -1,14 +1,14 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-import { useForgotPassword } from "../../api/mutations/auth";
-import { useStaff } from "../../api/queries/auth";
+import { useForgotPassword } from "../../hooks/mutations/auth";
+import { useStaff } from "../../hooks/queries/site";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
-import { ROLE_GROUPS } from "../../utils/permissions";
+import { ROLE_GROUPS } from "../../domain/permissions";
 import styles from "./LoginPage.module.css";
 
 export function ForgotPasswordPage() {

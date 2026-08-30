@@ -76,7 +76,7 @@ func TestRowToMessage_BotOwnMessagesStayClean(t *testing.T) {
 }
 
 func TestFitBudget_DropsWholeOldMessagesAndAlwaysKeepsTheTrigger(t *testing.T) {
-	big := strings.Repeat("x", promptCharBudget)
+	big := strings.Repeat("x", promptByteBudget)
 
 	cases := []struct {
 		name      string

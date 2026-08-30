@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Series } from "../api/endpoints";
-import type { EvidenceItem, Quote } from "../types/api";
+import type { EvidenceItem, Quote, Series } from "../types/api";
+import { providerWrapper } from "../test-utils/render";
 import { useEvidence } from "./useEvidence";
 
 const QUOTE_API = "https://quotes.auaurora.moe/api/v1";
@@ -50,7 +50,7 @@ interface EvidenceProps {
 }
 
 function setup(props: EvidenceProps = {}) {
-    return renderHook(p => useEvidence(p.initial, p.series), { initialProps: props });
+    return renderHook(p => useEvidence(p.initial, p.series), { initialProps: props, wrapper: providerWrapper() });
 }
 
 beforeEach(() => {

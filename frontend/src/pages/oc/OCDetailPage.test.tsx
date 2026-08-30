@@ -14,9 +14,9 @@ const mocks = vi.hoisted(() => ({
     noop: vi.fn(),
 }));
 
-vi.mock("../../api/queries/oc", () => ({ useOC: mocks.useOC }));
+vi.mock("../../hooks/queries/oc", () => ({ useOC: mocks.useOC }));
 
-vi.mock("../../api/mutations/oc", () => ({
+vi.mock("../../hooks/mutations/oc", () => ({
     useVoteOC: () => ({ mutateAsync: mocks.vote }),
     useFavouriteOC: () => ({ mutateAsync: mocks.favourite }),
     useCreateOCComment: () => ({ mutateAsync: mocks.noop }),

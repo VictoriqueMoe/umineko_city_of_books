@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
     isPending: false,
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useAdminSettings: mocks.useAdminSettings }));
+vi.mock("../../hooks/queries/admin", () => ({ useAdminSettings: mocks.useAdminSettings }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useUpdateAdminSettings: () => ({ mutateAsync: mocks.update, isPending: mocks.isPending }),
 }));
 

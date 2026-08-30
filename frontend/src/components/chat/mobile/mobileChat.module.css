@@ -206,97 +206,6 @@
     background: var(--bg-void);
 }
 
-.memberList {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
-    padding: 0.4rem 0;
-}
-
-.memberGroupHeader {
-    padding: 0.5rem 0.85rem 0.25rem;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-}
-
-.memberRow {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.85rem;
-    position: relative;
-}
-
-.presenceDot {
-    width: 9px;
-    height: 9px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.presenceActive {
-    background: #3ed47a;
-}
-
-.presenceIdle {
-    background: #e0b341;
-}
-
-.presenceAway {
-    background: rgba(var(--text-muted-rgb, 150, 140, 170), 0.6);
-}
-
-.hostBadge {
-    font-size: 0.6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    color: var(--gold);
-    border: 1px solid rgba(var(--gold-rgb), 0.5);
-    padding: 0.05rem 0.3rem;
-    border-radius: 4px;
-}
-
-.memberSpacer {
-    flex: 1;
-}
-
-.modMenu {
-    position: absolute;
-    right: 0.6rem;
-    top: 100%;
-    z-index: 5;
-    background: var(--bg-card);
-    border: 1px solid rgba(var(--purple-rgb), 0.4);
-    border-radius: 8px;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
-    display: flex;
-    flex-direction: column;
-    min-width: 180px;
-    overflow: hidden;
-}
-
-.modMenu button {
-    background: none;
-    border: none;
-    color: var(--text);
-    text-align: left;
-    padding: 0.7rem 0.9rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
-
-.modMenu button:active {
-    background: rgba(var(--purple-rgb), 0.25);
-}
-
-.danger {
-    color: #ff6b6b;
-}
-
 .membersFooter {
     flex-shrink: 0;
     display: flex;
@@ -305,17 +214,6 @@
     padding: 0.6rem 0.85rem calc(0.6rem + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid rgba(var(--purple-rgb), 0.2);
     background: var(--bg-card);
-}
-
-.dialogOverlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1500;
-    padding: 1rem;
 }
 
 .dialog {
@@ -347,20 +245,9 @@
     font-size: 1rem;
 }
 
-.dialogRow {
-    display: flex;
-    gap: 0.5rem;
-}
-
 .dialogError {
     color: #ff6b6b;
     font-size: 0.85rem;
-}
-
-.dialogActions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
 }
 
 .toast {

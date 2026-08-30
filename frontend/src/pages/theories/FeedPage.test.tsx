@@ -9,7 +9,7 @@ import { FeedPage } from "./FeedPage";
 
 const { useTheoryFeed } = vi.hoisted(() => ({ useTheoryFeed: vi.fn() }));
 
-vi.mock("../../api/queries/theory", () => ({ useTheoryFeed }));
+vi.mock("../../hooks/queries/theory", () => ({ useTheoryFeed }));
 vi.mock("../../components/RulesBox/RulesBox", () => ({
     RulesBox: ({ page }: { page: string }) => <div data-testid="rules-box">{page}</div>,
 }));
@@ -38,32 +38,29 @@ interface StubOptions {
     theories?: Theory[];
     total?: number;
     loading?: boolean;
-    hasNext?: boolean;
-    hasPrev?: boolean;
+}
+
+interface FeedCall {
+    sort: TheorySort;
+    episode: number;
+    search: string;
+    series: string;
+    offset: number;
+    limit: number;
 }
 
 function stubFeed(options: StubOptions = {}) {
-    const goNext = vi.fn();
-    const goPrev = vi.fn();
     useTheoryFeed.mockReturnValue({
         theories: options.theories ?? [],
         total: options.total ?? options.theories?.length ?? 0,
         loading: options.loading ?? false,
-        offset: 0,
-        limit: 20,
-        goNext,
-        goPrev,
-        hasNext: options.hasNext ?? false,
-        hasPrev: options.hasPrev ?? false,
         refresh: vi.fn(),
     });
-
-    return { goNext, goPrev };
 }
 
-function lastFeedCall(): [TheorySort, number, undefined, string, string] {
+function lastFeedCall(): FeedCall {
     const calls = useTheoryFeed.mock.calls;
-    return calls[calls.length - 1] as [TheorySort, number, undefined, string, string];
+    return calls[calls.length - 1][0] as FeedCall;
 }
 
 describe("FeedPage", () => {
@@ -161,9 +158,9 @@ describe("FeedPage", () => {
         renderWithProviders(<FeedPage series="higurashi" />, { route: "/theories/higurashi" });
 
         // then
-        expect(lastFeedCall()[0]).toBe("new");
-        expect(lastFeedCall()[1]).toBe(0);
-        expect(lastFeedCall()[4]).toBe("higurashi");
+        expect(lastFeedCall().sort).toBe("new");
+        expect(lastFeedCall().episode).toBe(0);
+        expect(lastFeedCall().series).toBe("higurashi");
     });
 
     it("flips the active sort category between descending and ascending", async () => {
@@ -176,9 +173,9 @@ describe("FeedPage", () => {
         await user.click(screen.getByRole("button", { name: /^New/ }));
 
         // then
-        expect(lastFeedCall()[0]).toBe("old");
+        expect(lastFeedCall().sort).toBe("old");
         await user.click(screen.getByRole("button", { name: /^New/ }));
-        expect(lastFeedCall()[0]).toBe("new");
+        expect(lastFeedCall().sort).toBe("new");
     });
 
     it("starts a newly chosen sort category in descending order", async () => {
@@ -191,9 +188,9 @@ describe("FeedPage", () => {
         await user.click(screen.getByRole("button", { name: /^Popular/ }));
 
         // then
-        expect(lastFeedCall()[0]).toBe("popular");
+        expect(lastFeedCall().sort).toBe("popular");
         await user.click(screen.getByRole("button", { name: /^Popular/ }));
-        expect(lastFeedCall()[0]).toBe("popular_asc");
+        expect(lastFeedCall().sort).toBe("popular_asc");
     });
 
     it("marks the active sort with a direction arrow", async () => {
@@ -223,7 +220,7 @@ describe("FeedPage", () => {
         await user.click(screen.getByRole("button", { name: /^Credibility/ }));
 
         // then
-        expect(lastFeedCall()[0]).toBe("credibility");
+        expect(lastFeedCall().sort).toBe("credibility");
     });
 
     it("narrows the feed to a single episode", async () => {
@@ -236,7 +233,7 @@ describe("FeedPage", () => {
         await user.selectOptions(screen.getByRole("combobox"), "4");
 
         // then
-        expect(lastFeedCall()[1]).toBe(4);
+        expect(lastFeedCall().episode).toBe(4);
     });
 
     it("offers arcs rather than episodes for a series that has them", () => {
@@ -262,9 +259,9 @@ describe("FeedPage", () => {
         await user.type(screen.getByPlaceholderText("Search theories..."), "beato");
 
         // then
-        expect(lastFeedCall()[3]).toBe("");
+        expect(lastFeedCall().search).toBe("");
         await waitFor(() => {
-            expect(lastFeedCall()[3]).toBe("beato");
+            expect(lastFeedCall().search).toBe("beato");
         });
     });
 
@@ -281,7 +278,7 @@ describe("FeedPage", () => {
 
     it("pages forward through a feed with more theories to show", async () => {
         // given
-        const { goNext } = stubFeed({ theories: [makeTheory()], total: 40, hasNext: true });
+        stubFeed({ theories: [makeTheory()], total: 40 });
         const user = userEvent.setup();
         renderWithProviders(<FeedPage />, { route: "/theories" });
 
@@ -289,6 +286,6 @@ describe("FeedPage", () => {
         await user.click(screen.getByRole("button", { name: "Next" }));
 
         // then
-        expect(goNext).toHaveBeenCalledOnce();
+        expect(lastFeedCall().offset).toBe(20);
     });
 });

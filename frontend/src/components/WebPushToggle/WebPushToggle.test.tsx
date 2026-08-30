@@ -1,46 +1,29 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WebPushConfig } from "../../api/endpoints";
+import type { WebPushControls } from "../../hooks/useWebPush";
 import { renderWithProviders } from "../../test-utils/render";
 import { WebPushToggle } from "./WebPushToggle";
 
-const { webPush } = vi.hoisted(() => ({
-    webPush: {
-        enableWebPush: vi.fn(),
-        disableWebPush: vi.fn(),
-        webPushConfigured: vi.fn(),
-        webPushEnabled: vi.fn(),
-        webPushSupported: vi.fn(),
-    },
-}));
+const { useWebPush } = vi.hoisted(() => ({ useWebPush: vi.fn() }));
 
-vi.mock("../../utils/webPush", () => webPush);
+vi.mock("../../hooks/useWebPush", () => ({ useWebPush }));
 
-const config: WebPushConfig = {
-    vapid_key: "vapid",
-    api_key: "api",
-    project_id: "project",
-    sender_id: "sender",
-    app_id: "app",
-};
+const setEnabled = vi.fn();
 
-function renderToggle(pushEnabled = true) {
-    return renderWithProviders(<WebPushToggle />, { siteInfo: { push_enabled: pushEnabled, web_push: config } });
+function controls(overrides: Partial<WebPushControls> = {}): WebPushControls {
+    return { available: true, enabled: false, busy: false, error: "", setEnabled, ...overrides };
 }
 
 beforeEach(() => {
-    webPush.webPushConfigured.mockReturnValue(true);
-    webPush.webPushSupported.mockReturnValue(true);
-    webPush.webPushEnabled.mockReturnValue(false);
-    webPush.enableWebPush.mockResolvedValue(undefined);
-    webPush.disableWebPush.mockResolvedValue(undefined);
+    setEnabled.mockReset();
+    useWebPush.mockReturnValue(controls());
 });
 
-describe("WebPushToggle when the site and browser both support web push", () => {
+describe("WebPushToggle when web push is available", () => {
     it("offers the toggle in the off position", () => {
         // given
-        renderToggle();
+        renderWithProviders(<WebPushToggle />);
 
         // when
         const toggle = screen.getByRole("switch", { name: "Push Notifications" });
@@ -49,83 +32,74 @@ describe("WebPushToggle when the site and browser both support web push", () => 
         expect(toggle).toHaveAttribute("aria-checked", "false");
     });
 
-    it("subscribes this device when switched on", async () => {
+    it("shows the toggle on for a device that is already subscribed", () => {
         // given
-        const user = userEvent.setup();
-        renderToggle();
+        useWebPush.mockReturnValue(controls({ enabled: true }));
 
         // when
-        await user.click(screen.getByRole("switch", { name: "Push Notifications" }));
+        renderWithProviders(<WebPushToggle />);
 
         // then
-        expect(webPush.enableWebPush).toHaveBeenCalledWith(config);
-        await waitFor(() => {
-            expect(screen.getByRole("switch", { name: "Push Notifications" })).toHaveAttribute("aria-checked", "true");
-        });
+        expect(screen.getByRole("switch", { name: "Push Notifications" })).toHaveAttribute("aria-checked", "true");
     });
 
-    it("unsubscribes this device when switched off", async () => {
+    it("asks to subscribe this device when switched on", async () => {
         // given
-        webPush.webPushEnabled.mockReturnValue(true);
         const user = userEvent.setup();
-        renderToggle();
+        renderWithProviders(<WebPushToggle />);
 
         // when
         await user.click(screen.getByRole("switch", { name: "Push Notifications" }));
 
         // then
-        expect(webPush.disableWebPush).toHaveBeenCalledWith(config);
-        await waitFor(() => {
-            expect(screen.getByRole("switch", { name: "Push Notifications" })).toHaveAttribute("aria-checked", "false");
-        });
+        expect(setEnabled).toHaveBeenCalledWith(true);
     });
 
-    it("surfaces the underlying reason and stays off when enabling fails", async () => {
+    it("asks to unsubscribe this device when switched off", async () => {
         // given
-        webPush.enableWebPush.mockRejectedValue(new Error("messaging/unsupported-browser"));
+        useWebPush.mockReturnValue(controls({ enabled: true }));
         const user = userEvent.setup();
-        renderToggle();
+        renderWithProviders(<WebPushToggle />);
 
         // when
         await user.click(screen.getByRole("switch", { name: "Push Notifications" }));
 
         // then
-        expect(await screen.findByText(/messaging\/unsupported-browser/)).toBeInTheDocument();
-        expect(screen.getByRole("switch", { name: "Push Notifications" })).toHaveAttribute("aria-checked", "false");
+        expect(setEnabled).toHaveBeenCalledWith(false);
+    });
+
+    it("surfaces the reason the change did not take", () => {
+        // given
+        useWebPush.mockReturnValue(controls({ error: "Could not turn notifications on: messaging/unsupported" }));
+
+        // when
+        renderWithProviders(<WebPushToggle />);
+
+        // then
+        expect(screen.getByText(/messaging\/unsupported/)).toBeInTheDocument();
+    });
+
+    it("locks the toggle while the change is still in flight", () => {
+        // given
+        useWebPush.mockReturnValue(controls({ busy: true }));
+
+        // when
+        renderWithProviders(<WebPushToggle />);
+
+        // then
+        expect(screen.getByRole("switch", { name: "Push Notifications" })).toBeDisabled();
     });
 });
 
 describe("WebPushToggle where web push cannot work", () => {
-    it("stays hidden when the site has no web push keys configured", () => {
+    it("stays hidden entirely", () => {
         // given
-        webPush.webPushConfigured.mockReturnValue(false);
+        useWebPush.mockReturnValue(controls({ available: false }));
 
         // when
-        renderToggle();
+        const { container } = renderWithProviders(<WebPushToggle />);
 
         // then
-        expect(screen.queryByRole("switch", { name: "Push Notifications" })).toBeNull();
-    });
-
-    it("stays hidden in a browser without push support, such as an iOS Safari tab", () => {
-        // given
-        webPush.webPushSupported.mockReturnValue(false);
-
-        // when
-        renderToggle();
-
-        // then
-        expect(screen.queryByRole("switch", { name: "Push Notifications" })).toBeNull();
-    });
-
-    it("stays hidden when an admin has push switched off, so nobody subscribes to silence", () => {
-        // given
-        const pushDisabled = false;
-
-        // when
-        renderToggle(pushDisabled);
-
-        // then
-        expect(screen.queryByRole("switch", { name: "Push Notifications" })).toBeNull();
+        expect(container).toBeEmptyDOMElement();
     });
 });

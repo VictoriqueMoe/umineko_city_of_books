@@ -1,14 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Gallery } from "../../../types/api";
-import { useCreateArt, useSetArtGallery } from "../../../api/mutations/art";
+import { useCreateArt, useSetArtGallery } from "../../../hooks/mutations/art";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
+import { errorMessage } from "../../../utils/errorMessage";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
 import { TagInput } from "../TagInput/TagInput";
 import styles from "./ArtUploadForm.module.css";
+
+const GALLERY_FAILURE = "The art was uploaded but could not be added to the gallery";
+
+function galleryFailure(err: unknown): string {
+    const reason = errorMessage(err, "");
+
+    return reason === "" ? `${GALLERY_FAILURE}.` : `${GALLERY_FAILURE}: ${reason}`;
+}
 
 interface ArtUploadFormProps {
     galleryId: string;
@@ -40,9 +49,27 @@ export function ArtUploadForm({
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [open, setOpen] = useState(false);
+    const [uploadedId, setUploadedId] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const createArtMutation = useCreateArt();
     const setArtGalleryMutation = useSetArtGallery();
+
+    async function uploadArt(image: File): Promise<string> {
+        const { id } = await createArtMutation.mutateAsync({
+            metadata: {
+                title: title.trim(),
+                description: description.trim(),
+                corner,
+                art_type: artType,
+                tags,
+                is_spoiler: isSpoiler,
+                gallery_id: galleryId,
+            },
+            imageFile: image,
+        });
+
+        return id;
+    }
 
     async function handleSubmit() {
         if (submitting || !title.trim() || !file) {
@@ -52,25 +79,20 @@ export function ArtUploadForm({
         setError("");
 
         try {
-            const { id } = await createArtMutation.mutateAsync({
-                metadata: {
-                    title: title.trim(),
-                    description: description.trim(),
-                    corner,
-                    art_type: artType,
-                    tags,
-                    is_spoiler: isSpoiler,
-                    gallery_id: galleryId,
-                },
-                imageFile: file,
-            });
+            const id = uploadedId || (await uploadArt(file));
+            setUploadedId(id);
+
             try {
                 await setArtGalleryMutation.mutateAsync({ artId: id, galleryId });
-            } catch {}
+            } catch (err) {
+                setError(galleryFailure(err));
+                return;
+            }
+
             onCreated();
             navigate(`/gallery/art/${id}`);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to upload art");
+            setError(errorMessage(err, "Failed to upload art"));
         } finally {
             setSubmitting(false);
         }
@@ -93,6 +115,7 @@ export function ArtUploadForm({
             return;
         }
 
+        setUploadedId("");
         setFile(selected);
         setError("");
         e.target.value = "";

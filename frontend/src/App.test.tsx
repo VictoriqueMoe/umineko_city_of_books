@@ -1,15 +1,11 @@
-import { act, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { PropsWithChildren } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { MOBILE_QUERY } from "./hooks/useIsMobile";
 import { makeUser } from "./test-utils/fixtures";
 import { renderWithProviders, type ProviderOptions } from "./test-utils/render";
-
-const { initPush, ensureNotificationPermission } = vi.hoisted(() => ({
-    initPush: vi.fn(),
-    ensureNotificationPermission: vi.fn(),
-}));
 
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
@@ -128,7 +124,9 @@ vi.mock("./components/layout/Header/Header", () => ({
         </button>
     ),
 }));
-vi.mock("./components/layout/Sidebar/Sidebar", () => ({ Sidebar: () => null }));
+vi.mock("./components/layout/Sidebar/Sidebar", () => ({
+    Sidebar: ({ open }: { open: boolean }) => <div data-testid="sidebar" data-open={open ? "true" : undefined} />,
+}));
 vi.mock("./components/layout/Butterflies/Butterflies", () => ({ Butterflies: () => null }));
 vi.mock("./components/CanonicalTag/CanonicalTag", () => ({ CanonicalTag: () => null }));
 vi.mock("./components/StaleVersionBanner/StaleVersionBanner", () => ({ StaleVersionBanner: () => null }));
@@ -141,8 +139,18 @@ vi.mock("./components/GameForfeitWarning/GameForfeitWarning", () => ({ GameForfe
 vi.mock("./components/PullToRefresh/PullToRefresh", () => ({
     PullToRefresh: ({ children }: PropsWithChildren) => <>{children}</>,
 }));
-vi.mock("./utils/push", () => ({ initPush }));
-vi.mock("./utils/notifications", () => ({ ensureNotificationPermission }));
+vi.mock("./components/secrets/SecretClosedToast/SecretClosedToast", () => ({
+    SecretClosedToast: () => <div data-testid="secret-closed-toast" />,
+}));
+vi.mock("./platform/pushNative", () => ({ initPush: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("./platform/desktopNotifications", () => ({
+    ensureNotificationPermission: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock("./platform/webPush", () => ({
+    initWebPushRouting: vi.fn(() => () => {}),
+    resumeWebPush: vi.fn().mockResolvedValue(undefined),
+    webPushConfigured: vi.fn(() => false),
+}));
 
 const member = makeUser({ id: "user-1", username: "battler" });
 const admin = makeUser({ id: "user-2", username: "beatrice", role: "admin" });
@@ -151,10 +159,22 @@ function renderApp(route: string, options: ProviderOptions = {}) {
     return renderWithProviders(<App />, { route, ...options });
 }
 
-beforeEach(() => {
-    initPush.mockResolvedValue(undefined);
-    ensureNotificationPermission.mockResolvedValue(undefined);
-});
+function stubMatchMedia(matching: string) {
+    vi.stubGlobal(
+        "matchMedia",
+        (query: string) =>
+            ({
+                matches: query === matching,
+                media: query,
+                onchange: null,
+                addListener: () => {},
+                removeListener: () => {},
+                addEventListener: () => {},
+                removeEventListener: () => {},
+                dispatchEvent: () => false,
+            }) as MediaQueryList,
+    );
+}
 
 describe("App", () => {
     it("shows the landing page to a visitor who has expressed no preference", () => {
@@ -377,39 +397,15 @@ describe("App", () => {
         expect(container.querySelector(".announcement-banner")).toBeNull();
     });
 
-    it("announces a secret that somebody else solved first", () => {
+    it("mounts the secret announcement toast in the shell, where it can be seen from any page", () => {
         // given
-        renderApp("/welcome");
+        const route = "/welcome";
 
         // when
-        act(() => {
-            window.dispatchEvent(
-                new CustomEvent("secret-closed", {
-                    detail: {
-                        secret_id: "secret-1",
-                        secret_title: "The Golden Truth",
-                        solver: { display_name: "Beatrice", username: "beato" },
-                    },
-                }),
-            );
-        });
+        renderApp(route);
 
         // then
-        expect(screen.getByRole("status")).toHaveTextContent("Beatrice solved The Golden Truth");
-        expect(screen.getByRole("link", { name: /Beatrice/ })).toHaveAttribute("href", "/secrets/secret-1");
-    });
-
-    it("ignores a secret closed event that names no solver", () => {
-        // given
-        renderApp("/welcome");
-
-        // when
-        act(() => {
-            window.dispatchEvent(new CustomEvent("secret-closed", { detail: { secret_id: "secret-1" } }));
-        });
-
-        // then
-        expect(screen.queryByRole("status")).not.toBeInTheDocument();
+        expect(screen.getByTestId("secret-closed-toast")).toBeInTheDocument();
     });
 
     it("switches to the chat layout on a room route", () => {
@@ -436,30 +432,6 @@ describe("App", () => {
         expect(document.body.dataset.chatPage).toBeUndefined();
     });
 
-    it("asks for notification permission and wires up push once somebody is signed in", () => {
-        // given
-        const route = "/welcome";
-
-        // when
-        renderApp(route, { user: member });
-
-        // then
-        expect(ensureNotificationPermission).toHaveBeenCalledOnce();
-        expect(initPush).toHaveBeenCalledOnce();
-    });
-
-    it("leaves notifications alone for a signed out visitor", () => {
-        // given
-        const visitor = null;
-
-        // when
-        renderApp("/welcome", { user: visitor });
-
-        // then
-        expect(ensureNotificationPermission).not.toHaveBeenCalled();
-        expect(initPush).not.toHaveBeenCalled();
-    });
-
     it("collapses the sidebar when the header toggle is used on a wide screen", async () => {
         // given
         const user = userEvent.setup();
@@ -470,6 +442,21 @@ describe("App", () => {
 
         // then
         expect(container.querySelector(".app-layout")).toHaveAttribute("data-sidebar-collapsed", "true");
+        expect(screen.getByTestId("sidebar")).not.toHaveAttribute("data-open");
+    });
+
+    it("opens the sidebar as a drawer when the header toggle is used at the mobile width", async () => {
+        // given
+        const user = userEvent.setup();
+        stubMatchMedia(MOBILE_QUERY);
+        const { container } = renderApp("/welcome");
+
+        // when
+        await user.click(screen.getByRole("button", { name: "toggle sidebar" }));
+
+        // then
+        expect(screen.getByTestId("sidebar")).toHaveAttribute("data-open", "true");
+        expect(container.querySelector(".app-layout")).not.toHaveAttribute("data-sidebar-collapsed");
     });
 });
 
@@ -492,6 +479,7 @@ describe("App private mode", () => {
         // then a stranger must not be able to read the site structure either
         expect(screen.getByTestId("page-LoginPage")).toBeInTheDocument();
         expect(container.querySelector(".app-layout")).toBeNull();
+        expect(screen.queryByTestId("sidebar")).not.toBeInTheDocument();
         expect(container.querySelector("aside")).toBeNull();
         expect(container.querySelector("header")).toBeNull();
     });

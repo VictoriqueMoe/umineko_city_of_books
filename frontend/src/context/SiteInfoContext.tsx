@@ -1,5 +1,5 @@
 import { type PropsWithChildren, useEffect, useRef } from "react";
-import { useSiteInfoQuery } from "../api/queries/auth";
+import { useSiteInfoQuery } from "../hooks/queries/site";
 import { SiteInfoContext } from "./siteInfoContextValue";
 
 const MIN_REFETCH_INTERVAL_MS = 2000;
@@ -13,21 +13,18 @@ export function SiteInfoProvider({ children }: PropsWithChildren) {
     }, [dataUpdatedAt]);
 
     useEffect(() => {
-        function handleRefresh() {
+        function handleVisibility() {
+            if (document.visibilityState !== "visible") {
+                return;
+            }
             if (Date.now() - dataUpdatedAtRef.current < MIN_REFETCH_INTERVAL_MS) {
                 return;
             }
+
             refresh().catch(() => {});
         }
-        function handleVisibility() {
-            if (document.visibilityState === "visible") {
-                handleRefresh();
-            }
-        }
-        window.addEventListener("site-info-refresh", handleRefresh);
         document.addEventListener("visibilitychange", handleVisibility);
         return () => {
-            window.removeEventListener("site-info-refresh", handleRefresh);
             document.removeEventListener("visibilitychange", handleVisibility);
         };
     }, [refresh]);

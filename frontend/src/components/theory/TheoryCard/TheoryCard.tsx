@@ -1,12 +1,11 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import type { Theory } from "../../../types/api";
-import type { Series } from "../../../api/endpoints";
+import type { Series, Theory } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { CredibilityBadge } from "../CredibilityBadge/CredibilityBadge";
 import { TheoryStatusBadge } from "../TheoryStatusBadge/TheoryStatusBadge";
-import { formatSeriesEpisode, userProgressForSeries } from "../../../utils/seriesConfig";
+import { formatSeriesEpisode, userProgressForSeries } from "../../../domain/series";
 import { formatFullDateTime } from "../../../utils/time";
 import styles from "./TheoryCard.module.css";
 

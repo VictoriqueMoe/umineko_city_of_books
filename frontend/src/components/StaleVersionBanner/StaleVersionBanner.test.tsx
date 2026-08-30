@@ -4,28 +4,41 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { StaleVersionBanner } from "./StaleVersionBanner";
 
-const { isNativeApp, hasOtaUpdate, applyOtaUpdate } = vi.hoisted(() => ({
+const { isNativeApp, hasOtaUpdate, applyOtaUpdate, subscribeOtaReady } = vi.hoisted(() => ({
     isNativeApp: vi.fn(),
     hasOtaUpdate: vi.fn(),
     applyOtaUpdate: vi.fn(),
+    subscribeOtaReady: vi.fn(),
 }));
 
-vi.mock("../../utils/authToken", () => ({ isNativeApp }));
-vi.mock("../../utils/appUpdate", () => ({ hasOtaUpdate, applyOtaUpdate }));
+vi.mock("../../platform/capabilities", () => ({ isNativeApp }));
+vi.mock("../../platform/appUpdate", () => ({ hasOtaUpdate, applyOtaUpdate, subscribeOtaReady }));
 
 const reload = vi.fn();
 
+let readyListeners: Array<() => void>;
+
 beforeEach(() => {
+    readyListeners = [];
     isNativeApp.mockReturnValue(false);
     hasOtaUpdate.mockReturnValue(false);
     applyOtaUpdate.mockResolvedValue(undefined);
+    subscribeOtaReady.mockImplementation((listener: () => void) => {
+        readyListeners.push(listener);
+
+        return () => {
+            readyListeners = readyListeners.filter(entry => entry !== listener);
+        };
+    });
     vi.stubGlobal("__APP_VERSION__", "6.10.0");
     vi.stubGlobal("location", { reload, origin: "http://localhost:3000", href: "http://localhost:3000/" });
 });
 
 function announceOtaReady() {
     act(() => {
-        window.dispatchEvent(new CustomEvent("ota-update-ready"));
+        for (const listener of readyListeners) {
+            listener();
+        }
     });
 }
 

@@ -1,8 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { CharacterGroups } from "../../api/endpoints";
-import type { Quote, QuoteBrowseResponse } from "../../types/api";
+import type { CharacterGroups, Quote, QuoteBrowseResponse } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { QuoteBrowserPage } from "./QuoteBrowserPage";
 
@@ -11,9 +10,9 @@ const mocks = vi.hoisted(() => ({
     useCharacterGroups: vi.fn(),
 }));
 
-vi.mock("../../api/queries/quote", () => ({ useBrowseQuotes: mocks.useBrowseQuotes }));
+vi.mock("../../hooks/queries/quote", () => ({ useBrowseQuotes: mocks.useBrowseQuotes }));
 
-vi.mock("../../api/queries/characters", () => ({ useCharacterGroups: mocks.useCharacterGroups }));
+vi.mock("../../hooks/queries/quoteCharacters", () => ({ useCharacterGroups: mocks.useCharacterGroups }));
 
 vi.mock("../../components/truth/TruthCard/TruthCard", () => ({
     TruthCard: ({ quote, lang }: { quote: Quote; lang?: string }) => (

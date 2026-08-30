@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
-import type { CreatePollPayload } from "../../../api/endpoints";
-import { useCreatePost, useUploadPostMediaById } from "../../../api/mutations/post";
+import type { CreatePollPayload } from "../../../types/api";
+import { useCreatePost, useUploadPostMediaById } from "../../../hooks/mutations/post";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";

@@ -6,9 +6,8 @@ import { TextArea } from "../../TextArea/TextArea";
 import { TruthPicker } from "../../truth/TruthPicker/TruthPicker";
 import { TruthChip } from "../../truth/TruthChip/TruthChip";
 import { Select } from "../../Select/Select";
-import type { EvidenceInput, EvidenceItem } from "../../../types/api";
-import type { Series } from "../../../api/endpoints";
-import { getSeriesConfig } from "../../../utils/seriesConfig";
+import type { EvidenceInput, EvidenceItem, Series } from "../../../types/api";
+import { getSeriesConfig } from "../../../domain/series";
 import styles from "./TheoryForm.module.css";
 
 interface TheoryFormProps {

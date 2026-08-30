@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { EvidenceInput, EvidenceItem, Quote } from "../types/api";
-import { type Series, tryGetQuoteByAudioId, tryGetQuoteByIndex } from "../api/endpoints";
+import type { EvidenceInput, EvidenceItem, Quote, Series } from "../types/api";
+import { evidenceQuoteKey, useEvidenceQuotes } from "./queries/quote";
+
+const DEFAULT_LANG = "en";
+const NO_EVIDENCE: readonly EvidenceItem[] = [];
 
 export interface SelectedEvidence {
     quote: Quote;
@@ -20,33 +23,27 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
     const [pickerOpen, setPickerOpen] = useState(false);
     const initialised = useRef(false);
 
+    const seed = initialEvidence ?? NO_EVIDENCE;
+    const { quotes, settled } = useEvidenceQuotes(seed, series, DEFAULT_LANG);
+
     useEffect(() => {
-        if (initialised.current || !initialEvidence || initialEvidence.length === 0) {
+        if (initialised.current || seed.length === 0 || !settled) {
             return;
         }
         initialised.current = true;
 
-        Promise.all(
-            initialEvidence.map(async ev => {
-                let quote: Quote | null = null;
-                const evLang = ev.lang || "en";
-                if (ev.audio_id) {
-                    quote = await tryGetQuoteByAudioId(series, ev.audio_id, evLang);
-                } else if (ev.quote_index !== undefined) {
-                    quote = await tryGetQuoteByIndex(series, ev.quote_index, evLang);
-                }
-                if (!quote) {
-                    return null;
-                }
-                return { quote, note: ev.note, lang: evLang } as SelectedEvidence;
-            }),
-        ).then(results => {
-            const resolved = results.filter((r): r is SelectedEvidence => r !== null);
-            setEvidence(resolved);
-        });
-    }, [initialEvidence, series]);
+        const resolved: SelectedEvidence[] = [];
+        for (const ev of seed) {
+            const quote = quotes.get(evidenceQuoteKey(ev));
+            if (!quote) {
+                continue;
+            }
+            resolved.push({ quote, note: ev.note, lang: ev.lang || DEFAULT_LANG });
+        }
+        setEvidence(resolved);
+    }, [seed, quotes, settled]);
 
-    const addQuote = useCallback((quote: Quote, lang: string = "en") => {
+    const addQuote = useCallback((quote: Quote, lang: string = DEFAULT_LANG) => {
         const key = quoteKey(quote);
         setEvidence(prev => {
             if (prev.some(e => quoteKey(e.quote) === key)) {

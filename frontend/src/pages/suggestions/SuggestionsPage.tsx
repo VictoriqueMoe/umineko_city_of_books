@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useAuth } from "../../hooks/useAuth";
-import { usePostFeed } from "../../api/queries/post";
+import { usePostFeed } from "../../hooks/queries/post";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useResolveSuggestion, useUnresolveSuggestion } from "../../api/mutations/post";
-import { can } from "../../utils/permissions";
+import { useResolveSuggestion, useUnresolveSuggestion } from "../../hooks/mutations/post";
+import { can } from "../../domain/permissions";
 import { PostCard } from "../../components/post/PostCard/PostCard";
 import { PostComposer } from "../../components/post/PostComposer/PostComposer";
 import { Pagination } from "../../components/Pagination/Pagination";

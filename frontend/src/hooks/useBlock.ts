@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { useBlockStatus } from "../api/queries/misc";
-import { useBlockUser, useUnblockUser } from "../api/mutations/misc";
+import { useBlockStatus } from "./queries/user";
+import { useBlockUser, useUnblockUser } from "./mutations/user";
 
 export function useBlock(userId: string) {
     const { status, loading, refresh } = useBlockStatus(userId);

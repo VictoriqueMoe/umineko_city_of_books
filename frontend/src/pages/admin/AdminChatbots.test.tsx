@@ -26,12 +26,7 @@ const mocks = vi.hoisted(() => ({
     checkUsername: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints", async importOriginal => ({
-    ...(await importOriginal<typeof import("../../api/endpoints")>()),
-    checkUsernameAvailable: mocks.checkUsername,
-}));
-
-vi.mock("../../api/queries/admin", () => ({
+vi.mock("../../hooks/queries/admin", () => ({
     useChatbots: mocks.useChatbots,
     useChatbotUsage: mocks.useChatbotUsage,
     useChatbotModels: mocks.useChatbotModels,
@@ -39,13 +34,14 @@ vi.mock("../../api/queries/admin", () => ({
     useChatbotBasePrompts: mocks.useChatbotBasePrompts,
 }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useCreateChatbot: () => ({ mutateAsync: mocks.create, isPending: false }),
     useUpdateChatbot: () => ({ mutateAsync: mocks.update, isPending: false }),
     useDeleteChatbot: () => ({ mutateAsync: mocks.remove, isPending: false }),
     useCreateChatbotBasePrompt: () => ({ mutateAsync: mocks.createBase, isPending: false }),
     useUpdateChatbotBasePrompt: () => ({ mutateAsync: mocks.updateBase, isPending: false }),
     useDeleteChatbotBasePrompt: () => ({ mutateAsync: mocks.removeBase, isPending: false }),
+    useCheckUsernameAvailable: () => ({ mutateAsync: mocks.checkUsername, isPending: false }),
 }));
 
 function makeBot(overrides: Partial<Chatbot> = {}): Chatbot {
@@ -291,11 +287,10 @@ describe("AdminChatbots base prompts", () => {
         expect(screen.getByLabelText("Base Prompt")).toHaveValue("base-7");
     });
 
-    it("deletes an unused base prompt once it is confirmed", async () => {
+    it("asks before deleting an unused base prompt", async () => {
         // given
         stubBots([]);
-        stubBasePrompts([makeBasePrompt({ id: "base-4", bot_count: 0 })]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+        stubBasePrompts([makeBasePrompt({ id: "base-4", name: "game witch", bot_count: 0 })]);
         const user = userEvent.setup();
         renderWithProviders(<AdminChatbots />);
 
@@ -303,8 +298,39 @@ describe("AdminChatbots base prompts", () => {
         await user.click(screen.getByRole("button", { name: "Delete game witch" }));
 
         // then
+        expect(screen.getByText('Delete the base prompt "game witch"?')).toBeInTheDocument();
+        expect(mocks.removeBase).not.toHaveBeenCalled();
+    });
+
+    it("deletes an unused base prompt once it is confirmed", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ id: "base-4", bot_count: 0 })]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+
+        // then
         expect(mocks.removeBase).toHaveBeenCalledWith("base-4");
-        confirm.mockRestore();
+    });
+
+    it("leaves the base prompt alone when the delete is cancelled", async () => {
+        // given
+        stubBots([]);
+        stubBasePrompts([makeBasePrompt({ id: "base-4", bot_count: 0 })]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+        await user.click(screen.getByRole("button", { name: "Delete game witch" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        // then
+        expect(mocks.removeBase).not.toHaveBeenCalled();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 });
 
@@ -908,7 +934,6 @@ describe("AdminChatbots deleting", () => {
     it("asks before deleting a bot", async () => {
         // given
         stubBots([makeBot()]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderWithProviders(<AdminChatbots />);
 
@@ -916,21 +941,36 @@ describe("AdminChatbots deleting", () => {
         await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
 
         // then
-        expect(confirm).toHaveBeenCalledWith(
-            "Delete Beatrice (@beatrice)? The bot account and its replies go with it.",
-        );
+        expect(
+            screen.getByText("Delete Beatrice (@beatrice)? The bot account and its replies go with it."),
+        ).toBeInTheDocument();
         expect(mocks.remove).not.toHaveBeenCalled();
+    });
+
+    it("leaves the bot alone when the delete is cancelled", async () => {
+        // given
+        stubBots([makeBot()]);
+        const user = userEvent.setup();
+        renderWithProviders(<AdminChatbots />);
+        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        // then
+        expect(mocks.remove).not.toHaveBeenCalled();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
     it("deletes the bot once confirmed", async () => {
         // given
         stubBots([makeBot({ id: "bot-3" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminChatbots />);
+        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
+        await user.click(screen.getByRole("button", { name: "Delete" }));
 
         // then
         expect(mocks.remove).toHaveBeenCalledWith("bot-3");
@@ -939,13 +979,13 @@ describe("AdminChatbots deleting", () => {
     it("says which bot could not be deleted", async () => {
         // given
         stubBots([makeBot({ display_name: "Beatrice" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         mocks.remove.mockRejectedValue(new Error("the bot still owns messages"));
         const user = userEvent.setup();
         renderWithProviders(<AdminChatbots />);
+        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete Beatrice" }));
+        await user.click(screen.getByRole("button", { name: "Delete" }));
 
         // then
         expect(await screen.findByText("Could not delete Beatrice: the bot still owns messages")).toBeInTheDocument();

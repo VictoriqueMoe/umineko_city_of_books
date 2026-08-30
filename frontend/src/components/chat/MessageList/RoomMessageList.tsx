@@ -1,83 +1,90 @@
-import { useCallback, useEffect, useRef } from "react";
-import { isSiteStaff } from "../../../utils/permissions";
-import type { ChatMessage } from "../../../types/api";
-import type { RoomController } from "../../../hooks/useRoomController";
+import { memo, useCallback, type Ref } from "react";
+import { isSiteStaff } from "../../../domain/permissions";
+import { roomViewerPolicy } from "../../../domain/chat/roomPolicy";
+import type { ChatMessage, ChatRoom, UserProfile } from "../../../types/api";
 import { useBlockedUserIds } from "../../../hooks/useBlockedUserIds";
+import { type ReplyTarget } from "../ChatComposer/ChatComposer";
 import { MessageBubble } from "../MessageBubble/MessageBubble";
 
-interface RoomMessageListClasses {
+const REPLY_PREVIEW_MAX = 80;
+
+export interface RoomMessageListClasses {
     messages: string;
     loadMoreBar: string;
     empty: string;
 }
 
-interface RoomMessageListProps {
-    controller: RoomController;
+export interface RoomMessageListProps {
+    viewer: UserProfile;
+    room: ChatRoom;
+    messages: ChatMessage[];
+    hasMore: boolean;
+    loadingMore: boolean;
+    highlightedMessageId: string | null;
+    editingMessageId: string | null;
+    viewerTimedOut: boolean;
+    matchesViewerMention: ((body: string) => boolean) | null;
+    containerRef: Ref<HTMLDivElement>;
+    contentRef: Ref<HTMLDivElement>;
+    endRef: Ref<HTMLDivElement>;
+    onScroll: () => void;
+    onLightbox: (src: string) => void;
+    onReply: (target: ReplyTarget) => void;
+    onStartEditing: (message: ChatMessage) => void;
+    onCancelEditing: () => void;
+    onToggleReaction: (message: ChatMessage, emoji: string) => void;
+    onTogglePin: (message: ChatMessage) => void;
+    onDelete: (message: ChatMessage) => void;
+    onEdit: (message: ChatMessage, body: string) => Promise<void>;
     classes: RoomMessageListClasses;
 }
 
-export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
+function replyPreview(body: string): string {
+    return body.length > REPLY_PREVIEW_MAX ? body.slice(0, REPLY_PREVIEW_MAX) + "..." : body;
+}
+
+function RoomMessageListBase({
+    viewer,
+    room,
+    messages,
+    hasMore,
+    loadingMore,
+    highlightedMessageId,
+    editingMessageId,
+    viewerTimedOut,
+    matchesViewerMention,
+    containerRef,
+    contentRef,
+    endRef,
+    onScroll,
+    onLightbox,
+    onReply,
+    onStartEditing,
+    onCancelEditing,
+    onToggleReaction,
+    onTogglePin,
+    onDelete,
+    onEdit,
+    classes,
+}: RoomMessageListProps) {
     const blockedIDs = useBlockedUserIds();
-    const {
-        user,
-        room,
-        messages,
-        hasMore,
-        loadingMore,
-        messagesContainerRef,
-        messagesContentRef,
-        messagesEndRef,
-        handleMessagesScroll,
-        highlightedMsgId,
-        matchesViewerMention,
-        viewerTimedOut,
-        setLightboxSrc,
-        setReplyingTo,
-        editingMessageId,
-        setEditingMessageId,
-        handleReactionToggle,
-        handlePinToggle,
-        handleDeleteMessage,
-        handleEditMessage,
-    } = controller;
+    const { canModerateRoom } = roomViewerPolicy(room, viewer);
 
-    const liveRef = useRef({ handleReactionToggle, handlePinToggle, handleDeleteMessage, handleEditMessage });
-    useEffect(() => {
-        liveRef.current = { handleReactionToggle, handlePinToggle, handleDeleteMessage, handleEditMessage };
-    }, [handleReactionToggle, handlePinToggle, handleDeleteMessage, handleEditMessage]);
-
-    const onReply = useCallback(
-        (m: ChatMessage) => {
-            setReplyingTo({
-                id: m.id,
-                senderName: m.sender.display_name,
-                bodyPreview: m.body.length > 80 ? m.body.slice(0, 80) + "..." : m.body,
+    const handleReply = useCallback(
+        (message: ChatMessage) => {
+            onReply({
+                id: message.id,
+                senderName: message.sender.display_name,
+                bodyPreview: replyPreview(message.body),
             });
         },
-        [setReplyingTo],
+        [onReply],
     );
-    const onEditStart = useCallback((m: ChatMessage) => setEditingMessageId(m.id), [setEditingMessageId]);
-    const onEditCancel = useCallback(() => setEditingMessageId(null), [setEditingMessageId]);
-    const onReactionToggle = useCallback(
-        (m: ChatMessage, emoji: string) => liveRef.current.handleReactionToggle(m, emoji),
-        [],
-    );
-    const onPinToggle = useCallback((m: ChatMessage) => liveRef.current.handlePinToggle(m), []);
-    const onDelete = useCallback((m: ChatMessage) => liveRef.current.handleDeleteMessage(m), []);
-    const onEdit = useCallback((m: ChatMessage, body: string) => liveRef.current.handleEditMessage(m, body), []);
-
-    if (!user || !room) {
-        return null;
-    }
-
-    const isHost = room.viewer_role === "host";
-    const isSiteMod = isSiteStaff(user.role);
-    const canModerateRoom = isHost || isSiteMod;
 
     return (
-        <div className={classes.messages} ref={messagesContainerRef} onScroll={handleMessagesScroll}>
+        <div className={classes.messages} ref={containerRef} onScroll={onScroll}>
             {messages.length === 0 && !hasMore && <div className={classes.empty}>No messages yet. Say hello!</div>}
-            <div ref={messagesContentRef} style={{ display: "flex", flexDirection: "column", gap: "inherit" }}>
+            <div ref={contentRef} style={{ display: "flex", flexDirection: "column", gap: "inherit" }}>
                 {hasMore && (
                     <div className={classes.loadMoreBar}>
                         {loadingMore ? "Loading older messages..." : "Scroll up for more"}
@@ -87,21 +94,21 @@ export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
                     <MessageBubble
                         key={msg.id}
                         message={msg}
-                        isOwn={msg.sender.id === user.id}
+                        isOwn={msg.sender.id === viewer.id}
                         senderBlocked={blockedIDs.has(msg.sender.id)}
-                        highlighted={msg.id === highlightedMsgId}
+                        highlighted={msg.id === highlightedMessageId}
                         notifiesViewer={
-                            msg.reply_to?.sender_id === user.id ||
+                            msg.reply_to?.sender_id === viewer.id ||
                             (matchesViewerMention ? matchesViewerMention(msg.body) : false)
                         }
-                        onLightbox={setLightboxSrc}
-                        onReply={onReply}
-                        onReactionToggle={onReactionToggle}
-                        onPinToggle={canModerateRoom ? onPinToggle : undefined}
+                        onLightbox={onLightbox}
+                        onReply={handleReply}
+                        onReactionToggle={onToggleReaction}
+                        onPinToggle={canModerateRoom ? onTogglePin : undefined}
                         onDelete={onDelete}
                         onEdit={onEdit}
-                        onEditStart={onEditStart}
-                        onEditCancel={onEditCancel}
+                        onEditStart={onStartEditing}
+                        onEditCancel={onCancelEditing}
                         editing={editingMessageId === msg.id}
                         canPin={canModerateRoom}
                         canModerate={canModerateRoom}
@@ -110,8 +117,10 @@ export function RoomMessageList({ controller, classes }: RoomMessageListProps) {
                         senderIsStaff={isSiteStaff(msg.sender.role)}
                     />
                 ))}
-                <div ref={messagesEndRef} />
+                <div ref={endRef} />
             </div>
         </div>
     );
 }
+
+export const RoomMessageList = memo(RoomMessageListBase);

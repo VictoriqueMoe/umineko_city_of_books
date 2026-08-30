@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
-import { useAdminSettings } from "../../api/queries/admin";
-import { useUpdateAdminSettings } from "../../api/mutations/admin";
+import { useAdminSettings } from "../../hooks/queries/admin";
+import { useUpdateAdminSettings } from "../../hooks/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
 import styles from "./AdminAnnouncements.module.css";
 
@@ -33,7 +34,7 @@ export function AdminRulesPage() {
             setDraft(null);
             setFeedback("Saved");
         } catch (e) {
-            setFeedback(e instanceof Error ? e.message : "Failed to save");
+            setFeedback(errorMessage(e, "Failed to save"));
         }
     }
 

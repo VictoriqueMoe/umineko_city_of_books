@@ -11,12 +11,12 @@ const mocks = vi.hoisted(() => ({
     createRoom: vi.fn(),
 }));
 
-vi.mock("../../../api/queries/misc", () => ({
+vi.mock("../../../hooks/queries/user", () => ({
     useMutualFollowers: mocks.useMutualFollowers,
     useSearchUsers: mocks.useSearchUsers,
 }));
 
-vi.mock("../../../api/mutations/chat", () => ({
+vi.mock("../../../hooks/mutations/chat", () => ({
     useCreateGroupRoom: () => ({ mutateAsync: mocks.createRoom }),
 }));
 

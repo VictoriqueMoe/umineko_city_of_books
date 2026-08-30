@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
     useAuditLog: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useAuditLog: mocks.useAuditLog }));
+vi.mock("../../hooks/queries/admin", () => ({ useAuditLog: mocks.useAuditLog }));
 
 function makeEntry(overrides: Partial<AuditLogEntry> = {}): AuditLogEntry {
     return {

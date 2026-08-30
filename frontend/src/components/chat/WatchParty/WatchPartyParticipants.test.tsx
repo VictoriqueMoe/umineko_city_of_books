@@ -2,8 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { User, WatchPartyParticipant } from "../../../types/api";
-import type { SiteRole } from "../../../utils/permissions";
+import type { SiteRole, User, WatchPartyParticipant } from "../../../types/api";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
 
 interface NodeProcess {

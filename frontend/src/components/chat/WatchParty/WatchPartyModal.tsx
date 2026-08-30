@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Hyperbeam from "@hyperbeam/web";
 import { RoomAudioRenderer, RoomContext } from "@livekit/components-react";
 import { Button } from "../../Button/Button";
-import { forceMuteWatchPartyVoiceParticipant } from "../../../api/endpoints";
-import type { SiteRole } from "../../../utils/permissions";
-import { siteUrl } from "../../../utils/siteOrigin";
+import type { SiteRole } from "../../../types/api";
+import { siteUrl } from "../../../platform/siteOrigin";
+import { errorMessage } from "../../../utils/errorMessage";
 import { VoiceParticipantList } from "../Voice/VoiceParticipants";
-import type { ActiveWatchPartySession } from "./useWatchParty";
+import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
 import { useAudioPlaybackGuard } from "./useAudioPlaybackGuard";
-import { useSessionMedia, type ScreenShareMode } from "./useSessionMedia";
+import { useHyperbeamEmbed } from "../../../hooks/useHyperbeamEmbed";
+import { useForceMuteWatchPartyVoiceParticipant } from "../../../hooks/mutations/watchParty";
+import { FORCE_MUTE_FAILED } from "../../../hooks/mutations/chat";
+import { useSessionMedia, type ScreenShareMode } from "../../../hooks/useSessionMedia";
 import { RoomChatPanel } from "../RoomChatPanel/RoomChatPanel";
 import { WatchPartyParticipants } from "./WatchPartyParticipants";
 import styles from "./WatchParty.module.css";
 
-type HyperbeamHandle = Awaited<ReturnType<typeof Hyperbeam>>;
+export { FORCE_MUTE_FAILED };
 
 interface WatchPartyModalProps {
     isOpen: boolean;
@@ -48,15 +50,12 @@ export function WatchPartyModal({
     onKick,
     onIdentify,
 }: WatchPartyModalProps) {
-    const wrapRef = useRef<HTMLDivElement | null>(null);
-    const handleRef = useRef<HyperbeamHandle | null>(null);
-    const identifyRef = useRef(onIdentify);
-    const hasControlRef = useRef(false);
     const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
-    const [mountError, setMountError] = useState<string | null>(null);
     const [shareMode, setShareMode] = useState<ScreenShareMode>("gaming");
     const { session, embedURL, hasControl } = active;
+
+    const { wrapRef, mountError } = useHyperbeamEmbed({ embedURL, isOpen, hasControl, onIdentify });
 
     const handleCopyInvite = () => {
         const link = siteUrl(`/rooms/${session.room_id}?party=${session.id}`);
@@ -80,8 +79,10 @@ export function WatchPartyModal({
 
     useAudioPlaybackGuard(media.room);
 
+    const forceMute = useForceMuteWatchPartyVoiceParticipant(session.room_id);
+
     const forceMuteVoice = (identity: string, muted: boolean) => {
-        forceMuteWatchPartyVoiceParticipant(session.room_id, session.id, identity, muted).catch(() => {});
+        forceMute.mutate({ sessionId: session.id, userId: identity, muted });
     };
 
     const mediaRef = useRef<HTMLElement | null>(null);
@@ -102,67 +103,6 @@ export function WatchPartyModal({
         }
         mediaRef.current?.requestFullscreen().catch(() => {});
     };
-
-    useEffect(() => {
-        identifyRef.current = onIdentify;
-    }, [onIdentify]);
-
-    useEffect(() => {
-        hasControlRef.current = hasControl;
-    }, [hasControl]);
-
-    useEffect(() => {
-        if (!isOpen || !embedURL) {
-            return;
-        }
-        const wrap = wrapRef.current;
-        if (!wrap) {
-            return;
-        }
-        const container = document.createElement("div");
-        container.style.cssText = "position:absolute;inset:0;width:100%;height:100%;";
-        wrap.appendChild(container);
-        let cancelled = false;
-        let activeHandle: HyperbeamHandle | null = null;
-        setMountError(null);
-        Hyperbeam(container, embedURL, { delegateKeyboard: true, disableInput: !hasControlRef.current })
-            .then(handle => {
-                if (cancelled) {
-                    handle.destroy();
-                    return;
-                }
-                activeHandle = handle;
-                handleRef.current = handle;
-                if (handle.userId) {
-                    identifyRef.current(handle.userId);
-                }
-            })
-            .catch((err: unknown) => {
-                console.error("hyperbeam mount failed", err);
-                if (cancelled) {
-                    return;
-                }
-                const msg = err instanceof Error ? err.message : String(err);
-                setMountError(msg || "Failed to connect to virtual browser");
-            });
-        return () => {
-            cancelled = true;
-            if (activeHandle) {
-                activeHandle.destroy();
-            }
-            handleRef.current = null;
-            if (container.parentElement) {
-                container.parentElement.removeChild(container);
-            }
-        };
-    }, [embedURL, isOpen]);
-
-    useEffect(() => {
-        const handle = handleRef.current;
-        if (handle) {
-            handle.disableInput = !hasControl;
-        }
-    }, [hasControl]);
 
     if (!isOpen) {
         return null;
@@ -363,6 +303,11 @@ export function WatchPartyModal({
                                     <RoomAudioRenderer />
                                     <VoiceParticipantList canModerate={canModerate} onForceMute={forceMuteVoice} />
                                 </RoomContext.Provider>
+                            )}
+                            {forceMute.error && (
+                                <span className={styles.voiceError} role="alert">
+                                    {errorMessage(forceMute.error, FORCE_MUTE_FAILED)}
+                                </span>
                             )}
                         </div>
                     )}

@@ -2,30 +2,30 @@ import { useState, type ComponentType, type ReactNode } from "react";
 import { useNavigate, useParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useGameRoom } from "../../api/queries/gameRoom";
-import { useAcceptGameInvite, useDeclineGameInvite } from "../../api/mutations/gameRoom";
+import { useGameRoom } from "../../hooks/queries/gameRoom";
+import { useAcceptGameInvite, useDeclineGameInvite } from "../../hooks/mutations/gameRoom";
 import { GameChat } from "../../components/games/chat/GameChat";
 import { Button } from "../../components/Button/Button";
 import type { GameRoom, User } from "../../types/api";
 import styles from "./GamesPages.module.css";
 
-export interface GameBoardProps {
-    room: GameRoom;
+export interface GameBoardProps<TState = unknown, TStats = unknown> {
+    room: GameRoom<TState, TStats>;
     viewer: User | null;
     isSpectator: boolean;
 }
 
-interface GameRoomShellProps {
+interface GameRoomShellProps<TState, TStats> {
     gameName: string;
     inviteCopy: (opponentName: string) => ReactNode;
-    Board: ComponentType<GameBoardProps>;
+    Board: ComponentType<GameBoardProps<TState, TStats>>;
 }
 
-export function GameRoomShell({ gameName, inviteCopy, Board }: GameRoomShellProps) {
+export function GameRoomShell<TState, TStats>({ gameName, inviteCopy, Board }: GameRoomShellProps<TState, TStats>) {
     const { id } = useParams<{ id: string }>();
     const { user } = useAuth();
     const navigate = useNavigate();
-    const { room, loading, error, refetch } = useGameRoom(id);
+    const { room, loading, error, refetch } = useGameRoom<TState, TStats>(id);
     const [acceptError, setAcceptError] = useState("");
     const acceptInvite = useAcceptGameInvite();
     const declineInvite = useDeclineGameInvite();
@@ -55,6 +55,18 @@ export function GameRoomShell({ gameName, inviteCopy, Board }: GameRoomShellProp
 
     const isParticipant = user ? room.players.some(p => p.user_id === user.id) : false;
     const isInvitee = user ? room.created_by !== user.id && isParticipant : false;
+
+    if (room.status === "declined") {
+        return (
+            <div className={styles.page}>
+                <h2 className={styles.heading}>{gameName}</h2>
+                <p>This match never started. The invite was declined or cancelled.</p>
+                <div className={styles.actions}>
+                    <Button onClick={() => navigate("/games")}>My Games</Button>
+                </div>
+            </div>
+        );
+    }
 
     if (room.status === "pending") {
         if (!isParticipant) {

@@ -1,9 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SiteInfo } from "../../../api/endpoints";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { Gallery } from "../../../types/api";
+import type { Gallery, SiteInfo } from "../../../types/api";
 import { ArtUploadForm } from "./ArtUploadForm";
 
 const mocks = vi.hoisted(() => ({
@@ -12,7 +11,7 @@ const mocks = vi.hoisted(() => ({
     navigate: vi.fn(),
 }));
 
-vi.mock("../../../api/mutations/art", () => ({
+vi.mock("../../../hooks/mutations/art", () => ({
     useCreateArt: () => ({ mutateAsync: mocks.createArt }),
     useSetArtGallery: () => ({ mutateAsync: mocks.setArtGallery }),
 }));
@@ -353,7 +352,7 @@ describe("ArtUploadForm", () => {
         expect(mocks.navigate).toHaveBeenCalledWith("/gallery/art/art-9");
     });
 
-    it("still finishes when filing the art into the gallery fails", async () => {
+    it("stays put and says so when filing the art into the gallery fails", async () => {
         // given
         const onCreated = vi.fn();
         const user = userEvent.setup();
@@ -366,8 +365,68 @@ describe("ArtUploadForm", () => {
         await user.click(uploadButton());
 
         // then
+        expect(
+            await screen.findByText("The art was uploaded but could not be added to the gallery: the gallery refused"),
+        ).toBeInTheDocument();
+        expect(onCreated).not.toHaveBeenCalled();
+        expect(mocks.navigate).not.toHaveBeenCalled();
+    });
+
+    it("says the art was uploaded even when the gallery gave no reason", async () => {
+        // given
+        const user = userEvent.setup();
+        mocks.setArtGallery.mockRejectedValue({ status: 500 });
+        const { container } = renderForm();
+        await user.type(screen.getByPlaceholderText("Give your art a title"), "Rokkenjima");
+        await user.upload(pickFile(container), imageFile());
+
+        // when
+        await user.click(uploadButton());
+
+        // then
+        expect(
+            await screen.findByText("The art was uploaded but could not be added to the gallery."),
+        ).toBeInTheDocument();
+    });
+
+    it("uploads the art only once when a second try only has to file it", async () => {
+        // given
+        const onCreated = vi.fn();
+        const user = userEvent.setup();
+        mocks.setArtGallery.mockRejectedValueOnce(new Error("the gallery refused"));
+        const { container } = renderForm({ onCreated });
+        await user.type(screen.getByPlaceholderText("Give your art a title"), "Rokkenjima");
+        await user.upload(pickFile(container), imageFile());
+        await user.click(uploadButton());
+        await screen.findByText(/could not be added to the gallery/);
+
+        // when
+        await user.click(uploadButton());
+
+        // then
         await waitFor(() => expect(onCreated).toHaveBeenCalledOnce());
+        expect(mocks.createArt).toHaveBeenCalledOnce();
+        expect(mocks.setArtGallery).toHaveBeenCalledTimes(2);
         expect(mocks.navigate).toHaveBeenCalledWith("/gallery/art/art-9");
+    });
+
+    it("uploads the newly chosen image rather than the one that would not file", async () => {
+        // given
+        const user = userEvent.setup();
+        mocks.setArtGallery.mockRejectedValueOnce(new Error("the gallery refused"));
+        const { container } = renderForm();
+        await user.type(screen.getByPlaceholderText("Give your art a title"), "Rokkenjima");
+        await user.upload(pickFile(container), imageFile("first.png"));
+        await user.click(uploadButton());
+        await screen.findByText(/could not be added to the gallery/);
+
+        // when
+        await user.upload(pickFile(container), imageFile("second.png"));
+        await user.click(uploadButton());
+
+        // then
+        await waitFor(() => expect(mocks.createArt).toHaveBeenCalledTimes(2));
+        expect(mocks.createArt.mock.calls[1][0].imageFile.name).toBe("second.png");
     });
 
     it("shows why the upload failed and lets it be tried again", async () => {
@@ -391,7 +450,7 @@ describe("ArtUploadForm", () => {
     it("falls back to a generic message when the failure carries no message", async () => {
         // given
         const user = userEvent.setup();
-        mocks.createArt.mockRejectedValue("something odd");
+        mocks.createArt.mockRejectedValue({ status: 500 });
         const { container } = renderForm();
         await user.type(screen.getByPlaceholderText("Give your art a title"), "Rokkenjima");
         await user.upload(pickFile(container), imageFile());

@@ -14,7 +14,7 @@ const SLOT_ONE = 0;
 const SLOT_TWO = 1;
 
 interface SnakesAndLaddersBoardViewProps {
-    room: GameRoom;
+    room: GameRoom<SnakesLaddersState, SnakesLaddersStats>;
     viewer: User | null;
     isSpectator: boolean;
     onRoll: () => Promise<void>;
@@ -98,10 +98,10 @@ export function SnakesAndLaddersBoardView({
     const [error, setError] = useState("");
     const [submitting, setSubmitting] = useState(false);
 
-    const state = room.state as Partial<SnakesLaddersState> | undefined;
-    const positions = state?.positions ?? [0, 0];
-    const last = state?.last;
-    const rolls = state?.rolls ?? 0;
+    const state = room.state;
+    const positions = state.positions;
+    const last = state.last;
+    const rolls = state.rolls;
 
     const [displayPositions, setDisplayPositions] = useState<number[]>(positions);
     const [diceRolling, setDiceRolling] = useState(false);
@@ -211,9 +211,8 @@ export function SnakesAndLaddersBoardView({
 
     const result = gameResultLabel(room, viewerId, isSpectator);
     const isOver = room.status === "finished" || room.status === "abandoned";
-    const statsAvailable = isSnakesLaddersStats(room.stats);
-    const showStats = statsAvailable && (isOver || (room.status === "active" && isSpectator));
-    const stats = statsAvailable ? (room.stats as SnakesLaddersStats) : null;
+    const stats = isSnakesLaddersStats(room.stats) ? room.stats : null;
+    const showStats = stats !== null && (isOver || (room.status === "active" && isSpectator));
 
     function describeLast(): string {
         if (!last) {

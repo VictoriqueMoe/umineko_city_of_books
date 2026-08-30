@@ -7,7 +7,7 @@ import { CreateJournalPage } from "./CreateJournalPage";
 
 const { useCreateJournal, navigate } = vi.hoisted(() => ({ useCreateJournal: vi.fn(), navigate: vi.fn() }));
 
-vi.mock("../../api/mutations/journal", () => ({ useCreateJournal }));
+vi.mock("../../hooks/mutations/journal", () => ({ useCreateJournal }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

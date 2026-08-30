@@ -2,8 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useFanficLanguages, useFanficList, useFanficSeries } from "../../api/queries/fanfic";
-import { useCharactersFlat, useOCCharacters } from "../../api/queries/characters";
+import { useFanficLanguages, useFanficList, useFanficSeries, useOCCharacters } from "../../hooks/queries/fanfic";
+import { useCharactersFlat } from "../../hooks/queries/quoteCharacters";
 import { Button } from "../../components/Button/Button";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -13,32 +13,9 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
-import { PieceTrigger } from "../../features/easterEgg";
+import { PieceTrigger } from "../../components/easterEgg";
+import { GENRES } from "../../domain/fanfic/form";
 import styles from "./FanficPages.module.css";
-
-const GENRES = [
-    "Adventure",
-    "Angst",
-    "Crime",
-    "Drama",
-    "Family",
-    "Fantasy",
-    "Friendship",
-    "General",
-    "Horror",
-    "Humour",
-    "Hurt/Comfort",
-    "Mystery",
-    "Parody",
-    "Poetry",
-    "Romance",
-    "Sci-Fi",
-    "Spiritual",
-    "Supernatural",
-    "Suspense",
-    "Tragedy",
-    "Western",
-];
 
 function ratingBadgeClass(rating: string): string {
     switch (rating) {

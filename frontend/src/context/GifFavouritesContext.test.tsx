@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { GiphyFavourite } from "../api/endpoints";
+import type { GiphyFavourite } from "../types/api";
 import { useGifFavourites } from "../hooks/useGifFavourites";
 import { makeUser } from "../test-utils/fixtures";
 import { renderWithProviders } from "../test-utils/render";
@@ -15,9 +15,9 @@ const { useGiphyFavourites, refetch, addFavourite, removeFavourite } = vi.hoiste
     removeFavourite: vi.fn(),
 }));
 
-vi.mock("../api/queries/giphy", () => ({ useGiphyFavourites }));
+vi.mock("../hooks/queries/giphy", () => ({ useGiphyFavourites }));
 
-vi.mock("../api/mutations/giphy", () => ({
+vi.mock("../hooks/mutations/giphy", () => ({
     useAddGiphyFavourite: () => ({ mutateAsync: addFavourite }),
     useRemoveGiphyFavourite: () => ({ mutateAsync: removeFavourite }),
 }));

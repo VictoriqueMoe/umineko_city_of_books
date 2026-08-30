@@ -1,63 +1,47 @@
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LiveStream } from "../../api/endpoints";
+import type { Room } from "livekit-client";
 import { makeUser } from "../../test-utils/fixtures";
-import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
-import type { UserProfile, WSMessage } from "../../types/api";
+import { renderWithProviders } from "../../test-utils/render";
+import type { LiveStream, UserProfile } from "../../types/api";
 import { LiveWatchPage } from "./LiveWatchPage";
 
-const mocks = vi.hoisted(() => {
-    const created: FakeRoom[] = [];
-
-    class FakeRoom {
-        handlers = new Map<string, (() => void)[]>();
-        connect = vi.fn((_url: string, _token: string, _options?: { autoSubscribe?: boolean }) => {
-            const listeners = this.handlers.get("connected") ?? [];
-            for (const listener of listeners) {
-                listener();
-            }
-            return Promise.resolve();
-        });
-        disconnect = vi.fn(() => Promise.resolve());
-
-        constructor() {
-            created.push(this);
-        }
-
-        on(event: string, handler: () => void) {
-            const listeners = this.handlers.get(event) ?? [];
-            listeners.push(handler);
-            this.handlers.set(event, listeners);
-            return this;
-        }
-    }
-
-    return {
-        created,
-        FakeRoom,
-        getStream: vi.fn(),
-        getStreamViewerToken: vi.fn(),
-        uploadStreamThumbnail: vi.fn(),
-        useIsMobile: vi.fn(),
-    };
-});
-
-vi.mock("livekit-client", () => ({
-    Room: mocks.FakeRoom,
-    RoomEvent: { Connected: "connected", Disconnected: "disconnected" },
+const mocks = vi.hoisted(() => ({
+    getStream: vi.fn(),
+    getStreamViewerToken: vi.fn(),
+    uploadStreamThumbnail: vi.fn(),
+    connectRoom: vi.fn(),
+    disconnectRoom: vi.fn(),
+    reportClientError: vi.fn(),
+    useIsMobile: vi.fn(),
 }));
+
+vi.mock("../../api/endpoints/stream", () => ({
+    listLiveStreams: vi.fn(),
+    getStream: mocks.getStream,
+    getMyStream: vi.fn(),
+    getStreamCredentials: vi.fn(),
+    getStreamViewerToken: mocks.getStreamViewerToken,
+    joinStreamChat: vi.fn(),
+    resetStreamCredentials: vi.fn(),
+    startStream: vi.fn(),
+    stopStream: vi.fn(),
+    updateStreamTitle: vi.fn(),
+    uploadStreamThumbnail: mocks.uploadStreamThumbnail,
+}));
+
+vi.mock("../../api/livekit/connect", () => ({
+    connectRoom: mocks.connectRoom,
+    disconnectRoom: mocks.disconnectRoom,
+}));
+
+vi.mock("../../api/telemetry", () => ({ reportClientError: mocks.reportClientError }));
 
 vi.mock("@livekit/components-react", () => ({
     RoomContext: { Provider: (props: { children: React.ReactNode }) => <>{props.children}</> },
     RoomAudioRenderer: (props: { volume: number }) => <div data-testid="audio-renderer">{props.volume}</div>,
     StartAudio: (props: { label: string }) => <button type="button">{props.label}</button>,
-}));
-
-vi.mock("../../api/endpoints", () => ({
-    getStream: mocks.getStream,
-    getStreamViewerToken: mocks.getStreamViewerToken,
-    uploadStreamThumbnail: mocks.uploadStreamThumbnail,
 }));
 
 vi.mock("../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
@@ -111,30 +95,26 @@ function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
 }
 
 function renderWatch(options: { user?: UserProfile | null; streamID?: string } = {}) {
-    const listeners: ((msg: WSMessage) => void)[] = [];
-    const queryClient = createTestQueryClient();
-    const result = renderWithProviders(<LiveWatchPage />, {
+    return renderWithProviders(<LiveWatchPage />, {
         user: options.user ?? null,
-        queryClient,
         route: `/live/${options.streamID ?? "stream-1"}`,
         path: "/live/:streamID",
-        notification: {
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
-        },
     });
-
-    return { ...result, listeners, queryClient };
 }
 
 beforeEach(() => {
-    mocks.created.length = 0;
     mocks.useIsMobile.mockReturnValue(false);
     mocks.getStream.mockResolvedValue(makeStream());
     mocks.getStreamViewerToken.mockResolvedValue({ token: "tok", url: "wss://livekit.test" });
     mocks.uploadStreamThumbnail.mockResolvedValue(undefined);
+    mocks.connectRoom.mockReset();
+    mocks.disconnectRoom.mockReset();
+    mocks.connectRoom.mockImplementation((options: { on?: { onConnected?: (room: Room) => void } }) => {
+        const room = { name: "room-1" } as unknown as Room;
+        options.on?.onConnected?.(room);
+
+        return Promise.resolve(room);
+    });
 });
 
 describe("LiveWatchPage loading and lookup", () => {
@@ -161,19 +141,6 @@ describe("LiveWatchPage loading and lookup", () => {
         expect(screen.getByRole("link", { name: "Back to live streams" })).toHaveAttribute("href", "/live");
     });
 
-    it("asks the server for the stream named in the address", async () => {
-        // given
-        const streamID = "stream-77";
-
-        // when
-        renderWatch({ streamID });
-
-        // then
-        await waitFor(() => {
-            expect(mocks.getStream).toHaveBeenCalledWith("stream-77");
-        });
-    });
-
     it("hands the whole page to the mobile view on a small screen", async () => {
         // given
         mocks.useIsMobile.mockReturnValue(true);
@@ -197,7 +164,7 @@ describe("LiveWatchPage stage", () => {
 
         // then
         expect(await screen.findByText("This stream is offline.")).toBeInTheDocument();
-        expect(mocks.created).toHaveLength(0);
+        expect(mocks.connectRoom).not.toHaveBeenCalled();
     });
 
     it("plays the live room once the connection is up", async () => {
@@ -211,17 +178,6 @@ describe("LiveWatchPage stage", () => {
         expect(await screen.findByTestId("stream-stage")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Click to enable sound" })).toBeInTheDocument();
         expect(screen.getByRole("slider", { name: "Stream volume" })).toBeInTheDocument();
-    });
-
-    it("subscribes to the media of somebody else's stream", async () => {
-        // given
-        renderWatch({ user: makeUser({ id: "viewer-1" }) });
-
-        // when
-        await screen.findByTestId("stream-stage");
-
-        // then
-        expect(mocks.created[0].connect).toHaveBeenCalledWith("wss://livekit.test", "tok", { autoSubscribe: true });
     });
 
     it("admits when the room could not be reached", async () => {
@@ -245,18 +201,6 @@ describe("LiveWatchPage stage", () => {
         // then
         expect(await screen.findByText(/preview is hidden/)).toBeInTheDocument();
         expect(screen.queryByTestId("stream-stage")).not.toBeInTheDocument();
-    });
-
-    it("joins the room without media while a streamer's own preview is hidden", async () => {
-        // given
-        const user = makeUser({ id: "streamer-1" });
-
-        // when
-        renderWatch({ user });
-        await screen.findByText(/preview is hidden/);
-
-        // then
-        expect(mocks.created[0].connect).toHaveBeenCalledWith("wss://livekit.test", "tok", { autoSubscribe: false });
     });
 
     it("shows the streamer a muted preview when they ask for one", async () => {
@@ -283,19 +227,6 @@ describe("LiveWatchPage stage", () => {
 
         // then
         expect(await screen.findByTestId("hls-player")).toHaveTextContent("https://edge/s.m3u8");
-    });
-
-    it("opens no livekit room while the smooth feed is playing", async () => {
-        // given
-        mocks.getStream.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
-
-        // when
-        renderWatch();
-        await screen.findByTestId("hls-player");
-
-        // then
-        expect(mocks.created).toHaveLength(0);
-        expect(mocks.getStreamViewerToken).not.toHaveBeenCalled();
     });
 
     it("falls back to the low latency room when the stream prefers hls but has no url", async () => {
@@ -448,135 +379,6 @@ describe("LiveWatchPage meta", () => {
 
         // then
         expect(await screen.findByTestId("uptime")).toHaveTextContent("2026-02-01T12:00:00Z");
-    });
-});
-
-describe("LiveWatchPage thumbnails", () => {
-    function stubCanvas() {
-        Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
-            configurable: true,
-            writable: true,
-            value: () => ({ drawImage: () => {} }),
-        });
-        Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
-            configurable: true,
-            writable: true,
-            value: (callback: (blob: Blob) => void) => callback(new Blob(["frame"])),
-        });
-    }
-
-    function putVideoOnStage() {
-        const video = document.createElement("video");
-        Object.defineProperty(video, "videoWidth", { configurable: true, value: 1920 });
-        Object.defineProperty(video, "videoHeight", { configurable: true, value: 1080 });
-        screen.getByTestId("stream-stage").parentElement?.appendChild(video);
-    }
-
-    it("never sends a thumbnail from somebody watching another player's stream", async () => {
-        // given
-        stubCanvas();
-        vi.useFakeTimers();
-        renderWatch({ user: makeUser({ id: "viewer-1" }) });
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(100);
-        });
-        putVideoOnStage();
-
-        // when
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(60000);
-        });
-
-        // then
-        expect(mocks.uploadStreamThumbnail).not.toHaveBeenCalled();
-    });
-
-    it("sends a thumbnail from the streamer's own preview", async () => {
-        // given
-        stubCanvas();
-        vi.useFakeTimers();
-        renderWatch({ user: makeUser({ id: "streamer-1" }) });
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(100);
-        });
-        fireEvent.click(screen.getByRole("button", { name: "Show preview (muted)" }));
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(100);
-        });
-        putVideoOnStage();
-
-        // when
-        await act(async () => {
-            await vi.advanceTimersByTimeAsync(9000);
-        });
-
-        // then
-        expect(mocks.uploadStreamThumbnail).toHaveBeenCalledWith("stream-1", expect.any(Blob));
-    });
-});
-
-describe("LiveWatchPage live updates", () => {
-    it("refetches the stream when it goes offline", async () => {
-        // given
-        const { listeners, queryClient } = renderWatch({ streamID: "stream-1" });
-        await screen.findByTestId("stream-stage");
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "stream_offline", data: { streamId: "stream-1" } });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["streams", "detail", "stream-1"] });
-    });
-
-    it("ignores another stream going offline", async () => {
-        // given
-        const { listeners, queryClient } = renderWatch({ streamID: "stream-1" });
-        await screen.findByTestId("stream-stage");
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "stream_offline", data: { streamId: "another-stream" } });
-
-        // then
-        expect(invalidateQueries).not.toHaveBeenCalled();
-    });
-
-    it("refetches the stream when it comes back live", async () => {
-        // given
-        const { listeners, queryClient } = renderWatch({ streamID: "stream-1" });
-        await screen.findByTestId("stream-stage");
-        const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-
-        // when
-        listeners[0]({ type: "stream_live", data: makeStream({ id: "stream-1" }) });
-
-        // then
-        expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["streams", "detail", "stream-1"] });
-    });
-
-    it("renames the stream in place when the streamer changes the title", async () => {
-        // given
-        const { listeners } = renderWatch({ streamID: "stream-1" });
-        await screen.findByTestId("stream-stage");
-
-        // when
-        listeners[0]({ type: "stream_title", data: { streamId: "stream-1", title: "Now solving the epitaph" } });
-
-        // then
-        expect(await screen.findByRole("heading", { name: "Now solving the epitaph" })).toBeInTheDocument();
-    });
-
-    it("leaves the title alone when another stream is renamed", async () => {
-        // given
-        const { listeners } = renderWatch({ streamID: "stream-1" });
-        await screen.findByTestId("stream-stage");
-
-        // when
-        listeners[0]({ type: "stream_title", data: { streamId: "another-stream", title: "Something else" } });
-
-        // then
-        expect(screen.getByRole("heading", { name: "Reading Episode 4" })).toBeInTheDocument();
     });
 });
 
@@ -734,5 +536,82 @@ describe("LiveWatchPage popping the chat out", () => {
 
         // then
         expect(screen.queryByTestId("stream-chat")).not.toBeInTheDocument();
+    });
+});
+
+describe("LiveWatchPage thumbnail trouble", () => {
+    function stubCanvas() {
+        Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+            configurable: true,
+            writable: true,
+            value: () => ({ drawImage: () => {} }),
+        });
+        Object.defineProperty(HTMLCanvasElement.prototype, "toBlob", {
+            configurable: true,
+            writable: true,
+            value: (callback: (blob: Blob) => void) => callback(new Blob(["frame"])),
+        });
+    }
+
+    function putVideoOnStage() {
+        const video = document.createElement("video");
+        Object.defineProperty(video, "videoWidth", { configurable: true, value: 1920 });
+        Object.defineProperty(video, "videoHeight", { configurable: true, value: 1080 });
+        screen.getByTestId("stream-stage").parentElement?.appendChild(video);
+    }
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it("puts the thumbnail warning on the page when the capture keeps failing", async () => {
+        // given
+        stubCanvas();
+        mocks.uploadStreamThumbnail.mockRejectedValue(new Error("the ingress refused it"));
+        vi.useFakeTimers();
+        renderWatch({ user: makeUser({ id: "streamer-1" }) });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Show preview (muted)" }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+        });
+        putVideoOnStage();
+
+        // when
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(9000);
+        });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(10);
+        });
+
+        // then
+        expect(screen.getByRole("status")).toHaveTextContent("Your stream thumbnail is not updating.");
+    });
+
+    it("leaves the page clear of warnings while the thumbnails are going through", async () => {
+        // given
+        stubCanvas();
+        vi.useFakeTimers();
+        renderWatch({ user: makeUser({ id: "streamer-1" }) });
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Show preview (muted)" }));
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(100);
+        });
+        putVideoOnStage();
+
+        // when
+        await act(async () => {
+            await vi.advanceTimersByTimeAsync(9000);
+        });
+
+        // then
+        expect(mocks.uploadStreamThumbnail).toHaveBeenCalledWith("stream-1", expect.any(Blob));
+        expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
 });

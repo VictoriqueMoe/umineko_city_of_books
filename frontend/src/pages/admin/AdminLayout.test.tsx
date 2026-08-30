@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { SiteRole } from "../../utils/permissions";
+import type { SiteRole } from "../../types/api";
 import { AdminLayout } from "./AdminLayout";
 
 const EVERY_TAB = [

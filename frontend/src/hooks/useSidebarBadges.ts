@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSidebarActivity, useSidebarLastVisited } from "../api/queries/sidebar";
-import { useMarkSidebarVisited } from "../api/mutations/sidebar";
-import type { WSMessage } from "../types/api";
+import { REALTIME_EVENTS } from "../api/realtime/events";
+import { useRealtimeEvent } from "../api/realtime/useRealtime";
+import { useSidebarActivity, useSidebarLastVisited } from "./queries/sidebar";
+import { useMarkSidebarVisited } from "./mutations/sidebar";
 import { parseServerDate } from "../utils/time";
 import { useAuth } from "./useAuth";
-import { useNotifications } from "./useNotifications";
 
 const LEGACY_STORAGE_PREFIX = "sidebarLastVisited";
 
@@ -52,7 +52,6 @@ function clearLegacyVisited(userId: string): void {
 
 export function useSidebarBadges() {
     const { user } = useAuth();
-    const { addWSListener } = useNotifications();
     const userId = user?.id ?? null;
 
     const { data: activityResp } = useSidebarActivity();
@@ -108,29 +107,24 @@ export function useSidebarBadges() {
         };
     }, [userId, markVisitedAsync, refreshVisited]);
 
-    useEffect(() => {
+    useRealtimeEvent(REALTIME_EVENTS.SIDEBAR_ACTIVITY, event => {
         if (!userId) {
             return;
         }
-        return addWSListener((msg: WSMessage) => {
-            if (msg.type !== "sidebar_activity") {
-                return;
+
+        const { key, at } = event.data;
+        if (!key || !at) {
+            return;
+        }
+
+        setActivityOverlay(prev => {
+            const existing = prev[key] ?? activityResp?.activity?.[key];
+            if (existing && !isNewer(at, existing)) {
+                return prev;
             }
-            const data = msg.data as { key?: string; at?: string };
-            if (!data.key || !data.at) {
-                return;
-            }
-            const key = data.key;
-            const at = data.at;
-            setActivityOverlay(prev => {
-                const existing = prev[key] ?? activityResp?.activity?.[key];
-                if (existing && !isNewer(at, existing)) {
-                    return prev;
-                }
-                return { ...prev, [key]: at };
-            });
+            return { ...prev, [key]: at };
         });
-    }, [userId, addWSListener, activityResp]);
+    });
 
     const hasUnread = useCallback(
         (key: string): boolean => {

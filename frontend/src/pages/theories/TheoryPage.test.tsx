@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { Response as TheoryResponse, TheoryDetail } from "../../types/api";
+import type { TheoryDetail, TheoryResponse } from "../../types/api";
 import { TheoryPage } from "./TheoryPage";
 
 const { useTheory, useVoteTheory, useDeleteTheory, useRefuteTheory, navigate } = vi.hoisted(() => ({
@@ -14,8 +14,8 @@ const { useTheory, useVoteTheory, useDeleteTheory, useRefuteTheory, navigate } =
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/theory", () => ({ useTheory }));
-vi.mock("../../api/mutations/theory", () => ({ useVoteTheory, useDeleteTheory, useRefuteTheory }));
+vi.mock("../../hooks/queries/theory", () => ({ useTheory }));
+vi.mock("../../hooks/mutations/theory", () => ({ useVoteTheory, useDeleteTheory, useRefuteTheory }));
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => navigate };

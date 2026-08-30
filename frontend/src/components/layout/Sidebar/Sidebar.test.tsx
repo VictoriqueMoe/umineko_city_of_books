@@ -1,10 +1,9 @@
-import { act, fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { WSMessageHandler } from "../../../context/notificationContextValue";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders, type ProviderOptions } from "../../../test-utils/render";
-import type { WSMessage } from "../../../types/api";
+import { emitRealtimeEvent } from "../../../test-utils/ws";
 import { Sidebar } from "./Sidebar";
 
 const { badges, counts } = vi.hoisted(() => ({
@@ -27,16 +26,19 @@ const chatbotList = vi.hoisted(() => ({
 
 vi.mock("../../../hooks/useSidebarBadges", () => ({ useSidebarBadges: () => badges }));
 
-vi.mock("../../../api/queries/misc", () => ({
+vi.mock("../../../hooks/queries/post", () => ({
     useCornerCounts: () => ({ counts: counts.corner, loading: false }),
+}));
+
+vi.mock("../../../hooks/queries/art", () => ({
     useArtCornerCounts: () => ({ counts: counts.art, loading: false }),
 }));
 
-vi.mock("../../../api/queries/chatbot", () => ({
+vi.mock("../../../hooks/queries/chatbot", () => ({
     useChatbotList: () => ({ chatbots: chatbotList.value, loading: false }),
 }));
 
-vi.mock("../../../features/easterEgg", () => ({ PieceTrigger: () => null }));
+vi.mock("../../easterEgg", () => ({ PieceTrigger: () => null }));
 
 vi.mock("../../AppVersionInfo/AppVersionInfo", () => ({ AppVersionInfo: () => null }));
 
@@ -59,23 +61,8 @@ function renderSidebar(options: ProviderOptions = {}, handlers: SidebarHandlers 
     );
 }
 
-function captureWS() {
-    const handlers: WSMessageHandler[] = [];
-
-    function addWSListener(handler: WSMessageHandler) {
-        handlers.push(handler);
-        return () => {};
-    }
-
-    function emit(msg: WSMessage) {
-        act(() => {
-            for (const handler of handlers) {
-                handler(msg);
-            }
-        });
-    }
-
-    return { addWSListener, emit };
+function announce(authorId: string) {
+    emitRealtimeEvent({ type: "new_announcement", data: { id: "a1", title: "Tea time", author_id: authorId } });
 }
 
 beforeEach(() => {
@@ -533,11 +520,10 @@ describe("Sidebar expandable groups", () => {
 describe("Sidebar announcements", () => {
     it("flags an announcement written by somebody else", () => {
         // given
-        const ws = captureWS();
-        renderSidebar({ user: makeUser(), notification: { addWSListener: ws.addWSListener } });
+        renderSidebar({ user: makeUser() });
 
         // when
-        ws.emit({ type: "new_announcement", data: { author_id: "someone-else" } });
+        announce("someone-else");
 
         // then
         const link = screen.getByRole("link", { name: /^Announcements/ });
@@ -546,12 +532,11 @@ describe("Sidebar announcements", () => {
 
     it("ignores an announcement the signed in member wrote themselves", () => {
         // given
-        const ws = captureWS();
         const account = makeUser({ id: "author-1" });
-        renderSidebar({ user: account, notification: { addWSListener: ws.addWSListener } });
+        renderSidebar({ user: account });
 
         // when
-        ws.emit({ type: "new_announcement", data: { author_id: "author-1" } });
+        announce("author-1");
 
         // then
         const link = screen.getByRole("link", { name: /^Announcements/ });
@@ -560,11 +545,10 @@ describe("Sidebar announcements", () => {
 
     it("ignores an announcement while the announcements page is already open", () => {
         // given
-        const ws = captureWS();
-        renderSidebar({ notification: { addWSListener: ws.addWSListener }, route: "/announcements" });
+        renderSidebar({ route: "/announcements" });
 
         // when
-        ws.emit({ type: "new_announcement", data: { author_id: "someone-else" } });
+        announce("someone-else");
 
         // then
         const link = screen.getByRole("link", { name: /^Announcements/ });
@@ -573,11 +557,10 @@ describe("Sidebar announcements", () => {
 
     it("ignores websocket traffic that is not an announcement", () => {
         // given
-        const ws = captureWS();
-        renderSidebar({ notification: { addWSListener: ws.addWSListener } });
+        renderSidebar();
 
         // when
-        ws.emit({ type: "chat_message", data: { author_id: "someone-else" } });
+        emitRealtimeEvent({ type: "chat_message", data: { author_id: "someone-else" } });
 
         // then
         const link = screen.getByRole("link", { name: /^Announcements/ });
@@ -586,10 +569,9 @@ describe("Sidebar announcements", () => {
 
     it("clears the flag once the announcements link is followed", async () => {
         // given
-        const ws = captureWS();
         const clicker = userEvent.setup();
-        renderSidebar({ notification: { addWSListener: ws.addWSListener } });
-        ws.emit({ type: "new_announcement", data: { author_id: "someone-else" } });
+        renderSidebar();
+        announce("someone-else");
 
         // when
         await clicker.click(screen.getByRole("link", { name: /^Announcements/ }));

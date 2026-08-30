@@ -14,8 +14,8 @@ const { useGameRoom, useAcceptGameInvite, useDeclineGameInvite, useResignGame, n
     navigate: vi.fn(),
 }));
 
-vi.mock("../../api/queries/gameRoom", () => ({ useGameRoom }));
-vi.mock("../../api/mutations/gameRoom", () => ({
+vi.mock("../../hooks/queries/gameRoom", () => ({ useGameRoom }));
+vi.mock("../../hooks/mutations/gameRoom", () => ({
     useAcceptGameInvite,
     useDeclineGameInvite,
     useResignGame,
@@ -198,6 +198,18 @@ describe("PongGamePage", () => {
         // then
         expect(screen.getByText(/invites are private/)).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Accept" })).not.toBeInTheDocument();
+    });
+
+    it("holds a declined invite back from the board, which never got a state", () => {
+        // given
+        stubRoom({ room: makeRoom({ status: "declined" }) });
+
+        // when
+        renderGame();
+
+        // then
+        expect(screen.getByText("This match never started. The invite was declined or cancelled.")).toBeInTheDocument();
+        expect(screen.queryByLabelText("pong board")).not.toBeInTheDocument();
     });
 
     it("warns the invitee that the ball is live from the countdown", () => {

@@ -2,33 +2,34 @@ import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatMessage, UserProfile, WSMessage } from "../../../types/api";
+import type { ChatSession, ChatSessionStatus, UseChatSessionOptions } from "../../../hooks/chat/useChatSession";
+import type { ChatMessage, UserProfile } from "../../../types/api";
 import { RoomChatPanel } from "./RoomChatPanel";
 
 const mocks = vi.hoisted(() => ({
-    useMessageHistory: vi.fn(),
+    useChatSession: vi.fn(),
     useBlockedUserIds: vi.fn(),
-    handleEditMessage: vi.fn(),
-    handleIncomingChatMessage: vi.fn(),
-    applySharedChatWSBranch: vi.fn(),
     addMessage: vi.fn(),
-    scrollToBottomInstant: vi.fn(),
-    handleScroll: vi.fn(),
     setMessages: vi.fn(),
+    seedMessages: vi.fn(),
+    loadUntilMessage: vi.fn(),
+    resync: vi.fn(),
+    onScroll: vi.fn(),
+    toBottom: vi.fn(),
+    toBottomInstant: vi.fn(),
+    startEditing: vi.fn(),
+    cancelEditing: vi.fn(),
+    saveEdit: vi.fn(),
+    removeMessage: vi.fn(),
+    editLast: vi.fn(),
+    noteTyping: vi.fn(),
+    clearTyping: vi.fn(),
+    resetTyping: vi.fn(),
 }));
 
-vi.mock("../../../hooks/useMessageHistory", () => ({ useMessageHistory: mocks.useMessageHistory }));
+vi.mock("../../../hooks/chat/useChatSession", () => ({ useChatSession: mocks.useChatSession }));
 
 vi.mock("../../../hooks/useBlockedUserIds", () => ({ useBlockedUserIds: mocks.useBlockedUserIds }));
-
-vi.mock("../../../hooks/useChatMessageHandlers", () => ({
-    useChatMessageHandlers: () => ({ handleEditMessage: mocks.handleEditMessage }),
-}));
-
-vi.mock("../../../utils/chatStream", () => ({
-    handleIncomingChatMessage: mocks.handleIncomingChatMessage,
-    applySharedChatWSBranch: mocks.applySharedChatWSBranch,
-}));
 
 vi.mock("../MessageBubble/MessageBubble", () => ({
     MessageBubble: (props: { message: ChatMessage }) => <div data-testid="bubble">{props.message.body}</div>,
@@ -58,55 +59,90 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
     };
 }
 
-function stubHistory(messages: ChatMessage[] = []) {
-    mocks.useMessageHistory.mockReturnValue({
+interface SessionStub {
+    status?: ChatSessionStatus;
+    messages?: ChatMessage[];
+    hasMore?: boolean;
+    loadingMore?: boolean;
+}
+
+function stubSession({ status = "live", messages = [], hasMore = false, loadingMore = false }: SessionStub = {}) {
+    const session: ChatSession = {
+        status,
         messages,
-        setMessages: mocks.setMessages,
-        hasMore: false,
-        loadingMore: false,
-        containerRef: { current: null },
-        contentRef: { current: null },
-        endRef: { current: null },
-        scrollToBottomInstant: mocks.scrollToBottomInstant,
-        handleScroll: mocks.handleScroll,
-        addMessage: mocks.addMessage,
-    });
+        history: {
+            hasMore,
+            loadingMore,
+            setMessages: mocks.setMessages,
+            addMessage: mocks.addMessage,
+            seedMessages: mocks.seedMessages,
+            loadUntilMessage: mocks.loadUntilMessage,
+            resync: mocks.resync,
+        },
+        scroll: {
+            containerRef: () => {},
+            contentRef: () => {},
+            endRef: { current: null },
+            onScroll: mocks.onScroll,
+            toBottom: mocks.toBottom,
+            toBottomInstant: mocks.toBottomInstant,
+        },
+        editing: {
+            messageId: null,
+            start: mocks.startEditing,
+            cancel: mocks.cancelEditing,
+            save: mocks.saveEdit,
+            remove: mocks.removeMessage,
+            editLast: mocks.editLast,
+        },
+        typing: {
+            userIds: [],
+            note: mocks.noteTyping,
+            clear: mocks.clearTyping,
+            reset: mocks.resetTyping,
+        },
+    };
+
+    mocks.useChatSession.mockReturnValue(session);
 }
 
 function renderPanel(
     props: Partial<React.ComponentProps<typeof RoomChatPanel>> = {},
     user: UserProfile | null = viewer,
 ) {
-    const listeners: ((msg: WSMessage) => void)[] = [];
-    const result = renderWithProviders(<RoomChatPanel roomId="session-7" title="Party chat" canSend {...props} />, {
-        user,
-        notification: {
-            addWSListener: listener => {
-                listeners.push(listener);
-                return () => {};
-            },
-        },
-    });
+    return renderWithProviders(<RoomChatPanel roomId="session-7" title="Party chat" canSend {...props} />, { user });
+}
 
-    return { ...result, listeners };
+function sessionOptions(): UseChatSessionOptions {
+    return mocks.useChatSession.mock.calls[0][0] as UseChatSessionOptions;
 }
 
 beforeEach(() => {
     mocks.useBlockedUserIds.mockReturnValue(new Set<string>());
-    stubHistory();
+    stubSession();
 });
 
 describe("RoomChatPanel", () => {
-    it("reads the history of whichever room it is pointed at", () => {
+    it("opens a session on whichever room it is pointed at", () => {
         // given a panel scoped to a watch party session's own room
-        stubHistory([makeMessage()]);
+        stubSession({ messages: [makeMessage()] });
 
         // when
         renderPanel();
 
         // then
-        expect(mocks.useMessageHistory).toHaveBeenCalledWith("session-7", undefined);
+        expect(sessionOptions()).toMatchObject({ roomId: "session-7", user: viewer, scrollMode: "instant" });
         expect(screen.getByText("the golden truth")).toBeInTheDocument();
+    });
+
+    it("hands the session its message window", () => {
+        // given
+
+        // when
+        renderPanel({ maxMessages: 50 });
+
+        // then
+        expect(sessionOptions().maxMessages).toBe(50);
     });
 
     it("lets a participant compose into that same room", () => {
@@ -141,46 +177,77 @@ describe("RoomChatPanel", () => {
         expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
     });
 
-    it("routes an incoming message through the shared handler for its own room", () => {
+    it("invites a scroll back while the session says there is more", () => {
         // given
-        const { listeners } = renderPanel();
-        const incoming = makeMessage({ id: "msg-live" });
+        stubSession({ hasMore: true });
 
         // when
-        listeners[0]({ type: "chat_message", data: incoming } as WSMessage);
+        renderPanel();
 
         // then
-        expect(mocks.handleIncomingChatMessage).toHaveBeenCalledWith(
-            incoming,
-            "session-7",
-            mocks.setMessages,
-            expect.any(Function),
-        );
+        expect(screen.getByText("Scroll up for more")).toBeInTheDocument();
     });
 
-    it("hands every other chat event to the shared branch", () => {
+    it("says nothing about older messages when the session offers none", () => {
         // given
-        const { listeners } = renderPanel();
-        const event = { type: "chat_message_deleted", data: { room_id: "session-7", id: "msg-1" } } as WSMessage;
+        stubSession({ hasMore: false });
 
         // when
-        listeners[0](event);
+        renderPanel();
 
         // then
-        expect(mocks.applySharedChatWSBranch).toHaveBeenCalledWith(
-            event,
-            expect.objectContaining({ activeRoomId: "session-7" }),
-        );
+        expect(screen.queryByText("Scroll up for more")).not.toBeInTheDocument();
     });
 
     it("stays inert until it has a room to show", () => {
         // given a party that has not been joined yet
+        stubSession({ status: "idle" });
 
         // when
-        const { listeners } = renderPanel({ roomId: undefined, canSend: false, notice: "Joining chat..." });
+        renderPanel({ roomId: undefined, canSend: false, notice: "Joining chat..." });
 
         // then
-        expect(listeners).toHaveLength(0);
         expect(screen.getByText("Joining chat...")).toBeInTheDocument();
+        expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+        expect(screen.queryByText("This chat has ended.")).not.toBeInTheDocument();
+    });
+
+    it("says so when the room it was reading is gone", () => {
+        // given a watch party whose room cascade deleted when the party ended
+        stubSession({ status: "ended", messages: [makeMessage()] });
+
+        // when
+        renderPanel();
+
+        // then the viewer keeps the transcript and is told why nothing more arrives
+        expect(screen.getByText("This chat has ended.")).toBeInTheDocument();
+        expect(screen.getByText("the golden truth")).toBeInTheDocument();
+    });
+
+    it("takes the composer away once the session has ended", () => {
+        // given
+        stubSession({ status: "ended" });
+
+        // when
+        renderPanel();
+
+        // then a viewer cannot post into a room that no longer exists
+        expect(screen.queryByTestId("composer")).not.toBeInTheDocument();
+    });
+
+    it("prefers the caller's own closing wording over the default", () => {
+        // given a stream that has gone offline
+        stubSession({ status: "ended" });
+
+        // when
+        renderPanel({
+            roomId: undefined,
+            canSend: false,
+            closedNotice: "Chat is closed while the stream is offline.",
+        });
+
+        // then
+        expect(screen.getByText("Chat is closed while the stream is offline.")).toBeInTheDocument();
+        expect(screen.queryByText("This chat has ended.")).not.toBeInTheDocument();
     });
 });

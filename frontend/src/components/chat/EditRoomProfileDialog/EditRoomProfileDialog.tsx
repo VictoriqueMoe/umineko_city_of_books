@@ -6,7 +6,7 @@ import {
     useClearChatRoomAvatar,
     useUpdateChatRoomNickname,
     useUploadChatRoomAvatar,
-} from "../../../api/mutations/chat";
+} from "../../../hooks/mutations/chat";
 import styles from "./EditRoomProfileDialog.module.css";
 
 interface EditRoomProfileDialogProps {

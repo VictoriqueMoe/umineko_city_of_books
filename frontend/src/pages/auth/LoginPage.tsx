@@ -6,7 +6,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
-import { getLastLocation } from "../../utils/lastLocation";
+import { getLastLocation } from "../../platform/lastLocation";
 import styles from "./LoginPage.module.css";
 
 export function LoginPage() {

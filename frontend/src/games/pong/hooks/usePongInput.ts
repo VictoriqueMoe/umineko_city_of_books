@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
-import { useNotifications } from "../../../hooks/useNotifications";
+import { sendRealtime } from "../../../api/realtime/outbound";
+import { useRealtimeStatus } from "../../../api/realtime/useRealtime";
 import {
     PONG_INPUT_EPSILON,
     PONG_INPUT_INTERVAL_MS,
@@ -50,7 +51,7 @@ function isEditableTarget(target: EventTarget | null): boolean {
 
 export function usePongInput(options: UsePongInputOptions): PongInputHandle {
     const { roomId, enabled, courtHeight, paddleHeight, initialY } = options;
-    const { sendWSMessage, wsEpoch } = useNotifications();
+    const epoch = useRealtimeStatus();
 
     const limitsRef = useRef({ courtHeight, paddleHeight });
     const targetRef = useRef(initialY ?? courtHeight / 2);
@@ -200,7 +201,7 @@ export function usePongInput(options: UsePongInputOptions): PongInputHandle {
             seqRef.current += 1;
             lastSentTargetRef.current = target;
             lastSentAtRef.current = now;
-            sendWSMessage({
+            sendRealtime({
                 type: PONG_INPUT_TYPE,
                 data: { room_id: roomId, payload: { y: Math.round(target), seq: seqRef.current } },
             });
@@ -211,7 +212,7 @@ export function usePongInput(options: UsePongInputOptions): PongInputHandle {
         return () => {
             window.cancelAnimationFrame(handle);
         };
-    }, [enabled, roomId, sendWSMessage, setTargetY, wsEpoch]);
+    }, [enabled, epoch, roomId, setTargetY]);
 
     return { targetRef, setTargetY, seedTargetY, setTargetFromPointer };
 }

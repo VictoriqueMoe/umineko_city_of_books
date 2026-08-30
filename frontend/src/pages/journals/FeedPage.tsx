@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import type { JournalWork } from "../../types/api";
-import { useJournalFeed, type JournalSort } from "../../api/queries/journal";
+import { useJournalFeed, type JournalSort } from "../../hooks/queries/journal";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useAuth } from "../../hooks/useAuth";
 import { JournalCard } from "../../components/journal/JournalCard/JournalCard";
@@ -11,8 +11,8 @@ import { Button } from "../../components/Button/Button";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { RulesBox } from "../../components/RulesBox/RulesBox";
 import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
-import { JOURNAL_WORKS } from "../../utils/journalWorks";
-import { PieceTrigger } from "../../features/easterEgg";
+import { JOURNAL_WORKS } from "../../domain/journal";
+import { PieceTrigger } from "../../components/easterEgg";
 import styles from "./FeedPage.module.css";
 
 const SORTS: { id: JournalSort; label: string }[] = [

@@ -8,7 +8,7 @@ import { MentionTextArea, type MentionTextAreaHandle } from "./MentionTextArea";
 
 const { search } = vi.hoisted(() => ({ search: { fetchSearchUsers: vi.fn() } }));
 
-vi.mock("../../api/queries/misc", () => ({ fetchSearchUsers: search.fetchSearchUsers }));
+vi.mock("../../hooks/queries/user", () => ({ fetchSearchUsers: search.fetchSearchUsers }));
 
 const PLACEHOLDER = "Write something";
 

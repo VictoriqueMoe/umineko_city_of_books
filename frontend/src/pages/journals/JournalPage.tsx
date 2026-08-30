@@ -1,32 +1,25 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import type { JournalDetail, PostComment } from "../../types/api";
-import { useJournal } from "../../api/queries/journal";
-import { queryKeys } from "../../api/queryKeys";
+import { useJournal } from "../../hooks/queries/journal";
 import {
-    useCreateJournalComment,
     useDeleteJournal,
-    useDeleteJournalComment,
     useFollowJournal,
     useSetJournalPaused,
-    useLikeJournalComment,
     useUnfollowJournal,
-    useUnlikeJournalComment,
-    useUpdateJournalComment,
-    useUploadJournalCommentMedia,
-} from "../../api/mutations/journal";
+} from "../../hooks/mutations/journal";
 import { useAuth } from "../../hooks/useAuth";
+import { useCommentHandlers } from "../../hooks/useCommentHandlers";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
-import { can } from "../../utils/permissions";
+import { contentPermissions, isContentOwner, type ContentSubject } from "../../domain/contentPermissions";
+import { errorMessage } from "../../utils/errorMessage";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Button } from "../../components/Button/Button";
 import { CommentsSection } from "../../components/post/CommentsSection/CommentsSection";
 import { ReportButton } from "../../components/ReportButton/ReportButton";
-import { renderRich } from "../../utils/richText";
+import { renderRich } from "../../components/richText/richText";
 import { extractGif } from "../../utils/gif";
-import { workLabel } from "../../utils/journalWorks";
+import { workLabel } from "../../domain/journal";
 import { GifEmbed } from "../../components/GifEmbed/GifEmbed";
 import { MediaGallery } from "../../components/post/MediaGallery/MediaGallery";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
@@ -48,9 +41,9 @@ export function JournalPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
-    const qc = useQueryClient();
     const { journal, loading, refresh } = useJournal(id ?? "");
     const following = journal?.is_following ?? false;
+    const [deleteError, setDeleteError] = useState("");
     usePageTitle(journal?.title ?? "Journal");
 
     const hash = location.hash;
@@ -60,55 +53,50 @@ export function JournalPage() {
     const unfollowMutation = useUnfollowJournal();
     const deleteJournalMutation = useDeleteJournal();
     const setPausedMutation = useSetJournalPaused();
-    const createCommentMutation = useCreateJournalComment(id ?? "");
-    const updateCommentMutation = useUpdateJournalComment(id ?? "");
-    const deleteCommentMutation = useDeleteJournalComment(id ?? "");
-    const likeCommentMutation = useLikeJournalComment(id ?? "");
-    const unlikeCommentMutation = useUnlikeJournalComment(id ?? "");
-    const uploadMediaMutation = useUploadJournalCommentMedia(id ?? "");
+    const { createCommentFn, updateFn, deleteFn, likeFn, unlikeFn, uploadMediaFn } = useCommentHandlers(
+        "journal",
+        id ?? "",
+        { enabled: ["create", "update", "delete", "like", "unlike", "uploadMedia"] },
+    );
 
     useScrollToHash(!loading && !!journal, highlightedComment ? `comment-${highlightedComment}` : null);
 
-    async function handleFollow() {
+    function handleFollow() {
         if (!journal || !id) {
             return;
         }
-        const wasFollowing = following;
-        const journalKey = queryKeys.journal.detail(id);
-        qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_following: !wasFollowing } : prev));
-        try {
-            if (wasFollowing) {
-                await unfollowMutation.mutateAsync(id);
-            } else {
-                await followMutation.mutateAsync(id);
-            }
-        } catch {
-            qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_following: wasFollowing } : prev));
+
+        if (following) {
+            unfollowMutation.mutate(id);
+            return;
         }
+
+        followMutation.mutate(id);
     }
 
-    async function handleTogglePause() {
+    function handleTogglePause() {
         if (!journal || !id) {
             return;
         }
-        const wasPaused = journal.is_paused;
-        const journalKey = queryKeys.journal.detail(id);
-        qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_paused: !wasPaused } : prev));
-        try {
-            await setPausedMutation.mutateAsync({ id, paused: !wasPaused });
-        } catch {
-            qc.setQueryData<JournalDetail>(journalKey, prev => (prev ? { ...prev, is_paused: wasPaused } : prev));
-        }
+
+        setPausedMutation.mutate({ id, paused: !journal.is_paused });
     }
 
     async function handleDelete() {
         if (!id || !window.confirm("Delete this journal? This cannot be undone.")) {
             return;
         }
+
+        setDeleteError("");
+
         try {
             await deleteJournalMutation.mutateAsync(id);
-            navigate("/journals");
-        } catch {}
+        } catch (e) {
+            setDeleteError(errorMessage(e, "Could not delete this journal."));
+            return;
+        }
+
+        navigate("/journals");
     }
 
     if (loading) {
@@ -119,22 +107,13 @@ export function JournalPage() {
         return <div className="empty-state">Journal not found.</div>;
     }
 
-    const isOwner = user?.id === journal.author.id;
-    const canEdit = isOwner || can(user, "edit_any_journal");
-    const canDelete = isOwner || can(user, "delete_any_journal");
+    const subject: ContentSubject = { family: "journal", authorId: journal.author.id };
+    const isOwner = isContentOwner(user, subject);
+    const { canEdit, canDelete } = contentPermissions(user, subject);
     const comments = journal.comments ?? [];
     const canComment = user && !journal.is_archived;
     const entries = journal.entries ?? [];
     const latestEntry = journal.latest_entry;
-
-    const likeFn = (commentId: string) => likeCommentMutation.mutateAsync(commentId);
-    const unlikeFn = (commentId: string) => unlikeCommentMutation.mutateAsync(commentId);
-    const deleteFn = (commentId: string) => deleteCommentMutation.mutateAsync(commentId);
-    const updateFn = (commentId: string, body: string) =>
-        updateCommentMutation.mutateAsync({ id: commentId, body }).then(() => undefined);
-    const createCommentFn = (_postId: string, body: string, parentId?: string) =>
-        createCommentMutation.mutateAsync({ body, parentId });
-    const uploadMediaFn = (commentId: string, file: File) => uploadMediaMutation.mutateAsync({ commentId, file });
 
     return (
         <div className={styles.page}>
@@ -185,6 +164,12 @@ export function JournalPage() {
                     )}
                     {user && !isOwner && <ReportButton targetType="journal" targetId={journal.id} />}
                 </div>
+
+                {deleteError && (
+                    <div role="alert" className={styles.error}>
+                        {deleteError}
+                    </div>
+                )}
 
                 {journal.is_archived && (
                     <div className={styles.archivedBanner}>
@@ -276,7 +261,7 @@ export function JournalPage() {
             </div>
 
             <CommentsSection
-                comments={comments as unknown as PostComment[]}
+                comments={comments}
                 targetId={journal.id}
                 user={canComment ? user : null}
                 onChanged={() => refresh()}

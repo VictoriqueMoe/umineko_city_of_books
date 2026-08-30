@@ -19,10 +19,9 @@ export default defineConfig({
             exclude: [
                 "src/**/*.test.{ts,tsx}",
                 "src/test-utils/**",
-                "src/main.tsx",
                 "src/vite-env.d.ts",
                 "src/types/**",
-                "src/api/endpoints.ts",
+                "src/**/*.fixture.ts",
             ],
         },
     },

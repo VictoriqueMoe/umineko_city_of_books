@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
-import { useAnnouncementList } from "../../api/queries/announcement";
+import { useAnnouncementList } from "../../hooks/queries/announcement";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";

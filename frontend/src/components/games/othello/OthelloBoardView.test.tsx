@@ -57,7 +57,7 @@ function makeState(overrides: Partial<OthelloState> = {}): OthelloState {
     };
 }
 
-function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
+function makeRoom(overrides: Partial<GameRoom<OthelloState, OthelloStats>> = {}): GameRoom<OthelloState, OthelloStats> {
     return {
         id: "room-1",
         game_type: "othello",
@@ -96,7 +96,7 @@ function makeStats(overrides: Partial<OthelloStats> = {}): OthelloStats {
     };
 }
 
-function renderBoard(room: GameRoom, viewer: User | null, isSpectator = false) {
+function renderBoard(room: GameRoom<OthelloState, OthelloStats>, viewer: User | null, isSpectator = false) {
     return renderWithProviders(
         <OthelloBoardView room={room} viewer={viewer} isSpectator={isSpectator} onMove={onMove} onResign={onResign} />,
     );
@@ -127,7 +127,7 @@ describe("OthelloBoardView", () => {
 
     it("sets out the four opening discs when the room has no board yet", () => {
         // given
-        const room = makeRoom({ state: {} });
+        const room = makeRoom({ state: {} as OthelloState });
 
         // when
         renderBoard(room, blackViewer);

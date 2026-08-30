@@ -2,7 +2,8 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import type { ShipCharacter } from "../../types/api";
-import { useCreateShip, useUploadShipImageById } from "../../api/mutations/ship";
+import { useCreateShip, useUploadShipImageById } from "../../hooks/mutations/ship";
+import { uploadFailure, uploadFailureMessage } from "../../domain/uploadFailures";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { CharacterPicker } from "../../components/CharacterPicker/CharacterPicker";
@@ -20,6 +21,7 @@ export function CreateShipPage() {
     const [imagePreview, setImagePreview] = useState<string>("");
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [createdShipId, setCreatedShipId] = useState("");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const createShipMutation = useCreateShip();
     const uploadImageMutation = useUploadShipImageById();
@@ -62,17 +64,27 @@ export function CreateShipPage() {
 
         setSubmitting(true);
         try {
-            const result = await createShipMutation.mutateAsync({
-                title: title.trim(),
-                description: description.trim(),
-                characters,
-            });
+            let shipId = createdShipId;
+            if (!shipId) {
+                const result = await createShipMutation.mutateAsync({
+                    title: title.trim(),
+                    description: description.trim(),
+                    characters,
+                });
+                shipId = result.id;
+                setCreatedShipId(shipId);
+            }
+
             if (imageFile) {
                 try {
-                    await uploadImageMutation.mutateAsync({ id: result.id, file: imageFile });
-                } catch {}
+                    await uploadImageMutation.mutateAsync({ id: shipId, file: imageFile });
+                } catch (thrown) {
+                    setError(uploadFailureMessage([uploadFailure(imageFile.name, thrown)]));
+                    return;
+                }
             }
-            navigate(`/ships/${result.id}`);
+
+            navigate(`/ships/${shipId}`);
         } catch (e) {
             setError(e instanceof Error ? e.message : "Failed to create ship");
         } finally {

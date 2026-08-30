@@ -1,9 +1,11 @@
 import { useState } from "react";
-import type { BannedGiphyEntry } from "../../api/endpoints";
-import { useBannedGifs } from "../../api/queries/admin";
-import { useAddBannedGif, useRemoveBannedGif } from "../../api/mutations/admin";
+import type { BannedGiphyEntry } from "../../types/api";
+import { useBannedGifs } from "../../hooks/queries/admin";
+import { useAddBannedGif, useRemoveBannedGif } from "../../hooks/mutations/admin";
 import { usePageTitle } from "../../hooks/usePageTitle";
+import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
+import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
 import { Input } from "../../components/Input/Input";
 import { formatFullDateTime } from "../../utils/time";
 import styles from "./AdminBannedGifs.module.css";
@@ -21,6 +23,7 @@ export function AdminBannedGifs() {
     const [input, setInput] = useState("");
     const [reason, setReason] = useState("");
     const [removing, setRemoving] = useState<string | null>(null);
+    const [pendingRemoval, setPendingRemoval] = useState<BannedGiphyEntry | null>(null);
 
     const saving = addMutation.isPending;
 
@@ -34,20 +37,23 @@ export function AdminBannedGifs() {
             setInput("");
             setReason("");
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to add");
+            setError(errorMessage(e, "Failed to add"));
         }
     }
 
-    async function handleRemove(entry: BannedGiphyEntry) {
-        if (!window.confirm(`Remove ${entry.kind} "${entry.value}" from the banlist?`)) {
+    async function confirmRemove() {
+        const entry = pendingRemoval;
+        if (!entry) {
             return;
         }
-        const key = `${entry.kind}:${entry.value}`;
-        setRemoving(key);
+
+        setPendingRemoval(null);
+        setRemoving(`${entry.kind}:${entry.value}`);
+
         try {
             await removeMutation.mutateAsync({ kind: entry.kind, value: entry.value });
         } catch (e) {
-            setError(e instanceof Error ? e.message : "Failed to remove");
+            setError(errorMessage(e, "Failed to remove"));
         } finally {
             setRemoving(null);
         }
@@ -130,7 +136,7 @@ export function AdminBannedGifs() {
                                         <Button
                                             variant="danger"
                                             size="small"
-                                            onClick={() => handleRemove(e)}
+                                            onClick={() => setPendingRemoval(e)}
                                             disabled={removing === key}
                                         >
                                             {removing === key ? "..." : "Remove"}
@@ -142,6 +148,20 @@ export function AdminBannedGifs() {
                     </tbody>
                 </table>
             )}
+
+            <ConfirmDialog
+                open={pendingRemoval !== null}
+                title="Lift Ban"
+                body={
+                    <>
+                        Remove {pendingRemoval?.kind} <bdi>"{pendingRemoval?.value}"</bdi> from the banlist?
+                    </>
+                }
+                confirmLabel="Remove"
+                destructive
+                onConfirm={confirmRemove}
+                onCancel={() => setPendingRemoval(null)}
+            />
         </div>
     );
 }

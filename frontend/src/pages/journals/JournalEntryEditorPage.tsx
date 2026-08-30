@@ -1,10 +1,10 @@
 import { type SubmitEvent, useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router";
-import { useJournal, useJournalEntry } from "../../api/queries/journal";
+import { useJournal, useJournalEntry } from "../../hooks/queries/journal";
 import { useAuthedUser } from "../../hooks/useAuthedUser";
 import { usePageTitle } from "../../hooks/usePageTitle";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import { can } from "../../utils/permissions";
+import { contentPermissions } from "../../domain/contentPermissions";
 import { validateFileSize } from "../../utils/fileValidation";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
@@ -16,7 +16,7 @@ import {
     useDeleteJournalEntryMedia,
     useUpdateJournalEntry,
     useUploadJournalEntryMedia,
-} from "../../api/mutations/journal";
+} from "../../hooks/mutations/journal";
 import { ExistingMediaGrid } from "../../components/ExistingMediaGrid/ExistingMediaGrid";
 import styles from "./JournalEntryEditorPage.module.css";
 
@@ -86,8 +86,8 @@ export function JournalEntryEditorPage() {
         return <div className="empty-state">Entry not found.</div>;
     }
 
-    const isOwner = user.id === journal.author.id;
-    if (!isOwner && !can(user, "edit_any_journal")) {
+    const { canEdit } = contentPermissions(user, { family: "journal_entry", authorId: journal.author.id });
+    if (!canEdit) {
         return <div className="empty-state">You can't edit this journal.</div>;
     }
 

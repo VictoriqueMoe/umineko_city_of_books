@@ -1,7 +1,7 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { InviteItem } from "../../api/endpoints";
+import type { InviteItem } from "../../types/api";
 import { renderWithProviders } from "../../test-utils/render";
 import { AdminInvites } from "./AdminInvites";
 
@@ -11,9 +11,9 @@ const mocks = vi.hoisted(() => ({
     remove: vi.fn(),
 }));
 
-vi.mock("../../api/queries/admin", () => ({ useInvites: mocks.useInvites }));
+vi.mock("../../hooks/queries/admin", () => ({ useInvites: mocks.useInvites }));
 
-vi.mock("../../api/mutations/admin", () => ({
+vi.mock("../../hooks/mutations/admin", () => ({
     useCreateInvite: () => ({ mutateAsync: mocks.create, isPending: false }),
     useDeleteInvite: () => ({ mutateAsync: mocks.remove, isPending: false }),
 }));
@@ -112,30 +112,33 @@ describe("AdminInvites", () => {
         expect(await screen.findByText("the golden land is full")).toBeInTheDocument();
     });
 
-    it("asks before deleting an invite", async () => {
+    it("asks before deleting an invite and deletes nothing when the ask is refused", async () => {
         // given
         stubInvites([makeInvite()]);
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
         renderWithProviders(<AdminInvites />);
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Invite" });
+        expect(within(dialog).getByText("Are you sure you want to delete this invite?")).toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
 
         // then
-        expect(confirm).toHaveBeenCalledWith("Are you sure you want to delete this invite?");
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(mocks.remove).not.toHaveBeenCalled();
     });
 
     it("deletes the invite by its code once confirmed", async () => {
         // given
         stubInvites([makeInvite({ code: "kakera-99" })]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<AdminInvites />);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Invite" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
         // then
         expect(mocks.remove).toHaveBeenCalledWith("kakera-99");
@@ -144,13 +147,14 @@ describe("AdminInvites", () => {
     it("reports why an invite could not be deleted", async () => {
         // given
         stubInvites([makeInvite()]);
-        vi.spyOn(window, "confirm").mockReturnValue(true);
         mocks.remove.mockRejectedValue(new Error("that code is already spent"));
         const user = userEvent.setup();
         renderWithProviders(<AdminInvites />);
+        await user.click(screen.getByRole("button", { name: "Delete" }));
+        const dialog = await screen.findByRole("dialog", { name: "Delete Invite" });
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await user.click(within(dialog).getByRole("button", { name: "Delete" }));
 
         // then
         expect(await screen.findByText("that code is already spent")).toBeInTheDocument();
