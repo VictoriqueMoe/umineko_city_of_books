@@ -6,6 +6,8 @@ This document describes how the code in this repository is arranged and why it i
 
 It is not a feature list: see [FEATURES.md](FEATURES.md) for what the site does. It is not an operations guide: see [DEPLOYMENT.md](DEPLOYMENT.md) for running, deploying and configuring it. It is not a contributor checklist: see [ADDING_A_PAGE.md](ADDING_A_PAGE.md) for the steps a new page needs. Those documents describe behaviour and procedure; this one describes the shape they live in.
 
+The working drafts and diagrams behind these decisions are on a [Miro board](https://miro.com/app/board/uXjVGrJQlmo=/?share_link_id=82208113990). That board is where the designs were sketched before they were built, so it shows the reasoning and the discarded alternatives rather than only the result. It is a live working surface and can be ahead of, or behind, what this document describes; where the two disagree, the code and this document win.
+
 ## 2. System shape
 
 The server is a single Go binary that embeds the compiled Vite bundle and serves both the SPA and the JSON API from one process. Every layer has a single responsibility: controllers parse HTTP, services orchestrate business logic, repositories own SQL, the hub owns live events, and the media processor owns encoding off the hot path.
