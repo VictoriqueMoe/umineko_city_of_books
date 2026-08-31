@@ -452,13 +452,16 @@ func (m *messagesService) dispatchPostSendSideEffects(
 				}
 			}
 		} else {
-			_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-				RecipientID:   memberID,
-				ActorID:       senderID,
-				Type:          dto.NotifChatMessage,
-				ReferenceID:   roomID,
-				ReferenceType: "chat",
-			})
+			muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
+			if !muted {
+				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
+					RecipientID:   memberID,
+					ActorID:       senderID,
+					Type:          dto.NotifChatMessage,
+					ReferenceID:   roomID,
+					ReferenceType: "chat",
+				})
+			}
 		}
 
 		total, countErr := m.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
@@ -595,6 +598,15 @@ func (m *messagesService) GetRoomsByUser(ctx context.Context, userID uuid.UUID) 
 		roomIDs = append(roomIDs, row.ID)
 	}
 	return roomIDs, nil
+}
+
+func (m *messagesService) IsRoomMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return false, fmt.Errorf("check membership: %w", err)
+	}
+
+	return isMember, nil
 }
 
 func (m *messagesService) validateMediaFile(ctx context.Context, f FileUpload) error {

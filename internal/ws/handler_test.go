@@ -112,7 +112,7 @@ func TestSecretJoin_OnlyRegisteredSecretsCreateTopics(t *testing.T) {
 			require.NoError(t, err)
 
 			// when
-			handleWSMessage(NewClient(userID, nil), incomingMessage{Type: "secret_join", Data: payload}, hub, nil, nil)
+			handleWSMessage(NewClient(userID, nil), incomingMessage{Type: "secret_join", Data: payload}, hub, nil, nil, nil)
 
 			// then
 			joined := hub.IsUserInRoom(TopicUUID("secret:"+tt.secretID), userID)
@@ -120,4 +120,143 @@ func TestSecretJoin_OnlyRegisteredSecretsCreateTopics(t *testing.T) {
 			assert.Equal(t, tt.wantJoin, len(hub.rooms) == 1, "unregistered ids must not allocate hub state")
 		})
 	}
+}
+
+func TestOnlyJoinRoomFallsBackToStoredMembership(t *testing.T) {
+	// given
+	tests := []struct {
+		name        string
+		messageType string
+		payload     func(roomID uuid.UUID) any
+		wantRepair  bool
+	}{
+		{
+			name:        "join_room repairs a cold hub from the database",
+			messageType: "join_room",
+			payload:     func(roomID uuid.UUID) any { return roomActionData{RoomID: roomID.String()} },
+			wantRepair:  true,
+		},
+		{
+			name:        "typing never reaches the database",
+			messageType: TypingMessageType,
+			payload:     func(roomID uuid.UUID) any { return typingData{RoomID: roomID.String()} },
+			wantRepair:  false,
+		},
+		{
+			name:        "viewer_state never reaches the database",
+			messageType: "viewer_state",
+			payload: func(roomID uuid.UUID) any {
+				return viewerStateData{RoomID: roomID.String(), State: ViewerStateIdle}
+			},
+			wantRepair: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hub := NewHub()
+			userID := uuid.New()
+			roomID := uuid.New()
+			checker := NewMockRoomMembershipChecker(t)
+			if tt.wantRepair {
+				checker.EXPECT().IsRoomMember(mock.Anything, roomID, userID).Return(true, nil)
+			}
+			payload, err := json.Marshal(tt.payload(roomID))
+			require.NoError(t, err)
+
+			// when
+			handleWSMessage(NewClient(userID, nil), incomingMessage{Type: tt.messageType, Data: payload}, hub, checker, nil, nil)
+
+			// then
+			assert.Equal(t, tt.wantRepair, hub.IsUserInRoom(roomID, userID),
+				"only join_room may repair hub membership from the database")
+		})
+	}
+}
+
+func TestJoinRoomMembershipFallbackOutcomes(t *testing.T) {
+	// given
+	tests := []struct {
+		name       string
+		checker    func(t *testing.T, roomID, userID uuid.UUID) RoomMembershipChecker
+		wantJoined bool
+		wantViewer bool
+	}{
+		{
+			name: "member is joined and starts viewing",
+			checker: func(t *testing.T, roomID, userID uuid.UUID) RoomMembershipChecker {
+				checker := NewMockRoomMembershipChecker(t)
+				checker.EXPECT().IsRoomMember(mock.Anything, roomID, userID).Return(true, nil)
+
+				return checker
+			},
+			wantJoined: true,
+			wantViewer: true,
+		},
+		{
+			name: "non member is silently ignored",
+			checker: func(t *testing.T, roomID, userID uuid.UUID) RoomMembershipChecker {
+				checker := NewMockRoomMembershipChecker(t)
+				checker.EXPECT().IsRoomMember(mock.Anything, roomID, userID).Return(false, nil)
+
+				return checker
+			},
+			wantJoined: false,
+			wantViewer: false,
+		},
+		{
+			name: "lookup failure is silently ignored",
+			checker: func(t *testing.T, roomID, userID uuid.UUID) RoomMembershipChecker {
+				checker := NewMockRoomMembershipChecker(t)
+				checker.EXPECT().IsRoomMember(mock.Anything, roomID, userID).Return(false, errors.New("boom"))
+
+				return checker
+			},
+			wantJoined: false,
+			wantViewer: false,
+		},
+		{
+			name: "nil checker keeps the old behaviour",
+			checker: func(t *testing.T, roomID, userID uuid.UUID) RoomMembershipChecker {
+				return nil
+			},
+			wantJoined: false,
+			wantViewer: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hub := NewHub()
+			userID := uuid.New()
+			roomID := uuid.New()
+			payload, err := json.Marshal(roomActionData{RoomID: roomID.String()})
+			require.NoError(t, err)
+
+			// when
+			handleWSMessage(NewClient(userID, nil), incomingMessage{Type: "join_room", Data: payload}, hub, tt.checker(t, roomID, userID), nil, nil)
+
+			// then
+			assert.Equal(t, tt.wantJoined, hub.IsUserInRoom(roomID, userID))
+			assert.Equal(t, tt.wantViewer, hub.IsUserViewing(roomID, userID))
+		})
+	}
+}
+
+func TestJoinRoomSkipsLookupWhenHubAlreadyKnowsMembership(t *testing.T) {
+	// given
+	hub := NewHub()
+	userID := uuid.New()
+	roomID := uuid.New()
+	hub.JoinRoom(roomID, userID)
+	checker := NewMockRoomMembershipChecker(t)
+	payload, err := json.Marshal(roomActionData{RoomID: roomID.String()})
+	require.NoError(t, err)
+
+	// when
+	handleWSMessage(NewClient(userID, nil), incomingMessage{Type: "join_room", Data: payload}, hub, checker, nil, nil)
+
+	// then
+	assert.True(t, hub.IsUserViewing(roomID, userID))
+	checker.AssertNotCalled(t, "IsRoomMember", mock.Anything, mock.Anything, mock.Anything)
 }

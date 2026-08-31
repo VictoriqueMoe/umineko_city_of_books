@@ -63,6 +63,8 @@ export function makeDmController(overrides: Partial<DmController> = {}): DmContr
         handleEditMessage: never,
         handleEditLast: noop,
         handleDeleteChat: never,
+        handleToggleMute: never,
+        mutePending: false,
         notifyTyping: noop,
         ...overrides,
     };

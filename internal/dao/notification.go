@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 	"umineko_city_of_books/internal/dto"
@@ -21,6 +22,10 @@ type (
 	notificationDAO struct {
 		db *sql.DB
 	}
+)
+
+var (
+	collapsibleNotifTypes = []dto.NotificationType{dto.NotifChatRoomMessage, dto.NotifChatMessage}
 )
 
 func (r *notificationDAO) Create(
@@ -73,11 +78,11 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 	var total int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT
-		   (SELECT COUNT(DISTINCT reference_id) FROM notifications
-		      WHERE user_id = $1 AND type = $2 AND read = FALSE) +
+		   (SELECT COUNT(DISTINCT (type, reference_id)) FROM notifications
+		      WHERE user_id = $1 AND type = ANY($2) AND read = FALSE) +
 		   (SELECT COUNT(*) FROM notifications
-		      WHERE user_id = $3 AND NOT (type = $4 AND read = FALSE))`,
-		userID, dto.NotifChatRoomMessage, userID, dto.NotifChatRoomMessage,
+		      WHERE user_id = $3 AND NOT (type = ANY($4) AND read = FALSE))`,
+		userID, collapsibleNotifTypes, userID, collapsibleNotifTypes,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count notifications: %w", err)
@@ -87,10 +92,10 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		`WITH chat_grouped AS (
 		   SELECT
 		     id, user_id, type, reference_id, reference_type, actor_id, message, read, created_at,
-		     ROW_NUMBER() OVER (PARTITION BY reference_id ORDER BY created_at DESC, id DESC) AS rn,
-		     COUNT(*) OVER (PARTITION BY reference_id) AS grp_count
+		     ROW_NUMBER() OVER (PARTITION BY type, reference_id ORDER BY created_at DESC, id DESC) AS rn,
+		     COUNT(*) OVER (PARTITION BY type, reference_id) AS grp_count
 		   FROM notifications
-		   WHERE user_id = $1 AND type = $2 AND read = FALSE
+		   WHERE user_id = $1 AND type = ANY($2) AND read = FALSE
 		 ),
 		 combined AS (
 		   SELECT id, user_id, type, reference_id, reference_type, actor_id,
@@ -101,7 +106,7 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		   SELECT id, user_id, type, reference_id, reference_type, actor_id,
 		          COALESCE(message, '') AS message, read, created_at, 1 AS count
 		   FROM notifications
-		   WHERE user_id = $3 AND NOT (type = $4 AND read = FALSE)
+		   WHERE user_id = $3 AND NOT (type = ANY($4) AND read = FALSE)
 		 )
 		 SELECT c.id, c.user_id, c.type, c.reference_id, c.reference_type, c.actor_id,
 		        c.message, c.read, c.created_at, c.count,
@@ -111,7 +116,7 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		 LEFT JOIN user_roles ur ON c.actor_id = ur.user_id
 		 ORDER BY c.created_at DESC
 		 LIMIT $5 OFFSET $6`,
-		userID, dto.NotifChatRoomMessage, userID, dto.NotifChatRoomMessage, limit, offset,
+		userID, collapsibleNotifTypes, userID, collapsibleNotifTypes, limit, offset,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list notifications: %w", err)
@@ -131,9 +136,14 @@ func (r *notificationDAO) ListByUser(ctx context.Context, userID uuid.UUID, limi
 		if actorID != nil {
 			n.ActorID = *actorID
 		}
-		if n.Type == dto.NotifChatRoomMessage && n.Count > 1 {
-			roomName := strings.TrimPrefix(n.Message, chatRoomMessagePrefix)
-			n.Message = fmt.Sprintf("%d messages sent in %s", n.Count, roomName)
+		if n.Count > 1 {
+			switch n.Type {
+			case dto.NotifChatRoomMessage:
+				roomName := strings.TrimPrefix(n.Message, chatRoomMessagePrefix)
+				n.Message = fmt.Sprintf("%d messages sent in %s", n.Count, roomName)
+			case dto.NotifChatMessage:
+				n.Message = fmt.Sprintf("has sent you %d messages", n.Count)
+			}
 		}
 		notifications = append(notifications, n)
 	}
@@ -185,7 +195,7 @@ func (r *notificationDAO) MarkRead(ctx context.Context, id int, userID uuid.UUID
 		return fmt.Errorf("lookup notification: %w", err)
 	}
 
-	if notifType == dto.NotifChatRoomMessage && !read {
+	if !read && slices.Contains(collapsibleNotifTypes, notifType) {
 		_, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE notifications SET read = TRUE
 			 WHERE user_id = $1 AND type = $2 AND reference_id = $3 AND read = FALSE`,

@@ -10,7 +10,7 @@ import { typingNames as resolveTypingNames } from "../domain/chat/memberRoster";
 import { moveRoomToFront } from "../domain/chat/dmRoster";
 import { fetchResolveDMRoom, fetchUserRooms } from "./queries/chat";
 import { fetchMutualFollowers, fetchSearchUsers } from "./queries/user";
-import { useDeleteChatRoom, useMarkChatRoomRead } from "./mutations/chat";
+import { useDeleteChatRoom, useMarkChatRoomRead, useSetChatRoomMuted } from "./mutations/chat";
 import { useChatSession } from "./chat/useChatSession";
 import { REALTIME_EVENTS } from "../api/realtime/events";
 import { REALTIME_COMMANDS, sendRealtime } from "../api/realtime/outbound";
@@ -53,6 +53,13 @@ export function useDmController() {
     const [replyingTo, setReplyingTo] = useState<ReplyTarget | null>(null);
     const [toast, setToast] = useState<string | null>(null);
 
+    const [syncedUrlRoomId, setSyncedUrlRoomId] = useState(urlRoomId);
+    if (syncedUrlRoomId !== urlRoomId) {
+        setSyncedUrlRoomId(urlRoomId);
+        setActiveRoomId(urlRoomId ?? null);
+        setReplyingTo(null);
+    }
+
     const mobileView: "list" | "room" = urlRoomId || draftRecipient ? "room" : "list";
     const activeRoom = rooms.find(r => r.id === activeRoomId);
 
@@ -90,6 +97,8 @@ export function useDmController() {
 
     const deleteChatRoomMutation = useDeleteChatRoom();
     const markChatRoomReadMutation = useMarkChatRoomRead();
+    const setMutedMutation = useSetChatRoomMuted();
+    const [mutePending, setMutePending] = useState(false);
 
     useEffect(() => {
         const state = location.state as { dmUserId?: string } | null;
@@ -340,6 +349,25 @@ export function useDmController() {
         }
     }
 
+    async function handleToggleMute() {
+        if (!activeRoomId || !activeRoom) {
+            return;
+        }
+
+        const next = !activeRoom.viewer_muted;
+        setMutePending(true);
+
+        try {
+            await setMutedMutation.mutateAsync({ roomId: activeRoomId, muted: next });
+            setRooms(prev => prev.map(r => (r.id === activeRoomId ? { ...r, viewer_muted: next } : r)));
+            setToast(next ? "Notifications muted" : "Notifications unmuted");
+        } catch (err) {
+            setToast(err instanceof Error ? err.message : "Failed to update mute");
+        } finally {
+            setMutePending(false);
+        }
+    }
+
     function notifyTyping() {
         if (!activeRoomId) {
             return;
@@ -397,6 +425,8 @@ export function useDmController() {
         handleEditMessage: session.editing.save,
         handleEditLast: session.editing.editLast,
         handleDeleteChat,
+        handleToggleMute,
+        mutePending,
         notifyTyping,
     };
 }

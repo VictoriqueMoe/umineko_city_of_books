@@ -255,3 +255,93 @@ func TestGetRoomPresence_ReportsOnlyRoomViewers(t *testing.T) {
 	// then
 	assert.Empty(t, hub.GetRoomPresence(roomID), "an always online member is not viewing any room")
 }
+
+func TestHub_AddViewerAfterJoinRoomMakesTheUserViewing(t *testing.T) {
+	// given
+	tests := []struct {
+		name        string
+		arrange     func(hub *Hub, roomID, userID uuid.UUID)
+		wantInRoom  bool
+		wantViewing bool
+	}{
+		{
+			name:        "a cold room is neither joined nor viewed",
+			arrange:     func(hub *Hub, roomID, userID uuid.UUID) {},
+			wantInRoom:  false,
+			wantViewing: false,
+		},
+		{
+			name: "membership on its own is not viewing",
+			arrange: func(hub *Hub, roomID, userID uuid.UUID) {
+				hub.JoinRoom(roomID, userID)
+			},
+			wantInRoom:  true,
+			wantViewing: false,
+		},
+		{
+			name: "AddViewer after JoinRoom makes the user viewing",
+			arrange: func(hub *Hub, roomID, userID uuid.UUID) {
+				hub.JoinRoom(roomID, userID)
+				hub.AddViewer(roomID, userID)
+			},
+			wantInRoom:  true,
+			wantViewing: true,
+		},
+		{
+			name: "closing one of two tabs keeps the user viewing",
+			arrange: func(hub *Hub, roomID, userID uuid.UUID) {
+				hub.JoinRoom(roomID, userID)
+				hub.AddViewer(roomID, userID)
+				hub.AddViewer(roomID, userID)
+				hub.RemoveViewer(roomID, userID)
+			},
+			wantInRoom:  true,
+			wantViewing: true,
+		},
+		{
+			name: "closing the last tab ends viewing but keeps membership",
+			arrange: func(hub *Hub, roomID, userID uuid.UUID) {
+				hub.JoinRoom(roomID, userID)
+				hub.AddViewer(roomID, userID)
+				hub.RemoveViewer(roomID, userID)
+			},
+			wantInRoom:  true,
+			wantViewing: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hub := NewHub()
+			roomID := uuid.New()
+			userID := uuid.New()
+
+			// when
+			tt.arrange(hub, roomID, userID)
+
+			// then
+			assert.Equal(t, tt.wantInRoom, hub.IsUserInRoom(roomID, userID))
+			assert.Equal(t, tt.wantViewing, hub.IsUserViewing(roomID, userID))
+		})
+	}
+}
+
+func TestHub_IsUserViewing_IsScopedToOneUserAndOneRoom(t *testing.T) {
+	// given
+	hub := NewHub()
+	roomID := uuid.New()
+	otherRoomID := uuid.New()
+	viewer := uuid.New()
+	otherMember := uuid.New()
+	hub.JoinRoom(roomID, viewer)
+	hub.JoinRoom(roomID, otherMember)
+	hub.JoinRoom(otherRoomID, viewer)
+
+	// when
+	hub.AddViewer(roomID, viewer)
+
+	// then
+	assert.True(t, hub.IsUserViewing(roomID, viewer), "the viewer is viewing the room they opened")
+	assert.False(t, hub.IsUserViewing(roomID, otherMember), "another member of the same room is not viewing it")
+	assert.False(t, hub.IsUserViewing(otherRoomID, viewer), "the viewer is not viewing their other room")
+}

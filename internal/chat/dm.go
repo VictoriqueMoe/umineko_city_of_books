@@ -74,6 +74,9 @@ func (d *dmService) ResolveDMRoom(ctx context.Context, senderID, recipientID uui
 		return resp, nil
 	}
 
+	d.hub.JoinRoom(existingID, senderID)
+	d.hub.JoinRoom(existingID, recipientID)
+
 	room, err := d.parent.buildRoomResponse(ctx, existingID, senderID)
 	if err != nil {
 		return nil, err
@@ -103,6 +106,9 @@ func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uui
 	if err != nil {
 		return nil, fmt.Errorf("create dm room: %w", err)
 	}
+
+	d.hub.JoinRoom(room.ID, senderID)
+	d.hub.JoinRoom(room.ID, recipientID)
 
 	msgResp, err := d.parent.SendMessage(ctx, senderID, room.ID, dto.SendMessageRequest{Body: body}, files)
 	if err != nil {

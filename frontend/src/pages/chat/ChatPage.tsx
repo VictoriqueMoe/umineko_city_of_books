@@ -68,6 +68,8 @@ export function ChatPage() {
         handleSelectUser,
         handleEditLast,
         handleDeleteChat,
+        handleToggleMute,
+        mutePending,
         notifyTyping,
     } = controller;
     const forceMute = useForceMuteVoiceParticipant(activeRoomId);
@@ -171,9 +173,20 @@ export function ChatPage() {
                                         <span dir="auto">{getRoomDisplayName(activeRoom, user)}</span>
                                     )}
                                 </div>
-                                <Button variant="danger" size="small" onClick={handleDeleteChat}>
-                                    Delete Chat
-                                </Button>
+                                <div className={styles.headerActions}>
+                                    <Button
+                                        variant="secondary"
+                                        size="small"
+                                        onClick={handleToggleMute}
+                                        disabled={mutePending}
+                                        title={activeRoom.viewer_muted ? "Unmute notifications" : "Mute notifications"}
+                                    >
+                                        {mutePending ? "..." : activeRoom.viewer_muted ? "Unmute" : "Mute"}
+                                    </Button>
+                                    <Button variant="danger" size="small" onClick={handleDeleteChat}>
+                                        Delete Chat
+                                    </Button>
+                                </div>
                             </div>
                             {voice.status === "connected" && voice.room && (
                                 <VoiceBar

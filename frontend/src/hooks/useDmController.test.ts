@@ -1,4 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { useNavigate } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as BusModule from "../api/realtime/bus";
 import type * as OutboundModule from "../api/realtime/outbound";
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     fetchMutualFollowers: vi.fn(),
     fetchSearchUsers: vi.fn(),
     deleteChatRoom: vi.fn(),
+    setChatRoomMuted: vi.fn(),
     markChatRoomRead: vi.fn(),
     deleteChatMessage: vi.fn(),
     editChatMessage: vi.fn(),
@@ -61,6 +63,7 @@ vi.mock("./queries/user", () => ({
 
 vi.mock("./mutations/chat", () => ({
     useDeleteChatRoom: () => ({ mutateAsync: mocks.deleteChatRoom }),
+    useSetChatRoomMuted: () => ({ mutateAsync: mocks.setChatRoomMuted }),
     useMarkChatRoomRead: () => ({ mutate: mocks.markChatRoomRead, mutateAsync: mocks.markChatRoomRead }),
     useDeleteChatMessage: () => ({ mutateAsync: mocks.deleteChatMessage }),
     useEditChatMessage: () => ({ mutateAsync: mocks.editChatMessage }),
@@ -128,6 +131,23 @@ async function renderLoadedDm(options: HarnessOptions = {}) {
     });
 
     return harness;
+}
+
+async function renderNavigableDm(route = "/chat/room-1") {
+    const wrapper = providerWrapper({ user: viewer, route, path: "/chat/:roomId?" });
+    const rendered = renderHook(() => ({ dm: useDmController(), navigate: useNavigate() }), { wrapper });
+
+    await waitFor(() => {
+        expect(rendered.result.current.dm.loading).toBe(false);
+    });
+
+    return rendered;
+}
+
+function roomCommands(): OutboundModule.RealtimeCommand[] {
+    return holder.ws.sendRealtime.mock.calls
+        .map(call => call[0])
+        .filter(command => command.type === "join_room" || command.type === "leave_room");
 }
 
 beforeEach(() => {
@@ -270,6 +290,95 @@ describe("useDmController socket wiring", () => {
 
         // then
         expect(sendRealtime).not.toHaveBeenCalled();
+    });
+});
+
+describe("useDmController url navigation", () => {
+    interface NavigationCase {
+        name: string;
+        to: string;
+        expectedRoomId: string | null;
+        expectedView: "list" | "room";
+        expectedCommands: OutboundModule.RealtimeCommand[];
+    }
+
+    const navigationCases: NavigationCase[] = [
+        {
+            name: "another conversation",
+            to: "/chat/room-2",
+            expectedRoomId: "room-2",
+            expectedView: "room",
+            expectedCommands: [
+                { type: "join_room", data: { room_id: "room-1" } },
+                { type: "leave_room", data: { room_id: "room-1" } },
+                { type: "join_room", data: { room_id: "room-2" } },
+            ],
+        },
+        {
+            name: "the conversation list",
+            to: "/chat",
+            expectedRoomId: null,
+            expectedView: "list",
+            expectedCommands: [
+                { type: "join_room", data: { room_id: "room-1" } },
+                { type: "leave_room", data: { room_id: "room-1" } },
+            ],
+        },
+    ];
+
+    it.each(navigationCases)(
+        "re-points the open conversation and the socket when the url moves to $name",
+        async ({ to, expectedRoomId, expectedView, expectedCommands }) => {
+            // given
+            const { result } = await renderNavigableDm();
+
+            // when
+            act(() => {
+                result.current.navigate(to);
+            });
+
+            // then
+            expect(roomCommands()).toEqual(expectedCommands);
+            expect(result.current.dm.activeRoomId).toBe(expectedRoomId);
+            expect(result.current.dm.mobileView).toBe(expectedView);
+        },
+    );
+
+    it("drops the reply target belonging to the conversation the url left behind", async () => {
+        // given
+        const { result } = await renderNavigableDm();
+        act(() => {
+            result.current.dm.setReplyingTo({
+                id: "m1",
+                senderName: "Battler",
+                bodyPreview: "without love it cannot be seen",
+            });
+        });
+
+        // when
+        act(() => {
+            result.current.navigate("/chat/room-2");
+        });
+
+        // then
+        expect(result.current.dm.replyingTo).toBeNull();
+    });
+
+    it("keeps the conversation view mounted while the url changes under it", async () => {
+        // given
+        const { result } = await renderNavigableDm();
+        act(() => {
+            result.current.dm.showToast("the golden land");
+        });
+
+        // when
+        act(() => {
+            result.current.navigate("/chat/room-2");
+        });
+
+        // then
+        expect(result.current.dm.toast).toBe("the golden land");
+        expect(mocks.fetchUserRooms).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -709,6 +818,37 @@ describe("useDmController deleting a conversation", () => {
         expect(mocks.deleteChatRoom).not.toHaveBeenCalled();
         expect(result.current.rooms).toHaveLength(1);
         confirm.mockRestore();
+    });
+
+    it("mutes the conversation and reflects it on the room straight away", async () => {
+        // given
+        const { result } = await renderLoadedDm();
+
+        // when
+        await act(async () => {
+            await result.current.handleToggleMute();
+        });
+
+        // then
+        expect(mocks.setChatRoomMuted).toHaveBeenCalledWith({ roomId: "room-1", muted: true });
+        expect(result.current.rooms[0].viewer_muted).toBe(true);
+        expect(result.current.toast).toBe("Notifications muted");
+    });
+
+    it("leaves the conversation unmuted when the server refuses", async () => {
+        // given
+        mocks.setChatRoomMuted.mockRejectedValue(new Error("nope"));
+        const { result } = await renderLoadedDm();
+
+        // when
+        await act(async () => {
+            await result.current.handleToggleMute();
+        });
+
+        // then
+        expect(result.current.rooms[0].viewer_muted).toBeFalsy();
+        expect(result.current.toast).toBe("nope");
+        expect(result.current.mutePending).toBe(false);
     });
 
     it("removes the conversation and returns to the list once confirmed", async () => {

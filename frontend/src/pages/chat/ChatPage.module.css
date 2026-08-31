@@ -37,6 +37,13 @@
     flex-wrap: wrap;
 }
 
+.headerActions {
+    display: flex;
+    gap: 0.375rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
 .roomListTitle {
     font-family: var(--font-display);
     font-size: 1rem;

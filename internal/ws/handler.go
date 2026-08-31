@@ -29,6 +29,7 @@ const (
 	localsAnonKey         = "ws.anon"
 	sessionRecheckEvery   = 5 * time.Minute
 	readDeadline          = 90 * time.Second
+	membershipCheckLimit  = 3 * time.Second
 
 	inboundPerSecond = 100
 	inboundBurst     = 200
@@ -40,6 +41,10 @@ const (
 type (
 	RoomLister interface {
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+	}
+
+	RoomMembershipChecker interface {
+		IsRoomMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error)
 	}
 
 	BanChecker interface {
@@ -149,7 +154,34 @@ func broadcastPresence(hub *Hub, roomID, userID uuid.UUID, state string) {
 	}, uuid.Nil)
 }
 
-func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomLister RoomLister, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
+func ensureRoomMembership(ctx context.Context, hub *Hub, memberChecker RoomMembershipChecker, roomID, userID uuid.UUID) bool {
+	if hub.IsUserInRoom(roomID, userID) {
+		return true
+	}
+
+	if memberChecker == nil {
+		return false
+	}
+
+	checkCtx, cancel := context.WithTimeout(ctx, membershipCheckLimit)
+	defer cancel()
+
+	isMember, err := memberChecker.IsRoomMember(checkCtx, roomID, userID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Str("room_id", roomID.String()).Msg("ws membership check failed")
+
+		return false
+	}
+	if !isMember {
+		return false
+	}
+
+	hub.JoinRoom(roomID, userID)
+
+	return true
+}
+
+func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomLister RoomLister, memberChecker RoomMembershipChecker, gamePresence GameRoomPresence, watchPartyDisconnect WatchPartyDisconnectHandler, allowedOrigin func(ctx context.Context) string) fiber.Handler {
 	wsHandler := websocket.New(func(conn *websocket.Conn) {
 		if anon, _ := conn.Locals(localsAnonKey).(bool); anon {
 			runAnonReader(hub, conn)
@@ -263,7 +295,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 
 			recordInbound(msg.Type, tokens)
 
-			handleWSMessage(client, msg, hub, gamePresence, joinedGameRooms)
+			handleWSMessage(client, msg, hub, memberChecker, gamePresence, joinedGameRooms)
 		}
 	}, websocket.Config{
 		Origins:           []string{"*"},
@@ -354,7 +386,7 @@ func runAnonReader(hub *Hub, conn *websocket.Conn) {
 	}
 }
 
-func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
+func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, memberChecker RoomMembershipChecker, gamePresence GameRoomPresence, joinedGameRooms map[uuid.UUID]bool) {
 	userID := client.UserID
 
 	spanCtx, span := hub.tracer.Start(
@@ -392,7 +424,7 @@ func handleWSMessage(client *Client, msg incomingMessage, hub *Hub, gamePresence
 		if err != nil {
 			return
 		}
-		if !hub.IsUserInRoom(roomID, userID) {
+		if !ensureRoomMembership(spanCtx, hub, memberChecker, roomID, userID) {
 			return
 		}
 		hub.AddViewer(roomID, userID)
