@@ -66,24 +66,8 @@ function Probe() {
             <p>{`chat: ${value.chatUnreadCount}`}</p>
             <p>{`games: ${value.liveGamesCount}`}</p>
             <p>{`streams: ${value.liveStreamsCount}`}</p>
-            <p>{`epoch: ${value.wsEpoch}`}</p>
         </div>
     );
-}
-
-function ShimConsumer({ onEvent }: { onEvent: () => void }) {
-    const value = useContext(NotificationContext);
-    const addWSListener = value?.addWSListener;
-
-    useEffect(() => {
-        if (!addWSListener) {
-            return;
-        }
-
-        return addWSListener(onEvent);
-    }, [addWSListener, onEvent]);
-
-    return null;
 }
 
 function context(): NotificationContextValue {
@@ -129,40 +113,6 @@ function emit(msg: { type: string; data?: unknown }, socket: FakeWebSocket = las
     });
 }
 
-const nativeQueueMicrotask = queueMicrotask;
-
-interface ReportedErrors {
-    errors: unknown[];
-    stop: () => void;
-}
-
-function captureReportedErrors(): ReportedErrors {
-    const errors: unknown[] = [];
-
-    function capture(event: ErrorEvent): void {
-        event.preventDefault();
-        errors.push(event.error);
-    }
-
-    window.addEventListener("error", capture);
-    vi.stubGlobal("queueMicrotask", (callback: VoidFunction) => {
-        nativeQueueMicrotask(() => {
-            try {
-                callback();
-            } catch (error) {
-                window.dispatchEvent(new ErrorEvent("error", { error, message: String(error), cancelable: true }));
-            }
-        });
-    });
-
-    return {
-        errors,
-        stop: () => {
-            window.removeEventListener("error", capture);
-        },
-    };
-}
-
 beforeEach(() => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket);
@@ -192,144 +142,6 @@ describe("NotificationProvider", () => {
 
         // then
         expect(socket.closeCount).toBe(1);
-    });
-
-    it("bumps the socket epoch every time a connection opens", () => {
-        // given
-        renderProvider();
-        const before = Number(screen.getByText(/^epoch: /).textContent!.slice("epoch: ".length));
-
-        // when
-        openSocket();
-
-        // then
-        expect(screen.getByText(`epoch: ${before + 1}`)).toBeInTheDocument();
-    });
-
-    it("hands every message to the listeners that registered for them", () => {
-        // given
-        renderProvider();
-        openSocket();
-        const first = vi.fn();
-        const second = vi.fn();
-        context().addWSListener(first);
-        context().addWSListener(second);
-
-        // when
-        emit({ type: "chat_message", data: { body: "uu~" } });
-
-        // then
-        expect(first).toHaveBeenCalledWith({ type: "chat_message", data: { body: "uu~" } });
-        expect(second).toHaveBeenCalledOnce();
-    });
-
-    it("keeps delivering to the listeners registered after one that throws", async () => {
-        // given
-        renderProvider();
-        openSocket();
-        const reported = captureReportedErrors();
-        const second = vi.fn();
-        const stopThrowing = context().addWSListener(() => {
-            throw new Error("listener bug");
-        });
-        const stopSecond = context().addWSListener(second);
-
-        // when
-        emit({ type: "chat_message", data: {} });
-        await act(async () => {});
-
-        // then
-        expect(second).toHaveBeenCalledOnce();
-        expect(reported.errors).toHaveLength(1);
-        stopThrowing();
-        stopSecond();
-        reported.stop();
-    });
-
-    it("reports a listener bug on the window instead of swallowing it", async () => {
-        // given
-        renderProvider();
-        openSocket();
-        const reported = captureReportedErrors();
-        const bug = new Error("listener bug");
-        const stopThrowing = context().addWSListener(() => {
-            throw bug;
-        });
-
-        // when
-        emit({ type: "chat_message", data: {} });
-        await act(async () => {});
-
-        // then
-        expect(reported.errors).toEqual([bug]);
-        stopThrowing();
-        reported.stop();
-    });
-
-    it("stops delivering to a listener that has been removed", () => {
-        // given
-        renderProvider();
-        openSocket();
-        const handler = vi.fn();
-        const remove = context().addWSListener(handler);
-
-        // when
-        remove();
-        emit({ type: "chat_message", data: {} });
-
-        // then
-        expect(handler).not.toHaveBeenCalled();
-    });
-
-    it("ignores a payload that is not valid json", () => {
-        // given
-        renderProvider();
-        openSocket();
-        const handler = vi.fn();
-        context().addWSListener(handler);
-
-        // when
-        act(() => {
-            lastSocket().onmessage?.({ data: "not json at all" });
-        });
-
-        // then
-        expect(handler).not.toHaveBeenCalled();
-    });
-
-    it("swallows a keepalive pong without telling the listeners", () => {
-        // given
-        renderProvider();
-        openSocket();
-        const handler = vi.fn();
-        context().addWSListener(handler);
-
-        // when
-        emit({ type: "pong", data: {} });
-
-        // then
-        expect(handler).not.toHaveBeenCalled();
-    });
-
-    it("runs its own cache reactions before the listeners the shim fans out to", () => {
-        // given
-        const seen: unknown[] = [];
-        const queryClient = createTestQueryClient();
-        const record = () => {
-            seen.push(queryClient.getQueryData(queryKeys.chat.unreadCount()));
-        };
-        renderWithProviders(
-            <NotificationProvider>
-                <ShimConsumer onEvent={record} />
-            </NotificationProvider>,
-            { user: signedIn, queryClient },
-        );
-
-        // when
-        emit({ type: "chat_unread_bumped", data: { total: 7 } });
-
-        // then
-        expect(seen).toEqual([{ count: 7 }]);
     });
 
     it("shows a desktop notification and plays the sound by default", () => {

@@ -9,6 +9,7 @@ import type {
     UpdateGroupRoomRequest,
     User,
 } from "../../../types/api";
+import { makeChatRoom } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { RoomModerationDialog } from "./RoomModerationDialog";
 
@@ -78,24 +79,7 @@ function makeBan(overrides: Partial<ChatRoomBan> = {}): ChatRoomBan {
 }
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: roomId,
-        name: "Golden Land",
-        description: "a place for tea",
-        type: "group",
-        is_public: true,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
+    return makeChatRoom({ id: roomId, name: "Golden Land", description: "a place for tea", ...overrides });
 }
 
 function makeRule(overrides: Partial<BannedWordRule> = {}): BannedWordRule {

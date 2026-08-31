@@ -5,7 +5,10 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
+
+	"github.com/google/uuid"
 )
 
 func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
@@ -24,23 +27,43 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.User = repository.NewUserRepo(db, dao.NewUser(db), c, repos.Role, repos.AuditLog, repos.EmailVerification, repos.Invite, repos.Session, repos.PasswordReset)
 	repos.Chat = repository.NewChatRepo(db, dao.NewChat(db), repos.AuditLog)
 	repos.Report = repository.NewReportRepo(dao.NewReport(db))
-	repos.Post = repository.NewPostRepo(db, dao.NewPost(db), repos.AuditLog)
+	postDAO, postComments := dao.NewPost(db)
+	repos.Post = repository.NewPostRepo(db, postDAO, repos.AuditLog)
+
 	repos.Follow = repository.NewFollowRepo(dao.NewFollow(db))
-	repos.Art = repository.NewArtRepo(db, dao.NewArt(db), repos.Post, repos.AuditLog)
+
+	artDAO, artComments := dao.NewArt(db)
+	repos.Art = repository.NewArtRepo(db, artDAO, repos.Post, repos.AuditLog)
+
 	repos.Upload = repository.NewUploadRepo(dao.NewUpload(db))
 	repos.Block = repository.NewBlockRepo(dao.NewBlock(db))
-	repos.Announcement = repository.NewAnnouncementRepo(db, dao.NewAnnouncement(db), repos.AuditLog)
-	repos.Mystery = repository.NewMysteryRepo(db, dao.NewMystery(db), repos.AuditLog, c)
-	repos.Ship = repository.NewShipRepo(db, dao.NewShip(db), repos.AuditLog)
-	repos.OC = repository.NewOCRepo(db, dao.NewOC(db), repos.AuditLog)
-	repos.Fanfic = repository.NewFanficRepo(db, dao.NewFanfic(db), repos.AuditLog)
-	repos.Journal = repository.NewJournalRepo(db, dao.NewJournal(db), repos.AuditLog)
+
+	announcementDAO, announcementComments := dao.NewAnnouncement(db)
+	repos.Announcement = repository.NewAnnouncementRepo(db, announcementDAO, repos.AuditLog)
+
+	mysteryDAO, mysteryComments := dao.NewMystery(db)
+	repos.Mystery = repository.NewMysteryRepo(db, mysteryDAO, repos.AuditLog, c)
+
+	shipDAO, shipComments := dao.NewShip(db)
+	repos.Ship = repository.NewShipRepo(db, shipDAO, repos.AuditLog)
+
+	ocDAO, ocComments := dao.NewOC(db)
+	repos.OC = repository.NewOCRepo(db, ocDAO, repos.AuditLog)
+
+	fanficDAO, fanficComments := dao.NewFanfic(db)
+	repos.Fanfic = repository.NewFanficRepo(db, fanficDAO, repos.AuditLog)
+
+	journalRepo, journalComments := repository.NewJournalRepo(db, dao.NewJournal(db), repos.AuditLog)
+	repos.Journal = journalRepo
+
 	repos.VanityRole = repository.NewVanityRoleRepo(db, dao.NewVanityRole(db), c)
 	repos.Permission = repository.NewPermissionRepo(dao.NewPermission(db), c)
 	repos.GiphyFavourite = repository.NewGiphyFavouriteRepo(dao.NewGiphyFavourite(db))
 	repos.BannedGiphy = repository.NewBannedGiphyRepo(dao.NewBannedGiphy(db))
 	repos.UserSecret = repository.NewUserSecretRepo(dao.NewUserSecret(db), c)
-	repos.Secret = repository.NewSecretRepo(db, dao.NewSecret(db), repos.AuditLog)
+	secretDAO, secretComments := dao.NewSecret(db)
+	repos.Secret = repository.NewSecretRepo(db, secretDAO, repos.AuditLog)
+
 	repos.ChatRoomBan = repository.NewChatRoomBanRepo(db, dao.NewChatRoomBan(db), repos.AuditLog)
 	repos.ChatBannedWord = repository.NewChatBannedWordRepo(db, dao.NewChatBannedWord(db), repos.AuditLog)
 	repos.ChatWatchParty = repository.NewChatWatchPartyRepo(db, dao.NewChatWatchParty(db), repos.Chat, repos.AuditLog)
@@ -56,6 +79,22 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	basePrompts := repository.NewChatbotBasePromptRepo(dao.NewChatbotBasePrompt(db), c)
 	repos.ChatbotBasePrompt = basePrompts
 	repos.Chatbot = repository.NewChatbotRepo(db, dao.NewChatbot(db), repos.User, repos.VanityRole, basePrompts, c)
+
+	repos.Comments = repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{
+			string(mention.KindPostComment):         postComments,
+			string(mention.KindArtComment):          artComments,
+			string(mention.KindAnnouncementComment): announcementComments,
+			string(mention.KindMysteryComment):      mysteryComments,
+			string(mention.KindShipComment):         shipComments,
+			string(mention.KindOCComment):           ocComments,
+			string(mention.KindFanficComment):       fanficComments,
+		},
+		BySlug: map[string]repository.CommentDAO[string]{
+			string(mention.KindSecretComment): secretComments,
+		},
+		Journal: journalComments,
+	}
 
 	return repos
 }

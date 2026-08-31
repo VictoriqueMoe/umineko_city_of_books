@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatRoomMember } from "../../../types/api";
+import { makePublicUser, makeRoomMember } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import {
     RoomMemberDialogs,
@@ -11,14 +12,7 @@ import {
 } from "./RoomMemberDialogs";
 
 function makeMember(displayName: string): ChatRoomMember {
-    return {
-        user: { id: "member-1", username: "beatrice", display_name: displayName },
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-    };
+    return makeRoomMember({ user: makePublicUser({ id: "member-1", display_name: displayName }) });
 }
 
 function makeNickname(overrides: Partial<NicknameDialogProps> = {}): NicknameDialogProps {

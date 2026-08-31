@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeChatMessage, makeUser } from "../../test-utils/fixtures";
 import { emitRealtimeEvent } from "../../test-utils/ws";
 import type { ChatMessage, ChatMessageListResponse } from "../../types/api";
 import { useChatSession, type UseChatSessionOptions } from "./useChatSession";
@@ -38,17 +38,11 @@ vi.mock("../../platform/sound", () => ({
 const viewer = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
+    return makeChatMessage({
         sender: { id: "sender-1", username: "beatrice", display_name: "Beatrice" },
-        body: "the golden truth",
-        is_system: false,
         created_at: "2026-08-01T10:05:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 function historyOf(messages: ChatMessage[], total = messages.length): ChatMessageListResponse {

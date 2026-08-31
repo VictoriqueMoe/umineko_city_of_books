@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { SiteInfoSecret } from "../../types/api";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeSiteSecret, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { HuntIcon } from "./HuntIcon";
 
@@ -16,19 +16,16 @@ const ownerId = "11111111-1111-1111-1111-111111111111";
 const secretId = "epitaph";
 
 function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
-    return {
+    return makeSiteSecret({
         id: secretId,
-        title: "The Witch's Epitaph",
-        description: "Seek the key that opens the golden land.",
         icon: "\u{1f52e}",
-        solved: false,
         pieces: [
             { id: "piece-1", letter: "B", tile: 1 },
             { id: "piece-2", letter: "E", tile: 2 },
             { id: "piece-3", letter: "A", tile: 3 },
         ],
         ...overrides,
-    };
+    });
 }
 
 interface SetupOptions {

@@ -15,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -69,6 +70,7 @@ type (
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
+		mentionSvc    mention.Service
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
 		uploader      *media.Uploader
@@ -93,6 +95,7 @@ func NewService(
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
+	mentionSvc mention.Service,
 	settingsSvc settings.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
@@ -107,6 +110,7 @@ func NewService(
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
+		mentionSvc:    mentionSvc,
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -370,6 +374,8 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		return uuid.Nil, err
 	}
 
+	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindMystery, EntityID: created.ID}, userID, req.Body)
+
 	go notification.SendFollowerNotification(context.Background(), s.followRepo, s.notifService, notification.FollowerNotifyParams{
 		ActorID:       userID,
 		Type:          dto.NotifMysteryCreated,
@@ -543,10 +549,18 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		}
 	}
 
-	created, err := s.mysteryRepo.CreateAttempt(ctx, mysteryID, userID, req.ParentID, strings.TrimSpace(req.Body))
+	body := strings.TrimSpace(req.Body)
+
+	created, err := s.mysteryRepo.CreateAttempt(ctx, mysteryID, userID, req.ParentID, body)
 	if err != nil {
 		return uuid.Nil, err
 	}
+
+	s.mentionSvc.NotifyAsync(ctx, mention.Reference{
+		Kind:     mention.KindMysteryAttempt,
+		EntityID: mysteryID,
+		ChildID:  created.ID,
+	}, userID, body)
 
 	wsData := map[string]any{
 		"mystery_id":          mysteryID,
@@ -1030,12 +1044,16 @@ func (s *service) CreateComment(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	created, err := s.mysteryRepo.CreateComment(ctx, mysteryID, req.ParentID, userID, body)
+	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
+		Kind:     mention.KindMysteryComment,
+		EntityID: mysteryID,
+		ParentID: req.ParentID,
+		AuthorID: userID,
+		Body:     body,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
-
-	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()

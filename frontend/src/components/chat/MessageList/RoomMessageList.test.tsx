@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeChatMessage, makeChatRoom, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatMessage, ChatRoom, User, UserProfile } from "../../../types/api";
 import { RoomMessageList, type RoomMessageListProps } from "./RoomMessageList";
@@ -93,39 +93,16 @@ function makeSender(overrides: Partial<User> = {}): User {
 }
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: makeSender(),
-        body: "the golden truth",
-        is_system: false,
-        created_at: "2026-08-01T10:00:00Z",
-        pinned: false,
-        reactions: [],
-        ...overrides,
-    };
+    return makeChatMessage({ sender: makeSender(), created_at: "2026-08-01T10:00:00Z", ...overrides });
 }
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
+    return makeChatRoom({
         name: "Rokkenjima",
-        description: "",
-        type: "group",
-        is_public: true,
-        is_rp: false,
-        is_system: false,
-        tags: [],
         viewer_role: "member",
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [],
         created_at: "2026-07-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 interface ListOptions {

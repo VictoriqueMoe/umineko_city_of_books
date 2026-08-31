@@ -1,21 +1,12 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { makeGallery as makeContentGallery, makePublicUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { Gallery } from "../../../types/api";
 import { GalleryCoverPreview } from "./GalleryCoverPreview";
 
 function makeGallery(overrides: Partial<Gallery> = {}): Gallery {
-    return {
-        id: "gallery-1",
-        author: { id: "beatrice-id", username: "beatrice", display_name: "Beatrice" },
-        name: "Golden Butterflies",
-        description: "",
-        cover_image_url: "",
-        cover_thumbnail_url: "",
-        art_count: 3,
-        created_at: "2026-07-01T10:00:00Z",
-        ...overrides,
-    };
+    return makeContentGallery({ author: makePublicUser({ id: "beatrice-id" }), ...overrides });
 }
 
 function images(): HTMLImageElement[] {

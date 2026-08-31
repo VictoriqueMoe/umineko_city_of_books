@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { makeWatchPartySession } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { User, WatchPartyParticipant, WatchPartySession } from "../../../types/api";
 import { WatchPartyButton } from "./WatchPartyButton";
@@ -23,18 +24,7 @@ function makeParticipant(overrides: Partial<WatchPartyParticipant> = {}): WatchP
 }
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
-        id: "session-1",
-        room_id: "room-1",
-        started_by: viewerId,
-        controller_id: viewerId,
-        title: "Chiru rewatch",
-        type: "hyperbeam",
-        status: "active",
-        started_at: "2026-08-01T10:00:00Z",
-        participants: [],
-        ...overrides,
-    };
+    return makeWatchPartySession({ started_by: viewerId, controller_id: viewerId, ...overrides });
 }
 
 interface ButtonOptions {

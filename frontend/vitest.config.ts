@@ -19,6 +19,7 @@ export default defineConfig({
             exclude: [
                 "src/**/*.test.{ts,tsx}",
                 "src/test-utils/**",
+                "src/api/endpoints/testHarness.ts",
                 "src/vite-env.d.ts",
                 "src/types/**",
                 "src/**/*.fixture.ts",

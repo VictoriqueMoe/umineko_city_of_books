@@ -19,6 +19,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -33,16 +34,17 @@ import (
 )
 
 type testMocks struct {
-	postRepo    *repository.MockPostRepository
-	userRepo    *repository.MockUserRepository
-	roleRepo    *repository.MockRoleRepository
-	auditRepo   *repository.MockAuditLogRepository
-	authz       *authz.MockService
-	blockSvc    *block.MockService
-	notifSvc    *notification.MockService
-	uploadSvc   *upload.MockService
-	settingsSvc *settings.MockService
-	hub         *ws.Hub
+	postRepo     *repository.MockPostRepository
+	postComments *repository.MockCommentDAO[uuid.UUID]
+	userRepo     *repository.MockUserRepository
+	roleRepo     *repository.MockRoleRepository
+	auditRepo    *repository.MockAuditLogRepository
+	authz        *authz.MockService
+	blockSvc     *block.MockService
+	notifSvc     *notification.MockService
+	uploadSvc    *upload.MockService
+	settingsSvc  *settings.MockService
+	hub          *ws.Hub
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -60,19 +62,25 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 
-	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
+	postComments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindPostComment): postComments},
+	})
+
+	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
 
 	return svc, &testMocks{
-		postRepo:    postRepo,
-		userRepo:    userRepo,
-		roleRepo:    roleRepo,
-		auditRepo:   auditRepo,
-		authz:       authzSvc,
-		blockSvc:    blockSvc,
-		notifSvc:    notifSvc,
-		uploadSvc:   uploadSvc,
-		settingsSvc: settingsSvc,
-		hub:         hub,
+		postRepo:     postRepo,
+		postComments: postComments,
+		userRepo:     userRepo,
+		roleRepo:     roleRepo,
+		auditRepo:    auditRepo,
+		authz:        authzSvc,
+		blockSvc:     blockSvc,
+		notifSvc:     notifSvc,
+		uploadSvc:    uploadSvc,
+		settingsSvc:  settingsSvc,
+		hub:          hub,
 	}
 }
 
@@ -92,7 +100,7 @@ func expectBackgroundSocial(m *testMocks) {
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
-	m.userRepo.EXPECT().GetByUsername(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, mock.Anything).Return(nil, errors.New("ignored")).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("http://base").Maybe()
 	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
@@ -1007,7 +1015,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
+	m.postComments.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -1024,7 +1032,7 @@ func TestCreateComment_OKTopLevel(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.postComments.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1044,7 +1052,7 @@ func TestCreateComment_OKReply(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.postComments.EXPECT().CreateComment(mock.Anything, postID, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1053,6 +1061,116 @@ func TestCreateComment_OKReply(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	postID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.postComments.EXPECT().
+		CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, postID, mentioned.ReferenceID)
+	assert.Equal(t, "post_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/game-board/"+postID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
+}
+
+func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) {
+	tests := []struct {
+		name       string
+		corner     string
+		wantNotify bool
+	}{
+		{name: "the general corner pings the named user", corner: "general", wantNotify: true},
+		{name: "the suggestions corner pings nobody", corner: "suggestions"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			postID := uuid.New()
+			mentionedID := uuid.New()
+
+			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
+			m.postRepo.EXPECT().
+				CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: tt.corner, Body: "look at this @alice"}).
+				Return(&model.PostRow{ID: postID}, nil)
+
+			var wg sync.WaitGroup
+			var mentioned dto.NotifyParams
+
+			if tt.wantNotify {
+				wg.Add(1)
+				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+				m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+				m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+					RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+						mentioned = p
+						wg.Done()
+
+						return nil
+					})
+			} else {
+				expectBackgroundSocial(m)
+			}
+
+			// when
+			_, err := svc.CreatePost(context.Background(), userID, dto.CreatePostRequest{Corner: tt.corner, Body: "look at this @alice"})
+
+			// then
+			require.NoError(t, err)
+
+			if !tt.wantNotify {
+				m.notifSvc.AssertNotCalled(t, "Notify", mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
+					return p.Type == dto.NotifMention
+				}))
+
+				return
+			}
+
+			wg.Wait()
+			assert.Equal(t, dto.NotifMention, mentioned.Type)
+			assert.Equal(t, mentionedID, mentioned.RecipientID)
+			assert.Equal(t, postID, mentioned.ReferenceID)
+			assert.Equal(t, "post", mentioned.ReferenceType)
+			assert.Equal(t, "/game-board/"+postID.String(), mentioned.EmailLink)
+		})
+	}
 }
 
 func TestUpdateComment_EmptyBody(t *testing.T) {

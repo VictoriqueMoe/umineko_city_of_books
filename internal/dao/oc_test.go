@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -193,7 +194,7 @@ func TestOCDAO_DeleteOC_ReturnsImageGalleryAndCommentMediaPaths(t *testing.T) {
 	require.NoError(t, err)
 	_, err = repos.OC.AddGalleryImage(context.Background(), id, "/uploads/ocs/gallery_two.png", "", "Second", 1)
 	require.NoError(t, err)
-	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "nice")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "nice")
 	require.NoError(t, err)
 	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment.png", "image", "/uploads/ocs/comment_thumb.png", "comment.png", 0)
 	require.NoError(t, err)
@@ -264,9 +265,9 @@ func TestOCDAO_DeleteCommentWithMedia_ReturnsOnlyThatCommentMediaPaths(t *testin
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	target, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "target")
+	target, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "target")
 	require.NoError(t, err)
-	other, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "other")
+	other, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "other")
 	require.NoError(t, err)
 	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target.png", "image", "/uploads/ocs/target_thumb.png", "target.png", 0)
 	require.NoError(t, err)
@@ -297,7 +298,7 @@ func TestOCDAO_DeleteCommentWithMedia_AsAdmin(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "spam")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "spam")
 	require.NoError(t, err)
 	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/spam.png", "image", "/uploads/ocs/spam_thumb.png", "spam.png", 0)
 	require.NoError(t, err)
@@ -319,7 +320,7 @@ func TestOCDAO_DeleteCommentWithMedia_AsAdminWritesAudit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "spam")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "spam")
 	require.NoError(t, err)
 
 	// when
@@ -343,7 +344,7 @@ func TestOCDAO_DeleteCommentWithMedia_AsOwnerWritesAudit(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "mine")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "mine")
 	require.NoError(t, err)
 
 	// when
@@ -365,7 +366,7 @@ func TestOCDAO_DeleteCommentWithMedia_NotOwnedWritesNoAudit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.OC.CreateComment(context.Background(), id, nil, user.ID, "mine")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "mine")
 	require.NoError(t, err)
 
 	// when
@@ -548,7 +549,7 @@ func TestOCDAO_CommentsRoundTrip(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when (create)
-	comment, err := repos.OC.CreateComment(context.Background(), id, nil, commenter.ID, "great oc")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, commenter.ID, "great oc")
 	require.NoError(t, err)
 	commentID := comment.ID
 

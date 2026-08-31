@@ -1,6 +1,6 @@
 import { type PropsWithChildren, useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { NotificationContext, SHIM_LISTENER_EVENTS, type WSMessageHandler } from "./notificationContextValue";
+import { NotificationContext } from "./notificationContextValue";
 import { useAuth } from "../hooks/useAuth";
 import { useUnreadCount } from "../hooks/queries/notification";
 import { useChatUnreadCount } from "../hooks/queries/chat";
@@ -10,16 +10,11 @@ import { useMarkAllNotificationsRead, useMarkNotificationRead } from "../hooks/m
 import { queryKeys } from "../api/queryKeys";
 import { showDesktopNotification } from "../platform/desktopNotifications";
 import { playNotificationSound } from "../platform/sound";
-import { subscribe } from "../api/realtime/bus";
-import { sendRealtime, type RealtimeCommand } from "../api/realtime/outbound";
-import { ensureRealtimePipeline } from "../api/realtime/pipeline";
 import { RealtimeSync } from "../api/realtime/sync/RealtimeSync";
-import { useRealtimeStatus } from "../api/realtime/useRealtime";
 
 export function NotificationProvider({ children }: PropsWithChildren) {
     const { user } = useAuth();
     const qc = useQueryClient();
-    const wsEpoch = useRealtimeStatus();
 
     const unreadCountQuery = useUnreadCount();
     const refreshUnreadCount = unreadCountQuery.refresh;
@@ -48,15 +43,6 @@ export function NotificationProvider({ children }: PropsWithChildren) {
         qc.setQueryData<{ count: number }>(queryKeys.notifications.unreadCount(), { count: 0 });
     }, [markAllReadMutate, qc]);
 
-    const addWSListener = useCallback((handler: WSMessageHandler) => {
-        ensureRealtimePipeline();
-        return subscribe(SHIM_LISTENER_EVENTS, handler);
-    }, []);
-
-    const sendWSMessage = useCallback((msg: object) => {
-        sendRealtime(msg as RealtimeCommand);
-    }, []);
-
     const value = useMemo(
         () => ({
             unreadCount,
@@ -65,21 +51,8 @@ export function NotificationProvider({ children }: PropsWithChildren) {
             liveStreamsCount,
             markRead,
             markAllRead,
-            addWSListener,
-            sendWSMessage,
-            wsEpoch,
         }),
-        [
-            unreadCount,
-            chatUnreadCount,
-            liveGamesCount,
-            liveStreamsCount,
-            markRead,
-            markAllRead,
-            addWSListener,
-            sendWSMessage,
-            wsEpoch,
-        ],
+        [unreadCount, chatUnreadCount, liveGamesCount, liveStreamsCount, markRead, markAllRead],
     );
 
     return (

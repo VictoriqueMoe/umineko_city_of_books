@@ -1,26 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { makeChatRoom } from "../../test-utils/fixtures";
 import type { ChatRoom, SiteRole } from "../../types/api";
 import { isTimeoutActive, roomViewerPolicy } from "./roomPolicy";
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "Rokkenjima",
-        description: "",
-        type: "group",
-        is_public: true,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 3,
-        hot_score: 0,
-        members: [],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
+    return makeChatRoom({ name: "Rokkenjima", member_count: 3, ...overrides });
 }
 
 describe("roomViewerPolicy", () => {

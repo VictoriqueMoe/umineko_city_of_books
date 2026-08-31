@@ -6,7 +6,7 @@ import * as livekit from "../api/livekit/connect";
 import type { ConnectRoomOptions } from "../api/livekit/connect";
 import { queryKeys } from "../api/queryKeys";
 import { expectInvalidated } from "../test-utils/query";
-import { makeUser } from "../test-utils/fixtures";
+import { makeStream as makeLiveStream, makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { emitRealtimeEvent } from "../test-utils/ws";
 import type { LiveStream, UserProfile } from "../types/api";
@@ -43,19 +43,13 @@ const disconnectRoom = vi.mocked(livekit.disconnectRoom);
 const STREAMER_ID = "streamer-1";
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: "stream-1",
+    return makeLiveStream({
         userId: STREAMER_ID,
         title: "Reading Episode 4",
-        status: "live",
-        viewerCount: 3,
         startedAt: "2026-02-01T12:00:00Z",
         streamerUsername: "beatrice",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
         ...overrides,
-    };
+    });
 }
 
 function makeRoom(name: string): Room {

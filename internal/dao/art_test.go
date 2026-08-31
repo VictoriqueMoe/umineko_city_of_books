@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -38,7 +39,7 @@ func createGallery(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 
 func createArtComment(t *testing.T, repos *repository.Repositories, artID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Art.CreateComment(context.Background(), artID, parentID, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindArtComment)].CreateComment(context.Background(), artID, parentID, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }
@@ -1680,7 +1681,7 @@ func TestArtDAO_CreateComment_UnknownArt_Fails(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	_, err := repos.Art.CreateComment(context.Background(), uuid.New(), nil, user.ID, "body")
+	_, err := repos.Comments.ByID[string(mention.KindArtComment)].CreateComment(context.Background(), uuid.New(), nil, user.ID, "body")
 
 	// then
 	require.Error(t, err)

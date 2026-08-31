@@ -35,7 +35,6 @@ type (
 
 		Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx) error
 
-		CreateComment(ctx context.Context, shipID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
@@ -312,10 +311,6 @@ func (r *shipRepository) GetCharactersBatch(ctx context.Context, shipIDs []uuid.
 
 func (r *shipRepository) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx) error {
 	return r.dao.Vote(ctx, userID, shipID, value, tx...)
-}
-
-func (r *shipRepository) CreateComment(ctx context.Context, shipID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, shipID, parentID, userID, body, tx...)
 }
 
 func (r *shipRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeChatMessage, makeDmRoom, makePublicUser, makeUser } from "../../test-utils/fixtures";
 import type { ChatMessage, ChatRoom, User } from "../../types/api";
 import { getRoomAvatarUser, getRoomDisplayName, seenLabel } from "./dm";
 
@@ -10,38 +10,16 @@ function makeMember(overrides: Partial<User> = {}): User {
 }
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "",
-        description: "",
-        type: "dm",
-        is_public: false,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [{ id: "u1", username: "beatrice", display_name: "Beatrice" }, makeMember()],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
+    return makeDmRoom({ members: [makePublicUser(), makeMember()], ...overrides });
 }
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
+    return makeChatMessage({
         sender: makeMember(),
         body: "without love it cannot be seen",
-        is_system: false,
         created_at: "2026-08-02T10:00:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 describe("getRoomDisplayName", () => {

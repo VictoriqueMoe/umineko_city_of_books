@@ -253,7 +253,7 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	m.postRepo.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "@beatrice hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.postComments.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "@beatrice hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 	expectBackgroundSocial(m)

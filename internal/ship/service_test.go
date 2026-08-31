@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -14,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
@@ -28,16 +30,17 @@ import (
 )
 
 type testMocks struct {
-	shipRepo    *repository.MockShipRepository
-	userRepo    *repository.MockUserRepository
-	auditRepo   *repository.MockAuditLogRepository
-	authz       *authz.MockService
-	blockSvc    *block.MockService
-	notifSvc    *notification.MockService
-	uploadSvc   *upload.MockService
-	settingsSvc *settings.MockService
-	mediaProc   *media.Processor
-	quoteClient *quotefinder.Client
+	shipRepo     *repository.MockShipRepository
+	shipComments *repository.MockCommentDAO[uuid.UUID]
+	userRepo     *repository.MockUserRepository
+	auditRepo    *repository.MockAuditLogRepository
+	authz        *authz.MockService
+	blockSvc     *block.MockService
+	notifSvc     *notification.MockService
+	uploadSvc    *upload.MockService
+	settingsSvc  *settings.MockService
+	mediaProc    *media.Processor
+	quoteClient  *quotefinder.Client
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -52,19 +55,24 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 	quoteClient := quotefinder.NewClient()
+	shipComments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindShipComment): shipComments},
+	})
 
-	svc := NewService(shipRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentfilter.New()).(*service)
+	svc := NewService(shipRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentfilter.New()).(*service)
 	return svc, &testMocks{
-		shipRepo:    shipRepo,
-		userRepo:    userRepo,
-		auditRepo:   auditRepo,
-		authz:       authzSvc,
-		blockSvc:    blockSvc,
-		notifSvc:    notifSvc,
-		uploadSvc:   uploadSvc,
-		settingsSvc: settingsSvc,
-		mediaProc:   mediaProc,
-		quoteClient: quoteClient,
+		shipRepo:     shipRepo,
+		shipComments: shipComments,
+		userRepo:     userRepo,
+		auditRepo:    auditRepo,
+		authz:        authzSvc,
+		blockSvc:     blockSvc,
+		notifSvc:     notifSvc,
+		uploadSvc:    uploadSvc,
+		settingsSvc:  settingsSvc,
+		mediaProc:    mediaProc,
+		quoteClient:  quoteClient,
 	}
 }
 
@@ -156,6 +164,46 @@ func TestCreateShip_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateShip_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	shipID := uuid.New()
+	mentionedID := uuid.New()
+	req := dto.CreateShipRequest{Title: "Ship", Description: "sailed for @alice", Characters: validCharacters()}
+
+	m.shipRepo.EXPECT().
+		CreateWithCharacters(mock.Anything, userID, "Ship", "sailed for @alice", req.Characters).
+		Return(&model.ShipRow{ID: shipID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			mentioned = p
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateShip(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, dto.NotifMention, mentioned.Type)
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, shipID, mentioned.ReferenceID)
+	assert.Equal(t, "ship", mentioned.ReferenceType)
+	assert.Equal(t, "/ships/"+shipID.String(), mentioned.EmailLink)
 }
 
 func TestGetShip_RepoError(t *testing.T) {
@@ -750,7 +798,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.shipRepo.EXPECT().
+	m.shipComments.EXPECT().
 		CreateComment(mock.Anything, shipID, (*uuid.UUID)(nil), userID, "hi").
 		Return(nil, errors.New("db down"))
 
@@ -769,7 +817,7 @@ func TestCreateComment_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.shipRepo.EXPECT().
+	m.shipComments.EXPECT().
 		CreateComment(mock.Anything, shipID, (*uuid.UUID)(nil), userID, "hi").
 		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
@@ -780,6 +828,49 @@ func TestCreateComment_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	shipID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.shipComments.EXPECT().
+		CreateComment(mock.Anything, shipID, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), shipID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, "ship_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/ships/"+shipID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
 }
 
 func TestUpdateComment_EmptyBodyRejected(t *testing.T) {

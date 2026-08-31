@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -23,6 +24,13 @@ func makeChars() []dto.ShipCharacter {
 func createShip(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title string, chars []dto.ShipCharacter) uuid.UUID {
 	t.Helper()
 	created, err := repos.Ship.CreateWithCharacters(context.Background(), userID, title, "desc", chars)
+	require.NoError(t, err)
+	return created.ID
+}
+
+func createShipComment(t *testing.T, repos *repository.Repositories, shipID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
+	t.Helper()
+	created, err := repos.Comments.ByID[string(mention.KindShipComment)].CreateComment(context.Background(), shipID, parentID, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }
@@ -255,17 +263,16 @@ func TestShipDAO_DeleteShip_ReturnsImageAndCommentMediaPaths(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	id := createShip(t, repos, user.ID, "T", makeChars())
 	require.NoError(t, repos.Ship.UpdateImage(context.Background(), id, "/uploads/ships/cover.png", "/uploads/ships/cover_thumb.png"))
-	comment, err := repos.Ship.CreateComment(context.Background(), id, nil, user.ID, "c")
-	require.NoError(t, err)
-	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
-		CommentID:    comment.ID,
+	commentID := createShipComment(t, repos, id, nil, user.ID, "c")
+	_, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
+		CommentID:    commentID,
 		MediaURL:     "/uploads/ships/comment.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/ships/comment_thumb.png",
 	})
 	require.NoError(t, err)
 	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
-		CommentID: comment.ID,
+		CommentID: commentID,
 		MediaURL:  "/uploads/ships/comment_two.gif",
 		MediaType: "image",
 		SortOrder: 1,
@@ -295,10 +302,9 @@ func TestShipDAO_DeleteShip_AsAdmin_ReturnsCommentMediaPaths(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	id := createShip(t, repos, owner.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), id, nil, owner.ID, "c")
-	require.NoError(t, err)
-	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
-		CommentID:    comment.ID,
+	commentID := createShipComment(t, repos, id, nil, owner.ID, "c")
+	_, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
+		CommentID:    commentID,
 		MediaURL:     "/uploads/ships/mod.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/ships/mod_thumb.png",
@@ -543,8 +549,7 @@ func TestShipDAO_List_SortComments(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	silent := createShip(t, repos, owner.ID, "Silent", makeChars())
 	chatty := createShip(t, repos, owner.ID, "Chatty", makeChars())
-	_, err := repos.Ship.CreateComment(context.Background(), chatty, nil, owner.ID, "hi")
-	require.NoError(t, err)
+	createShipComment(t, repos, chatty, nil, owner.ID, "hi")
 
 	// when
 	rows, _, err := repos.Ship.List(context.Background(), owner.ID, "comments", false, "", "", 10, 0, nil)
@@ -764,11 +769,10 @@ func TestShipDAO_CreateComment(t *testing.T) {
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
 
 	// when
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "hello")
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "hello")
 
 	// then
-	require.NoError(t, err)
-	got, err := repos.Ship.GetCommentEntityID(context.Background(), comment.ID)
+	got, err := repos.Ship.GetCommentEntityID(context.Background(), commentID)
 	require.NoError(t, err)
 	assert.Equal(t, shipID, got)
 }
@@ -778,22 +782,19 @@ func TestShipDAO_CreateComment_WithParent(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	parent, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "parent")
-	require.NoError(t, err)
-	parentID := parent.ID
+	parentID := createShipComment(t, repos, shipID, nil, user.ID, "parent")
 
 	// when
-	child, err := repos.Ship.CreateComment(context.Background(), shipID, &parentID, user.ID, "child")
+	childID := createShipComment(t, repos, shipID, &parentID, user.ID, "child")
 
 	// then
-	require.NoError(t, err)
 	comments, total, err := repos.Ship.GetComments(context.Background(), shipID, user.ID, 10, 0, nil)
 	require.NoError(t, err)
 	assert.Equal(t, 2, total)
 	require.Len(t, comments, 2)
 	var foundChild bool
 	for _, c := range comments {
-		if c.ID == child.ID {
+		if c.ID == childID {
 			require.NotNil(t, c.ParentID)
 			assert.Equal(t, parentID, *c.ParentID)
 			foundChild = true
@@ -807,12 +808,10 @@ func TestShipDAO_UpdateComment(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "old")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "old")
 
 	// when
-	err = repos.Ship.UpdateComment(context.Background(), commentID, user.ID, "new")
+	err := repos.Ship.UpdateComment(context.Background(), commentID, user.ID, "new")
 
 	// then
 	require.NoError(t, err)
@@ -828,12 +827,10 @@ func TestShipDAO_UpdateComment_NotOwnedFails(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	err = repos.Ship.UpdateComment(context.Background(), commentID, stranger.ID, "hijack")
+	err := repos.Ship.UpdateComment(context.Background(), commentID, stranger.ID, "hijack")
 
 	// then
 	require.Error(t, err)
@@ -844,12 +841,10 @@ func TestShipDAO_UpdateCommentAsAdmin(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "old")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "old")
 
 	// when
-	err = repos.Ship.UpdateCommentAsAdmin(context.Background(), commentID, "moderated")
+	err := repos.Ship.UpdateCommentAsAdmin(context.Background(), commentID, "moderated")
 
 	// then
 	require.NoError(t, err)
@@ -864,12 +859,10 @@ func TestShipDAO_DeleteComment_AsOwner(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	err = repos.Ship.DeleteComment(context.Background(), commentID, user.ID)
+	err := repos.Ship.DeleteComment(context.Background(), commentID, user.ID)
 
 	// then
 	require.NoError(t, err)
@@ -884,12 +877,10 @@ func TestShipDAO_DeleteComment_NotOwnedFails(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	err = repos.Ship.DeleteComment(context.Background(), commentID, stranger.ID)
+	err := repos.Ship.DeleteComment(context.Background(), commentID, stranger.ID)
 
 	// then
 	require.Error(t, err)
@@ -900,12 +891,10 @@ func TestShipDAO_DeleteCommentAsAdmin(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	err = repos.Ship.DeleteCommentAsAdmin(context.Background(), commentID)
+	err := repos.Ship.DeleteCommentAsAdmin(context.Background(), commentID)
 
 	// then
 	require.NoError(t, err)
@@ -920,11 +909,10 @@ func TestShipDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "old")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "old")
 
 	// when
-	err = repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: comment.ID, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+	err := repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -940,11 +928,10 @@ func TestShipDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "old")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "old")
 
 	// when
-	err = repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: comment.ID, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+	err := repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -953,7 +940,7 @@ func TestShipDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
 	assert.Equal(t, repository.AuditTargetShipComment, entries[0].TargetType)
-	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
+	assert.Equal(t, commentID.String(), entries[0].TargetID)
 	require.NotNil(t, entries[0].SubjectID)
 	assert.Equal(t, user.ID, *entries[0].SubjectID)
 	assert.Empty(t, entries[0].Details)
@@ -964,11 +951,10 @@ func TestShipDAO_UpdateCommentBody_ModeratorEditingOwnCommentWritesNoAudit(t *te
 	repos := daotest.NewRepos(t)
 	moderator := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, moderator.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, moderator.ID, "old")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, moderator.ID, "old")
 
 	// when
-	err = repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: comment.ID, UserID: moderator.ID, Body: "mine", AsAdmin: true})
+	err := repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "mine", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -982,11 +968,10 @@ func TestShipDAO_DeleteCommentWithAudit_ModeratorDeletingOwnCommentRecordsOwnerA
 	repos := daotest.NewRepos(t)
 	moderator := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, moderator.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, moderator.ID, "x")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, moderator.ID, "x")
 
 	// when
-	_, err = repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
+	_, err := repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: commentID, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -1007,11 +992,10 @@ func TestShipDAO_UpdateCommentBody_NotOwnedFails(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "old")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "old")
 
 	// when
-	err = repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: comment.ID, UserID: stranger.ID, Body: "hijack"})
+	err := repos.Ship.UpdateCommentBody(context.Background(), repository.ShipCommentUpdate{CommentID: commentID, UserID: stranger.ID, Body: "hijack"})
 
 	// then
 	require.Error(t, err)
@@ -1023,11 +1007,10 @@ func TestShipDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	_, err = repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
+	_, err := repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: commentID, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -1039,7 +1022,7 @@ func TestShipDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
 	assert.Equal(t, repository.AuditTargetShipComment, entries[0].TargetType)
-	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
+	assert.Equal(t, commentID.String(), entries[0].TargetID)
 }
 
 func TestShipDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
@@ -1047,11 +1030,10 @@ func TestShipDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	_, err = repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: comment.ID, UserID: user.ID})
+	_, err := repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: commentID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1067,11 +1049,10 @@ func TestShipDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
-	_, err = repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: comment.ID, UserID: stranger.ID})
+	_, err := repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: commentID, UserID: stranger.ID})
 
 	// then
 	require.Error(t, err)
@@ -1088,33 +1069,31 @@ func TestShipDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentMediaPaths(t *test
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	target, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "target")
-	require.NoError(t, err)
-	other, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "other")
-	require.NoError(t, err)
-	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
-		CommentID:    target.ID,
+	target := createShipComment(t, repos, shipID, nil, user.ID, "target")
+	other := createShipComment(t, repos, shipID, nil, user.ID, "other")
+	_, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
+		CommentID:    target,
 		MediaURL:     "/uploads/ships/target.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/ships/target_thumb.png",
 	})
 	require.NoError(t, err)
 	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
-		CommentID: target.ID,
+		CommentID: target,
 		MediaURL:  "/uploads/ships/target_two.gif",
 		MediaType: "image",
 		SortOrder: 1,
 	})
 	require.NoError(t, err)
 	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{
-		CommentID: other.ID,
+		CommentID: other,
 		MediaURL:  "/uploads/ships/other.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: target.ID, UserID: user.ID})
+	paths, err := repos.Ship.DeleteCommentWithAudit(context.Background(), repository.ShipCommentDeletion{CommentID: target, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1123,7 +1102,7 @@ func TestShipDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentMediaPaths(t *test
 		"/uploads/ships/target_thumb.png",
 		"/uploads/ships/target_two.gif",
 	}, paths)
-	remaining, err := repos.Ship.GetCommentMedia(context.Background(), other.ID)
+	remaining, err := repos.Ship.GetCommentMedia(context.Background(), other)
 	require.NoError(t, err)
 	require.Len(t, remaining, 1)
 	assert.Equal(t, "/uploads/ships/other.png", remaining[0].MediaURL)
@@ -1135,8 +1114,7 @@ func TestShipDAO_GetComments_Pagination(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
 	for range 3 {
-		_, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "c")
-		require.NoError(t, err)
+		createShipComment(t, repos, shipID, nil, user.ID, "c")
 	}
 
 	// when
@@ -1154,10 +1132,8 @@ func TestShipDAO_GetComments_ExcludeUsers(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	blocked := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, owner.ID, "T", makeChars())
-	_, err := repos.Ship.CreateComment(context.Background(), shipID, nil, owner.ID, "ok")
-	require.NoError(t, err)
-	_, err = repos.Ship.CreateComment(context.Background(), shipID, nil, blocked.ID, "hidden")
-	require.NoError(t, err)
+	createShipComment(t, repos, shipID, nil, owner.ID, "ok")
+	createShipComment(t, repos, shipID, nil, blocked.ID, "hidden")
 
 	// when
 	rows, total, err := repos.Ship.GetComments(context.Background(), shipID, owner.ID, 10, 0, []uuid.UUID{blocked.ID})
@@ -1185,9 +1161,7 @@ func TestShipDAO_GetCommentAuthorID(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
 	got, err := repos.Ship.GetCommentAuthorID(context.Background(), commentID)
@@ -1203,12 +1177,10 @@ func TestShipDAO_LikeComment(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, owner.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, owner.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, owner.ID, "x")
 
 	// when
-	err = repos.Ship.LikeComment(context.Background(), liker.ID, commentID)
+	err := repos.Ship.LikeComment(context.Background(), liker.ID, commentID)
 
 	// then
 	require.NoError(t, err)
@@ -1225,13 +1197,11 @@ func TestShipDAO_LikeComment_Idempotent(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, owner.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, owner.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, owner.ID, "x")
 	require.NoError(t, repos.Ship.LikeComment(context.Background(), liker.ID, commentID))
 
 	// when
-	err = repos.Ship.LikeComment(context.Background(), liker.ID, commentID)
+	err := repos.Ship.LikeComment(context.Background(), liker.ID, commentID)
 
 	// then
 	require.NoError(t, err)
@@ -1246,13 +1216,11 @@ func TestShipDAO_UnlikeComment(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, owner.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, owner.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, owner.ID, "x")
 	require.NoError(t, repos.Ship.LikeComment(context.Background(), liker.ID, commentID))
 
 	// when
-	err = repos.Ship.UnlikeComment(context.Background(), liker.ID, commentID)
+	err := repos.Ship.UnlikeComment(context.Background(), liker.ID, commentID)
 
 	// then
 	require.NoError(t, err)
@@ -1267,9 +1235,7 @@ func TestShipDAO_AddCommentMedia(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 
 	// when
 	id, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: commentID, MediaURL: "/m.png", MediaType: "image", ThumbnailURL: "/t.png"})
@@ -1290,9 +1256,7 @@ func TestShipDAO_UpdateCommentMediaURL(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 	id, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: commentID, MediaURL: "/old.png", MediaType: "image"})
 	require.NoError(t, err)
 
@@ -1312,9 +1276,7 @@ func TestShipDAO_UpdateCommentMediaThumbnail(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
 	id, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: commentID, MediaURL: "/m.png", MediaType: "image", ThumbnailURL: "/old.png"})
 	require.NoError(t, err)
 
@@ -1334,10 +1296,8 @@ func TestShipDAO_GetCommentMedia_Ordered(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	comment, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "x")
-	require.NoError(t, err)
-	commentID := comment.ID
-	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: commentID, MediaURL: "/a.png", MediaType: "image"})
+	commentID := createShipComment(t, repos, shipID, nil, user.ID, "x")
+	_, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: commentID, MediaURL: "/a.png", MediaType: "image"})
 	require.NoError(t, err)
 	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: commentID, MediaURL: "/b.png", MediaType: "image"})
 	require.NoError(t, err)
@@ -1357,13 +1317,9 @@ func TestShipDAO_GetCommentMediaBatch(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	shipID := createShip(t, repos, user.ID, "T", makeChars())
-	c1Row, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "a")
-	require.NoError(t, err)
-	c1 := c1Row.ID
-	c2Row, err := repos.Ship.CreateComment(context.Background(), shipID, nil, user.ID, "b")
-	require.NoError(t, err)
-	c2 := c2Row.ID
-	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: c1, MediaURL: "/a.png", MediaType: "image"})
+	c1 := createShipComment(t, repos, shipID, nil, user.ID, "a")
+	c2 := createShipComment(t, repos, shipID, nil, user.ID, "b")
+	_, err := repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: c1, MediaURL: "/a.png", MediaType: "image"})
 	require.NoError(t, err)
 	_, err = repos.Ship.AddCommentMedia(context.Background(), repository.NewShipCommentMedia{CommentID: c2, MediaURL: "/b1.png", MediaType: "image"})
 	require.NoError(t, err)

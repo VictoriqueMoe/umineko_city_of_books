@@ -28,7 +28,7 @@ func createJournal(t *testing.T, repos *repository.Repositories, userID uuid.UUI
 
 func createJournalComment(t *testing.T, repos *repository.Repositories, journalID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{
+	created, err := repos.Comments.Journal.CreateComment(context.Background(), repository.NewJournalComment{
 		JournalID: journalID,
 		ParentID:  parentID,
 		UserID:    userID,
@@ -1283,10 +1283,10 @@ func TestJournalDAO_EntryComments_ScopedSeparately(t *testing.T) {
 	entryID := entry.ID
 
 	// when
-	topLevelCommentRow, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: jid, UserID: user.ID, Body: "on journal"})
+	topLevelCommentRow, err := repos.Comments.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: jid, UserID: user.ID, Body: "on journal"})
 	require.NoError(t, err)
 	topLevelComment := topLevelCommentRow.ID
-	entryCommentRow, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: jid, EntryID: &entryID, UserID: user.ID, Body: "on entry"})
+	entryCommentRow, err := repos.Comments.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: jid, EntryID: &entryID, UserID: user.ID, Body: "on entry"})
 	require.NoError(t, err)
 	entryComment := entryCommentRow.ID
 
@@ -1319,7 +1319,7 @@ func TestJournalDAO_Delete_ReturnsEveryEntryAndCommentMediaPath(t *testing.T) {
 	journalComment := createJournalComment(t, repos, journalID, user.ID, nil, "on journal")
 	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: journalComment, MediaURL: "/uploads/journal/comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/comment_thumb.png"})
 	require.NoError(t, err)
-	entryComment, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, EntryID: &entry.ID, UserID: user.ID, Body: "on entry"})
+	entryComment, err := repos.Comments.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, EntryID: &entry.ID, UserID: user.ID, Body: "on entry"})
 	require.NoError(t, err)
 	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: entryComment.ID, MediaURL: "/uploads/journal/entry_comment.png", MediaType: "image"})
 	require.NoError(t, err)
@@ -1356,11 +1356,11 @@ func TestJournalDAO_DeleteEntry_ReturnsOnlyThatEntrysMediaPaths(t *testing.T) {
 	require.NoError(t, err)
 	_, err = repos.Journal.AddMedia(context.Background(), repository.NewJournalEntryMedia{EntryID: survivingEntry.ID, MediaURL: "/uploads/journal/kept_entry.png", MediaType: "image"})
 	require.NoError(t, err)
-	entryComment, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, EntryID: &entry.ID, UserID: user.ID, Body: "on entry"})
+	entryComment, err := repos.Comments.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, EntryID: &entry.ID, UserID: user.ID, Body: "on entry"})
 	require.NoError(t, err)
 	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: entryComment.ID, MediaURL: "/uploads/journal/entry_comment.png", MediaType: "image", ThumbnailURL: "/uploads/journal/entry_comment_thumb.png"})
 	require.NoError(t, err)
-	reply, err := repos.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, ParentID: &entryComment.ID, UserID: user.ID, Body: "reply"})
+	reply, err := repos.Comments.Journal.CreateComment(context.Background(), repository.NewJournalComment{JournalID: journalID, ParentID: &entryComment.ID, UserID: user.ID, Body: "reply"})
 	require.NoError(t, err)
 	_, err = repos.Journal.AddCommentMedia(context.Background(), repository.NewJournalCommentMedia{CommentID: reply.ID, MediaURL: "/uploads/journal/reply.png", MediaType: "image"})
 	require.NoError(t, err)

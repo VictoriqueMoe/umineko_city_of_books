@@ -3,7 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatRoom, ChatRoomMember, UserProfile, WatchPartySession } from "../../../types/api";
 import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
-import { makeUser } from "../../../test-utils/fixtures";
+import {
+    makeChatRoom,
+    makePublicUser,
+    makeRoomMember,
+    makeUser,
+    makeWatchPartySession,
+} from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { RoomOverlays, type RoomOverlaysProps } from "./RoomOverlays";
 
@@ -74,51 +80,19 @@ vi.mock("../InviteMembersModal/InviteMembersModal", () => ({
 
 const viewer: UserProfile = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
 
-function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "Tea Parlour",
-        description: "",
-        type: "group",
-        is_public: true,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
-}
-
 function makeMember(id: string): ChatRoomMember {
-    return {
-        user: { id, username: "beatrice", display_name: "Beatrice" },
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-    };
+    return makeRoomMember({ user: makePublicUser({ id }) });
 }
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
+    return makeWatchPartySession({
         id: "wp-1",
-        room_id: "room-1",
         started_by: viewer.id,
         controller_id: viewer.id,
         title: "Ep 1",
-        type: "hyperbeam",
-        status: "active",
         started_at: "2026-01-01T00:00:00Z",
-        participants: [],
         ...overrides,
-    };
+    });
 }
 
 function makeActiveSession(overrides: Partial<WatchPartySession> = {}): ActiveWatchPartySession {
@@ -127,7 +101,7 @@ function makeActiveSession(overrides: Partial<WatchPartySession> = {}): ActiveWa
 
 function makeProps(overrides: Partial<RoomOverlaysProps> = {}): RoomOverlaysProps {
     return {
-        room: makeRoom(),
+        room: makeChatRoom(),
         viewer,
         viewerIsStaff: false,
         canModerateRoom: false,

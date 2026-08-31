@@ -1,41 +1,23 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { makeGamePlayer, makeGameRoom } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { GameRoom, GameRoomPlayer } from "../../types/api";
+import type { GameRoom } from "../../types/api";
 import { GamePlayerBar } from "./GamePlayerBar";
 
-function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
-    const id = overrides.user_id ?? "player-0";
-    return {
-        user_id: id,
-        username: "battler",
-        display_name: "Battler",
-        avatar_url: "",
-        role: "player",
-        slot: 0,
-        joined: true,
-        connected: true,
-        user: { id, username: "battler", display_name: "Battler" },
-        ...overrides,
-    };
-}
-
 function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
-    return {
-        id: "room-1",
-        game_type: "chess",
-        status: "active",
-        state: {},
-        created_by: "player-0",
-        created_at: "2026-08-02T11:58:00.000Z",
-        updated_at: "2026-08-02T11:58:00.000Z",
-        players: [
-            makePlayer({ user_id: "a", slot: 0, display_name: "Battler" }),
-            makePlayer({ user_id: "b", slot: 1, display_name: "Beatrice" }),
-        ],
-        watcher_count: 0,
-        ...overrides,
-    };
+    return makeGameRoom(
+        {},
+        {
+            created_at: "2026-08-02T11:58:00.000Z",
+            updated_at: "2026-08-02T11:58:00.000Z",
+            players: [
+                makeGamePlayer({ user_id: "a", slot: 0, display_name: "Battler" }),
+                makeGamePlayer({ user_id: "b", slot: 1, display_name: "Beatrice" }),
+            ],
+            ...overrides,
+        },
+    );
 }
 
 describe("GamePlayerBar", () => {
@@ -130,7 +112,7 @@ describe("GamePlayerBar", () => {
     it("only marks the seated player while the other seat is still empty", () => {
         // given
         const room = makeRoom({
-            players: [makePlayer({ user_id: "a", slot: 0, display_name: "Battler" })],
+            players: [makeGamePlayer({ user_id: "a", slot: 0, display_name: "Battler" })],
             turn_user_id: "a",
         });
 

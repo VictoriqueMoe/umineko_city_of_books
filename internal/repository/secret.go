@@ -19,7 +19,6 @@ type (
 		GetUserProgressSummary(ctx context.Context, userID uuid.UUID, pieceIDs []string, tx ...*sql.Tx) (*SecretLeaderboardRow, error)
 		GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]SecretSolverRow, error)
 
-		CreateComment(ctx context.Context, secretID string, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		GetComments(ctx context.Context, secretID string, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)
 		GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*CommentRow, error)
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
@@ -177,10 +176,6 @@ func (r *secretRepository) GetUserProgressSummary(ctx context.Context, userID uu
 
 func (r *secretRepository) GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]SecretSolverRow, error) {
 	return r.dao.GetSolversLeaderboard(ctx, parentSecretIDs, tx...)
-}
-
-func (r *secretRepository) CreateComment(ctx context.Context, secretID string, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, secretID, parentID, userID, body, tx...)
 }
 
 func (r *secretRepository) GetComments(ctx context.Context, secretID string, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {

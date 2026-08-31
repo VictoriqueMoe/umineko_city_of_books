@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeGamePlayer, makeGameRoom, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { GameRoom, GameRoomPlayer, OthelloState, OthelloStats, User } from "../../../types/api";
 import { OthelloBoardView } from "./OthelloBoardView";
@@ -28,19 +28,7 @@ function boardWith(pieces: Record<string, string>): string {
 const OPENING_BOARD = boardWith({ d4: "W", e4: "B", d5: "B", e5: "W" });
 
 function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
-    const id = overrides.user_id ?? "u-black";
-    return {
-        user_id: id,
-        username: "battler",
-        display_name: "Battler",
-        avatar_url: "",
-        role: "player",
-        slot: 0,
-        joined: true,
-        connected: true,
-        user: { id, username: "battler", display_name: "Battler" },
-        ...overrides,
-    };
+    return makeGamePlayer({ user_id: "u-black", ...overrides });
 }
 
 function makeState(overrides: Partial<OthelloState> = {}): OthelloState {
@@ -58,11 +46,8 @@ function makeState(overrides: Partial<OthelloState> = {}): OthelloState {
 }
 
 function makeRoom(overrides: Partial<GameRoom<OthelloState, OthelloStats>> = {}): GameRoom<OthelloState, OthelloStats> {
-    return {
-        id: "room-1",
+    return makeGameRoom(makeState(), {
         game_type: "othello",
-        status: "active",
-        state: makeState(),
         turn_user_id: "u-black",
         created_by: "u-black",
         created_at: "2026-08-02T10:00:00.000Z",
@@ -71,9 +56,8 @@ function makeRoom(overrides: Partial<GameRoom<OthelloState, OthelloStats>> = {})
             makePlayer({ user_id: "u-black", slot: 0, display_name: "Battler" }),
             makePlayer({ user_id: "u-white", slot: 1, display_name: "Beatrice", username: "beatrice" }),
         ],
-        watcher_count: 0,
         ...overrides,
-    };
+    });
 }
 
 function makeStats(overrides: Partial<OthelloStats> = {}): OthelloStats {

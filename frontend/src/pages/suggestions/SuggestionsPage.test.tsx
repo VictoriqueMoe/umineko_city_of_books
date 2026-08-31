@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Post, UserProfile } from "../../types/api";
-import { makeUser } from "../../test-utils/fixtures";
+import { makePost as makeContentPost, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { SuggestionsPage } from "./SuggestionsPage";
 
@@ -39,19 +39,11 @@ vi.mock("../../components/RulesBox/RulesBox", () => ({
 }));
 
 function makePost(overrides: Partial<Post> = {}): Post {
-    return {
-        id: "post-1",
+    return makeContentPost({
         author: { id: "user-1", username: "battler", display_name: "Battler" },
         body: "Add a dark mode for the game board",
-        media: [],
-        share_count: 0,
-        like_count: 0,
-        comment_count: 0,
-        view_count: 0,
-        user_liked: false,
-        created_at: "2026-01-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 interface FeedState {

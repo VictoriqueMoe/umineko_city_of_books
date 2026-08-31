@@ -11,9 +11,9 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
-	"umineko_city_of_books/internal/social"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -475,7 +475,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 }
 
 func (m *messagesService) resolveMentions(ctx context.Context, body string, senderID uuid.UUID, members []uuid.UUID) map[uuid.UUID]struct{} {
-	matches := social.MentionRegex.FindAllStringSubmatch(body, -1)
+	matches := mention.Pattern.FindAllStringSubmatch(body, -1)
 	if len(matches) == 0 {
 		return nil
 	}

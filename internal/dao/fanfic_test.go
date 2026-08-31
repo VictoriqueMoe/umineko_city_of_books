@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -35,6 +36,13 @@ func createFanfic(t *testing.T, repos *repository.Repositories, userID uuid.UUID
 		Tags:       []string{"angst", "fluff"},
 		Characters: makeFanficChars(),
 	})
+	require.NoError(t, err)
+	return created.ID
+}
+
+func createFanficComment(t *testing.T, repos *repository.Repositories, fanficID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
+	t.Helper()
+	created, err := repos.Comments.ByID[string(mention.KindFanficComment)].CreateComment(context.Background(), fanficID, parentID, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }
@@ -364,17 +372,16 @@ func TestFanficDAO_DeleteFanfic_ReturnsCoverAndCommentMediaPaths(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	id := createFanfic(t, repos, user.ID, "Title")
 	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), id, "/uploads/images/cover.png", "/uploads/images/cover_thumb.png"))
-	comment, err := repos.Fanfic.CreateComment(context.Background(), id, nil, user.ID, "body")
-	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    comment.ID,
+	commentID := createFanficComment(t, repos, id, nil, user.ID, "body")
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
+		CommentID:    commentID,
 		MediaURL:     "/uploads/images/comment.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/images/comment_thumb.png",
 	})
 	require.NoError(t, err)
 	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: comment.ID,
+		CommentID: commentID,
 		MediaURL:  "/uploads/images/comment_no_thumb.gif",
 		MediaType: "image",
 	})
@@ -406,18 +413,16 @@ func TestFanficDAO_DeleteFanfic_AsAdmin_CollectsEveryCommentMedia(t *testing.T) 
 	commenter := daotest.CreateUser(t, repos)
 	id := createFanfic(t, repos, owner.ID, "Title")
 	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), id, "/uploads/images/cover.png", ""))
-	first, err := repos.Fanfic.CreateComment(context.Background(), id, nil, owner.ID, "one")
-	require.NoError(t, err)
-	second, err := repos.Fanfic.CreateComment(context.Background(), id, nil, commenter.ID, "two")
-	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: first.ID,
+	first := createFanficComment(t, repos, id, nil, owner.ID, "one")
+	second := createFanficComment(t, repos, id, nil, commenter.ID, "two")
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
+		CommentID: first,
 		MediaURL:  "/uploads/images/one.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    second.ID,
+		CommentID:    second,
 		MediaURL:     "/uploads/images/two.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/images/two_thumb.png",
@@ -1602,10 +1607,9 @@ func TestFanficDAO_CreateComment(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	_, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "Nice!")
+	createFanficComment(t, repos, fid, nil, user.ID, "Nice!")
 
 	// then
-	require.NoError(t, err)
 	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
@@ -1617,21 +1621,18 @@ func TestFanficDAO_CreateComment_Threaded(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	parent, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "parent")
-	require.NoError(t, err)
-	parentID := parent.ID
+	parentID := createFanficComment(t, repos, fid, nil, user.ID, "parent")
 
 	// when
-	child, err := repos.Fanfic.CreateComment(context.Background(), fid, &parentID, user.ID, "child")
+	childID := createFanficComment(t, repos, fid, &parentID, user.ID, "child")
 
 	// then
-	require.NoError(t, err)
 	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
 	require.NoError(t, err)
 	require.Len(t, cs, 2)
 	var foundChild bool
 	for _, c := range cs {
-		if c.ID == child.ID {
+		if c.ID == childID {
 			require.NotNil(t, c.ParentID)
 			assert.Equal(t, parentID, *c.ParentID)
 			foundChild = true
@@ -1645,12 +1646,10 @@ func TestFanficDAO_UpdateComment_AsOwner(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "old")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "old")
 
 	// when
-	err = repos.Fanfic.UpdateComment(context.Background(), cid, user.ID, "new")
+	err := repos.Fanfic.UpdateComment(context.Background(), cid, user.ID, "new")
 
 	// then
 	require.NoError(t, err)
@@ -1666,12 +1665,10 @@ func TestFanficDAO_UpdateComment_NonOwnerFails(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "old")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "old")
 
 	// when
-	err = repos.Fanfic.UpdateComment(context.Background(), cid, other.ID, "hack")
+	err := repos.Fanfic.UpdateComment(context.Background(), cid, other.ID, "hack")
 
 	// then
 	require.Error(t, err)
@@ -1682,12 +1679,10 @@ func TestFanficDAO_UpdateCommentAsAdmin(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	owner := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "old")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "old")
 
 	// when
-	err = repos.Fanfic.UpdateCommentAsAdmin(context.Background(), cid, "admin edit")
+	err := repos.Fanfic.UpdateCommentAsAdmin(context.Background(), cid, "admin edit")
 
 	// then
 	require.NoError(t, err)
@@ -1702,12 +1697,10 @@ func TestFanficDAO_DeleteComment_AsOwner(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
-	err = repos.Fanfic.DeleteComment(context.Background(), cid, user.ID)
+	err := repos.Fanfic.DeleteComment(context.Background(), cid, user.ID)
 
 	// then
 	require.NoError(t, err)
@@ -1722,12 +1715,10 @@ func TestFanficDAO_DeleteComment_NonOwnerFails(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	err = repos.Fanfic.DeleteComment(context.Background(), cid, other.ID)
+	err := repos.Fanfic.DeleteComment(context.Background(), cid, other.ID)
 
 	// then
 	require.Error(t, err)
@@ -1738,12 +1729,10 @@ func TestFanficDAO_DeleteCommentAsAdmin(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	owner := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	err = repos.Fanfic.DeleteCommentAsAdmin(context.Background(), cid)
+	err := repos.Fanfic.DeleteCommentAsAdmin(context.Background(), cid)
 
 	// then
 	require.NoError(t, err)
@@ -1757,12 +1746,10 @@ func TestFanficDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
-	_, err = repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
+	_, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
 		ID:     cid,
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
@@ -1791,12 +1778,10 @@ func TestFanficDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	admin := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	_, err = repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
+	_, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
 		ID:      cid,
 		UserID:  admin.ID,
 		AsAdmin: true,
@@ -1826,9 +1811,7 @@ func TestFanficDAO_DeleteCommentWithAudit_NonOwnerWritesNoAudit(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
 	paths, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
@@ -1858,25 +1841,23 @@ func TestFanficDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentsMediaPaths(t *t
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	target, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "target")
-	require.NoError(t, err)
-	sibling, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "sibling")
-	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    target.ID,
+	target := createFanficComment(t, repos, fid, nil, user.ID, "target")
+	sibling := createFanficComment(t, repos, fid, nil, user.ID, "sibling")
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
+		CommentID:    target,
 		MediaURL:     "/uploads/images/target.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/images/target_thumb.png",
 	})
 	require.NoError(t, err)
 	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: target.ID,
+		CommentID: target,
 		MediaURL:  "/uploads/images/target_no_thumb.gif",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: sibling.ID,
+		CommentID: sibling,
 		MediaURL:  "/uploads/images/sibling.png",
 		MediaType: "image",
 	})
@@ -1884,13 +1865,13 @@ func TestFanficDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentsMediaPaths(t *t
 
 	// when
 	paths, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
-		ID:     target.ID,
+		ID:     target,
 		UserID: user.ID,
 		Audit: repository.NewAuditEntry{
 			ActorID:    user.ID,
 			Action:     repository.AuditActionFanficCommentDelete,
 			TargetType: repository.AuditTargetFanficComment,
-			TargetID:   target.ID.String(),
+			TargetID:   target.String(),
 		},
 	})
 
@@ -1903,7 +1884,7 @@ func TestFanficDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentsMediaPaths(t *t
 	}, paths)
 	assert.NotContains(t, paths, "/uploads/images/sibling.png")
 	assert.NotContains(t, paths, "")
-	remaining, err := repos.Fanfic.GetCommentMedia(context.Background(), sibling.ID)
+	remaining, err := repos.Fanfic.GetCommentMedia(context.Background(), sibling)
 	require.NoError(t, err)
 	require.Len(t, remaining, 1)
 }
@@ -1914,10 +1895,8 @@ func TestFanficDAO_GetComments_ExcludesUsers(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	blocked := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	_, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "ok")
-	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateComment(context.Background(), fid, nil, blocked.ID, "blocked")
-	require.NoError(t, err)
+	createFanficComment(t, repos, fid, nil, owner.ID, "ok")
+	createFanficComment(t, repos, fid, nil, blocked.ID, "blocked")
 
 	// when
 	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, []uuid.UUID{blocked.ID})
@@ -1933,9 +1912,7 @@ func TestFanficDAO_GetCommentEntityID(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
 	got, err := repos.Fanfic.GetCommentEntityID(context.Background(), cid)
@@ -1950,9 +1927,7 @@ func TestFanficDAO_GetCommentAuthorID(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
 	got, err := repos.Fanfic.GetCommentAuthorID(context.Background(), cid)
@@ -1968,12 +1943,10 @@ func TestFanficDAO_LikeComment(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	err = repos.Fanfic.LikeComment(context.Background(), liker.ID, cid)
+	err := repos.Fanfic.LikeComment(context.Background(), liker.ID, cid)
 
 	// then
 	require.NoError(t, err)
@@ -1990,13 +1963,11 @@ func TestFanficDAO_LikeComment_Idempotent(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 	require.NoError(t, repos.Fanfic.LikeComment(context.Background(), liker.ID, cid))
 
 	// when
-	err = repos.Fanfic.LikeComment(context.Background(), liker.ID, cid)
+	err := repos.Fanfic.LikeComment(context.Background(), liker.ID, cid)
 
 	// then
 	require.NoError(t, err)
@@ -2012,13 +1983,11 @@ func TestFanficDAO_UnlikeComment(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	liker := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, owner.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 	require.NoError(t, repos.Fanfic.LikeComment(context.Background(), liker.ID, cid))
 
 	// when
-	err = repos.Fanfic.UnlikeComment(context.Background(), liker.ID, cid)
+	err := repos.Fanfic.UnlikeComment(context.Background(), liker.ID, cid)
 
 	// then
 	require.NoError(t, err)
@@ -2034,9 +2003,7 @@ func TestFanficDAO_AddCommentMedia(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
 	id, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
@@ -2061,9 +2028,7 @@ func TestFanficDAO_UpdateCommentMediaURL(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 	id, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
 		CommentID: cid,
 		MediaURL:  "http://old/img.png",
@@ -2087,9 +2052,7 @@ func TestFanficDAO_UpdateCommentMediaThumbnail(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 	id, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
 		CommentID: cid,
 		MediaURL:  "http://x/img.png",
@@ -2113,10 +2076,8 @@ func TestFanficDAO_GetCommentMedia_OrderedBySort(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	cidRow, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "body")
-	require.NoError(t, err)
-	cid := cidRow.ID
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
+	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
 		CommentID: cid,
 		MediaURL:  "http://x/0.png",
 		MediaType: "image",
@@ -2151,13 +2112,9 @@ func TestFanficDAO_GetCommentMediaBatch(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	c1Row, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "a")
-	require.NoError(t, err)
-	c1 := c1Row.ID
-	c2Row, err := repos.Fanfic.CreateComment(context.Background(), fid, nil, user.ID, "b")
-	require.NoError(t, err)
-	c2 := c2Row.ID
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
+	c1 := createFanficComment(t, repos, fid, nil, user.ID, "a")
+	c2 := createFanficComment(t, repos, fid, nil, user.ID, "b")
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
 		CommentID: c1,
 		MediaURL:  "http://x/1.png",
 		MediaType: "image",

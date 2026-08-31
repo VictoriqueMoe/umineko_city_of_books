@@ -13,6 +13,46 @@ const PLATFORM = ["src/platform/**/*.{ts,tsx}"];
 const ADAPTERS = [...API, ...PLATFORM];
 const COMPOSITION_ROOT = ["src/main.tsx"];
 const EVERY_SOURCE_FILE = ["src/**/*.{ts,tsx}"];
+const RENDER_TESTS = ["src/components/**/*.test.{ts,tsx}", "src/pages/**/*.test.{ts,tsx}", "src/App.test.tsx"];
+const PURE_TESTS = ["src/domain/**/*.test.{ts,tsx}", "src/utils/**/*.test.{ts,tsx}"];
+const MAY_STUB_GLOBAL_FETCH = [
+    "src/api/beacons/watchPartyLeave.test.ts",
+    "src/api/client.test.ts",
+    "src/api/endpoints/quote.test.ts",
+    "src/api/ota.test.ts",
+];
+const CACHE_KEY_ASSERTING_TESTS = [
+    "src/api/cache/patchUser.test.ts",
+    "src/api/queryClient.test.ts",
+    "src/hooks/mutations/admin.test.ts",
+    "src/hooks/mutations/announcement.test.ts",
+    "src/hooks/mutations/art.test.ts",
+    "src/hooks/mutations/auth.test.ts",
+    "src/hooks/mutations/gameRoom.test.ts",
+    "src/hooks/mutations/report.test.ts",
+    "src/hooks/mutations/secret.test.ts",
+    "src/hooks/mutations/ship.test.ts",
+    "src/hooks/mutations/theory.test.ts",
+    "src/hooks/mutations/user.test.ts",
+    "src/hooks/queries/art.test.ts",
+    "src/hooks/queries/chat.test.ts",
+    "src/hooks/queries/fanfic.test.ts",
+    "src/hooks/queries/giphy.test.ts",
+    "src/hooks/queries/journal.test.ts",
+    "src/hooks/queries/quoteCharacters.test.ts",
+    "src/hooks/queries/site.test.ts",
+    "src/hooks/queries/user.test.ts",
+    "src/hooks/useProfileSettingsForm.test.ts",
+];
+const RENDER_TESTS_STILL_MOCKING_TRANSPORT = [
+    "src/components/chat/WatchParty/WatchPartyModal.test.tsx",
+    "src/components/games/chat/GameChat.test.tsx",
+    "src/components/live/GoLivePanel.test.tsx",
+    "src/pages/live/LiveWatchPage.test.tsx",
+    "src/pages/live/StreamChatPanel.test.tsx",
+    "src/pages/profile/StreamOverlaySection.test.tsx",
+    "src/pages/rooms/RoomsListPage.test.tsx",
+];
 
 const apiAny = ["**/api/*", "**/api/**"];
 const apiEndpoints = ["**/api/endpoints", "**/api/endpoints.ts", "**/api/endpoints/**"];
@@ -46,6 +86,50 @@ const rawQueryKeyMessage =
     "Query keys are built in src/api/queryKeys.ts only. Call the builder instead of writing a key array.";
 const dynamicApiImportMessage =
     "Reaching src/api through import() bypasses the layer rules. Import it in the layer that is allowed to.";
+const renderTestTransportMockMessage =
+    "A render test may not mock api/endpoints, api/queryKeys, api/client or api/queryClient. Mock the hook in src/hooks that the component calls, so the test states the same contract the component is allowed to depend on.";
+const stubGlobalFetchMessage =
+    "Only the transport layer's own test may stub global fetch. A test above the transport mocks the module it calls instead of the network.";
+const pureTestRenderMessage =
+    "A test under domain or utils may not import @testing-library/react. A pure module takes values and returns values, so its test needs no DOM.";
+
+const rawQueryKeySelectors = [
+    {
+        selector:
+            "CallExpression[callee.property.name=/^(setQueryData|getQueryData|setQueriesData|getQueriesData|invalidateQueries|removeQueries|cancelQueries|resetQueries|refetchQueries|fetchQuery|prefetchQuery|ensureQueryData)$/] > ArrayExpression:first-child",
+        message: rawQueryKeyMessage,
+    },
+    {
+        selector: "Property[key.name='queryKey'] > ArrayExpression > Literal:first-child",
+        message: rawQueryKeyMessage,
+    },
+];
+const dynamicApiImportSelectors = [
+    {
+        selector: "TSImportType[source.value=/(^|\\/)api\\//]",
+        message: dynamicApiImportMessage,
+    },
+    {
+        selector: "ImportExpression[source.value=/(^|\\/)api\\//]",
+        message: dynamicApiImportMessage,
+    },
+];
+const stubGlobalFetchSelector = {
+    selector:
+        "CallExpression[callee.object.name='vi'][callee.property.name='stubGlobal'] > Literal[value='fetch']:first-child",
+    message: stubGlobalFetchMessage,
+};
+const renderTestTransportMockSelector = {
+    selector:
+        "CallExpression[callee.object.name='vi'][callee.property.name='mock'] > Literal[value=/api\\/(endpoints|queryKeys|client|queryClient)/]:first-child",
+    message: renderTestTransportMockMessage,
+};
+const pureTestRenderSelector = {
+    selector: "ImportDeclaration[source.value=/^@testing-library\\/react/]",
+    message: pureTestRenderMessage,
+};
+
+const everyFileSelectors = [...rawQueryKeySelectors, ...dynamicApiImportSelectors, stubGlobalFetchSelector];
 
 export const layerRules = [
     {
@@ -73,8 +157,8 @@ export const layerRules = [
                 "error",
                 {
                     patterns: [
-                        { group: apiAny, message: renderApiMessage },
-                        { group: reactQuery, message: renderQueryMessage },
+                        { group: apiAny, message: renderApiMessage, allowTypeImports: false },
+                        { group: reactQuery, message: renderQueryMessage, allowTypeImports: false },
                     ],
                 },
             ],
@@ -138,58 +222,43 @@ export const layerRules = [
     {
         files: EVERY_SOURCE_FILE,
         rules: {
-            "no-restricted-syntax": [
-                "error",
-                {
-                    selector:
-                        "CallExpression[callee.property.name=/^(setQueryData|getQueryData|setQueriesData|getQueriesData|invalidateQueries|removeQueries|cancelQueries|resetQueries|refetchQueries|fetchQuery|prefetchQuery|ensureQueryData)$/] > ArrayExpression:first-child",
-                    message: rawQueryKeyMessage,
-                },
-                {
-                    selector: "Property[key.name='queryKey'] > ArrayExpression > Literal:first-child",
-                    message: rawQueryKeyMessage,
-                },
-                {
-                    selector: "TSImportType[source.value=/(^|\\/)api\\//]",
-                    message: dynamicApiImportMessage,
-                },
-                {
-                    selector: "ImportExpression[source.value=/(^|\\/)api\\//]",
-                    message: dynamicApiImportMessage,
-                },
-            ],
+            "no-restricted-syntax": ["error", ...everyFileSelectors],
+        },
+    },
+    {
+        files: RENDER_TESTS,
+        rules: {
+            "no-restricted-syntax": ["error", ...everyFileSelectors, renderTestTransportMockSelector],
+        },
+    },
+    {
+        files: PURE_TESTS,
+        rules: {
+            "no-restricted-syntax": ["error", ...everyFileSelectors, pureTestRenderSelector],
+        },
+    },
+    {
+        files: MAY_STUB_GLOBAL_FETCH,
+        rules: {
+            "no-restricted-syntax": ["error", ...rawQueryKeySelectors, ...dynamicApiImportSelectors],
+        },
+    },
+    {
+        files: CACHE_KEY_ASSERTING_TESTS,
+        rules: {
+            "no-restricted-syntax": ["error", ...dynamicApiImportSelectors, stubGlobalFetchSelector],
+        },
+    },
+    {
+        files: RENDER_TESTS_STILL_MOCKING_TRANSPORT,
+        rules: {
+            "no-restricted-syntax": ["error", ...everyFileSelectors],
         },
     },
     {
         files: ["src/api/queryKeys.ts"],
         rules: {
-            "no-restricted-syntax": "off",
+            "no-restricted-syntax": ["error", ...dynamicApiImportSelectors, stubGlobalFetchSelector],
         },
     },
 ];
-
-const mayWriteRawQueryKeys = [
-    "src/api/cache/patchUser.test.ts",
-    "src/api/queryClient.test.ts",
-    "src/hooks/mutations/admin.test.ts",
-    "src/hooks/mutations/announcement.test.ts",
-    "src/hooks/mutations/art.test.ts",
-    "src/hooks/mutations/auth.test.ts",
-    "src/hooks/mutations/gameRoom.test.ts",
-    "src/hooks/mutations/report.test.ts",
-    "src/hooks/mutations/secret.test.ts",
-    "src/hooks/mutations/ship.test.ts",
-    "src/hooks/mutations/theory.test.ts",
-    "src/hooks/mutations/user.test.ts",
-    "src/hooks/queries/quoteCharacters.test.ts",
-    "src/hooks/queries/art.test.ts",
-    "src/hooks/queries/chat.test.ts",
-    "src/hooks/queries/fanfic.test.ts",
-    "src/hooks/queries/giphy.test.ts",
-    "src/hooks/queries/journal.test.ts",
-    "src/hooks/queries/site.test.ts",
-    "src/hooks/queries/user.test.ts",
-    "src/hooks/useProfileSettingsForm.test.ts",
-];
-
-export const migrationExemptions = [{ files: mayWriteRawQueryKeys, rules: { "no-restricted-syntax": "off" } }];

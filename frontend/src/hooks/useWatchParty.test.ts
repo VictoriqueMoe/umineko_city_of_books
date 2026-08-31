@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeWatchPartySession } from "../test-utils/fixtures";
 import { providerWrapper } from "../test-utils/render";
 import { emitRealtimeEvent } from "../test-utils/ws";
 import type { RealtimeEvent } from "../api/realtime/events";
@@ -60,18 +61,13 @@ function makeParticipant(overrides: Partial<WatchPartyParticipant> = {}): WatchP
 }
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
-        id: "session-1",
+    return makeWatchPartySession({
         room_id: roomId,
         started_by: viewerId,
         controller_id: viewerId,
-        title: "Chiru rewatch",
-        type: "hyperbeam",
-        status: "active",
-        started_at: "2026-08-01T10:00:00Z",
         participants: [makeParticipant()],
         ...overrides,
-    };
+    });
 }
 
 function serverLists(sessions: WatchPartySession[], screenShareEnabled = true) {

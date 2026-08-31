@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeGamePlayer, makeGameRoom, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { GameRoom, GameRoomPlayer } from "../../types/api";
 import { GamesListPage } from "./GamesListPage";
@@ -24,36 +24,29 @@ const viewer = makeUser({ id: "me", username: "me", display_name: "Me" });
 
 function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
     const id = overrides.user_id ?? "me";
-    return {
+
+    return makeGamePlayer({
         user_id: id,
         username: "beatrice",
         display_name: "Beatrice",
-        avatar_url: "",
-        role: "player",
-        slot: 0,
-        joined: true,
-        connected: true,
         user: { id, username: "beatrice", display_name: "Beatrice" },
         ...overrides,
-    };
+    });
 }
 
 function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
-    return {
-        id: "room-1",
-        game_type: "chess",
-        status: "pending",
-        state: {},
-        created_by: "beatrice-id",
-        created_at: "2026-07-01T10:00:00Z",
-        updated_at: "2026-07-01T10:00:00Z",
-        players: [
-            makePlayer({ user_id: "me", slot: 0, display_name: "Me" }),
-            makePlayer({ user_id: "beatrice-id", slot: 1, display_name: "Beatrice" }),
-        ],
-        watcher_count: 0,
-        ...overrides,
-    };
+    return makeGameRoom(
+        {},
+        {
+            status: "pending",
+            created_by: "beatrice-id",
+            players: [
+                makePlayer({ user_id: "me", slot: 0, display_name: "Me" }),
+                makePlayer({ user_id: "beatrice-id", slot: 1, display_name: "Beatrice" }),
+            ],
+            ...overrides,
+        },
+    );
 }
 
 interface StubOptions {

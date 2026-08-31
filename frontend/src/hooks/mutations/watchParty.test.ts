@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../../api/queryKeys";
+import { makeWatchPartySession } from "../../test-utils/fixtures";
 import { providerWrapper } from "../../test-utils/render";
 import type { WatchPartySession } from "../../types/api";
 import {
@@ -35,17 +36,14 @@ const sessionId = "22222222-2222-2222-2222-222222222222";
 const userId = "33333333-3333-3333-3333-333333333333";
 
 function makeSession(): WatchPartySession {
-    return {
+    return makeWatchPartySession({
         id: sessionId,
         room_id: roomId,
         started_by: userId,
         controller_id: userId,
         title: "Rokkenjima night",
-        type: "hyperbeam",
-        status: "active",
         started_at: "2026-08-28T12:00:00Z",
-        participants: [],
-    };
+    });
 }
 
 function createRetainingQueryClient(): QueryClient {

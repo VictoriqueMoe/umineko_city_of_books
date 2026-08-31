@@ -1,8 +1,23 @@
 package repository
 
-import "github.com/google/uuid"
+import (
+	"context"
+	"database/sql"
+
+	"github.com/google/uuid"
+)
 
 type (
+	CommentDAO[K comparable] interface {
+		CreateComment(ctx context.Context, entityID K, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
+	}
+
+	CommentDAOs struct {
+		ByID    map[string]CommentDAO[uuid.UUID]
+		BySlug  map[string]CommentDAO[string]
+		Journal JournalCommentWriter
+	}
+
 	CommentRow struct {
 		ID                uuid.UUID
 		EntityID          string

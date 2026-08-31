@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -50,6 +51,7 @@ type (
 		auditRepo    repository.AuditLogRepository
 		blockSvc     block.Service
 		notifService notification.Service
+		mentionSvc   mention.Service
 		settingsSvc  settings.Service
 		authzSvc     authz.Service
 		hub          *ws.Hub
@@ -64,6 +66,7 @@ func NewService(
 	auditRepo repository.AuditLogRepository,
 	blockSvc block.Service,
 	notifService notification.Service,
+	mentionSvc mention.Service,
 	settingsSvc settings.Service,
 	authzSvc authz.Service,
 	hub *ws.Hub,
@@ -76,6 +79,7 @@ func NewService(
 		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
 		notifService: notifService,
+		mentionSvc:   mentionSvc,
 		settingsSvc:  settingsSvc,
 		authzSvc:     authzSvc,
 		hub:          hub,
@@ -223,6 +227,8 @@ func (s *service) Create(ctx context.Context, userID uuid.UUID, title, body stri
 
 	s.audit(ctx, userID, repository.AuditActionAnnouncementCreate, created.ID, userID, fmt.Sprintf("title=%s", title))
 
+	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindAnnouncement, EntityID: created.ID}, userID, body)
+
 	return created.ID, nil
 }
 
@@ -305,18 +311,25 @@ func (s *service) CreateComment(ctx context.Context, announcementID, userID uuid
 		return uuid.Nil, ErrBlocked
 	}
 
-	created, err := s.repo.CreateComment(ctx, announcementID, parentID, userID, body)
+	commentID, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
+		Kind:     mention.KindAnnouncementComment,
+		EntityID: announcementID,
+		ParentID: parentID,
+		AuthorID: userID,
+		Body:     body,
+	})
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).
 			Str("announcement_id", announcementID.String()).
 			Str("user_id", userID.String()).
 			Msg("failed to create announcement comment")
+
 		return uuid.Nil, err
 	}
 
-	go s.notifyCommentCreated(ann, announcementID, created.ID, userID, parentID)
+	go s.notifyCommentCreated(ann, announcementID, commentID, userID, parentID)
 
-	return created.ID, nil
+	return commentID, nil
 }
 
 func (s *service) notifyCommentCreated(ann *repository.AnnouncementRow, announcementID, commentID, actorID uuid.UUID, parentID *uuid.UUID) {

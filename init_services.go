@@ -46,6 +46,7 @@ import (
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 	"umineko_city_of_books/internal/notification"
 	ocsvc "umineko_city_of_books/internal/oc"
@@ -114,6 +115,11 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	overlayHub := ws.NewHub("overlay")
 	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc, authzSvc)
 	notifSvc := notification.NewService(repos.Notification, repos.User, repos.Block, hub, emailSvc, pushSvc, settingsSvc, overlaySvc)
+	if err := mention.ValidateCommentDAOs(repos.Comments); err != nil {
+		logger.Log.Fatal().Err(err).Msg("comment daos are incomplete")
+	}
+
+	mentionSvc := mention.NewService(repos.User, blockSvc, notifSvc, repos.Comments)
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
 	hyperbeamSvc := hyperbeam.NewService(settingsSvc)
 	livekitSvc := livekit.NewService(settingsSvc)
@@ -121,7 +127,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentFilter)
 	streamSvc.SetChatBinder(chatSvc)
 
-	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
+	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
 
 	openaiSvc := openai.NewService(settingsSvc)
 	chatbotSvc := chatbot.NewService(openaiSvc, chatSvc, postSvc, repos.Chat, repos.Post, repos.Chatbot, repos.AuditLog, authzSvc, settingsSvc, hub)
@@ -129,16 +135,16 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	postSvc.SetCommentObserver(chatbotSvc)
 	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.ChatbotBasePrompt, repos.AuditLog, userSvc, openaiSvc, chatbotSvc)
 	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
-	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
-	ocSvc := ocsvc.NewService(repos.OC, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
+	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
+	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
+	ocSvc := ocsvc.NewService(repos.OC, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
+	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
+	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
+	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
+	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
 	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler(), minesweeper.NewHandler(), snakesandladders.NewHandler(), pong.NewHandler()})
 	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
-	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, settingsSvc, authzSvc, hub, announcementUploader, uploadSvc)
+	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, mentionSvc, settingsSvc, authzSvc, hub, announcementUploader, uploadSvc)
 	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub, cacheManager)
 	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
 	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
@@ -192,7 +198,7 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		cache:           cacheManager,
 		auth:            authSvc,
 		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, repos.AuditLog, authzSvc, uploadSvc, settingsSvc, contentFilter, identityFilter, hub, authSvc, sessionMgr, userSvc),
-		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
+		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
 		notification:    notifSvc,
 		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, repos.Permission, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
 		authz:           authzSvc,

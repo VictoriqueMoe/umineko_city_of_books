@@ -1,0 +1,54 @@
+# Provenance
+
+When I started coding, AI was not a thing (yes, I am old); in recent years, AI in code has become more and more common. The main issue with this is inexperienced/juniors using it to create complex things without understanding anything it produces, at worse, creating a serious security vulnerability and crashes.
+
+I feel that because of this, it is important to be fully transparent about how AI is used in repos, documentation, code and design. If many of you know me, i have always been very against using AI in code, there are reasons for this, but mostly personal, I enjoy coding, and i am rather protective of my codebase (anyone who has raised a PR on my projects knows that :D ).
+
+This document is meant to be transparent about how AI is used in this repository and what it is used for. 
+
+The td;dr is: All code is written by hand, every line, the documentation is written by hand, and proofread and reworded by AI. to be exact, it was done by Junie in Intellij using the built-in word-refactor option.
+
+Every single line of all the documents from the readme to the architecture document id 100% read by myself and approved (with some minor changes I made).
+
+I feel this is important to do, because if you feed my code through an AI tool, it thinks it is heavily AI assisted purely because of complexity, and that is both insulting and unfair to me as a developer.
+
+## Authorship
+
+The source is written by hand. No generative AI and no AI coding assistant is used to produce source code for this project *. Every Go package, React component, SQL migration, test and configuration file was written directly by the author, and the architecture, the layering decisions behind it, the test suites, the security design and the ongoing maintenance are the author's own work.
+
+The one exception is the prose documentation, which is set out under "Documentation and commit messages" below. It covers Markdown files only and no source file of any kind.
+
+Outside contributions arrive as pull requests and are attributed in the git history. Two have merged so far: #41, "Add support for discord style text formatting", merged 28 April 2026, and #61, "Fix redirect on login", merged 8 June 2026.
+
+\* The exception to this is Intellis built-in autocompletion tool that I do use, I would probably accept about 20–30% of the suggestions it gives me, for basic things like variable names and function names and for loops.
+
+## Documentation and commit messages
+
+This section sets out every place in the repository where an AI tool has been involved. None of them is source code.
+
+`README.md`, `docs/ARCHITECTURE.md` and this file were written by hand and have since been proofread, condensed and reorganised with AI assistance, and in places extended with prose describing code that already existed. Most of `docs/ARCHITECTURE.md` and the files under `docs/` are hand-written `README.md` sections relocated verbatim. What those documents describe, and every decision recorded in them, is the author's; the assistance acted on the writing after the fact and never on the thing being written about. The documentation is the only part of this repository produced this way.
+
+Some commit messages were produced by IntelliJ IDEA's commit-message generation, which summarises an already-staged diff. It runs on the message text after the code is written and describes changes that already exist, so it says nothing about how the code itself was produced.
+
+## Timeline
+
+Development began in November 2025 and has been continuous since. This repository's own history opens later: `git rev-list --max-parents=0 HEAD` resolves to commit `88e241e`, dated 28 March 2026. That commit is the first push to GitHub, not the start of the project. The work before it was local development on this same codebase, so those months are real but are not represented in the commit history here.
+
+Since that first commit there has been work in every month, with no gap where the project went quiet and no single burst that the rest of the history hangs off. That is what continuous development looks like, and it is the opposite shape to a codebase generated in a sitting.
+
+This section deliberately quotes no totals. A commit count is stale the moment the next commit lands, and a table of months has to be rewritten forever to stay honest, which is a poor way to make a claim about honesty. The repository answers all of it directly, so run it yourself rather than trusting a number I typed:
+
+| Question                      | Command                                                               |
+| ----------------------------- | --------------------------------------------------------------------- |
+| How many commits are there?   | `git rev-list --count HEAD`                                           |
+| How are they spread by month? | `git log --format="%ad" --date=format:"%Y-%m" \| sort \| uniq -c`     |
+| Who wrote them?               | `git shortlog -sne HEAD`                                              |
+| When did the history open?    | `git log -1 --format="%h %ad" "$(git rev-list --max-parents=0 HEAD)"` |
+
+The last of those is the only figure worth pinning, because a root commit never changes, and it is pinned above.
+
+## Third-party code
+
+Runtime dependencies are declared in `go.mod` and `frontend/package.json` and are used under their own licences. Quote data is served by the external Umineko Quote Finder API rather than bundled here. The header artwork on the front page is by Meru and is credited in `README.md`.
+
+This project is MIT licensed, under the licence text reproduced in the `LICENSE` file at the repository root. Umineko no Naku Koro ni and the wider When They Cry series are © 07th Expansion; this is an unofficial fan project with no affiliation to them.

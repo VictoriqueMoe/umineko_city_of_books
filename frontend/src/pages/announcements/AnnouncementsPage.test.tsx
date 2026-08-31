@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { makeAnnouncement as makeContentAnnouncement } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { Announcement } from "../../types/api";
 import { AnnouncementsPage } from "./AnnouncementsPage";
@@ -12,16 +13,7 @@ vi.mock("../../hooks/queries/announcement", () => ({ useAnnouncementList }));
 const author = { id: "author-1", username: "beatrice", display_name: "Beatrice" };
 
 function makeAnnouncement(overrides: Partial<Announcement> = {}): Announcement {
-    return {
-        id: "announcement-1",
-        title: "The board reopens",
-        body: "The game board is open again.",
-        author,
-        pinned: false,
-        created_at: "2026-07-01T10:00:00Z",
-        updated_at: "2026-07-01T10:00:00Z",
-        ...overrides,
-    };
+    return makeContentAnnouncement({ author, ...overrides });
 }
 
 interface StubOptions {

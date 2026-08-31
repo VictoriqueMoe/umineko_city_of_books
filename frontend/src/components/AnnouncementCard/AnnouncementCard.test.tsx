@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Announcement } from "../../types/api";
+import { makeAnnouncement as makeContentAnnouncement, makePublicUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { AnnouncementCard } from "./AnnouncementCard";
 
@@ -13,20 +14,15 @@ vi.mock("../../hooks/queries/announcement", () => ({ useLatestAnnouncement }));
 const DISMISSED_KEY = "dismissed_announcement";
 
 function makeAnnouncement(overrides: Partial<Announcement> = {}): Announcement {
-    return {
+    return makeContentAnnouncement({
         id: "ann-1",
         title: "The Golden Witch returns",
         body: "Read the **rules** before posting.",
-        author: {
-            id: "00000000-0000-0000-0000-000000000001",
-            username: "beatrice",
-            display_name: "Beatrice",
-        },
-        pinned: false,
+        author: makePublicUser({ id: "00000000-0000-0000-0000-000000000001" }),
         created_at: "2026-01-01T00:00:00Z",
         updated_at: "2026-01-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 function LocationProbe() {

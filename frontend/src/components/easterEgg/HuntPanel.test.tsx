@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SiteInfoSecret } from "../../types/api";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeSiteSecret, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { HuntPanel } from "./HuntPanel";
 
@@ -17,22 +17,19 @@ const addSecret = vi.fn();
 const secretId = "epitaph";
 
 function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
-    return {
+    return makeSiteSecret({
         id: secretId,
-        title: "The Witch's Epitaph",
-        description: "Seek the key that opens the golden land.",
         pointer: "At the sweetfish river, the key is sleeping.",
         pending_hint: "The sparkles hide where the story is quiet.",
         ready_placeholder: "Whisper the name of the witch...",
         solved_message: "The golden land opens for you.",
-        solved: false,
         pieces: [
             { id: "piece-1", letter: "B", tile: 1 },
             { id: "piece-2", letter: "E", tile: 2 },
             { id: "piece-3", letter: "A", tile: 3 },
         ],
         ...overrides,
-    };
+    });
 }
 
 interface SetupOptions {

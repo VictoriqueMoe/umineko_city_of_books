@@ -4,9 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../api/queryKeys";
 import type { RealtimeEvent } from "../api/realtime/events";
 import { useStreamDirectorySync } from "../api/realtime/sync/useStreamDirectorySync";
+import { makeStream } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { emitSettledRealtimeEvent } from "../test-utils/ws";
-import type { LiveStream, LiveStreamListResponse } from "../types/api";
+import type { LiveStreamListResponse } from "../types/api";
 import { useLiveDirectory } from "./useLiveDirectory";
 
 const mocks = vi.hoisted(() => ({
@@ -17,21 +18,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/endpoints/stream", () => mocks);
-
-function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: "stream-1",
-        userId: "user-1",
-        title: "Reading the epitaph",
-        status: "live",
-        viewerCount: 3,
-        streamerUsername: "beato",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
-        ...overrides,
-    };
-}
 
 async function emit(event: RealtimeEvent): Promise<void> {
     await emitSettledRealtimeEvent(event);

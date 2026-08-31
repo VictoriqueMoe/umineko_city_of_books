@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -11,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -25,6 +27,7 @@ import (
 
 type testMocks struct {
 	ocRepo      *repository.MockOCRepository
+	ocComments  *repository.MockCommentDAO[uuid.UUID]
 	userRepo    *repository.MockUserRepository
 	auditRepo   *repository.MockAuditLogRepository
 	authz       *authz.MockService
@@ -44,10 +47,15 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
+	ocComments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindOCComment): ocComments},
+	})
 
-	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New()).(*service)
+	svc := NewService(ocRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, nil, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		ocRepo:      ocRepo,
+		ocComments:  ocComments,
 		userRepo:    userRepo,
 		auditRepo:   auditRepo,
 		authz:       authzSvc,
@@ -160,6 +168,47 @@ func TestCreateOC_RepoErrorBubbles(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestCreateOC_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	ocID := uuid.New()
+	mentionedID := uuid.New()
+	req := dto.CreateOCRequest{Name: "Linda", Description: "designed with @alice", Series: "umineko"}
+
+	m.ocRepo.EXPECT().HasOC(mock.Anything, userID, "Linda").Return(false, nil)
+	m.ocRepo.EXPECT().
+		Create(mock.Anything, repository.NewOC{UserID: userID, Name: "Linda", Description: "designed with @alice", Series: "umineko"}).
+		Return(&model.OCRow{ID: ocID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			mentioned = p
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateOC(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, dto.NotifMention, mentioned.Type)
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, ocID, mentioned.ReferenceID)
+	assert.Equal(t, "oc", mentioned.ReferenceType)
+	assert.Equal(t, "/oc/"+ocID.String(), mentioned.EmailLink)
 }
 
 func TestGetOC_NotFoundError(t *testing.T) {
@@ -469,6 +518,49 @@ func TestCreateComment_BlockedReturnsError(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, block.ErrUserBlocked)
+}
+
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	ocID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, ocID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.ocComments.EXPECT().
+		CreateComment(mock.Anything, ocID, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), ocID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, "oc_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/oc/"+ocID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
 }
 
 func TestUpdateComment_EmptyBodyRejected(t *testing.T) {

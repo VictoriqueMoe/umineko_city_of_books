@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -21,7 +22,7 @@ func createAnnouncement(t *testing.T, repos *repository.Repositories, authorID u
 
 func createAnnouncementComment(t *testing.T, repos *repository.Repositories, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Announcement.CreateComment(context.Background(), announcementID, parentID, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindAnnouncementComment)].CreateComment(context.Background(), announcementID, parentID, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }

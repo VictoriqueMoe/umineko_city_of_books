@@ -1,7 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makePost as makeContentPost, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { Post, UserProfile } from "../../types/api";
 import { SocialFeedPage } from "./SocialFeedPage";
@@ -33,19 +33,12 @@ const author = { id: "author-1", username: "beatrice", display_name: "Beatrice" 
 const reader = makeUser({ id: "reader-1", username: "battler", display_name: "Battler" });
 
 function makePost(overrides: Partial<Post> = {}): Post {
-    return {
-        id: "post-1",
+    return makeContentPost({
         author,
         body: "The witch is watching.",
-        media: [],
-        share_count: 0,
-        like_count: 0,
-        comment_count: 0,
-        view_count: 0,
-        user_liked: false,
         created_at: "2026-07-01T10:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 interface StubOptions {

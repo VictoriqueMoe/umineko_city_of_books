@@ -18,6 +18,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -33,6 +34,7 @@ import (
 
 type testMocks struct {
 	repo         *repository.MockMysteryRepository
+	comments     *repository.MockCommentDAO[uuid.UUID]
 	userRepo     *repository.MockUserRepository
 	auditRepo    *repository.MockAuditLogRepository
 	authz        *authz.MockService
@@ -56,7 +58,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	comments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindMysteryComment): comments},
+	})
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
@@ -65,6 +71,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	return svc, &testMocks{
 		fanout:       fanout,
 		repo:         repo,
+		comments:     comments,
 		userRepo:     userRepo,
 		auditRepo:    auditRepo,
 		authz:        authzSvc,
@@ -444,6 +451,49 @@ func TestCreateMystery_WithClues(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	mysteryID := uuid.New()
+	mentionedID := uuid.New()
+
+	req := validCreateReq()
+	req.Body = "solve this with @alice"
+
+	spec := validCreateSpec(userID)
+	spec.Body = req.Body
+
+	m.repo.EXPECT().CreateWithClues(mock.Anything, spec).Return(&repository.MysteryRow{ID: mysteryID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	var mentioned dto.NotifyParams
+	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			mentioned = p
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateMystery(context.Background(), userID, req)
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, dto.NotifMention, mentioned.Type)
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, mysteryID, mentioned.ReferenceID)
+	assert.Equal(t, "mystery", mentioned.ReferenceType)
+	assert.Equal(t, "/mystery/"+mysteryID.String(), mentioned.EmailLink)
 }
 
 func TestUpdateMystery_NotAuthorised(t *testing.T) {
@@ -921,6 +971,54 @@ func TestCreateAttempt_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateAttempt_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mysteryID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	attemptID := uuid.New()
+	mentionedID := uuid.New()
+	body := "the culprit is who @alice named"
+
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mysteryID).Return(authorID, nil)
+	m.repo.EXPECT().IsSolved(mock.Anything, mysteryID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mysteryID, userID).Return(false, nil)
+	m.repo.EXPECT().IsPaused(mock.Anything, mysteryID).Return(false, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.repo.EXPECT().CreateAttempt(mock.Anything, mysteryID, userID, (*uuid.UUID)(nil), body).
+		Return(&repository.MysteryAttemptRow{ID: attemptID, AuthorUsername: "u"}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateAttempt(context.Background(), mysteryID, userID, dto.CreateAttemptRequest{Body: body})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, mysteryID, mentioned.ReferenceID)
+	assert.Equal(t, "mystery_attempt:"+attemptID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/mystery/"+mysteryID.String()+"#attempt-"+attemptID.String(), mentioned.EmailLink)
 }
 
 func TestDeleteAttempt_Admin(t *testing.T) {
@@ -1623,7 +1721,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
+	m.comments.EXPECT().CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateComment(context.Background(), mid, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -1641,7 +1739,7 @@ func TestCreateComment_OK(t *testing.T) {
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.comments.EXPECT().CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "D"}, nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
@@ -1655,6 +1753,50 @@ func TestCreateComment_OK(t *testing.T) {
 	assert.NotEqual(t, uuid.Nil, id)
 }
 
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	mid := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
+	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.comments.EXPECT().
+		CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), mid, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, "mystery_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/mystery/"+mid.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
+}
+
 func TestCreateComment_Reply_NotifiesParentAuthor(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -1666,7 +1808,7 @@ func TestCreateComment_Reply_NotifiesParentAuthor(t *testing.T) {
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateComment(mock.Anything, mid, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.comments.EXPECT().CreateComment(mock.Anything, mid, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "D"}, nil).Maybe()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, parentID).Return(parentAuthor, nil).Maybe()

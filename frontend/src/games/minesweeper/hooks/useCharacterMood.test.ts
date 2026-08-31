@@ -1,5 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeMinesweeperState } from "../../../test-utils/fixtures";
 import { MinesweeperState } from "../../../types/api";
 import { CharacterDef, CharacterId, Expression, Mood } from "../types";
 import { useCharacterMood } from "./useCharacterMood";
@@ -39,20 +40,7 @@ function moodOf(expression: Expression): string {
 }
 
 function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState {
-    return {
-        phase: "playing",
-        width: 10,
-        height: 11,
-        mine_count: 10,
-        characters: ["bernkastel", "erika"],
-        revealed: [[], []],
-        flagged: [[], []],
-        revealed_count: [0, 0],
-        values: [[], []],
-        mines_placed: true,
-        pending_clicks: [null, null],
-        ...overrides,
-    };
+    return makeMinesweeperState({ height: 11, ...overrides });
 }
 
 interface HookProps {

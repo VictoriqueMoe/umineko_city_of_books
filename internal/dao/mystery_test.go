@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -29,7 +30,7 @@ func createAttempt(t *testing.T, repos *repository.Repositories, mysteryID, user
 
 func createMysteryComment(t *testing.T, repos *repository.Repositories, mysteryID uuid.UUID, parent *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Mystery.CreateComment(context.Background(), mysteryID, parent, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindMysteryComment)].CreateComment(context.Background(), mysteryID, parent, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }

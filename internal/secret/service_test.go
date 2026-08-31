@@ -3,6 +3,7 @@ package secret
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -10,8 +11,10 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
@@ -24,6 +27,7 @@ import (
 
 type testMocks struct {
 	secretRepo     *repository.MockSecretRepository
+	secretComments *repository.MockCommentDAO[string]
 	userSecretRepo *repository.MockUserSecretRepository
 	userRepo       *repository.MockUserRepository
 	authz          *authz.MockService
@@ -45,7 +49,11 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	hub := ws.NewHub()
 	mediaProc := &media.Processor{}
-	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	secretComments := repository.NewMockCommentDAO[string](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notif, repository.CommentDAOs{
+		BySlug: map[string]repository.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
+	})
+	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
 
 	secretRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return("", nil).Maybe()
 	userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
@@ -54,6 +62,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	return svc, &testMocks{
 		secretRepo:     secretRepo,
+		secretComments: secretComments,
 		userSecretRepo: userSecretRepo,
 		userRepo:       userRepo,
 		authz:          authzSvc,
@@ -215,7 +224,7 @@ func TestCreateComment_Persists(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	user := uuid.New()
-	m.secretRepo.EXPECT().
+	m.secretComments.EXPECT().
 		CreateComment(mock.Anything, "witchHunter", (*uuid.UUID)(nil), user, "hello").
 		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("skip")).Maybe()
@@ -226,6 +235,59 @@ func TestCreateComment_Persists(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given a service whose notification mock captures rather than discards
+	secretRepo := repository.NewMockSecretRepository(t)
+	userSecretRepo := repository.NewMockUserSecretRepository(t)
+	userRepo := repository.NewMockUserRepository(t)
+	authzSvc := authz.NewMockService(t)
+	blockSvc := block.NewMockService(t)
+	notif := notification.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	uploadSvc := upload.NewMockService(t)
+	secretComments := repository.NewMockCommentDAO[string](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notif, repository.CommentDAOs{
+		BySlug: map[string]repository.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
+	})
+	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, &media.Processor{}, ws.NewHub(), contentfilter.New())
+
+	userID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	secretComments.EXPECT().
+		CreateComment(mock.Anything, "witchHunter", (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	secretRepo.EXPECT().GetCommenterIDs(mock.Anything, "witchHunter").Return(nil, nil)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	var mentioned dto.NotifyParams
+	notif.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			mentioned = p
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), "witchHunter", userID, dto.CreateSecretCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, dto.NotifMention, mentioned.Type)
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, uuid.Nil, mentioned.ReferenceID)
+	assert.Equal(t, "secret_comment:witchHunter:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/secrets/witchHunter#comment-"+commentID.String(), mentioned.EmailLink)
 }
 
 func TestLikeComment_BlocksIfBlocked(t *testing.T) {

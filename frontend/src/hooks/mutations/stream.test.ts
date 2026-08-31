@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../../api/queryKeys";
+import { makeStream as makeLiveStream } from "../../test-utils/fixtures";
 import { providerWrapper } from "../../test-utils/render";
 import type { LiveStream, StreamOwner } from "../../types/api";
 import {
@@ -29,18 +30,7 @@ vi.mock("../../api/endpoints/stream", () => mocks);
 const streamId = "11111111-1111-1111-1111-111111111111";
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: streamId,
-        userId: "user-1",
-        title: "Reading the epitaph",
-        status: "live",
-        viewerCount: 3,
-        streamerUsername: "beato",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
-        ...overrides,
-    };
+    return makeLiveStream({ id: streamId, ...overrides });
 }
 
 function makeOwner(): StreamOwner {

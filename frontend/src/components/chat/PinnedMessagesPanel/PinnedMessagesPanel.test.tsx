@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatMessage, User } from "../../../types/api";
+import { makeChatMessage } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { PinnedMessagesPanel } from "./PinnedMessagesPanel";
 
@@ -27,18 +28,16 @@ function makeSender(overrides: Partial<User> = {}): User {
 }
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
+    return makeChatMessage({
         id: "msg-1",
         room_id: roomId,
         sender: makeSender(),
         body: "Without love it cannot be seen",
-        is_system: false,
         created_at: "2026-08-01T09:00:00Z",
         pinned: true,
         pinned_at: "2026-08-01T10:00:00Z",
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 function stubPinned(messages: ChatMessage[], loading = false) {

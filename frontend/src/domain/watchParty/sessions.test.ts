@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { makeWatchPartySession } from "../../test-utils/fixtures";
 import type { User, WatchPartyParticipant, WatchPartySession } from "../../types/api";
 import { appendOrReplaceParticipant, mapSession, upsertSession } from "./sessions";
 
@@ -11,18 +12,7 @@ function participant(id: string, hasControl = false): WatchPartyParticipant {
 }
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
-        id: "session-1",
-        room_id: "room-1",
-        started_by: "user-viewer",
-        controller_id: "user-viewer",
-        title: "Chiru rewatch",
-        type: "hyperbeam",
-        status: "active",
-        started_at: "2026-08-01T10:00:00Z",
-        participants: [participant("user-viewer")],
-        ...overrides,
-    };
+    return makeWatchPartySession({ participants: [participant("user-viewer")], ...overrides });
 }
 
 describe("appendOrReplaceParticipant", () => {

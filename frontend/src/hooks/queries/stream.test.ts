@@ -3,6 +3,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as endpoints from "../../api/endpoints/stream";
 import { queryKeys } from "../../api/queryKeys";
+import { makeStream as makeLiveStream } from "../../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import type { LiveStream, LiveStreamListResponse, StreamOwner } from "../../types/api";
 import { useLiveStreams, useLiveStreamsCount, useMyStream, useStream, useStreamCredentials } from "./stream";
@@ -29,17 +30,7 @@ function createRetainingQueryClient(): QueryClient {
 }
 
 function makeStream(id: string): LiveStream {
-    return {
-        id,
-        userId: `user-${id}`,
-        title: "Reading the epitaph",
-        status: "live",
-        viewerCount: 3,
-        streamerUsername: "beato",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
-    };
+    return makeLiveStream({ id, userId: `user-${id}` });
 }
 
 function makeList(streams: LiveStream[], enabled = true): LiveStreamListResponse {

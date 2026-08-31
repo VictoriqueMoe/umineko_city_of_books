@@ -4,13 +4,16 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/announcement"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -26,6 +29,7 @@ import (
 
 type harness struct {
 	repo         *repository.MockAnnouncementRepository
+	comments     *repository.MockCommentDAO[uuid.UUID]
 	userRepo     *repository.MockUserRepository
 	auditRepo    *repository.MockAuditLogRepository
 	blockSvc     *block.MockService
@@ -49,12 +53,17 @@ func newHarness(t *testing.T) *harness {
 	hub := ws.NewHub()
 
 	uploader := media.NewUploader(uploadSvc, settingsSvc, nil)
+	comments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
+	})
 
 	settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("http://test").Maybe()
 	notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	return &harness{
 		repo:         repo,
+		comments:     comments,
 		userRepo:     userRepo,
 		auditRepo:    auditRepo,
 		blockSvc:     blockSvc,
@@ -63,7 +72,7 @@ func newHarness(t *testing.T) *harness {
 		authzSvc:     authzSvc,
 		uploadSvc:    uploadSvc,
 		hub:          hub,
-		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, settingsSvc, authzSvc, hub, uploader, uploadSvc),
+		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, hub, uploader, uploadSvc),
 	}
 }
 
@@ -187,6 +196,58 @@ func TestService_Create_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, annID, id)
+}
+
+func TestService_Create_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
+	// given a service whose notification mock captures rather than discards
+	repo := repository.NewMockAnnouncementRepository(t)
+	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
+	blockSvc := block.NewMockService(t)
+	notifService := notification.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	authzSvc := authz.NewMockService(t)
+	uploadSvc := upload.NewMockService(t)
+	comments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
+	})
+	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc)
+
+	userID := uuid.New()
+	annID := uuid.New()
+	mentionedID := uuid.New()
+
+	repo.EXPECT().Create(mock.Anything, userID, "Maintenance", "we are down, ask @alice").
+		Return(&repository.AnnouncementRow{ID: annID}, nil)
+	auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil)
+	userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	var mentioned dto.NotifyParams
+	notifService.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			mentioned = p
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.Create(context.Background(), userID, "Maintenance", "we are down, ask @alice")
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, dto.NotifMention, mentioned.Type)
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, annID, mentioned.ReferenceID)
+	assert.Equal(t, "announcement", mentioned.ReferenceType)
+	assert.Equal(t, "/announcements/"+annID.String(), mentioned.EmailLink)
 }
 
 func TestService_Update_RejectsEmpty(t *testing.T) {
@@ -366,7 +427,7 @@ func TestService_CreateComment_OK(t *testing.T) {
 	h.repo.EXPECT().GetByID(mock.Anything, annID).
 		Return(&repository.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	h.repo.EXPECT().CreateComment(mock.Anything, annID, (*uuid.UUID)(nil), userID, "hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	h.comments.EXPECT().CreateComment(mock.Anything, annID, (*uuid.UUID)(nil), userID, "hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	h.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil).Maybe()
 
 	// when
@@ -375,6 +436,62 @@ func TestService_CreateComment_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestService_CreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given a service whose notification mock captures rather than discards
+	repo := repository.NewMockAnnouncementRepository(t)
+	userRepo := repository.NewMockUserRepository(t)
+	auditRepo := repository.NewMockAuditLogRepository(t)
+	blockSvc := block.NewMockService(t)
+	notifService := notification.NewMockService(t)
+	settingsSvc := settings.NewMockService(t)
+	authzSvc := authz.NewMockService(t)
+	uploadSvc := upload.NewMockService(t)
+	comments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
+	})
+	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc)
+
+	annID := uuid.New()
+	authorID := uuid.New()
+	userID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	repo.EXPECT().GetByID(mock.Anything, annID).
+		Return(&repository.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	comments.EXPECT().CreateComment(mock.Anything, annID, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil)
+	userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	notifService.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), annID, userID, nil, "look at this @alice")
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, "announcement_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/announcements/"+annID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
 }
 
 func TestService_UpdateComment_AsAuthor(t *testing.T) {

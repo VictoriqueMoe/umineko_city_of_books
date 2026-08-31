@@ -1,8 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
-import { createTestQueryClient, renderWithProviders } from "../../test-utils/render";
+import { makeChatRoom, makeUser } from "../../test-utils/fixtures";
+import { renderWithProviders } from "../../test-utils/render";
 import type { ChatRoom, UserProfile } from "../../types/api";
 import { RoomsListPage } from "./RoomsListPage";
 
@@ -42,24 +42,7 @@ vi.mock("../../components/chat/CreateRoomModal/CreateRoomModal", () => ({
 const viewer = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "Tea Parlour",
-        description: "",
-        type: "group",
-        is_public: true,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 4,
-        hot_score: 0,
-        members: [],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
+    return makeChatRoom({ member_count: 4, ...overrides });
 }
 
 interface ListOptions {
@@ -94,13 +77,7 @@ function stubLists(options: ListOptions = {}) {
 }
 
 function renderList(options: { user?: UserProfile | null } = {}) {
-    const queryClient = createTestQueryClient();
-    const result = renderWithProviders(<RoomsListPage />, {
-        user: options.user === undefined ? viewer : options.user,
-        queryClient,
-    });
-
-    return { ...result, queryClient };
+    return renderWithProviders(<RoomsListPage />, { user: options.user === undefined ? viewer : options.user });
 }
 
 beforeEach(() => {

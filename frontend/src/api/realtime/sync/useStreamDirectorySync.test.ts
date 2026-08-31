@@ -2,27 +2,13 @@ import { act, renderHook } from "@testing-library/react";
 import type { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { expectInvalidated } from "../../../test-utils/query";
+import { makeStream } from "../../../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../../../test-utils/render";
 import type { LiveStream, LiveStreamListResponse } from "../../../types/api";
 import { queryKeys } from "../../queryKeys";
 import { dispatch } from "../bus";
 import type { RealtimeEvent } from "../events";
 import { useStreamDirectorySync } from "./useStreamDirectorySync";
-
-function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: "stream-1",
-        userId: "user-1",
-        title: "Reading the epitaph",
-        status: "live",
-        viewerCount: 3,
-        streamerUsername: "beato",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
-        ...overrides,
-    };
-}
 
 function emit(event: RealtimeEvent): void {
     act(() => {

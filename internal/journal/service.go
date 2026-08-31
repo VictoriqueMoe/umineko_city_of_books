@@ -17,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -68,6 +69,7 @@ type (
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
+		mentionSvc    mention.Service
 		settingsSvc   settings.Service
 		uploadSvc     upload.Service
 		uploader      *media.Uploader
@@ -82,6 +84,7 @@ func NewService(
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
+	mentionSvc mention.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -94,6 +97,7 @@ func NewService(
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
+		mentionSvc:    mentionSvc,
 		settingsSvc:   settingsSvc,
 		uploadSvc:     uploadSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -202,6 +206,8 @@ func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.C
 	if err != nil {
 		return uuid.Nil, err
 	}
+
+	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindJournal, EntityID: created.ID}, userID, req.Title)
 
 	return created.ID, nil
 }
@@ -453,10 +459,20 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	}
 
 	if !req.IsDraft {
+		s.notifyEntryMentions(ctx, journalID, nextNumber, userID, body)
+
 		go s.notifyEntryPublished(journalID, nextNumber, userID)
 	}
 
 	return created.ID, nextNumber, nil
+}
+
+func (s *service) notifyEntryMentions(ctx context.Context, journalID uuid.UUID, entryNumber int, actorID uuid.UUID, body string) {
+	s.mentionSvc.NotifyAsync(ctx, mention.Reference{
+		Kind:        mention.KindJournalEntry,
+		EntityID:    journalID,
+		EntryNumber: entryNumber,
+	}, actorID, body)
 }
 
 func (s *service) eligibleFollowerIDs(ctx context.Context, journalID uuid.UUID, actorUserID uuid.UUID) ([]uuid.UUID, error) {
@@ -618,6 +634,8 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	}
 
 	if publishing {
+		s.notifyEntryMentions(ctx, existing.JournalID, existing.EntryNumber, userID, body)
+
 		go s.notifyEntryPublished(existing.JournalID, existing.EntryNumber, userID)
 	}
 
@@ -703,24 +721,31 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 
 	isAuthorComment := userID == authorID
 
-	created, err := s.repo.CreateComment(ctx, repository.NewJournalComment{
-		JournalID:            journalID,
+	spec := mention.CommentSpec{
+		Kind:                 mention.KindJournalComment,
+		EntityID:             journalID,
 		EntryID:              entryID,
 		ParentID:             parentID,
-		UserID:               userID,
+		AuthorID:             userID,
 		Body:                 body,
 		RecordAuthorActivity: isAuthorComment,
-	})
+	}
+	if entryNumber != nil {
+		spec.Kind = mention.KindJournalEntryComment
+		spec.EntryNumber = *entryNumber
+	}
+
+	commentID, err := s.mentionSvc.CreateComment(ctx, spec)
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	refType := journalCommentRefType(entryNumber, created.ID)
+	refType := journalCommentRefType(entryNumber, commentID)
 
 	go func() {
 		bgCtx := context.Background()
 		title, _ := s.repo.GetTitle(bgCtx, journalID)
-		linkURL := commentLinkURL("", journalID, entryNumber, created.ID)
+		linkURL := commentLinkURL("", journalID, entryNumber, commentID)
 		actor := s.actorName(bgCtx, userID)
 
 		if isAuthorComment {
@@ -777,7 +802,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		}
 	}()
 
-	return created.ID, nil
+	return commentID, nil
 }
 
 func journalCommentRefType(entryNumber *int, commentID uuid.UUID) string {

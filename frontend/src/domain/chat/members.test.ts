@@ -1,18 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ChatRoomMember } from "../../types/api";
+import { makeRoomMember } from "../../test-utils/fixtures";
 import { effectiveMemberUser, memberModPermissions, type MemberModContext } from "./members";
-
-function makeMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
-    return {
-        user: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-        ...overrides,
-    };
-}
 
 function makeContext(overrides: Partial<MemberModContext> = {}): MemberModContext {
     return {
@@ -27,7 +15,7 @@ function makeContext(overrides: Partial<MemberModContext> = {}): MemberModContex
 describe("effectiveMemberUser", () => {
     it("prefers the room nickname over every other name", () => {
         // given
-        const member = makeMember({ nickname: "Golden Witch" });
+        const member = makeRoomMember({ nickname: "Golden Witch" });
 
         // when
         const user = effectiveMemberUser(member);
@@ -38,7 +26,7 @@ describe("effectiveMemberUser", () => {
 
     it("falls back to the account display name when the nickname is only whitespace", () => {
         // given
-        const member = makeMember({ nickname: "   " });
+        const member = makeRoomMember({ nickname: "   " });
 
         // when
         const user = effectiveMemberUser(member);
@@ -49,7 +37,7 @@ describe("effectiveMemberUser", () => {
 
     it("falls back to the username when there is no nickname and no display name", () => {
         // given
-        const member = makeMember({ nickname: "", user: { id: "u1", username: "beatrice", display_name: "  " } });
+        const member = makeRoomMember({ nickname: "", user: { id: "u1", username: "beatrice", display_name: "  " } });
 
         // when
         const user = effectiveMemberUser(member);
@@ -60,7 +48,7 @@ describe("effectiveMemberUser", () => {
 
     it("prefers the per-room avatar over the account avatar", () => {
         // given
-        const member = makeMember({
+        const member = makeRoomMember({
             member_avatar_url: "/uploads/room.png",
             user: { id: "u1", username: "beatrice", display_name: "Beatrice", avatar_url: "/uploads/account.png" },
         });
@@ -74,7 +62,7 @@ describe("effectiveMemberUser", () => {
 
     it("falls back to the account avatar when the per-room avatar is blank", () => {
         // given
-        const member = makeMember({
+        const member = makeRoomMember({
             member_avatar_url: "   ",
             user: { id: "u1", username: "beatrice", display_name: "Beatrice", avatar_url: "/uploads/account.png" },
         });
@@ -88,7 +76,7 @@ describe("effectiveMemberUser", () => {
 
     it("carries the rest of the account through untouched", () => {
         // given
-        const member = makeMember({
+        const member = makeRoomMember({
             nickname: "Golden Witch",
             user: { id: "u1", username: "beatrice", display_name: "Beatrice", role: "moderator", banned: true },
         });
@@ -110,7 +98,7 @@ describe("memberModPermissions", () => {
         const ctx = makeContext();
 
         // when
-        const perms = memberModPermissions(makeMember(), ctx);
+        const perms = memberModPermissions(makeRoomMember(), ctx);
 
         // then
         expect(perms).toEqual({
@@ -129,7 +117,7 @@ describe("memberModPermissions", () => {
         const ctx = makeContext({ canModerateRoom: true });
 
         // when
-        const perms = memberModPermissions(makeMember(), ctx);
+        const perms = memberModPermissions(makeRoomMember(), ctx);
 
         // then
         expect(perms.canKick).toBe(true);
@@ -142,7 +130,7 @@ describe("memberModPermissions", () => {
         const ctx = makeContext({ selfId: "u1", canModerateRoom: true, isSiteMod: true });
 
         // when
-        const perms = memberModPermissions(makeMember(), ctx);
+        const perms = memberModPermissions(makeRoomMember(), ctx);
 
         // then
         expect(perms.isSelf).toBe(true);
@@ -157,7 +145,7 @@ describe("memberModPermissions", () => {
 
         // when
         const perms = memberModPermissions(
-            makeMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: false }),
+            makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: false }),
             ctx,
         );
 
@@ -173,7 +161,7 @@ describe("memberModPermissions", () => {
         const ctx = makeContext({ canModerateRoom: true, isSiteMod: true, isSystem: true });
 
         // when
-        const perms = memberModPermissions(makeMember({ timeout_until: "2026-01-01T01:00:00Z" }), ctx);
+        const perms = memberModPermissions(makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z" }), ctx);
 
         // then
         expect(perms.canKick).toBe(false);
@@ -185,7 +173,9 @@ describe("memberModPermissions", () => {
 
     it("shields site staff from being kicked or timed out by anyone", () => {
         // given
-        const target = makeMember({ user: { id: "u1", username: "ronove", display_name: "Ronove", role: "admin" } });
+        const target = makeRoomMember({
+            user: { id: "u1", username: "ronove", display_name: "Ronove", role: "admin" },
+        });
         const ctx = makeContext({ canModerateRoom: true, isSiteMod: true });
 
         // when
@@ -202,7 +192,7 @@ describe("memberModPermissions", () => {
         const ctx = makeContext({ canModerateRoom: true });
 
         // when
-        const perms = memberModPermissions(makeMember({ role: "host" }), ctx);
+        const perms = memberModPermissions(makeRoomMember({ role: "host" }), ctx);
 
         // then
         expect(perms.canKick).toBe(false);
@@ -210,7 +200,7 @@ describe("memberModPermissions", () => {
 
     it("stops a room moderator timing out the host but lets a site moderator do it", () => {
         // given
-        const host = makeMember({ role: "host" });
+        const host = makeRoomMember({ role: "host" });
 
         // when
         const roomMod = memberModPermissions(host, makeContext({ canModerateRoom: true }));
@@ -223,7 +213,7 @@ describe("memberModPermissions", () => {
 
     it("only lets site moderators rename other people", () => {
         // given
-        const target = makeMember();
+        const target = makeRoomMember();
 
         // when
         const roomMod = memberModPermissions(target, makeContext({ canModerateRoom: true }));
@@ -236,7 +226,7 @@ describe("memberModPermissions", () => {
 
     it("reports an active timeout and offers to clear it", () => {
         // given
-        const timedOut = makeMember({ timeout_until: "2026-01-01T01:00:00Z" });
+        const timedOut = makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z" });
 
         // when
         const perms = memberModPermissions(timedOut, makeContext({ canModerateRoom: true }));
@@ -248,7 +238,7 @@ describe("memberModPermissions", () => {
 
     it("offers nothing to clear when there is no timeout running", () => {
         // given
-        const member = makeMember();
+        const member = makeRoomMember();
 
         // when
         const perms = memberModPermissions(member, makeContext({ canModerateRoom: true }));
@@ -260,7 +250,7 @@ describe("memberModPermissions", () => {
 
     it("stops a room moderator undoing a timeout set by site staff", () => {
         // given
-        const timedOut = makeMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: true });
+        const timedOut = makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: true });
 
         // when
         const perms = memberModPermissions(timedOut, makeContext({ canModerateRoom: true }));
@@ -272,7 +262,7 @@ describe("memberModPermissions", () => {
 
     it("lets a site moderator overrule a timeout set by site staff", () => {
         // given
-        const timedOut = makeMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: true });
+        const timedOut = makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: true });
 
         // when
         const perms = memberModPermissions(timedOut, makeContext({ canModerateRoom: true, isSiteMod: true }));
@@ -284,7 +274,7 @@ describe("memberModPermissions", () => {
 
     it("lets a room moderator retime somebody they timed out themselves", () => {
         // given
-        const timedOut = makeMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: false });
+        const timedOut = makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: false });
 
         // when
         const perms = memberModPermissions(timedOut, makeContext({ canModerateRoom: true }));
@@ -299,7 +289,7 @@ describe("memberModPermissions", () => {
         const ctx = makeContext({ isSiteMod: true, canModerateRoom: false });
 
         // when
-        const perms = memberModPermissions(makeMember(), ctx);
+        const perms = memberModPermissions(makeRoomMember(), ctx);
 
         // then
         expect(perms.canKick).toBe(false);

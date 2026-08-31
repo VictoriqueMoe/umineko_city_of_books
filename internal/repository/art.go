@@ -46,7 +46,6 @@ type (
 		GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map[string]int, error)
 		CountUserArtToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
 
-		CreateComment(ctx context.Context, artID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
@@ -384,10 +383,6 @@ func (r *artRepository) GetCornerCounts(ctx context.Context, tx ...*sql.Tx) (map
 
 func (r *artRepository) CountUserArtToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	return r.dao.CountUserArtToday(ctx, userID, tx...)
-}
-
-func (r *artRepository) CreateComment(ctx context.Context, artID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, artID, parentID, userID, body, tx...)
 }
 
 func (r *artRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {

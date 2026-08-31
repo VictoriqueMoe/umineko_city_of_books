@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { makeChatMessage } from "../../test-utils/fixtures";
 import type { ChatMessage } from "../../types/api";
 import {
     appendIfUnknown,
@@ -14,17 +15,7 @@ import {
 } from "./messageStore";
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        body: "hello",
-        is_system: false,
-        created_at: "2026-01-01T00:00:00Z",
-        pinned: false,
-        reactions: [],
-        ...overrides,
-    };
+    return makeChatMessage({ body: "hello", ...overrides });
 }
 
 function makeState(overrides: Partial<MessageListState> = {}): MessageListState {

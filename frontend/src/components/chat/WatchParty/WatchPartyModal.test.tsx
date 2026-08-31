@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createContext } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeWatchPartySession } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { SiteRole, User, WatchPartyParticipant, WatchPartySession } from "../../../types/api";
 import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
@@ -89,18 +90,12 @@ function makeParticipant(overrides: Partial<WatchPartyParticipant> = {}): WatchP
 }
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
-        id: "session-1",
-        room_id: "room-1",
+    return makeWatchPartySession({
         started_by: viewerId,
         controller_id: viewerId,
-        title: "Chiru rewatch",
-        type: "hyperbeam",
-        status: "active",
-        started_at: "2026-08-01T10:00:00Z",
         participants: [makeParticipant()],
         ...overrides,
-    };
+    });
 }
 
 function makeActive(overrides: Partial<ActiveWatchPartySession> = {}): ActiveWatchPartySession {

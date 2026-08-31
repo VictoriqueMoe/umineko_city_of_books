@@ -1,22 +1,19 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { makeWatchPartySession } from "../../test-utils/fixtures";
 import { providerWrapper } from "../../test-utils/render";
 import type { WatchPartySession } from "../../types/api";
 import { useRoomWatchPartyInvite } from "./useRoomWatchPartyInvite";
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
+    return makeWatchPartySession({
         id: "party-1",
-        room_id: "room-1",
         started_by: "u2",
         controller_id: "u2",
         title: "Higurashi rewatch",
-        type: "hyperbeam",
-        status: "active",
         started_at: "2026-08-02T09:00:00Z",
-        participants: [],
         ...overrides,
-    };
+    });
 }
 
 interface InviteOptions {

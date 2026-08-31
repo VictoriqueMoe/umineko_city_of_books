@@ -21,7 +21,6 @@ type (
 		GetLatest(ctx context.Context, tx ...*sql.Tx) (*AnnouncementRow, error)
 		SetPinned(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx) error
 
-		CreateComment(ctx context.Context, announcementID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
@@ -193,10 +192,6 @@ func (r *announcementRepository) GetLatest(ctx context.Context, tx ...*sql.Tx) (
 
 func (r *announcementRepository) SetPinned(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx) error {
 	return r.dao.SetPinned(ctx, id, pinned, tx...)
-}
-
-func (r *announcementRepository) CreateComment(ctx context.Context, announcementID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, announcementID, parentID, userID, body, tx...)
 }
 
 func (r *announcementRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {

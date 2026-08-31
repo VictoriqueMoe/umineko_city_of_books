@@ -1,5 +1,6 @@
 import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeHomeActivity, makeHomeMember } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { HomeActivityResponse, HomeCornerActivity, HomeMember } from "../../types/api";
 import { LiveStrip } from "./LiveStrip";
@@ -23,25 +24,11 @@ function makeCorner(overrides: Partial<HomeCornerActivity> = {}): HomeCornerActi
 }
 
 function makeMember(id: string): HomeMember {
-    return {
-        id,
-        username: `witch-${id}`,
-        display_name: `Witch ${id}`,
-        avatar_url: "",
-        created_at: NOW,
-    };
+    return makeHomeMember({ id, username: `witch-${id}`, display_name: `Witch ${id}` });
 }
 
 function makeActivity(overrides: Partial<HomeActivityResponse> = {}): HomeActivityResponse {
-    return {
-        online_count: 7,
-        recent_activity: [],
-        echoes: [],
-        recent_members: [],
-        public_rooms: [],
-        corner_activity: [],
-        ...overrides,
-    };
+    return makeHomeActivity({ online_count: 7, ...overrides });
 }
 
 function renderStrip(corner?: string) {

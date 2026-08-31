@@ -1,5 +1,6 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeSpectatorMessage } from "../../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import type {
     GameRoom,
@@ -51,13 +52,7 @@ function makeRoom(id: string, status = "active"): GameRoom {
 }
 
 function makeMessage(id: string, body: string): SpectatorMessage {
-    return {
-        id,
-        user_id: "u-two",
-        user: { id: "u-two", username: "beatrice", display_name: "Beatrice" },
-        body,
-        created_at: "2026-08-02T10:00:00.000Z",
-    };
+    return makeSpectatorMessage({ id, body });
 }
 
 function makeChat(...messages: SpectatorMessage[]): SpectatorChatResponse {

@@ -49,6 +49,7 @@ type (
 		OverlayToken      OverlayTokenRepository
 		Chatbot           ChatbotRepository
 		ChatbotBasePrompt ChatbotBasePromptRepository
+		Comments          CommentDAOs
 	}
 )
 

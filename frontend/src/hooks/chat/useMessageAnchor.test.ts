@@ -1,21 +1,17 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { makeChatMessage } from "../../test-utils/fixtures";
 import { providerWrapper } from "../../test-utils/render";
 import type { ChatMessage } from "../../types/api";
 import { useMessageAnchor } from "./useMessageAnchor";
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
+    return makeChatMessage({
         sender: { id: "u2", username: "battler", display_name: "Battler" },
         body: "without love it cannot be seen",
-        is_system: false,
         created_at: "2026-08-02T10:00:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 interface AnchorOptions {

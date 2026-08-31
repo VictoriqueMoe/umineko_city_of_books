@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeChatMessage } from "../test-utils/fixtures";
 import type { ChatMessage } from "../types/api";
 import { useMessageHistory } from "./useMessageHistory";
 
@@ -12,20 +13,6 @@ vi.mock("./queries/chat", () => ({
     fetchRoomMessages: mocks.fetchRoomMessages,
     fetchRoomMessagesBefore: mocks.fetchRoomMessagesBefore,
 }));
-
-function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        body: "the golden truth",
-        is_system: false,
-        created_at: "2026-01-01T00:00:00Z",
-        pinned: false,
-        reactions: [],
-        ...overrides,
-    };
-}
 
 interface HistoryProps {
     rid: string | undefined;
@@ -53,7 +40,7 @@ beforeEach(() => {
 describe("useMessageHistory first page", () => {
     it("loads the first page of messages when a room is opened", async () => {
         // given
-        const first = makeMessage({ id: "m1" });
+        const first = makeChatMessage({ id: "m1" });
         mocks.fetchRoomMessages.mockResolvedValue({ messages: [first], total: 1 });
 
         // when
@@ -68,7 +55,7 @@ describe("useMessageHistory first page", () => {
 
     it("reports that older history exists when the room holds more than one page", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage()], total: 120 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage()], total: 120 });
 
         // when
         const { result } = renderHistory({ rid: "room-1" });
@@ -81,7 +68,7 @@ describe("useMessageHistory first page", () => {
 
     it("reports no older history when the first page covers the whole room", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage()], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage()], total: 1 });
 
         // when
         const { result } = renderHistory({ rid: "room-1" });
@@ -122,7 +109,7 @@ describe("useMessageHistory first page", () => {
 
     it("shows nothing from the previous room the moment the viewer switches rooms", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1" })], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m1" })], total: 1 });
         const { result, rerender } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -140,8 +127,8 @@ describe("useMessageHistory first page", () => {
     it("ignores a page that arrives after the viewer moved to another room", async () => {
         // given
         let releaseFirst: (value: { messages: ChatMessage[]; total: number }) => void = () => {};
-        const stale = makeMessage({ id: "stale", room_id: "room-1" });
-        const fresh = makeMessage({ id: "fresh", room_id: "room-2" });
+        const stale = makeChatMessage({ id: "stale", room_id: "room-1" });
+        const fresh = makeChatMessage({ id: "fresh", room_id: "room-2" });
         mocks.fetchRoomMessages.mockImplementation((rid: string) => {
             if (rid === "room-1") {
                 return new Promise<{ messages: ChatMessage[]; total: number }>(resolve => {
@@ -173,7 +160,7 @@ describe("useMessageHistory setMessages", () => {
         await waitFor(() => {
             expect(mocks.fetchRoomMessages).toHaveBeenCalled();
         });
-        const replacement = [makeMessage({ id: "m9" })];
+        const replacement = [makeChatMessage({ id: "m9" })];
 
         // when
         act(() => {
@@ -186,7 +173,7 @@ describe("useMessageHistory setMessages", () => {
 
     it("hands the messages already loaded to an updater function", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1" })], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m1" })], total: 1 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -194,7 +181,7 @@ describe("useMessageHistory setMessages", () => {
 
         // when
         act(() => {
-            result.current.setMessages(prev => [...prev, makeMessage({ id: "m2" })]);
+            result.current.setMessages(prev => [...prev, makeChatMessage({ id: "m2" })]);
         });
 
         // then
@@ -211,9 +198,9 @@ describe("useMessageHistory setMessages", () => {
         // when
         act(() => {
             result.current.setMessages([
-                makeMessage({ id: "m1" }),
-                makeMessage({ id: "m2" }),
-                makeMessage({ id: "m3" }),
+                makeChatMessage({ id: "m1" }),
+                makeChatMessage({ id: "m2" }),
+                makeChatMessage({ id: "m3" }),
             ]);
         });
 
@@ -232,9 +219,9 @@ describe("useMessageHistory setMessages", () => {
         // when
         act(() => {
             result.current.setMessages([
-                makeMessage({ id: "m1" }),
-                makeMessage({ id: "m2" }),
-                makeMessage({ id: "m3" }),
+                makeChatMessage({ id: "m1" }),
+                makeChatMessage({ id: "m2" }),
+                makeChatMessage({ id: "m3" }),
             ]);
         });
 
@@ -247,7 +234,7 @@ describe("useMessageHistory setMessages", () => {
 describe("useMessageHistory addMessage", () => {
     it("appends a message the viewer has not seen yet", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1" })], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m1" })], total: 1 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -255,7 +242,7 @@ describe("useMessageHistory addMessage", () => {
 
         // when
         act(() => {
-            result.current.addMessage(makeMessage({ id: "m2", body: "the red truth" }));
+            result.current.addMessage(makeChatMessage({ id: "m2", body: "the red truth" }));
         });
 
         // then
@@ -264,7 +251,10 @@ describe("useMessageHistory addMessage", () => {
 
     it("replaces the copy it already holds rather than showing the message twice", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1", body: "sending" })], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({
+            messages: [makeChatMessage({ id: "m1", body: "sending" })],
+            total: 1,
+        });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -272,7 +262,7 @@ describe("useMessageHistory addMessage", () => {
 
         // when
         act(() => {
-            result.current.addMessage(makeMessage({ id: "m1", body: "delivered" }));
+            result.current.addMessage(makeChatMessage({ id: "m1", body: "delivered" }));
         });
 
         // then
@@ -299,7 +289,7 @@ describe("useMessageHistory older pages", () => {
 
     it("asks for the page before the oldest message it already holds", async () => {
         // given
-        const oldest = makeMessage({ id: "m5", created_at: "2026-01-05T00:00:00Z" });
+        const oldest = makeChatMessage({ id: "m5", created_at: "2026-01-05T00:00:00Z" });
         const { result } = await renderScrolledToTop([oldest], 90);
 
         // when
@@ -313,9 +303,9 @@ describe("useMessageHistory older pages", () => {
 
     it("prepends the older page ahead of the messages already shown", async () => {
         // given
-        const { result } = await renderScrolledToTop([makeMessage({ id: "m5" })], 90);
+        const { result } = await renderScrolledToTop([makeChatMessage({ id: "m5" })], 90);
         mocks.fetchRoomMessagesBefore.mockResolvedValue({
-            messages: [makeMessage({ id: "m3" }), makeMessage({ id: "m4" })],
+            messages: [makeChatMessage({ id: "m3" }), makeChatMessage({ id: "m4" })],
             total: 90,
         });
 
@@ -330,9 +320,12 @@ describe("useMessageHistory older pages", () => {
 
     it("drops older messages the viewer already holds when merging the page", async () => {
         // given
-        const { result } = await renderScrolledToTop([makeMessage({ id: "m4" }), makeMessage({ id: "m5" })], 90);
+        const { result } = await renderScrolledToTop(
+            [makeChatMessage({ id: "m4" }), makeChatMessage({ id: "m5" })],
+            90,
+        );
         mocks.fetchRoomMessagesBefore.mockResolvedValue({
-            messages: [makeMessage({ id: "m3" }), makeMessage({ id: "m4" })],
+            messages: [makeChatMessage({ id: "m3" }), makeChatMessage({ id: "m4" })],
             total: 90,
         });
 
@@ -347,7 +340,7 @@ describe("useMessageHistory older pages", () => {
 
     it("stops offering older history once a page comes back empty", async () => {
         // given
-        const { result } = await renderScrolledToTop([makeMessage({ id: "m5" })], 90);
+        const { result } = await renderScrolledToTop([makeChatMessage({ id: "m5" })], 90);
         mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [], total: 90 });
 
         // when
@@ -361,7 +354,7 @@ describe("useMessageHistory older pages", () => {
 
     it("does not load an older page when there is no more history", async () => {
         // given
-        const { result } = await renderScrolledToTop([makeMessage({ id: "m5" })], 1);
+        const { result } = await renderScrolledToTop([makeChatMessage({ id: "m5" })], 1);
 
         // when
         await act(async () => {
@@ -374,7 +367,7 @@ describe("useMessageHistory older pages", () => {
 
     it("does not load an older page while the viewer is nowhere near the top", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m5" })], total: 90 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m5" })], total: 90 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -412,7 +405,7 @@ describe("useMessageHistory loadUntilMessage", () => {
 
     it("stops at once when the message is already loaded", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1" })], total: 90 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m1" })], total: 90 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -432,7 +425,7 @@ describe("useMessageHistory loadUntilMessage", () => {
     it("walks back from the oldest message it already holds", async () => {
         // given
         mocks.fetchRoomMessages.mockResolvedValue({
-            messages: [makeMessage({ id: "m5", created_at: "2026-01-05T00:00:00Z" })],
+            messages: [makeChatMessage({ id: "m5", created_at: "2026-01-05T00:00:00Z" })],
             total: 900,
         });
         const { result } = renderHistory({ rid: "room-1" });
@@ -440,11 +433,11 @@ describe("useMessageHistory loadUntilMessage", () => {
             expect(result.current.messages).toHaveLength(1);
         });
         mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({
-            messages: [makeMessage({ id: "m4", created_at: "2026-01-04T00:00:00Z" })],
+            messages: [makeChatMessage({ id: "m4", created_at: "2026-01-04T00:00:00Z" })],
             total: 900,
         });
         mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({
-            messages: [makeMessage({ id: "m3", created_at: "2026-01-03T00:00:00Z" })],
+            messages: [makeChatMessage({ id: "m3", created_at: "2026-01-03T00:00:00Z" })],
             total: 900,
         });
 
@@ -460,12 +453,12 @@ describe("useMessageHistory loadUntilMessage", () => {
 
     it("reports the message as found as soon as a page brings it in", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m5" })], total: 900 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m5" })], total: 900 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
         });
-        mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [makeMessage({ id: "m4" })], total: 900 });
+        mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [makeChatMessage({ id: "m4" })], total: 900 });
 
         // when
         let found = false;
@@ -480,13 +473,13 @@ describe("useMessageHistory loadUntilMessage", () => {
 
     it("merges every older page it walks through while hunting for the message", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m5" })], total: 90 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m5" })], total: 90 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
         });
-        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({ messages: [makeMessage({ id: "m4" })], total: 90 });
-        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({ messages: [makeMessage({ id: "m3" })], total: 90 });
+        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({ messages: [makeChatMessage({ id: "m4" })], total: 90 });
+        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({ messages: [makeChatMessage({ id: "m3" })], total: 90 });
 
         // when
         await act(async () => {
@@ -499,7 +492,7 @@ describe("useMessageHistory loadUntilMessage", () => {
 
     it("gives up and stops offering history when a page comes back empty", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m5" })], total: 90 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m5" })], total: 90 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -519,12 +512,12 @@ describe("useMessageHistory loadUntilMessage", () => {
 
     it("stops after the page limit it was given", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m5" })], total: 900 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m5" })], total: 900 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
         });
-        mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [makeMessage({ id: "m4" })], total: 900 });
+        mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [makeChatMessage({ id: "m4" })], total: 900 });
 
         // when
         let found = true;
@@ -540,7 +533,7 @@ describe("useMessageHistory loadUntilMessage", () => {
     it("jumps straight to the timestamp it was given and keeps the merged list in order", async () => {
         // given
         mocks.fetchRoomMessages.mockResolvedValue({
-            messages: [makeMessage({ id: "m5", created_at: "2026-01-05T00:00:00Z" })],
+            messages: [makeChatMessage({ id: "m5", created_at: "2026-01-05T00:00:00Z" })],
             total: 90,
         });
         const { result } = renderHistory({ rid: "room-1" });
@@ -548,7 +541,7 @@ describe("useMessageHistory loadUntilMessage", () => {
             expect(result.current.messages).toHaveLength(1);
         });
         mocks.fetchRoomMessagesBefore.mockResolvedValue({
-            messages: [makeMessage({ id: "m1", created_at: "2026-01-01T00:00:00Z" })],
+            messages: [makeChatMessage({ id: "m1", created_at: "2026-01-01T00:00:00Z" })],
             total: 90,
         });
 
@@ -571,13 +564,13 @@ describe("useMessageHistory loadUntilMessage", () => {
 describe("useMessageHistory resync", () => {
     it("adds only the messages that arrived while the socket was down", async () => {
         // given
-        const known = makeMessage({ id: "m1" });
+        const known = makeChatMessage({ id: "m1" });
         mocks.fetchRoomMessages.mockResolvedValue({ messages: [known], total: 1 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
         });
-        const missed = makeMessage({ id: "m2" });
+        const missed = makeChatMessage({ id: "m2" });
         mocks.fetchRoomMessages.mockResolvedValue({ messages: [known, missed], total: 2 });
 
         // when
@@ -591,7 +584,7 @@ describe("useMessageHistory resync", () => {
 
     it("leaves the list untouched when the refetch brings nothing new", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1" })], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m1" })], total: 1 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
@@ -622,7 +615,7 @@ describe("useMessageHistory resync", () => {
 
     it("swallows a failed resync and keeps what it already has", async () => {
         // given
-        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeMessage({ id: "m1" })], total: 1 });
+        mocks.fetchRoomMessages.mockResolvedValue({ messages: [makeChatMessage({ id: "m1" })], total: 1 });
         const { result } = renderHistory({ rid: "room-1" });
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);

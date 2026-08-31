@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -16,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -29,15 +31,16 @@ import (
 )
 
 type testMocks struct {
-	fanficRepo  *repository.MockFanficRepository
-	userRepo    *repository.MockUserRepository
-	auditRepo   *repository.MockAuditLogRepository
-	authz       *authz.MockService
-	blockSvc    *block.MockService
-	notifSvc    *notification.MockService
-	uploadSvc   *upload.MockService
-	settingsSvc *settings.MockService
-	mediaProc   *media.Processor
+	fanficRepo     *repository.MockFanficRepository
+	fanficComments *repository.MockCommentDAO[uuid.UUID]
+	userRepo       *repository.MockUserRepository
+	auditRepo      *repository.MockAuditLogRepository
+	authz          *authz.MockService
+	blockSvc       *block.MockService
+	notifSvc       *notification.MockService
+	uploadSvc      *upload.MockService
+	settingsSvc    *settings.MockService
+	mediaProc      *media.Processor
 }
 
 func newTestService(t *testing.T) (*service, *testMocks) {
@@ -51,18 +54,23 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	uploadSvc.EXPECT().FullDiskPath(mock.Anything).Return("/tmp/does-not-exist-xyz.png").Maybe()
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
+	fanficComments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindFanficComment): fanficComments},
+	})
 
-	svc := NewService(fanficRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(fanficRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
-		fanficRepo:  fanficRepo,
-		userRepo:    userRepo,
-		auditRepo:   auditRepo,
-		authz:       authzSvc,
-		blockSvc:    blockSvc,
-		notifSvc:    notifSvc,
-		uploadSvc:   uploadSvc,
-		settingsSvc: settingsSvc,
-		mediaProc:   mediaProc,
+		fanficRepo:     fanficRepo,
+		fanficComments: fanficComments,
+		userRepo:       userRepo,
+		auditRepo:      auditRepo,
+		authz:          authzSvc,
+		blockSvc:       blockSvc,
+		notifSvc:       notifSvc,
+		uploadSvc:      uploadSvc,
+		settingsSvc:    settingsSvc,
+		mediaProc:      mediaProc,
 	}
 }
 
@@ -151,6 +159,85 @@ func TestCreateFanfic_RepoError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+}
+
+func TestCreateFanfic_MentionFanOut(t *testing.T) {
+	tests := []struct {
+		name       string
+		summary    string
+		body       string
+		status     string
+		wantFanOut bool
+	}{
+		{
+			name:       "a mention in the summary notifies the named user",
+			summary:    "written for @alice",
+			status:     "complete",
+			wantFanOut: true,
+		},
+		{
+			name:       "a mention in the first chapter notifies the named user",
+			body:       "a gift to @alice",
+			status:     "complete",
+			wantFanOut: true,
+		},
+		{
+			name:    "a draft notifies nobody",
+			summary: "written for @alice",
+			status:  "draft",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			fanficID := uuid.New()
+			mentionedID := uuid.New()
+
+			m.fanficRepo.EXPECT().
+				CreateWithDetails(mock.Anything, mock.Anything).
+				Return(&model.FanficRow{ID: fanficID}, nil)
+
+			var wg sync.WaitGroup
+			var mentioned dto.NotifyParams
+
+			if tt.wantFanOut {
+				wg.Add(1)
+				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+				m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+				m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+					RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+						mentioned = p
+						wg.Done()
+
+						return nil
+					})
+			}
+
+			req := dto.CreateFanficRequest{Title: "Title", Summary: tt.summary, Body: tt.body, Status: tt.status}
+
+			// when
+			_, err := svc.CreateFanfic(context.Background(), userID, req)
+
+			// then
+			require.NoError(t, err)
+			wg.Wait()
+
+			if !tt.wantFanOut {
+				m.userRepo.AssertNotCalled(t, "GetByUsernames")
+				return
+			}
+
+			assert.Equal(t, dto.NotifMention, mentioned.Type)
+			assert.Equal(t, mentionedID, mentioned.RecipientID)
+			assert.Equal(t, fanficID, mentioned.ReferenceID)
+			assert.Equal(t, "fanfic", mentioned.ReferenceType)
+			assert.Equal(t, "/fanfiction/"+fanficID.String(), mentioned.EmailLink)
+		})
+	}
 }
 
 func TestCreateFanfic_OK_DefaultsApplied(t *testing.T) {
@@ -1599,7 +1686,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	author := uuid.New()
 	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
-	m.fanficRepo.EXPECT().
+	m.fanficComments.EXPECT().
 		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
 		Return(nil, errors.New("db"))
 
@@ -1618,7 +1705,7 @@ func TestCreateComment_OK(t *testing.T) {
 	author := uuid.New()
 	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).Return(&model.FanficRow{ID: fanficID, UserID: author, Status: "in_progress"}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, author).Return(false, nil)
-	m.fanficRepo.EXPECT().
+	m.fanficComments.EXPECT().
 		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "hi").
 		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
@@ -1629,6 +1716,50 @@ func TestCreateComment_OK(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, id)
+}
+
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	fanficID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, userID).
+		Return(&model.FanficRow{ID: fanficID, UserID: authorID, Status: "in_progress"}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.fanficComments.EXPECT().
+		CreateComment(mock.Anything, fanficID, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), fanficID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, "fanfic_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/fanfiction/"+fanficID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
 }
 
 func TestCreateComment_HiddenDraftIsNotFound(t *testing.T) {
@@ -1644,7 +1775,7 @@ func TestCreateComment_HiddenDraftIsNotFound(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
-	m.fanficRepo.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	m.fanficComments.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUpdateComment_EmptyBody(t *testing.T) {

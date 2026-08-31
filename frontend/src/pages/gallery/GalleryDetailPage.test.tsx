@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeArt as makeContentArt, makeGallery as makeContentGallery, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { Art, Gallery, UserProfile } from "../../types/api";
 import { GalleryDetailPage } from "./GalleryDetailPage";
@@ -36,38 +36,22 @@ vi.mock("../../components/art/ArtUploadForm/ArtUploadForm", () => ({
 const author = { id: "author-1", username: "ronove", display_name: "Ronove" };
 
 function makeGallery(overrides: Partial<Gallery> = {}): Gallery {
-    return {
-        id: "gallery-1",
+    return makeContentGallery({
         author,
-        name: "Golden Butterflies",
         description: "sketches from the rose garden",
-        cover_image_url: "",
-        cover_thumbnail_url: "",
         art_count: 2,
-        created_at: "2026-07-01T10:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 function makeArt(overrides: Partial<Art> = {}): Art {
-    return {
-        id: "art-1",
+    return makeContentArt({
         author,
-        corner: "general",
-        art_type: "drawing",
         title: "Beatrice at dusk",
-        description: "",
-        image_url: "/art-1-full.png",
-        thumbnail_url: "/art-1-thumb.png",
-        tags: [],
         like_count: 4,
-        comment_count: 0,
-        view_count: 0,
-        user_liked: false,
-        is_spoiler: false,
         created_at: "2026-07-01T10:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 interface GalleryState {

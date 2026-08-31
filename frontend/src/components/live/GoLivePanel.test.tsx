@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeStream as makeLiveStream } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { emitRealtimeEvent } from "../../test-utils/ws";
 import type { LiveStream, StreamCredentials, StreamDefaultMode, StreamOwner } from "../../types/api";
@@ -30,18 +31,14 @@ let serverOwner: StreamOwner | null;
 let serverCredentials: StreamCredentials;
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
+    return makeLiveStream({
         id: STREAM_ID,
-        userId: "user-1",
         title: "Reading the message bottle",
         status: "pending",
         viewerCount: 0,
         streamerUsername: "beatrice",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
         ...overrides,
-    };
+    });
 }
 
 function makeOwner(overrides: Partial<LiveStream> = {}): StreamOwner {

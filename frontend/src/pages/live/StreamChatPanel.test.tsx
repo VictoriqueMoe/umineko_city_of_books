@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeChatMessage, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { emitRealtimeEvent, type RealtimeTestEvent } from "../../test-utils/ws";
 import type { ChatMessage, UserProfile } from "../../types/api";
@@ -66,17 +66,14 @@ vi.mock("../../components/Lightbox/Lightbox", () => ({
 const viewer = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
+    return makeChatMessage({
         id: "msg-1",
         room_id: "stream-1",
         sender: { id: "sender-1", username: "beatrice", display_name: "Beatrice" },
         body: "Golden butterflies everywhere",
-        is_system: false,
         created_at: "2026-02-01T12:00:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 interface HistoryOptions {

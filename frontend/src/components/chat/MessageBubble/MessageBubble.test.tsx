@@ -1,8 +1,9 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { makeChatMessage } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
-import type { ChatMessage, ReactionGroup } from "../../../types/api";
+import type { ReactionGroup } from "../../../types/api";
 import { MessageBubble } from "./MessageBubble";
 
 const HEART = "❤";
@@ -16,20 +17,6 @@ vi.mock("../EmojiPicker/EmojiPicker", () => ({
         </div>
     ),
 }));
-
-function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        body: "the golden truth",
-        is_system: false,
-        created_at: "2026-01-01T00:00:00Z",
-        pinned: false,
-        reactions: [],
-        ...overrides,
-    };
-}
 
 function makeReaction(overrides: Partial<ReactionGroup> = {}): ReactionGroup {
     return {
@@ -53,7 +40,7 @@ function chipFor(emoji: string): HTMLElement {
 describe("MessageBubble", () => {
     it("renders another person's message with their name and body", () => {
         // given
-        const message = makeMessage();
+        const message = makeChatMessage();
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn={false} />);
@@ -65,7 +52,7 @@ describe("MessageBubble", () => {
 
     it("prefers the room nickname over the profile display name", () => {
         // given
-        const message = makeMessage({ sender_nickname: "The Golden Witch" });
+        const message = makeChatMessage({ sender_nickname: "The Golden Witch" });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn={false} />);
@@ -77,7 +64,7 @@ describe("MessageBubble", () => {
 
     it("falls back to the username when the sender has no display name", () => {
         // given
-        const message = makeMessage({ sender: { id: "u1", username: "beatrice", display_name: "   " } });
+        const message = makeChatMessage({ sender: { id: "u1", username: "beatrice", display_name: "   " } });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn={false} />);
@@ -88,7 +75,7 @@ describe("MessageBubble", () => {
 
     it("renders a system message as bare text with no sender or controls", () => {
         // given
-        const message = makeMessage({ is_system: true, body: "Battler joined the room" });
+        const message = makeChatMessage({ is_system: true, body: "Battler joined the room" });
 
         // when
         renderWithProviders(
@@ -104,7 +91,7 @@ describe("MessageBubble", () => {
     it("hides a blocked sender's message until it is revealed", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<MessageBubble message={makeMessage()} isOwn={false} senderBlocked />);
+        renderWithProviders(<MessageBubble message={makeChatMessage()} isOwn={false} senderBlocked />);
         expect(screen.getByText("Message from a blocked user")).toBeInTheDocument();
         expect(screen.queryByText("the golden truth")).not.toBeInTheDocument();
 
@@ -118,7 +105,7 @@ describe("MessageBubble", () => {
 
     it("marks an edited message and titles the marker with the edit time", () => {
         // given
-        const message = makeMessage({ edited_at: "2026-01-01T01:00:00Z" });
+        const message = makeChatMessage({ edited_at: "2026-01-01T01:00:00Z" });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn />);
@@ -131,7 +118,7 @@ describe("MessageBubble", () => {
 
     it("leaves an unedited message unmarked", () => {
         // given
-        const message = makeMessage();
+        const message = makeChatMessage();
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn />);
@@ -145,7 +132,7 @@ describe("MessageBubble", () => {
         const seenLabel = "Seen by Battler";
 
         // when
-        renderWithProviders(<MessageBubble message={makeMessage()} isOwn seenLabel={seenLabel} />);
+        renderWithProviders(<MessageBubble message={makeChatMessage()} isOwn seenLabel={seenLabel} />);
 
         // then
         expect(screen.getByText(/Seen by Battler/)).toBeInTheDocument();
@@ -153,7 +140,7 @@ describe("MessageBubble", () => {
 
     it("shows the quoted message a reply was aimed at", () => {
         // given
-        const message = makeMessage({
+        const message = makeChatMessage({
             reply_to: { id: "m0", sender_id: "u2", sender_name: "Battler", body_preview: "an earlier claim" },
         });
 
@@ -169,8 +156,8 @@ describe("MessageBubble", () => {
         // given
         const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView").mockImplementation(() => {});
         const user = userEvent.setup();
-        const quoted = makeMessage({ id: "m0", body: "the earlier statement" });
-        const reply = makeMessage({
+        const quoted = makeChatMessage({ id: "m0", body: "the earlier statement" });
+        const reply = makeChatMessage({
             id: "m1",
             reply_to: { id: "m0", sender_id: "u2", sender_name: "Battler", body_preview: "an earlier claim" },
         });
@@ -193,7 +180,7 @@ describe("MessageBubble", () => {
         // given
         const onLightbox = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage({
+        const message = makeChatMessage({
             media: [
                 { id: 1, media_url: "https://cdn.example/photo.png", media_type: "image", sort_order: 0 },
                 { id: 2, media_url: "https://cdn.example/clip.mp4", media_type: "video", sort_order: 1 },
@@ -218,7 +205,7 @@ describe("MessageBubble", () => {
         const user = userEvent.setup();
         const gif = "https://media.giphy.com/media/abc/giphy.gif";
         renderWithProviders(
-            <MessageBubble message={makeMessage({ body: gif })} isOwn={false} onLightbox={onLightbox} />,
+            <MessageBubble message={makeChatMessage({ body: gif })} isOwn={false} onLightbox={onLightbox} />,
         );
 
         // when
@@ -235,7 +222,7 @@ describe("MessageBubble", () => {
         const lookalike = "https://media.giphy.com.evil.test/media/abc/giphy.gif";
 
         // when
-        renderWithProviders(<MessageBubble message={makeMessage({ body: lookalike })} isOwn={false} />);
+        renderWithProviders(<MessageBubble message={makeChatMessage({ body: lookalike })} isOwn={false} />);
 
         // then
         expect(screen.queryByAltText("GIF")).not.toBeInTheDocument();
@@ -247,7 +234,7 @@ describe("MessageBubble", () => {
         const body = "watch this https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
         // when
-        renderWithProviders(<MessageBubble message={makeMessage({ body })} isOwn={false} />);
+        renderWithProviders(<MessageBubble message={makeChatMessage({ body })} isOwn={false} />);
 
         // then
         expect(screen.getByTitle("YouTube video")).toHaveAttribute(
@@ -258,7 +245,7 @@ describe("MessageBubble", () => {
 
     it("links a mention once the mentioned user is known", () => {
         // given
-        const message = makeMessage({ body: "@battler is wrong" });
+        const message = makeChatMessage({ body: "@battler is wrong" });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn={false} />, {
@@ -271,7 +258,7 @@ describe("MessageBubble", () => {
 
     it("leaves a mention as plain text while the user is unresolved", () => {
         // given
-        const message = makeMessage({ body: "@battler is wrong" });
+        const message = makeChatMessage({ body: "@battler is wrong" });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn={false} />, {
@@ -285,7 +272,7 @@ describe("MessageBubble", () => {
 
     it("labels a pinned message and offers to unpin it", () => {
         // given
-        const message = makeMessage({ pinned: true });
+        const message = makeChatMessage({ pinned: true });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn={false} canPin onPinToggle={() => {}} />);
@@ -302,7 +289,7 @@ describe("MessageBubble", () => {
 
         // when
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn={false} canPin={canPin} onPinToggle={vi.fn()} />,
+            <MessageBubble message={makeChatMessage()} isOwn={false} canPin={canPin} onPinToggle={vi.fn()} />,
         );
 
         // then
@@ -313,7 +300,7 @@ describe("MessageBubble", () => {
         // given
         const onPinToggle = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage();
+        const message = makeChatMessage();
         renderWithProviders(<MessageBubble message={message} isOwn={false} canPin onPinToggle={onPinToggle} />);
 
         // when
@@ -327,7 +314,7 @@ describe("MessageBubble", () => {
         // given
         const onReply = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage();
+        const message = makeChatMessage();
         renderWithProviders(<MessageBubble message={message} isOwn={false} onReply={onReply} />);
 
         // when
@@ -342,7 +329,9 @@ describe("MessageBubble", () => {
         const isOwn = false;
 
         // when
-        renderWithProviders(<MessageBubble message={makeMessage()} isOwn={isOwn} onEdit={() => Promise.resolve()} />);
+        renderWithProviders(
+            <MessageBubble message={makeChatMessage()} isOwn={isOwn} onEdit={() => Promise.resolve()} />,
+        );
 
         // then
         expect(screen.queryByRole("button", { name: "Edit message" })).not.toBeInTheDocument();
@@ -354,7 +343,7 @@ describe("MessageBubble", () => {
 
         // when
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn canEdit={canEdit} onEdit={() => Promise.resolve()} />,
+            <MessageBubble message={makeChatMessage()} isOwn canEdit={canEdit} onEdit={() => Promise.resolve()} />,
         );
 
         // then
@@ -365,7 +354,7 @@ describe("MessageBubble", () => {
         // given
         const onEditStart = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage();
+        const message = makeChatMessage();
         renderWithProviders(
             <MessageBubble message={message} isOwn onEdit={() => Promise.resolve()} onEditStart={onEditStart} />,
         );
@@ -382,7 +371,7 @@ describe("MessageBubble", () => {
         const onDelete = vi.fn();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
-        const message = makeMessage();
+        const message = makeChatMessage();
         renderWithProviders(<MessageBubble message={message} isOwn onDelete={onDelete} />);
 
         // when
@@ -399,7 +388,7 @@ describe("MessageBubble", () => {
         const onDelete = vi.fn();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
-        renderWithProviders(<MessageBubble message={makeMessage()} isOwn onDelete={onDelete} />);
+        renderWithProviders(<MessageBubble message={makeChatMessage()} isOwn onDelete={onDelete} />);
 
         // when
         await user.click(screen.getByRole("button", { name: "Delete message" }));
@@ -415,7 +404,7 @@ describe("MessageBubble", () => {
 
         // when
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn={false} canModerate={canModerate} onDelete={vi.fn()} />,
+            <MessageBubble message={makeChatMessage()} isOwn={false} canModerate={canModerate} onDelete={vi.fn()} />,
         );
 
         // then
@@ -428,7 +417,7 @@ describe("MessageBubble", () => {
 
         // when
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn={false} canModerate={canModerate} onDelete={vi.fn()} />,
+            <MessageBubble message={makeChatMessage()} isOwn={false} canModerate={canModerate} onDelete={vi.fn()} />,
         );
 
         // then
@@ -442,7 +431,7 @@ describe("MessageBubble", () => {
         // when
         renderWithProviders(
             <MessageBubble
-                message={makeMessage()}
+                message={makeChatMessage()}
                 isOwn={false}
                 canModerate
                 senderIsStaff={senderIsStaff}
@@ -459,7 +448,7 @@ describe("MessageBubble", () => {
         const reactions = [makeReaction({ emoji: HEART, count: 3 }), makeReaction({ emoji: STAR, count: 1 })];
 
         // when
-        renderWithProviders(<MessageBubble message={makeMessage({ reactions })} isOwn={false} />);
+        renderWithProviders(<MessageBubble message={makeChatMessage({ reactions })} isOwn={false} />);
 
         // then
         expect(chipFor(HEART)).toHaveTextContent("3");
@@ -470,7 +459,7 @@ describe("MessageBubble", () => {
         // given
         const onReactionToggle = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage({ reactions: [makeReaction({ emoji: HEART, count: 3 })] });
+        const message = makeChatMessage({ reactions: [makeReaction({ emoji: HEART, count: 3 })] });
         renderWithProviders(<MessageBubble message={message} isOwn={false} onReactionToggle={onReactionToggle} />);
 
         // when
@@ -486,7 +475,7 @@ describe("MessageBubble", () => {
 
         // when
         renderWithProviders(
-            <MessageBubble message={makeMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
+            <MessageBubble message={makeChatMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
         );
 
         // then
@@ -500,7 +489,7 @@ describe("MessageBubble", () => {
         const reactions = [makeReaction({ emoji: HEART, count: 3, display_names: ["Battler"] })];
         renderWithProviders(
             <MessageBubble
-                message={makeMessage({ reactions })}
+                message={makeChatMessage({ reactions })}
                 isOwn={false}
                 canReact={false}
                 onReactionToggle={onReactionToggle}
@@ -522,7 +511,7 @@ describe("MessageBubble", () => {
         // when
         renderWithProviders(
             <MessageBubble
-                message={makeMessage({ reactions })}
+                message={makeChatMessage({ reactions })}
                 isOwn={false}
                 canReact={false}
                 onReactionToggle={vi.fn()}
@@ -538,7 +527,7 @@ describe("MessageBubble", () => {
         // given
         const onReactionToggle = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage();
+        const message = makeChatMessage();
         renderWithProviders(<MessageBubble message={message} isOwn={false} onReactionToggle={onReactionToggle} />);
 
         // when
@@ -554,7 +543,7 @@ describe("MessageBubble", () => {
         // given
         const reactions = [makeReaction({ emoji: HEART, count: 2, display_names: ["Beatrice", "Battler"] })];
         renderWithProviders(
-            <MessageBubble message={makeMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
+            <MessageBubble message={makeChatMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
         );
 
         // when
@@ -571,7 +560,7 @@ describe("MessageBubble", () => {
         // given
         const reactions = [makeReaction({ emoji: HEART, count: 4, display_names: [] })];
         renderWithProviders(
-            <MessageBubble message={makeMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
+            <MessageBubble message={makeChatMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
         );
 
         // when
@@ -585,7 +574,7 @@ describe("MessageBubble", () => {
         // given
         const reactions = [makeReaction({ emoji: HEART, count: 2, display_names: ["Beatrice", "Battler"] })];
         renderWithProviders(
-            <MessageBubble message={makeMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
+            <MessageBubble message={makeChatMessage({ reactions })} isOwn={false} onReactionToggle={vi.fn()} />,
         );
         fireEvent.contextMenu(chipFor(HEART));
         await screen.findByRole("dialog", { name: "Reactors" });
@@ -599,7 +588,7 @@ describe("MessageBubble", () => {
 
     it("starts the editor from the existing body", () => {
         // given
-        const message = makeMessage({ body: "the golden truth" });
+        const message = makeChatMessage({ body: "the golden truth" });
 
         // when
         renderWithProviders(<MessageBubble message={message} isOwn editing onEdit={() => Promise.resolve()} />);
@@ -614,7 +603,7 @@ describe("MessageBubble", () => {
         const onEdit = vi.fn(() => Promise.resolve());
         const onEditCancel = vi.fn();
         const user = userEvent.setup();
-        const message = makeMessage();
+        const message = makeChatMessage();
         renderWithProviders(
             <MessageBubble message={message} isOwn editing onEdit={onEdit} onEditCancel={onEditCancel} />,
         );
@@ -636,7 +625,7 @@ describe("MessageBubble", () => {
         const onEditCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn editing onEdit={onEdit} onEditCancel={onEditCancel} />,
+            <MessageBubble message={makeChatMessage()} isOwn editing onEdit={onEdit} onEditCancel={onEditCancel} />,
         );
 
         // when
@@ -654,7 +643,7 @@ describe("MessageBubble", () => {
         const onEditCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn editing onEdit={onEdit} onEditCancel={onEditCancel} />,
+            <MessageBubble message={makeChatMessage()} isOwn editing onEdit={onEdit} onEditCancel={onEditCancel} />,
         );
 
         // when
@@ -668,7 +657,9 @@ describe("MessageBubble", () => {
     it("blocks saving an emptied edit", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<MessageBubble message={makeMessage()} isOwn editing onEdit={() => Promise.resolve()} />);
+        renderWithProviders(
+            <MessageBubble message={makeChatMessage()} isOwn editing onEdit={() => Promise.resolve()} />,
+        );
 
         // when
         await user.clear(screen.getByRole("textbox"));
@@ -683,7 +674,7 @@ describe("MessageBubble", () => {
         const user = userEvent.setup();
         renderWithProviders(
             <MessageBubble
-                message={makeMessage()}
+                message={makeChatMessage()}
                 isOwn
                 editing
                 onEdit={() => Promise.resolve()}
@@ -704,7 +695,7 @@ describe("MessageBubble", () => {
 
         // when
         renderWithProviders(
-            <MessageBubble message={makeMessage()} isOwn editing={editing} onEdit={() => Promise.resolve()} />,
+            <MessageBubble message={makeChatMessage()} isOwn editing={editing} onEdit={() => Promise.resolve()} />,
         );
 
         // then

@@ -79,6 +79,10 @@ type (
 		DeleteMedia(ctx context.Context, id int64, entityID uuid.UUID, tx ...*sql.Tx) (string, error)
 	}
 
+	JournalCommentWriter interface {
+		CreateComment(ctx context.Context, spec NewJournalComment, tx ...*sql.Tx) (*CommentRow, error)
+	}
+
 	JournalRepository interface {
 		Create(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest, tx ...*sql.Tx) (*dto.JournalResponse, error)
 		GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*dto.JournalResponse, error)
@@ -110,7 +114,6 @@ type (
 		GetEntryJournalID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 		GetEntryAuthorID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 
-		CreateComment(ctx context.Context, spec NewJournalComment, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, spec JournalCommentUpdate, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error)
 		GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)
@@ -279,8 +282,10 @@ type journalRepository struct {
 	audit AuditLogRepository
 }
 
-func NewJournalRepo(database *sql.DB, dao JournalDAO, audit AuditLogRepository) JournalRepository {
-	return &journalRepository{db: database, dao: dao, audit: audit}
+func NewJournalRepo(database *sql.DB, dao JournalDAO, audit AuditLogRepository) (JournalRepository, JournalCommentWriter) {
+	repo := &journalRepository{db: database, dao: dao, audit: audit}
+
+	return repo, repo
 }
 
 func (r *journalRepository) Create(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest, tx ...*sql.Tx) (*dto.JournalResponse, error) {

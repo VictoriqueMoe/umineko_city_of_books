@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeChatMessage, makeDmRoom, makePublicUser, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatMessage, ChatRoom, User, UserProfile } from "../../../types/api";
 import { DmMessageList, type DmMessageListProps } from "./DmMessageList";
@@ -68,38 +68,20 @@ function makeSender(overrides: Partial<User> = {}): User {
 }
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
+    return makeChatMessage({
         sender: makeSender(),
         body: "without love it cannot be seen",
-        is_system: false,
         created_at: "2026-08-01T10:00:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "",
-        description: "",
-        type: "dm",
-        is_public: false,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [{ id: "u1", username: "beatrice", display_name: "Beatrice" }, makeSender()],
+    return makeDmRoom({
+        members: [makePublicUser(), makeSender()],
         created_at: "2026-07-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 interface ListOptions {

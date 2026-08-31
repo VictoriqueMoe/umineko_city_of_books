@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeSiteSecret, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { SiteInfo, SiteInfoSecret, UserProfile, VanityRoleDefinition } from "../../types/api";
 import { TrophyCase } from "./TrophyCase";
@@ -18,17 +18,6 @@ vi.mock("../../components/easterEgg", () => ({
 }));
 
 const profileUserId = "profile-1";
-
-function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
-    return {
-        id: "epitaph",
-        title: "The Witch's Epitaph",
-        description: "Seek the key that opens the golden land.",
-        solved: false,
-        pieces: [],
-        ...overrides,
-    };
-}
 
 function makeVanityRole(overrides: Partial<VanityRoleDefinition> = {}): VanityRoleDefinition {
     return {
@@ -52,7 +41,7 @@ interface SetupOptions {
 function setup(options: SetupOptions = {}) {
     const localSecrets = options.localSecrets ?? [];
     const siteInfo: Partial<SiteInfo> = {
-        listed_secrets: options.secrets ?? [makeSecret()],
+        listed_secrets: options.secrets ?? [makeSiteSecret()],
         vanity_roles: options.vanityRoles ?? [],
     };
 
@@ -96,7 +85,7 @@ describe("TrophyCase", () => {
     it("leaves out the secrets this profile has not solved", () => {
         // given
         const options = {
-            secrets: [makeSecret(), makeSecret({ id: "goldsmith", title: "The Goldsmith" })],
+            secrets: [makeSiteSecret(), makeSiteSecret({ id: "goldsmith", title: "The Goldsmith" })],
             profileSecrets: ["epitaph"],
         };
 
@@ -184,7 +173,7 @@ describe("TrophyCase", () => {
     it("borrows the colour of the vanity role the secret grants", () => {
         // given
         const options = {
-            secrets: [makeSecret({ vanity_role_id: "role-1" })],
+            secrets: [makeSiteSecret({ vanity_role_id: "role-1" })],
             vanityRoles: [makeVanityRole()],
             profileSecrets: ["epitaph"],
         };
@@ -220,7 +209,7 @@ describe("TrophyCase", () => {
 
     it("uses the icon the secret carries", () => {
         // given
-        const options = { secrets: [makeSecret({ icon: "♛" })], profileSecrets: ["epitaph"] };
+        const options = { secrets: [makeSiteSecret({ icon: "♛" })], profileSecrets: ["epitaph"] };
 
         // when
         setup(options);

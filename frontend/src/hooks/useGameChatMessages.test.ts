@@ -1,5 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeSpectatorMessage } from "../test-utils/fixtures";
 import { emitRealtimeEvent, makeWSHarness, type WSHarness } from "../test-utils/ws";
 import type { SpectatorMessage } from "../types/api";
 import type { GameChatHistory } from "./queries/gameRoom";
@@ -14,13 +15,7 @@ vi.mock("../api/realtime/pipeline", () => ({
 }));
 
 function makeMessage(id: string, body: string): SpectatorMessage {
-    return {
-        id,
-        user_id: "u-two",
-        user: { id: "u-two", username: "beatrice", display_name: "Beatrice" },
-        body,
-        created_at: "2026-08-02T10:00:00.000Z",
-    };
+    return makeSpectatorMessage({ id, body });
 }
 
 function makeHistory(messages: SpectatorMessage[], refresh: () => Promise<unknown> = () => Promise.resolve()) {

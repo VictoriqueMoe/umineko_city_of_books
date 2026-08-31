@@ -1,10 +1,9 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeSpectatorMessage, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { emitRealtimeEvent, makeWSHarness, type WSHarness } from "../../../test-utils/ws";
-import type { SpectatorMessage } from "../../../types/api";
 import { GameChat } from "./GameChat";
 
 const endpoints = vi.hoisted(() => ({
@@ -29,24 +28,13 @@ const PLAYER_PLACEHOLDER = "Message your opponent...";
 
 const viewer = makeUser({ id: "u-one", username: "battler", display_name: "Battler" });
 
-function makeMessage(overrides: Partial<SpectatorMessage> = {}): SpectatorMessage {
-    return {
-        id: "m1",
-        user_id: "u-two",
-        user: { id: "u-two", username: "beatrice", display_name: "Beatrice" },
-        body: "the golden truth",
-        created_at: "2026-08-02T10:00:00.000Z",
-        ...overrides,
-    };
-}
-
 describe("GameChat", () => {
     beforeEach(() => {
         holder.ws = makeWSHarness();
         endpoints.getSpectatorChat.mockResolvedValue({ messages: [] });
         endpoints.getPlayerChat.mockResolvedValue({ messages: [] });
-        endpoints.postSpectatorChat.mockResolvedValue(makeMessage({ id: "m-sent", body: "hello" }));
-        endpoints.postPlayerChat.mockResolvedValue(makeMessage({ id: "m-sent", body: "hello" }));
+        endpoints.postSpectatorChat.mockResolvedValue(makeSpectatorMessage({ id: "m-sent", body: "hello" }));
+        endpoints.postPlayerChat.mockResolvedValue(makeSpectatorMessage({ id: "m-sent", body: "hello" }));
     });
 
     it("heads the spectator chat with the number of watchers", async () => {
@@ -97,7 +85,10 @@ describe("GameChat", () => {
     it("lists the messages the room already has", async () => {
         // given
         endpoints.getSpectatorChat.mockResolvedValue({
-            messages: [makeMessage(), makeMessage({ id: "m2", body: "without love it cannot be seen" })],
+            messages: [
+                makeSpectatorMessage(),
+                makeSpectatorMessage({ id: "m2", body: "without love it cannot be seen" }),
+            ],
         });
 
         // when
@@ -238,7 +229,7 @@ describe("GameChat", () => {
         // when
         emitRealtimeEvent({
             type: "spectator_chat_message",
-            data: { room_id: "room-1", message: makeMessage({ id: "m-ws", body: "beato is watching" }) },
+            data: { room_id: "room-1", message: makeSpectatorMessage({ id: "m-ws", body: "beato is watching" }) },
         });
 
         // then
@@ -253,7 +244,7 @@ describe("GameChat", () => {
         // when
         emitRealtimeEvent({
             type: "spectator_chat_message",
-            data: { room_id: "room-2", message: makeMessage({ id: "m-ws", body: "somewhere else" }) },
+            data: { room_id: "room-2", message: makeSpectatorMessage({ id: "m-ws", body: "somewhere else" }) },
         });
 
         // then
@@ -268,7 +259,7 @@ describe("GameChat", () => {
         // when
         emitRealtimeEvent({
             type: "player_chat_message",
-            data: { room_id: "room-1", message: makeMessage({ id: "m-ws", body: "wrong channel" }) },
+            data: { room_id: "room-1", message: makeSpectatorMessage({ id: "m-ws", body: "wrong channel" }) },
         });
 
         // then
@@ -277,14 +268,16 @@ describe("GameChat", () => {
 
     it("never shows the same message twice", async () => {
         // given
-        endpoints.getSpectatorChat.mockResolvedValue({ messages: [makeMessage({ id: "m-dup", body: "only once" })] });
+        endpoints.getSpectatorChat.mockResolvedValue({
+            messages: [makeSpectatorMessage({ id: "m-dup", body: "only once" })],
+        });
         renderWithProviders(<GameChat roomId="room-1" variant="spectator" />, { user: viewer });
         await screen.findByText("only once");
 
         // when
         emitRealtimeEvent({
             type: "spectator_chat_message",
-            data: { room_id: "room-1", message: makeMessage({ id: "m-dup", body: "only once" }) },
+            data: { room_id: "room-1", message: makeSpectatorMessage({ id: "m-dup", body: "only once" }) },
         });
 
         // then

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -22,7 +23,7 @@ func createPost(t *testing.T, repos *repository.Repositories, userID uuid.UUID, 
 
 func createComment(t *testing.T, repos *repository.Repositories, postID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Post.CreateComment(context.Background(), postID, parentID, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindPostComment)].CreateComment(context.Background(), postID, parentID, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }

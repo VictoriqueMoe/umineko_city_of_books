@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { makeMinesweeperState } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { MinesweeperState } from "../../../types/api";
 import { MinesweeperBoard } from "./MinesweeperBoard";
@@ -18,21 +19,17 @@ function flags(...set: number[]): boolean[] {
 }
 
 function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState {
-    return {
-        phase: "playing",
+    return makeMinesweeperState({
         width: WIDTH,
         height: HEIGHT,
         mine_count: 1,
-        characters: ["bernkastel", "erika"],
         revealed: [flags(0), flags()],
         flagged: [flags(1), flags()],
         revealed_count: [1, 0],
         values: [[2, 0, 0, 0, 0, 0], new Array<number>(WIDTH * HEIGHT).fill(0)],
         mines: flags(4),
-        mines_placed: true,
-        pending_clicks: [null, null],
         ...overrides,
-    };
+    });
 }
 
 describe("MinesweeperBoard", () => {

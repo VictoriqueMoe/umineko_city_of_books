@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
@@ -83,6 +84,7 @@ type (
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
+		mentionSvc    mention.Service
 		uploadSvc     upload.Service
 		mediaProc     *media.Processor
 		uploader      *media.Uploader
@@ -99,6 +101,7 @@ func NewService(
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
+	mentionSvc mention.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -112,6 +115,7 @@ func NewService(
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
+		mentionSvc:    mentionSvc,
 		uploadSvc:     uploadSvc,
 		mediaProc:     mediaProc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -167,6 +171,8 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 	if err != nil {
 		return uuid.Nil, err
 	}
+
+	s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindShip, EntityID: created.ID}, userID, description)
 
 	return created.ID, nil
 }
@@ -402,12 +408,16 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	created, err := s.shipRepo.CreateComment(ctx, shipID, req.ParentID, userID, body)
+	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
+		Kind:     mention.KindShipComment,
+		EntityID: shipID,
+		ParentID: req.ParentID,
+		AuthorID: userID,
+		Body:     body,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
-
-	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()

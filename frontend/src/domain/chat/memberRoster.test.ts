@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ChatRoomMember, SiteRole, User } from "../../types/api";
+import { makePublicUser, makeRoomMember } from "../../test-utils/fixtures";
+import type { ChatRoomMember, SiteRole } from "../../types/api";
 import { ROLE_GROUPS } from "../permissions";
 import {
     groupMembers,
@@ -13,30 +14,9 @@ import {
     type PresenceMap,
 } from "./memberRoster";
 
-function makeUser(overrides: Partial<User> = {}): User {
-    return {
-        id: "u1",
-        username: "beatrice",
-        display_name: "Beatrice",
-        ...overrides,
-    };
-}
-
-function makeMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
-    return {
-        user: makeUser(),
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-        ...overrides,
-    };
-}
-
 function member(id: string, role: SiteRole | undefined, roomRole: string, name: string): ChatRoomMember {
-    return makeMember({
-        user: makeUser({ id, username: name.toLowerCase(), display_name: name, role }),
+    return makeRoomMember({
+        user: makePublicUser({ id, username: name.toLowerCase(), display_name: name, role }),
         role: roomRole,
     });
 }
@@ -45,8 +25,8 @@ describe("mergePresence", () => {
     it("seeds the map from the presence the server sent with the membership", () => {
         // given
         const members = [
-            makeMember({ user: makeUser({ id: "u1" }), presence: "idle" }),
-            makeMember({ user: makeUser({ id: "u2" }), presence: "active" }),
+            makeRoomMember({ user: makePublicUser({ id: "u1" }), presence: "idle" }),
+            makeRoomMember({ user: makePublicUser({ id: "u2" }), presence: "active" }),
         ];
 
         // when
@@ -59,8 +39,8 @@ describe("mergePresence", () => {
     it("ignores a member the server reported with no presence at all", () => {
         // given
         const members = [
-            makeMember({ user: makeUser({ id: "u1" }), presence: "" }),
-            makeMember({ user: makeUser({ id: "u2" }) }),
+            makeRoomMember({ user: makePublicUser({ id: "u1" }), presence: "" }),
+            makeRoomMember({ user: makePublicUser({ id: "u2" }) }),
         ];
 
         // when
@@ -72,7 +52,7 @@ describe("mergePresence", () => {
 
     it("lets a live update win over the seeded presence", () => {
         // given
-        const members = [makeMember({ user: makeUser({ id: "u1" }), presence: "idle" })];
+        const members = [makeRoomMember({ user: makePublicUser({ id: "u1" }), presence: "idle" })];
 
         // when
         const merged = mergePresence(members, { u1: "active" });
@@ -83,7 +63,7 @@ describe("mergePresence", () => {
 
     it("keeps a live entry for somebody the membership does not list", () => {
         // given
-        const members = [makeMember({ user: makeUser({ id: "u1" }), presence: "idle" })];
+        const members = [makeRoomMember({ user: makePublicUser({ id: "u1" }), presence: "idle" })];
 
         // when
         const merged = mergePresence(members, { ghost: "active" });
@@ -95,8 +75,8 @@ describe("mergePresence", () => {
     it("seeds the presence map from the membership the server sent", () => {
         // given
         const members = [
-            makeMember({
-                user: makeUser({ id: "u2", username: "battler", display_name: "Battler" }),
+            makeRoomMember({
+                user: makePublicUser({ id: "u2", username: "battler", display_name: "Battler" }),
                 presence: "idle",
             }),
         ];
@@ -128,8 +108,8 @@ describe("memberOnlineWeight", () => {
     it("weighs a member who is nowhere to be seen below one who is present", () => {
         // given
         const members = [
-            makeMember({
-                user: makeUser({ id: "u2", username: "battler", display_name: "Battler" }),
+            makeRoomMember({
+                user: makePublicUser({ id: "u2", username: "battler", display_name: "Battler" }),
                 presence: "active",
             }),
         ];
@@ -213,7 +193,7 @@ describe("memberRankWeight", () => {
 describe("memberSortName", () => {
     it("prefers the room nickname, folded to lower case", () => {
         // given
-        const m = makeMember({ nickname: "Golden Witch" });
+        const m = makeRoomMember({ nickname: "Golden Witch" });
 
         // when
         const name = memberSortName(m);
@@ -224,7 +204,7 @@ describe("memberSortName", () => {
 
     it("falls back to the account display name when the nickname is only whitespace", () => {
         // given
-        const m = makeMember({ nickname: "   " });
+        const m = makeRoomMember({ nickname: "   " });
 
         // when
         const name = memberSortName(m);
@@ -235,7 +215,7 @@ describe("memberSortName", () => {
 
     it("falls back to the username when there is neither nickname nor display name", () => {
         // given
-        const m = makeMember({ nickname: "", user: makeUser({ display_name: "  ", username: "Beato" }) });
+        const m = makeRoomMember({ nickname: "", user: makePublicUser({ display_name: "  ", username: "Beato" }) });
 
         // when
         const name = memberSortName(m);
@@ -333,8 +313,11 @@ describe("sortMembers", () => {
     it("sorts by the room nickname rather than the account name", () => {
         // given
         const members = [
-            makeMember({ user: makeUser({ id: "u1", username: "ange", display_name: "Ange" }), nickname: "Zepar" }),
-            makeMember({ user: makeUser({ id: "u2", username: "ronove", display_name: "Ronove" }) }),
+            makeRoomMember({
+                user: makePublicUser({ id: "u1", username: "ange", display_name: "Ange" }),
+                nickname: "Zepar",
+            }),
+            makeRoomMember({ user: makePublicUser({ id: "u2", username: "ronove", display_name: "Ronove" }) }),
         ];
 
         // when
@@ -348,8 +331,8 @@ describe("sortMembers", () => {
         // given
         const members = [
             member("u2", undefined, "member", "Battler"),
-            makeMember({
-                user: makeUser({ id: "u3", username: "ange", display_name: "Ange" }),
+            makeRoomMember({
+                user: makePublicUser({ id: "u3", username: "ange", display_name: "Ange" }),
                 presence: "active",
             }),
         ];
@@ -463,8 +446,8 @@ describe("groupMembers", () => {
 
 describe("typingNames over a room roster", () => {
     const members = [
-        makeMember({ user: makeUser({ id: "u1", username: "beatrice", display_name: "Beatrice" }) }),
-        makeMember({ user: makeUser({ id: "u2", username: "battler", display_name: "Battler" }) }),
+        makeRoomMember({ user: makePublicUser({ id: "u1", username: "beatrice", display_name: "Beatrice" }) }),
+        makeRoomMember({ user: makePublicUser({ id: "u2", username: "battler", display_name: "Battler" }) }),
     ];
 
     it("names the person typing in this room", () => {
@@ -477,7 +460,9 @@ describe("typingNames over a room roster", () => {
 
     it("prefers the nickname the room gave somebody", () => {
         // given
-        const nicknamed = [makeMember({ user: makeUser({ id: "u2", username: "battler" }), nickname: "Battler-kun" })];
+        const nicknamed = [
+            makeRoomMember({ user: makePublicUser({ id: "u2", username: "battler" }), nickname: "Battler-kun" }),
+        ];
 
         // when
         const names = typingNames(["u2"], nicknamed, "u1");
@@ -489,7 +474,10 @@ describe("typingNames over a room roster", () => {
     it("ignores a nickname that is only whitespace", () => {
         // given
         const nicknamed = [
-            makeMember({ user: makeUser({ id: "u2", username: "battler", display_name: "Battler" }), nickname: "   " }),
+            makeRoomMember({
+                user: makePublicUser({ id: "u2", username: "battler", display_name: "Battler" }),
+                nickname: "   ",
+            }),
         ];
 
         // when
@@ -501,7 +489,9 @@ describe("typingNames over a room roster", () => {
 
     it("falls back to the username when there is no display name", () => {
         // given
-        const nameless = [makeMember({ user: makeUser({ id: "u2", username: "battler", display_name: "" }) })];
+        const nameless = [
+            makeRoomMember({ user: makePublicUser({ id: "u2", username: "battler", display_name: "" }) }),
+        ];
 
         // when
         const names = typingNames(["u2"], nameless, "u1");
@@ -546,7 +536,10 @@ describe("typingNames over a room roster", () => {
 });
 
 describe("typingNames over a direct message roster", () => {
-    const users = [makeUser({ id: "u1" }), makeUser({ id: "u2", username: "battler", display_name: "Battler" })];
+    const users = [
+        makePublicUser({ id: "u1" }),
+        makePublicUser({ id: "u2", username: "battler", display_name: "Battler" }),
+    ];
 
     it("names the person typing", () => {
         // when
@@ -558,7 +551,7 @@ describe("typingNames over a direct message roster", () => {
 
     it("falls back to the username when there is no display name", () => {
         // given
-        const nameless = [makeUser({ id: "u2", username: "battler", display_name: "" })];
+        const nameless = [makePublicUser({ id: "u2", username: "battler", display_name: "" })];
 
         // when
         const names = typingNames(["u2"], nameless, "u1");

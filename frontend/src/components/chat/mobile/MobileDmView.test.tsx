@@ -1,8 +1,10 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Room } from "livekit-client";
 import type { DmController } from "../../../hooks/useDmController";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeDmController } from "../../../hooks/useDmController.fixture";
+import { makeDmRoom, makePublicUser, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatRoom, User } from "../../../types/api";
 import { MobileDmView } from "./MobileDmView";
@@ -89,76 +91,21 @@ function makeOther(overrides: Partial<User> = {}): User {
 }
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "",
-        description: "",
-        type: "dm",
-        is_public: false,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [{ id: "u1", username: "beatrice", display_name: "Beatrice" }, makeOther()],
+    return makeDmRoom({
+        members: [makePublicUser(), makeOther()],
         created_at: "2026-07-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
-function makeVoice(overrides: Record<string, unknown> = {}): DmController["voice"] {
-    return {
-        status: "idle",
-        room: null,
-        participantIds: [],
-        presenceCount: 0,
-        join: vi.fn(),
-        leave: vi.fn(),
-        ...overrides,
-    } as unknown as DmController["voice"];
+const controllerDefaults = makeDmController();
+
+function makeVoice(overrides: Partial<DmController["voice"]> = {}): DmController["voice"] {
+    return { ...controllerDefaults.voice, ...overrides };
 }
 
 function makeController(overrides: Partial<DmController> = {}): DmController {
-    const base = {
-        user: viewer,
-        mobileView: "list",
-        rooms: [],
-        activeRoom: undefined,
-        activeRoomId: null,
-        draftRecipient: null,
-        setDraftRecipient: vi.fn(),
-        messagesEndRef: { current: null },
-        scrollToBottom: vi.fn(),
-        typingNames: [],
-        voice: makeVoice(),
-        voiceEnabled: true,
-        replyingTo: null,
-        setReplyingTo: vi.fn(),
-        lightboxSrc: null,
-        setLightboxSrc: vi.fn(),
-        showNewDm: false,
-        setShowNewDm: vi.fn(),
-        dmSearch: "",
-        setDmSearch: vi.fn(),
-        dmResults: [],
-        dmMutuals: [],
-        dmError: "",
-        dmCreating: false,
-        toast: null,
-        showToast: vi.fn(),
-        handleRoomSelect: vi.fn(),
-        handleMobileBack: vi.fn(),
-        handleSentMessage: vi.fn(),
-        handleSelectUser: vi.fn(),
-        handleEditLast: vi.fn(),
-        handleDeleteChat: vi.fn(),
-        notifyTyping: vi.fn(),
-    };
-
-    return { ...base, ...overrides } as unknown as DmController;
+    return makeDmController({ user: viewer, ...overrides });
 }
 
 function renderView(overrides: Partial<DmController> = {}) {
@@ -435,7 +382,7 @@ describe("MobileDmView", () => {
 
     it("shows the voice bar once the viewer is connected to the call", () => {
         // given
-        const voice = makeVoice({ status: "connected", room: { name: "voice" } });
+        const voice = makeVoice({ status: "connected", room: new Room() });
 
         // when
         roomView({ voice });
@@ -446,7 +393,7 @@ describe("MobileDmView", () => {
 
     it("treats an ordinary member as unable to moderate the call", () => {
         // given
-        const voice = makeVoice({ status: "connected", room: { name: "voice" } });
+        const voice = makeVoice({ status: "connected", room: new Room() });
 
         // when
         roomView({ voice });
@@ -460,7 +407,7 @@ describe("MobileDmView", () => {
         const user = makeUser({ id: "u1", username: "beatrice", role: "admin" });
 
         // when
-        roomView({ user, voice: makeVoice({ status: "connected", room: { name: "voice" } }) });
+        roomView({ user, voice: makeVoice({ status: "connected", room: new Room() }) });
 
         // then
         expect(screen.getByTestId("voice-bar")).toHaveAttribute("data-can-moderate", "true");
@@ -469,7 +416,7 @@ describe("MobileDmView", () => {
     it("sends a server mute to the room the conversation belongs to", async () => {
         // given
         const user = userEvent.setup();
-        roomView({ voice: makeVoice({ status: "connected", room: { name: "voice" } }) });
+        roomView({ voice: makeVoice({ status: "connected", room: new Room() }) });
 
         // when
         await user.click(screen.getByRole("button", { name: "server mute battler" }));
@@ -483,7 +430,7 @@ describe("MobileDmView", () => {
         mocks.forceMuteVoiceParticipant.mockRejectedValue(new Error("LiveKit said no"));
         const showToast = vi.fn();
         const user = userEvent.setup();
-        roomView({ showToast, voice: makeVoice({ status: "connected", room: { name: "voice" } }) });
+        roomView({ showToast, voice: makeVoice({ status: "connected", room: new Room() }) });
 
         // when
         await user.click(screen.getByRole("button", { name: "server mute battler" }));

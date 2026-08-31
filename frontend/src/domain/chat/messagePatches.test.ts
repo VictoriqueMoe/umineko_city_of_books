@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ChatMessage, ChatRoomMember, PostMedia } from "../../types/api";
+import { makeChatMessage, makeRoomMember } from "../../test-utils/fixtures";
+import type { ChatMessage, PostMedia } from "../../types/api";
 import {
     applyChatMemberUpdateToMembers,
     applyChatMemberUpdateToMessages,
@@ -17,29 +18,7 @@ import {
 } from "./messagePatches";
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        body: "hello",
-        is_system: false,
-        created_at: "2026-01-01T00:00:00Z",
-        pinned: false,
-        reactions: [],
-        ...overrides,
-    };
-}
-
-function makeMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
-    return {
-        user: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-        ...overrides,
-    };
+    return makeChatMessage({ body: "hello", ...overrides });
 }
 
 function makeMemberUpdate(overrides: Partial<ChatMemberUpdatedPayload> = {}): ChatMemberUpdatedPayload {
@@ -75,9 +54,9 @@ function makeMedia(id: number): PostMedia {
 describe("applyLocalMemberChangeToMembers", () => {
     it("swaps in the changed member and leaves the rest of the roster alone", () => {
         // given
-        const other = makeMember({ user: { id: "u2", username: "ange", display_name: "Ange" } });
-        const current = [makeMember(), other];
-        const updated = makeMember({ nickname: "Golden Witch" });
+        const other = makeRoomMember({ user: { id: "u2", username: "ange", display_name: "Ange" } });
+        const current = [makeRoomMember(), other];
+        const updated = makeRoomMember({ nickname: "Golden Witch" });
 
         // when
         const next = applyLocalMemberChangeToMembers(current, updated);
@@ -89,10 +68,10 @@ describe("applyLocalMemberChangeToMembers", () => {
 
     it("leaves a member with a different id alone", () => {
         // given
-        const other = makeMember({ user: { id: "u2", username: "ange", display_name: "Ange" } });
+        const other = makeRoomMember({ user: { id: "u2", username: "ange", display_name: "Ange" } });
 
         // when
-        const next = applyLocalMemberChangeToMembers([other], makeMember({ nickname: "Golden Witch" }));
+        const next = applyLocalMemberChangeToMembers([other], makeRoomMember({ nickname: "Golden Witch" }));
 
         // then
         expect(next[0]).toBe(other);
@@ -107,7 +86,7 @@ describe("applyLocalMemberChangeToMessages", () => {
         // when
         const next = applyLocalMemberChangeToMessages(
             current,
-            makeMember({ nickname: "Golden Witch", member_avatar_url: "/uploads/beato.png" }),
+            makeRoomMember({ nickname: "Golden Witch", member_avatar_url: "/uploads/beato.png" }),
         );
 
         // then
@@ -122,7 +101,7 @@ describe("applyLocalMemberChangeToMessages", () => {
         ];
 
         // when
-        const next = applyLocalMemberChangeToMessages(current, makeMember());
+        const next = applyLocalMemberChangeToMessages(current, makeRoomMember());
 
         // then
         expect(next[0].sender_nickname).toBeUndefined();
@@ -134,7 +113,7 @@ describe("applyLocalMemberChangeToMessages", () => {
         const foreign = makeMessage({ id: "m2", sender: { id: "u2", username: "ange", display_name: "Ange" } });
 
         // when
-        const next = applyLocalMemberChangeToMessages([foreign], makeMember({ nickname: "Golden Witch" }));
+        const next = applyLocalMemberChangeToMessages([foreign], makeRoomMember({ nickname: "Golden Witch" }));
 
         // then
         expect(next[0]).toBe(foreign);
@@ -144,7 +123,7 @@ describe("applyLocalMemberChangeToMessages", () => {
 describe("applyChatMemberUpdateToMembers", () => {
     it("writes the broadcast nickname, avatar and lock onto the matching member", () => {
         // given
-        const current = [makeMember()];
+        const current = [makeRoomMember()];
 
         // when
         const next = applyChatMemberUpdateToMembers(
@@ -164,7 +143,7 @@ describe("applyChatMemberUpdateToMembers", () => {
 
     it("turns an empty timeout into no timeout at all", () => {
         // given
-        const current = [makeMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: true })];
+        const current = [makeRoomMember({ timeout_until: "2026-01-01T01:00:00Z", timeout_set_by_staff: true })];
 
         // when
         const next = applyChatMemberUpdateToMembers(current, makeMemberUpdate());
@@ -176,7 +155,7 @@ describe("applyChatMemberUpdateToMembers", () => {
 
     it("keeps a live timeout and who set it", () => {
         // given
-        const current = [makeMember()];
+        const current = [makeRoomMember()];
 
         // when
         const next = applyChatMemberUpdateToMembers(
@@ -191,7 +170,7 @@ describe("applyChatMemberUpdateToMembers", () => {
 
     it("leaves members with a different id alone", () => {
         // given
-        const other = makeMember({ user: { id: "u2", username: "ange", display_name: "Ange" } });
+        const other = makeRoomMember({ user: { id: "u2", username: "ange", display_name: "Ange" } });
 
         // when
         const next = applyChatMemberUpdateToMembers([other], makeMemberUpdate({ nickname: "Golden Witch" }));
@@ -284,8 +263,8 @@ describe("applyChatMemberUpdateToMessages", () => {
 describe("applySiteRoleChangeToMembers", () => {
     it("restamps the promoted member and leaves the others by reference", () => {
         // given
-        const other = makeMember({ user: { id: "u2", username: "battler", display_name: "Battler" } });
-        const current = [makeMember(), other];
+        const other = makeRoomMember({ user: { id: "u2", username: "battler", display_name: "Battler" } });
+        const current = [makeRoomMember(), other];
 
         // when
         const next = applySiteRoleChangeToMembers(current, { user_id: "u1", role: "moderator" });
@@ -297,7 +276,9 @@ describe("applySiteRoleChangeToMembers", () => {
 
     it("reads an empty role as no role at all", () => {
         // given
-        const current = [makeMember({ user: { id: "u1", username: "beatrice", display_name: "B", role: "admin" } })];
+        const current = [
+            makeRoomMember({ user: { id: "u1", username: "beatrice", display_name: "B", role: "admin" } }),
+        ];
 
         // when
         const next = applySiteRoleChangeToMembers(current, { user_id: "u1", role: "" });

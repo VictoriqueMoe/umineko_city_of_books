@@ -2,7 +2,7 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Room } from "livekit-client";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeStream as makeLiveStream, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { LiveStream, UserProfile } from "../../types/api";
 import { LiveWatchPage } from "./LiveWatchPage";
@@ -79,19 +79,13 @@ vi.mock("../../components/live/HLSVideoPlayer", () => ({
 }));
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: "stream-1",
+    return makeLiveStream({
         userId: "streamer-1",
         title: "Reading Episode 4",
-        status: "live",
-        viewerCount: 3,
         startedAt: "2026-02-01T12:00:00Z",
         streamerUsername: "beatrice",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
         ...overrides,
-    };
+    });
 }
 
 function renderWatch(options: { user?: UserProfile | null; streamID?: string } = {}) {

@@ -4,15 +4,13 @@ import (
 	"context"
 	"time"
 
-	"umineko_city_of_books/internal/social"
+	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/mention"
 
 	"github.com/google/uuid"
 )
 
-const (
-	botObserveTimeout = 15 * time.Second
-	maxBotMentions    = 20
-)
+const botObserveTimeout = 15 * time.Second
 
 type (
 	CommentObserver interface {
@@ -42,7 +40,7 @@ func (s *service) observeForBot(postID uuid.UUID, commentID *uuid.UUID, authorID
 		return
 	}
 
-	usernames := mentionedUsernames(body)
+	usernames := mention.Usernames(body)
 	if len(usernames) == 0 && parentID == nil {
 		return
 	}
@@ -63,7 +61,16 @@ func (s *service) observeForBot(postID uuid.UUID, commentID *uuid.UUID, authorID
 		}
 	}
 
-	mentioned := s.resolveMentionedIDs(ctx, usernames, authorID)
+	recipients, err := s.mentionSvc.Recipients(ctx, usernames, authorID)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("resolve bot mention recipients failed")
+	}
+
+	mentioned := make(map[uuid.UUID]struct{}, len(recipients))
+	for _, u := range recipients {
+		mentioned[u.ID] = struct{}{}
+	}
+
 	if len(mentioned) == 0 && parentAuthor == uuid.Nil {
 		return
 	}
@@ -79,46 +86,4 @@ func (s *service) observeForBot(postID uuid.UUID, commentID *uuid.UUID, authorID
 		ParentID:     parentID,
 		ParentAuthor: parentAuthor,
 	})
-}
-
-func mentionedUsernames(body string) []string {
-	matches := social.MentionRegex.FindAllStringSubmatch(body, maxBotMentions)
-	if len(matches) == 0 {
-		return nil
-	}
-
-	seen := make(map[string]struct{}, len(matches))
-	out := make([]string, 0, len(matches))
-	for _, m := range matches {
-		if _, dup := seen[m[1]]; dup {
-			continue
-		}
-
-		seen[m[1]] = struct{}{}
-		out = append(out, m[1])
-	}
-
-	return out
-}
-
-func (s *service) resolveMentionedIDs(ctx context.Context, usernames []string, authorID uuid.UUID) map[uuid.UUID]struct{} {
-	if len(usernames) == 0 {
-		return nil
-	}
-
-	users, err := s.userRepo.GetByUsernames(ctx, usernames)
-	if err != nil || len(users) == 0 {
-		return nil
-	}
-
-	out := make(map[uuid.UUID]struct{}, len(users))
-	for i := range users {
-		if users[i].ID == authorID {
-			continue
-		}
-
-		out[users[i].ID] = struct{}{}
-	}
-
-	return out
 }

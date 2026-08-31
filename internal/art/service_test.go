@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
@@ -13,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -27,6 +29,7 @@ import (
 
 type testMocks struct {
 	artRepo     *repository.MockArtRepository
+	artComments *repository.MockCommentDAO[uuid.UUID]
 	postRepo    *repository.MockPostRepository
 	userRepo    *repository.MockUserRepository
 	auditRepo   *repository.MockAuditLogRepository
@@ -51,9 +54,15 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
-	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	artComments := repository.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
+		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindArtComment): artComments},
+	})
+
+	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
 	return svc, &testMocks{
 		artRepo:     artRepo,
+		artComments: artComments,
 		postRepo:    postRepo,
 		userRepo:    userRepo,
 		auditRepo:   auditRepo,
@@ -763,7 +772,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().
+	m.artComments.EXPECT().
 		CreateComment(mock.Anything, artID, (*uuid.UUID)(nil), userID, "hi").
 		Return(nil, errors.New("db"))
 
@@ -782,7 +791,7 @@ func TestCreateComment_OK_TopLevel(t *testing.T) {
 	authorID := uuid.New()
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().
+	m.artComments.EXPECT().
 		CreateComment(mock.Anything, artID, (*uuid.UUID)(nil), userID, "hi").
 		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
@@ -804,7 +813,7 @@ func TestCreateComment_OK_Reply(t *testing.T) {
 	parentID := uuid.New()
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().
+	m.artComments.EXPECT().
 		CreateComment(mock.Anything, artID, &parentID, userID, "hi").
 		Return(&repository.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
@@ -814,6 +823,92 @@ func TestCreateComment_OK_Reply(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
+}
+
+func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	artID := uuid.New()
+	userID := uuid.New()
+	authorID := uuid.New()
+	commentID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
+	m.artComments.EXPECT().
+		CreateComment(mock.Anything, artID, (*uuid.UUID)(nil), userID, "look at this @alice").
+		Return(&repository.CommentRow{ID: commentID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			if p.Type == dto.NotifMention {
+				mentioned = p
+			}
+			wg.Done()
+
+			return nil
+		})
+
+	// when
+	_, err := svc.CreateComment(context.Background(), artID, userID, dto.CreateCommentRequest{Body: "look at this @alice"})
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, artID, mentioned.ReferenceID)
+	assert.Equal(t, "art_comment:"+commentID.String(), mentioned.ReferenceType)
+	assert.Equal(t, "/gallery/art/"+artID.String()+"#comment-"+commentID.String(), mentioned.EmailLink)
+}
+
+func TestCreateArt_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	userID := uuid.New()
+	artID := uuid.New()
+	mentionedID := uuid.New()
+
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxArtPerDay).Return(0)
+	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
+	m.uploadSvc.EXPECT().SaveImage(mock.Anything, "art", mock.Anything, mock.Anything, int64(1024), mock.Anything).Return("/u/a.png", nil)
+	m.artRepo.EXPECT().CreateWithTags(mock.Anything, mock.Anything).Return(&model.ArtRow{ID: artID}, nil)
+	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
+	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
+	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	var mentioned dto.NotifyParams
+	m.notifSvc.EXPECT().Notify(mock.Anything, mock.Anything).
+		RunAndReturn(func(_ context.Context, p dto.NotifyParams) error {
+			mentioned = p
+			wg.Done()
+
+			return nil
+		})
+
+	req := dto.CreateArtRequest{Title: "Golden", Description: "drawn for @alice"}
+
+	// when
+	_, err := svc.CreateArt(context.Background(), userID, req, "image/png", 1, bytes.NewReader([]byte("x")))
+
+	// then
+	require.NoError(t, err)
+	wg.Wait()
+	assert.Equal(t, dto.NotifMention, mentioned.Type)
+	assert.Equal(t, mentionedID, mentioned.RecipientID)
+	assert.Equal(t, artID, mentioned.ReferenceID)
+	assert.Equal(t, "art", mentioned.ReferenceType)
+	assert.Equal(t, "/gallery/art/"+artID.String(), mentioned.EmailLink)
 }
 
 func TestUpdateComment_EmptyBodyRejected(t *testing.T) {

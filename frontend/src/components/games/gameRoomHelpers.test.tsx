@@ -1,6 +1,7 @@
 import { act, render, renderHook, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { GameRoom, GameRoomPlayer } from "../../types/api";
+import { makeGamePlayer, makeGameRoom } from "../../test-utils/fixtures";
+import type { GameRoom } from "../../types/api";
 import {
     formatDuration,
     gameResultLabel,
@@ -11,41 +12,17 @@ import {
 
 const NOW = new Date("2026-08-02T12:00:00.000Z");
 
-function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
-    const id = overrides.user_id ?? "player-0";
-    return {
-        user_id: id,
-        username: "battler",
-        display_name: "Battler",
-        avatar_url: "",
-        role: "player",
-        slot: 0,
-        joined: true,
-        connected: true,
-        user: { id, username: "battler", display_name: "Battler" },
-        ...overrides,
-    };
-}
-
 function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
-    return {
-        id: "room-1",
-        game_type: "chess",
-        status: "active",
-        state: {},
-        created_by: "player-0",
-        created_at: "2026-08-02T11:58:00.000Z",
-        updated_at: "2026-08-02T11:58:00.000Z",
-        players: [],
-        watcher_count: 0,
-        ...overrides,
-    };
+    return makeGameRoom(
+        {},
+        { created_at: "2026-08-02T11:58:00.000Z", updated_at: "2026-08-02T11:58:00.000Z", ...overrides },
+    );
 }
 
 describe("getMySlot", () => {
     it("has no slot for a logged out viewer", () => {
         // given
-        const room = makeRoom({ players: [makePlayer({ user_id: "a", slot: 0 })] });
+        const room = makeRoom({ players: [makeGamePlayer({ user_id: "a", slot: 0 })] });
 
         // when
         const slot = getMySlot(room, null);
@@ -56,7 +33,7 @@ describe("getMySlot", () => {
 
     it("has no slot for someone who is only watching", () => {
         // given
-        const room = makeRoom({ players: [makePlayer({ user_id: "a", slot: 0 })] });
+        const room = makeRoom({ players: [makeGamePlayer({ user_id: "a", slot: 0 })] });
 
         // when
         const slot = getMySlot(room, "spectator");
@@ -68,7 +45,7 @@ describe("getMySlot", () => {
     it("finds the zero slot rather than treating it as missing", () => {
         // given
         const room = makeRoom({
-            players: [makePlayer({ user_id: "a", slot: 0 }), makePlayer({ user_id: "b", slot: 1 })],
+            players: [makeGamePlayer({ user_id: "a", slot: 0 }), makeGamePlayer({ user_id: "b", slot: 1 })],
         });
 
         // when
@@ -81,7 +58,7 @@ describe("getMySlot", () => {
     it("finds the second slot", () => {
         // given
         const room = makeRoom({
-            players: [makePlayer({ user_id: "a", slot: 0 }), makePlayer({ user_id: "b", slot: 1 })],
+            players: [makeGamePlayer({ user_id: "a", slot: 0 }), makeGamePlayer({ user_id: "b", slot: 1 })],
         });
 
         // when
@@ -173,8 +150,8 @@ describe("formatDuration", () => {
 
 describe("gameResultLabel", () => {
     const players = [
-        makePlayer({ user_id: "a", slot: 0, display_name: "Battler" }),
-        makePlayer({ user_id: "b", slot: 1, display_name: "Beatrice" }),
+        makeGamePlayer({ user_id: "a", slot: 0, display_name: "Battler" }),
+        makeGamePlayer({ user_id: "b", slot: 1, display_name: "Beatrice" }),
     ];
 
     it("says nothing while the game has not started", () => {
@@ -371,7 +348,7 @@ describe("useDisconnectForfeit", () => {
     it("reports nobody offline while every player is connected", () => {
         // given
         const room = makeRoom({
-            players: [makePlayer({ user_id: "a", slot: 0 }), makePlayer({ user_id: "b", slot: 1 })],
+            players: [makeGamePlayer({ user_id: "a", slot: 0 }), makeGamePlayer({ user_id: "b", slot: 1 })],
         });
 
         // when
@@ -387,8 +364,8 @@ describe("useDisconnectForfeit", () => {
         // given
         const room = makeRoom({
             players: [
-                makePlayer({ user_id: "a", slot: 0 }),
-                makePlayer({
+                makeGamePlayer({ user_id: "a", slot: 0 }),
+                makeGamePlayer({
                     user_id: "b",
                     slot: 1,
                     connected: false,
@@ -409,7 +386,7 @@ describe("useDisconnectForfeit", () => {
         // given
         const room = makeRoom({
             players: [
-                makePlayer({
+                makeGamePlayer({
                     user_id: "b",
                     slot: 1,
                     connected: false,
@@ -429,7 +406,7 @@ describe("useDisconnectForfeit", () => {
         // given
         const room = makeRoom({
             players: [
-                makePlayer({
+                makeGamePlayer({
                     user_id: "b",
                     slot: 1,
                     connected: false,
@@ -454,7 +431,7 @@ describe("useDisconnectForfeit", () => {
             status: "finished",
             finished_at: "2026-08-02T11:59:00.000Z",
             players: [
-                makePlayer({
+                makeGamePlayer({
                     user_id: "b",
                     slot: 1,
                     connected: false,
@@ -473,7 +450,7 @@ describe("useDisconnectForfeit", () => {
 
     it("ignores a player who is offline without a disconnection time", () => {
         // given
-        const room = makeRoom({ players: [makePlayer({ user_id: "b", slot: 1, connected: false })] });
+        const room = makeRoom({ players: [makeGamePlayer({ user_id: "b", slot: 1, connected: false })] });
 
         // when
         const { result } = renderHook(() => useDisconnectForfeit(room));
@@ -486,7 +463,7 @@ describe("useDisconnectForfeit", () => {
     it("gives up on a disconnection time it cannot parse", () => {
         // given
         const room = makeRoom({
-            players: [makePlayer({ user_id: "b", slot: 1, connected: false, disconnected_at: "not a date" })],
+            players: [makeGamePlayer({ user_id: "b", slot: 1, connected: false, disconnected_at: "not a date" })],
         });
 
         // when

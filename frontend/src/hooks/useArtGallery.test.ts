@@ -1,6 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../test-utils/fixtures";
+import { makeGallery as makeContentGallery, makeUser } from "../test-utils/fixtures";
 import { providerWrapper } from "../test-utils/render";
 import type { Gallery, UserProfile } from "../types/api";
 import { useArtGallery } from "./useArtGallery";
@@ -28,17 +28,7 @@ const beatrice = { id: "beatrice-id", username: "beatrice", display_name: "Beatr
 const ronove = { id: "ronove-id", username: "ronove", display_name: "Ronove" };
 
 function makeGallery(overrides: Partial<Gallery> = {}): Gallery {
-    return {
-        id: "gallery-1",
-        author: beatrice,
-        name: "Golden Butterflies",
-        description: "",
-        cover_image_url: "",
-        cover_thumbnail_url: "",
-        art_count: 3,
-        created_at: "2026-07-01T10:00:00Z",
-        ...overrides,
-    };
+    return makeContentGallery({ author: beatrice, ...overrides });
 }
 
 function render(route = "/gallery", viewer: UserProfile | null = makeUser({ id: "me", username: "me" })) {

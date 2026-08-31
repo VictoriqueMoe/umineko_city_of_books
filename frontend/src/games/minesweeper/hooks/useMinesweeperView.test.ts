@@ -1,24 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { makeMinesweeperState } from "../../../test-utils/fixtures";
 import type { MinesweeperState } from "../../../types/api";
 import { useMinesweeperView } from "./useMinesweeperView";
-
-function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState {
-    return {
-        phase: "playing",
-        width: 10,
-        height: 10,
-        mine_count: 10,
-        characters: ["bernkastel", "erika"],
-        revealed: [[], []],
-        flagged: [[], []],
-        revealed_count: [0, 0],
-        values: [[], []],
-        mines_placed: true,
-        pending_clicks: [null, null],
-        ...overrides,
-    };
-}
 
 interface HookProps {
     state: MinesweeperState | null;
@@ -26,7 +10,7 @@ interface HookProps {
 }
 
 function setup(overrides: Partial<HookProps> = {}) {
-    const initialProps: HookProps = { state: makeState(), roomFinished: false, ...overrides };
+    const initialProps: HookProps = { state: makeMinesweeperState(), roomFinished: false, ...overrides };
 
     return renderHook(props => useMinesweeperView(props.state, props.roomFinished), { initialProps });
 }
@@ -46,7 +30,7 @@ describe("useMinesweeperView", () => {
 
     it("shows the character select screen while the players are still choosing", () => {
         // given
-        const state = makeState({ phase: "char_select", mines_placed: false });
+        const state = makeMinesweeperState({ phase: "char_select", mines_placed: false });
 
         // when
         const { result } = setup({ state });
@@ -57,7 +41,7 @@ describe("useMinesweeperView", () => {
 
     it("plays the versus intro as soon as the game starts", () => {
         // given
-        const state = makeState({ phase: "playing" });
+        const state = makeMinesweeperState({ phase: "playing" });
 
         // when
         const { result } = setup({ state });
@@ -84,7 +68,7 @@ describe("useMinesweeperView", () => {
 
     it("shows the finished screen when the game state reports it is over", () => {
         // given
-        const state = makeState({ phase: "finished", winner_slot: 0 });
+        const state = makeMinesweeperState({ phase: "finished", winner_slot: 0 });
 
         // when
         const { result } = setup({ state });
@@ -95,7 +79,7 @@ describe("useMinesweeperView", () => {
 
     it("shows the finished screen when the room itself is already over", () => {
         // given
-        const state = makeState({ phase: "playing" });
+        const state = makeMinesweeperState({ phase: "playing" });
 
         // when
         const { result } = setup({ state, roomFinished: true });
@@ -106,7 +90,7 @@ describe("useMinesweeperView", () => {
 
     it("treats the intro as already seen when the room was finished before it opened", () => {
         // given
-        const state = makeState({ phase: "playing" });
+        const state = makeMinesweeperState({ phase: "playing" });
 
         // when
         const { result } = setup({ state, roomFinished: true });
@@ -121,7 +105,7 @@ describe("useMinesweeperView", () => {
         expect(result.current.clientPhase).toBe("char_select");
 
         // when
-        rerender({ state: makeState({ phase: "playing" }), roomFinished: false });
+        rerender({ state: makeMinesweeperState({ phase: "playing" }), roomFinished: false });
 
         // then
         expect(result.current.clientPhase).toBe("vs_intro");
@@ -136,8 +120,8 @@ describe("useMinesweeperView", () => {
         expect(result.current.clientPhase).toBe("playing");
 
         // when
-        rerender({ state: makeState({ phase: "char_select" }), roomFinished: false });
-        rerender({ state: makeState({ phase: "playing" }), roomFinished: false });
+        rerender({ state: makeMinesweeperState({ phase: "char_select" }), roomFinished: false });
+        rerender({ state: makeMinesweeperState({ phase: "playing" }), roomFinished: false });
 
         // then
         expect(result.current.introPlayed).toBe(false);
@@ -152,7 +136,7 @@ describe("useMinesweeperView", () => {
         });
 
         // when
-        rerender({ state: makeState({ phase: "finished", winner_slot: 1 }), roomFinished: false });
+        rerender({ state: makeMinesweeperState({ phase: "finished", winner_slot: 1 }), roomFinished: false });
 
         // then
         expect(result.current.introPlayed).toBe(true);
@@ -161,11 +145,11 @@ describe("useMinesweeperView", () => {
 
     it("does not rewind the intro of a finished room that returns to character select", () => {
         // given
-        const { result, rerender } = setup({ state: makeState({ phase: "playing" }), roomFinished: true });
+        const { result, rerender } = setup({ state: makeMinesweeperState({ phase: "playing" }), roomFinished: true });
         expect(result.current.introPlayed).toBe(true);
 
         // when
-        rerender({ state: makeState({ phase: "char_select" }), roomFinished: true });
+        rerender({ state: makeMinesweeperState({ phase: "char_select" }), roomFinished: true });
 
         // then
         expect(result.current.introPlayed).toBe(true);
@@ -178,7 +162,7 @@ describe("useMinesweeperView", () => {
         const first = result.current.markIntroPlayed;
 
         // when
-        rerender({ state: makeState({ phase: "playing" }), roomFinished: false });
+        rerender({ state: makeMinesweeperState({ phase: "playing" }), roomFinished: false });
 
         // then
         expect(result.current.markIntroPlayed).toBe(first);

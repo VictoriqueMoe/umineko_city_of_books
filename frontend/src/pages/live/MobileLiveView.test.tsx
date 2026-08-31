@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { LiveStream, StreamDefaultMode } from "../../types/api";
+import { makeStream as makeLiveStream } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { MobileLiveView } from "./MobileLiveView";
 
@@ -41,19 +42,12 @@ vi.mock("./streamParts", () => ({
 }));
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: "stream-1",
-        userId: "user-1",
+    return makeLiveStream({
         title: "Reading Episode 4",
-        status: "live",
-        viewerCount: 3,
         startedAt: "2026-02-01T12:00:00Z",
         streamerUsername: "beatrice",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
         ...overrides,
-    };
+    });
 }
 
 interface ViewOptions {

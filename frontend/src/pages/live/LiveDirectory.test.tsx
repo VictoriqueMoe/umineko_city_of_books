@@ -1,43 +1,35 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeStream as makeLiveStream, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { LiveStream, LiveStreamListResponse } from "../../types/api";
 import { LiveDirectory } from "./LiveDirectory";
 
 const mocks = vi.hoisted(() => ({
-    listLiveStreams: vi.fn(),
-    getStream: vi.fn(),
-    getMyStream: vi.fn(),
-    getStreamCredentials: vi.fn(),
+    useLiveDirectory: vi.fn(),
 }));
 
-vi.mock("../../api/endpoints/stream", () => mocks);
+vi.mock("../../hooks/useLiveDirectory", () => ({ useLiveDirectory: mocks.useLiveDirectory }));
 
 vi.mock("../../components/live/GoLivePanel", () => ({
     GoLivePanel: () => <div>go live panel</div>,
 }));
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: "stream-1",
-        userId: "user-1",
+    return makeLiveStream({
         title: "Reading Episode 4",
-        status: "live",
         viewerCount: 7,
         streamerUsername: "beatrice",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
         ...overrides,
-    };
+    });
 }
 
 function stubStreams(response: Partial<LiveStreamListResponse> = {}) {
-    mocks.listLiveStreams.mockResolvedValue({
+    mocks.useLiveDirectory.mockReturnValue({
         streams: response.streams ?? [],
         enabled: response.enabled ?? true,
+        loading: false,
     });
 }
 

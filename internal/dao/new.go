@@ -44,8 +44,8 @@ func NewChat(db *sql.DB) repository.ChatDAO { return &chatDAO{db: db} }
 
 func NewReport(db *sql.DB) repository.ReportRepository { return &reportDAO{db: db} }
 
-func NewPost(db *sql.DB) repository.PostDAO {
-	return &postDAO{
+func NewPost(db *sql.DB) (repository.PostDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &postDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "posts", "post"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "post_comments", "post_id", "post_comment_likes", "post_comment_media"),
@@ -53,66 +53,80 @@ func NewPost(db *sql.DB) repository.PostDAO {
 		mediaDAO:   newMediaDAO(db, "post_media", "post_id"),
 		viewDAO:    newViewDAO(db, "post_views", "post_id", "posts"),
 	}
+
+	return d, d.commentDAO
 }
 
 func NewFollow(db *sql.DB) repository.FollowRepository { return &followDAO{db: db} }
 
-func NewArt(db *sql.DB) repository.ArtDAO {
-	return &artDAO{
+func NewArt(db *sql.DB) (repository.ArtDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &artDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "art", "art"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "art_comments", "art_id", "art_comment_likes", "art_comment_media"),
 		likeDAO:    newLikeDAO(db, "art_likes", "art_id"),
 		viewDAO:    newViewDAO(db, "art_views", "art_id", "art"),
 	}
+
+	return d, d.commentDAO
 }
 
 func NewUpload(db *sql.DB) repository.UploadRepository { return &uploadDAO{db: db} }
 
 func NewBlock(db *sql.DB) repository.BlockRepository { return &blockDAO{db: db} }
 
-func NewAnnouncement(db *sql.DB) repository.AnnouncementDAO {
-	return &announcementDAO{
+func NewAnnouncement(db *sql.DB) (repository.AnnouncementDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &announcementDAO{
 		db:         db,
 		commentDAO: newCommentDAO[uuid.UUID](db, "announcement_comments", "announcement_id", "announcement_comment_likes", "announcement_comment_media"),
 	}
+
+	return d, d.commentDAO
 }
 
-func NewMystery(db *sql.DB) repository.MysteryDAO {
-	return &mysteryDAO{
+func NewMystery(db *sql.DB) (repository.MysteryDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &mysteryDAO{
 		db:           db,
 		ownedDAO:     newOwnedDAO(db, "mysteries", "mystery"),
 		attemptVotes: newVoteDAO(db, "mystery_attempt_votes", "attempt_id", "vote attempt"),
 		commentDAO:   newCommentDAO[uuid.UUID](db, "mystery_comments", "mystery_id", "mystery_comment_likes", "mystery_comment_media"),
 		mediaDAO:     newMediaDAO(db, "mystery_media", "mystery_id"),
 	}
+
+	return d, d.commentDAO
 }
 
-func NewShip(db *sql.DB) repository.ShipDAO {
-	return &shipDAO{
+func NewShip(db *sql.DB) (repository.ShipDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &shipDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "ships", "ship"),
 		voteDAO:    newVoteDAO(db, "ship_votes", "ship_id", "vote ship"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "ship_comments", "ship_id", "ship_comment_likes", "ship_comment_media"),
 	}
+
+	return d, d.commentDAO
 }
 
-func NewOC(db *sql.DB) repository.OCDAO {
-	return &ocDAO{
+func NewOC(db *sql.DB) (repository.OCDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &ocDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "ocs", "oc"),
 		voteDAO:    newVoteDAO(db, "oc_votes", "oc_id", "vote oc"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "oc_comments", "oc_id", "oc_comment_likes", "oc_comment_media"),
 	}
+
+	return d, d.commentDAO
 }
 
-func NewFanfic(db *sql.DB) repository.FanficDAO {
-	return &fanficDAO{
+func NewFanfic(db *sql.DB) (repository.FanficDAO, repository.CommentDAO[uuid.UUID]) {
+	d := &fanficDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "fanfics", "fanfic"),
 		commentDAO: newCommentDAO[uuid.UUID](db, "fanfic_comments", "fanfic_id", "fanfic_comment_likes", "fanfic_comment_media"),
 		viewDAO:    newViewDAO(db, "fanfic_views", "fanfic_id", "fanfics"),
 	}
+
+	return d, d.commentDAO
 }
 
 func NewJournal(db *sql.DB) repository.JournalDAO {
@@ -136,11 +150,13 @@ func NewBannedGiphy(db *sql.DB) repository.BannedGiphyRepository { return &banne
 
 func NewUserSecret(db *sql.DB) repository.UserSecretRepository { return &userSecretDAO{db: db} }
 
-func NewSecret(db *sql.DB) repository.SecretDAO {
-	return &secretDAO{
+func NewSecret(db *sql.DB) (repository.SecretDAO, repository.CommentDAO[string]) {
+	d := &secretDAO{
 		db:         db,
 		commentDAO: newCommentDAO[string](db, "secret_comments", "secret_id", "secret_comment_likes", "secret_comment_media"),
 	}
+
+	return d, d.commentDAO
 }
 
 func NewChatRoomBan(db *sql.DB) repository.ChatRoomBanDAO { return &chatRoomBanDAO{db: db} }

@@ -66,7 +66,6 @@ type (
 		SetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) error
 		ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error)
 
-		CreateComment(ctx context.Context, fanficID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
@@ -599,10 +598,6 @@ func (r *fanficRepository) SetReadingProgress(ctx context.Context, userID uuid.U
 
 func (r *fanficRepository) ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	return r.dao.ListFavourites(ctx, userID, viewerID, limit, offset, tx...)
-}
-
-func (r *fanficRepository) CreateComment(ctx context.Context, fanficID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, fanficID, parentID, userID, body, tx...)
 }
 
 func (r *fanficRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {

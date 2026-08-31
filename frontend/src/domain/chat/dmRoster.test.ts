@@ -1,28 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { makeDmRoom } from "../../test-utils/fixtures";
 import type { ChatRoom } from "../../types/api";
 import { moveRoomToFront } from "./dmRoster";
 
 function makeRoom(id: string, overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id,
-        name: "",
-        description: "",
-        type: "dm",
-        is_public: false,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [],
-        created_at: "2026-01-01T00:00:00Z",
-        last_message_at: "2026-01-01T00:00:00Z",
-        unread: false,
-        ...overrides,
-    };
+    return makeDmRoom({ id, last_message_at: "2026-01-01T00:00:00Z", unread: false, ...overrides });
 }
 
 function ids(rooms: ChatRoom[]): string[] {

@@ -1,9 +1,8 @@
 import { act } from "@testing-library/react";
 import { vi, type Mock } from "vitest";
-import { dispatch, subscribe, type RealtimeEventHandler, type RealtimeUnsubscribe } from "../api/realtime/bus";
+import { dispatch, type RealtimeEventHandler, type RealtimeUnsubscribe } from "../api/realtime/bus";
 import type { RealtimeEvent, RealtimeEventName } from "../api/realtime/events";
 import type { RealtimeCommand } from "../api/realtime/outbound";
-import { SHIM_LISTENER_EVENTS, type WSMessageHandler } from "../context/notificationContextValue";
 
 export class FakeWebSocket {
     static readonly OPEN = 1;
@@ -53,10 +52,6 @@ export interface WSHarness {
     emit: (event: RealtimeTestEvent) => void;
     reconnect: () => void;
     flush: () => Promise<void>;
-}
-
-export function subscribeShimListener(handler: WSMessageHandler): RealtimeUnsubscribe {
-    return subscribe(SHIM_LISTENER_EVENTS, handler);
 }
 
 export function emitRealtimeEvent(event: RealtimeTestEvent): void {

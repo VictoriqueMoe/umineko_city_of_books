@@ -1,6 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeAnnouncement as makeContentAnnouncement } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { Announcement } from "../../types/api";
 import { AdminAnnouncements } from "./AdminAnnouncements";
@@ -23,16 +24,15 @@ vi.mock("../../hooks/mutations/admin", () => ({
 }));
 
 function makeAnnouncement(overrides: Partial<Announcement> = {}): Announcement {
-    return {
+    return makeContentAnnouncement({
         id: "ann-1",
         title: "The witch returns",
         body: "# Golden\n\nA new game begins.",
         author: { id: "staff-1", username: "virgilia", display_name: "Virgilia" },
-        pinned: false,
         created_at: "2026-01-02T00:00:00Z",
         updated_at: "2026-01-02T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 function stubAnnouncements(announcements: Announcement[], loading = false) {

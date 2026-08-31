@@ -42,7 +42,6 @@ type (
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, resolvedBy uuid.UUID, status string, tx ...*sql.Tx) error
 		UnresolveSuggestion(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) error
 
-		CreateComment(ctx context.Context, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
@@ -394,10 +393,6 @@ func (r *postRepository) ResolveSuggestion(ctx context.Context, postID uuid.UUID
 
 func (r *postRepository) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, tx ...*sql.Tx) error {
 	return r.dao.UnresolveSuggestion(ctx, postID, tx...)
-}
-
-func (r *postRepository) CreateComment(ctx context.Context, postID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, postID, parentID, userID, body, tx...)
 }
 
 func (r *postRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {

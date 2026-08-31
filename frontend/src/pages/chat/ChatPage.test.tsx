@@ -1,8 +1,10 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Room } from "livekit-client";
 import type { DmController } from "../../hooks/useDmController";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeDmController } from "../../hooks/useDmController.fixture";
+import { makeDmRoom, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { ChatRoom, User, UserProfile } from "../../types/api";
 import { ChatPage } from "./ChatPage";
@@ -10,7 +12,7 @@ import { ChatPage } from "./ChatPage";
 const mocks = vi.hoisted(() => ({
     useDmController: vi.fn(),
     useIsMobile: vi.fn(),
-    forceMuteVoiceParticipant: vi.fn(),
+    forceMute: vi.fn(),
 }));
 
 vi.mock("../../hooks/useDmController", async importOriginal => {
@@ -20,7 +22,16 @@ vi.mock("../../hooks/useDmController", async importOriginal => {
 
 vi.mock("../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
 
-vi.mock("../../api/endpoints/chat", () => ({ forceMuteVoiceParticipant: mocks.forceMuteVoiceParticipant }));
+vi.mock("../../hooks/mutations/chat", async importOriginal => {
+    const actual = await importOriginal<typeof import("../../hooks/mutations/chat")>();
+    return {
+        ...actual,
+        useForceMuteVoiceParticipant: (roomId: string | null | undefined) => ({
+            mutate: (variables: { userId: string; muted: boolean }, options?: { onError?: (err: unknown) => void }) =>
+                mocks.forceMute(roomId, variables, options),
+        }),
+    };
+});
 
 vi.mock("../../components/chat/mobile/MobileDmView", () => ({
     MobileDmView: () => <div data-testid="mobile-dm-view" />,
@@ -63,24 +74,7 @@ const beatrice: User = { id: "user-b", username: "beatrice", display_name: "Beat
 const ange: User = { id: "user-a", username: "ange", display_name: "Ange" };
 
 function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "",
-        description: "",
-        type: "dm",
-        is_public: false,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [viewer, beatrice],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
+    return makeDmRoom({ members: [viewer, beatrice], ...overrides });
 }
 
 interface ControllerOptions {
@@ -91,8 +85,8 @@ interface ControllerOptions {
     activeRoomId?: string | null;
     draftRecipient?: User | null;
     typingNames?: string[];
-    voiceStatus?: string;
-    voiceRoom?: object | null;
+    voiceStatus?: DmController["voice"]["status"];
+    voiceRoom?: DmController["voice"]["room"];
     voiceEnabled?: boolean;
     lightboxSrc?: string | null;
     showNewDm?: boolean;
@@ -123,26 +117,25 @@ function stubController(options: ControllerOptions = {}) {
         voiceJoin: vi.fn(),
     };
 
-    const controller = {
+    const base = makeDmController();
+
+    const controller = makeDmController({
         user: options.user === undefined ? viewer : options.user,
         loading: options.loading ?? false,
-        mobileView: "list",
         rooms: options.rooms ?? [],
         activeRoomId: options.activeRoomId ?? options.activeRoom?.id ?? null,
-        activeRoom: options.activeRoom ?? null,
+        activeRoom: options.activeRoom ?? undefined,
         draftRecipient: options.draftRecipient ?? null,
         setDraftRecipient: handlers.setDraftRecipient,
-        messagesEndRef: { current: null },
         typingNames: options.typingNames ?? [],
         voice: {
+            ...base.voice,
             status: options.voiceStatus ?? "idle",
             room: options.voiceRoom ?? null,
             join: handlers.voiceJoin,
             leave: handlers.voiceLeave,
-            presenceCount: 0,
         },
         voiceEnabled: options.voiceEnabled ?? true,
-        replyingTo: null,
         setReplyingTo: handlers.setReplyingTo,
         lightboxSrc: options.lightboxSrc ?? null,
         setLightboxSrc: handlers.setLightboxSrc,
@@ -163,9 +156,9 @@ function stubController(options: ControllerOptions = {}) {
         handleEditLast: handlers.handleEditLast,
         handleDeleteChat: handlers.handleDeleteChat,
         notifyTyping: handlers.notifyTyping,
-    };
+    });
 
-    mocks.useDmController.mockReturnValue(controller as unknown as DmController);
+    mocks.useDmController.mockReturnValue(controller);
 
     return handlers;
 }
@@ -179,7 +172,7 @@ function renderChat(options: ControllerOptions = {}) {
 
 beforeEach(() => {
     mocks.useIsMobile.mockReturnValue(false);
-    mocks.forceMuteVoiceParticipant.mockResolvedValue(undefined);
+    mocks.forceMute.mockReset();
 });
 
 describe("ChatPage gates", () => {
@@ -381,7 +374,7 @@ describe("ChatPage voice", () => {
         const voiceStatus = "connecting";
 
         // when
-        renderChat({ activeRoom: makeRoom(), voiceStatus, voiceRoom: {} });
+        renderChat({ activeRoom: makeRoom(), voiceStatus, voiceRoom: new Room() });
 
         // then
         expect(screen.queryByRole("button", { name: "voice bar" })).not.toBeInTheDocument();
@@ -392,7 +385,7 @@ describe("ChatPage voice", () => {
         const voiceStatus = "connected";
 
         // when
-        renderChat({ activeRoom: makeRoom(), voiceStatus, voiceRoom: {} });
+        renderChat({ activeRoom: makeRoom(), voiceStatus, voiceRoom: new Room() });
 
         // then
         expect(screen.getByRole("button", { name: "voice bar" })).toBeInTheDocument();
@@ -403,7 +396,7 @@ describe("ChatPage voice", () => {
         const user = makeUser({ id: "viewer-1", role: undefined });
 
         // when
-        renderChat({ user, activeRoom: makeRoom(), voiceStatus: "connected", voiceRoom: {} });
+        renderChat({ user, activeRoom: makeRoom(), voiceStatus: "connected", voiceRoom: new Room() });
 
         // then
         expect(screen.getByRole("button", { name: "voice bar" })).toHaveAttribute("data-moderator", "false");
@@ -414,7 +407,7 @@ describe("ChatPage voice", () => {
         const user = makeUser({ id: "viewer-1", role: "moderator" });
 
         // when
-        renderChat({ user, activeRoom: makeRoom(), voiceStatus: "connected", voiceRoom: {} });
+        renderChat({ user, activeRoom: makeRoom(), voiceStatus: "connected", voiceRoom: new Room() });
 
         // then
         expect(screen.getByRole("button", { name: "voice bar" })).toHaveAttribute("data-moderator", "true");
@@ -428,26 +421,32 @@ describe("ChatPage voice", () => {
             activeRoom: makeRoom({ id: "room-5" }),
             activeRoomId: "room-5",
             voiceStatus: "connected",
-            voiceRoom: {},
+            voiceRoom: new Room(),
         });
 
         // when
         await user.click(screen.getByRole("button", { name: "voice bar" }));
 
         // then
-        expect(mocks.forceMuteVoiceParticipant).toHaveBeenCalledWith("room-5", "u9", true);
+        expect(mocks.forceMute).toHaveBeenCalledWith("room-5", { userId: "u9", muted: true }, expect.anything());
     });
 
     it("tells the moderator when a server mute did not take", async () => {
         // given
-        mocks.forceMuteVoiceParticipant.mockRejectedValue(new Error("LiveKit said no"));
+        mocks.forceMute.mockImplementation(
+            (
+                _roomId: string | null | undefined,
+                _variables: { userId: string; muted: boolean },
+                options?: { onError?: (err: unknown) => void },
+            ) => options?.onError?.(new Error("LiveKit said no")),
+        );
         const user = userEvent.setup();
         const { showToast } = renderChat({
             user: makeUser({ id: "viewer-1", role: "moderator" }),
             activeRoom: makeRoom({ id: "room-5" }),
             activeRoomId: "room-5",
             voiceStatus: "connected",
-            voiceRoom: {},
+            voiceRoom: new Room(),
         });
 
         // when

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -173,7 +174,7 @@ func TestSearchDAO_PostComment_HasParentID(t *testing.T) {
 	post, err := repos.Post.Create(context.Background(), repository.NewPost{UserID: user.ID, Corner: "umineko", Body: "the parent post body"})
 	require.NoError(t, err)
 	postID := post.ID
-	comment, err := repos.Post.CreateComment(context.Background(), postID, nil, user.ID, "I think this kinzo theory is right")
+	comment, err := repos.Comments.ByID[string(mention.KindPostComment)].CreateComment(context.Background(), postID, nil, user.ID, "I think this kinzo theory is right")
 	require.NoError(t, err)
 	commentID := comment.ID
 

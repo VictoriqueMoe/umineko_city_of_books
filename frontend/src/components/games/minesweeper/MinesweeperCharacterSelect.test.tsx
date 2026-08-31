@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CharacterId } from "../../../games/minesweeper/types";
+import { makeMinesweeperState } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { MinesweeperState } from "../../../types/api";
 import { MinesweeperCharacterSelect } from "./MinesweeperCharacterSelect";
@@ -9,20 +10,14 @@ import { MinesweeperCharacterSelect } from "./MinesweeperCharacterSelect";
 const onSelect = vi.fn<(character: CharacterId) => Promise<void>>();
 
 function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState {
-    return {
+    return makeMinesweeperState({
         phase: "char_select",
         width: 9,
         height: 9,
-        mine_count: 10,
         characters: ["", ""],
-        revealed: [[], []],
-        flagged: [[], []],
-        revealed_count: [0, 0],
-        values: [[], []],
         mines_placed: false,
-        pending_clicks: [null, null],
         ...overrides,
-    };
+    });
 }
 
 function renderSelect(state: MinesweeperState, mySlot: number | null, isSpectator = false, submitting = false) {

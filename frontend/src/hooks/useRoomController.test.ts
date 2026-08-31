@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as BusModule from "../api/realtime/bus";
 import type * as OutboundModule from "../api/realtime/outbound";
 import { queryKeys } from "../api/queryKeys";
-import { makeUser } from "../test-utils/fixtures";
+import { makeChatMessage, makeChatRoom, makeRoomMember, makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { makeWSHarness, type RealtimeTestEvent, type RealtimeTestNames, type WSHarness } from "../test-utils/ws";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, UserProfile } from "../types/api";
@@ -105,51 +105,19 @@ vi.mock("../platform/sound", () => ({
 
 const viewer = makeUser({ id: "u1", username: "beatrice", display_name: "Beatrice" });
 
-function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
-    return {
-        id: "room-1",
-        name: "Golden Land",
-        description: "a place for tea",
-        type: "group",
-        is_public: true,
-        is_rp: false,
-        is_system: false,
-        tags: [],
-        viewer_muted: false,
-        viewer_ghost: false,
-        is_member: true,
-        member_count: 2,
-        hot_score: 0,
-        members: [],
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
-}
+const battler = { id: "u2", username: "battler", display_name: "Battler" };
 
-function makeRoomMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
-    return {
-        user: { id: "u2", username: "battler", display_name: "Battler" },
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-        ...overrides,
-    };
+function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
+    return makeChatRoom({ name: "Golden Land", description: "a place for tea", ...overrides });
 }
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: { id: "u2", username: "battler", display_name: "Battler" },
+    return makeChatMessage({
+        sender: battler,
         body: "without love it cannot be seen",
-        is_system: false,
         created_at: "2026-08-02T10:00:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 interface RoomHarnessOptions {
@@ -169,7 +137,7 @@ function renderRoom(options: RoomHarnessOptions = {}) {
         refresh: mocks.roomsRefresh,
     });
     mocks.useChatRoomMembers.mockReturnValue({
-        members: options.members ?? [makeRoomMember()],
+        members: options.members ?? [makeRoomMember({ user: battler })],
         loading: false,
         refresh: mocks.membersRefresh,
     });

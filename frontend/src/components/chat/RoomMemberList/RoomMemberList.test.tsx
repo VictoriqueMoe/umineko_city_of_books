@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { MemberModContext } from "../../../domain/chat/members";
 import type { MemberGroup, PresenceMap } from "../../../domain/chat/memberRoster";
+import { makePublicUser, makeRoomMember } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatRoomMember, User } from "../../../types/api";
 import { RoomMemberList, type RoomMemberListVariant } from "./RoomMemberList";
@@ -11,19 +12,11 @@ const VIEWER_ID = "viewer-1";
 const VARIANTS: RoomMemberListVariant[] = ["desktop", "mobile"];
 
 function makeMemberUser(overrides: Partial<User> = {}): User {
-    return { id: "member-1", username: "beatrice", display_name: "Beatrice", ...overrides };
+    return makePublicUser({ id: "member-1", ...overrides });
 }
 
 function makeMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
-    return {
-        user: makeMemberUser(),
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
-        ...overrides,
-    };
+    return makeRoomMember({ user: makeMemberUser(), ...overrides });
 }
 
 interface RosterOptions {

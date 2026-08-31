@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../api/queryKeys";
 import type { RealtimeEvent } from "../api/realtime/events";
+import { makeStream as makeLiveStream } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { emitSettledRealtimeEvent } from "../test-utils/ws";
 import type { LiveStream, StreamCredentials, StreamDefaultMode, StreamOwner } from "../types/api";
@@ -28,18 +29,7 @@ const STREAM_ID = "stream-1";
 const WHIP_URL = "https://ingest.example/whip";
 
 function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
-    return {
-        id: STREAM_ID,
-        userId: "user-1",
-        title: "Reading the epitaph",
-        status: "pending",
-        viewerCount: 0,
-        streamerUsername: "beato",
-        streamerDisplayName: "Beatrice",
-        streamerAvatarUrl: "",
-        defaultMode: "webrtc",
-        ...overrides,
-    };
+    return makeLiveStream({ id: STREAM_ID, status: "pending", viewerCount: 0, ...overrides });
 }
 
 function makeOwner(overrides: Partial<LiveStream> = {}): StreamOwner {

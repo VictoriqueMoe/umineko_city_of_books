@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { makeChatMessage } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatMessage, ChatRoom, SiteInfo } from "../../../types/api";
 import type { BannedWordRejection, ChatSendRejection } from "../../../hooks/mutations/chat";
@@ -36,20 +37,6 @@ vi.mock("../GifPicker/GifPicker", () => ({
 
 const ENTER_PLACEHOLDER = "Type a message... (Enter to send, Shift+Enter for newline)";
 
-function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
-        id: "m1",
-        room_id: "room-1",
-        sender: { id: "u1", username: "beatrice", display_name: "Beatrice" },
-        body: "the golden truth",
-        is_system: false,
-        created_at: "2026-01-01T00:00:00Z",
-        pinned: false,
-        reactions: [],
-        ...overrides,
-    };
-}
-
 interface ComposerOptions {
     roomId?: string | null;
     draftRecipientId?: string | null;
@@ -84,8 +71,8 @@ function renderComposer(options: ComposerOptions = {}) {
 
 describe("ChatComposer", () => {
     beforeEach(() => {
-        mocks.sendChatMessage.mockResolvedValue(makeMessage());
-        mocks.sendFirstDM.mockResolvedValue({ message: makeMessage(), room: { id: "room-9" } });
+        mocks.sendChatMessage.mockResolvedValue(makeChatMessage());
+        mocks.sendFirstDM.mockResolvedValue({ message: makeChatMessage(), room: { id: "room-9" } });
     });
 
     it("keeps the send control disabled until there is something to send", async () => {
@@ -131,7 +118,7 @@ describe("ChatComposer", () => {
             reply_to_id: undefined,
             files: [],
         });
-        expect(onSent).toHaveBeenCalledWith(makeMessage());
+        expect(onSent).toHaveBeenCalledWith(makeChatMessage());
     });
 
     it("clears the composer once the message has been accepted", async () => {
@@ -237,7 +224,7 @@ describe("ChatComposer", () => {
             body: "are you there",
             files: [],
         });
-        expect(onSent).toHaveBeenCalledWith(makeMessage(), { id: "room-9" });
+        expect(onSent).toHaveBeenCalledWith(makeChatMessage(), { id: "room-9" });
         expect(mocks.sendChatMessage).not.toHaveBeenCalled();
     });
 

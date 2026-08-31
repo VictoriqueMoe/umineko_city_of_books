@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatRoomMember } from "../../../types/api";
+import { makeRoomMember } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { EditRoomProfileDialog } from "./EditRoomProfileDialog";
 
@@ -21,15 +22,10 @@ vi.mock("../../../hooks/mutations/chat", () => ({
 }));
 
 function makeMember(overrides: Partial<ChatRoomMember> = {}): ChatRoomMember {
-    return {
+    return makeRoomMember({
         user: { id: "u-1", username: "battler", display_name: "Battler", avatar_url: "" },
-        role: "member",
-        joined_at: "2026-01-01T00:00:00Z",
-        nickname: "",
-        member_avatar_url: "",
-        nickname_locked: false,
         ...overrides,
-    };
+    });
 }
 
 function renderDialog(member: ChatRoomMember | null, overrides: { onClose?: () => void } = {}) {

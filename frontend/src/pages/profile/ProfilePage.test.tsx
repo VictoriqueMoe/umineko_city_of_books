@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeStats, makeUser } from "../../test-utils/fixtures";
+import { makeGallery as makeContentGallery, makeStats, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { ActivityItem, Fanfic, Gallery, Mystery, OC, Ship, User, UserProfile } from "../../types/api";
 import { ProfilePage } from "./ProfilePage";
@@ -177,17 +177,13 @@ function makeFanfic(overrides: Partial<Fanfic> = {}): Fanfic {
 }
 
 function makeGallery(overrides: Partial<Gallery> = {}): Gallery {
-    return {
-        id: "gallery-1",
+    return makeContentGallery({
         author,
         name: "Witch Portraits",
-        description: "",
-        cover_image_url: "",
-        cover_thumbnail_url: "",
         art_count: 4,
         created_at: "2026-02-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 function makeActivity(overrides: Partial<ActivityItem> = {}): ActivityItem {

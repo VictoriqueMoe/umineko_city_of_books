@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { makeArt as makeContentArt, makePublicUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { Art } from "../../../types/api";
 import { ArtCard } from "./ArtCard";
@@ -9,24 +10,13 @@ const fullUrl = "https://cdn.example.test/art/full.png";
 const thumbUrl = "https://cdn.example.test/art/thumb.png";
 
 function makeArt(overrides: Partial<Art> = {}): Art {
-    return {
-        id: "art-1",
-        author: { id: "user-1", username: "beatrice", display_name: "Beatrice" },
-        corner: "general",
-        art_type: "drawing",
-        title: "Golden Butterflies",
-        description: "",
+    return makeContentArt({
+        author: makePublicUser({ id: "user-1" }),
         image_url: fullUrl,
         thumbnail_url: thumbUrl,
-        tags: [],
         like_count: 12,
-        comment_count: 0,
-        view_count: 0,
-        user_liked: false,
-        is_spoiler: false,
-        created_at: "2026-01-01T00:00:00Z",
         ...overrides,
-    };
+    });
 }
 
 describe("ArtCard", () => {

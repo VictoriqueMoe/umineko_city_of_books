@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -55,6 +56,7 @@ type (
 		authz         authz.Service
 		blockSvc      block.Service
 		notifService  notification.Service
+		mentionSvc    mention.Service
 		settingsSvc   settings.Service
 		uploader      *media.Uploader
 		uploadSvc     upload.Service
@@ -70,6 +72,7 @@ func NewService(
 	authzService authz.Service,
 	blockSvc block.Service,
 	notifService notification.Service,
+	mentionSvc mention.Service,
 	settingsSvc settings.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
@@ -83,6 +86,7 @@ func NewService(
 		authz:         authzService,
 		blockSvc:      blockSvc,
 		notifService:  notifService,
+		mentionSvc:    mentionSvc,
 		settingsSvc:   settingsSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		uploadSvc:     uploadSvc,
@@ -267,12 +271,16 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 		return uuid.Nil, err
 	}
 
-	created, err := s.secretRepo.CreateComment(ctx, secretID, req.ParentID, userID, body)
+	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
+		Kind:      mention.KindSecretComment,
+		EntityKey: secretID,
+		ParentID:  req.ParentID,
+		AuthorID:  userID,
+		Body:      body,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
-
-	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()

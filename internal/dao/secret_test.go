@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -23,7 +24,7 @@ func unlockSecretFor(t *testing.T, repos *repository.Repositories, userID uuid.U
 
 func createSecretComment(t *testing.T, repos *repository.Repositories, secretID string, parent *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Secret.CreateComment(context.Background(), secretID, parent, userID, body)
+	created, err := repos.Comments.BySlug[string(mention.KindSecretComment)].CreateComment(context.Background(), secretID, parent, userID, body)
 	require.NoError(t, err)
 	return created.ID
 }

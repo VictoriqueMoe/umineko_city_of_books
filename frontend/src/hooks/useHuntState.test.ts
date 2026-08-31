@@ -1,6 +1,6 @@
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../test-utils/fixtures";
+import { makeSiteSecret, makeUser } from "../test-utils/fixtures";
 import { providerWrapper } from "../test-utils/render";
 import type { SiteInfoSecret, UserProfile } from "../types/api";
 import { useHuntState } from "./useHuntState";
@@ -16,17 +16,14 @@ const addSecret = vi.fn();
 const secretId = "epitaph";
 
 function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
-    return {
+    return makeSiteSecret({
         id: secretId,
-        title: "The Witch's Epitaph",
-        description: "Seek the key that opens the golden land.",
-        solved: false,
         pieces: [
             { id: "piece-1", letter: "B", tile: 1 },
             { id: "piece-2", letter: "E", tile: 2 },
         ],
         ...overrides,
-    };
+    });
 }
 
 interface SetupOptions {

@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeChatMessage, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatSession, ChatSessionStatus, UseChatSessionOptions } from "../../../hooks/chat/useChatSession";
 import type { ChatMessage, UserProfile } from "../../../types/api";
@@ -46,17 +46,13 @@ vi.mock("../../Lightbox/Lightbox", () => ({
 const viewer = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
-    return {
+    return makeChatMessage({
         id: "msg-1",
         room_id: "session-7",
         sender: { id: "sender-1", username: "beatrice", display_name: "Beatrice" },
-        body: "the golden truth",
-        is_system: false,
         created_at: "2026-08-01T10:05:00Z",
-        pinned: false,
-        reactions: [],
         ...overrides,
-    };
+    });
 }
 
 interface SessionStub {

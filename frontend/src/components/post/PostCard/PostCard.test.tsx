@@ -1,7 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makePost as makeContentPost, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { emitRealtimeEvent } from "../../../test-utils/ws";
 import type { LinkPreview, Poll, Post, PostMedia, SharedContentPreview, User, UserProfile } from "../../../types/api";
@@ -61,19 +61,7 @@ const author: User = {
 };
 
 function makePost(overrides: Partial<Post> = {}): Post {
-    return {
-        id: postId,
-        author,
-        body: "Without love it cannot be seen",
-        media: [],
-        share_count: 0,
-        like_count: 0,
-        comment_count: 0,
-        view_count: 0,
-        user_liked: false,
-        created_at: "2026-08-02T11:00:00Z",
-        ...overrides,
-    };
+    return makeContentPost({ id: postId, author, created_at: "2026-08-02T11:00:00Z", ...overrides });
 }
 
 function makeMedia(id: number): PostMedia {

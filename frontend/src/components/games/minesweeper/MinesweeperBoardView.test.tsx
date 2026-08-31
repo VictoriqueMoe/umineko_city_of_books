@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeUser } from "../../../test-utils/fixtures";
+import { makeGamePlayer, makeGameRoom, makeMinesweeperState, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { GameRoom, GameRoomPlayer, MinesweeperState, MinesweeperStats, User } from "../../../types/api";
 import { MinesweeperBoardView } from "./MinesweeperBoardView";
@@ -77,47 +77,27 @@ function marks(...set: number[]): boolean[] {
 }
 
 function makeState(overrides: Partial<MinesweeperState> = {}): MinesweeperState {
-    return {
-        phase: "playing",
+    return makeMinesweeperState({
         width: WIDTH,
         height: HEIGHT,
-        mine_count: 10,
-        characters: ["bernkastel", "erika"],
         revealed: [marks(), marks()],
         flagged: [marks(0, 1), marks(2)],
         revealed_count: [12, 5],
         values: [new Array<number>(CELLS).fill(0), new Array<number>(CELLS).fill(0)],
         mines: marks(4),
-        mines_placed: true,
-        pending_clicks: [null, null],
         ...overrides,
-    };
+    });
 }
 
 function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
-    const id = overrides.user_id ?? "u-one";
-    return {
-        user_id: id,
-        username: "battler",
-        display_name: "Battler",
-        avatar_url: "",
-        role: "player",
-        slot: 0,
-        joined: true,
-        connected: true,
-        user: { id, username: "battler", display_name: "Battler" },
-        ...overrides,
-    };
+    return makeGamePlayer({ user_id: "u-one", ...overrides });
 }
 
 function makeRoom(
     overrides: Partial<GameRoom<MinesweeperState, MinesweeperStats>> = {},
 ): GameRoom<MinesweeperState, MinesweeperStats> {
-    return {
-        id: "room-1",
+    return makeGameRoom(makeState(), {
         game_type: "minesweeper",
-        status: "active",
-        state: makeState(),
         turn_user_id: "u-one",
         created_by: "u-one",
         created_at: "2026-08-02T10:00:00.000Z",
@@ -126,9 +106,8 @@ function makeRoom(
             makePlayer({ user_id: "u-one", slot: 0, display_name: "Battler" }),
             makePlayer({ user_id: "u-two", slot: 1, display_name: "Erika", username: "erika" }),
         ],
-        watcher_count: 0,
         ...overrides,
-    };
+    });
 }
 
 function makeStats(overrides: Partial<MinesweeperStats> = {}): MinesweeperStats {

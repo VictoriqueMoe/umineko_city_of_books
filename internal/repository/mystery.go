@@ -61,7 +61,6 @@ type (
 		CountClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error)
 		GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
 
-		CreateComment(ctx context.Context, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error)
 		UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error
 		UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
@@ -647,10 +646,6 @@ func (r *mysteryRepository) CountClues(ctx context.Context, mysteryID uuid.UUID,
 
 func (r *mysteryRepository) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
 	return r.dao.GetPlayerIDs(ctx, mysteryID, tx...)
-}
-
-func (r *mysteryRepository) CreateComment(ctx context.Context, mysteryID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*CommentRow, error) {
-	return r.dao.CreateComment(ctx, mysteryID, parentID, userID, body, tx...)
 }
 
 func (r *mysteryRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {

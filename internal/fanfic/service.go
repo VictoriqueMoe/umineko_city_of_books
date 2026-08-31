@@ -16,6 +16,7 @@ import (
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -78,6 +79,7 @@ type (
 		authz         authz.Service
 		blockSvc      block.Service
 		notifSvc      notification.Service
+		mentionSvc    mention.Service
 		uploadSvc     upload.Service
 		mediaProc     *media.Processor
 		uploader      *media.Uploader
@@ -93,6 +95,7 @@ func NewService(
 	authzSvc authz.Service,
 	blockSvc block.Service,
 	notifSvc notification.Service,
+	mentionSvc mention.Service,
 	uploadSvc upload.Service,
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
@@ -105,6 +108,7 @@ func NewService(
 		authz:         authzSvc,
 		blockSvc:      blockSvc,
 		notifSvc:      notifSvc,
+		mentionSvc:    mentionSvc,
 		uploadSvc:     uploadSvc,
 		mediaProc:     mediaProc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
@@ -278,13 +282,18 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 		Characters:     req.Characters,
 	}
 
-	if body := strings.TrimSpace(req.Body); body != "" {
+	body := strings.TrimSpace(req.Body)
+	if body != "" {
 		spec.FirstChapter = &repository.NewChapter{Number: 1, Body: body, WordCount: countWords(body)}
 	}
 
 	created, err := s.fanficRepo.CreateWithDetails(ctx, spec)
 	if err != nil {
 		return uuid.Nil, err
+	}
+
+	if status != "draft" {
+		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindFanfic, EntityID: created.ID}, userID, spec.Summary+"\n"+body)
 	}
 
 	return created.ID, nil
@@ -786,12 +795,16 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
-	created, err := s.fanficRepo.CreateComment(ctx, fanficID, req.ParentID, userID, body)
+	id, err := s.mentionSvc.CreateComment(ctx, mention.CommentSpec{
+		Kind:     mention.KindFanficComment,
+		EntityID: fanficID,
+		ParentID: req.ParentID,
+		AuthorID: userID,
+		Body:     body,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
-
-	id := created.ID
 
 	go func() {
 		bgCtx := context.Background()

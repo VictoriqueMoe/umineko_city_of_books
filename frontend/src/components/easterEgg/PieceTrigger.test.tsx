@@ -2,7 +2,7 @@ import { act, fireEvent, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SiteInfoSecret } from "../../types/api";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeSiteSecret, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { PieceTrigger } from "./PieceTrigger";
 
@@ -15,17 +15,14 @@ vi.mock("../../hooks/mutations/secret", () => ({
 const addSecret = vi.fn();
 
 function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
-    return {
-        id: "epitaph",
+    return makeSiteSecret({
         title: "Witch's Epitaph",
-        description: "Seek the key that opens the golden land.",
-        solved: false,
         pieces: [
             { id: "piece-1", letter: "B", tile: 1 },
             { id: "piece-2", letter: "E", tile: 2 },
         ],
         ...overrides,
-    };
+    });
 }
 
 interface SetupOptions {

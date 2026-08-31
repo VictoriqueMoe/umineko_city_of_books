@@ -1,8 +1,8 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
-import { makeUser } from "../../test-utils/fixtures";
-import type { HomeActivityEntry, HomeActivityResponse, HomeEcho, HomeMember, HomePublicRoom } from "../../types/api";
+import { makeHomeActivity, makeHomeMember, makeHomePublicRoom, makeUser } from "../../test-utils/fixtures";
+import type { HomeActivityEntry, HomeActivityResponse, HomeEcho } from "../../types/api";
 import { LiveActivity } from "./LiveActivity";
 
 const { homeActivity } = vi.hoisted(() => ({ homeActivity: { data: null as HomeActivityResponse | null } }));
@@ -32,42 +32,8 @@ function makeEntry(overrides: Partial<HomeActivityEntry> = {}): HomeActivityEntr
     };
 }
 
-function makeMember(overrides: Partial<HomeMember> = {}): HomeMember {
-    return {
-        id: "member-1",
-        username: "battler",
-        display_name: "Battler",
-        avatar_url: "",
-        created_at: NOW,
-        ...overrides,
-    };
-}
-
-function makeRoom(overrides: Partial<HomePublicRoom> = {}): HomePublicRoom {
-    return {
-        id: "room-1",
-        name: "Tea Parlour",
-        description: "Somewhere to sit",
-        member_count: 3,
-        last_message_at: null,
-        ...overrides,
-    };
-}
-
-function makeActivity(overrides: Partial<HomeActivityResponse> = {}): HomeActivityResponse {
-    return {
-        online_count: 5,
-        recent_activity: [],
-        echoes: [],
-        recent_members: [],
-        public_rooms: [],
-        corner_activity: [],
-        ...overrides,
-    };
-}
-
 beforeEach(() => {
-    homeActivity.data = makeActivity();
+    homeActivity.data = makeHomeActivity();
 });
 
 describe("LiveActivity", () => {
@@ -85,7 +51,7 @@ describe("LiveActivity", () => {
 
     it("announces how many witnesses are online right now", () => {
         // given
-        homeActivity.data = makeActivity({ online_count: 42 });
+        homeActivity.data = makeHomeActivity({ online_count: 42 });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -96,7 +62,7 @@ describe("LiveActivity", () => {
 
     it("links each recent entry to where it was posted and labels its kind", () => {
         // given
-        homeActivity.data = makeActivity({
+        homeActivity.data = makeHomeActivity({
             recent_activity: [
                 makeEntry({ kind: "art", id: "art-1", title: "Witch in Gold", url: "/gallery/art-1" }),
                 makeEntry({ kind: "journal", id: "journal-1", title: "First Read", url: "/journals/journal-1" }),
@@ -114,7 +80,7 @@ describe("LiveActivity", () => {
 
     it("falls back to the excerpt when an entry has no title", () => {
         // given
-        homeActivity.data = makeActivity({
+        homeActivity.data = makeHomeActivity({
             recent_activity: [makeEntry({ title: "", excerpt: "  a fragment of blue truth  " })],
             echoes: [],
         });
@@ -129,7 +95,7 @@ describe("LiveActivity", () => {
     it("trims a very long excerpt down to a readable title", () => {
         // given
         const excerpt = "z".repeat(120);
-        homeActivity.data = makeActivity({ recent_activity: [makeEntry({ title: "", excerpt })] });
+        homeActivity.data = makeHomeActivity({ recent_activity: [makeEntry({ title: "", excerpt })] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -140,7 +106,7 @@ describe("LiveActivity", () => {
 
     it("names an entry after its kind when there is neither title nor excerpt", () => {
         // given
-        homeActivity.data = makeActivity({
+        homeActivity.data = makeHomeActivity({
             recent_activity: [makeEntry({ kind: "post", title: "", excerpt: "   " })],
             echoes: [],
         });
@@ -154,7 +120,7 @@ describe("LiveActivity", () => {
 
     it("says the board is quiet when nobody has posted", () => {
         // given
-        homeActivity.data = makeActivity({ recent_activity: [] });
+        homeActivity.data = makeHomeActivity({ recent_activity: [] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -165,7 +131,7 @@ describe("LiveActivity", () => {
 
     it("offers to open a room when there are no public rooms yet", () => {
         // given
-        homeActivity.data = makeActivity({ public_rooms: [] });
+        homeActivity.data = makeHomeActivity({ public_rooms: [] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -177,8 +143,8 @@ describe("LiveActivity", () => {
 
     it("lists each public room with a link and its member count", () => {
         // given
-        homeActivity.data = makeActivity({
-            public_rooms: [makeRoom({ id: "room-9", name: "Rokkenjima", member_count: 4 })],
+        homeActivity.data = makeHomeActivity({
+            public_rooms: [makeHomePublicRoom({ id: "room-9", name: "Rokkenjima", member_count: 4 })],
         });
 
         // when
@@ -191,7 +157,7 @@ describe("LiveActivity", () => {
 
     it("keeps the member wording singular for a room of one", () => {
         // given
-        homeActivity.data = makeActivity({ public_rooms: [makeRoom({ member_count: 1 })] });
+        homeActivity.data = makeHomeActivity({ public_rooms: [makeHomePublicRoom({ member_count: 1 })] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -203,7 +169,7 @@ describe("LiveActivity", () => {
 
     it("gives an unnamed room a placeholder name", () => {
         // given
-        homeActivity.data = makeActivity({ public_rooms: [makeRoom({ name: "" })] });
+        homeActivity.data = makeHomeActivity({ public_rooms: [makeHomePublicRoom({ name: "" })] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -216,8 +182,8 @@ describe("LiveActivity", () => {
         // given
         vi.useFakeTimers();
         vi.setSystemTime(new Date(NOW));
-        homeActivity.data = makeActivity({
-            public_rooms: [makeRoom({ last_message_at: "2026-02-01T09:00:00Z" })],
+        homeActivity.data = makeHomeActivity({
+            public_rooms: [makeHomePublicRoom({ last_message_at: "2026-02-01T09:00:00Z" })],
         });
 
         // when
@@ -229,7 +195,7 @@ describe("LiveActivity", () => {
 
     it("says nothing about new sign-ups when nobody has joined", () => {
         // given
-        homeActivity.data = makeActivity({ recent_members: [] });
+        homeActivity.data = makeHomeActivity({ recent_members: [] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -240,10 +206,10 @@ describe("LiveActivity", () => {
 
     it("welcomes each new witness by name", () => {
         // given
-        homeActivity.data = makeActivity({
+        homeActivity.data = makeHomeActivity({
             recent_members: [
-                makeMember({ id: "m1", username: "ange", display_name: "Ange" }),
-                makeMember({ id: "m2", username: "maria", display_name: "Maria" }),
+                makeHomeMember({ id: "m1", username: "ange", display_name: "Ange" }),
+                makeHomeMember({ id: "m2", username: "maria", display_name: "Maria" }),
             ],
         });
 
@@ -276,7 +242,7 @@ describe("LiveActivity echoes", () => {
 
     it("surfaces an echo above the recent activity", () => {
         // given
-        homeActivity.data = makeActivity({ echoes: [makeEcho()] });
+        homeActivity.data = makeHomeActivity({ echoes: [makeEcho()] });
 
         // when
         renderWithProviders(<LiveActivity />);
@@ -288,7 +254,7 @@ describe("LiveActivity echoes", () => {
 
     it("skips a theory echo the viewer has not read up to", () => {
         // given
-        homeActivity.data = makeActivity({ echoes: [makeEcho({ episode: 6, corner: "umineko" })] });
+        homeActivity.data = makeHomeActivity({ echoes: [makeEcho({ episode: 6, corner: "umineko" })] });
 
         // when
         renderWithProviders(<LiveActivity />, { user: makeUser({ episode_progress: 4 }) });
@@ -299,7 +265,7 @@ describe("LiveActivity echoes", () => {
 
     it("shows a theory echo the viewer has already passed", () => {
         // given
-        homeActivity.data = makeActivity({ echoes: [makeEcho({ episode: 2, corner: "umineko" })] });
+        homeActivity.data = makeHomeActivity({ echoes: [makeEcho({ episode: 2, corner: "umineko" })] });
 
         // when
         renderWithProviders(<LiveActivity />, { user: makeUser({ episode_progress: 5 }) });
@@ -310,7 +276,7 @@ describe("LiveActivity echoes", () => {
 
     it("falls through to the first candidate the viewer may see", () => {
         // given
-        homeActivity.data = makeActivity({
+        homeActivity.data = makeHomeActivity({
             echoes: [
                 makeEcho({ id: "spoiler", title: "Too far ahead", episode: 8 }),
                 makeEcho({ id: "safe", title: "Safe to show", episode: 1 }),
@@ -327,7 +293,7 @@ describe("LiveActivity echoes", () => {
 
     it("never shows art marked as a spoiler", () => {
         // given
-        homeActivity.data = makeActivity({ echoes: [makeEcho({ kind: "art", is_spoiler: true })] });
+        homeActivity.data = makeHomeActivity({ echoes: [makeEcho({ kind: "art", is_spoiler: true })] });
 
         // when
         renderWithProviders(<LiveActivity />);

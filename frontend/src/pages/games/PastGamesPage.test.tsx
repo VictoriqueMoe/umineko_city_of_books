@@ -1,47 +1,30 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { makeGamePlayer, makeGameRoom } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { GameRoom, GameRoomPlayer } from "../../types/api";
+import type { GameRoom } from "../../types/api";
 import { PastGamesPage } from "./PastGamesPage";
 
 const { useFinishedGameRooms } = vi.hoisted(() => ({ useFinishedGameRooms: vi.fn() }));
 
 vi.mock("../../hooks/queries/gameRoom", () => ({ useFinishedGameRooms }));
 
-function makePlayer(overrides: Partial<GameRoomPlayer> = {}): GameRoomPlayer {
-    const id = overrides.user_id ?? "player-0";
-    return {
-        user_id: id,
-        username: "battler",
-        display_name: "Battler",
-        avatar_url: "",
-        role: "player",
-        slot: 0,
-        joined: true,
-        connected: true,
-        user: { id, username: "battler", display_name: "Battler" },
-        ...overrides,
-    };
-}
-
 function makeRoom(overrides: Partial<GameRoom> = {}): GameRoom {
-    return {
-        id: "room-1",
-        game_type: "chess",
-        status: "finished",
-        state: {},
-        created_by: "a",
-        created_at: "2026-07-01T10:00:00Z",
-        updated_at: "2026-07-01T12:00:00Z",
-        finished_at: "2026-07-01T12:00:00Z",
-        players: [
-            makePlayer({ user_id: "a", slot: 0, display_name: "Battler" }),
-            makePlayer({ user_id: "b", slot: 1, display_name: "Beatrice" }),
-        ],
-        watcher_count: 0,
-        ...overrides,
-    };
+    return makeGameRoom(
+        {},
+        {
+            status: "finished",
+            created_by: "a",
+            updated_at: "2026-07-01T12:00:00Z",
+            finished_at: "2026-07-01T12:00:00Z",
+            players: [
+                makeGamePlayer({ user_id: "a", slot: 0, display_name: "Battler" }),
+                makeGamePlayer({ user_id: "b", slot: 1, display_name: "Beatrice" }),
+            ],
+            ...overrides,
+        },
+    );
 }
 
 interface StubOptions {

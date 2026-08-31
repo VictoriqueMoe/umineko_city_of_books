@@ -1,19 +1,16 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { SiteInfoSecret } from "../../types/api";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeSiteSecret, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import { NotFoundPage } from "./NotFoundPage";
 
 function makeSecret(overrides: Partial<SiteInfoSecret> = {}): SiteInfoSecret {
-    return {
-        id: "epitaph",
+    return makeSiteSecret({
         title: "Witch's Epitaph",
-        description: "Seek the key that opens the golden land.",
-        solved: false,
         pieces: [{ id: "piece_11", letter: "K", tile: 11 }],
         ...overrides,
-    };
+    });
 }
 
 describe("NotFoundPage", () => {

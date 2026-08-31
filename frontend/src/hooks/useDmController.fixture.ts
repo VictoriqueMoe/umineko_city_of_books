@@ -1,0 +1,69 @@
+import type { DmController } from "./useDmController";
+
+function noop(): void {}
+
+function never(): Promise<void> {
+    return Promise.resolve();
+}
+
+export function makeDmController(overrides: Partial<DmController> = {}): DmController {
+    return {
+        user: null,
+        loading: false,
+        mobileView: "list",
+        rooms: [],
+        activeRoomId: null,
+        activeRoom: undefined,
+        draftRecipient: null,
+        setDraftRecipient: noop,
+        messages: [],
+        hasMore: false,
+        loadingMore: false,
+        messagesContainerRef: noop,
+        messagesContentRef: noop,
+        messagesEndRef: { current: null },
+        handleDmScroll: noop,
+        scrollToBottom: noop,
+        readReceipts: {},
+        matchesViewerMention: null,
+        typingNames: [],
+        voice: {
+            status: "idle",
+            room: null,
+            participantIds: [],
+            presenceCount: 0,
+            error: "",
+            join: noop,
+            leave: noop,
+            clearError: noop,
+        },
+        voiceEnabled: true,
+        replyingTo: null,
+        setReplyingTo: noop,
+        editingMessageId: null,
+        startEditing: noop,
+        cancelEditing: noop,
+        lightboxSrc: null,
+        setLightboxSrc: noop,
+        showNewDm: false,
+        setShowNewDm: noop,
+        dmSearch: "",
+        setDmSearch: noop,
+        dmResults: [],
+        dmMutuals: [],
+        dmError: "",
+        dmCreating: false,
+        toast: null,
+        showToast: noop,
+        handleRoomSelect: noop,
+        handleMobileBack: noop,
+        handleSentMessage: noop,
+        handleSelectUser: never,
+        handleDeleteMessage: never,
+        handleEditMessage: never,
+        handleEditLast: noop,
+        handleDeleteChat: never,
+        notifyTyping: noop,
+        ...overrides,
+    };
+}

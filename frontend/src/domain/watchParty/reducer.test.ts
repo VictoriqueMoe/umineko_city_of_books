@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { makeWatchPartySession } from "../../test-utils/fixtures";
 import type { User, WatchPartyParticipant, WatchPartySession } from "../../types/api";
 import {
     WATCH_PARTY_KICKED_MESSAGE,
@@ -29,18 +30,14 @@ function participant(id: string, hasControl = false): WatchPartyParticipant {
 }
 
 function makeSession(overrides: Partial<WatchPartySession> = {}): WatchPartySession {
-    return {
+    return makeWatchPartySession({
         id: SESSION_ID,
         room_id: ROOM_ID,
         started_by: VIEWER_ID,
         controller_id: VIEWER_ID,
-        title: "Chiru rewatch",
-        type: "hyperbeam",
-        status: "active",
-        started_at: "2026-08-01T10:00:00Z",
         participants: [participant(VIEWER_ID)],
         ...overrides,
-    };
+    });
 }
 
 function makeState(overrides: Partial<WatchPartyState> = {}): WatchPartyState {
