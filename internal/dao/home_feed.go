@@ -161,7 +161,7 @@ func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql
 		        (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count,
 		        cr.last_message_at
 		 FROM chat_rooms cr
-		 WHERE cr.type = 'group' AND cr.is_public = TRUE
+		 WHERE cr.type = 'group' AND cr.is_public = TRUE AND cr.is_system = FALSE AND cr.archived_at IS NULL
 		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC
 		 LIMIT $1`, limit,
 	)

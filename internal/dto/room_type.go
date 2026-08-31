@@ -29,3 +29,7 @@ func (t *RoomType) Scan(src any) error {
 func (t RoomType) Value() (driver.Value, error) {
 	return string(t), nil
 }
+
+func PubliclyVisibleRoom(roomType RoomType, isPublic, isSystem bool) bool {
+	return roomType == RoomTypeGroup && isPublic && !isSystem
+}

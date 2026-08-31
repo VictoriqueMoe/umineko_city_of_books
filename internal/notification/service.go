@@ -33,6 +33,7 @@ type (
 		List(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.NotificationListResponse, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID) error
+		MarkChatRoomRead(ctx context.Context, userID, roomID uuid.UUID) error
 		UnreadCount(ctx context.Context, userID uuid.UUID) (int, error)
 		PruneOld(ctx context.Context) (int, error)
 	}
@@ -52,6 +53,13 @@ type (
 		overlay     OverlayDispatcher
 	}
 )
+
+var chatThreadNotifTypes = []dto.NotificationType{
+	dto.NotifChatMessage,
+	dto.NotifChatRoomMessage,
+	dto.NotifChatMention,
+	dto.NotifChatReply,
+}
 
 var notifText = map[dto.NotificationType]string{
 	dto.NotifTheoryResponse:           "responded to your theory",
@@ -335,6 +343,10 @@ func (s *service) MarkRead(ctx context.Context, id int, userID uuid.UUID) error 
 
 func (s *service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 	return s.repo.MarkAllRead(ctx, userID)
+}
+
+func (s *service) MarkChatRoomRead(ctx context.Context, userID, roomID uuid.UUID) error {
+	return s.repo.MarkReadByReference(ctx, userID, roomID, chatThreadNotifTypes)
 }
 
 func (s *service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {

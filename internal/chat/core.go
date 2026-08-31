@@ -260,13 +260,14 @@ func resolveSenderName(nickname, displayName, username string) string {
 }
 
 func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.UUID) error {
-	locked, err := c.userRepo.IsLocked(ctx, senderID)
+	locked, err := c.senderLocked(ctx, senderID)
 	if err != nil {
-		return fmt.Errorf("check lock: %w", err)
+		return err
 	}
 	if !locked {
 		return nil
 	}
+
 	room, err := c.chatRepo.GetRoomByID(ctx, roomID, senderID)
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
@@ -274,29 +275,20 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 	if room == nil || room.Type != dto.RoomTypeDM {
 		return ErrLockedNonStaffDM
 	}
+
 	members, err := c.chatRepo.GetRoomMembers(ctx, roomID)
 	if err != nil {
 		return fmt.Errorf("get room members: %w", err)
 	}
+
 	others := make([]uuid.UUID, 0, len(members))
-	for i := range members {
-		if members[i] != senderID {
-			others = append(others, members[i])
+	for _, memberID := range members {
+		if memberID != senderID {
+			others = append(others, memberID)
 		}
 	}
-	if len(others) == 0 {
-		return ErrLockedNonStaffDM
-	}
-	roles, err := c.authzSvc.GetRoles(ctx, others)
-	if err != nil {
-		return fmt.Errorf("get member roles: %w", err)
-	}
-	for _, r := range roles {
-		if r.IsSiteStaff() {
-			return nil
-		}
-	}
-	return ErrLockedNonStaffDM
+
+	return c.assertAudienceHasStaff(ctx, others)
 }
 
 func (c *core) moderatorKind(ctx context.Context, roomID, userID uuid.UUID) (string, error) {
@@ -416,19 +408,11 @@ func (c *core) rejectBotsOutsideRP(ctx context.Context, isRP bool, userIDs []uui
 }
 
 func isAuditableRoom(row *repository.ChatRoomRow) bool {
-	if row == nil {
-		return false
-	}
-
-	return row.Type == dto.RoomTypeGroup && !row.IsSystem && row.IsPublic
+	return row.PubliclyVisible()
 }
 
 func isAuditableSendContext(row *repository.ChatRoomSendContext) bool {
-	if row == nil {
-		return false
-	}
-
-	return row.Type == dto.RoomTypeGroup && !row.IsSystem && row.IsPublic
+	return row.PubliclyVisible()
 }
 
 func (c *core) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {

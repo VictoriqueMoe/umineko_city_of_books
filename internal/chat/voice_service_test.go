@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -20,19 +21,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
-
-const (
-	voiceTestKey    = "devkey"
-	voiceTestSecret = "this-is-a-sufficiently-long-test-secret"
-	voiceTestURL    = "ws://livekit.test:7880"
-)
-
-func expectVoiceConfigured(m *testMocks, enabled bool) {
-	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingVoiceEnabled).Return(enabled).Maybe()
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingLiveKitURL).Return(voiceTestURL).Maybe()
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingLiveKitAPIKey).Return(voiceTestKey).Maybe()
-	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingLiveKitAPISecret).Return(voiceTestSecret).Maybe()
-}
 
 func TestVoicePresenceAccounting(t *testing.T) {
 	// given
@@ -100,7 +88,7 @@ func TestMintVoiceToken_NotMember(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group"}, nil)
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
 
 	// when
@@ -117,8 +105,9 @@ func TestMintVoiceToken_HappyPath(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group"}, nil)
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, CreatedBy: userID}, nil)
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
@@ -155,8 +144,9 @@ func TestMintVoiceToken_ForceMuteSurvivesRestart(t *testing.T) {
 			roomID := uuid.New()
 			userID := uuid.New()
 
-			m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "group"}, nil)
+			m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, CreatedBy: userID}, nil)
 			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
 			m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(tc.stored, nil)
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
@@ -206,26 +196,6 @@ func TestForceMuteVoice_PersistsBeforeLiveKit(t *testing.T) {
 	// then the mute is durable, and stored before livekit so a livekit failure cannot lose it
 	require.NoError(t, err)
 	assert.Equal(t, []string{"persist", "livekit"}, order)
-}
-
-func TestMintVoiceToken_DMBlocked(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	expectVoiceConfigured(m, true)
-	roomID := uuid.New()
-	userID := uuid.New()
-	otherID := uuid.New()
-
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{ID: roomID, Type: "dm"}, nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID, otherID}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, otherID).Return(true, nil)
-
-	// when
-	_, _, err := svc.MintVoiceToken(context.Background(), roomID, userID)
-
-	// then
-	require.ErrorIs(t, err, ErrUserBlocked)
 }
 
 func TestReconcilePresence_Disabled(t *testing.T) {

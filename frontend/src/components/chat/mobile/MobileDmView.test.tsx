@@ -2,12 +2,13 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Room } from "livekit-client";
+import { roomCapabilities } from "../../../domain/chat/roomPolicy";
 import type { DmController } from "../../../hooks/useDmController";
 import { makeDmController } from "../../../hooks/useDmController.fixture";
 import { makeDmRoom, makePublicUser, makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import type { ChatRoom, User } from "../../../types/api";
-import { MobileDmView } from "./MobileDmView";
+import { MobileDmView, type DmThreadView } from "./MobileDmView";
 
 const mocks = vi.hoisted(() => ({
     forceMuteVoiceParticipant: vi.fn<
@@ -33,8 +34,32 @@ vi.mock("../../../hooks/mutations/chat", async importOriginal => {
     };
 });
 
-vi.mock("../MessageList/DmMessageList", () => ({
-    DmMessageList: () => <div data-testid="dm-messages">messages</div>,
+vi.mock("../MessageList/MessageList", () => ({
+    MessageList: ({
+        highlightedMessageId,
+        viewerTimedOut,
+    }: {
+        highlightedMessageId?: string | null;
+        viewerTimedOut?: boolean;
+    }) => (
+        <div
+            data-testid="dm-messages"
+            data-highlighted={highlightedMessageId ?? ""}
+            data-timed-out={String(Boolean(viewerTimedOut))}
+        >
+            messages
+        </div>
+    ),
+}));
+
+vi.mock("../MessageSearchPanel/MessageSearchPanel", () => ({
+    MessageSearchPanel: ({ roomId, onClose }: { roomId: string; onClose: () => void }) => (
+        <div data-testid="search-panel" data-room={roomId}>
+            <button type="button" onClick={onClose}>
+                close search
+            </button>
+        </div>
+    ),
 }));
 
 vi.mock("../Voice/VoiceBar", () => ({
@@ -65,12 +90,16 @@ vi.mock("../ChatComposer/ChatComposer", () => ({
         extraActions,
         onTyping,
         onEditLast,
+        mentionPool,
+        timeoutUntil,
     }: {
         roomId: string | null;
         draftRecipientId: string | null;
         extraActions?: React.ReactNode;
         onTyping?: () => void;
         onEditLast?: () => void;
+        mentionPool?: User[];
+        timeoutUntil?: string;
     }) => (
         <div
             data-testid="composer"
@@ -78,6 +107,8 @@ vi.mock("../ChatComposer/ChatComposer", () => ({
             data-draft-recipient={draftRecipientId ?? ""}
             data-has-typing={String(Boolean(onTyping))}
             data-has-edit-last={String(Boolean(onEditLast))}
+            data-mention-pool={mentionPool === undefined ? "none" : mentionPool.map(u => u.username).join(",")}
+            data-timeout-until={timeoutUntil ?? ""}
         >
             {extraActions}
         </div>
@@ -105,23 +136,40 @@ function makeVoice(overrides: Partial<DmController["voice"]> = {}): DmController
 }
 
 function makeController(overrides: Partial<DmController> = {}): DmController {
-    return makeDmController({ user: viewer, ...overrides });
+    const user = overrides.user === undefined ? viewer : overrides.user;
+
+    return makeDmController({ user, capabilities: roomCapabilities(overrides.activeRoom ?? null, user), ...overrides });
 }
 
-function renderView(overrides: Partial<DmController> = {}) {
-    const controller = makeController(overrides);
-    const result = renderWithProviders(<MobileDmView controller={controller} />);
-
-    return { ...result, controller };
-}
-
-function roomView(overrides: Partial<DmController> = {}) {
-    return renderView({
-        mobileView: "room",
-        activeRoom: makeRoom(),
-        activeRoomId: "room-1",
+function makeThread(overrides: Partial<DmThreadView> = {}): DmThreadView {
+    return {
+        anchor: { highlightedMsgId: null, handleJumpToMessage: vi.fn(() => Promise.resolve()) },
+        mentionPool: [],
+        viewerTimedOut: false,
+        searchOpen: false,
+        setSearchOpen: vi.fn(),
         ...overrides,
-    });
+    };
+}
+
+function renderView(overrides: Partial<DmController> = {}, threadOverrides: Partial<DmThreadView> = {}) {
+    const controller = makeController(overrides);
+    const thread = makeThread(threadOverrides);
+    const result = renderWithProviders(<MobileDmView controller={controller} thread={thread} />);
+
+    return { ...result, controller, thread };
+}
+
+function roomView(overrides: Partial<DmController> = {}, threadOverrides: Partial<DmThreadView> = {}) {
+    return renderView(
+        {
+            mobileView: "room",
+            activeRoom: makeRoom(),
+            activeRoomId: "room-1",
+            ...overrides,
+        },
+        threadOverrides,
+    );
 }
 
 beforeEach(() => {
@@ -327,6 +375,53 @@ describe("MobileDmView", () => {
         expect(handleDeleteChat).toHaveBeenCalledTimes(1);
     });
 
+    it("mutes an open conversation from the top bar", async () => {
+        // given
+        const handleToggleMute = vi.fn();
+        const user = userEvent.setup();
+        roomView({ handleToggleMute });
+
+        // when
+        await user.click(screen.getByLabelText("Mute notifications"));
+
+        // then
+        expect(handleToggleMute).toHaveBeenCalledTimes(1);
+    });
+
+    it("offers to unmute a conversation the viewer already silenced", () => {
+        // given
+        const activeRoom = makeRoom({ viewer_muted: true });
+
+        // when
+        roomView({ activeRoom });
+
+        // then
+        expect(screen.getByLabelText("Unmute notifications")).toBeInTheDocument();
+        expect(screen.queryByLabelText("Mute notifications")).not.toBeInTheDocument();
+    });
+
+    it("blocks a second mute while the first is still in flight", () => {
+        // given
+        const mutePending = true;
+
+        // when
+        roomView({ mutePending });
+
+        // then
+        expect(screen.getByLabelText("Mute notifications")).toBeDisabled();
+    });
+
+    it("keeps the mute control away from a conversation that does not exist yet", () => {
+        // given
+        const draftRecipient = makeOther();
+
+        // when
+        renderView({ mobileView: "room", draftRecipient });
+
+        // then
+        expect(screen.queryByLabelText("Mute notifications")).not.toBeInTheDocument();
+    });
+
     it("offers to abandon a draft instead of deleting it", async () => {
         // given
         const setDraftRecipient = vi.fn();
@@ -522,5 +617,102 @@ describe("MobileDmView", () => {
 
         // then
         expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("opens the message search from the top bar", async () => {
+        // given
+        const user = userEvent.setup();
+        const { thread } = roomView();
+
+        // when
+        await user.click(screen.getByLabelText("Search messages"));
+
+        // then
+        expect(thread.setSearchOpen).toHaveBeenCalledWith(true);
+    });
+
+    it("keeps the search panel out of the way until it is opened", () => {
+        // given
+        const searchOpen = false;
+
+        // when
+        roomView({}, { searchOpen });
+
+        // then
+        expect(screen.queryByTestId("search-panel")).not.toBeInTheDocument();
+    });
+
+    it("searches the conversation that is open", () => {
+        // given
+        const searchOpen = true;
+
+        // when
+        roomView({}, { searchOpen });
+
+        // then
+        expect(screen.getByTestId("search-panel")).toHaveAttribute("data-room", "room-1");
+    });
+
+    it("offers no search from a conversation that does not exist yet", () => {
+        // given
+        const draftRecipient = makeOther();
+
+        // when
+        renderView({ mobileView: "room", draftRecipient });
+
+        // then
+        expect(screen.queryByLabelText("Search messages")).not.toBeInTheDocument();
+    });
+
+    it("gives the composer the conversation's members and the viewer's timeout", () => {
+        // given
+        const mentionPool = [makeOther({ id: "u3", username: "ronove" })];
+        const viewerTimeoutUntil = "2026-08-02T12:00:00Z";
+
+        // when
+        roomView({}, { mentionPool, viewerTimeoutUntil });
+
+        // then
+        const composer = screen.getByTestId("composer");
+        expect(composer).toHaveAttribute("data-mention-pool", "ronove");
+        expect(composer).toHaveAttribute("data-timeout-until", "2026-08-02T12:00:00Z");
+    });
+
+    it("leaves a draft conversation on the site-wide mention search", () => {
+        // given
+        const draftRecipient = makeOther();
+
+        // when
+        renderView(
+            { mobileView: "room", draftRecipient },
+            { mentionPool: [makeOther({ id: "u3", username: "ronove" })], viewerTimeoutUntil: "2026-08-02T12:00:00Z" },
+        );
+
+        // then
+        const composer = screen.getByTestId("composer");
+        expect(composer).toHaveAttribute("data-mention-pool", "none");
+        expect(composer).toHaveAttribute("data-timeout-until", "");
+    });
+
+    it("highlights the message the viewer was sent to", () => {
+        // given
+        const anchor = { highlightedMsgId: "m5", handleJumpToMessage: vi.fn(() => Promise.resolve()) };
+
+        // when
+        roomView({}, { anchor });
+
+        // then
+        expect(screen.getByTestId("dm-messages")).toHaveAttribute("data-highlighted", "m5");
+    });
+
+    it("locks the messages while the viewer is timed out", () => {
+        // given
+        const viewerTimedOut = true;
+
+        // when
+        roomView({}, { viewerTimedOut });
+
+        // then
+        expect(screen.getByTestId("dm-messages")).toHaveAttribute("data-timed-out", "true");
     });
 });

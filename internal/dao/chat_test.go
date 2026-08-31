@@ -3103,3 +3103,115 @@ func TestChatDAO_DeleteMessageWithMedia_ReturnsThatMessagesFiles(t *testing.T) {
 	require.Len(t, survivor[other.ID], 1)
 	assert.Equal(t, "/uploads/chat/other.webp", survivor[other.ID][0].MediaURL)
 }
+
+func TestChatDAO_FindDMRoom_AgreesWithTheRoomTheNextSendWillAttachTo(t *testing.T) {
+	// given a pair with history that one party has left
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	stayer := daotest.CreateUser(t, repos)
+	leaver := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	require.NoError(t, err)
+	roomID := room.ID
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "hello"})
+	require.NoError(t, err)
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
+
+	// when each side resolves the pair
+	forStayer, err := repos.Chat.FindDMRoom(ctx, stayer.ID, leaver.ID)
+	require.NoError(t, err)
+	forLeaver, err := repos.Chat.FindDMRoom(ctx, leaver.ID, stayer.ID)
+	require.NoError(t, err)
+	byPair, err := repos.Chat.FindDMRoomByPair(ctx, stayer.ID, leaver.ID)
+	require.NoError(t, err)
+
+	// then the side that still holds the thread resolves the very room the next send attaches to
+	require.NotNil(t, byPair)
+	assert.Equal(t, roomID, byPair.ID)
+	assert.Equal(t, roomID, forStayer, "resolve must not report a fresh conversation when the history is still on screen")
+	assert.Equal(t, uuid.Nil, forLeaver, "the party who left has no thread to resolve until they open a new one")
+}
+
+func TestChatDAO_SoftLeaveHidesTheLeaversHistoryAndKeepsTheOthers(t *testing.T) {
+	// given a pair with history, backdated so a stepping container clock cannot reorder it
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	stayer := daotest.CreateUser(t, repos)
+	leaver := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	require.NoError(t, err)
+	roomID := room.ID
+	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_room_members SET joined_at = $1 WHERE room_id = $2`, "2024-01-01 00:00:00", roomID)
+	require.NoError(t, err)
+	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "before the leave"})
+	require.NoError(t, err)
+	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET created_at = $1 WHERE id = $2`, "2024-01-01 01:00:00", old.ID)
+	require.NoError(t, err)
+
+	// when the leaver leaves and later reopens the same pair
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
+	remaining, err := repos.Chat.CountRoomMembers(ctx, roomID)
+	require.NoError(t, err)
+	reopened, err := repos.Chat.CreateDMRoomAtomic(ctx, leaver.ID, stayer.ID)
+	require.NoError(t, err)
+
+	// then the pair is reused, the leaver's thread is blank and the other party keeps everything
+	assert.Equal(t, 1, remaining, "one member left is what stops the service hard-deleting the pair")
+	assert.Equal(t, roomID, reopened.ID)
+
+	leaverView, _, err := repos.Chat.GetMessagesForViewer(ctx, roomID, leaver.ID, 20, 0)
+	require.NoError(t, err)
+	assert.Empty(t, leaverView, "the history clip is the load-bearing half of soft-leave")
+
+	stayerView, _, err := repos.Chat.GetMessagesForViewer(ctx, roomID, stayer.ID, 20, 0)
+	require.NoError(t, err)
+	require.Len(t, stayerView, 1)
+	assert.Equal(t, "before the leave", stayerView[0].Body)
+}
+
+func TestChatDAO_BothPartiesLeavingEmptiesThePair(t *testing.T) {
+	// given a pair with history
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	require.NoError(t, err)
+	roomID := room.ID
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "hi"})
+	require.NoError(t, err)
+
+	// when both sides leave
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, a.ID))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, b.ID))
+
+	// then the count the service hard-deletes on reaches zero
+	remaining, err := repos.Chat.CountRoomMembers(ctx, roomID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, remaining)
+}
+
+func TestChatDAO_GetRoomSendContext_CarriesLastMessageAt(t *testing.T) {
+	// given a pair that has not been spoken in yet
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	require.NoError(t, err)
+	roomID := room.ID
+
+	// when the send context is read before and after the first message
+	fresh, err := repos.Chat.GetRoomSendContext(ctx, roomID)
+	require.NoError(t, err)
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "hi"})
+	require.NoError(t, err)
+	used, err := repos.Chat.GetRoomSendContext(ctx, roomID)
+	require.NoError(t, err)
+
+	// then the send path can tell a new thread from an ongoing one without another query
+	require.NotNil(t, fresh)
+	require.NotNil(t, used)
+	assert.False(t, fresh.LastMessageAt.Valid)
+	assert.True(t, used.LastMessageAt.Valid)
+}

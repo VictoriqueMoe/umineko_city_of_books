@@ -48,12 +48,31 @@ func (s *moderationService) enforceBannedWords(ctx context.Context, roomID, send
 		logger.Ctx(ctx).Error().Err(err).Str("room_id", roomID.String()).Msg("failed to audit word filter hit")
 	}
 	if match.Action == contentfilter.BannedWordActionKick && !s.isBotSender(ctx, senderID) {
-		targetName := s.displayNameFor(ctx, senderID, roomID)
-		s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
-		_ = s.evictUserFromRoom(ctx, roomID, senderID, "the word filter matched a banned word")
-		s.notifyAutomatedKick(roomID, senderID, match.Pattern)
+		evicts, err := s.roomEvictsOnBannedWord(ctx, roomID)
+		if err != nil {
+			return err
+		}
+
+		if evicts {
+			targetName := s.displayNameFor(ctx, senderID, roomID)
+			s.postRoomActionMessage(ctx, roomID, senderID, fmt.Sprintf("%s was kicked by the word filter.", targetName))
+			_ = s.evictUserFromRoom(ctx, roomID, senderID, "the word filter matched a banned word")
+			s.notifyAutomatedKick(roomID, senderID, match.Pattern)
+		}
 	}
 	return &ErrBannedWordMatch{Pattern: match.Pattern, Action: match.Action}
+}
+
+func (s *moderationService) roomEvictsOnBannedWord(ctx context.Context, roomID uuid.UUID) (bool, error) {
+	room, err := s.chatRepo.GetRoomSendContext(ctx, roomID)
+	if err != nil {
+		return false, fmt.Errorf("get room send context: %w", err)
+	}
+	if room == nil {
+		return false, ErrRoomNotFound
+	}
+
+	return capabilitiesFor(room.Type).evictsOnBannedWord, nil
 }
 
 func (s *moderationService) isBotSender(ctx context.Context, senderID uuid.UUID) bool {

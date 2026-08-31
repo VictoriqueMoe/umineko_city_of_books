@@ -26,6 +26,7 @@ type (
 		GetByID(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) (*model.NotificationRow, error)
 		MarkRead(ctx context.Context, id int, userID uuid.UUID, tx ...*sql.Tx) error
 		MarkAllRead(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
+		MarkReadByReference(ctx context.Context, userID, referenceID uuid.UUID, types []dto.NotificationType, tx ...*sql.Tx) error
 		UnreadCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
 		HasRecentDuplicate(ctx context.Context, userID uuid.UUID, notifType dto.NotificationType, referenceID uuid.UUID, actorID uuid.UUID, tx ...*sql.Tx) (bool, error)
 		HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration, tx ...*sql.Tx) (bool, error)
@@ -68,6 +69,10 @@ func (r *notificationRepository) MarkRead(ctx context.Context, id int, userID uu
 
 func (r *notificationRepository) MarkAllRead(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
 	return r.dao.MarkAllRead(ctx, userID, tx...)
+}
+
+func (r *notificationRepository) MarkReadByReference(ctx context.Context, userID, referenceID uuid.UUID, types []dto.NotificationType, tx ...*sql.Tx) error {
+	return r.dao.MarkReadByReference(ctx, userID, referenceID, types, tx...)
 }
 
 func (r *notificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {

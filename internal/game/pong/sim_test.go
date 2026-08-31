@@ -248,25 +248,67 @@ func TestSim_SpeedRampReachesCapAndHolds(t *testing.T) {
 }
 
 func TestSim_ChasingPaddleDoesNotRecollide(t *testing.T) {
+	cases := []struct {
+		name       string
+		target     float64
+		wantHits   int
+		wantBounce bool
+	}{
+		{
+			name:       "a paddle still within reach hits once and never twice",
+			target:     boardHeight/2 + 40,
+			wantHits:   1,
+			wantBounce: true,
+		},
+		{
+			name:       "a paddle moved out of reach misses, because it tracks the pointer exactly",
+			target:     boardHeight/2 + 200,
+			wantHits:   0,
+			wantBounce: false,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			// given
+			s := rallySim(t)
+			s.speed = ballSpeedStart
+			s.ballX = faceX0 + ballRadius + 5
+			s.ballY = boardHeight / 2
+			s.ballVX = -ballSpeedStart
+			s.ballVY = 0
+			s.paddleY[0] = boardHeight / 2
+			s.target[0] = tt.target
+
+			// when
+			s.Tick(tickInterval)
+			hitsAfterFirst := s.st.Hits[0]
+			s.target[0] = s.ballY
+			s.Tick(tickInterval)
+
+			// then
+			assert.Equal(t, tt.wantHits, hitsAfterFirst)
+			assert.Equal(t, tt.wantHits, s.st.Hits[0])
+			if tt.wantBounce {
+				assert.GreaterOrEqual(t, s.ballX, float64(faceX0+ballRadius))
+			}
+		})
+	}
+}
+
+func TestSim_PaddleTracksTheTargetExactly(t *testing.T) {
 	// given
 	s := rallySim(t)
-	s.speed = ballSpeedStart
-	s.ballX = faceX0 + ballRadius + 5
-	s.ballY = boardHeight / 2
-	s.ballVX = -ballSpeedStart
-	s.ballVY = 0
 	s.paddleY[0] = boardHeight / 2
-	s.target[0] = boardHeight/2 + 200
+	s.target[0] = boardHeight / 2
 
 	// when
-	s.Tick(tickInterval)
-	hitsAfterFirst := s.st.Hits[0]
+	s.target[0] = paddleHeight / 2
 	s.Tick(tickInterval)
 
 	// then
-	assert.Equal(t, 1, hitsAfterFirst)
-	assert.Equal(t, 1, s.st.Hits[0])
-	assert.GreaterOrEqual(t, s.ballX, float64(faceX0+ballRadius))
+	assert.InDelta(t, paddleHeight/2.0, s.paddleY[0], 1e-9)
+	assert.InDelta(t, -paddleMaxSpeed, s.paddleVY[0], 1e-9)
 }
 
 func TestSim_ConcededPointCreditsTheOtherSlot(t *testing.T) {

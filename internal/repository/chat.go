@@ -38,13 +38,14 @@ type (
 	}
 
 	ChatRoomSendContext struct {
-		ID         uuid.UUID
-		Name       string
-		Type       dto.RoomType
-		IsPublic   bool
-		IsSystem   bool
-		SystemKind string
-		CreatedBy  uuid.UUID
+		ID            uuid.UUID
+		Name          string
+		Type          dto.RoomType
+		IsPublic      bool
+		IsSystem      bool
+		SystemKind    string
+		CreatedBy     uuid.UUID
+		LastMessageAt sql.NullString
 	}
 
 	ChatRoomMemberRow struct {
@@ -267,6 +268,22 @@ type (
 		InsertSystemMessage(ctx context.Context, roomID, senderID uuid.UUID, body string, tx ...*sql.Tx) (*ChatMessageRow, error)
 	}
 )
+
+func (r *ChatRoomRow) PubliclyVisible() bool {
+	if r == nil {
+		return false
+	}
+
+	return dto.PubliclyVisibleRoom(r.Type, r.IsPublic, r.IsSystem)
+}
+
+func (c *ChatRoomSendContext) PubliclyVisible() bool {
+	if c == nil {
+		return false
+	}
+
+	return dto.PubliclyVisibleRoom(c.Type, c.IsPublic, c.IsSystem)
+}
 
 type chatRepository struct {
 	db    *sql.DB

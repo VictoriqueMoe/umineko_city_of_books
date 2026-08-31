@@ -28,6 +28,32 @@ function makeReaction(overrides: Partial<ReactionGroup> = {}): ReactionGroup {
     };
 }
 
+interface ReactionGuardCase {
+    name: string;
+    canReact: boolean;
+    withHandler: boolean;
+    chipEnabled: boolean;
+    reactControl: boolean;
+}
+
+const reactionGuardCases: ReactionGuardCase[] = [
+    {
+        name: "a member whose list wired the handler",
+        canReact: true,
+        withHandler: true,
+        chipEnabled: true,
+        reactControl: true,
+    },
+    {
+        name: "a list that forgot the handler",
+        canReact: true,
+        withHandler: false,
+        chipEnabled: false,
+        reactControl: false,
+    },
+    { name: "a timed out member", canReact: false, withHandler: true, chipEnabled: false, reactControl: false },
+];
+
 function chipFor(emoji: string): HTMLElement {
     const chip = screen.getByText(emoji).closest("button");
     if (!chip) {
@@ -453,6 +479,39 @@ describe("MessageBubble", () => {
         // then
         expect(chipFor(HEART)).toHaveTextContent("3");
         expect(chipFor(STAR)).toHaveTextContent("1");
+    });
+
+    it.each(reactionGuardCases)(
+        "keeps the chip and the react control in agreement for $name",
+        ({ canReact, withHandler, chipEnabled, reactControl }) => {
+            // given
+            const reactions = [makeReaction({ emoji: HEART, count: 3 })];
+
+            // when
+            renderWithProviders(
+                <MessageBubble
+                    message={makeChatMessage({ reactions })}
+                    isOwn={false}
+                    canReact={canReact}
+                    onReactionToggle={withHandler ? vi.fn() : undefined}
+                />,
+            );
+
+            // then
+            expect(chipFor(HEART).hasAttribute("disabled")).toBe(!chipEnabled);
+            expect(Boolean(screen.queryByRole("button", { name: "React" }))).toBe(reactControl);
+        },
+    );
+
+    it("stops promising a reaction the caller never wired up", () => {
+        // given
+        const reactions = [makeReaction({ emoji: HEART, count: 3 })];
+
+        // when
+        renderWithProviders(<MessageBubble message={makeChatMessage({ reactions })} isOwn={false} />);
+
+        // then
+        expect(chipFor(HEART)).not.toHaveAttribute("title");
     });
 
     it("toggles an existing reaction when its chip is clicked", async () => {

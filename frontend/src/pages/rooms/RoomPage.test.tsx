@@ -2,6 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Room } from "livekit-client";
+import { roomCapabilities } from "../../domain/chat/roomPolicy";
 import type { RoomController } from "../../hooks/useRoomController";
 import { makeRoomController } from "../../hooks/useRoomController.fixture";
 import {
@@ -40,8 +41,8 @@ vi.mock("../../components/chat/mobile/MobileRoomView", () => ({
     MobileRoomView: () => <div data-testid="mobile-room-view" />,
 }));
 
-vi.mock("../../components/chat/MessageList/RoomMessageList", () => ({
-    RoomMessageList: () => <div data-testid="room-messages" />,
+vi.mock("../../components/chat/MessageList/MessageList", () => ({
+    MessageList: () => <div data-testid="room-messages" />,
 }));
 
 vi.mock("../../components/chat/ChatComposer/ChatComposer", () => ({
@@ -200,11 +201,14 @@ function stubController(options: ControllerOptions = {}) {
     const members = options.members ?? [];
     const onlineIds = new Set(options.onlineIds ?? []);
     const base = makeRoomController();
+    const roomData = options.room === undefined ? makeChatRoom() : options.room;
+    const viewerUser = options.user === undefined ? viewer : options.user;
 
     const controller = makeRoomController({
+        capabilities: roomCapabilities(roomData, viewerUser),
         room: {
             ...base.room,
-            data: options.room === undefined ? makeChatRoom() : options.room,
+            data: roomData,
             id: options.roomId === undefined ? "room-1" : (options.roomId ?? undefined),
             loading: options.loading ?? false,
             joining: options.joining ?? false,
@@ -217,7 +221,7 @@ function stubController(options: ControllerOptions = {}) {
         },
         session: {
             ...base.session,
-            viewer: options.user === undefined ? viewer : options.user,
+            viewer: viewerUser,
             setReplyingTo: handlers.setReplyingTo,
             typingNames: options.typingNames ?? [],
             notifyTyping: handlers.notifyTyping,

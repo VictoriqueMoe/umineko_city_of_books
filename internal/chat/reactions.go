@@ -24,11 +24,11 @@ func (r *reactionsService) PinMessage(ctx context.Context, messageID, userID uui
 		return ErrRoomNotFound
 	}
 
-	canMod, err := r.canModerateRoom(ctx, msg.RoomID, userID)
+	canPin, err := r.canPinInRoom(ctx, msg.RoomID, userID)
 	if err != nil {
 		return err
 	}
-	if !canMod {
+	if !canPin {
 		return ErrNotHost
 	}
 
@@ -60,11 +60,11 @@ func (r *reactionsService) UnpinMessage(ctx context.Context, messageID, userID u
 		return ErrMessageNotPinned
 	}
 
-	canMod, err := r.canModerateRoom(ctx, msg.RoomID, userID)
+	canPin, err := r.canPinInRoom(ctx, msg.RoomID, userID)
 	if err != nil {
 		return err
 	}
-	if !canMod {
+	if !canPin {
 		return ErrNotHost
 	}
 
@@ -80,6 +80,28 @@ func (r *reactionsService) UnpinMessage(ctx context.Context, messageID, userID u
 		},
 	})
 	return nil
+}
+
+func (r *reactionsService) canPinInRoom(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
+	room, err := r.chatRepo.GetRoomSendContext(ctx, roomID)
+	if err != nil {
+		return false, fmt.Errorf("get room send context: %w", err)
+	}
+	if room == nil {
+		return false, ErrRoomNotFound
+	}
+
+	if capabilitiesFor(room.Type).participantsMayPin {
+		isMember, err := r.chatRepo.IsMember(ctx, roomID, userID)
+		if err != nil {
+			return false, fmt.Errorf("check membership: %w", err)
+		}
+		if isMember {
+			return true, nil
+		}
+	}
+
+	return r.canModerateRoom(ctx, roomID, userID)
 }
 
 func (r *reactionsService) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error) {

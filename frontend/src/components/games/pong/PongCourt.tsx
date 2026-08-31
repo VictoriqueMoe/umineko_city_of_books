@@ -4,13 +4,10 @@ import { usePongFrames } from "../../../games/pong/hooks/usePongFrames";
 import { usePongInput } from "../../../games/pong/hooks/usePongInput";
 import { sampleAt, serverNow } from "../../../games/pong/interpolate";
 import {
-    PONG_CORRECTION,
     PONG_EVENT_HIT_P0,
     PONG_EVENT_HIT_P1,
     PONG_EVENT_SCORE,
-    PONG_PADDLE_MAX_SPEED,
     PONG_RENDER_DELAY_MS,
-    PONG_SNAP_UNITS,
 } from "../../../games/pong/types";
 import type { GameRoom, PongState } from "../../../types/api";
 import styles from "./PongCourt.module.css";
@@ -85,7 +82,6 @@ export function PongCourt({ room, state, mySlot, isSpectator }: PongCourtProps) 
     const lastFiredTRef = useRef(0);
     const flashRef = useRef<[number, number]>([0, 0]);
     const shakeRef = useRef(0);
-    const prevNowRef = useRef(0);
     const reduceMotionRef = useRef(false);
 
     const active = room.status === "active";
@@ -167,8 +163,6 @@ export function PongCourt({ room, state, mySlot, isSpectator }: PongCourtProps) 
             coloursRef.current = colours;
 
             const now = Date.now();
-            const elapsed = prevNowRef.current === 0 ? 0 : Math.min((now - prevNowRef.current) / 1000, 0.1);
-            prevNowRef.current = now;
 
             const buffer = frames.current;
             const sample = buffer.length > 0 ? sampleAt(buffer, serverNow(buffer, now) - PONG_RENDER_DELAY_MS) : null;
@@ -205,23 +199,12 @@ export function PongCourt({ room, state, mySlot, isSpectator }: PongCourtProps) 
 
             if (enabled) {
                 const half = state.paddle_height / 2;
-                const authoritative = paddleY[localSlot];
-                const step = PONG_PADDLE_MAX_SPEED * elapsed;
-                let predicted = localYRef.current ?? authoritative;
 
                 if (sample) {
                     seedTargetY(sample.paddleY[localSlot]);
                 }
 
-                const move = clamp(targetRef.current - predicted, -step, step);
-                predicted = clamp(predicted + move, half, state.height - half);
-
-                const correction = 1 - Math.pow(1 - PONG_CORRECTION, elapsed * 60);
-                const error = authoritative - predicted;
-                predicted =
-                    Math.abs(error) > PONG_SNAP_UNITS
-                        ? authoritative
-                        : clamp(predicted + error * correction, half, state.height - half);
+                const predicted = clamp(targetRef.current, half, state.height - half);
 
                 localYRef.current = predicted;
                 paddleY[localSlot] = predicted;

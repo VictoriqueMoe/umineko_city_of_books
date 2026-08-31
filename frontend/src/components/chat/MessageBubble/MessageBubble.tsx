@@ -42,12 +42,17 @@ function jumpToMessage(id: string) {
     }
 }
 
-function reactionTooltip(r: ReactionGroup): string {
+function reactionTooltip(r: ReactionGroup, canToggle: boolean): string | undefined {
     const names = r.display_names ?? [];
-    if (names.length === 0) {
-        return r.viewer_reacted ? "Click to remove your reaction" : "Click to react";
+    if (names.length > 0) {
+        return names.join("\n");
     }
-    return names.join("\n");
+
+    if (!canToggle) {
+        return undefined;
+    }
+
+    return r.viewer_reacted ? "Click to remove your reaction" : "Click to react";
 }
 
 function applySenderOverrides(message: ChatMessage): User {
@@ -86,6 +91,8 @@ function MessageBubbleBase({
     senderIsStaff,
     senderBlocked,
 }: MessageBubbleProps) {
+    const canToggleReaction = canReact && onReactionToggle !== undefined;
+
     const [pickerOpen, setPickerOpen] = useState(false);
     const [blockedRevealed, setBlockedRevealed] = useState(false);
 
@@ -164,7 +171,7 @@ function MessageBubbleBase({
             longPressedRef.current = false;
             return;
         }
-        if (canReact) {
+        if (canToggleReaction) {
             onReactionToggle?.(message, r.emoji);
         }
     }
@@ -332,8 +339,8 @@ function MessageBubbleBase({
                                             e.preventDefault();
                                             setReactorsPopover(r.emoji);
                                         }}
-                                        disabled={!canReact && !names.length}
-                                        title={canReact ? reactionTooltip(r) : "You are timed out"}
+                                        disabled={!canToggleReaction && !names.length}
+                                        title={canReact ? reactionTooltip(r, canToggleReaction) : "You are timed out"}
                                     >
                                         <span className={styles.reactionEmoji}>{r.emoji}</span>
                                         <span className={styles.reactionCount}>{r.count}</span>
@@ -379,7 +386,7 @@ function MessageBubbleBase({
                 </div>
             </div>
             <div className={styles.actions}>
-                {onReactionToggle && canReact && (
+                {canToggleReaction && (
                     <div className={styles.reactAnchor}>
                         <button
                             type="button"

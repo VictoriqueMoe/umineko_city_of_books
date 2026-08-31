@@ -68,7 +68,7 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     chat_message: {
         text: "sent you a message",
         category: "social",
-        route: routeByReferenceType,
+        route: dmMessageRoute,
     },
     chat_room_message: {
         text: "sent a message in a chat room",
@@ -505,6 +505,15 @@ function chatMessageRoute(notif: Notification): string {
         return `/rooms/${notif.reference_id}#msg-${msgId}`;
     }
     return `/rooms/${notif.reference_id}`;
+}
+
+function dmMessageRoute(notif: Notification): string {
+    const refType = notif.reference_type;
+    if (refType.startsWith("chat_message:")) {
+        const msgId = refType.split(":")[1];
+        return `/chat/${notif.reference_id}#msg-${msgId}`;
+    }
+    return `/chat/${notif.reference_id}`;
 }
 
 export function getNotificationText(notif: Notification): string {

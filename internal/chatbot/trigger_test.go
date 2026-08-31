@@ -334,7 +334,7 @@ func TestObserve_PermittedSummonQueuesARealReply(t *testing.T) {
 	assert.Equal(t, senderID, queued.ev.SenderID)
 }
 
-func TestObserve_CooldownAppliesToSharedSpacesButNotDMs(t *testing.T) {
+func TestObserve_CooldownAppliesEverywhereIncludingDMs(t *testing.T) {
 	botID := uuid.New()
 	senderID := uuid.New()
 	scopeID := uuid.New()
@@ -342,10 +342,11 @@ func TestObserve_CooldownAppliesToSharedSpacesButNotDMs(t *testing.T) {
 	cases := []struct {
 		name      string
 		event     botEvent
+		lastUse   time.Time
 		wantQueue int
 	}{
 		{
-			name: "a DM is never held back by the cooldown",
+			name: "a DM inside the cooldown window is held back, because a paid model is on the other end",
 			event: botEvent{
 				Surface:      SurfaceChat,
 				IsDM:         true,
@@ -356,6 +357,22 @@ func TestObserve_CooldownAppliesToSharedSpacesButNotDMs(t *testing.T) {
 				Audience:     []uuid.UUID{senderID, botID},
 				MentionedIDs: mentions(botID),
 			},
+			lastUse:   time.Now(),
+			wantQueue: 0,
+		},
+		{
+			name: "a DM outside the cooldown window is queued",
+			event: botEvent{
+				Surface:      SurfaceChat,
+				IsDM:         true,
+				ScopeID:      scopeID,
+				ItemID:       uuid.New(),
+				SenderID:     senderID,
+				Body:         "again",
+				Audience:     []uuid.UUID{senderID, botID},
+				MentionedIDs: mentions(botID),
+			},
+			lastUse:   time.Now().Add(-2 * time.Hour),
 			wantQueue: 1,
 		},
 		{
@@ -368,6 +385,7 @@ func TestObserve_CooldownAppliesToSharedSpacesButNotDMs(t *testing.T) {
 				Body:         "@bot again",
 				MentionedIDs: mentions(botID),
 			},
+			lastUse:   time.Now(),
 			wantQueue: 0,
 		},
 	}
@@ -381,7 +399,7 @@ func TestObserve_CooldownAppliesToSharedSpacesButNotDMs(t *testing.T) {
 				tune: tuning{enabled: true, cooldown: time.Hour},
 			}
 			svc.loaded = true
-			svc.lastUse.Store(senderID, time.Now())
+			svc.lastUse.Store(senderID, tc.lastUse)
 
 			// when
 			svc.observe(tc.event)

@@ -1,25 +1,26 @@
 import type { QueryClient } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { UserProfile } from "../../types/api";
-import { makeUser } from "../../test-utils/fixtures";
+import { makeChatRoom, makeDmRoom, makeUser } from "../../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import { queryClient as sharedQueryClient } from "../../api/queryClient";
-import type { RoomsListParams } from "../../api/queryKeys";
+import { queryKeys, type RoomsListParams } from "../../api/queryKeys";
 import {
     fetchResolveDMRoom,
     fetchRoomMessages,
     fetchRoomMessagesBefore,
-    fetchUserRooms,
     useChatRoomBannedWords,
     useChatRoomBans,
     useChatRoomMembers,
     useChatRoomPinnedMessages,
     useChatUnreadCount,
+    useDmRooms,
     useHostedRooms,
     useJoinedRooms,
     usePublicRooms,
     useUserRooms,
+    useUserRoomsCache,
 } from "./chat";
 
 const endpoints = vi.hoisted(() => ({
@@ -38,6 +39,9 @@ const endpoints = vi.hoisted(() => ({
 
 vi.mock("../../api/endpoints/chat", () => endpoints);
 
+const dmRoom = makeDmRoom({ id: "room-1" });
+const groupRoom = makeChatRoom({ id: "room-2" });
+
 const unfiltered: RoomsListParams = {
     search: "",
     rpOnly: false,
@@ -55,6 +59,12 @@ function setup<T>(hook: () => T, user: UserProfile | null = null) {
 
 function firstKey(queryClient: QueryClient): readonly unknown[] {
     return queryClient.getQueryCache().getAll()[0].queryKey;
+}
+
+async function settle(): Promise<void> {
+    await act(async () => {
+        await new Promise(resolve => setTimeout(resolve, 0));
+    });
 }
 
 beforeEach(() => {
@@ -108,20 +118,6 @@ describe("fetchRoomMessagesBefore", () => {
         // then
         expect(endpoints.getRoomMessagesBefore).toHaveBeenCalledWith("room-1", "2026-01-01T00:00:00Z", 10);
         expect(result).toEqual({ messages: [{ id: "m-0" }] });
-    });
-});
-
-describe("fetchUserRooms", () => {
-    it("returns the rooms the endpoint hands back", async () => {
-        // given
-        endpoints.getUserRooms.mockResolvedValue({ rooms: [{ id: "room-1" }] });
-
-        // when
-        const result = await fetchUserRooms();
-
-        // then
-        expect(endpoints.getUserRooms).toHaveBeenCalledTimes(1);
-        expect(result).toEqual({ rooms: [{ id: "room-1" }] });
     });
 });
 
@@ -201,6 +197,140 @@ describe("useUserRooms", () => {
         expect(endpoints.getUserRooms).not.toHaveBeenCalled();
         expect(current.rooms).toEqual([]);
         expect(current.loading).toBe(false);
+    });
+});
+
+describe("useDmRooms", () => {
+    it("keeps the direct messages apart from the rest of the rooms under the user rooms key", async () => {
+        // given
+        endpoints.getUserRooms.mockResolvedValue({
+            rooms: [dmRoom, groupRoom],
+        });
+
+        // when
+        const { result, queryClient } = setup(() => useDmRooms());
+
+        // then
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        expect(firstKey(queryClient)).toEqual(["chat", "rooms", "user"]);
+        expect(result.current.rooms).toEqual([dmRoom]);
+        expect(result.current.allRooms).toEqual([dmRoom, groupRoom]);
+    });
+
+    it("reports no conversations while the request is in flight", async () => {
+        // given
+        const { result } = setup(() => useDmRooms());
+
+        // when
+        const initial = result.current;
+
+        // then
+        expect(initial.loading).toBe(true);
+        expect(initial.rooms).toEqual([]);
+        expect(initial.allRooms).toEqual([]);
+        await waitFor(() => expect(result.current.loading).toBe(false));
+    });
+
+    it("stays idle while it is switched off", () => {
+        // given
+        const { result } = setup(() => useDmRooms(false));
+
+        // when
+        const current = result.current;
+
+        // then
+        expect(endpoints.getUserRooms).not.toHaveBeenCalled();
+        expect(current.rooms).toEqual([]);
+        expect(current.loading).toBe(false);
+    });
+
+    it("shares one request with the full room list rather than asking twice", async () => {
+        // given
+        endpoints.getUserRooms.mockResolvedValue({ rooms: [dmRoom, groupRoom] });
+
+        // when
+        const { result } = setup(() => ({ dms: useDmRooms(), all: useUserRooms() }));
+
+        // then
+        await waitFor(() => expect(result.current.dms.loading).toBe(false));
+        expect(endpoints.getUserRooms).toHaveBeenCalledTimes(1);
+        expect(result.current.dms.rooms).toEqual([dmRoom]);
+        expect(result.current.all.rooms).toEqual([dmRoom, groupRoom]);
+    });
+
+    it("hands back the same conversations across a re-render, so readers can memoise them", async () => {
+        // given
+        endpoints.getUserRooms.mockResolvedValue({ rooms: [dmRoom, groupRoom] });
+        const { result, rerender } = setup(() => useDmRooms());
+        await waitFor(() => expect(result.current.loading).toBe(false));
+        const first = result.current.rooms;
+
+        // when
+        rerender();
+
+        // then
+        expect(result.current.rooms).toBe(first);
+    });
+});
+
+describe("useUserRoomsCache", () => {
+    function setupRoster() {
+        const queryClient = createTestQueryClient();
+        const rendered = renderHook(() => ({ roster: useDmRooms(), cache: useUserRoomsCache() }), {
+            wrapper: providerWrapper({ queryClient, user: makeUser() }),
+        });
+
+        return { ...rendered, queryClient };
+    }
+
+    it("rewrites the rooms every reader sees without asking the server again", async () => {
+        // given
+        endpoints.getUserRooms.mockResolvedValue({ rooms: [dmRoom, groupRoom] });
+        const { result } = setupRoster();
+        await waitFor(() => expect(result.current.roster.loading).toBe(false));
+
+        // when
+        act(() => {
+            result.current.cache.patchRooms(rooms => rooms.map(room => ({ ...room, unread: true })));
+        });
+        await settle();
+
+        // then
+        expect(result.current.roster.rooms).toEqual([{ ...dmRoom, unread: true }]);
+        expect(result.current.roster.allRooms).toHaveLength(2);
+        expect(endpoints.getUserRooms).toHaveBeenCalledTimes(1);
+    });
+
+    it("leaves the cache alone while the rooms have not arrived", () => {
+        // given
+        endpoints.getUserRooms.mockReturnValue(new Promise(() => {}));
+        const { result, queryClient } = setupRoster();
+
+        // when
+        act(() => {
+            result.current.cache.patchRooms(() => [dmRoom]);
+        });
+
+        // then
+        expect(queryClient.getQueryData(queryKeys.chat.userRooms())).toBeUndefined();
+        expect(result.current.roster.rooms).toEqual([]);
+    });
+
+    it("asks the server for the rooms again when it is told to refresh", async () => {
+        // given
+        endpoints.getUserRooms.mockResolvedValue({ rooms: [dmRoom] });
+        const { result } = setupRoster();
+        await waitFor(() => expect(result.current.roster.loading).toBe(false));
+        endpoints.getUserRooms.mockResolvedValue({ rooms: [dmRoom, { ...dmRoom, id: "room-9" }] });
+
+        // when
+        act(() => {
+            result.current.cache.refreshRooms();
+        });
+
+        // then
+        await waitFor(() => expect(result.current.roster.rooms).toHaveLength(2));
+        expect(endpoints.getUserRooms).toHaveBeenCalledTimes(2);
     });
 });
 

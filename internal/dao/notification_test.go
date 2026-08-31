@@ -821,3 +821,58 @@ func TestNotificationDAO_MarkRead_DirectMessageMarksEntireConversation(t *testin
 		})
 	}
 }
+
+func TestNotificationDAO_MarkReadByReference(t *testing.T) {
+	// given one thread's four chat notification types, an invite for the same thread and a mention from another thread
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos)
+	ctx := context.Background()
+	roomID := uuid.New()
+	otherRoomID := uuid.New()
+
+	chatTypes := []dto.NotificationType{dto.NotifChatMessage, dto.NotifChatRoomMessage, dto.NotifChatMention, dto.NotifChatReply}
+	for _, notifType := range chatTypes {
+		_, err := repos.Notification.Create(ctx, user.ID, notifType, roomID, "chat_message:x", actor.ID, "")
+		require.NoError(t, err)
+	}
+	_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatRoomInvite, roomID, "chat_room", actor.ID, "")
+	require.NoError(t, err)
+	_, err = repos.Notification.Create(ctx, user.ID, dto.NotifChatMention, otherRoomID, "chat_message:y", actor.ID, "")
+	require.NoError(t, err)
+
+	// when the thread is marked read
+	err = repos.Notification.MarkReadByReference(ctx, user.ID, roomID, chatTypes)
+
+	// then only that thread's message notifications clear, and the invite and the other thread survive
+	require.NoError(t, err)
+	unread, err := repos.Notification.UnreadCount(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 2, unread)
+}
+
+func TestNotificationDAO_MarkReadByReference_OnlyOwnerAndNeverEmptyTypes(t *testing.T) {
+	// given two people each holding a chat notification for the same thread
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	other := daotest.CreateUser(t, repos)
+	actor := daotest.CreateUser(t, repos)
+	ctx := context.Background()
+	roomID := uuid.New()
+	_, err := repos.Notification.Create(ctx, user.ID, dto.NotifChatMessage, roomID, "chat_message:x", actor.ID, "")
+	require.NoError(t, err)
+	_, err = repos.Notification.Create(ctx, other.ID, dto.NotifChatMessage, roomID, "chat_message:x", actor.ID, "")
+	require.NoError(t, err)
+
+	// when one of them marks the thread read, and when the type list is empty
+	require.NoError(t, repos.Notification.MarkReadByReference(ctx, user.ID, roomID, []dto.NotificationType{dto.NotifChatMessage}))
+	require.NoError(t, repos.Notification.MarkReadByReference(ctx, other.ID, roomID, nil))
+
+	// then only the caller's row clears and an empty type list is a no-op rather than a wildcard
+	mine, err := repos.Notification.UnreadCount(ctx, user.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 0, mine)
+	theirs, err := repos.Notification.UnreadCount(ctx, other.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, theirs)
+}

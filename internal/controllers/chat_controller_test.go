@@ -2521,3 +2521,37 @@ func TestEditMessage_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestVoiceToken_ServiceErrors(t *testing.T) {
+	cases := []struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}{
+		{"voice disabled", chatsvc.ErrVoiceDisabled, http.StatusServiceUnavailable, "not configured"},
+		{"not a member", chatsvc.ErrNotMember, http.StatusForbidden, "not a member"},
+		{"room not found", chatsvc.ErrRoomNotFound, http.StatusNotFound, "room not found"},
+		{"blocked in a dm", chatsvc.ErrUserBlocked, http.StatusForbidden, "cannot call this user"},
+		{"blocked by the room host", chatsvc.ErrBlockedByRoomHost, http.StatusForbidden, "host of this room has blocked you"},
+		{"internal", errors.New("boom"), http.StatusInternalServerError, "voice request failed"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, chatMock := newChatHarness(t)
+			userID := uuid.New()
+			roomID := uuid.New()
+			h.ExpectValidSession("valid-cookie", userID)
+			chatMock.EXPECT().MintVoiceToken(mock.Anything, roomID, userID).Return("", "", tc.err)
+
+			// when
+			status, body := h.NewRequest("POST", "/chat/rooms/"+roomID.String()+"/voice/token").
+				WithCookie("valid-cookie").Do()
+
+			// then
+			require.Equal(t, tc.wantCode, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}

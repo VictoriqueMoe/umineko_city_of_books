@@ -625,17 +625,20 @@ func (r *chatDAO) GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID, t
 func (r *chatDAO) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*repository.ChatRoomSendContext, error) {
 	var row repository.ChatRoomSendContext
 	var systemKind sql.NullString
+	var lastMessageAt sql.NullTime
 
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT id, name, type, is_public, is_system, system_kind, created_by FROM chat_rooms WHERE id = $1`,
+		`SELECT id, name, type, is_public, is_system, system_kind, created_by, last_message_at FROM chat_rooms WHERE id = $1`,
 		roomID,
-	).Scan(&row.ID, &row.Name, &row.Type, &row.IsPublic, &row.IsSystem, &systemKind, &row.CreatedBy)
+	).Scan(&row.ID, &row.Name, &row.Type, &row.IsPublic, &row.IsSystem, &systemKind, &row.CreatedBy, &lastMessageAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get room send context: %w", err)
 	}
+
+	row.LastMessageAt = nullTimeToString(lastMessageAt)
 
 	if systemKind.Valid {
 		row.SystemKind = systemKind.String
@@ -899,11 +902,10 @@ func (r *chatDAO) FindDMRoom(ctx context.Context, userA, userB uuid.UUID, tx ...
 	var id uuid.UUID
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT cr.id FROM chat_rooms cr
-		 JOIN chat_room_members m1 ON cr.id = m1.room_id AND m1.user_id = $1 AND m1.left_at IS NULL
-		 JOIN chat_room_members m2 ON cr.id = m2.room_id AND m2.user_id = $2 AND m2.left_at IS NULL
-		 WHERE cr.type = 'dm'
+		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = $1 AND m.left_at IS NULL
+		 WHERE cr.type = 'dm' AND cr.dm_pair_key = $2
 		 LIMIT 1`,
-		userA, userB,
+		userA, dmPairKey(userA, userB),
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return uuid.Nil, nil

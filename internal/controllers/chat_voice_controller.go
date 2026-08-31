@@ -113,6 +113,10 @@ func mapVoiceError(ctx fiber.Ctx, err error) error {
 		{
 			return utils.Forbidden(ctx, "you cannot call this user")
 		}
+	case errors.Is(err, chat.ErrBlockedByRoomHost):
+		{
+			return utils.Forbidden(ctx, err.Error())
+		}
 	case errors.Is(err, chat.ErrVoiceMuteForbidden):
 		{
 			return utils.Forbidden(ctx, "you cannot mute participants here")

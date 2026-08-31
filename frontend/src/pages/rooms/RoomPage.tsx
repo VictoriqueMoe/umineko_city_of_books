@@ -1,12 +1,11 @@
 import { lazy, Suspense, useMemo } from "react";
-import { roomViewerPolicy } from "../../domain/chat/roomPolicy";
 import { useRoomController } from "../../hooks/useRoomController";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { MobileRoomView } from "../../components/chat/mobile/MobileRoomView";
 import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
 import { Button } from "../../components/Button/Button";
 import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
-import { RoomMessageList } from "../../components/chat/MessageList/RoomMessageList";
+import { MessageList } from "../../components/chat/MessageList/MessageList";
 import { RoomMemberDialogs } from "../../components/chat/RoomMemberDialogs/RoomMemberDialogs";
 import { RoomMemberList } from "../../components/chat/RoomMemberList/RoomMemberList";
 import { RoomOverlays } from "../../components/chat/RoomOverlays/RoomOverlays";
@@ -27,7 +26,8 @@ const MESSAGE_LIST_CLASSES = {
 export function RoomPage() {
     const controller = useRoomController();
     const isMobile = useIsMobile();
-    const { room, session, members, moderation, prefs, anchor, voice, watchParty, panels, toast } = controller;
+    const { room, session, members, moderation, capabilities, prefs, anchor, voice, watchParty, panels, toast } =
+        controller;
     const user = session.viewer;
     const forceMute = useForceMuteVoiceParticipant(room.id);
 
@@ -64,7 +64,7 @@ export function RoomPage() {
     }
 
     const currentRoom = room.data;
-    const { isHost, isSystem, isSiteMod, canModerateRoom } = roomViewerPolicy(currentRoom, user);
+    const { isHost, isSystem, isSiteMod, canModerateRoom, canInvite, canEditSettings, canDestroyRoom } = capabilities;
 
     const memberActions = {
         editSelf: () => panels.setEditProfileOpen(true),
@@ -101,7 +101,7 @@ export function RoomPage() {
                         </button>
                         <span className={styles.sidebarTitle}>Members</span>
                         <span className={styles.memberCount}>{members.list.length}</span>
-                        {canModerateRoom && !isSystem && (
+                        {canInvite && (
                             <button
                                 type="button"
                                 className={styles.inviteButton}
@@ -146,7 +146,7 @@ export function RoomPage() {
                                   ? "Unmute notifications"
                                   : "Mute notifications"}
                         </Button>
-                        {!isSystem && canModerateRoom && (
+                        {canEditSettings && (
                             <Button
                                 variant="secondary"
                                 size="small"
@@ -155,7 +155,7 @@ export function RoomPage() {
                                 Moderation
                             </Button>
                         )}
-                        {!isSystem && canModerateRoom && (
+                        {canDestroyRoom && (
                             <Button
                                 variant="danger"
                                 size="small"
@@ -271,7 +271,7 @@ export function RoomPage() {
                         </Suspense>
                     )}
 
-                    <RoomMessageList
+                    <MessageList
                         viewer={user}
                         room={currentRoom}
                         messages={session.messages}

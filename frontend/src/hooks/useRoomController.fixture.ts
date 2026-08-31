@@ -1,3 +1,4 @@
+import { makeChatThread } from "./useChatThread.fixture";
 import type { RoomController } from "./useRoomController";
 
 function noop(): void {}
@@ -7,45 +8,47 @@ function never(): Promise<void> {
 }
 
 export function makeRoomController(overrides: Partial<RoomController> = {}): RoomController {
+    const { thread, session, capabilities, toast } = makeChatThread();
+
     return {
         room: {
-            data: null,
-            id: "room-1",
-            loading: false,
+            data: thread.data,
+            id: thread.id,
+            loading: thread.loading,
             joining: false,
             viewerTimeoutUntil: undefined,
             viewerTimedOut: false,
-            set: noop,
+            set: thread.set,
             join: never,
-            toggleMute: never,
+            toggleMute: thread.toggleMute,
             leave: never,
             remove: never,
             backToRooms: noop,
         },
         session: {
-            viewer: null,
-            messages: [],
-            hasMore: false,
-            loadingMore: false,
-            containerRef: noop,
-            contentRef: noop,
-            endRef: { current: null },
-            onScroll: noop,
-            toBottom: noop,
-            editingMessageId: null,
-            startEditing: noop,
-            cancelEditing: noop,
-            replyingTo: null,
-            setReplyingTo: noop,
+            viewer: session.viewer,
+            messages: session.messages,
+            hasMore: session.hasMore,
+            loadingMore: session.loadingMore,
+            containerRef: session.containerRef,
+            contentRef: session.contentRef,
+            endRef: session.endRef,
+            onScroll: session.onScroll,
+            toBottom: session.toBottom,
+            editingMessageId: session.editingMessageId,
+            startEditing: session.startEditing,
+            cancelEditing: session.cancelEditing,
+            replyingTo: session.replyingTo,
+            setReplyingTo: session.setReplyingTo,
             typingNames: [],
-            notifyTyping: noop,
-            matchesViewerMention: null,
-            onSent: noop,
-            deleteMessage: never,
-            editMessage: never,
-            editLast: noop,
-            toggleReaction: never,
-            togglePin: never,
+            notifyTyping: session.notifyTyping,
+            matchesViewerMention: session.matchesViewerMention,
+            onSent: session.onSent,
+            deleteMessage: session.deleteMessage,
+            editMessage: session.editMessage,
+            editLast: session.editLast,
+            toggleReaction: session.toggleReaction,
+            togglePin: session.togglePin,
         },
         members: {
             list: [],
@@ -84,6 +87,7 @@ export function makeRoomController(overrides: Partial<RoomController> = {}): Roo
             handleKick: never,
             handleBan: never,
         },
+        capabilities,
         prefs: {
             sidebarCollapsed: false,
             toggleSidebar: noop,
@@ -96,17 +100,7 @@ export function makeRoomController(overrides: Partial<RoomController> = {}): Roo
             highlightedMsgId: null,
             jumpTo: never,
         },
-        voice: {
-            status: "idle",
-            room: null,
-            participantIds: [],
-            presenceCount: 0,
-            error: "",
-            join: never,
-            leave: never,
-            clearError: noop,
-            enabled: true,
-        },
+        voice: thread.voice,
         watchParty: {
             enabled: true,
             screenShareEnabled: true,
@@ -143,8 +137,8 @@ export function makeRoomController(overrides: Partial<RoomController> = {}): Roo
             setModerationDialogOpen: noop,
         },
         toast: {
-            message: null,
-            show: noop,
+            message: toast.message,
+            show: toast.show,
         },
         ...overrides,
     };

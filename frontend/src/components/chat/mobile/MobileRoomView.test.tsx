@@ -33,8 +33,8 @@ vi.mock("../../../hooks/mutations/chat", async importOriginal => {
     };
 });
 
-vi.mock("../MessageList/RoomMessageList", () => ({
-    RoomMessageList: () => <div data-testid="room-messages">messages</div>,
+vi.mock("../MessageList/MessageList", () => ({
+    MessageList: () => <div data-testid="room-messages">messages</div>,
 }));
 
 vi.mock("../MessageSearchPanel/MessageSearchPanel", () => ({

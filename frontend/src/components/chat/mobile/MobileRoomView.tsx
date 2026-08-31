@@ -7,7 +7,7 @@ import type { RoomController } from "../../../hooks/useRoomController";
 import { TypingIndicator } from "../TypingIndicator/TypingIndicator";
 import { Button } from "../../Button/Button";
 import { ChatComposer } from "../ChatComposer/ChatComposer";
-import { RoomMessageList } from "../MessageList/RoomMessageList";
+import { MessageList } from "../MessageList/MessageList";
 import { RoomMemberDialogs } from "../RoomMemberDialogs/RoomMemberDialogs";
 import { RoomMemberList } from "../RoomMemberList/RoomMemberList";
 import { RoomOverlays } from "../RoomOverlays/RoomOverlays";
@@ -279,7 +279,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 </Suspense>
             )}
 
-            <RoomMessageList
+            <MessageList
                 viewer={user}
                 room={currentRoom}
                 messages={session.messages}

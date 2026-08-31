@@ -840,7 +840,7 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 	}
 
 	room, err := r.chatRepo.GetRoomByID(ctx, id, uuid.Nil)
-	if err != nil || !publiclyVisible(room) {
+	if err != nil || !room.PubliclyVisible() {
 		return nil
 	}
 
@@ -856,14 +856,6 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 		Description: desc,
 		URL:         fmt.Sprintf("%s/rooms/%s", r.baseURL, idStr),
 	}
-}
-
-func publiclyVisible(room *repository.ChatRoomRow) bool {
-	if room == nil {
-		return false
-	}
-
-	return room.Type == dto.RoomTypeGroup && room.IsPublic && !room.IsSystem
 }
 
 func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr string) *Meta {
@@ -883,7 +875,7 @@ func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr str
 	}
 
 	room, err := r.chatRepo.GetRoomByID(ctx, roomID, uuid.Nil)
-	if err != nil || !publiclyVisible(room) {
+	if err != nil || !room.PubliclyVisible() {
 		return nil
 	}
 

@@ -3,7 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type * as BusModule from "../api/realtime/bus";
 import type * as OutboundModule from "../api/realtime/outbound";
 import { queryKeys } from "../api/queryKeys";
-import { makeChatMessage, makeChatRoom, makeRoomMember, makeUser } from "../test-utils/fixtures";
+import type { QueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router";
+import { makeChatMessage, makeChatRoom, makeDmRoom, makeRoomMember, makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { makeWSHarness, type RealtimeTestEvent, type RealtimeTestNames, type WSHarness } from "../test-utils/ws";
 import type { ChatMessage, ChatRoom, ChatRoomMember, User, UserProfile } from "../types/api";
@@ -65,12 +67,17 @@ vi.mock("../api/realtime/outbound", async importOriginal => {
     return { ...actual, sendRealtime: (command: OutboundModule.RealtimeCommand) => holder.ws.sendRealtime(command) };
 });
 
-vi.mock("./queries/chat", () => ({
-    useUserRooms: mocks.useUserRooms,
-    useChatRoomMembers: mocks.useChatRoomMembers,
-    fetchRoomMessages: mocks.fetchRoomMessages,
-    fetchRoomMessagesBefore: mocks.fetchRoomMessagesBefore,
-}));
+vi.mock("./queries/chat", async importOriginal => {
+    const actual = await importOriginal<Record<string, unknown>>();
+
+    return {
+        ...actual,
+        useUserRooms: mocks.useUserRooms,
+        useChatRoomMembers: mocks.useChatRoomMembers,
+        fetchRoomMessages: mocks.fetchRoomMessages,
+        fetchRoomMessagesBefore: mocks.fetchRoomMessagesBefore,
+    };
+});
 
 vi.mock("./mutations/chat", () => ({
     useMarkChatRoomRead: () => ({ mutate: mocks.markRead, mutateAsync: mocks.markRead }),
@@ -130,7 +137,7 @@ interface RoomHarnessOptions {
     path?: string;
 }
 
-function renderRoom(options: RoomHarnessOptions = {}) {
+function primeRoomMocks(options: RoomHarnessOptions = {}) {
     mocks.useUserRooms.mockReturnValue({
         rooms: options.rooms ?? [makeRoom()],
         loading: options.roomsLoading ?? false,
@@ -168,15 +175,23 @@ function renderRoom(options: RoomHarnessOptions = {}) {
         close: () => {},
         clearError: () => {},
     });
+}
 
-    const queryClient = createTestQueryClient();
-    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
-    const wrapper = providerWrapper({
+function roomWrapper(options: RoomHarnessOptions, queryClient: QueryClient) {
+    return providerWrapper({
         user: options.user === undefined ? viewer : options.user,
         route: options.route ?? "/rooms/room-1",
         path: options.path ?? "/rooms/:roomId",
         queryClient,
     });
+}
+
+function renderRoom(options: RoomHarnessOptions = {}) {
+    primeRoomMocks(options);
+
+    const queryClient = createTestQueryClient();
+    const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
+    const wrapper = roomWrapper(options, queryClient);
     const rendered = renderHook(() => useRoomController(), { wrapper });
 
     function emit(event: RealtimeTestEvent): void {
@@ -190,6 +205,14 @@ function renderRoom(options: RoomHarnessOptions = {}) {
         sendRealtime: holder.ws.sendRealtime,
         invalidateQueries,
     };
+}
+
+function renderRoomWithLocation(options: RoomHarnessOptions = {}) {
+    primeRoomMocks(options);
+
+    const wrapper = roomWrapper(options, createTestQueryClient());
+
+    return renderHook(() => ({ room: useRoomController(), pathname: useLocation().pathname }), { wrapper });
 }
 
 async function renderLoadedRoom(options: RoomHarnessOptions = {}) {
@@ -244,6 +267,41 @@ describe("useRoomController room loading", () => {
         expect(result.current.room.data).toBeNull();
     });
 
+    it("sends a dm reached through the rooms url on to the dm page", async () => {
+        // given
+        const options: RoomHarnessOptions = {
+            rooms: [makeDmRoom({ id: "room-1" })],
+            route: "/rooms/room-1",
+            path: "/:section/:roomId",
+        };
+
+        // when
+        const { result } = renderRoomWithLocation(options);
+
+        // then
+        await waitFor(() => {
+            expect(result.current.pathname).toBe("/chat/room-1");
+        });
+    });
+
+    it("leaves a group room on the rooms url", async () => {
+        // given
+        const options: RoomHarnessOptions = {
+            rooms: [makeRoom({ id: "room-1" })],
+            route: "/rooms/room-1",
+            path: "/:section/:roomId",
+        };
+
+        // when
+        const { result } = renderRoomWithLocation(options);
+        await waitFor(() => {
+            expect(result.current.room.room.data).not.toBeNull();
+        });
+
+        // then
+        expect(result.current.pathname).toBe("/rooms/room-1");
+    });
+
     it("has no room to show when the viewer does not belong to it", async () => {
         // given
         const options: RoomHarnessOptions = { rooms: [makeRoom({ id: "room-2" })] };
@@ -266,6 +324,33 @@ describe("useRoomController room loading", () => {
         const { rerender } = await renderLoadedRoom(options);
         act(() => {
             rerender();
+        });
+
+        // then
+        expect(mocks.markRead).toHaveBeenCalledExactlyOnceWith("room-1");
+    });
+
+    it("describes the room on screen as a group, with its own capabilities", async () => {
+        // given
+        const options: RoomHarnessOptions = { rooms: [makeRoom()] };
+
+        // when
+        const { result } = await renderLoadedRoom(options);
+
+        // then
+        expect(result.current.capabilities.kind).toBe("group");
+        expect(result.current.capabilities.readReceipts).toBe("none");
+        expect(result.current.capabilities.archivesWhenStale).toBe(true);
+    });
+
+    it("marks the room read again when the window regains focus", async () => {
+        // given
+        await renderLoadedRoom();
+        mocks.markRead.mockClear();
+
+        // when
+        act(() => {
+            window.dispatchEvent(new Event("focus"));
         });
 
         // then
@@ -340,6 +425,51 @@ describe("useRoomController timeouts", () => {
         // then
         expect(result.current.room.viewerTimedOut).toBe(true);
         expect(result.current.room.viewerTimeoutUntil).toBe("2099-01-01T00:00:00Z");
+    });
+
+    it("refuses to reopen the viewer's last message while they are timed out", async () => {
+        // given
+        const options: RoomHarnessOptions = {
+            members: [
+                makeRoomMember({
+                    user: { id: "u1", username: "beatrice", display_name: "Beatrice" },
+                    timeout_until: "2099-01-01T00:00:00Z",
+                }),
+            ],
+        };
+        const { result, emit } = await renderLoadedRoom(options);
+        emit({
+            type: "chat_message",
+            data: makeMessage({ id: "m1", sender: { id: "u1", username: "beatrice", display_name: "Beatrice" } }),
+        });
+
+        // when
+        act(() => {
+            result.current.session.editLast();
+        });
+
+        // then
+        expect(result.current.session.editingMessageId).toBeNull();
+    });
+
+    it("reopens the viewer's last message once no timeout is in force", async () => {
+        // given
+        const options: RoomHarnessOptions = {
+            members: [makeRoomMember({ user: { id: "u1", username: "beatrice", display_name: "Beatrice" } })],
+        };
+        const { result, emit } = await renderLoadedRoom(options);
+        emit({
+            type: "chat_message",
+            data: makeMessage({ id: "m1", sender: { id: "u1", username: "beatrice", display_name: "Beatrice" } }),
+        });
+
+        // when
+        act(() => {
+            result.current.session.editLast();
+        });
+
+        // then
+        expect(result.current.session.editingMessageId).toBe("m1");
     });
 
     it("treats an expired timeout as over", async () => {
@@ -810,6 +940,32 @@ describe("useRoomController muting", () => {
         expect(mocks.setMuted).toHaveBeenCalledWith({ roomId: "room-1", muted: true });
         expect(result.current.toast.message).toBe("Notifications muted");
         expect(result.current.room.data?.viewer_muted).toBe(true);
+    });
+
+    it("looks busy on the mute control while the server is still answering", async () => {
+        // given
+        let release: () => void = () => {};
+        mocks.setMuted.mockReturnValue(
+            new Promise<void>(resolve => {
+                release = () => resolve();
+            }),
+        );
+        const { result } = await renderLoadedRoom();
+
+        // when
+        let pending: Promise<void> = Promise.resolve();
+        act(() => {
+            pending = result.current.room.toggleMute();
+        });
+        const whileSaving = result.current.moderation.busy;
+        await act(async () => {
+            release();
+            await pending;
+        });
+
+        // then
+        expect(whileSaving).toBe("mute");
+        expect(result.current.moderation.busy).toBeNull();
     });
 
     it("reports why the mute could not be changed", async () => {

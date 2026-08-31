@@ -183,7 +183,11 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, ErrRoomNotFound
 	}
 
-	if err := m.assertBlocksAllowSend(ctx, roomRow, senderID, members); err != nil {
+	if err := m.assertBlocksAllowParticipation(ctx, roomRow, senderID, members); err != nil {
+		return nil, err
+	}
+
+	if err := m.assertRecipientsAcceptNewThread(ctx, roomRow, senderID, members); err != nil {
 		return nil, err
 	}
 
@@ -281,10 +285,8 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		Reactions: []dto.ReactionGroup{},
 	}
 
-	isGroup := roomRow.Type == dto.RoomTypeGroup
-
 	var mentionedIDs map[uuid.UUID]struct{}
-	if isGroup && !sender.IsBot {
+	if !sender.IsBot {
 		mentionedIDs = m.resolveMentions(ctx, req.Body, senderID, members)
 	}
 
@@ -305,7 +307,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 
 	if !isEphemeralSystemRoom(roomRow) {
 		m.sideEffectsWG.Add(1)
-		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor, isGroup)
+		go m.dispatchPostSendSideEffects(roomID, senderID, msgID, recipients, roomRow, mentionedIDs, replyToAuthor)
 
 		if m.botObserver != nil && !sender.IsBot {
 			botEvent := BotMessageEvent{
@@ -352,6 +354,37 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	return resp, nil
 }
 
+func (m *messagesService) assertRecipientsAcceptNewThread(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
+	if !sendContextCapabilities(roomRow).requiresRecipientOptIn || roomRow.LastMessageAt.Valid {
+		return nil
+	}
+
+	recipients := make([]uuid.UUID, 0, len(members))
+	for _, memberID := range members {
+		if memberID == senderID {
+			continue
+		}
+
+		recipients = append(recipients, memberID)
+	}
+	if len(recipients) == 0 {
+		return nil
+	}
+
+	users, err := m.userRepo.GetByIDs(ctx, recipients)
+	if err != nil {
+		return fmt.Errorf("get thread recipients: %w", err)
+	}
+
+	for _, user := range users {
+		if !user.DmsEnabled {
+			return ErrDmsDisabled
+		}
+	}
+
+	return nil
+}
+
 func isEphemeralSystemRoom(roomRow *repository.ChatRoomSendContext) bool {
 	if roomRow == nil || !roomRow.IsSystem {
 		return false
@@ -360,47 +393,12 @@ func isEphemeralSystemRoom(roomRow *repository.ChatRoomSendContext) bool {
 	return roomRow.SystemKind == SystemKindLiveStream || roomRow.SystemKind == SystemKindWatchParty
 }
 
-func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
-	if !roomRow.IsSystem {
-		return true
-	}
-
-	return roomRow.SystemKind == SystemKindLiveStream || roomRow.SystemKind == SystemKindWatchParty
-}
-
-func (m *messagesService) assertBlocksAllowSend(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
-	if roomRow.Type == dto.RoomTypeDM {
-		for i := range members {
-			if members[i] == senderID {
-				continue
-			}
-
-			if blocked, _ := m.blockSvc.IsBlockedEither(ctx, senderID, members[i]); blocked {
-				return ErrUserBlocked
-			}
-		}
-
-		return nil
-	}
-
-	if !hostBlockApplies(roomRow) || roomRow.CreatedBy == senderID {
-		return nil
-	}
-
-	if blocked, _ := m.blockSvc.IsBlocked(ctx, roomRow.CreatedBy, senderID); blocked {
-		return ErrBlockedByRoomHost
-	}
-
-	return nil
-}
-
 func (m *messagesService) dispatchPostSendSideEffects(
 	roomID, senderID, msgID uuid.UUID,
 	recipients []uuid.UUID,
 	roomRow *repository.ChatRoomSendContext,
 	mentionedIDs map[uuid.UUID]struct{},
 	replyToAuthor uuid.UUID,
-	isGroup bool,
 ) {
 	defer m.sideEffectsWG.Done()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -408,60 +406,51 @@ func (m *messagesService) dispatchPostSendSideEffects(
 
 	msgRef := fmt.Sprintf("chat_message:%s", msgID)
 
+	fallbackType, fallbackMessage := plainMessageNotification(roomRow)
+	caps := sendContextCapabilities(roomRow)
+
 	for _, memberID := range recipients {
 		inRoom := m.hub.IsUserViewing(roomID, memberID)
 		if inRoom {
 			continue
 		}
 
-		if isGroup {
-			_, isMentioned := mentionedIDs[memberID]
-			isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
+		_, isMentioned := mentionedIDs[memberID]
+		isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
 
-			if isMentioned {
-				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-					RecipientID:   memberID,
-					ActorID:       senderID,
-					Type:          dto.NotifChatMention,
-					ReferenceID:   roomID,
-					ReferenceType: msgRef,
-				})
-			} else if isReplyTarget {
-				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-					RecipientID:   memberID,
-					ActorID:       senderID,
-					Type:          dto.NotifChatReply,
-					ReferenceID:   roomID,
-					ReferenceType: msgRef,
-				})
-			} else {
-				muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
-				if !muted {
-					roomName := ""
-					if roomRow != nil {
-						roomName = roomRow.Name
-					}
-					_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-						RecipientID:   memberID,
-						ActorID:       senderID,
-						Type:          dto.NotifChatRoomMessage,
-						ReferenceID:   roomID,
-						ReferenceType: msgRef,
-						Message:       fmt.Sprintf("sent a message in %s", roomName),
-					})
-				}
-			}
-		} else {
+		switch {
+		case isMentioned:
+			_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
+				RecipientID:   memberID,
+				ActorID:       senderID,
+				Type:          dto.NotifChatMention,
+				ReferenceID:   roomID,
+				ReferenceType: msgRef,
+			})
+		case isReplyTarget:
+			_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
+				RecipientID:   memberID,
+				ActorID:       senderID,
+				Type:          dto.NotifChatReply,
+				ReferenceID:   roomID,
+				ReferenceType: msgRef,
+			})
+		default:
 			muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
 			if !muted {
 				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
 					RecipientID:   memberID,
 					ActorID:       senderID,
-					Type:          dto.NotifChatMessage,
+					Type:          fallbackType,
 					ReferenceID:   roomID,
-					ReferenceType: "chat",
+					ReferenceType: msgRef,
+					Message:       fallbackMessage,
 				})
 			}
+		}
+
+		if !caps.countsTowardsUnread {
+			continue
 		}
 
 		total, countErr := m.chatRepo.CountUnreadRoomsForUser(ctx, memberID)
@@ -547,17 +536,30 @@ func (m *messagesService) MarkRead(ctx context.Context, roomID, userID uuid.UUID
 
 	readAt := time.Now().UTC().Format(time.RFC3339)
 
-	total, _ := m.chatRepo.CountUnreadRoomsForUser(ctx, userID)
-	m.hub.SendToUser(userID, ws.Message{
-		Type: "chat_read",
-		Data: map[string]any{
-			"room_id": roomID,
-			"total":   total,
-		},
-	})
+	if err := m.notifSvc.MarkChatRoomRead(ctx, userID, roomID); err != nil {
+		return fmt.Errorf("mark chat room notifications read: %w", err)
+	}
 
 	sendCtx, err := m.chatRepo.GetRoomSendContext(ctx, roomID)
-	if err == nil && sendCtx != nil && sendCtx.Type == dto.RoomTypeDM {
+	if err != nil {
+		return fmt.Errorf("get room send context: %w", err)
+	}
+
+	caps := sendContextCapabilities(sendCtx)
+
+	read := map[string]any{"room_id": roomID}
+	if caps.countsTowardsUnread {
+		total, countErr := m.chatRepo.CountUnreadRoomsForUser(ctx, userID)
+		if countErr != nil {
+			return fmt.Errorf("count unread rooms: %w", countErr)
+		}
+
+		read["total"] = total
+	}
+
+	m.hub.SendToUser(userID, ws.Message{Type: "chat_read", Data: read})
+
+	if caps.pairwiseReadReceipts {
 		m.fanOutReadReceipt(ctx, roomID, userID, readAt)
 	}
 

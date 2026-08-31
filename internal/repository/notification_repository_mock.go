@@ -774,6 +774,90 @@ func (_c *MockNotificationRepository_MarkRead_Call) RunAndReturn(run func(ctx co
 	return _c
 }
 
+// MarkReadByReference provides a mock function for the type MockNotificationRepository
+func (_mock *MockNotificationRepository) MarkReadByReference(ctx context.Context, userID uuid.UUID, referenceID uuid.UUID, types []dto.NotificationType, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, userID, referenceID, types, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, userID, referenceID, types)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for MarkReadByReference")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, []dto.NotificationType, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, userID, referenceID, types, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockNotificationRepository_MarkReadByReference_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MarkReadByReference'
+type MockNotificationRepository_MarkReadByReference_Call struct {
+	*mock.Call
+}
+
+// MarkReadByReference is a helper method to define mock.On call
+//   - ctx context.Context
+//   - userID uuid.UUID
+//   - referenceID uuid.UUID
+//   - types []dto.NotificationType
+//   - tx ...*sql.Tx
+func (_e *MockNotificationRepository_Expecter) MarkReadByReference(ctx any, userID any, referenceID any, types any, tx ...any) *MockNotificationRepository_MarkReadByReference_Call {
+	return &MockNotificationRepository_MarkReadByReference_Call{Call: _e.mock.On("MarkReadByReference",
+		append([]any{ctx, userID, referenceID, types}, tx...)...)}
+}
+
+func (_c *MockNotificationRepository_MarkReadByReference_Call) Run(run func(ctx context.Context, userID uuid.UUID, referenceID uuid.UUID, types []dto.NotificationType, tx ...*sql.Tx)) *MockNotificationRepository_MarkReadByReference_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 []dto.NotificationType
+		if args[3] != nil {
+			arg3 = args[3].([]dto.NotificationType)
+		}
+		var arg4 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 4 {
+			variadicArgs = args[4].([]*sql.Tx)
+		}
+		arg4 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockNotificationRepository_MarkReadByReference_Call) Return(err error) *MockNotificationRepository_MarkReadByReference_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockNotificationRepository_MarkReadByReference_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, referenceID uuid.UUID, types []dto.NotificationType, tx ...*sql.Tx) error) *MockNotificationRepository_MarkReadByReference_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // UnreadCount provides a mock function for the type MockNotificationRepository
 func (_mock *MockNotificationRepository) UnreadCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var tmpRet mock.Arguments

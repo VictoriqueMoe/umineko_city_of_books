@@ -1,4 +1,5 @@
-﻿import { useQuery } from "@tanstack/react-query";
+﻿import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getChatRoomMembers,
     getChatRoomPinnedMessages,
@@ -14,15 +15,27 @@ import {
 } from "../../api/endpoints/chat";
 import { queryClient } from "../../api/queryClient";
 import { queryKeys, type RoomsListParams } from "../../api/queryKeys";
+import { dmRoomsOf } from "../../domain/chat/dmRoster";
 import type { ChatRoom } from "../../types/api";
 import { useAuth } from "../useAuth";
 
 export const ROOMS_LIST_PAGE_SIZE = 20;
 
+const EMPTY_ROOMS: ChatRoom[] = [];
+
 export interface RoomsListResult {
     rooms: ChatRoom[];
     total: number;
     loading: boolean;
+}
+
+interface UserRoomsResponse {
+    rooms: ChatRoom[];
+}
+
+interface DmRoster {
+    dms: ChatRoom[];
+    all: ChatRoom[];
 }
 
 function roomsListRequest(params: RoomsListParams) {
@@ -44,10 +57,6 @@ export function fetchRoomMessagesBefore(roomId: string, beforeCursor: string, li
     return getRoomMessagesBefore(roomId, beforeCursor, limit);
 }
 
-export function fetchUserRooms() {
-    return getUserRooms();
-}
-
 export function fetchResolveDMRoom(recipientId: string) {
     return queryClient.fetchQuery({
         queryKey: queryKeys.chat.dmResolve(recipientId),
@@ -55,13 +64,50 @@ export function fetchResolveDMRoom(recipientId: string) {
     });
 }
 
-export function useUserRooms(enabled = true) {
-    const query = useQuery({
+function userRoomsOptions(enabled: boolean) {
+    return {
         queryKey: queryKeys.chat.userRooms(),
         queryFn: () => getUserRooms(),
         enabled,
-    });
-    return { rooms: query.data?.rooms ?? [], loading: query.isLoading, refresh: query.refetch };
+    };
+}
+
+function selectDmRoster(data: UserRoomsResponse): DmRoster {
+    return { dms: dmRoomsOf(data.rooms), all: data.rooms };
+}
+
+export function useUserRooms(enabled = true) {
+    const query = useQuery(userRoomsOptions(enabled));
+    return { rooms: query.data?.rooms ?? EMPTY_ROOMS, loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useDmRooms(enabled = true) {
+    const query = useQuery({ ...userRoomsOptions(enabled), select: selectDmRoster });
+
+    return {
+        rooms: query.data?.dms ?? EMPTY_ROOMS,
+        allRooms: query.data?.all ?? EMPTY_ROOMS,
+        loading: query.isLoading,
+    };
+}
+
+export function useUserRoomsCache() {
+    const qc = useQueryClient();
+
+    const patchRooms = useCallback(
+        (update: (rooms: ChatRoom[]) => ChatRoom[]) => {
+            qc.setQueryData<UserRoomsResponse>(queryKeys.chat.userRooms(), prev =>
+                prev ? { ...prev, rooms: update(prev.rooms) } : prev,
+            );
+        },
+        [qc],
+    );
+
+    const refreshRooms = useCallback(() => {
+        qc.invalidateQueries({ queryKey: queryKeys.chat.userRooms() });
+    }, [qc]);
+
+    return { patchRooms, refreshRooms };
 }
 
 export function useHostedRooms(params: RoomsListParams, enabled = true): RoomsListResult {

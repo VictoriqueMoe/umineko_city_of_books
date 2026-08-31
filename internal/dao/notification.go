@@ -226,6 +226,23 @@ func (r *notificationDAO) MarkAllRead(ctx context.Context, userID uuid.UUID, tx 
 	return nil
 }
 
+func (r *notificationDAO) MarkReadByReference(ctx context.Context, userID, referenceID uuid.UUID, types []dto.NotificationType, tx ...*sql.Tx) error {
+	if len(types) == 0 {
+		return nil
+	}
+
+	_, err := txOrDB(r.db, tx).ExecContext(ctx,
+		`UPDATE notifications SET read = TRUE
+		 WHERE user_id = $1 AND reference_id = $2 AND read = FALSE AND type = ANY($3)`,
+		userID, referenceID, types,
+	)
+	if err != nil {
+		return fmt.Errorf("mark notifications read by reference: %w", err)
+	}
+
+	return nil
+}
+
 func (r *notificationDAO) DeleteOlderThanBatch(ctx context.Context, cutoff time.Time, limit int, tx ...*sql.Tx) (int64, error) {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM notifications

@@ -46,9 +46,9 @@ func (s *voiceService) MintVoiceToken(ctx context.Context, roomID, userID uuid.U
 		return "", "", ErrVoiceDisabled
 	}
 
-	room, err := s.chatRepo.GetRoomByID(ctx, roomID, userID)
+	room, err := s.chatRepo.GetRoomSendContext(ctx, roomID)
 	if err != nil {
-		return "", "", fmt.Errorf("get room: %w", err)
+		return "", "", fmt.Errorf("get room send context: %w", err)
 	}
 	if room == nil {
 		return "", "", ErrRoomNotFound
@@ -62,10 +62,8 @@ func (s *voiceService) MintVoiceToken(ctx context.Context, roomID, userID uuid.U
 		return "", "", ErrNotMember
 	}
 
-	if room.Type == "dm" {
-		if err := s.assertDMNotBlocked(ctx, roomID, userID); err != nil {
-			return "", "", err
-		}
+	if err := s.assertBlocksAllowRoomEntry(ctx, room, userID); err != nil {
+		return "", "", err
 	}
 
 	displayName := s.displayNameFor(ctx, userID, roomID)
@@ -137,25 +135,6 @@ func (s *voiceService) reapplySessionForceMute(ctx context.Context, roomName, ra
 	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == userID
 
 	s.reapplyForceMute(ctx, sessionID, roomName, userID, allowScreenShare)
-}
-
-func (s *voiceService) assertDMNotBlocked(ctx context.Context, roomID, userID uuid.UUID) error {
-	members, err := s.chatRepo.GetRoomMembers(ctx, roomID)
-	if err != nil {
-		return fmt.Errorf("get room members: %w", err)
-	}
-
-	for i := range members {
-		if members[i] == userID {
-			continue
-		}
-
-		if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, members[i]); blocked {
-			return ErrUserBlocked
-		}
-	}
-
-	return nil
 }
 
 func (s *voiceService) HandleVoiceWebhook(ctx context.Context, authHeader string, body []byte) error {

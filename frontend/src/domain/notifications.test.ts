@@ -253,6 +253,40 @@ describe("getNotificationRoute", () => {
         });
     }
 
+    const chatRoutes: { name: string; type: NotificationType; reference_type: string; expected: string }[] = [
+        {
+            name: "anchors a direct message on the dm page",
+            type: "chat_message",
+            reference_type: "chat_message:m9",
+            expected: "/chat/ref-1#msg-m9",
+        },
+        {
+            name: "keeps sending a legacy direct message to the dm page",
+            type: "chat_message",
+            reference_type: "chat",
+            expected: "/chat/ref-1",
+        },
+        {
+            name: "anchors a room message on the room page",
+            type: "chat_room_message",
+            reference_type: "chat_message:m9",
+            expected: "/rooms/ref-1#msg-m9",
+        },
+    ];
+
+    for (const testCase of chatRoutes) {
+        it(testCase.name, () => {
+            // given
+            const notif = makeNotification({ type: testCase.type, reference_type: testCase.reference_type });
+
+            // when
+            const route = getNotificationRoute(notif);
+
+            // then
+            expect(route).toBe(testCase.expected);
+        });
+    }
+
     const malformedReferences: { reference_type: string; expected: string }[] = [
         { reference_type: "journal_entry_comment:e9", expected: "/journals/ref-1" },
         { reference_type: "journal_entry_comment:e9:", expected: "/journals/ref-1" },

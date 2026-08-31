@@ -126,12 +126,11 @@ func (s *sim) Tick(step time.Duration) gameroom.TickResult {
 }
 
 func (s *sim) movePaddles(dt float64) {
-	limit := paddleMaxSpeed * dt
-
 	for i := range 2 {
-		delta := clamp(s.target[i]-s.paddleY[i], -limit, limit)
-		s.paddleY[i] = clamp(s.paddleY[i]+delta, paddleHeight/2.0, boardHeight-paddleHeight/2.0)
-		s.paddleVY[i] = delta / dt
+		next := clamp(s.target[i], paddleHeight/2.0, boardHeight-paddleHeight/2.0)
+		delta := next - s.paddleY[i]
+		s.paddleY[i] = next
+		s.paddleVY[i] = clamp(delta/dt, -paddleMaxSpeed, paddleMaxSpeed)
 	}
 }
 

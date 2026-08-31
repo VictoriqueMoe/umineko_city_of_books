@@ -328,6 +328,41 @@ func TestHomeFeedDAO_ListPublicRooms_LimitApplies(t *testing.T) {
 	assert.Len(t, rows, 2)
 }
 
+func TestHomeFeedDAO_ListPublicRooms_ExcludesArchivedAndSystemRooms(t *testing.T) {
+	cases := []struct {
+		name string
+		hide string
+	}{
+		{name: "an archived room is off the home feed", hide: `UPDATE chat_rooms SET archived_at = NOW() WHERE id = $1`},
+		{name: "a system room is off the home feed", hide: `UPDATE chat_rooms SET is_system = TRUE WHERE id = $1`},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			repos := daotest.NewRepos(t)
+			ctx := context.Background()
+			user := daotest.CreateUser(t, repos)
+
+			visible, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Visible", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+			require.NoError(t, err)
+			hidden, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Hidden", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+			require.NoError(t, err)
+
+			_, err = repos.DB().ExecContext(ctx, tc.hide, hidden.ID)
+			require.NoError(t, err)
+
+			// when
+			rows, err := repos.HomeFeed.ListPublicRooms(ctx, 10)
+
+			// then
+			require.NoError(t, err)
+			require.Len(t, rows, 1)
+			assert.Equal(t, visible.ID, rows[0].ID)
+		})
+	}
+}
+
 func TestHomeFeedDAO_ListPublicRooms_IncludesMemberCount(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()

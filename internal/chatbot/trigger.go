@@ -28,7 +28,7 @@ func (s *service) observe(ev botEvent) {
 		return
 	}
 
-	if !ev.IsDM && !s.takeCooldown(ev.SenderID, tune.cooldown) {
+	if !s.takeCooldown(ev.SenderID, tune.cooldown) {
 		droppedTotal.WithLabelValues("cooldown", string(stagePreTrigger), string(ev.channel())).Inc()
 
 		return

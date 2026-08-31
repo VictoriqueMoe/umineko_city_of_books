@@ -430,10 +430,19 @@ func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) 
 		return ErrCannotLeaveAsHost
 	}
 
-	members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
+	return r.departRoom(ctx, roomID, row.Type, userID)
+}
+
+func (r *roomsService) departRoom(ctx context.Context, roomID uuid.UUID, roomType dto.RoomType, userID uuid.UUID) error {
+	caps := capabilitiesFor(roomType)
+
+	var audience []uuid.UUID
 	var wasGhost bool
-	if hasGhost, _ := r.chatRepo.HasGhostMembers(ctx, roomID); hasGhost {
-		wasGhost, _ = r.chatRepo.IsGhostMember(ctx, roomID, userID)
+	if caps.announcesDepartures {
+		audience, _ = r.chatRepo.GetRoomMembers(ctx, roomID)
+		if hasGhost, _ := r.chatRepo.HasGhostMembers(ctx, roomID); hasGhost {
+			wasGhost, _ = r.chatRepo.IsGhostMember(ctx, roomID, userID)
+		}
 	}
 
 	if err := r.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
@@ -445,25 +454,59 @@ func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) 
 
 	r.hub.LeaveRoom(roomID, userID)
 
-	leaver, _ := r.userRepo.GetByID(ctx, userID)
-	if leaver != nil {
-		if !wasGhost {
-			r.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s left the room.", leaver.DisplayName))
-		}
-		event := ws.Message{
-			Type: "chat_member_left",
-			Data: map[string]any{
-				"room_id": roomID,
-				"user_id": userID,
-				"ghost":   wasGhost,
-			},
-		}
-		if wasGhost {
-			r.broadcastToStaff(ctx, members, event)
-		} else {
-			r.hub.SendToUsers(members, event)
-		}
+	if caps.announcesDepartures {
+		r.announceDeparture(ctx, roomID, userID, audience, wasGhost)
 	}
+
+	return r.deleteRoomIfDeserted(ctx, roomID)
+}
+
+func (r *roomsService) announceDeparture(ctx context.Context, roomID, userID uuid.UUID, audience []uuid.UUID, wasGhost bool) {
+	leaver, _ := r.userRepo.GetByID(ctx, userID)
+	if leaver == nil {
+		return
+	}
+
+	if !wasGhost {
+		r.postRoomActionMessage(ctx, roomID, userID, fmt.Sprintf("%s left the room.", leaver.DisplayName))
+	}
+
+	event := ws.Message{
+		Type: "chat_member_left",
+		Data: map[string]any{
+			"room_id": roomID,
+			"user_id": userID,
+			"ghost":   wasGhost,
+		},
+	}
+
+	if wasGhost {
+		r.broadcastToStaff(ctx, audience, event)
+
+		return
+	}
+
+	r.hub.SendToUsers(audience, event)
+}
+
+func (r *roomsService) deleteRoomIfDeserted(ctx context.Context, roomID uuid.UUID) error {
+	remaining, err := r.chatRepo.CountRoomMembers(ctx, roomID)
+	if err != nil {
+		return fmt.Errorf("count remaining members: %w", err)
+	}
+	if remaining > 0 {
+		return nil
+	}
+
+	r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
+
+	paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
+	if err != nil {
+		return err
+	}
+
+	r.uploadSvc.Delete(paths...)
+
 	return nil
 }
 
@@ -514,7 +557,7 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	}
 
 	canMod := false
-	if row.Type == dto.RoomTypeGroup {
+	if capabilitiesFor(row.Type).destroyableByModerator {
 		mod, modErr := r.canModerateRoom(ctx, roomID, userID)
 		if modErr != nil {
 			return modErr
@@ -525,62 +568,40 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 		return ErrNotMember
 	}
 
-	if row.Type == dto.RoomTypeGroup && canMod {
-		r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
-
-		members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
-
-		paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
-		if err != nil {
-			return err
-		}
-
-		r.uploadSvc.Delete(paths...)
-
-		event := ws.Message{
-			Type: "chat_room_deleted",
-			Data: map[string]any{
-				"room_id": roomID,
-			},
-		}
-		r.hub.SendToUsers(members, event)
-
-		if isAuditableRoom(row) {
-			r.writeAudit(ctx, repository.NewAuditEntry{
-				ActorID:    userID,
-				Action:     repository.AuditActionChatRoomDelete,
-				TargetType: repository.AuditTargetChatRoom,
-				TargetID:   roomID.String(),
-				Details:    fmt.Sprintf("name=%s members=%d", row.Name, len(members)),
-			})
-		}
-
-		return nil
+	if canMod {
+		return r.destroyRoom(ctx, roomID, row, userID)
 	}
 
-	if err := r.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
-		return fmt.Errorf("remove member: %w", err)
-	}
+	return r.departRoom(ctx, roomID, row.Type, userID)
+}
 
-	r.clearWatchPartyParticipation(ctx, roomID, userID)
-	r.dropFromLiveKitRoom(ctx, roomID.String(), userID.String())
+func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *repository.ChatRoomRow, actorID uuid.UUID) error {
+	r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
 
-	r.hub.LeaveRoom(roomID, userID)
+	members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
 
-	remaining, err := r.chatRepo.CountRoomMembers(ctx, roomID)
+	paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
 	if err != nil {
-		return fmt.Errorf("count remaining members: %w", err)
+		return err
 	}
 
-	if remaining == 0 {
-		r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
+	r.uploadSvc.Delete(paths...)
 
-		paths, err := r.chatRepo.DeleteRoomWithMessages(ctx, roomID)
-		if err != nil {
-			return err
-		}
+	r.hub.SendToUsers(members, ws.Message{
+		Type: "chat_room_deleted",
+		Data: map[string]any{
+			"room_id": roomID,
+		},
+	})
 
-		r.uploadSvc.Delete(paths...)
+	if isAuditableRoom(row) {
+		r.writeAudit(ctx, repository.NewAuditEntry{
+			ActorID:    actorID,
+			Action:     repository.AuditActionChatRoomDelete,
+			TargetType: repository.AuditTargetChatRoom,
+			TargetID:   roomID.String(),
+			Details:    fmt.Sprintf("name=%s members=%d", row.Name, len(members)),
+		})
 	}
 
 	return nil

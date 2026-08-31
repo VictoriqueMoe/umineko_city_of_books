@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { Modal } from "../../components/Modal/Modal";
@@ -5,19 +6,32 @@ import { ChatComposer } from "../../components/chat/ChatComposer/ChatComposer";
 import { VoiceBar } from "../../components/chat/Voice/VoiceBar";
 import { VoiceButton } from "../../components/chat/Voice/VoiceButton";
 import { TypingIndicator } from "../../components/chat/TypingIndicator/TypingIndicator";
-import { DmMessageList } from "../../components/chat/MessageList/DmMessageList";
+import { MessageList } from "../../components/chat/MessageList/MessageList";
+import { MessageSearchPanel } from "../../components/chat/MessageSearchPanel/MessageSearchPanel";
 import { Lightbox } from "../../components/Lightbox/Lightbox";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { getRoomAvatarUser, getRoomDisplayName } from "../../domain/chat/dm";
-import { isSiteStaff } from "../../domain/permissions";
+import { isTimeoutActive } from "../../domain/chat/roomPolicy";
 import { FORCE_MUTE_FAILED, useForceMuteVoiceParticipant } from "../../hooks/mutations/chat";
 import { errorMessage } from "../../utils/errorMessage";
+import { useMessageAnchor } from "../../hooks/chat/useMessageAnchor";
+import { useRoomMembers } from "../../hooks/chat/useRoomMembers";
 import { useDmController } from "../../hooks/useDmController";
 import { useIsMobile } from "../../hooks/useIsMobile";
-import { MobileDmView } from "../../components/chat/mobile/MobileDmView";
+import { MobileDmView, type DmThreadView } from "../../components/chat/mobile/MobileDmView";
+import type { User } from "../../types/api";
 import styles from "./ChatPage.module.css";
 
-const MESSAGE_LIST_CLASSES = { messages: styles.messages, loadMoreBar: styles.loadMoreBar };
+const MESSAGE_LIST_CLASSES = {
+    messages: styles.messages,
+    loadMoreBar: styles.loadMoreBar,
+    empty: styles.messageAreaEmpty,
+};
+
+const NO_MENTION_POOL: User[] = [];
+const TIMEOUT_TICK_MS = 30_000;
+
+function ignoreMemberCount(): void {}
 
 export function ChatPage() {
     const controller = useDmController();
@@ -29,11 +43,13 @@ export function ChatPage() {
         rooms,
         activeRoomId,
         activeRoom,
+        capabilities,
         draftRecipient,
         setDraftRecipient,
         messages,
         hasMore,
         loadingMore,
+        loadUntilMessage,
         messagesContainerRef,
         messagesContentRef,
         messagesEndRef,
@@ -45,6 +61,7 @@ export function ChatPage() {
         cancelEditing,
         handleDeleteMessage,
         handleEditMessage,
+        handleReactionToggle,
         typingNames,
         voice,
         voiceEnabled,
@@ -74,6 +91,45 @@ export function ChatPage() {
     } = controller;
     const forceMute = useForceMuteVoiceParticipant(activeRoomId);
 
+    const [searchOpen, setSearchOpen] = useState(false);
+    const anchor = useMessageAnchor({ messages, loadUntilMessage, onError: showToast });
+
+    const { currentMember } = useRoomMembers({
+        roomId: activeRoomId ?? undefined,
+        enabled: !!activeRoomId,
+        viewerId: user?.id,
+        voiceParticipantIds: voice.participantIds,
+        onMemberCountDelta: ignoreMemberCount,
+    });
+    const viewerTimeoutUntil = currentMember?.timeout_until;
+
+    const [nowTick, setNowTick] = useState(() => Date.now());
+    useEffect(() => {
+        if (!viewerTimeoutUntil) {
+            return;
+        }
+
+        const reseed = setTimeout(() => setNowTick(Date.now()), 0);
+        const tick = setInterval(() => setNowTick(Date.now()), TIMEOUT_TICK_MS);
+
+        return () => {
+            clearTimeout(reseed);
+            clearInterval(tick);
+        };
+    }, [viewerTimeoutUntil]);
+
+    const mentionPool = activeRoom?.members ?? NO_MENTION_POOL;
+    const viewerTimedOut = isTimeoutActive(viewerTimeoutUntil, nowTick);
+
+    const thread: DmThreadView = {
+        anchor,
+        mentionPool,
+        viewerTimeoutUntil,
+        viewerTimedOut,
+        searchOpen,
+        setSearchOpen,
+    };
+
     if (!user) {
         return null;
     }
@@ -83,7 +139,7 @@ export function ChatPage() {
     }
 
     if (isMobile) {
-        return <MobileDmView controller={controller} />;
+        return <MobileDmView controller={controller} thread={thread} />;
     }
 
     return (
@@ -175,6 +231,15 @@ export function ChatPage() {
                                 </div>
                                 <div className={styles.headerActions}>
                                     <Button
+                                        variant="ghost"
+                                        size="small"
+                                        onClick={() => setSearchOpen(true)}
+                                        aria-label="Search messages"
+                                        title="Search messages"
+                                    >
+                                        {"🔍"}
+                                    </Button>
+                                    <Button
                                         variant="secondary"
                                         size="small"
                                         onClick={handleToggleMute}
@@ -192,7 +257,7 @@ export function ChatPage() {
                                 <VoiceBar
                                     room={voice.room}
                                     onLeave={voice.leave}
-                                    canModerate={user ? isSiteStaff(user.role) : false}
+                                    canModerate={capabilities.canModerateRoom}
                                     onForceMute={(id, muted) => {
                                         forceMute.mutate(
                                             { userId: id, muted },
@@ -201,13 +266,15 @@ export function ChatPage() {
                                     }}
                                 />
                             )}
-                            <DmMessageList
+                            <MessageList
                                 viewer={user}
                                 room={activeRoom}
                                 messages={messages}
                                 hasMore={hasMore}
                                 loadingMore={loadingMore}
+                                highlightedMessageId={anchor.highlightedMsgId}
                                 editingMessageId={editingMessageId}
+                                viewerTimedOut={viewerTimedOut}
                                 readReceipts={readReceipts}
                                 matchesViewerMention={matchesViewerMention}
                                 containerRef={messagesContainerRef}
@@ -218,6 +285,7 @@ export function ChatPage() {
                                 onReply={setReplyingTo}
                                 onStartEditing={startEditing}
                                 onCancelEditing={cancelEditing}
+                                onToggleReaction={handleReactionToggle}
                                 onDelete={handleDeleteMessage}
                                 onEdit={handleEditMessage}
                                 classes={MESSAGE_LIST_CLASSES}
@@ -227,10 +295,12 @@ export function ChatPage() {
                                 roomId={activeRoomId}
                                 draftRecipientId={null}
                                 onSent={handleSentMessage}
+                                mentionPool={mentionPool}
                                 replyingTo={replyingTo}
                                 onCancelReply={() => setReplyingTo(null)}
                                 onTyping={notifyTyping}
                                 onEditLast={handleEditLast}
+                                timeoutUntil={viewerTimeoutUntil}
                                 extraActions={
                                     <VoiceButton
                                         enabled={voiceEnabled}
@@ -299,6 +369,14 @@ export function ChatPage() {
                     </div>
                 </Modal>
             </div>
+            {activeRoom && searchOpen && (
+                <MessageSearchPanel
+                    roomId={activeRoom.id}
+                    isOpen={searchOpen}
+                    onClose={() => setSearchOpen(false)}
+                    onJump={anchor.handleJumpToMessage}
+                />
+            )}
             {toast && <div className={styles.toast}>{toast}</div>}
             {lightboxSrc && <Lightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
         </div>

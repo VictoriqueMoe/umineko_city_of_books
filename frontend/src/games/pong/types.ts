@@ -27,8 +27,6 @@ export const PONG_INPUT_EPSILON = 4;
 export const PONG_RENDER_DELAY_MS = 100;
 export const PONG_STALE_MS = 600;
 export const PONG_BUFFER = 12;
-export const PONG_SNAP_UNITS = 60;
-export const PONG_CORRECTION = 0.15;
 export const PONG_PADDLE_MAX_SPEED = 1100;
 
 export const PONG_EVENT_HIT_P0 = 1;

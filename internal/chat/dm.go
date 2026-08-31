@@ -16,22 +16,15 @@ type dmService struct {
 }
 
 func (d *dmService) ensureLockAllowsDMTo(ctx context.Context, senderID, recipientID uuid.UUID) error {
-	locked, err := d.userRepo.IsLocked(ctx, senderID)
+	locked, err := d.senderLocked(ctx, senderID)
 	if err != nil {
-		return fmt.Errorf("check lock: %w", err)
+		return err
 	}
 	if !locked {
 		return nil
 	}
 
-	recipientRole, err := d.authzSvc.GetRole(ctx, recipientID)
-	if err != nil {
-		return fmt.Errorf("get recipient role: %w", err)
-	}
-	if !recipientRole.IsSiteStaff() {
-		return ErrLockedNonStaffDM
-	}
-	return nil
+	return d.assertAudienceHasStaff(ctx, []uuid.UUID{recipientID})
 }
 
 func (d *dmService) checkDMPreconditions(ctx context.Context, senderID, recipientID uuid.UUID) (*model.User, error) {
@@ -50,9 +43,10 @@ func (d *dmService) checkDMPreconditions(ctx context.Context, senderID, recipien
 		return nil, ErrDmsDisabled
 	}
 
-	if blocked, _ := d.blockSvc.IsBlockedEither(ctx, senderID, recipientID); blocked {
-		return nil, ErrUserBlocked
+	if err := d.assertPairNotBlocked(ctx, senderID, recipientID); err != nil {
+		return nil, err
 	}
+
 	return recipient, nil
 }
 
