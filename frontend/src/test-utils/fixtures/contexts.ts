@@ -20,6 +20,8 @@ export function makeSiteInfo(overrides: Partial<SiteInfo> = {}): SiteInfo {
         email_enabled: true,
         chatbot_enabled: false,
         chatbot_require_permission: false,
+        chatbot_context_messages: 20,
+        chatbot_max_reply_chain: 25,
         max_image_size: 10 * 1024 * 1024,
         max_video_size: 50 * 1024 * 1024,
         private_mode: false,

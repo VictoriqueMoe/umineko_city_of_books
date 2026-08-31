@@ -174,6 +174,7 @@ export interface UserProfile {
     email_public?: boolean;
     created_at: string;
     stats: UserStats;
+    is_bot?: boolean;
     banned?: boolean;
     ban_reason?: string;
     locked?: boolean;
@@ -785,6 +786,8 @@ export interface SiteInfo {
     email_enabled: boolean;
     chatbot_enabled: boolean;
     chatbot_require_permission: boolean;
+    chatbot_context_messages: number;
+    chatbot_max_reply_chain: number;
     max_image_size: number;
     max_video_size: number;
     private_mode: boolean;

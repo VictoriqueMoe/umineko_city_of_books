@@ -239,6 +239,8 @@ type (
 		EmailEnabled          bool                 `json:"email_enabled"`
 		ChatbotEnabled        bool                 `json:"chatbot_enabled"`
 		ChatbotRequirePerm    bool                 `json:"chatbot_require_permission"`
+		ChatbotContextMsgs    int                  `json:"chatbot_context_messages"`
+		ChatbotMaxReplyChain  int                  `json:"chatbot_max_reply_chain"`
 		MaxImageSize          int                  `json:"max_image_size"`
 		MaxVideoSize          int                  `json:"max_video_size"`
 		MaxAudioSize          int                  `json:"max_audio_size"`

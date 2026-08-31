@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeGallery as makeContentGallery, makeStats, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
-import type { ActivityItem, Fanfic, Gallery, Mystery, OC, Ship, User, UserProfile } from "../../types/api";
+import type { ActivityItem, Fanfic, Gallery, Mystery, OC, Ship, SiteInfo, User, UserProfile } from "../../types/api";
 import { ProfilePage } from "./ProfilePage";
 
 const mocks = vi.hoisted(() => ({
@@ -208,10 +208,11 @@ function statBox(label: string): HTMLElement {
     throw new Error(`there is no ${label} counter on the profile`);
 }
 
-function renderProfile(viewer: UserProfile | null = makeUser({ id: viewerId })) {
+function renderProfile(viewer: UserProfile | null = makeUser({ id: viewerId }), siteInfo: Partial<SiteInfo> = {}) {
     const user = userEvent.setup();
     const result = renderWithProviders(<ProfilePage />, {
         user: viewer,
+        siteInfo,
         route: "/user/beatrice",
         path: "/user/:username",
     });
@@ -396,6 +397,18 @@ describe("ProfilePage header", () => {
 
         // then
         expect(screen.getByText("Without love it cannot be seen.")).toBeInTheDocument();
+    });
+
+    it("does not offer the member empty-bio line to a character with no bio", () => {
+        // given
+        mocks.useProfile.mockReturnValue({ profile: makeProfile({ bio: "", is_bot: true }), loading: false });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.queryByText("This player has not written a bio yet.")).not.toBeInTheDocument();
+        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
     });
 
     it("records the day the player joined", () => {
@@ -1277,5 +1290,84 @@ describe("ProfilePage pagination", () => {
 
         // then
         expect(mocks.useUserPosts).toHaveBeenLastCalledWith(profileId, 20, 0);
+    });
+});
+
+describe("ProfilePage character guide", () => {
+    it("explains how to talk to a character on a bot profile", () => {
+        // given
+        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: true }), loading: false });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
+    });
+
+    it("leaves an ordinary member profile alone", () => {
+        // given
+        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: false }), loading: false });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.queryByText("How to talk to me")).not.toBeInTheDocument();
+        expect(screen.getByText("This player has not written a bio yet.")).toBeInTheDocument();
+    });
+
+    it("leaves a profile alone when the server sends no bot flag at all", () => {
+        // given
+        mocks.useProfile.mockReturnValue({ profile: makeProfile(), loading: false });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.queryByText("How to talk to me")).not.toBeInTheDocument();
+    });
+
+    it("keeps a character's own bio above the guide", () => {
+        // given
+        mocks.useProfile.mockReturnValue({
+            profile: makeProfile({ is_bot: true, bio: "The Golden Witch, endless and cruel." }),
+            loading: false,
+        });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.getByText("The Golden Witch, endless and cruel.")).toBeInTheDocument();
+        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
+    });
+
+    it("renders the guide in full under a very long bio", () => {
+        // given
+        const longBio = "Beatrice repeats herself endlessly. ".repeat(200);
+        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: true, bio: longBio }), loading: false });
+
+        // when
+        renderProfile();
+
+        // then
+        expect(screen.getByText("How to talk to me")).toBeInTheDocument();
+        expect(screen.getByText(/read back over the last 20 messages/)).toBeInTheDocument();
+        expect(screen.getByText(/back through up to 25 messages/)).toBeInTheDocument();
+    });
+
+    it("takes both memory limits from the live settings", () => {
+        // given
+        mocks.useProfile.mockReturnValue({ profile: makeProfile({ is_bot: true }), loading: false });
+
+        // when
+        renderProfile(makeUser({ id: viewerId }), { chatbot_context_messages: 42, chatbot_max_reply_chain: 99 });
+
+        // then
+        expect(screen.getByText(/read back over the last 42 messages/)).toBeInTheDocument();
+        expect(screen.getByText(/back through up to 99 messages/)).toBeInTheDocument();
+        expect(screen.queryByText(/20 messages/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/25 messages/)).not.toBeInTheDocument();
     });
 });

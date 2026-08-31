@@ -44,6 +44,7 @@ type (
 		PronounSubject         string       `json:"pronoun_subject"`
 		PronounPossessive      string       `json:"pronoun_possessive"`
 		Online                 bool         `json:"online"`
+		IsBot                  bool         `json:"is_bot"`
 		SocialTwitter          string       `json:"social_twitter"`
 		SocialDiscord          string       `json:"social_discord"`
 		SocialWaifulist        string       `json:"social_waifulist"`

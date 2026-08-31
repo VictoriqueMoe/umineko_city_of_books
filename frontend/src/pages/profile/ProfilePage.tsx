@@ -12,6 +12,7 @@ import { ArtGrid } from "../../components/art/ArtGrid/ArtGrid";
 import { GalleryCard } from "../../components/art/GalleryCard/GalleryCard";
 import { RolePill } from "../../components/RolePill/RolePill";
 import { RoleStyledName } from "../../components/RoleStyledName/RoleStyledName";
+import { BotUsageGuide } from "./BotUsageGuide";
 import { CreateGalleryInline } from "./CreateGalleryInline";
 import { TrophyCase } from "./TrophyCase";
 import { HuntsInProgress } from "../../components/easterEgg";
@@ -57,6 +58,7 @@ export function ProfilePage() {
     const socials = socialEntries(profile);
     const showGender = profile.gender && profile.gender !== "Prefer not to say";
     const isBanned = profile.banned === true;
+    const isBot = profile.is_bot === true;
 
     return (
         <div className={`${styles.page} ${isBanned ? styles.bannedProfile : ""}`}>
@@ -154,9 +156,13 @@ export function ProfilePage() {
                 </div>
             </div>
 
-            <div dir="auto" className={styles.bio}>
-                {profile.bio ? renderRich(profile.bio) : "This player has not written a bio yet."}
-            </div>
+            {(profile.bio || !isBot) && (
+                <div dir="auto" className={styles.bio}>
+                    {profile.bio ? renderRich(profile.bio) : "This player has not written a bio yet."}
+                </div>
+            )}
+
+            {isBot && <BotUsageGuide />}
 
             {socials.length > 0 && (
                 <div className={styles.socialRow}>

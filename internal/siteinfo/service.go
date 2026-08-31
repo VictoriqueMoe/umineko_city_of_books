@@ -140,6 +140,8 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 		EmailEnabled:          s.authSvc.EmailEnabled(ctx),
 		ChatbotEnabled:        s.settingsSvc.GetBool(ctx, config.SettingChatbotEnabled),
 		ChatbotRequirePerm:    s.settingsSvc.GetBool(ctx, config.SettingChatbotRequirePermission),
+		ChatbotContextMsgs:    s.settingsSvc.GetInt(ctx, config.SettingChatbotContextMessages),
+		ChatbotMaxReplyChain:  s.settingsSvc.GetInt(ctx, config.SettingChatbotMaxReplyChain),
 		MaxImageSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxImageSize),
 		MaxVideoSize:          s.settingsSvc.GetInt(ctx, config.SettingMaxVideoSize),
 		PrivateMode:           s.settingsSvc.GetBool(ctx, config.SettingPrivateMode),

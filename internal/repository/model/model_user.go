@@ -143,6 +143,7 @@ func (u *User) ToProfileResponse(stats *UserStats, isSelf bool) *dto.UserProfile
 		EpisodeProgress:        u.EpisodeProgress,
 		HigurashiArcProgress:   u.HigurashiArcProgress,
 		CiconiaChapterProgress: u.CiconiaChapterProgress,
+		IsBot:                  u.IsBot,
 		BannerURL:              u.BannerURL,
 		BannerPosition:         u.BannerPosition,
 		FavouriteCharacter:     u.FavouriteCharacter,
