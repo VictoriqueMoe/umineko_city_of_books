@@ -8,13 +8,14 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 
+	"umineko_city_of_books/internal/dto"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	valkeymock "github.com/valkey-io/valkey-go/mock"
 	"go.uber.org/mock/gomock"
-	"umineko_city_of_books/internal/dto"
 )
 
 type (

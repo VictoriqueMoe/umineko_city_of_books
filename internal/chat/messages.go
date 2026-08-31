@@ -324,12 +324,9 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 				ReplyToAuthor: replyToAuthor,
 			}
 
-			m.sideEffectsWG.Add(1)
-			go func() {
-				defer m.sideEffectsWG.Done()
-
+			m.sideEffectsWG.Go(func() {
 				m.botObserver.ObserveMessage(botEvent)
-			}()
+			})
 		}
 	}
 
