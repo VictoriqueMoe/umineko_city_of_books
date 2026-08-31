@@ -51,17 +51,45 @@ describe("VoiceButton", () => {
         expect(screen.getByTitle("Join voice")).toHaveTextContent("Voice · 3");
     });
 
-    it("joins the call when the viewer presses it", async () => {
+    it("asks first rather than joining the moment it is pressed", async () => {
+        // given
+        const user = userEvent.setup();
+        const { onJoin } = renderButton();
+
+        // when
+        await user.click(screen.getByTitle("Join voice"));
+
+        // then
+        expect(screen.getByText("Join the voice call?")).toBeInTheDocument();
+        expect(onJoin).not.toHaveBeenCalled();
+    });
+
+    it("joins the call once the viewer confirms", async () => {
         // given
         const user = userEvent.setup();
         const { onJoin, onLeave } = renderButton();
 
         // when
         await user.click(screen.getByTitle("Join voice"));
+        await user.click(screen.getByRole("button", { name: "Join voice" }));
 
         // then
         expect(onJoin).toHaveBeenCalledTimes(1);
         expect(onLeave).not.toHaveBeenCalled();
+    });
+
+    it("joins nothing when the viewer backs out, which is the misclick it exists for", async () => {
+        // given
+        const user = userEvent.setup();
+        const { onJoin } = renderButton();
+
+        // when
+        await user.click(screen.getByTitle("Join voice"));
+        await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+        // then
+        expect(onJoin).not.toHaveBeenCalled();
+        expect(screen.queryByText("Join the voice call?")).not.toBeInTheDocument();
     });
 
     it("blocks a second press while the call is still connecting", () => {

@@ -14,11 +14,13 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -74,6 +76,8 @@ type (
 		uploadSvc     upload.Service
 		uploader      *media.Uploader
 		contentFilter *contentfilter.Manager
+		ogCache       *og.Resolver
+		echoCache     homefeed.Service
 	}
 )
 
@@ -89,6 +93,8 @@ func NewService(
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
+	ogCache *og.Resolver,
+	echoCache homefeed.Service,
 ) Service {
 	return &service{
 		repo:          repo,
@@ -102,6 +108,8 @@ func NewService(
 		uploadSvc:     uploadSvc,
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		contentFilter: contentFilter,
+		ogCache:       ogCache,
+		echoCache:     echoCache,
 	}
 }
 
@@ -389,7 +397,25 @@ func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	s.uploadSvc.Delete(paths...)
 
+	s.clearPageCache(ctx, id.String())
+
 	return nil
+}
+
+func (s *service) clearPageCache(ctx context.Context, id string) {
+	if s.ogCache != nil {
+		if err := s.ogCache.ClearMetaCache(ctx, og.KindJournal, id); err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("journal_id", id).Msg("clear og meta cache failed")
+		}
+	}
+
+	if s.echoCache == nil {
+		return
+	}
+
+	if err := s.echoCache.ClearEchoCache(ctx); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("clear echo cache failed")
+	}
 }
 
 func (s *service) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool) error {

@@ -86,9 +86,13 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	initCache(cacheManager, settingsSvc)
 
 	sessionMgr := session.NewManager(repos.Session, settingsSvc)
+
 	mediaProc := media.NewProcessor(4)
+
 	uploadSvc := upload.NewService(settingsSvc, mediaProc)
+
 	authzSvc := authz.NewService(repos.Role, repos.User, repos.Permission, settingsSvc)
+
 	giphyBanlist, err := banlist.NewService(context.Background(), repos.BannedGiphy)
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to load giphy banlist")
@@ -97,80 +101,55 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 	if !giphySvc.Enabled() {
 		logger.Log.Warn().Msg("GIPHY_API_KEY is not set: gif picker is disabled and direct-URL channel bans cannot resolve uploaders")
 	}
+
 	identityFilter := contentfilter.New(slursrule.NewStrict())
+
 	contentFilter := contentfilter.New(
 		slursrule.New(),
 		bannedgiphyrule.New(giphyBanlist, giphySvc),
 		newaccountlinksrule.New(authzSvc),
 	)
+
 	userSvc := user.NewService(repos.User, repos.Role, repos.VanityRole, repos.AuditLog, authzSvc, settingsSvc)
+
 	hub := ws.NewHub("main")
+
 	sessionMgr.SetDisconnector(hub)
+
 	quoteClient := quotefinder.NewClient()
+
 	credibilitySvc := credibility.NewService(repos.Theory)
 
 	emailSvc := email.NewService(settingsSvc)
+
 	pushSvc := push.NewService(settingsSvc, repos.DeviceToken, config.Cfg.FCMCredentialsFile)
+
 	blockSvc := blocksvc.NewService(repos.Block, repos.Follow, authzSvc)
+
 	overlayHub := ws.NewHub("overlay")
+
 	overlaySvc := overlay.NewService(repos.OverlayToken, overlayHub, settingsSvc, authzSvc)
+
 	notifSvc := notification.NewService(repos.Notification, repos.User, repos.Block, hub, emailSvc, pushSvc, settingsSvc, overlaySvc)
 	if err := mention.ValidateCommentDAOs(repos.Comments); err != nil {
 		logger.Log.Fatal().Err(err).Msg("comment daos are incomplete")
 	}
 
 	mentionSvc := mention.NewService(repos.User, blockSvc, notifSvc, repos.Comments)
+
 	reportSvc := report.NewService(repos.Report, repos.Role, repos.User, notifSvc, settingsSvc)
+
 	hyperbeamSvc := hyperbeam.NewService(settingsSvc)
+
 	livekitSvc := livekit.NewService(settingsSvc)
-	streamSvc := stream.NewService(repos.LiveStream, repos.StreamCredentials, repos.Follow, livekitSvc, settingsSvc, uploadSvc, notifSvc, hub)
-	chatSvc := chat.NewService(repos.Chat, repos.User, repos.Role, repos.VanityRole, repos.ChatRoomBan, repos.ChatBannedWord, repos.ChatWatchParty, repos.AuditLog, authzSvc, notifSvc, blockSvc, uploadSvc, settingsSvc, mediaProc, hub, hyperbeamSvc, livekitSvc, contentFilter)
-	streamSvc.SetChatBinder(chatSvc)
-
-	postSvc := postsvc.NewService(repos.Post, repos.User, repos.Role, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
-
-	openaiSvc := openai.NewService(settingsSvc)
-	chatbotSvc := chatbot.NewService(openaiSvc, chatSvc, postSvc, repos.Chat, repos.Post, repos.Chatbot, repos.AuditLog, authzSvc, settingsSvc, hub)
-	chatSvc.SetMessageObserver(chatbotSvc)
-	postSvc.SetCommentObserver(chatbotSvc)
-	chatbotAdminSvc := chatbot.NewAdminService(repos.Chatbot, repos.ChatbotBasePrompt, repos.AuditLog, userSvc, openaiSvc, chatbotSvc)
-	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
-	artSvc := artsvc.NewService(repos.Art, repos.Post, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	shipSvc := ship.NewService(repos.Ship, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentFilter)
-	ocSvc := ocsvc.NewService(repos.OC, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentFilter)
-	mysterySvc := mysterysvc.NewService(repos.Mystery, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	fanficSvc := fanficsvc.NewService(repos.Fanfic, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	journalSvc := journal.NewService(repos.Journal, repos.User, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentFilter)
-	secretSvc := secretsvc.NewService(repos.Secret, repos.UserSecret, repos.User, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentFilter)
-	gameRoomSvc := gameroom.NewService(repos.GameRoom, repos.User, repos.Block, notifSvc, hub, contentFilter, []gameroom.GameHandler{chess.NewHandler(), checkers.NewHandler(), othello.NewHandler(), minesweeper.NewHandler(), snakesandladders.NewHandler(), pong.NewHandler()})
-	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
-	announcementSvc := announcementsvc.NewService(repos.Announcement, repos.User, repos.AuditLog, blockSvc, notifSvc, mentionSvc, settingsSvc, authzSvc, hub, announcementUploader, uploadSvc)
-	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub, cacheManager)
-	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
-	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
-	userSecretSvc := usersecret.NewService(repos.UserSecret)
-	searchSvc := searchsvc.NewService(repos.Search, repos.Chat)
-
-	authSvc := auth.NewService(userSvc, sessionMgr, settingsSvc, repos.Invite, repos.User, repos.PasswordReset, repos.EmailVerification, repos.AuditLog, emailSvc, contentFilter, identityFilter)
-
-	healthSvc, err := health.NewService(repos.DB(), config.Version, settingsSvc, livekitSvc)
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to init health checks")
-	}
 
 	htmlBytes, err := staticFiles.ReadFile("static/index.html")
 	if err != nil {
 		logger.Log.Fatal().Err(err).Msg("failed to read index.html from embedded files")
 	}
 
-	staticFS, err := fs.Sub(staticFiles, "static")
-	if err != nil {
-		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
-	}
-
 	baseURL := settingsSvc.Get(context.Background(), config.SettingBaseURL)
-	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
-	siteInfoSvc := siteinfo.NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
+
 	ogResolver := og.NewResolver(
 		repos.Theory,
 		repos.User,
@@ -190,17 +169,334 @@ func initServices(repos *repository.Repositories, settingsSvc settings.Service, 
 		string(htmlBytes),
 		baseURL,
 	)
+
+	homeFeedSvc := homefeed.NewService(repos.HomeFeed, hub, cacheManager)
+
+	streamSvc := stream.NewService(
+		repos.LiveStream,
+		repos.StreamCredentials,
+		repos.Follow,
+		livekitSvc,
+		settingsSvc,
+		uploadSvc,
+		notifSvc,
+		hub,
+		ogResolver,
+	)
+
+	chatSvc := chat.NewService(
+		repos.Chat,
+		repos.User,
+		repos.Role,
+		repos.VanityRole,
+		repos.ChatRoomBan,
+		repos.ChatBannedWord,
+		repos.ChatWatchParty,
+		repos.AuditLog,
+		authzSvc,
+		notifSvc,
+		blockSvc,
+		uploadSvc,
+		settingsSvc,
+		mediaProc,
+		hub,
+		hyperbeamSvc,
+		livekitSvc,
+		contentFilter,
+		ogResolver,
+	)
+
+	streamSvc.SetChatBinder(chatSvc)
+
+	postSvc := postsvc.NewService(
+		repos.Post,
+		repos.User,
+		repos.Role,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		mediaProc,
+		settingsSvc,
+		hub,
+		contentFilter,
+		ogResolver,
+		homeFeedSvc,
+	)
+
+	openaiSvc := openai.NewService(settingsSvc)
+
+	chatbotSvc := chatbot.NewService(
+		openaiSvc,
+		chatSvc,
+		postSvc,
+		repos.Chat,
+		repos.Post,
+		repos.Chatbot,
+		repos.AuditLog,
+		authzSvc,
+		settingsSvc,
+		hub,
+	)
+
+	chatSvc.SetMessageObserver(chatbotSvc)
+
+	postSvc.SetCommentObserver(chatbotSvc)
+
+	chatbotAdminSvc := chatbot.NewAdminService(
+		repos.Chatbot,
+		repos.ChatbotBasePrompt,
+		repos.AuditLog,
+		userSvc,
+		openaiSvc,
+		chatbotSvc,
+	)
+	followSvc := follow.NewService(repos.Follow, repos.User, blockSvc, notifSvc, settingsSvc)
+
+	artSvc := artsvc.NewService(
+		repos.Art,
+		repos.Post,
+		repos.User,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		mediaProc,
+		settingsSvc,
+		contentFilter,
+		ogResolver,
+		homeFeedSvc,
+	)
+
+	shipSvc := ship.NewService(
+		repos.Ship,
+		repos.User,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		mediaProc,
+		settingsSvc,
+		quoteClient,
+		contentFilter,
+		ogResolver,
+	)
+
+	ocSvc := ocsvc.NewService(
+		repos.OC,
+		repos.User,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		mediaProc,
+		settingsSvc,
+		hub,
+		contentFilter,
+		ogResolver,
+	)
+
+	mysterySvc := mysterysvc.NewService(
+		repos.Mystery,
+		repos.User,
+		repos.Follow,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		settingsSvc,
+		uploadSvc,
+		mediaProc,
+		hub,
+		contentFilter,
+		ogResolver,
+	)
+
+	fanficSvc := fanficsvc.NewService(
+		repos.Fanfic,
+		repos.User,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		mediaProc,
+		settingsSvc,
+		contentFilter,
+		ogResolver,
+	)
+
+	journalSvc := journal.NewService(
+		repos.Journal,
+		repos.User,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		uploadSvc,
+		mediaProc,
+		settingsSvc,
+		contentFilter,
+		ogResolver,
+		homeFeedSvc,
+	)
+
+	secretSvc := secretsvc.NewService(
+		repos.Secret,
+		repos.UserSecret,
+		repos.User,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		settingsSvc,
+		uploadSvc,
+		mediaProc,
+		hub,
+		contentFilter,
+	)
+
+	gameRoomSvc := gameroom.NewService(
+		repos.GameRoom,
+		repos.User,
+		repos.Block,
+		notifSvc,
+		hub,
+		contentFilter,
+		[]gameroom.GameHandler{
+			chess.NewHandler(),
+			checkers.NewHandler(),
+			othello.NewHandler(),
+			minesweeper.NewHandler(),
+			snakesandladders.NewHandler(),
+			pong.NewHandler(),
+		},
+	)
+
+	announcementUploader := media.NewUploader(uploadSvc, settingsSvc, mediaProc)
+
+	announcementSvc := announcementsvc.NewService(
+		repos.Announcement,
+		repos.User,
+		repos.AuditLog,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		settingsSvc,
+		authzSvc,
+		hub,
+		announcementUploader,
+		uploadSvc,
+		ogResolver,
+	)
+
+	sidebarSvc := sidebar.NewService(repos.SidebarVisited)
+
+	vanityRoleSvc := vanityrole.NewService(repos.VanityRole)
+
+	userSecretSvc := usersecret.NewService(repos.UserSecret)
+
+	searchSvc := searchsvc.NewService(repos.Search, repos.Chat)
+
+	authSvc := auth.NewService(
+		userSvc,
+		sessionMgr,
+		settingsSvc,
+		repos.Invite,
+		repos.User,
+		repos.PasswordReset,
+		repos.EmailVerification,
+		repos.AuditLog,
+		emailSvc,
+		contentFilter,
+		identityFilter,
+	)
+
+	healthSvc, err := health.NewService(repos.DB(), config.Version, settingsSvc, livekitSvc)
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to init health checks")
+	}
+
+	staticFS, err := fs.Sub(staticFiles, "static")
+	if err != nil {
+		logger.Log.Fatal().Err(err).Msg("failed to create static sub-filesystem")
+	}
+
+	sitemapSvc := sitemap.NewService(repos.Sitemap, settingsSvc, baseURL)
+
+	siteInfoSvc := siteinfo.NewService(settingsSvc, mysterySvc, gameRoomSvc, vanityRoleSvc, userSecretSvc, authSvc)
+
 	ogImageSvc := og.NewImageService(cacheManager)
+
 	crawlerFeeds := feed.New(settingsSvc, cacheManager)
 
+	theorySvc := theory.NewService(
+		repos.Theory,
+		repos.User,
+		repos.Follow,
+		repos.AuditLog,
+		authzSvc,
+		blockSvc,
+		notifSvc,
+		mentionSvc,
+		settingsSvc,
+		credibilitySvc,
+		quoteClient,
+		contentFilter,
+		ogResolver,
+		homeFeedSvc,
+	)
+
 	return &services{
-		settings:        settingsSvc,
-		cache:           cacheManager,
-		auth:            authSvc,
-		profile:         profile.NewService(repos.User, repos.UserSecret, repos.Theory, repos.AuditLog, authzSvc, uploadSvc, settingsSvc, contentFilter, identityFilter, hub, authSvc, sessionMgr, userSvc),
-		theory:          theory.NewService(repos.Theory, repos.User, repos.Follow, repos.AuditLog, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, credibilitySvc, quoteClient, contentFilter),
-		notification:    notifSvc,
-		admin:           admin.NewService(repos.User, repos.Role, repos.Stats, repos.AuditLog, repos.Invite, repos.VanityRole, repos.Permission, giphyBanlist, authzSvc, settingsSvc, sessionMgr, uploadSvc, hub, chatSvc, emailSvc, authSvc),
+		settings: settingsSvc,
+		cache:    cacheManager,
+		auth:     authSvc,
+		profile: profile.NewService(
+			repos.User,
+			repos.UserSecret,
+			repos.Theory,
+			repos.AuditLog,
+			authzSvc,
+			uploadSvc,
+			settingsSvc,
+			contentFilter,
+			identityFilter,
+			hub,
+			authSvc,
+			sessionMgr,
+			userSvc,
+		),
+		theory:       theorySvc,
+		notification: notifSvc,
+		admin: admin.NewService(
+			repos.User,
+			repos.Role,
+			repos.Stats,
+			repos.AuditLog,
+			repos.Invite,
+			repos.VanityRole,
+			repos.Permission,
+			giphyBanlist,
+			authzSvc,
+			settingsSvc,
+			sessionMgr,
+			uploadSvc,
+			hub,
+			chatSvc,
+			emailSvc,
+			authSvc,
+		),
 		authz:           authzSvc,
 		chat:            chatSvc,
 		openai:          openaiSvc,

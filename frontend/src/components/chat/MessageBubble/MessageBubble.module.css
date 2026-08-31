@@ -75,7 +75,7 @@
 
 .actions {
     position: absolute;
-    bottom: 100%;
+    bottom: calc(100% - 6px);
     left: 8px;
     display: flex;
     gap: 0.25rem;
@@ -86,7 +86,7 @@
     opacity: 0;
     pointer-events: none;
     z-index: 2;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s ease 0.35s;
 }
 
 .ownMessage .actions {
@@ -98,10 +98,14 @@
 .messageBubble:focus-within .actions {
     opacity: 1;
     pointer-events: auto;
+    transition-delay: 0s;
 }
 
-.reactAnchor {
-    position: relative;
+.pickerLayer {
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 200;
 }
 
 .actionBtn {

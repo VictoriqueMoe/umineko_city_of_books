@@ -33,6 +33,7 @@ type (
 	Service interface {
 		HomeActivity(ctx context.Context) (*dto.HomeActivityResponse, error)
 		SidebarActivity(ctx context.Context) (*dto.SidebarActivityResponse, error)
+		ClearEchoCache(ctx context.Context) error
 	}
 
 	service struct {
@@ -46,14 +47,22 @@ func NewService(repo repository.HomeFeedRepository, hub *ws.Hub, cacheMgr *cache
 	return &service{repo: repo, hub: hub, cache: cacheMgr}
 }
 
+func echoDay() string {
+	return time.Now().UTC().Format("2006-01-02")
+}
+
 func (s *service) echoes(ctx context.Context) []dto.HomeEcho {
 	load := func(ctx context.Context) ([]dto.HomeEcho, error) {
 		return s.buildEchoes(ctx), nil
 	}
 
-	echoes, _ := s.cache.Load(ctx, cache.HomeEchoes, load, time.Now().UTC().Format("2006-01-02"))
+	echoes, _ := s.cache.Load(ctx, cache.HomeEchoes, load, echoDay())
 
 	return echoes
+}
+
+func (s *service) ClearEchoCache(ctx context.Context) error {
+	return s.cache.Del(ctx, cache.HomeEchoes.Key(echoDay()))
 }
 
 func (s *service) buildEchoes(ctx context.Context) []dto.HomeEcho {

@@ -54,7 +54,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	credSvc := credibility.NewService(repo)
 	quoteClient := quotefinder.NewClient()
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{})
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, credSvc, quoteClient, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, credSvc, quoteClient, contentfilter.New(), nil, nil).(*service)
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {
 		fanout <- userID

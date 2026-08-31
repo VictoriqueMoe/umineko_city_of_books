@@ -72,7 +72,7 @@ func newHarness(t *testing.T) *harness {
 		authzSvc:     authzSvc,
 		uploadSvc:    uploadSvc,
 		hub:          hub,
-		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, hub, uploader, uploadSvc),
+		svc:          announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, hub, uploader, uploadSvc, nil),
 	}
 }
 
@@ -212,7 +212,7 @@ func TestService_Create_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
 		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
 	})
-	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc)
+	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc, nil)
 
 	userID := uuid.New()
 	annID := uuid.New()
@@ -452,7 +452,7 @@ func TestService_CreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
 		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
 	})
-	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc)
+	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc, nil)
 
 	annID := uuid.New()
 	authorID := uuid.New()

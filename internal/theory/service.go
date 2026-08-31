@@ -11,9 +11,11 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/credibility"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -49,6 +51,8 @@ type (
 		credibilitySvc *credibility.Service
 		quoteClient    *quotefinder.Client
 		contentFilter  *contentfilter.Manager
+		ogCache        *og.Resolver
+		echoCache      homefeed.Service
 	}
 )
 
@@ -65,6 +69,8 @@ func NewService(
 	credibilitySvc *credibility.Service,
 	quoteClient *quotefinder.Client,
 	contentFilter *contentfilter.Manager,
+	ogCache *og.Resolver,
+	echoCache homefeed.Service,
 ) Service {
 	return &service{
 		repo:           repo,
@@ -79,6 +85,24 @@ func NewService(
 		credibilitySvc: credibilitySvc,
 		quoteClient:    quoteClient,
 		contentFilter:  contentFilter,
+		ogCache:        ogCache,
+		echoCache:      echoCache,
+	}
+}
+
+func (s *service) clearPageCache(ctx context.Context, id string) {
+	if s.ogCache != nil {
+		if err := s.ogCache.ClearMetaCache(ctx, og.KindTheory, id); err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("theory_id", id).Msg("clear og meta cache failed")
+		}
+	}
+
+	if s.echoCache == nil {
+		return
+	}
+
+	if err := s.echoCache.ClearEchoCache(ctx); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("clear echo cache failed")
 	}
 }
 
@@ -286,6 +310,8 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 		Details:    fmt.Sprintf("title=%q", title),
 		SubjectID:  authorID,
 	})
+
+	s.clearPageCache(ctx, id.String())
 
 	return nil
 }

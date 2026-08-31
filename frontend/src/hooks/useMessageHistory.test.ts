@@ -32,6 +32,13 @@ function makeContainer(opts: { scrollHeight?: number; clientHeight?: number; scr
     return el;
 }
 
+function pointerEvent(type: string, pointerType: string): Event {
+    const event = new Event(type);
+    Object.defineProperty(event, "pointerType", { value: pointerType });
+
+    return event;
+}
+
 beforeEach(() => {
     mocks.fetchRoomMessages.mockResolvedValue({ messages: [], total: 0 });
     mocks.fetchRoomMessagesBefore.mockResolvedValue({ messages: [], total: 0 });
@@ -695,6 +702,188 @@ describe("useMessageHistory scrolling", () => {
         // then
         expect(container.scrollTop).toBe(1000);
         expect(container.scrollTo).not.toHaveBeenCalled();
+    });
+});
+
+describe("useMessageHistory pointer hold", () => {
+    async function renderWithContainer(props: HistoryProps = { rid: "room-1" }) {
+        const rendered = renderHistory(props);
+        await waitFor(() => {
+            expect(mocks.fetchRoomMessages).toHaveBeenCalled();
+        });
+        const container = makeContainer({ scrollTop: 0, scrollHeight: 1000, clientHeight: 400 });
+        act(() => {
+            rendered.result.current.containerRef(container);
+        });
+
+        return { ...rendered, container };
+    }
+
+    it("stops the list jumping out from under a resting mouse", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+
+        // when
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+        act(() => {
+            result.current.scrollToBottomInstant();
+        });
+
+        // then
+        expect(container.scrollTop).toBe(0);
+    });
+
+    it("catches the list up the moment the mouse leaves", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+        act(() => {
+            result.current.scrollToBottomInstant();
+        });
+
+        // when
+        container.dispatchEvent(pointerEvent("pointerleave", "mouse"));
+
+        // then
+        expect(container.scrollTop).toBe(1000);
+    });
+
+    it("still obeys a forced scroll while the mouse rests over the list", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+
+        // when
+        act(() => {
+            result.current.scrollToBottomInstant({ force: true });
+        });
+
+        // then
+        expect(container.scrollTop).toBe(1000);
+    });
+
+    it("keeps following the conversation for a touch reader, who has no hover", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+
+        // when
+        container.dispatchEvent(pointerEvent("pointerenter", "touch"));
+        act(() => {
+            result.current.scrollToBottomInstant();
+        });
+
+        // then
+        expect(container.scrollTop).toBe(1000);
+    });
+
+    it("keeps the head of a capped list while the mouse rests over it", async () => {
+        // given
+        const { result, container } = await renderWithContainer({ rid: "room-1", max: 2 });
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+
+        // when
+        act(() => {
+            result.current.setMessages([
+                makeChatMessage({ id: "m1" }),
+                makeChatMessage({ id: "m2" }),
+                makeChatMessage({ id: "m3" }),
+            ]);
+        });
+
+        // then
+        expect(result.current.messages.map(m => m.id)).toEqual(["m1", "m2", "m3"]);
+    });
+
+    it("holds the list still when a message arrives under a resting mouse", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+
+        // when
+        act(() => {
+            result.current.addMessage(makeChatMessage({ id: "m1" }));
+        });
+
+        // then
+        expect(container.scrollTop).toBe(0);
+    });
+
+    it("catches up on the message that arrived once the mouse has left", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+        act(() => {
+            result.current.addMessage(makeChatMessage({ id: "m1" }));
+        });
+
+        // when
+        container.dispatchEvent(pointerEvent("pointerleave", "mouse"));
+
+        // then
+        expect(container.scrollTop).toBe(1000);
+    });
+
+    it("arms the hold for a mouse that was already inside the list", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+
+        // when
+        container.dispatchEvent(pointerEvent("pointermove", "mouse"));
+        act(() => {
+            result.current.scrollToBottomInstant();
+        });
+
+        // then
+        expect(container.scrollTop).toBe(0);
+    });
+
+    it("leaves a moving touch following the conversation", async () => {
+        // given
+        const { result, container } = await renderWithContainer();
+
+        // when
+        container.dispatchEvent(pointerEvent("pointermove", "touch"));
+        act(() => {
+            result.current.scrollToBottomInstant();
+        });
+
+        // then
+        expect(container.scrollTop).toBe(1000);
+    });
+
+    it("stops a parked mouse growing the list without end", async () => {
+        // given
+        const { result, container } = await renderWithContainer({ rid: "room-1", max: 2 });
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+        const flood = Array.from({ length: 400 }, (_, i) => makeChatMessage({ id: `m${i}` }));
+
+        // when
+        act(() => {
+            result.current.setMessages(flood);
+        });
+
+        // then
+        expect(result.current.messages).toHaveLength(152);
+        expect(result.current.messages[151].id).toBe("m399");
+    });
+
+    it("trims the capped list again once the mouse has left", async () => {
+        // given
+        const { result, container } = await renderWithContainer({ rid: "room-1", max: 2 });
+        container.dispatchEvent(pointerEvent("pointerenter", "mouse"));
+        container.dispatchEvent(pointerEvent("pointerleave", "mouse"));
+
+        // when
+        act(() => {
+            result.current.setMessages([
+                makeChatMessage({ id: "m1" }),
+                makeChatMessage({ id: "m2" }),
+                makeChatMessage({ id: "m3" }),
+            ]);
+        });
+
+        // then
+        expect(result.current.messages.map(m => m.id)).toEqual(["m2", "m3"]);
     });
 });
 

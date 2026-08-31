@@ -53,7 +53,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	comments := repository.NewMockJournalCommentWriter(t)
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{Journal: comments})
-	svc := NewService(repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New(), nil, nil).(*service)
 	return svc, &testMocks{
 		repo:         repo,
 		comments:     comments,

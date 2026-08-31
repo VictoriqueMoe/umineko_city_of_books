@@ -21,6 +21,7 @@ import { fetchRoomMessages, fetchRoomMessagesBefore } from "./queries/chat";
 
 const PAGE_SIZE = 50;
 const AT_BOTTOM_THRESHOLD = 80;
+const HOLD_HEADROOM = 150;
 
 export interface ScrollToBottomOptions {
     force?: boolean;
@@ -35,6 +36,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
     const endRef = useRef<HTMLDivElement>(null);
     const observerRef = useRef<ResizeObserver | null>(null);
     const suppressScrollToBottom = useRef(false);
+    const pointerHold = useRef(false);
     const isAtBottomRef = useRef(true);
     const currentRoomIdRef = useRef<string | undefined>(roomId);
     const stateRef = useRef<MessageListState>(state);
@@ -53,6 +55,10 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
     const trimLimit = useCallback(() => {
         if (!isAtBottomRef.current || suppressScrollToBottom.current) {
             return undefined;
+        }
+
+        if (pointerHold.current && maxMessages !== undefined) {
+            return maxMessages + HOLD_HEADROOM;
         }
 
         return maxMessages;
@@ -74,9 +80,10 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
         if (suppressScrollToBottom.current) {
             return;
         }
-        if (!opts?.force && !isAtBottomRef.current) {
+        if (!opts?.force && (pointerHold.current || !isAtBottomRef.current)) {
             return;
         }
+        pointerHold.current = false;
         isAtBottomRef.current = true;
         requestAnimationFrame(() => {
             const container = containerElRef.current;
@@ -90,9 +97,10 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
         if (suppressScrollToBottom.current) {
             return;
         }
-        if (!opts?.force && !isAtBottomRef.current) {
+        if (!opts?.force && (pointerHold.current || !isAtBottomRef.current)) {
             return;
         }
+        pointerHold.current = false;
         isAtBottomRef.current = true;
         const container = containerElRef.current;
         if (container) {
@@ -102,11 +110,26 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
 
     const snapToBottomIfPinned = useCallback(() => {
         const container = containerElRef.current;
-        if (!container || suppressScrollToBottom.current || !isAtBottomRef.current) {
+        if (!container || suppressScrollToBottom.current || pointerHold.current || !isAtBottomRef.current) {
             return;
         }
         container.scrollTop = container.scrollHeight;
     }, []);
+
+    const holdAutoScroll = useCallback((event: PointerEvent) => {
+        if (event.pointerType === "mouse") {
+            pointerHold.current = true;
+        }
+    }, []);
+
+    const releaseAutoScroll = useCallback(() => {
+        if (!pointerHold.current) {
+            return;
+        }
+
+        pointerHold.current = false;
+        snapToBottomIfPinned();
+    }, [snapToBottomIfPinned]);
 
     const ensureObserver = useCallback(() => {
         if (observerRef.current || typeof ResizeObserver === "undefined") {
@@ -121,15 +144,29 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
     const containerRef = useCallback(
         (node: HTMLDivElement | null) => {
             const observer = node ? ensureObserver() : observerRef.current;
-            if (containerElRef.current && observer) {
-                observer.unobserve(containerElRef.current);
+            const previous = containerElRef.current;
+            if (previous) {
+                if (observer) {
+                    observer.unobserve(previous);
+                }
+                previous.removeEventListener("pointerenter", holdAutoScroll);
+                previous.removeEventListener("pointermove", holdAutoScroll);
+                previous.removeEventListener("pointerleave", releaseAutoScroll);
             }
+
             containerElRef.current = node;
-            if (node && observer) {
-                observer.observe(node);
+            pointerHold.current = false;
+
+            if (node) {
+                if (observer) {
+                    observer.observe(node);
+                }
+                node.addEventListener("pointerenter", holdAutoScroll, { passive: true });
+                node.addEventListener("pointermove", holdAutoScroll, { passive: true });
+                node.addEventListener("pointerleave", releaseAutoScroll, { passive: true });
             }
         },
-        [ensureObserver],
+        [ensureObserver, holdAutoScroll, releaseAutoScroll],
     );
 
     const contentRef = useCallback(
@@ -162,6 +199,7 @@ export function useMessageHistory(roomId: string | undefined, maxMessages?: numb
     useEffect(() => {
         loadingMoreRef.current = false;
         suppressScrollToBottom.current = false;
+        pointerHold.current = false;
         isAtBottomRef.current = true;
         if (!roomId) {
             return;

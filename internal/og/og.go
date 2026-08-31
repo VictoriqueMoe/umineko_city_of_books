@@ -43,6 +43,24 @@ type (
 		Image       string
 		URL         string
 	}
+
+	Kind string
+)
+
+const (
+	KindTheory       Kind = "theory"
+	KindPost         Kind = "post"
+	KindArt          Kind = "art"
+	KindGallery      Kind = "gallery"
+	KindMystery      Kind = "mystery"
+	KindShip         Kind = "ship"
+	KindOC           Kind = "oc"
+	KindAnnouncement Kind = "announcement"
+	KindFanfic       Kind = "fanfic"
+	KindJournal      Kind = "journal"
+	KindRoom         Kind = "room"
+	KindLiveStream   Kind = "livestream"
+	KindUser         Kind = "user"
 )
 
 const (
@@ -106,18 +124,44 @@ func (r *Resolver) Resolve(ctx context.Context, path, partyID string) string {
 }
 
 func (r *Resolver) resolveMeta(ctx context.Context, path, partyID string) *Meta {
-	parts := []string{path}
-	if partyID != "" {
-		parts = append(parts, partyID)
-	}
-
 	load := func(ctx context.Context) (*Meta, error) {
 		return r.metaForPath(ctx, path, partyID), nil
 	}
 
-	meta, _ := r.cache.Load(ctx, cache.OGMeta, load, parts...)
+	meta, _ := r.cache.Load(ctx, cache.OGMeta, load, metaKeyParts(path, partyID)...)
 
 	return meta
+}
+
+func (r *Resolver) ClearMetaCache(ctx context.Context, kind Kind, id string) error {
+	if r == nil {
+		return nil
+	}
+
+	path := entityPath(kind, id)
+	if path == "" {
+		return nil
+	}
+
+	return r.cache.Del(ctx, cache.OGMeta.Key(metaKeyParts(path, "")...))
+}
+
+func metaKeyParts(path, partyID string) []string {
+	parts := []string{canonicalMetaPath(path)}
+	if partyID != "" {
+		parts = append(parts, partyID)
+	}
+
+	return parts
+}
+
+func canonicalMetaPath(path string) string {
+	trimmed := strings.TrimRight(path, "/")
+	if trimmed == "" {
+		return "/"
+	}
+
+	return trimmed
 }
 
 func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
@@ -133,6 +177,39 @@ func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
 	html = stripMetaTag(html, "property", "og:image:width")
 	html = stripMetaTag(html, "property", "og:image:height")
 	return html, img
+}
+
+func entityPath(kind Kind, id string) string {
+	switch kind {
+	case KindTheory:
+		return "/theory/" + id
+	case KindPost:
+		return "/game-board/" + id
+	case KindArt:
+		return "/gallery/art/" + id
+	case KindGallery:
+		return "/gallery/view/" + id
+	case KindMystery:
+		return "/mystery/" + id
+	case KindShip:
+		return "/ships/" + id
+	case KindOC:
+		return "/oc/" + id
+	case KindAnnouncement:
+		return "/announcements/" + id
+	case KindFanfic:
+		return "/fanfiction/" + id
+	case KindJournal:
+		return "/journals/" + id
+	case KindRoom:
+		return "/rooms/" + id
+	case KindLiveStream:
+		return "/live/" + id
+	case KindUser:
+		return "/user/" + id
+	}
+
+	return ""
 }
 
 func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta {

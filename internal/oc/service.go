@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
@@ -109,6 +110,7 @@ type (
 		uploader      *media.Uploader
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
+		ogCache       *og.Resolver
 	}
 )
 
@@ -125,6 +127,7 @@ func NewService(
 	settingsSvc settings.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
+	ogCache *og.Resolver,
 ) Service {
 	return &service{
 		ocRepo:        ocRepo,
@@ -139,6 +142,7 @@ func NewService(
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
+		ogCache:       ogCache,
 	}
 }
 
@@ -361,6 +365,10 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 		TargetID:   id.String(),
 		SubjectID:  ownerID,
 	})
+
+	if err := s.ogCache.ClearMetaCache(ctx, og.KindOC, id.String()); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("oc_id", id.String()).Msg("clear og meta cache failed")
+	}
 
 	return nil
 }

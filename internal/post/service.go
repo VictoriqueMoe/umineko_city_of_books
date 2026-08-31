@@ -14,10 +14,12 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
@@ -70,6 +72,8 @@ type (
 		hub           *ws.Hub
 		contentFilter *contentfilter.Manager
 		botObserver   CommentObserver
+		ogCache       *og.Resolver
+		echoCache     homefeed.Service
 	}
 )
 
@@ -92,6 +96,8 @@ func NewService(
 	settingsSvc settings.Service,
 	hub *ws.Hub,
 	contentFilter *contentfilter.Manager,
+	ogCache *og.Resolver,
+	echoCache homefeed.Service,
 ) Service {
 	return &service{
 		postRepo:      postRepo,
@@ -108,6 +114,8 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		hub:           hub,
 		contentFilter: contentFilter,
+		ogCache:       ogCache,
+		echoCache:     echoCache,
 	}
 }
 
@@ -352,7 +360,25 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		go s.postRepo.DecrementShareCount(context.Background(), shared.ID, shared.Type)
 	}
 
+	s.clearPageCache(ctx, id.String())
+
 	return nil
+}
+
+func (s *service) clearPageCache(ctx context.Context, id string) {
+	if s.ogCache != nil {
+		if err := s.ogCache.ClearMetaCache(ctx, og.KindPost, id); err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("post_id", id).Msg("clear og meta cache failed")
+		}
+	}
+
+	if s.echoCache == nil {
+		return
+	}
+
+	if err := s.echoCache.ClearEchoCache(ctx); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("clear echo cache failed")
+	}
 }
 
 func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error) {

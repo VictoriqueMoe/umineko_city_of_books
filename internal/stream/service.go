@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -64,6 +65,7 @@ type (
 		thumbAt     map[uuid.UUID]time.Time
 		bitrateMu   sync.Mutex
 		bitrates    map[uuid.UUID]int
+		ogCache     *og.Resolver
 	}
 )
 
@@ -109,7 +111,17 @@ var (
 	ErrInvalidBitrate = errors.New("stream bitrate must be between 500 and 50000 Kbps")
 )
 
-func NewService(repo repository.LiveStreamRepository, creds repository.StreamCredentialsRepository, followRepo repository.FollowRepository, livekitSvc livekit.Service, settingsSvc settings.Service, uploadSvc upload.Service, notifSvc notification.Service, hub *ws.Hub) Service {
+func NewService(
+	repo repository.LiveStreamRepository,
+	creds repository.StreamCredentialsRepository,
+	followRepo repository.FollowRepository,
+	livekitSvc livekit.Service,
+	settingsSvc settings.Service,
+	uploadSvc upload.Service,
+	notifSvc notification.Service,
+	hub *ws.Hub,
+	ogCache *og.Resolver,
+) Service {
 	return &service{
 		repo:        repo,
 		creds:       creds,
@@ -121,6 +133,7 @@ func NewService(repo repository.LiveStreamRepository, creds repository.StreamCre
 		hub:         hub,
 		thumbAt:     make(map[uuid.UUID]time.Time),
 		bitrates:    make(map[uuid.UUID]int),
+		ogCache:     ogCache,
 	}
 }
 
@@ -593,6 +606,10 @@ func (s *service) StopStream(ctx context.Context, userID, streamID uuid.UUID) er
 	}
 
 	s.teardown(ctx, stream)
+
+	if err := s.ogCache.ClearMetaCache(ctx, og.KindLiveStream, streamID.String()); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("clear og meta cache failed")
+	}
 
 	return nil
 }

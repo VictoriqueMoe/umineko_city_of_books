@@ -59,7 +59,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindArtComment): artComments},
 	})
 
-	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New()).(*service)
+	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New(), nil, nil).(*service)
 	return svc, &testMocks{
 		artRepo:     artRepo,
 		artComments: artComments,
@@ -149,15 +149,13 @@ func TestCreateArt_RepoError(t *testing.T) {
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
 		CreateWithTags(mock.Anything, repository.NewArtWithTags{
-			NewArt: repository.NewArt{
-				UserID:      userID,
-				Corner:      "general",
-				ArtType:     "drawing",
-				Title:       "t",
-				Description: "d",
-				ImageURL:    "/uploads/art/x.png",
-			},
-			Tags: []string{"a"},
+			UserID:      userID,
+			Corner:      "general",
+			ArtType:     "drawing",
+			Title:       "t",
+			Description: "d",
+			ImageURL:    "/uploads/art/x.png",
+			Tags:        []string{"a"},
 		}).
 		Return(nil, errors.New("db"))
 
@@ -182,15 +180,13 @@ func TestCreateArt_OK_DefaultsAndTagCap(t *testing.T) {
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
 		CreateWithTags(mock.Anything, repository.NewArtWithTags{
-			NewArt: repository.NewArt{
-				UserID:    userID,
-				Corner:    "general",
-				ArtType:   "drawing",
-				Title:     "t",
-				ImageURL:  "/uploads/art/x.png",
-				IsSpoiler: true,
-			},
-			Tags: capped,
+			UserID:    userID,
+			Corner:    "general",
+			ArtType:   "drawing",
+			Title:     "t",
+			ImageURL:  "/uploads/art/x.png",
+			IsSpoiler: true,
+			Tags:      capped,
 		}).
 		Return(&model.ArtRow{ID: uuid.New()}, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
@@ -215,13 +211,11 @@ func TestCreateArt_OK_CustomCornerAndType(t *testing.T) {
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
 		CreateWithTags(mock.Anything, repository.NewArtWithTags{
-			NewArt: repository.NewArt{
-				UserID:   userID,
-				Corner:   "umineko",
-				ArtType:  "sketch",
-				Title:    "t",
-				ImageURL: "/uploads/art/x.png",
-			},
+			UserID:   userID,
+			Corner:   "umineko",
+			ArtType:  "sketch",
+			Title:    "t",
+			ImageURL: "/uploads/art/x.png",
 		}).
 		Return(&model.ArtRow{ID: uuid.New()}, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
@@ -328,7 +322,7 @@ func TestUpdateArt_AsOwner_RepoError(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 	m.artRepo.EXPECT().
 		UpdateWithTags(mock.Anything, repository.ArtUpdateWithTags{
-			ArtUpdate: repository.ArtUpdate{ID: id, UserID: userID, Title: "t"},
+			ID: id, UserID: userID, Title: "t",
 		}).
 		Return(errors.New("not owner"))
 
@@ -348,8 +342,8 @@ func TestUpdateArt_AsOwner_OK(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 	m.artRepo.EXPECT().
 		UpdateWithTags(mock.Anything, repository.ArtUpdateWithTags{
-			ArtUpdate: repository.ArtUpdate{ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true},
-			Tags:      tags[:10],
+			ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true,
+			Tags: tags[:10],
 		}).
 		Return(nil)
 

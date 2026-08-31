@@ -62,7 +62,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
 		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindMysteryComment): comments},
 	})
-	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
+	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
 	fanout := make(chan uuid.UUID, 8)
 	followRepo.EXPECT().GetFollowerIDsToNotify(mock.Anything, mock.Anything).Run(func(_ context.Context, userID uuid.UUID, _ ...*sql.Tx) {

@@ -18,6 +18,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
@@ -85,6 +86,7 @@ type (
 		uploader      *media.Uploader
 		settingsSvc   settings.Service
 		contentFilter *contentfilter.Manager
+		ogCache       *og.Resolver
 	}
 )
 
@@ -100,6 +102,7 @@ func NewService(
 	mediaProc *media.Processor,
 	settingsSvc settings.Service,
 	contentFilter *contentfilter.Manager,
+	ogCache *og.Resolver,
 ) Service {
 	return &service{
 		fanficRepo:    fanficRepo,
@@ -114,6 +117,7 @@ func NewService(
 		uploader:      media.NewUploader(uploadSvc, settingsSvc, mediaProc),
 		settingsSvc:   settingsSvc,
 		contentFilter: contentFilter,
+		ogCache:       ogCache,
 	}
 }
 
@@ -470,6 +474,10 @@ func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error 
 	})
 
 	s.uploadSvc.Delete(paths...)
+
+	if err := s.ogCache.ClearMetaCache(ctx, og.KindFanfic, id.String()); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("fanfic_id", id.String()).Msg("clear og meta cache failed")
+	}
 
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/repository/model"
@@ -91,6 +92,7 @@ type (
 		settingsSvc   settings.Service
 		quoteClient   *quotefinder.Client
 		contentFilter *contentfilter.Manager
+		ogCache       *og.Resolver
 	}
 )
 
@@ -107,6 +109,7 @@ func NewService(
 	settingsSvc settings.Service,
 	quoteClient *quotefinder.Client,
 	contentFilter *contentfilter.Manager,
+	ogCache *og.Resolver,
 ) Service {
 	return &service{
 		shipRepo:      shipRepo,
@@ -122,6 +125,7 @@ func NewService(
 		settingsSvc:   settingsSvc,
 		quoteClient:   quoteClient,
 		contentFilter: contentFilter,
+		ogCache:       ogCache,
 	}
 }
 
@@ -299,6 +303,10 @@ func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		Details:    fmt.Sprintf("title=%s vote_score=%d comments=%d", doomed.Title, doomed.VoteScore, doomed.CommentCount),
 		SubjectID:  doomed.UserID,
 	})
+
+	if err := s.ogCache.ClearMetaCache(ctx, og.KindShip, id.String()); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("ship_id", id.String()).Msg("clear og meta cache failed")
+	}
 
 	return nil
 }

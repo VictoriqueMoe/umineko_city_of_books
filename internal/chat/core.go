@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/notification"
+	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/text"
@@ -75,6 +76,7 @@ type (
 		bannedWordsRule *contentfilter.ChatBannedWordsRule
 		sideEffectsWG   sync.WaitGroup
 		botObserver     MessageObserver
+		ogCache         *og.Resolver
 	}
 
 	MessageObserver interface {

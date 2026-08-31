@@ -67,7 +67,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindPostComment): postComments},
 	})
 
-	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New()).(*service)
+	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New(), nil, nil).(*service)
 
 	return svc, &testMocks{
 		postRepo:     postRepo,

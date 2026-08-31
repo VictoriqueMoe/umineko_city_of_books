@@ -222,7 +222,7 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 1rem 1.25rem;
+    padding: 2rem 1.25rem 1rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
