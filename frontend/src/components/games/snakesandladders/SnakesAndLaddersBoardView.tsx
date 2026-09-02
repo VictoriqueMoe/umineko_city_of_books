@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { GameRoom, SnakesLaddersState, SnakesLaddersStats, User } from "../../../types/api.ts";
+import type { GameRoom, SnakesLaddersState, SnakesLaddersStats, User } from "../../../types/api";
 import { Button } from "../../Button/Button.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";
 import { GameOverPanel } from "../GameOverPanel.tsx";

@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { Journal } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
+import { renderRich } from "../../richText/richText";
 import { workLabel } from "../../../domain/journal";
 import styles from "./JournalCard.module.css";
 
@@ -51,9 +52,9 @@ export function JournalCard({ journal }: JournalCardProps) {
                 </div>
             )}
             {journal.latest_entry_excerpt && (
-                <p dir="auto" className={styles.body}>
-                    {journal.latest_entry_excerpt}
-                </p>
+                <div dir="auto" className={styles.body}>
+                    {renderRich(journal.latest_entry_excerpt)}
+                </div>
             )}
             <div className={styles.meta}>
                 <span>

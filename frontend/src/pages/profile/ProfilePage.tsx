@@ -17,6 +17,7 @@ import { CreateGalleryInline } from "./CreateGalleryInline";
 import { TrophyCase } from "./TrophyCase";
 import { HuntsInProgress } from "../../components/easterEgg";
 import styles from "./ProfilePage.module.css";
+import { ellipsise } from "../../utils/text";
 
 const TABS: { tab: ProfileTab; label: string }[] = [
     { tab: "posts", label: "Posts" },
@@ -519,7 +520,7 @@ export function ProfilePage() {
                                         {item.theory_title}
                                     </div>
                                     <div dir="auto" className={styles.activityBody}>
-                                        {item.body.length > 200 ? `${item.body.substring(0, 200)}...` : item.body}
+                                        {ellipsise(item.body, 200)}
                                     </div>
                                 </Link>
                             ))

@@ -1,8 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../test-utils/render";
-import type { SiteSettings } from "../../types/api";
+import { renderWithProviders } from "../../../test-utils/render";
+import type { SiteSettings } from "../../../types/api";
 import { AdminSettings } from "./AdminSettings";
 
 const mocks = vi.hoisted(() => ({
@@ -16,13 +16,13 @@ const mocks = vi.hoisted(() => ({
     savePending: false,
 }));
 
-vi.mock("../../hooks/queries/admin", () => ({
+vi.mock("../../../hooks/queries/admin", () => ({
     useAdminSettings: mocks.useAdminSettings,
     useChatbotModels: mocks.useChatbotModels,
     useAdminPermissions: mocks.useAdminPermissions,
 }));
 
-vi.mock("../../hooks/mutations/admin", () => ({
+vi.mock("../../../hooks/mutations/admin", () => ({
     useUpdateAdminSettings: () => ({ mutateAsync: mocks.update, isPending: mocks.savePending }),
     useSendTestEmail: () => ({ mutateAsync: mocks.sendTestEmail, isPending: false }),
     useTestChatbotModel: () => ({ mutateAsync: mocks.testModel, isPending: false }),

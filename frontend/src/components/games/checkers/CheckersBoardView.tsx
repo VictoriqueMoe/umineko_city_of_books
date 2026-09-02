@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { CheckersState, CheckersStats, GameRoom, User } from "../../../types/api.ts";
+import type { CheckersState, CheckersStats, GameRoom, User } from "../../../types/api";
 import { Button } from "../../Button/Button.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";
 import { GameOverPanel } from "../GameOverPanel.tsx";

@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
+	"umineko_city_of_books/internal/text"
 
 	"github.com/google/uuid"
 
@@ -73,10 +74,11 @@ func scanJournalRow(ctx context.Context, scanner interface {
 	j.LatestEntryTitle = latestEntryTitle
 	j.LatestEntryAt = timePtrToString(latestEntryAt)
 	if latestEntryBody != nil {
-		excerpt := *latestEntryBody
-		if len(excerpt) > 300 {
-			excerpt = excerpt[:300] + "..."
+		excerpt := text.ClampRunes(*latestEntryBody, 300)
+		if len(excerpt) != len(*latestEntryBody) {
+			excerpt += "..."
 		}
+
 		j.LatestEntryExcerpt = excerpt
 	}
 

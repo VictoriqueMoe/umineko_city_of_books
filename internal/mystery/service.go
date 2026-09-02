@@ -22,6 +22,7 @@ import (
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 	"umineko_city_of_books/internal/ws"
@@ -180,8 +181,8 @@ func (s *service) buildMysteryList(rows []repository.MysteryRow, total, limit, o
 	mysteries := make([]dto.MysteryResponse, len(rows))
 	for i, r := range rows {
 		resp := r.ToResponse()
-		if len(resp.Body) > 200 {
-			resp.Body = resp.Body[:200] + "..."
+		if clipped := text.ClampRunes(resp.Body, 200); len(clipped) != len(resp.Body) {
+			resp.Body = clipped + "..."
 		}
 		mysteries[i] = resp
 	}

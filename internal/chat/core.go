@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
@@ -38,6 +39,8 @@ const (
 
 	maxRoomNameLength        = 80
 	maxRoomDescriptionLength = 500
+	maxEmojiRunes            = 16
+	maxTagRunes              = 30
 )
 
 var (
@@ -460,7 +463,7 @@ func (c *core) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse {
 		CreatedAt:     row.CreatedAt,
 		LastMessageAt: nullStr(row.LastMessageAt),
 		ArchivedAt:    nullStr(row.ArchivedAt),
-		Unread:        isUnread(row.LastMessageAt, row.LastReadAt),
+		Unread:        !row.ViewerMuted && isUnread(row.LastMessageAt, row.LastReadAt),
 	}
 }
 
@@ -582,9 +585,9 @@ func (c *core) messageRowToResponse(row repository.ChatMessageRow, media []dto.P
 		Reactions:             toDTOReactions(reactions),
 	}
 	if row.ReplyToID != nil && row.ReplyToSenderID != nil && row.ReplyToSenderName != nil && row.ReplyToBody != nil {
-		preview := *row.ReplyToBody
-		if len(preview) > 140 {
-			preview = preview[:140] + "..."
+		preview := text.ClampRunes(*row.ReplyToBody, 140)
+		if len(preview) != len(*row.ReplyToBody) {
+			preview += "..."
 		}
 		resp.ReplyTo = &dto.ChatMessageReplyPreview{
 			ID:          *row.ReplyToID,
@@ -684,7 +687,7 @@ func stringOrEmpty(resp *dto.ChatRoomMemberResponse, get func(*dto.ChatRoomMembe
 }
 
 func validateEmoji(emoji string) error {
-	if emoji == "" || len(emoji) > 16 {
+	if emoji == "" || utf8.RuneCountInString(emoji) > maxEmojiRunes {
 		return ErrInvalidEmoji
 	}
 	return nil
@@ -704,9 +707,7 @@ func sanitizeTags(raw []string) []string {
 		if t == "" {
 			continue
 		}
-		if len(t) > 30 {
-			t = t[:30]
-		}
+		t = text.ClampRunes(t, maxTagRunes)
 		if _, dup := seen[t]; dup {
 			continue
 		}

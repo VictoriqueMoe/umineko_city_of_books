@@ -17,6 +17,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
 import { PieceTrigger } from "../../components/easterEgg";
 import { MysteryBadges } from "./MysteryBadges";
+import { ellipsise } from "../../utils/text";
 import styles from "./MysteryPages.module.css";
 
 interface LeaderboardEntry {
@@ -284,7 +285,7 @@ export function MysteryListPage() {
                                         </span>
                                     </div>
                                     <p dir="auto" className={styles.cardPreview}>
-                                        {m.body.length > 200 ? m.body.slice(0, 200) + "..." : m.body}
+                                        {ellipsise(m.body, 200)}
                                     </p>
                                 </Link>
                             ))}

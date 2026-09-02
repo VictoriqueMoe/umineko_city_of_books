@@ -54,6 +54,8 @@ func TestClampRunes(t *testing.T) {
 		{name: "under the limit", in: "abc", limit: 8, want: "abc"},
 		{name: "exactly at the limit", in: "abcd", limit: 4, want: "abcd"},
 		{name: "ascii cut", in: "abcdefghij", limit: 4, want: "abcd"},
+		{name: "limit of one on ascii", in: "abc", limit: 1, want: "a"},
+		{name: "limit of one on a multibyte-first string", in: "あいう", limit: 1, want: "あ"},
 		{name: "cut after a two-byte rune", in: "aéb", limit: 2, want: "aé"},
 		{name: "cut after a three-byte rune", in: "aあb", limit: 2, want: "aあ"},
 		{name: "cut after a four-byte rune", in: "a🎉b", limit: 2, want: "a🎉"},
@@ -71,8 +73,20 @@ func TestClampRunes(t *testing.T) {
 
 			// then
 			assert.Equal(t, tc.want, got)
-			assert.True(t, utf8.ValidString(got), "ClampRunes must never return invalid UTF-8")
+			assert.True(t, utf8.ValidString(got), "ClampRunes must never return invalid UTF-8 for valid input")
 			assert.LessOrEqual(t, utf8.RuneCountInString(got), max(tc.limit, 0))
 		})
 	}
+}
+
+func TestClampRunes_InvalidUTF8(t *testing.T) {
+	// given
+	in := "a\xffb"
+
+	// when
+	got := ClampRunes(in, 2)
+
+	// then
+	assert.Equal(t, "a\xff", got)
+	assert.Equal(t, 2, utf8.RuneCountInString(got))
 }

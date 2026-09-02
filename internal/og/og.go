@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
@@ -12,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/text"
 
 	"github.com/google/uuid"
 )
@@ -68,6 +70,8 @@ const (
 	defaultDescription = "A social platform for fans of Umineko, Higurashi, and the wider When They Cry series. Post theories, solve mysteries, share fan art, chronicle read-throughs, ship pairings, write fanfiction, and chat in live rooms."
 	defaultImagePath   = "/Featherine.jpg"
 	baseURLPlaceholder = "__BASE_URL__"
+	maxDescRunes       = 200
+	maxDescClipRunes   = 197
 )
 
 func NewResolver(
@@ -968,7 +972,7 @@ func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr str
 		desc = fmt.Sprintf("A finished watch party in %s on %s", room.Name, siteName)
 	}
 
-	desc = truncateDescRunes(desc)
+	desc = truncateDesc(desc)
 
 	return &Meta{
 		Title:       title,
@@ -999,7 +1003,7 @@ func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
 		desc = fmt.Sprintf("A live stream by %s on %s", name, siteName)
 	}
 
-	desc = truncateDescRunes(desc)
+	desc = truncateDesc(desc)
 
 	meta := &Meta{
 		Title:       fmt.Sprintf("%s - %s's live stream", stream.Title, name),
@@ -1105,20 +1109,11 @@ func (r *Resolver) ogImageURL(img string) string {
 }
 
 func truncateDesc(desc string) string {
-	if len(desc) > 200 {
-		return desc[:197] + "..."
+	if utf8.RuneCountInString(desc) <= maxDescRunes {
+		return desc
 	}
 
-	return desc
-}
-
-func truncateDescRunes(desc string) string {
-	runes := []rune(desc)
-	if len(runes) > 200 {
-		return string(runes[:197]) + "..."
-	}
-
-	return desc
+	return text.ClampRunes(desc, maxDescClipRunes) + "..."
 }
 
 func escapeAttr(s string) string {

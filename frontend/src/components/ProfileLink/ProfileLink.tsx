@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import type { User } from "../../types/api";
 import { RolePill } from "../RolePill/RolePill";
 import { RoleStyledName } from "../RoleStyledName/RoleStyledName";
+import { clampChars } from "../../utils/text";
 import styles from "./ProfileLink.module.css";
 
 interface ProfileLinkProps {
@@ -47,7 +48,7 @@ export function ProfileLink({
                     />
                 ) : (
                     <span className={styles.avatarPlaceholder} style={{ width: px, height: px, fontSize: px * 0.4 }}>
-                        {user.display_name.charAt(0)}
+                        {clampChars(user.display_name, 1)}
                     </span>
                 )}
                 {online && <span className={styles.onlineDot} />}

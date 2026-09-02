@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -92,10 +93,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		return nil, ErrWatchPartyWrongRoomType
 	}
 
-	trimmedTitle := strings.TrimSpace(title)
-	if len(trimmedTitle) > maxWatchPartyTitleLen {
-		trimmedTitle = trimmedTitle[:maxWatchPartyTitleLen]
-	}
+	trimmedTitle := text.ClampRunes(strings.TrimSpace(title), maxWatchPartyTitleLen)
 
 	sessionRow := repository.ChatWatchPartySessionRow{
 		RoomID:       roomID,

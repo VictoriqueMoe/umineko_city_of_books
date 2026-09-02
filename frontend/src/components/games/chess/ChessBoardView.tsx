@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import type { ChessState, ChessStats, GameRoom, User } from "../../../types/api.ts";
+import type { ChessState, ChessStats, GameRoom, User } from "../../../types/api";
 import { Button } from "../../Button/Button.tsx";
 import { Input } from "../../Input/Input.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";

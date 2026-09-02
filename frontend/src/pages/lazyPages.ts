@@ -33,7 +33,7 @@ export const AdminLayout = named(() => import("./admin/AdminLayout"), "AdminLayo
 export const AdminDashboard = named(() => import("./admin/AdminDashboard"), "AdminDashboard");
 export const AdminUsers = named(() => import("./admin/AdminUsers"), "AdminUsers");
 export const AdminUserDetail = named(() => import("./admin/AdminUserDetail"), "AdminUserDetail");
-export const AdminSettings = named(() => import("./admin/AdminSettings"), "AdminSettings");
+export const AdminSettings = named(() => import("./admin/settings/AdminSettings"), "AdminSettings");
 export const AdminAuditLog = named(() => import("./admin/AdminAuditLog"), "AdminAuditLog");
 export const AdminInvites = named(() => import("./admin/AdminInvites"), "AdminInvites");
 export const AdminReports = named(() => import("./admin/AdminReports"), "AdminReports");

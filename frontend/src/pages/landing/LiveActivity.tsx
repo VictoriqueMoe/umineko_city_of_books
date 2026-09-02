@@ -6,6 +6,7 @@ import { userProgressForSeries } from "../../domain/series";
 import { Butterfly } from "../../components/Butterfly/Butterfly";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
+import { clampChars } from "../../utils/text";
 import styles from "./LiveActivity.module.css";
 
 const kindLabel: Record<HomeActivityEntry["kind"], string> = {
@@ -23,7 +24,9 @@ function displayTitle(entry: HomeActivityEntry | HomeEcho): string {
     if (!excerpt) {
         return `${kindLabel[entry.kind]} entry`;
     }
-    return excerpt.length > 80 ? `${excerpt.slice(0, 80)}…` : excerpt;
+    const clipped = clampChars(excerpt, 80);
+
+    return clipped === excerpt ? excerpt : `${clipped}…`;
 }
 
 interface ActivityRowProps {

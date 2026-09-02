@@ -172,12 +172,12 @@ describe("ConfirmDialog", () => {
         // given
         const onCancel = vi.fn();
         const user = userEvent.setup();
-        const { container } = renderWithProviders(
+        renderWithProviders(
             <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={noop} onCancel={onCancel} />,
         );
 
         // when
-        await user.click(container.firstElementChild as HTMLElement);
+        await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
 
         // then
         expect(onCancel).toHaveBeenCalledOnce();
@@ -467,12 +467,12 @@ describe("ConfirmDialog", () => {
         // given
         const onCancel = vi.fn();
         const user = userEvent.setup();
-        const { container } = renderWithProviders(
+        renderWithProviders(
             <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={noop} onCancel={onCancel} />,
         );
 
         // when
-        await user.click(container.firstElementChild as HTMLElement);
+        await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
 
         // then
         expect(onCancel).not.toHaveBeenCalled();

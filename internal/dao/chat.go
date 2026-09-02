@@ -1656,6 +1656,7 @@ func (r *chatDAO) CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID,
 		`SELECT COUNT(*) FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = $1 AND m.left_at IS NULL
 		 WHERE cr.type = 'dm'
+		   AND m.muted = FALSE
 		   AND cr.last_message_at IS NOT NULL
 		   AND (m.last_read_at IS NULL OR cr.last_message_at > m.last_read_at)`,
 		userID,

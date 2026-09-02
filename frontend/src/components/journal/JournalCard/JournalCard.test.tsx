@@ -149,6 +149,18 @@ describe("JournalCard", () => {
         expect(screen.queryByText("The witch smiled at the closed room.")).not.toBeInTheDocument();
     });
 
+    it("renders colour tags in the excerpt as colour rather than as literal text", () => {
+        // given
+        const journal = makeJournal({ latest_entry_excerpt: "a goal between [green]KID MIX[/green] and Ever17" });
+
+        // when
+        renderWithProviders(<JournalCard journal={journal} />);
+
+        // then
+        expect(screen.getByText("KID MIX")).toBeInTheDocument();
+        expect(screen.queryByText(/\[green\]/)).not.toBeInTheDocument();
+    });
+
     it("uses singular wording for a lone follower and a lone entry", () => {
         // given
         const journal = makeJournal({ follower_count: 1, entry_count: 1 });

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
@@ -319,6 +320,25 @@ func TestJournalDAO_List_TruncatesLatestEntryExcerpt(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, journals, 1)
 	assert.Len(t, journals[0].LatestEntryExcerpt, 303)
+}
+
+func TestJournalDAO_List_ExcerptClipsOnRuneBoundaries(t *testing.T) {
+	// given
+	repos := daotest.NewRepos(t)
+	user := daotest.CreateUser(t, repos)
+	id := createJournal(t, repos, user.ID, "T", "", "general")
+	body := strings.Repeat("雛見沢", 200)
+	_, err := repos.Journal.CreateEntry(context.Background(), repository.NewJournalEntry{JournalID: id, EntryNumber: 1, Body: body, WordCount: 1})
+	require.NoError(t, err)
+
+	// when
+	journals, _, err := repos.Journal.List(context.Background(), defaultJournalListParams(), uuid.Nil, nil)
+
+	// then
+	require.NoError(t, err)
+	require.Len(t, journals, 1)
+	assert.True(t, utf8.ValidString(journals[0].LatestEntryExcerpt))
+	assert.Equal(t, 303, utf8.RuneCountInString(journals[0].LatestEntryExcerpt))
 }
 
 func TestJournalDAO_List_ExcludesBlockedUsers(t *testing.T) {

@@ -5,6 +5,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import { useGameChatMessages, type GameChatEventName } from "../../../hooks/useGameChatMessages";
 import { Button } from "../../Button/Button";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
+import { renderRich } from "../../richText/richText";
 import styles from "./SpectatorChat.module.css";
 
 export type GameChatVariant = "spectator" | "player";
@@ -106,7 +107,7 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
                                     className={styles.timestamp}
                                 />
                             </div>
-                            <span className={styles.body}>{m.body}</span>
+                            <div className={styles.body}>{renderRich(m.body)}</div>
                         </div>
                     ))
                 )}

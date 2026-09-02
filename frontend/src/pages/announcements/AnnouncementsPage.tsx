@@ -5,6 +5,7 @@ import { useAnnouncementList } from "../../hooks/queries/announcement";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { Pagination } from "../../components/Pagination/Pagination";
 import { RelativeTimestamp } from "../../components/RelativeTimestamp/RelativeTimestamp";
+import { ellipsise } from "../../utils/text";
 import styles from "./AnnouncementsPage.module.css";
 
 export function AnnouncementsPage() {
@@ -15,10 +16,8 @@ export function AnnouncementsPage() {
 
     function preview(body: string): string {
         const plain = body.replace(/[#*_~`>[\]()]/g, "").replace(/\n+/g, " ");
-        if (plain.length > 200) {
-            return plain.slice(0, 200) + "...";
-        }
-        return plain;
+
+        return ellipsise(plain, 200);
     }
 
     if (loading) {

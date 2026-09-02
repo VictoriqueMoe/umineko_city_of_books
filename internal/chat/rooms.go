@@ -13,6 +13,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -653,10 +654,7 @@ func (r *roomsService) SetRoomNickname(ctx context.Context, roomID, userID uuid.
 		return nil, ErrNicknameLocked
 	}
 
-	nickname = strings.TrimSpace(nickname)
-	if len(nickname) > 32 {
-		nickname = nickname[:32]
-	}
+	nickname = text.ClampRunes(strings.TrimSpace(nickname), 32)
 
 	if err := r.chatRepo.SetMemberNickname(ctx, roomID, userID, nickname); err != nil {
 		return nil, fmt.Errorf("set member nickname: %w", err)

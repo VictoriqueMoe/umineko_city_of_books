@@ -62,14 +62,14 @@ describe("Modal", () => {
         // given
         const onClose = vi.fn();
         const user = userEvent.setup();
-        const { container } = renderWithProviders(
+        renderWithProviders(
             <Modal isOpen onClose={onClose} title="Seal the letter">
                 <p>the witch is waiting</p>
             </Modal>,
         );
 
         // when
-        await user.click(container.firstElementChild as HTMLElement);
+        await user.click(screen.getByRole("dialog").parentElement as HTMLElement);
 
         // then
         expect(onClose).toHaveBeenCalledOnce();

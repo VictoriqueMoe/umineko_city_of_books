@@ -66,6 +66,10 @@ function selectOwning(optionLabel: string): HTMLSelectElement {
     return select;
 }
 
+function dialog() {
+    return screen.getByRole("dialog");
+}
+
 function noop() {}
 
 interface PickerOverrides {
@@ -100,10 +104,10 @@ describe("TruthPicker", () => {
         const isOpen = false;
 
         // when
-        const { container } = renderPicker({ isOpen });
+        renderPicker({ isOpen });
 
         // then
-        expect(container).toBeEmptyDOMElement();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
         expect(mocks.useBrowseQuotes).not.toHaveBeenCalled();
         expect(mocks.useCharacterGroups).not.toHaveBeenCalled();
     });
@@ -303,10 +307,10 @@ describe("TruthPicker", () => {
         });
 
         // when
-        const { container } = renderPicker();
+        renderPicker();
 
         // then
-        const labels = Array.from(container.querySelectorAll("optgroup")).map(group => group.getAttribute("label"));
+        const labels = Array.from(dialog().querySelectorAll("optgroup")).map(group => group.getAttribute("label"));
         expect(labels).toEqual(["Main cast", "Additional"]);
     });
 
@@ -318,10 +322,10 @@ describe("TruthPicker", () => {
         });
 
         // when
-        const { container } = renderPicker();
+        renderPicker();
 
         // then
-        expect(container.querySelectorAll("optgroup")).toHaveLength(0);
+        expect(dialog().querySelectorAll("optgroup")).toHaveLength(0);
         expect(screen.getByRole("option", { name: "Beatrice" })).toBeInTheDocument();
     });
 

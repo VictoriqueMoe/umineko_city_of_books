@@ -6,7 +6,7 @@ import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
 import { TextArea } from "../../components/TextArea/TextArea";
 import type { SiteSettings } from "../../types/api";
-import styles from "./AdminSettings.module.css";
+import styles from "./settings/AdminSettings.module.css";
 
 const pages = [
     { key: "rules_landing", label: "Welcome (Landing)" },

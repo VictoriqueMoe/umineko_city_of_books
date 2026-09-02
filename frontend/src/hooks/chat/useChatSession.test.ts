@@ -528,6 +528,18 @@ describe("useChatSession audio", () => {
         // then
         expect(mocks.playMessageSound).not.toHaveBeenCalled();
     });
+
+    it("plays a message sound while the tab is in view but the window is not focused", async () => {
+        // given
+        setDocumentState("visible", false);
+        await openSession({ sound: { enabled: true, muted: false } });
+
+        // when
+        emitRealtimeEvent({ type: "chat_message", data: makeMessage({ id: "m-live" }) });
+
+        // then
+        expect(mocks.playMessageSound).toHaveBeenCalledOnce();
+    });
 });
 
 describe("useChatSession ephemeral rooms", () => {

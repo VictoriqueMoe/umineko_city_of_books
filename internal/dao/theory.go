@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/theory/params"
 	"umineko_city_of_books/internal/utils"
 
@@ -239,8 +240,8 @@ func (r *theoryDAO) List(ctx context.Context, p params.ListParams, userID uuid.U
 		t.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 		t.Author = author
 
-		if len(t.Body) > 200 {
-			t.Body = t.Body[:200] + "..."
+		if clipped := text.ClampRunes(t.Body, 200); len(clipped) != len(t.Body) {
+			t.Body = clipped + "..."
 		}
 
 		theories = append(theories, t)

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { GameRoom, OthelloState, OthelloStats, User } from "../../../types/api.ts";
+import type { GameRoom, OthelloState, OthelloStats, User } from "../../../types/api";
 import { Button } from "../../Button/Button.tsx";
 import { DisconnectBanner } from "../DisconnectBanner.tsx";
 import { GameOverPanel } from "../GameOverPanel.tsx";

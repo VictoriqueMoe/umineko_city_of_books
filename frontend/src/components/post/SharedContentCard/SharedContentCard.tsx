@@ -2,6 +2,7 @@ import { Link } from "react-router";
 import type { SharedContentPreview } from "../../../types/api";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
 import { AudioThumb } from "../../AudioAttachment/AudioAttachment";
+import { ellipsise } from "../../../utils/text";
 import styles from "./SharedContentCard.module.css";
 
 interface SharedContentCardProps {
@@ -18,10 +19,7 @@ const typeLabels: Record<string, string> = {
 };
 
 function truncate(text: string, maxLength: number): string {
-    if (text.length <= maxLength) {
-        return text;
-    }
-    return text.slice(0, maxLength) + "...";
+    return ellipsise(text, maxLength);
 }
 
 function formatNumber(n: number): string {

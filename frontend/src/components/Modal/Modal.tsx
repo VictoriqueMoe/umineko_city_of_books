@@ -1,4 +1,5 @@
 import { type PropsWithChildren, useEffect, useId, useRef } from "react";
+import { createPortal } from "react-dom";
 import styles from "./Modal.module.css";
 
 interface ModalProps {
@@ -46,7 +47,7 @@ export function Modal({ isOpen, onClose, title, children }: PropsWithChildren<Mo
         return null;
     }
 
-    return (
+    return createPortal(
         <div className={styles.overlay} onClick={onClose}>
             <div
                 ref={panelRef}
@@ -67,6 +68,7 @@ export function Modal({ isOpen, onClose, title, children }: PropsWithChildren<Mo
                 </div>
                 <div className={styles.body}>{children}</div>
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }

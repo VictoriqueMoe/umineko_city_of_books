@@ -124,7 +124,7 @@ function shouldPlayMessageSound(
         return false;
     }
 
-    return document.visibilityState !== "visible";
+    return document.visibilityState !== "visible" || !document.hasFocus();
 }
 
 export function useChatSession(options: UseChatSessionOptions): ChatSession {

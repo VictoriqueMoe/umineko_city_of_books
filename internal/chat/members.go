@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -343,10 +344,7 @@ func (m *membersService) SetMemberNicknameAsMod(ctx context.Context, roomID, act
 		return nil, err
 	}
 
-	nickname = strings.TrimSpace(nickname)
-	if len(nickname) > 32 {
-		nickname = nickname[:32]
-	}
+	nickname = text.ClampRunes(strings.TrimSpace(nickname), 32)
 
 	locked := nickname != ""
 	if err := m.chatRepo.SetMemberNicknameWithLock(ctx, roomID, targetID, nickname, locked); err != nil {

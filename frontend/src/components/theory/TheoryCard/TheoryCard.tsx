@@ -3,6 +3,7 @@ import { Link } from "react-router";
 import type { Series, Theory } from "../../../types/api";
 import { useAuth } from "../../../hooks/useAuth";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
+import { renderRich } from "../../richText/richText";
 import { CredibilityBadge } from "../CredibilityBadge/CredibilityBadge";
 import { TheoryStatusBadge } from "../TheoryStatusBadge/TheoryStatusBadge";
 import { formatSeriesEpisode, userProgressForSeries } from "../../../domain/series";
@@ -59,9 +60,9 @@ export function TheoryCard({ theory }: TheoryCardProps) {
                         <span className={styles.episode}>{formatSeriesEpisode(seriesKey, theory.episode)}</span>
                     )}
                 </div>
-                <p dir="auto" className={styles.body}>
-                    {theory.body}
-                </p>
+                <div dir="auto" className={styles.body}>
+                    {renderRich(theory.body)}
+                </div>
                 <div className={styles.meta}>
                     <TheoryStatusBadge status={theory.status} />
                     <CredibilityBadge score={theory.credibility_score} />

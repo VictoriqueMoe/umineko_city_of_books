@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
@@ -23,6 +24,7 @@ import (
 	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/utils"
 
@@ -30,8 +32,9 @@ import (
 )
 
 const (
-	defaultSeries   = "Umineko"
-	defaultLanguage = "English"
+	defaultSeries     = "Umineko"
+	defaultLanguage   = "English"
+	maxFanficTagRunes = 30
 )
 
 type (
@@ -172,7 +175,7 @@ func validateFanficFields(genres, rawTags []string, rawRating, rawSeries, rawLan
 		return fanficFields{}, ErrTooManyTags
 	}
 	for _, t := range tags {
-		if len(t) > 30 {
+		if utf8.RuneCountInString(t) > maxFanficTagRunes {
 			return fanficFields{}, ErrTagTooLong
 		}
 	}
@@ -504,8 +507,8 @@ func (s *service) buildFanficList(ctx context.Context, rows []model.FanficRow, t
 	fanfics := make([]dto.FanficResponse, len(rows))
 	for i, r := range rows {
 		resp := r.ToResponse(genresMap[r.ID], tagsMap[r.ID], charactersMap[r.ID])
-		if len(resp.Summary) > 200 {
-			resp.Summary = resp.Summary[:200] + "..."
+		if clipped := text.ClampRunes(resp.Summary, 200); len(clipped) != len(resp.Summary) {
+			resp.Summary = clipped + "..."
 		}
 		fanfics[i] = resp
 	}

@@ -14,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
 
@@ -213,9 +214,9 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		if perr == nil && parent != nil && parent.RoomID == roomID {
 			replyToID = req.ReplyToID
 			replyToAuthor = parent.SenderID
-			preview := parent.Body
-			if len(preview) > 140 {
-				preview = preview[:140] + "..."
+			preview := text.ClampRunes(parent.Body, 140)
+			if len(preview) != len(parent.Body) {
+				preview += "..."
 			}
 			replyToPreview = &dto.ChatMessageReplyPreview{
 				ID:          parent.ID,
@@ -414,6 +415,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 
 		_, isMentioned := mentionedIDs[memberID]
 		isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
+		muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
 
 		switch {
 		case isMentioned:
@@ -425,15 +427,16 @@ func (m *messagesService) dispatchPostSendSideEffects(
 				ReferenceType: msgRef,
 			})
 		case isReplyTarget:
-			_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
-				RecipientID:   memberID,
-				ActorID:       senderID,
-				Type:          dto.NotifChatReply,
-				ReferenceID:   roomID,
-				ReferenceType: msgRef,
-			})
+			if !muted {
+				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
+					RecipientID:   memberID,
+					ActorID:       senderID,
+					Type:          dto.NotifChatReply,
+					ReferenceID:   roomID,
+					ReferenceType: msgRef,
+				})
+			}
 		default:
-			muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
 			if !muted {
 				_ = m.notifSvc.Notify(ctx, dto.NotifyParams{
 					RecipientID:   memberID,
@@ -446,7 +449,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 			}
 		}
 
-		if !caps.countsTowardsUnread {
+		if !caps.countsTowardsUnread || muted {
 			continue
 		}
 

@@ -47,6 +47,10 @@ function saveButton() {
     return screen.getByRole("button", { name: "Save" });
 }
 
+function dialog() {
+    return screen.getByRole("dialog");
+}
+
 beforeEach(() => {
     mocks.useUpdateChatRoomNickname.mockReturnValue({ mutateAsync: mocks.updateNickname });
     mocks.useUploadChatRoomAvatar.mockReturnValue({ mutateAsync: mocks.uploadAvatar });
@@ -62,7 +66,7 @@ describe("EditRoomProfileDialog", () => {
         const isOpen = false;
 
         // when
-        const { container } = renderWithProviders(
+        renderWithProviders(
             <EditRoomProfileDialog
                 isOpen={isOpen}
                 roomId="room-1"
@@ -73,7 +77,7 @@ describe("EditRoomProfileDialog", () => {
         );
 
         // then
-        expect(container).toBeEmptyDOMElement();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
     it("renders nothing when the viewer is not a member of the room", () => {
@@ -81,10 +85,10 @@ describe("EditRoomProfileDialog", () => {
         const member = null;
 
         // when
-        const { container } = renderDialog(member);
+        renderDialog(member);
 
         // then
-        expect(container).toBeEmptyDOMElement();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 
     it("scopes its mutations to the room it was given", () => {
@@ -155,10 +159,10 @@ describe("EditRoomProfileDialog", () => {
         });
 
         // when
-        const { container } = renderDialog(member);
+        renderDialog(member);
 
         // then
-        expect(container.querySelector("img")).toHaveAttribute("src", "https://cdn.test/member.png");
+        expect(dialog().querySelector("img")).toHaveAttribute("src", "https://cdn.test/member.png");
     });
 
     it("locks every control and explains why when a moderator has locked the profile", () => {
@@ -215,8 +219,8 @@ describe("EditRoomProfileDialog", () => {
         // given
         const file = new File(["gold"], "beato.png", { type: "image/png" });
         const user = userEvent.setup();
-        const { container } = renderDialog(makeMember());
-        const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+        renderDialog(makeMember());
+        const fileInput = dialog().querySelector('input[type="file"]') as HTMLInputElement;
 
         // when
         await user.upload(fileInput, file);
@@ -232,8 +236,8 @@ describe("EditRoomProfileDialog", () => {
         mocks.uploadAvatar.mockResolvedValue(uploaded);
         const file = new File(["gold"], "beato.png", { type: "image/png" });
         const user = userEvent.setup();
-        const { container, onSaved } = renderDialog(makeMember());
-        const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+        const { onSaved } = renderDialog(makeMember());
+        const fileInput = dialog().querySelector('input[type="file"]') as HTMLInputElement;
         await user.upload(fileInput, file);
 
         // when
