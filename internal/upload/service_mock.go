@@ -239,6 +239,90 @@ func (_c *MockService_GetUploadDir_Call) RunAndReturn(run func() string) *MockSe
 	return _c
 }
 
+// SaveAttachment provides a mock function for the type MockService
+func (_mock *MockService) SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	ret := _mock.Called(ctx, subDir, fileSize, maxSize, reader)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SaveAttachment")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64, int64, io.Reader) (string, error)); ok {
+		return returnFunc(ctx, subDir, fileSize, maxSize, reader)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64, int64, io.Reader) string); ok {
+		r0 = returnFunc(ctx, subDir, fileSize, maxSize, reader)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int64, int64, io.Reader) error); ok {
+		r1 = returnFunc(ctx, subDir, fileSize, maxSize, reader)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockService_SaveAttachment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SaveAttachment'
+type MockService_SaveAttachment_Call struct {
+	*mock.Call
+}
+
+// SaveAttachment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - subDir string
+//   - fileSize int64
+//   - maxSize int64
+//   - reader io.Reader
+func (_e *MockService_Expecter) SaveAttachment(ctx any, subDir any, fileSize any, maxSize any, reader any) *MockService_SaveAttachment_Call {
+	return &MockService_SaveAttachment_Call{Call: _e.mock.On("SaveAttachment", ctx, subDir, fileSize, maxSize, reader)}
+}
+
+func (_c *MockService_SaveAttachment_Call) Run(run func(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader)) *MockService_SaveAttachment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 int64
+		if args[2] != nil {
+			arg2 = args[2].(int64)
+		}
+		var arg3 int64
+		if args[3] != nil {
+			arg3 = args[3].(int64)
+		}
+		var arg4 io.Reader
+		if args[4] != nil {
+			arg4 = args[4].(io.Reader)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+		)
+	})
+	return _c
+}
+
+func (_c *MockService_SaveAttachment_Call) Return(s string, err error) *MockService_SaveAttachment_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *MockService_SaveAttachment_Call) RunAndReturn(run func(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error)) *MockService_SaveAttachment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SaveAudio provides a mock function for the type MockService
 func (_mock *MockService) SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
 	ret := _mock.Called(ctx, subDir, id, fileSize, maxSize, reader)

@@ -119,13 +119,6 @@ func NewService(
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
@@ -150,7 +143,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 	}
 
 	pollLabels := pollOptionLabels(req.Poll)
-	if err := s.filterTexts(ctx, append([]string{req.Body}, pollLabels...)...); err != nil {
+	if err := s.contentFilter.Check(ctx, append([]string{req.Body}, pollLabels...)...); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -296,7 +289,7 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		return ErrEmptyBody
 	}
 
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 
@@ -594,7 +587,7 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	if strings.TrimSpace(req.Body) == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, req.Body); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -681,7 +674,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrEmptyBody
 	}
 
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 

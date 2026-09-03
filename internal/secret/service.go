@@ -95,13 +95,6 @@ func NewService(
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func secretRoomID(id string) string {
 	return "secret:" + id
 }
@@ -267,7 +260,7 @@ func (s *service) CreateComment(ctx context.Context, secretID string, userID uui
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -332,7 +325,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 

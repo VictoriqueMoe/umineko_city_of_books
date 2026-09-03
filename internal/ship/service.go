@@ -129,13 +129,6 @@ func NewService(
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
@@ -162,7 +155,7 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 	if title == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, title, req.Description); err != nil {
+	if err := s.contentFilter.Check(ctx, title, req.Description); err != nil {
 		return uuid.Nil, err
 	}
 	if err := validateCharacters(req.Characters); err != nil {
@@ -228,7 +221,7 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	if title == "" {
 		return ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, title, req.Description); err != nil {
+	if err := s.contentFilter.Check(ctx, title, req.Description); err != nil {
 		return err
 	}
 	if err := validateCharacters(req.Characters); err != nil {
@@ -404,7 +397,7 @@ func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uu
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -469,7 +462,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 

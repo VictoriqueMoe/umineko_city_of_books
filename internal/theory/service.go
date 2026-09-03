@@ -106,13 +106,6 @@ func (s *service) clearPageCache(ctx context.Context, id string) {
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
@@ -138,7 +131,7 @@ func (s *service) actorName(ctx context.Context, userID uuid.UUID) string {
 func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.CreateTheoryRequest) (uuid.UUID, error) {
 	logger.Ctx(ctx).Debug().Str("user_id", userID.String()).Str("title", req.Title).Msg("creating theory")
 
-	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
+	if err := s.contentFilter.Check(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -223,7 +216,7 @@ func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID 
 }
 
 func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.CreateTheoryRequest) error {
-	if err := s.filterTexts(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
+	if err := s.contentFilter.Check(ctx, append([]string{req.Title, req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
 		return err
 	}
 
@@ -319,7 +312,7 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID uuid.UUID, req dto.CreateResponseRequest) (uuid.UUID, error) {
 	logger.Ctx(ctx).Debug().Str("theory_id", theoryID.String()).Str("user_id", userID.String()).Str("side", req.Side).Msg("creating response")
 
-	if err := s.filterTexts(ctx, append([]string{req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
+	if err := s.contentFilter.Check(ctx, append([]string{req.Body}, evidenceNotes(req.Evidence)...)...); err != nil {
 		return uuid.Nil, err
 	}
 

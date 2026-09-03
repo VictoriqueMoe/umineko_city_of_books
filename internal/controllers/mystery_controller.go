@@ -9,7 +9,6 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 
 	"github.com/gofiber/fiber/v3"
@@ -665,7 +664,7 @@ func (s *Service) toggleMysteryGmAway(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupDeleteMysteryClue(r fiber.Router) {
-	r.Delete("/mysteries/:id/clues/:clueId", middleware.RequirePermission(s.AuthSession, s.AuthzService, authz.PermEditAnyTheory), s.deleteMysteryClue)
+	r.Delete("/mysteries/:id/clues/:clueId", s.requirePerm(authz.PermEditAnyTheory), s.deleteMysteryClue)
 }
 
 func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
@@ -689,7 +688,7 @@ func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
 }
 
 func (s *Service) setupUpdateMysteryClue(r fiber.Router) {
-	r.Put("/mysteries/:id/clues/:clueId", middleware.RequirePermission(s.AuthSession, s.AuthzService, authz.PermEditAnyTheory), s.updateMysteryClue)
+	r.Put("/mysteries/:id/clues/:clueId", s.requirePerm(authz.PermEditAnyTheory), s.updateMysteryClue)
 }
 
 func (s *Service) updateMysteryClue(ctx fiber.Ctx) error {

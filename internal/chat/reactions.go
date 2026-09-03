@@ -105,12 +105,8 @@ func (r *reactionsService) canPinInRoom(ctx context.Context, roomID, userID uuid
 }
 
 func (r *reactionsService) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatMessageListResponse, error) {
-	isMember, err := r.chatRepo.IsMember(ctx, roomID, viewerID)
-	if err != nil {
-		return nil, fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotMember
+	if err := r.assertRoomMember(ctx, roomID, viewerID); err != nil {
+		return nil, err
 	}
 
 	rows, err := r.chatRepo.ListPinnedMessages(ctx, roomID, viewerID)
@@ -155,12 +151,8 @@ func (r *reactionsService) AddReaction(ctx context.Context, messageID, userID uu
 		return ErrRoomNotFound
 	}
 
-	isMember, err := r.chatRepo.IsMember(ctx, msg.RoomID, userID)
-	if err != nil {
-		return fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return ErrNotMember
+	if err := r.assertRoomMember(ctx, msg.RoomID, userID); err != nil {
+		return err
 	}
 
 	if err := r.checkSenderTimeout(ctx, msg.RoomID, userID); err != nil {
@@ -205,12 +197,8 @@ func (r *reactionsService) RemoveReaction(ctx context.Context, messageID, userID
 		return ErrRoomNotFound
 	}
 
-	isMember, err := r.chatRepo.IsMember(ctx, msg.RoomID, userID)
-	if err != nil {
-		return fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return ErrNotMember
+	if err := r.assertRoomMember(ctx, msg.RoomID, userID); err != nil {
+		return err
 	}
 
 	deleted, err := r.chatRepo.RemoveReaction(ctx, messageID, userID, emoji)

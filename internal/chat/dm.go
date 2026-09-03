@@ -84,7 +84,7 @@ func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uui
 		return nil, ErrMissingFields
 	}
 	if body != "" {
-		if err := d.filterTexts(ctx, body); err != nil {
+		if err := d.contentFilter.Check(ctx, body); err != nil {
 			return nil, err
 		}
 	}

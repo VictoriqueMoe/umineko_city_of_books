@@ -1,6 +1,3 @@
-// Package contentfilter is the single choke point all services call before
-// persisting user-supplied text. New validation rules plug in as Rule
-// implementations without changing callers.
 package contentfilter
 
 import "context"
@@ -29,8 +26,6 @@ type (
 		Rejection Rejection
 	}
 
-	// Manager holds the registered rules and runs them in order. Services hold
-	// a *Manager and call Check before persisting any user-supplied text.
 	Manager struct {
 		rules []Rule
 	}
@@ -44,10 +39,11 @@ func New(rules ...Rule) *Manager {
 	return &Manager{rules: rules}
 }
 
-// Check runs every rule in order over the supplied text fields. Empty strings
-// are skipped. On the first rejection the Manager short-circuits and returns a
-// *RejectedError. Infrastructure errors from a rule are returned as plain errors.
 func (m *Manager) Check(ctx context.Context, texts ...string) error {
+	if m == nil {
+		return nil
+	}
+
 	filtered := make([]string, 0, len(texts))
 	for _, t := range texts {
 		if t != "" {

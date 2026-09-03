@@ -171,10 +171,8 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		req.DisplayName = req.Username
 	}
 
-	if s.identityFilter != nil {
-		if err := s.identityFilter.Check(ctx, req.Username, req.DisplayName); err != nil {
-			return nil, "", err
-		}
+	if err := s.identityFilter.Check(ctx, req.Username, req.DisplayName); err != nil {
+		return nil, "", err
 	}
 
 	if err := s.userService.CheckUsernameAvailable(ctx, req.Username); err != nil {

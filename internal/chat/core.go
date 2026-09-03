@@ -247,13 +247,6 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 	}
 }
 
-func (c *core) filterTexts(ctx context.Context, texts ...string) error {
-	if c.contentFilter == nil {
-		return nil
-	}
-	return c.contentFilter.Check(ctx, texts...)
-}
-
 func resolveSenderName(nickname, displayName, username string) string {
 	if strings.TrimSpace(nickname) != "" {
 		return nickname
@@ -368,7 +361,7 @@ func (c *core) normaliseRoomInput(ctx context.Context, rawName, rawDescription s
 		return "", "", nil, ErrMissingFields
 	}
 
-	if err := c.filterTexts(ctx, name, rawDescription); err != nil {
+	if err := c.contentFilter.Check(ctx, name, rawDescription); err != nil {
 		return "", "", nil, err
 	}
 
@@ -638,6 +631,18 @@ func (c *core) effectiveLocked(ctx context.Context, roomID, userID uuid.UUID) (b
 		return false, fmt.Errorf("check nickname locked: %w", err)
 	}
 	return locked, nil
+}
+
+func (c *core) assertRoomMember(ctx context.Context, roomID, userID uuid.UUID) error {
+	isMember, err := c.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return ErrNotMember
+	}
+
+	return nil
 }
 
 func (c *core) requireSiteMod(ctx context.Context, userID uuid.UUID) error {

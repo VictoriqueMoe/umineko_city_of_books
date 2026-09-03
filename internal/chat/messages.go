@@ -90,12 +90,8 @@ type (
 )
 
 func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.UUID, limit, offset int) (*dto.ChatMessageListResponse, error) {
-	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotMember
+	if err := m.assertRoomMember(ctx, roomID, userID); err != nil {
+		return nil, err
 	}
 
 	page := bounds.NewPage(limit, offset)
@@ -114,12 +110,8 @@ func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.U
 }
 
 func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error) {
-	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotMember
+	if err := m.assertRoomMember(ctx, roomID, userID); err != nil {
+		return nil, err
 	}
 
 	limit = bounds.NewPage(limit, 0).Limit()
@@ -137,12 +129,8 @@ func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID 
 }
 
 func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error) {
-	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
-	if err != nil {
-		return nil, fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotMember
+	if err := m.assertRoomMember(ctx, roomID, userID); err != nil {
+		return nil, err
 	}
 
 	limit = bounds.NewPage(limit, 0).Limit()
@@ -164,17 +152,13 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		return nil, ErrMissingFields
 	}
 	if req.Body != "" {
-		if err := m.filterTexts(ctx, req.Body); err != nil {
+		if err := m.contentFilter.Check(ctx, req.Body); err != nil {
 			return nil, err
 		}
 	}
 
-	isMember, err := m.chatRepo.IsMember(ctx, roomID, senderID)
-	if err != nil {
-		return nil, fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotMember
+	if err := m.assertRoomMember(ctx, roomID, senderID); err != nil {
+		return nil, err
 	}
 
 	if err := m.ensureLockAllowsRoom(ctx, senderID, roomID); err != nil {
@@ -540,12 +524,8 @@ func (m *messagesService) GetUnreadCount(ctx context.Context, userID uuid.UUID) 
 }
 
 func (m *messagesService) MarkRead(ctx context.Context, roomID, userID uuid.UUID) error {
-	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
-	if err != nil {
-		return fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return ErrNotMember
+	if err := m.assertRoomMember(ctx, roomID, userID); err != nil {
+		return err
 	}
 
 	if err := m.chatRepo.MarkRoomRead(ctx, roomID, userID); err != nil {
@@ -729,7 +709,7 @@ func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uu
 	if body == "" {
 		return nil, ErrMissingFields
 	}
-	if err := m.filterTexts(ctx, body); err != nil {
+	if err := m.contentFilter.Check(ctx, body); err != nil {
 		return nil, err
 	}
 
@@ -747,12 +727,8 @@ func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uu
 		return nil, ErrMessageEditPermission
 	}
 
-	isMember, err := m.chatRepo.IsMember(ctx, msg.RoomID, actorID)
-	if err != nil {
-		return nil, fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return nil, ErrNotMember
+	if err := m.assertRoomMember(ctx, msg.RoomID, actorID); err != nil {
+		return nil, err
 	}
 
 	if err := m.checkSenderTimeout(ctx, msg.RoomID, actorID); err != nil {

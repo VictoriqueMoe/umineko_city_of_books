@@ -13,7 +13,6 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/middleware"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
@@ -80,10 +79,6 @@ func (s *Service) getAllAdminRoutes() []FSetupRoute {
 		s.setupAdminUpdateBannedWord,
 		s.setupAdminDeleteBannedWord,
 	}
-}
-
-func (s *Service) requirePerm(perm authz.Permission) fiber.Handler {
-	return middleware.RequirePermission(s.AuthSession, s.AuthzService, perm)
 }
 
 func (s *Service) setupAdminGetStats(r fiber.Router) {

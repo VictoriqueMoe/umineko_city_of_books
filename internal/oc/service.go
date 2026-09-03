@@ -146,13 +146,6 @@ func NewService(
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
@@ -223,7 +216,7 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if err := s.filterTexts(ctx, name, req.Description, customSeriesName); err != nil {
+	if err := s.contentFilter.Check(ctx, name, req.Description, customSeriesName); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -306,7 +299,7 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 	if err != nil {
 		return err
 	}
-	if err := s.filterTexts(ctx, name, req.Description, customSeriesName); err != nil {
+	if err := s.contentFilter.Check(ctx, name, req.Description, customSeriesName); err != nil {
 		return err
 	}
 
@@ -482,7 +475,7 @@ func (s *service) AddGalleryImage(
 	}
 
 	caption = strings.TrimSpace(caption)
-	if err := s.filterTexts(ctx, caption); err != nil {
+	if err := s.contentFilter.Check(ctx, caption); err != nil {
 		return nil, err
 	}
 
@@ -518,7 +511,7 @@ func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 	if req.Caption != nil {
 		trimmed := strings.TrimSpace(*req.Caption)
 		req.Caption = &trimmed
-		if err := s.filterTexts(ctx, trimmed); err != nil {
+		if err := s.contentFilter.Check(ctx, trimmed); err != nil {
 			return err
 		}
 	}
@@ -610,7 +603,7 @@ func (s *service) CreateComment(ctx context.Context, ocID uuid.UUID, userID uuid
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -675,7 +668,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 

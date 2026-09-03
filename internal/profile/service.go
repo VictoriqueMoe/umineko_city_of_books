@@ -122,20 +122,6 @@ func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
-func (s *service) filterIdentity(ctx context.Context, texts ...string) error {
-	if s.identityFilter == nil {
-		return nil
-	}
-	return s.identityFilter.Check(ctx, texts...)
-}
-
 func (s *service) GetProfile(ctx context.Context, username string, viewerID uuid.UUID) (*dto.UserProfileResponse, error) {
 	user, stats, err := s.userRepo.GetProfileByUsername(ctx, username)
 	if err != nil {
@@ -169,11 +155,11 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 	if req.DisplayName == "" {
 		return ErrEmptyDisplayName
 	}
-	if err := s.filterIdentity(ctx, req.DisplayName); err != nil {
+	if err := s.identityFilter.Check(ctx, req.DisplayName); err != nil {
 		return err
 	}
 
-	if err := s.filterTexts(ctx, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Bio, req.Website, req.FavouriteCharacter); err != nil {
 		return err
 	}
 	if req.DefaultProfileTab == "" {

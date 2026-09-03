@@ -46,6 +46,12 @@ var (
 		"audio/flac": ".flac",
 	}
 
+	AllowedAttachmentTypes = map[string]string{
+		"application/pdf": ".pdf",
+		"text/plain":      ".txt",
+		"application/zip": ".docx",
+	}
+
 	sniffAliases = map[string]string{
 		"video/avi":       "video/x-msvideo",
 		"video/matroska":  "video/x-matroska",
@@ -73,6 +79,7 @@ type (
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveVideo(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		SaveAudio(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
+		SaveAttachment(ctx context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error)
 		Delete(urlPaths ...string)
 		DeleteByPrefix(subDir string, prefix string) error
 		GetUploadDir() string
@@ -210,6 +217,24 @@ func (s *service) SaveVideo(_ context.Context, subDir string, id uuid.UUID, file
 
 func (s *service) SaveAudio(_ context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
 	return s.saveMedia(subDir, id, fileSize, maxSize, AllowedAudioTypes, ErrInvalidAudioType, reader)
+}
+
+func (s *service) SaveAttachment(_ context.Context, subDir string, fileSize int64, maxSize int64, reader io.Reader) (string, error) {
+	if fileSize > maxSize {
+		return "", fmt.Errorf("file size %dMB exceeds maximum %dMB", fileSize/(1024*1024), maxSize/(1024*1024))
+	}
+
+	sniffed, wrapped, err := DetectContentType(reader)
+	if err != nil {
+		return "", err
+	}
+
+	ext, ok := AllowedAttachmentTypes[NormaliseSniffedType(sniffed)]
+	if !ok {
+		return "", ErrInvalidAttachmentType
+	}
+
+	return s.SaveFile(subDir, uuid.New().String()+ext, wrapped)
 }
 
 func (s *service) Delete(urlPaths ...string) {

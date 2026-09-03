@@ -396,7 +396,6 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 			Maybe()
 		m.notifier.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
 
-		// seed the disconnect state as if player1's WS had dropped moments ago
 		fired := make(chan struct{}, 1)
 		m.svc.mu.Lock()
 		st := m.svc.stateFor(roomID)

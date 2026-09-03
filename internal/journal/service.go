@@ -113,13 +113,6 @@ func NewService(
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
@@ -195,7 +188,7 @@ func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.C
 	if strings.TrimSpace(req.Title) == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, req.Title); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Title); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -322,7 +315,7 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	if strings.TrimSpace(req.Title) == "" {
 		return ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, req.Title); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Title); err != nil {
 		return err
 	}
 
@@ -437,7 +430,7 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		return uuid.Nil, 0, ErrEmptyBody
 	}
 	titleTrim := strings.TrimSpace(req.Title)
-	if err := s.filterTexts(ctx, titleTrim, body); err != nil {
+	if err := s.contentFilter.Check(ctx, titleTrim, body); err != nil {
 		return uuid.Nil, 0, err
 	}
 
@@ -607,7 +600,7 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		return ErrEmptyBody
 	}
 	titleTrim := strings.TrimSpace(req.Title)
-	if err := s.filterTexts(ctx, titleTrim, body); err != nil {
+	if err := s.contentFilter.Check(ctx, titleTrim, body); err != nil {
 		return err
 	}
 
@@ -707,7 +700,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -850,7 +843,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 

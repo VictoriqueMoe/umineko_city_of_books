@@ -4,7 +4,6 @@ import "errors"
 
 var (
 	ErrNotFound       = errors.New("mystery not found")
-	ErrAttachmentType = errors.New("only PDF, TXT, and DOCX files are allowed")
 	ErrEmptyBody      = errors.New("body is required")
 	ErrEmptyTitle     = errors.New("title and body are required")
 	ErrAlreadySolved  = errors.New("this mystery has already been solved")

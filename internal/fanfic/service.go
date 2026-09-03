@@ -124,13 +124,6 @@ func NewService(
 	}
 }
 
-func (s *service) filterTexts(ctx context.Context, texts ...string) error {
-	if s.contentFilter == nil {
-		return nil
-	}
-	return s.contentFilter.Check(ctx, texts...)
-}
-
 func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
@@ -257,7 +250,7 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 	if title == "" {
 		return uuid.Nil, ErrEmptyTitle
 	}
-	if err := s.filterTexts(ctx, title, req.Summary, req.Body); err != nil {
+	if err := s.contentFilter.Check(ctx, title, req.Summary, req.Body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -389,7 +382,7 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
-	if err := s.filterTexts(ctx, req.Title, req.Summary); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Title, req.Summary); err != nil {
 		return err
 	}
 
@@ -579,7 +572,7 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 	if authorID != userID {
 		return uuid.Nil, ErrNotAuthor
 	}
-	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Title, req.Body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -661,7 +654,7 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 	if asAdmin && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
-	if err := s.filterTexts(ctx, req.Title, req.Body); err != nil {
+	if err := s.contentFilter.Check(ctx, req.Title, req.Body); err != nil {
 		return err
 	}
 
@@ -789,7 +782,7 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return uuid.Nil, err
 	}
 
@@ -859,7 +852,7 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 	if body == "" {
 		return ErrEmptyBody
 	}
-	if err := s.filterTexts(ctx, body); err != nil {
+	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 

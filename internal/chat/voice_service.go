@@ -54,12 +54,8 @@ func (s *voiceService) MintVoiceToken(ctx context.Context, roomID, userID uuid.U
 		return "", "", ErrRoomNotFound
 	}
 
-	isMember, err := s.chatRepo.IsMember(ctx, roomID, userID)
-	if err != nil {
-		return "", "", fmt.Errorf("check membership: %w", err)
-	}
-	if !isMember {
-		return "", "", ErrNotMember
+	if err := s.assertRoomMember(ctx, roomID, userID); err != nil {
+		return "", "", err
 	}
 
 	if err := s.assertBlocksAllowRoomEntry(ctx, room, userID); err != nil {
