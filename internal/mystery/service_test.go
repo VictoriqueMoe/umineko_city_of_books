@@ -20,7 +20,6 @@ import (
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
@@ -363,9 +362,8 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	spec.Body = req.Body
 
 	m.repo.EXPECT().CreateWithClues(mock.Anything, spec).Return(&repository.MysteryRow{ID: mysteryID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+	stubActor(m, userID, "Battler")
+	stubMentionOf(m, userID, mentionedID, "alice")
 
 	var wg sync.WaitGroup
 	wg.Add(1)

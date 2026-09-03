@@ -186,9 +186,8 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	m.comments.EXPECT().
 		CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "look at this @alice").
 		Return(&repository.CommentRow{ID: commentID}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+	stubActor(m, userID, "Battler")
+	stubMentionOf(m, userID, mentionedID, "alice")
 
 	var wg sync.WaitGroup
 	wg.Add(2)

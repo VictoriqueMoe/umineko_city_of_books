@@ -11,7 +11,6 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -280,9 +279,8 @@ func TestCreateAttempt_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().CreateAttempt(mock.Anything, mysteryID, userID, (*uuid.UUID)(nil), body).
 		Return(&repository.MysteryAttemptRow{ID: attemptID, AuthorUsername: "u"}, nil)
-	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
-	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
-	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
+	stubActor(m, userID, "Battler")
+	stubMentionOf(m, userID, mentionedID, "alice")
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
 
 	var wg sync.WaitGroup
