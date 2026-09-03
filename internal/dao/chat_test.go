@@ -2051,7 +2051,7 @@ func TestChatDAO_PinAndUnpinMessage(t *testing.T) {
 
 	// when
 	require.NoError(t, repos.Chat.PinMessage(ctx, msgID, user.ID))
-	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID)
+	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID, user.ID)
 
 	// then
 	require.NoError(t, err)
@@ -2062,9 +2062,132 @@ func TestChatDAO_PinAndUnpinMessage(t *testing.T) {
 	assert.Equal(t, user.ID, *pinned[0].PinnedBy)
 
 	require.NoError(t, repos.Chat.UnpinMessage(ctx, msgID))
-	after, err := repos.Chat.ListPinnedMessages(ctx, roomID)
+	after, err := repos.Chat.ListPinnedMessages(ctx, roomID, user.ID)
 	require.NoError(t, err)
 	assert.Len(t, after, 0)
+}
+
+func TestChatDAO_ListRoomAttachments(t *testing.T) {
+	// given a room holding one message with media, one with a link, one plain and one system message
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", CreatedBy: user.ID})
+	require.NoError(t, err)
+	roomID := room.ID
+	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+
+	withMedia, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "look"})
+	require.NoError(t, err)
+	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: withMedia.ID, MediaURL: "/uploads/a.png", MediaType: "image"})
+	require.NoError(t, err)
+
+	withLink, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "see https://example.com/page"})
+	require.NoError(t, err)
+
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "just talking"})
+	require.NoError(t, err)
+
+	systemWithLink, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "system https://example.com/sys", IsSystem: true})
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		kind repository.AttachmentKind
+		want []uuid.UUID
+	}{
+		{name: "media returns only messages carrying a media row", kind: repository.AttachmentKindMedia, want: []uuid.UUID{withMedia.ID}},
+		{name: "links returns only bodies holding a url", kind: repository.AttachmentKindLinks, want: []uuid.UUID{withLink.ID}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// when
+			rows, err := repos.Chat.ListRoomAttachments(ctx, roomID, user.ID, tc.kind, "", 50)
+
+			// then
+			require.NoError(t, err)
+			ids := make([]uuid.UUID, len(rows))
+			for i, r := range rows {
+				ids[i] = r.ID
+			}
+			assert.Equal(t, tc.want, ids)
+			assert.NotContains(t, ids, systemWithLink.ID, "system messages must never appear")
+		})
+	}
+
+	t.Run("an unknown kind is an error rather than a silent default", func(t *testing.T) {
+		// when
+		_, err := repos.Chat.ListRoomAttachments(ctx, roomID, user.ID, repository.AttachmentKind("files"), "", 50)
+
+		// then
+		require.Error(t, err)
+	})
+}
+
+func TestChatDAO_ListRoomAttachments_HidesMessagesFromBeforeADMRejoin(t *testing.T) {
+	// given a dm pair with a linked message backdated before the leaver rejoined
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	stayer := daotest.CreateUser(t, repos)
+	leaver := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	require.NoError(t, err)
+	roomID := room.ID
+	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_room_members SET joined_at = $1 WHERE room_id = $2`, "2024-01-01 00:00:00", roomID)
+	require.NoError(t, err)
+	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "secret https://example.com/old"})
+	require.NoError(t, err)
+	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET created_at = $1 WHERE id = $2`, "2024-01-01 01:00:00", old.ID)
+	require.NoError(t, err)
+
+	// when the leaver leaves and rejoins the same pair
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
+	_, err = repos.Chat.CreateDMRoomAtomic(ctx, leaver.ID, stayer.ID)
+	require.NoError(t, err)
+
+	// then the rejoiner sees nothing from before, and the other party still sees it
+	forLeaver, err := repos.Chat.ListRoomAttachments(ctx, roomID, leaver.ID, repository.AttachmentKindLinks, "", 50)
+	require.NoError(t, err)
+	assert.Empty(t, forLeaver, "a link from before the rejoin must not leak to the rejoiner")
+
+	forStayer, err := repos.Chat.ListRoomAttachments(ctx, roomID, stayer.ID, repository.AttachmentKindLinks, "", 50)
+	require.NoError(t, err)
+	require.Len(t, forStayer, 1)
+	assert.Equal(t, old.ID, forStayer[0].ID)
+}
+
+func TestChatDAO_ListPinnedMessages_HidesPinsFromBeforeADMRejoin(t *testing.T) {
+	// given a dm pair with a pinned message backdated before the leaver rejoined
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	stayer := daotest.CreateUser(t, repos)
+	leaver := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	require.NoError(t, err)
+	roomID := room.ID
+	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_room_members SET joined_at = $1 WHERE room_id = $2`, "2024-01-01 00:00:00", roomID)
+	require.NoError(t, err)
+	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "secret"})
+	require.NoError(t, err)
+	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET created_at = $1 WHERE id = $2`, "2024-01-01 01:00:00", old.ID)
+	require.NoError(t, err)
+	require.NoError(t, repos.Chat.PinMessage(ctx, old.ID, stayer.ID))
+
+	// when the leaver leaves and rejoins the same pair
+	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
+	_, err = repos.Chat.CreateDMRoomAtomic(ctx, leaver.ID, stayer.ID)
+	require.NoError(t, err)
+
+	// then the rejoiner sees no pins from before, and the other party still sees them
+	forLeaver, err := repos.Chat.ListPinnedMessages(ctx, roomID, leaver.ID)
+	require.NoError(t, err)
+	assert.Empty(t, forLeaver, "a pin from before the rejoin must not leak to the rejoiner")
+
+	forStayer, err := repos.Chat.ListPinnedMessages(ctx, roomID, stayer.ID)
+	require.NoError(t, err)
+	require.Len(t, forStayer, 1)
+	assert.Equal(t, old.ID, forStayer[0].ID)
 }
 
 func TestChatDAO_ListPinnedMessages_OrdersByPinnedAtDesc(t *testing.T) {
@@ -2087,7 +2210,7 @@ func TestChatDAO_ListPinnedMessages_OrdersByPinnedAtDesc(t *testing.T) {
 	require.NoError(t, repos.Chat.PinMessage(ctx, first, user.ID))
 	_, _ = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET pinned_at = pinned_at - INTERVAL '1 second' WHERE id = $1`, first)
 	require.NoError(t, repos.Chat.PinMessage(ctx, second, user.ID))
-	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID)
+	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID, user.ID)
 
 	// then
 	require.NoError(t, err)

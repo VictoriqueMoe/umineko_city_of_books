@@ -60,8 +60,11 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 voiceEnabled={voice.enabled}
                 onJump={anchor.jumpTo}
                 onLightbox={panels.setLightboxSrc}
-                search={{ open: panels.searchOpen, onClose: () => panels.setSearchOpen(false) }}
-                pinned={{ open: panels.pinnedOpen, onClose: () => panels.setPinnedOpen(false) }}
+                infoPanel={{
+                    tab: panels.panelTab,
+                    onTabChange: panels.openPanel,
+                    onClose: panels.closePanel,
+                }}
                 editProfile={{
                     open: panels.editProfileOpen,
                     currentMember: members.current,
@@ -240,7 +243,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 <button
                     type="button"
                     className={styles.iconBtn}
-                    onClick={() => panels.setSearchOpen(true)}
+                    onClick={() => panels.openPanel("search")}
                     aria-label="Search messages"
                 >
                     {"🔍"}
@@ -248,7 +251,7 @@ export function MobileRoomView({ controller }: { controller: RoomController }) {
                 <button
                     type="button"
                     className={styles.iconBtn}
-                    onClick={() => panels.setPinnedOpen(true)}
+                    onClick={() => panels.openPanel("pins")}
                     aria-label="Pinned messages"
                 >
                     {"📌"}

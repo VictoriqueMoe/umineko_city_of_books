@@ -5,7 +5,7 @@ import { extractYouTubeIDs } from "../../utils/youtube";
 import { YouTubeEmbed } from "../chat/YouTubeEmbed/YouTubeEmbed";
 import { Lightbox } from "../Lightbox/Lightbox";
 import type { LinkPreview } from "../../types/api";
-import { previewableURLs } from "./urls";
+import { previewableURLs } from "../../domain/links";
 import styles from "./LinkPreviews.module.css";
 
 interface LinkPreviewsProps {

@@ -61,7 +61,7 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 	droppedTotal.WithLabelValues(string(out.reason), string(out.stage), string(j.ev.channel())).Inc()
 
 	if out.reason.policy() && !takeSlot(&s.lastNotice, noticeKey{user: j.ev.SenderID, reason: out.reason}, refusalCooldown) {
-		noticesTotal.WithLabelValues(string(out.reason), "suppressed").Inc()
+		noticesTotal.WithLabelValues(string(out.reason), noticeSuppressed).Inc()
 
 		return
 	}
@@ -70,7 +70,7 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 	defer cancel()
 
 	if err := s.deliver(sendCtx, j, s.noticeText(sendCtx, out)); err != nil {
-		noticesTotal.WithLabelValues(string(out.reason), "failed").Inc()
+		noticesTotal.WithLabelValues(string(out.reason), noticeFailed).Inc()
 		silentTotal.WithLabelValues(string(out.reason), string(out.stage)).Inc()
 
 		logger.Ctx(ctx).Error().Err(err).
@@ -81,7 +81,7 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 		return
 	}
 
-	noticesTotal.WithLabelValues(string(out.reason), "delivered").Inc()
+	noticesTotal.WithLabelValues(string(out.reason), noticeDelivered).Inc()
 }
 
 func (s *service) reply(ctx context.Context, j job, tune tuning, model string) outcome {
@@ -320,9 +320,9 @@ func usageOf(result *openai.CompletionResult) repository.InvocationUsage {
 }
 
 func recordTokens(result *openai.CompletionResult, channel Channel) {
-	tokensTotal.WithLabelValues("prompt", string(channel)).Add(float64(result.PromptTokens))
-	tokensTotal.WithLabelValues("cached_prompt", string(channel)).Add(float64(result.CachedPromptTokens))
-	tokensTotal.WithLabelValues("cache_write", string(channel)).Add(float64(result.CacheWriteTokens))
-	tokensTotal.WithLabelValues("completion", string(channel)).Add(float64(result.CompletionTokens))
-	tokensTotal.WithLabelValues("reasoning", string(channel)).Add(float64(result.ReasoningTokens))
+	tokensTotal.WithLabelValues(string(tokenPrompt), string(channel)).Add(float64(result.PromptTokens))
+	tokensTotal.WithLabelValues(string(tokenCachedPrompt), string(channel)).Add(float64(result.CachedPromptTokens))
+	tokensTotal.WithLabelValues(string(tokenCacheWrite), string(channel)).Add(float64(result.CacheWriteTokens))
+	tokensTotal.WithLabelValues(string(tokenCompletion), string(channel)).Add(float64(result.CompletionTokens))
+	tokensTotal.WithLabelValues(string(tokenReasoning), string(channel)).Add(float64(result.ReasoningTokens))
 }

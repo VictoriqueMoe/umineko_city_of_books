@@ -37,14 +37,9 @@ vi.mock("../MessageList/MessageList", () => ({
     MessageList: () => <div data-testid="room-messages">messages</div>,
 }));
 
-vi.mock("../MessageSearchPanel/MessageSearchPanel", () => ({
-    MessageSearchPanel: ({ isOpen }: { isOpen: boolean }) =>
-        isOpen ? <div data-testid="search-panel">search</div> : null,
-}));
-
-vi.mock("../PinnedMessagesPanel/PinnedMessagesPanel", () => ({
-    PinnedMessagesPanel: ({ isOpen, canUnpin }: { isOpen: boolean; canUnpin: boolean }) =>
-        isOpen ? <div data-testid="pinned-panel" data-can-unpin={String(canUnpin)} /> : null,
+vi.mock("../RoomInfoPanel/RoomInfoPanel", () => ({
+    RoomInfoPanel: ({ tab, canUnpin }: { tab: string | null; canUnpin: boolean }) =>
+        tab ? <div data-testid={`${tab}-panel`} data-can-unpin={String(canUnpin)} /> : null,
 }));
 
 vi.mock("../EditRoomProfileDialog/EditRoomProfileDialog", () => ({
@@ -212,10 +207,8 @@ interface ControllerOverrides {
     toast?: string;
     setToast?: RoomController["toast"]["show"];
     busy?: string;
-    pinnedOpen?: boolean;
-    setPinnedOpen?: RoomController["panels"]["setPinnedOpen"];
-    searchOpen?: boolean;
-    setSearchOpen?: RoomController["panels"]["setSearchOpen"];
+    panelTab?: RoomController["panels"]["panelTab"];
+    openPanel?: RoomController["panels"]["openPanel"];
     editProfileOpen?: boolean;
     setEditProfileOpen?: RoomController["panels"]["setEditProfileOpen"];
     inviteModalOpen?: boolean;
@@ -328,10 +321,8 @@ function makeController(overrides: ControllerOverrides = {}): RoomController {
         },
         panels: {
             ...controllerDefaults.panels,
-            pinnedOpen: overrides.pinnedOpen ?? false,
-            setPinnedOpen: overrides.setPinnedOpen ?? vi.fn(),
-            searchOpen: overrides.searchOpen ?? false,
-            setSearchOpen: overrides.setSearchOpen ?? vi.fn(),
+            panelTab: overrides.panelTab ?? null,
+            openPanel: overrides.openPanel ?? vi.fn(),
             lightboxSrc: overrides.lightboxSrc ?? null,
             setLightboxSrc: overrides.setLightboxSrc ?? vi.fn(),
             editProfileOpen: overrides.editProfileOpen ?? false,
@@ -456,11 +447,10 @@ describe("MobileRoomView chat view", () => {
 
     it("opens the search, the pins and the member list from the top bar", async () => {
         // given
-        const setSearchOpen = vi.fn();
-        const setPinnedOpen = vi.fn();
+        const openPanel = vi.fn();
         const setMobileView = vi.fn();
         const user = userEvent.setup();
-        renderView({ setSearchOpen, setPinnedOpen, setMobileView });
+        renderView({ openPanel, setMobileView });
 
         // when
         await user.click(screen.getByLabelText("Search messages"));
@@ -468,17 +458,17 @@ describe("MobileRoomView chat view", () => {
         await user.click(screen.getByLabelText("Members"));
 
         // then
-        expect(setSearchOpen).toHaveBeenCalledWith(true);
-        expect(setPinnedOpen).toHaveBeenCalledWith(true);
+        expect(openPanel).toHaveBeenCalledWith("search");
+        expect(openPanel).toHaveBeenCalledWith("pins");
         expect(setMobileView).toHaveBeenCalledWith("members");
     });
 
     it("keeps the search panel out of the way until it is opened", () => {
         // given
-        const searchOpen = false;
+        const panelTab = null;
 
         // when
-        renderView({ searchOpen });
+        renderView({ panelTab });
 
         // then
         expect(screen.queryByTestId("search-panel")).not.toBeInTheDocument();
@@ -489,10 +479,10 @@ describe("MobileRoomView chat view", () => {
         const room = makeRoom({ viewer_role: "host" });
 
         // when
-        renderView({ room, pinnedOpen: true });
+        renderView({ room, panelTab: "pins" });
 
         // then
-        expect(screen.getByTestId("pinned-panel")).toHaveAttribute("data-can-unpin", "true");
+        expect(screen.getByTestId("pins-panel")).toHaveAttribute("data-can-unpin", "true");
     });
 
     it("denies unpinning to an ordinary member", () => {
@@ -500,10 +490,10 @@ describe("MobileRoomView chat view", () => {
         const room = makeRoom({ viewer_role: "member" });
 
         // when
-        renderView({ room, pinnedOpen: true });
+        renderView({ room, panelTab: "pins" });
 
         // then
-        expect(screen.getByTestId("pinned-panel")).toHaveAttribute("data-can-unpin", "false");
+        expect(screen.getByTestId("pins-panel")).toHaveAttribute("data-can-unpin", "false");
     });
 
     it("keeps the voice bar away while nobody has joined the call", () => {

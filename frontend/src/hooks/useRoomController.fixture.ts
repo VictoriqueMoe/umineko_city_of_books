@@ -123,10 +123,9 @@ export function makeRoomController(overrides: Partial<RoomController> = {}): Roo
             invitedPartyMissing: false,
         },
         panels: {
-            pinnedOpen: false,
-            setPinnedOpen: noop,
-            searchOpen: false,
-            setSearchOpen: noop,
+            panelTab: null,
+            openPanel: noop,
+            closePanel: noop,
             lightboxSrc: null,
             setLightboxSrc: noop,
             editProfileOpen: false,

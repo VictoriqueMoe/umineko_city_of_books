@@ -2,18 +2,18 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
-import type { ChatMessage, User } from "../../../types/api";
-import { makeChatMessage } from "../../../test-utils/fixtures";
-import { renderWithProviders } from "../../../test-utils/render";
-import { PinnedMessagesPanel } from "./PinnedMessagesPanel";
+import type { ChatMessage, User } from "../../../../types/api";
+import { makeChatMessage } from "../../../../test-utils/fixtures";
+import { renderWithProviders } from "../../../../test-utils/render";
+import { PinsTab } from "./PinsTab";
 
 const { useChatRoomPinnedMessages, useUnpinChatMessage } = vi.hoisted(() => ({
     useChatRoomPinnedMessages: vi.fn(),
     useUnpinChatMessage: vi.fn(),
 }));
 
-vi.mock("../../../hooks/queries/chat", () => ({ useChatRoomPinnedMessages }));
-vi.mock("../../../hooks/mutations/chat", () => ({ useUnpinChatMessage }));
+vi.mock("../../../../hooks/queries/chat", () => ({ useChatRoomPinnedMessages }));
+vi.mock("../../../../hooks/mutations/chat", () => ({ useUnpinChatMessage }));
 
 const roomId = "room-1";
 
@@ -63,15 +63,15 @@ function stubUnpin(impl: (messageId: string) => Promise<unknown> = () => Promise
     return mutate;
 }
 
-function renderPanel(overrides: Partial<ComponentProps<typeof PinnedMessagesPanel>> = {}) {
-    const onClose = vi.fn();
+function renderPanel(overrides: Partial<ComponentProps<typeof PinsTab>> = {}) {
+    const onJumped = vi.fn();
     const onJump = vi.fn();
     const onLightbox = vi.fn();
     const result = renderWithProviders(
-        <PinnedMessagesPanel
+        <PinsTab
             roomId={roomId}
-            isOpen
-            onClose={onClose}
+            isActive
+            onJumped={onJumped}
             onJump={onJump}
             onLightbox={onLightbox}
             canUnpin={false}
@@ -79,29 +79,17 @@ function renderPanel(overrides: Partial<ComponentProps<typeof PinnedMessagesPane
         />,
     );
 
-    return { ...result, onClose, onJump, onLightbox };
+    return { ...result, onClose: onJumped, onJump, onLightbox };
 }
 
-describe("PinnedMessagesPanel", () => {
-    it("renders nothing while the panel is closed", () => {
+describe("PinsTab", () => {
+    it("leaves the pinned query disabled while the tab is not the active one", () => {
         // given
         stubPinned([]);
         stubUnpin();
 
         // when
-        const { container } = renderPanel({ isOpen: false });
-
-        // then
-        expect(container).toBeEmptyDOMElement();
-    });
-
-    it("leaves the pinned query disabled while the panel is closed", () => {
-        // given
-        stubPinned([]);
-        stubUnpin();
-
-        // when
-        renderPanel({ isOpen: false });
+        renderPanel({ isActive: false });
 
         // then
         expect(useChatRoomPinnedMessages).toHaveBeenLastCalledWith(roomId, false);
@@ -355,41 +343,9 @@ describe("PinnedMessagesPanel", () => {
 
         // when
         const { rerender } = renderPanel();
-        rerender(<PinnedMessagesPanel roomId={roomId} isOpen onClose={() => {}} onJump={() => {}} canUnpin={false} />);
+        rerender(<PinsTab roomId={roomId} isActive onJumped={() => {}} onJump={() => {}} canUnpin={false} />);
 
         // then
         expect(refresh).not.toHaveBeenCalled();
-    });
-
-    it("closes on a click outside the drawer but not on a click inside it", async () => {
-        // given
-        stubPinned([]);
-        stubUnpin();
-        const user = userEvent.setup();
-        const { onClose } = renderPanel();
-        const drawer = screen.getByRole("dialog", { name: "Pinned messages" });
-
-        // when
-        await user.click(drawer);
-        const clicksFromInside = onClose.mock.calls.length;
-        await user.click(drawer.parentElement as HTMLElement);
-
-        // then
-        expect(clicksFromInside).toBe(0);
-        expect(onClose).toHaveBeenCalledOnce();
-    });
-
-    it("closes when the close control is pressed", async () => {
-        // given
-        stubPinned([]);
-        stubUnpin();
-        const user = userEvent.setup();
-        const { onClose } = renderPanel();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Close" }));
-
-        // then
-        expect(onClose).toHaveBeenCalledOnce();
     });
 });

@@ -3,8 +3,7 @@ import type { ChatRoom, ChatRoomMember, UserProfile } from "../../../types/api";
 import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
 import { EditRoomProfileDialog } from "../EditRoomProfileDialog/EditRoomProfileDialog";
 import { InviteMembersModal } from "../InviteMembersModal/InviteMembersModal";
-import { MessageSearchPanel } from "../MessageSearchPanel/MessageSearchPanel";
-import { PinnedMessagesPanel } from "../PinnedMessagesPanel/PinnedMessagesPanel";
+import { RoomInfoPanel, type RoomInfoTab } from "../RoomInfoPanel/RoomInfoPanel";
 import { RoomModerationDialog } from "../RoomModerationDialog/RoomModerationDialog";
 
 const WatchPartyModal = lazy(() => import("../WatchParty/WatchPartyModal").then(m => ({ default: m.WatchPartyModal })));
@@ -22,12 +21,9 @@ export interface RoomOverlaysProps {
     voiceEnabled: boolean;
     onJump: (messageId: string, createdAt?: string) => void;
     onLightbox: (src: string) => void;
-    search: {
-        open: boolean;
-        onClose: () => void;
-    };
-    pinned: {
-        open: boolean;
+    infoPanel: {
+        tab: RoomInfoTab | null;
+        onTabChange: (tab: RoomInfoTab) => void;
         onClose: () => void;
     };
     editProfile: {
@@ -67,8 +63,7 @@ export function RoomOverlays({
     voiceEnabled,
     onJump,
     onLightbox,
-    search,
-    pinned,
+    infoPanel,
     editProfile,
     roomModeration,
     watchParty,
@@ -78,14 +73,11 @@ export function RoomOverlays({
 
     return (
         <>
-            {search.open && (
-                <MessageSearchPanel roomId={room.id} isOpen={search.open} onClose={search.onClose} onJump={onJump} />
-            )}
-
-            <PinnedMessagesPanel
+            <RoomInfoPanel
                 roomId={room.id}
-                isOpen={pinned.open}
-                onClose={pinned.onClose}
+                tab={infoPanel.tab}
+                onTabChange={infoPanel.onTabChange}
+                onClose={infoPanel.onClose}
                 onJump={onJump}
                 canUnpin={canModerateRoom}
                 onLightbox={onLightbox}

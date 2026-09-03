@@ -83,6 +83,7 @@ export const queryKeys = {
         room: (id: string) => ["chat", "room", id] as const,
         roomMembers: (id: string) => ["chat", "room", id, "members"] as const,
         pinned: (id: string) => ["chat", "room", id, "pinned"] as const,
+        attachments: (id: string, kind: string) => ["chat", "room", id, "attachments", kind] as const,
         userRooms: () => ["chat", "rooms", "user"] as const,
         rooms: () => ["chat", "rooms"] as const,
         roomSettings: (id: string) => ["chat", "rooms", id] as const,

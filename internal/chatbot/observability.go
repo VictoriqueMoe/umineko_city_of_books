@@ -1,6 +1,31 @@
 package chatbot
 
-import "github.com/prometheus/client_golang/prometheus"
+import (
+	"github.com/prometheus/client_golang/prometheus"
+
+	"umineko_city_of_books/internal/repository"
+)
+
+type (
+	tokenKind string
+
+	dropLabel struct {
+		reason Reason
+		stage  stage
+	}
+)
+
+const (
+	tokenPrompt       tokenKind = "prompt"
+	tokenCachedPrompt tokenKind = "cached_prompt"
+	tokenCacheWrite   tokenKind = "cache_write"
+	tokenCompletion   tokenKind = "completion"
+	tokenReasoning    tokenKind = "reasoning"
+
+	noticeDelivered  = "delivered"
+	noticeSuppressed = "suppressed"
+	noticeFailed     = "failed"
+)
 
 var (
 	invocationsTotal = prometheus.NewCounterVec(
@@ -51,6 +76,64 @@ var (
 	)
 )
 
+var (
+	seedChannels = []Channel{ChannelDM, ChannelGroup, ChannelPost, ChannelPostComment}
+
+	seedStatuses = []repository.InvocationStatus{
+		repository.InvocationReplied,
+		repository.InvocationRefused,
+		repository.InvocationFailed,
+		repository.InvocationQuota,
+	}
+
+	seedTokenKinds = []tokenKind{tokenPrompt, tokenCachedPrompt, tokenCacheWrite, tokenCompletion, tokenReasoning}
+
+	seedNoticeResults = []string{noticeDelivered, noticeSuppressed, noticeFailed}
+
+	seedDrops = []dropLabel{
+		{reasonNotPermitted, stagePreTrigger},
+		{reasonCooldown, stagePreTrigger},
+		{reasonRoomInflight, stagePreTrigger},
+		{reasonQueueFull, stagePreTrigger},
+		{reasonInternal, stagePreModel},
+		{reasonQuotaUser, stagePreModel},
+		{reasonQuotaSite, stagePreModel},
+		{reasonProviderLimited, stagePostModel},
+		{reasonNotConfigured, stagePostModel},
+		{reasonTimeout, stagePostModel},
+		{reasonProviderDown, stagePostModel},
+		{reasonEmptyReply, stagePostModel},
+		{reasonFiltered, stagePostModel},
+		{reasonUndeliverable, stagePostModel},
+	}
+)
+
 func init() {
 	prometheus.MustRegister(invocationsTotal, droppedTotal, tokensTotal, noticesTotal, silentTotal, queueDepth)
+
+	seedMetrics()
+}
+
+func seedMetrics() {
+	for _, channel := range seedChannels {
+		for _, status := range seedStatuses {
+			invocationsTotal.WithLabelValues(string(status), string(channel)).Add(0)
+		}
+
+		for _, kind := range seedTokenKinds {
+			tokensTotal.WithLabelValues(string(kind), string(channel)).Add(0)
+		}
+
+		for _, drop := range seedDrops {
+			droppedTotal.WithLabelValues(string(drop.reason), string(drop.stage), string(channel)).Add(0)
+		}
+	}
+
+	for _, drop := range seedDrops {
+		silentTotal.WithLabelValues(string(drop.reason), string(drop.stage)).Add(0)
+
+		for _, result := range seedNoticeResults {
+			noticesTotal.WithLabelValues(string(drop.reason), result).Add(0)
+		}
+	}
 }

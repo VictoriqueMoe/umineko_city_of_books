@@ -122,16 +122,34 @@ func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID 
 		return nil, ErrNotMember
 	}
 
-	if limit <= 0 {
-		limit = 50
-	}
-	if limit > 200 {
-		limit = 200
-	}
+	limit = bounds.NewPage(limit, 0).Limit()
 
 	rows, err := m.chatRepo.GetMessagesBefore(ctx, roomID, userID, before, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get messages before: %w", err)
+	}
+
+	return &dto.ChatMessageListResponse{
+		Messages: m.hydrateMessageRows(ctx, userID, rows),
+		Total:    -1,
+		Limit:    limit,
+	}, nil
+}
+
+func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error) {
+	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check membership: %w", err)
+	}
+	if !isMember {
+		return nil, ErrNotMember
+	}
+
+	limit = bounds.NewPage(limit, 0).Limit()
+
+	rows, err := m.chatRepo.ListRoomAttachments(ctx, roomID, userID, kind, before, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list room attachments: %w", err)
 	}
 
 	return &dto.ChatMessageListResponse{

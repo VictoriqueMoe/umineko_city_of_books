@@ -271,6 +271,19 @@ export async function getChatRoomPinnedMessages(roomId: string): Promise<ChatMes
     return apiFetch<ChatMessageListResponse>(`/chat/rooms/${roomId}/pins`);
 }
 
+export type AttachmentKind = "media" | "links";
+
+export async function getChatRoomAttachments(
+    roomId: string,
+    kind: AttachmentKind,
+    before?: string,
+    limit?: number,
+): Promise<ChatMessageListResponse> {
+    const qs = buildQueryString({ kind, before, limit: limit ?? 50 });
+
+    return apiFetch<ChatMessageListResponse>(`/chat/rooms/${roomId}/attachments${qs}`);
+}
+
 export async function addChatMessageReaction(messageId: string, emoji: string): Promise<void> {
     await apiPost<unknown, { emoji: string }>(`/chat/messages/${messageId}/reactions`, { emoji });
 }

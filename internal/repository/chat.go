@@ -13,7 +13,14 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	AttachmentKindMedia AttachmentKind = "media"
+	AttachmentKindLinks AttachmentKind = "links"
+)
+
 type (
+	AttachmentKind string
+
 	ChatRoomRow struct {
 		ID            uuid.UUID
 		Name          string
@@ -245,7 +252,8 @@ type (
 		HasActiveMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error)
 		PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID, tx ...*sql.Tx) error
 		UnpinMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error
-		ListPinnedMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error)
+		ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error)
+		ListRoomAttachments(ctx context.Context, roomID, viewerID uuid.UUID, kind AttachmentKind, before string, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error)
 		AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error)
 		RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error)
 		CountReactions(ctx context.Context, messageID uuid.UUID, emoji string, tx ...*sql.Tx) (int, error)
@@ -912,8 +920,12 @@ func (r *chatRepository) UnpinMessage(ctx context.Context, messageID uuid.UUID, 
 	return r.dao.UnpinMessage(ctx, messageID, tx...)
 }
 
-func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error) {
-	return r.dao.ListPinnedMessages(ctx, roomID, tx...)
+func (r *chatRepository) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+	return r.dao.ListPinnedMessages(ctx, roomID, viewerID, tx...)
+}
+
+func (r *chatRepository) ListRoomAttachments(ctx context.Context, roomID, viewerID uuid.UUID, kind AttachmentKind, before string, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+	return r.dao.ListRoomAttachments(ctx, roomID, viewerID, kind, before, limit, tx...)
 }
 
 func (r *chatRepository) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error) {

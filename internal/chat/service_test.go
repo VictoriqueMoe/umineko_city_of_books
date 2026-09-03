@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
@@ -2232,7 +2233,7 @@ func TestGetMessagesBefore_DefaultsApplied(t *testing.T) {
 	userID := uuid.New()
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().GetMessagesBefore(mock.Anything, roomID, mock.Anything, "x", 50).Return(nil, nil)
+	m.chatRepo.EXPECT().GetMessagesBefore(mock.Anything, roomID, mock.Anything, "x", bounds.DefaultLimit).Return(nil, nil)
 	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
 	m.chatRepo.EXPECT().GetReactionsBatch(mock.Anything, []uuid.UUID{}, userID).Return(nil, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, mock.Anything).Return(nil, nil)
@@ -2242,7 +2243,7 @@ func TestGetMessagesBefore_DefaultsApplied(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 50, got.Limit)
+	assert.Equal(t, bounds.DefaultLimit, got.Limit)
 }
 
 func TestGetMessagesBefore_LimitClamped(t *testing.T) {
@@ -2251,7 +2252,7 @@ func TestGetMessagesBefore_LimitClamped(t *testing.T) {
 	userID := uuid.New()
 	roomID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().GetMessagesBefore(mock.Anything, roomID, mock.Anything, "x", 200).Return(nil, nil)
+	m.chatRepo.EXPECT().GetMessagesBefore(mock.Anything, roomID, mock.Anything, "x", bounds.MaxLimit).Return(nil, nil)
 	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
 	m.chatRepo.EXPECT().GetReactionsBatch(mock.Anything, []uuid.UUID{}, userID).Return(nil, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUsersBatch(mock.Anything, mock.Anything).Return(nil, nil)
@@ -2261,7 +2262,7 @@ func TestGetMessagesBefore_LimitClamped(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, 200, got.Limit)
+	assert.Equal(t, bounds.MaxLimit, got.Limit)
 }
 
 func TestSendMessage_EmptyBody(t *testing.T) {
@@ -3738,7 +3739,7 @@ func TestListPinnedMessages_HappyPath(t *testing.T) {
 	viewerID := uuid.New()
 	msgID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(true, nil)
-	m.chatRepo.EXPECT().ListPinnedMessages(mock.Anything, roomID).Return([]repository.ChatMessageRow{
+	m.chatRepo.EXPECT().ListPinnedMessages(mock.Anything, roomID, viewerID).Return([]repository.ChatMessageRow{
 		{ID: msgID, RoomID: roomID, SenderID: uuid.New(), Body: "pinned"},
 	}, nil)
 	m.chatRepo.EXPECT().GetMessageMediaBatch(mock.Anything, []uuid.UUID{msgID}).Return(nil, nil)
@@ -3789,7 +3790,7 @@ func TestListPinnedMessages_RepoError(t *testing.T) {
 	roomID := uuid.New()
 	viewerID := uuid.New()
 	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, viewerID).Return(true, nil)
-	m.chatRepo.EXPECT().ListPinnedMessages(mock.Anything, roomID).Return(nil, errors.New("db"))
+	m.chatRepo.EXPECT().ListPinnedMessages(mock.Anything, roomID, viewerID).Return(nil, errors.New("db"))
 
 	// when
 	_, err := svc.ListPinnedMessages(context.Background(), roomID, viewerID)

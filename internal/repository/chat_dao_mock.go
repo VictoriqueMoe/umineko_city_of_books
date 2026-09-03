@@ -4375,12 +4375,12 @@ func (_c *MockChatDAO_ListMessageMediaURLs_Call) RunAndReturn(run func(ctx conte
 }
 
 // ListPinnedMessages provides a mock function for the type MockChatDAO
-func (_mock *MockChatDAO) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+func (_mock *MockChatDAO) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, roomID, tx)
+		tmpRet = _mock.Called(ctx, roomID, viewerID, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, roomID)
+		tmpRet = _mock.Called(ctx, roomID, viewerID)
 	}
 	ret := tmpRet
 
@@ -4390,18 +4390,18 @@ func (_mock *MockChatDAO) ListPinnedMessages(ctx context.Context, roomID uuid.UU
 
 	var r0 []ChatMessageRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatMessageRow, error)); ok {
-		return returnFunc(ctx, roomID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatMessageRow); ok {
-		r0 = returnFunc(ctx, roomID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]ChatMessageRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, roomID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4416,13 +4416,14 @@ type MockChatDAO_ListPinnedMessages_Call struct {
 // ListPinnedMessages is a helper method to define mock.On call
 //   - ctx context.Context
 //   - roomID uuid.UUID
+//   - viewerID uuid.UUID
 //   - tx ...*sql.Tx
-func (_e *MockChatDAO_Expecter) ListPinnedMessages(ctx any, roomID any, tx ...any) *MockChatDAO_ListPinnedMessages_Call {
+func (_e *MockChatDAO_Expecter) ListPinnedMessages(ctx any, roomID any, viewerID any, tx ...any) *MockChatDAO_ListPinnedMessages_Call {
 	return &MockChatDAO_ListPinnedMessages_Call{Call: _e.mock.On("ListPinnedMessages",
-		append([]any{ctx, roomID}, tx...)...)}
+		append([]any{ctx, roomID, viewerID}, tx...)...)}
 }
 
-func (_c *MockChatDAO_ListPinnedMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx)) *MockChatDAO_ListPinnedMessages_Call {
+func (_c *MockChatDAO_ListPinnedMessages_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockChatDAO_ListPinnedMessages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -4432,16 +4433,21 @@ func (_c *MockChatDAO_ListPinnedMessages_Call) Run(run func(ctx context.Context,
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 2 {
-			variadicArgs = args[2].([]*sql.Tx)
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
 		}
-		arg2 = variadicArgs
+		var arg3 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 3 {
+			variadicArgs = args[3].([]*sql.Tx)
+		}
+		arg3 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2...,
+			arg2,
+			arg3...,
 		)
 	})
 	return _c
@@ -4452,7 +4458,7 @@ func (_c *MockChatDAO_ListPinnedMessages_Call) Return(chatMessageRows []ChatMess
 	return _c
 }
 
-func (_c *MockChatDAO_ListPinnedMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error)) *MockChatDAO_ListPinnedMessages_Call {
+func (_c *MockChatDAO_ListPinnedMessages_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) ([]ChatMessageRow, error)) *MockChatDAO_ListPinnedMessages_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4584,6 +4590,113 @@ func (_c *MockChatDAO_ListPublicRooms_Call) Return(chatRoomRows []ChatRoomRow, n
 }
 
 func (_c *MockChatDAO_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit int, offset int, tx ...*sql.Tx) ([]ChatRoomRow, int, error)) *MockChatDAO_ListPublicRooms_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListRoomAttachments provides a mock function for the type MockChatDAO
+func (_mock *MockChatDAO) ListRoomAttachments(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, kind AttachmentKind, before string, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, kind, before, limit, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, roomID, viewerID, kind, before, limit)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListRoomAttachments")
+	}
+
+	var r0 []ChatMessageRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, AttachmentKind, string, int, ...*sql.Tx) ([]ChatMessageRow, error)); ok {
+		return returnFunc(ctx, roomID, viewerID, kind, before, limit, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, AttachmentKind, string, int, ...*sql.Tx) []ChatMessageRow); ok {
+		r0 = returnFunc(ctx, roomID, viewerID, kind, before, limit, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]ChatMessageRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, AttachmentKind, string, int, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, roomID, viewerID, kind, before, limit, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockChatDAO_ListRoomAttachments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListRoomAttachments'
+type MockChatDAO_ListRoomAttachments_Call struct {
+	*mock.Call
+}
+
+// ListRoomAttachments is a helper method to define mock.On call
+//   - ctx context.Context
+//   - roomID uuid.UUID
+//   - viewerID uuid.UUID
+//   - kind AttachmentKind
+//   - before string
+//   - limit int
+//   - tx ...*sql.Tx
+func (_e *MockChatDAO_Expecter) ListRoomAttachments(ctx any, roomID any, viewerID any, kind any, before any, limit any, tx ...any) *MockChatDAO_ListRoomAttachments_Call {
+	return &MockChatDAO_ListRoomAttachments_Call{Call: _e.mock.On("ListRoomAttachments",
+		append([]any{ctx, roomID, viewerID, kind, before, limit}, tx...)...)}
+}
+
+func (_c *MockChatDAO_ListRoomAttachments_Call) Run(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, kind AttachmentKind, before string, limit int, tx ...*sql.Tx)) *MockChatDAO_ListRoomAttachments_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 uuid.UUID
+		if args[2] != nil {
+			arg2 = args[2].(uuid.UUID)
+		}
+		var arg3 AttachmentKind
+		if args[3] != nil {
+			arg3 = args[3].(AttachmentKind)
+		}
+		var arg4 string
+		if args[4] != nil {
+			arg4 = args[4].(string)
+		}
+		var arg5 int
+		if args[5] != nil {
+			arg5 = args[5].(int)
+		}
+		var arg6 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 6 {
+			variadicArgs = args[6].([]*sql.Tx)
+		}
+		arg6 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockChatDAO_ListRoomAttachments_Call) Return(chatMessageRows []ChatMessageRow, err error) *MockChatDAO_ListRoomAttachments_Call {
+	_c.Call.Return(chatMessageRows, err)
+	return _c
+}
+
+func (_c *MockChatDAO_ListRoomAttachments_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, viewerID uuid.UUID, kind AttachmentKind, before string, limit int, tx ...*sql.Tx) ([]ChatMessageRow, error)) *MockChatDAO_ListRoomAttachments_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -215,7 +215,7 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.pinHeaderBtn}
-                            onClick={() => panels.setSearchOpen(true)}
+                            onClick={() => panels.openPanel("search")}
                             aria-label="Search messages"
                             title="Search messages"
                         >
@@ -224,7 +224,7 @@ export function RoomPage() {
                         <button
                             type="button"
                             className={styles.pinHeaderBtn}
-                            onClick={() => panels.setPinnedOpen(true)}
+                            onClick={() => panels.openPanel("pins")}
                             aria-label="Pinned messages"
                             title="Pinned messages"
                         >
@@ -354,8 +354,11 @@ export function RoomPage() {
                 voiceEnabled={voice.enabled}
                 onJump={anchor.jumpTo}
                 onLightbox={panels.setLightboxSrc}
-                search={{ open: panels.searchOpen, onClose: () => panels.setSearchOpen(false) }}
-                pinned={{ open: panels.pinnedOpen, onClose: () => panels.setPinnedOpen(false) }}
+                infoPanel={{
+                    tab: panels.panelTab,
+                    onTabChange: panels.openPanel,
+                    onClose: panels.closePanel,
+                }}
                 editProfile={{
                     open: panels.editProfileOpen,
                     currentMember: members.current,

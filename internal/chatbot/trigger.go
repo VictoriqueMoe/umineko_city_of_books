@@ -29,14 +29,14 @@ func (s *service) observe(ev botEvent) {
 	}
 
 	if !s.takeCooldown(ev.SenderID, tune.cooldown) {
-		droppedTotal.WithLabelValues("cooldown", string(stagePreTrigger), string(ev.channel())).Inc()
+		droppedTotal.WithLabelValues(string(reasonCooldown), string(stagePreTrigger), string(ev.channel())).Inc()
 
 		return
 	}
 
 	key := ev.scopeKey()
 	if _, busy := s.inScope.LoadOrStore(key, struct{}{}); busy {
-		droppedTotal.WithLabelValues("room_inflight", string(stagePreTrigger), string(ev.channel())).Inc()
+		droppedTotal.WithLabelValues(string(reasonRoomInflight), string(stagePreTrigger), string(ev.channel())).Inc()
 
 		return
 	}
@@ -46,8 +46,8 @@ func (s *service) observe(ev botEvent) {
 		queueDepth.Set(float64(len(s.jobs)))
 	default:
 		s.inScope.Delete(key)
-		droppedTotal.WithLabelValues("queue_full", string(stagePreTrigger), string(ev.channel())).Inc()
-		silentTotal.WithLabelValues("queue_full", string(stagePreTrigger)).Inc()
+		droppedTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger), string(ev.channel())).Inc()
+		silentTotal.WithLabelValues(string(reasonQueueFull), string(stagePreTrigger)).Inc()
 	}
 }
 

@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
@@ -45,6 +46,7 @@ func (s *Service) getAllChatRoutes() []FSetupRoute {
 		s.setupPinMessageRoute,
 		s.setupUnpinMessageRoute,
 		s.setupListPinnedMessagesRoute,
+		s.setupListRoomAttachmentsRoute,
 		s.setupAddReactionRoute,
 		s.setupRemoveReactionRoute,
 		s.setupDeleteMessageRoute,
@@ -941,6 +943,36 @@ func (s *Service) listPinnedMessages(ctx fiber.Ctx) error {
 		}
 		return utils.InternalError(ctx, "failed to list pinned messages")
 	}
+	return ctx.JSON(resp)
+}
+
+func (s *Service) setupListRoomAttachmentsRoute(r fiber.Router) {
+	r.Get("/chat/rooms/:roomID/attachments", s.requireAuth(), s.listRoomAttachments)
+}
+
+func (s *Service) listRoomAttachments(ctx fiber.Ctx) error {
+	userID := utils.UserID(ctx)
+	roomID, ok := utils.ParseIDParam(ctx, "roomID")
+	if !ok {
+		return nil
+	}
+
+	kind := repository.AttachmentKind(ctx.Query("kind"))
+	if kind != repository.AttachmentKindMedia && kind != repository.AttachmentKindLinks {
+		return utils.BadRequest(ctx, "unknown attachment kind")
+	}
+
+	limit := fiber.Query[int](ctx, "limit", 50)
+	before := ctx.Query("before")
+
+	resp, err := s.ChatService.ListRoomAttachments(ctx.Context(), userID, roomID, kind, before, limit)
+	if err != nil {
+		if errors.Is(err, chat.ErrNotMember) {
+			return utils.Forbidden(ctx, "not a member")
+		}
+		return utils.InternalError(ctx, "failed to list room attachments")
+	}
+
 	return ctx.JSON(resp)
 }
 

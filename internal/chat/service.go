@@ -40,6 +40,7 @@ type (
 		ArchiveStale(ctx context.Context) (int, error)
 		GetMessages(ctx context.Context, userID, roomID uuid.UUID, limit, offset int) (*dto.ChatMessageListResponse, error)
 		GetMessagesBefore(ctx context.Context, userID, roomID uuid.UUID, before string, limit int) (*dto.ChatMessageListResponse, error)
+		ListRoomAttachments(ctx context.Context, userID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error)
 
 		SendMessage(ctx context.Context, senderID, roomID uuid.UUID, req dto.SendMessageRequest, files []FileUpload) (*dto.ChatMessageResponse, error)
 		GetRoomsByUser(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)

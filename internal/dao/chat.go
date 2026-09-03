@@ -1102,6 +1102,95 @@ func scanMessageRow(row interface{ Scan(dest ...any) error }) (repository.ChatMe
 	return msg, nil
 }
 
+func attachmentPredicate(kind repository.AttachmentKind) (string, error) {
+	switch kind {
+	case repository.AttachmentKindMedia:
+		return ` AND EXISTS (SELECT 1 FROM chat_message_media cmm WHERE cmm.message_id = cm.id)`, nil
+	case repository.AttachmentKindLinks:
+		return ` AND cm.body LIKE '%http%'`, nil
+	}
+
+	return "", fmt.Errorf("list room attachments: unknown kind %q", kind)
+}
+
+func (r *chatDAO) ListRoomAttachments(ctx context.Context, roomID, viewerID uuid.UUID, kind repository.AttachmentKind, before string, limit int, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
+	predicate, err := attachmentPredicate(kind)
+	if err != nil {
+		return nil, err
+	}
+
+	beforeTime, beforeID, err := splitMessageCursor(before)
+	if err != nil {
+		return nil, fmt.Errorf("list room attachments: %w", err)
+	}
+
+	var cursor *time.Time
+	if before != "" {
+		cursor = &beforeTime
+	}
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
+		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
+		 COALESCE(ur.role, ''),
+		 cm.body, cm.is_system, cm.created_at, cm.reply_to_id,
+		 parent.sender_id, COALESCE(NULLIF(pmem.nickname, ''), NULLIF(pu.display_name, ''), pu.username), parent.body,
+		 cm.pinned_at, cm.pinned_by, cm.edited_at,
+		 COALESCE(mem.nickname, ''), COALESCE(mem.avatar_url, '')
+		 FROM chat_messages cm
+		 JOIN users u ON cm.sender_id = u.id
+		 LEFT JOIN user_roles ur ON ur.user_id = u.id
+		 LEFT JOIN chat_messages parent ON cm.reply_to_id = parent.id
+		 LEFT JOIN users pu ON parent.sender_id = pu.id
+		 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
+		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
+		 WHERE cm.room_id = $1 AND cm.is_system = FALSE AND (
+			$2::timestamptz IS NULL
+			OR cm.created_at < $2
+			OR ($3 != '' AND cm.created_at = $2 AND cm.id::text < $3)
+		 )`+predicate+strings.ReplaceAll(visibleToViewer, "$2", "$5")+`
+		 ORDER BY cm.created_at DESC, cm.id DESC
+		 LIMIT $4`,
+		roomID, cursor, beforeID, limit, viewerID,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("list room attachments: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []repository.ChatMessageRow
+	for rows.Next() {
+		msg, err := scanMessageRow(rows)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages, rows.Err()
+}
+
+func splitMessageCursor(before string) (time.Time, string, error) {
+	beforeTS := before
+	beforeID := ""
+	parts := strings.SplitN(before, "|", 2)
+	if len(parts) > 0 {
+		beforeTS = strings.TrimSpace(parts[0])
+	}
+	if len(parts) == 2 {
+		candidate := strings.TrimSpace(parts[1])
+		if _, err := uuid.Parse(candidate); err == nil {
+			beforeID = candidate
+		}
+	}
+
+	beforeTime, err := parseTimestampInput(beforeTS)
+	if err != nil {
+		return time.Time{}, "", fmt.Errorf("parse before: %w", err)
+	}
+
+	return beforeTime, beforeID, nil
+}
+
 func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.UUID, before string, limit int, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
 	beforeTS := before
 	beforeID := ""
@@ -1526,7 +1615,7 @@ func (r *chatDAO) UnpinMessage(ctx context.Context, messageID uuid.UUID, tx ...*
 	return nil
 }
 
-func (r *chatDAO) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
+func (r *chatDAO) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
@@ -1541,9 +1630,9 @@ func (r *chatDAO) ListPinnedMessages(ctx context.Context, roomID uuid.UUID, tx .
 		 LEFT JOIN users pu ON parent.sender_id = pu.id
 		 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
-		 WHERE cm.room_id = $1 AND cm.pinned_at IS NOT NULL
+		 WHERE cm.room_id = $1 AND cm.pinned_at IS NOT NULL`+visibleToViewer+`
 		 ORDER BY cm.pinned_at DESC`,
-		roomID,
+		roomID, viewerID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list pinned messages: %w", err)

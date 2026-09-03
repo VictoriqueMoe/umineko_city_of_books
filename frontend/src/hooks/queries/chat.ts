@@ -1,7 +1,9 @@
-﻿import { useCallback } from "react";
+﻿import type { AttachmentKind } from "../../api/endpoints/chat";
+import { useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     getChatRoomMembers,
+    getChatRoomAttachments,
     getChatRoomPinnedMessages,
     getChatUnreadCount,
     getRoomMessages,
@@ -175,6 +177,16 @@ export function useChatRoomBannedWords(roomId: string, enabled = true) {
         enabled: enabled && !!roomId,
     });
     return { rules: query.data?.rules ?? [], loading: query.isLoading, refresh: query.refetch };
+}
+
+export function useChatRoomAttachments(roomId: string, kind: AttachmentKind, enabled = true) {
+    const query = useQuery({
+        queryKey: queryKeys.chat.attachments(roomId, kind),
+        queryFn: () => getChatRoomAttachments(roomId, kind),
+        enabled: enabled && !!roomId,
+    });
+
+    return { messages: query.data?.messages ?? [], loading: query.isLoading, refresh: query.refetch };
 }
 
 export function useChatRoomPinnedMessages(roomId: string, enabled = true) {

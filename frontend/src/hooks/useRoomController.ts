@@ -14,6 +14,7 @@ import { useRoomMembers } from "./chat/useRoomMembers";
 import { useRoomModeration } from "./chat/useRoomModeration";
 import { useRoomViewPrefs } from "./chat/useRoomViewPrefs";
 import { useRoomWatchPartyInvite } from "./chat/useRoomWatchPartyInvite";
+import type { RoomInfoTab } from "../components/chat/RoomInfoPanel/RoomInfoPanel";
 
 const MAX_ROOM_MESSAGES = 300;
 const LEAVE_DELAY_MS = 1500;
@@ -32,6 +33,12 @@ const ROOM_LIFECYCLE_EVENTS = [
 
 const PIN_EVENTS = [REALTIME_EVENTS.CHAT_MESSAGE_PINNED, REALTIME_EVENTS.CHAT_MESSAGE_UNPINNED] as const;
 
+const ATTACHMENT_EVENTS = [
+    REALTIME_EVENTS.CHAT_MESSAGE,
+    REALTIME_EVENTS.CHAT_MESSAGE_EDITED,
+    REALTIME_EVENTS.CHAT_MESSAGE_DELETED,
+] as const;
+
 export function useRoomController() {
     const { thread, session, capabilities, toast } = useChatThread({
         maxMessages: MAX_ROOM_MESSAGES,
@@ -49,8 +56,7 @@ export function useRoomController() {
 
     const [joining, setJoining] = useState(false);
     const [mobileView, setMobileView] = useState<"members" | "chat">("chat");
-    const [pinnedOpen, setPinnedOpen] = useState(false);
-    const [searchOpen, setSearchOpen] = useState(false);
+    const [panelTab, setPanelTab] = useState<RoomInfoTab | null>(null);
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -177,6 +183,23 @@ export function useRoomController() {
         }
 
         qc.invalidateQueries({ queryKey: queryKeys.chat.pinned(roomId) });
+    });
+
+    useRealtimeEvent(ATTACHMENT_EVENTS, event => {
+        if (!user || !roomId || event.data.room_id !== roomId) {
+            return;
+        }
+
+        const message = event.data as { media?: unknown[]; body?: string };
+        const carriesMedia = Array.isArray(message.media) && message.media.length > 0;
+        const carriesLink = typeof message.body === "string" && message.body.includes("http");
+
+        if (carriesMedia) {
+            qc.invalidateQueries({ queryKey: queryKeys.chat.attachments(roomId, "media") });
+        }
+        if (carriesLink) {
+            qc.invalidateQueries({ queryKey: queryKeys.chat.attachments(roomId, "links") });
+        }
     });
 
     function backToRooms() {
@@ -306,10 +329,9 @@ export function useRoomController() {
         voice: thread.voice,
         watchParty: { ...watchParty, invitedPartyMissing },
         panels: {
-            pinnedOpen,
-            setPinnedOpen,
-            searchOpen,
-            setSearchOpen,
+            panelTab,
+            openPanel: setPanelTab,
+            closePanel: () => setPanelTab(null),
             lightboxSrc,
             setLightboxSrc,
             editProfileOpen,

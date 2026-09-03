@@ -113,7 +113,7 @@ func (r *reactionsService) ListPinnedMessages(ctx context.Context, roomID, viewe
 		return nil, ErrNotMember
 	}
 
-	rows, err := r.chatRepo.ListPinnedMessages(ctx, roomID)
+	rows, err := r.chatRepo.ListPinnedMessages(ctx, roomID, viewerID)
 	if err != nil {
 		return nil, fmt.Errorf("list pinned messages: %w", err)
 	}

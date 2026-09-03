@@ -62,7 +62,7 @@ describe("MessageSearchPanel", () => {
         expect(container).toBeEmptyDOMElement();
     });
 
-    it("leaves the search query disabled while the panel is closed", () => {
+    it("issues no search query at all while the panel is closed", () => {
         // given
         stubSearch();
 
@@ -70,7 +70,7 @@ describe("MessageSearchPanel", () => {
         renderPanel({ isOpen: false });
 
         // then
-        expect(useRoomMessageSearch).toHaveBeenLastCalledWith(roomId, "", 30, 0, false);
+        expect(useRoomMessageSearch).not.toHaveBeenCalled();
     });
 
     it("asks for at least two characters before it will search", () => {

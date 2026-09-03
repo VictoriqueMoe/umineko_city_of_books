@@ -1,12 +1,13 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { Link } from "react-router";
 import { MentionLink } from "../MentionLink/MentionLink";
 import { WaifuvaultEmbed } from "../WaifuvaultEmbed/WaifuvaultEmbed";
 import { detectWaifuvaultMedia } from "../WaifuvaultEmbed/detect";
 import { MENTION_SOURCE } from "../../domain/mentions";
+import { URL_SOURCE, trimTrailingPunctuation } from "../../domain/links";
 import { isInternalOrigin } from "../../platform/siteOrigin";
 
-const LINK_TOKEN_REGEX = new RegExp(`(https?://[^\\s<>"]+|${MENTION_SOURCE})`, "g");
+const LINK_TOKEN_REGEX = new RegExp(`(${URL_SOURCE}|${MENTION_SOURCE})`, "g");
 
 function isInternalURL(url: string): string | null {
     try {
@@ -23,22 +24,40 @@ export function linkify(text: string, keyPrefix = "lk"): ReactNode[] {
     return parts.map((part, i) => {
         const key = `${keyPrefix}-${i}`;
         if (part.startsWith("http://") || part.startsWith("https://")) {
-            const waifuvaultKind = detectWaifuvaultMedia(part);
-            if (waifuvaultKind) {
-                return <WaifuvaultEmbed key={key} url={part} kind={waifuvaultKind} />;
-            }
-            const internalPath = isInternalURL(part);
-            if (internalPath) {
+            const url = trimTrailingPunctuation(part);
+            const tail = part.slice(url.length);
+
+            const withTail = (node: ReactNode) => {
+                if (tail === "") {
+                    return node;
+                }
+
                 return (
+                    <Fragment key={key}>
+                        {node}
+                        {tail}
+                    </Fragment>
+                );
+            };
+
+            const waifuvaultKind = detectWaifuvaultMedia(url);
+            if (waifuvaultKind) {
+                return withTail(<WaifuvaultEmbed key={key} url={url} kind={waifuvaultKind} />);
+            }
+
+            const internalPath = isInternalURL(url);
+            if (internalPath) {
+                return withTail(
                     <Link key={key} to={internalPath}>
-                        {part}
-                    </Link>
+                        {url}
+                    </Link>,
                 );
             }
-            return (
-                <a key={key} href={part} target="_blank" rel="noopener noreferrer">
-                    {part}
-                </a>
+
+            return withTail(
+                <a key={key} href={url} target="_blank" rel="noopener noreferrer">
+                    {url}
+                </a>,
             );
         }
         if (part.startsWith("@") && part.length > 1) {

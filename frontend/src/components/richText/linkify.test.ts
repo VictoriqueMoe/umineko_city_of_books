@@ -71,4 +71,30 @@ describe("linkify mention handling", () => {
         expect((element.props as { username: string; label: string }).username).toBe("Featherines_other_half");
         expect((element.props as { username: string; label: string }).label).toBe("@Featherines_other_half");
     });
+
+    it("leaves a sentence's full stop out of the link", async () => {
+        // given
+        const { linkify } = await import("./linkify");
+
+        // when
+        const parts = linkify("have a look at https://example.com/page.");
+        const wrapper = parts.find(p => typeof p === "object" && p !== null) as ReactElement;
+        const [anchor, tail] = (wrapper.props as { children: [ReactElement, string] }).children;
+
+        // then
+        expect((anchor.props as LinkLikeProps).href).toBe("https://example.com/page");
+        expect(tail).toBe(".");
+    });
+
+    it("keeps a closing bracket the link opened itself", async () => {
+        // given
+        const { linkify } = await import("./linkify");
+
+        // when
+        const parts = linkify("https://en.wikipedia.org/wiki/Umineko_(series)");
+        const element = parts.find(p => typeof p === "object" && p !== null) as ReactElement;
+
+        // then
+        expect((element.props as LinkLikeProps).href).toBe("https://en.wikipedia.org/wiki/Umineko_(series)");
+    });
 });

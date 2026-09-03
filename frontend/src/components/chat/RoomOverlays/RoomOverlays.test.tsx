@@ -13,22 +13,24 @@ import {
 import { renderWithProviders } from "../../../test-utils/render";
 import { RoomOverlays, type RoomOverlaysProps } from "./RoomOverlays";
 
-vi.mock("../MessageSearchPanel/MessageSearchPanel", () => ({
-    MessageSearchPanel: (props: { roomId: string }) => <div data-testid="search-panel">{props.roomId}</div>,
-}));
-
-vi.mock("../PinnedMessagesPanel/PinnedMessagesPanel", () => ({
-    PinnedMessagesPanel: (props: { isOpen: boolean; canUnpin: boolean; onLightbox?: (src: string) => void }) => (
-        <button
-            type="button"
-            data-testid="pinned-panel"
-            data-open={String(props.isOpen)}
-            data-can-unpin={String(props.canUnpin)}
-            onClick={() => props.onLightbox?.("/img.png")}
-        >
-            pinned
-        </button>
-    ),
+vi.mock("../RoomInfoPanel/RoomInfoPanel", () => ({
+    RoomInfoPanel: (props: {
+        roomId: string;
+        tab: string | null;
+        canUnpin: boolean;
+        onLightbox?: (src: string) => void;
+    }) =>
+        props.tab === null ? null : (
+            <button
+                type="button"
+                data-testid="info-panel"
+                data-tab={props.tab}
+                data-can-unpin={String(props.canUnpin)}
+                onClick={() => props.onLightbox?.("/img.png")}
+            >
+                {props.roomId}
+            </button>
+        ),
 }));
 
 vi.mock("../EditRoomProfileDialog/EditRoomProfileDialog", () => ({
@@ -108,8 +110,7 @@ function makeProps(overrides: Partial<RoomOverlaysProps> = {}): RoomOverlaysProp
         voiceEnabled: true,
         onJump: vi.fn(),
         onLightbox: vi.fn(),
-        search: { open: false, onClose: vi.fn() },
-        pinned: { open: false, onClose: vi.fn() },
+        infoPanel: { tab: null, onTabChange: vi.fn(), onClose: vi.fn() },
         editProfile: { open: false, currentMember: null, onClose: vi.fn(), onSaved: vi.fn() },
         roomModeration: { open: false, onClose: vi.fn(), onSaved: vi.fn() },
         watchParty: {
@@ -137,43 +138,43 @@ function renderOverlays(overrides: Partial<RoomOverlaysProps> = {}) {
 describe("RoomOverlays panels", () => {
     it("keeps the search panel out of the tree until it is opened", () => {
         // given
-        const search = { open: false, onClose: vi.fn() };
+        const infoPanel = { tab: null, onTabChange: vi.fn(), onClose: vi.fn() };
 
         // when
-        renderOverlays({ search });
+        renderOverlays({ infoPanel });
 
         // then
-        expect(screen.queryByTestId("search-panel")).not.toBeInTheDocument();
+        expect(screen.queryByTestId("info-panel")).not.toBeInTheDocument();
     });
 
-    it("mounts the search panel against the current room once it is opened", () => {
+    it("mounts the info panel against the current room once a tab is opened", () => {
         // given
-        const search = { open: true, onClose: vi.fn() };
+        const infoPanel = { tab: "search" as const, onTabChange: vi.fn(), onClose: vi.fn() };
 
         // when
-        renderOverlays({ search });
+        renderOverlays({ infoPanel });
 
         // then
-        expect(screen.getByTestId("search-panel")).toHaveTextContent("room-1");
+        expect(screen.getByTestId("info-panel")).toHaveTextContent("room-1");
     });
 
-    it("keeps the pinned panel mounted and closed so it can animate", () => {
+    it("opens the info panel on the tab it was asked for", () => {
         // given
-        const pinned = { open: false, onClose: vi.fn() };
+        const infoPanel = { tab: "pins" as const, onTabChange: vi.fn(), onClose: vi.fn() };
 
         // when
-        renderOverlays({ pinned });
+        renderOverlays({ infoPanel });
 
         // then
-        expect(screen.getByTestId("pinned-panel")).toHaveAttribute("data-open", "false");
+        expect(screen.getByTestId("info-panel")).toHaveAttribute("data-tab", "pins");
     });
 
-    it("lets a moderator unpin from the pinned panel", () => {
+    it("lets a moderator unpin from the pins tab", () => {
         // when
-        renderOverlays({ canModerateRoom: true });
+        renderOverlays({ canModerateRoom: true, infoPanel: { tab: "pins", onTabChange: vi.fn(), onClose: vi.fn() } });
 
         // then
-        expect(screen.getByTestId("pinned-panel")).toHaveAttribute("data-can-unpin", "true");
+        expect(screen.getByTestId("info-panel")).toHaveAttribute("data-can-unpin", "true");
     });
 
     it("sends a pinned image up to the lightbox", async () => {
@@ -182,8 +183,8 @@ describe("RoomOverlays panels", () => {
         const onLightbox = vi.fn();
 
         // when
-        renderOverlays({ onLightbox });
-        await user.click(screen.getByTestId("pinned-panel"));
+        renderOverlays({ onLightbox, infoPanel: { tab: "pins", onTabChange: vi.fn(), onClose: vi.fn() } });
+        await user.click(screen.getByTestId("info-panel"));
 
         // then
         expect(onLightbox).toHaveBeenCalledWith("/img.png");

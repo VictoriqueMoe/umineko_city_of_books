@@ -67,12 +67,8 @@ vi.mock("../../components/chat/InviteMembersModal/InviteMembersModal", () => ({
     InviteMembersModal: (props: { isOpen: boolean }) => (props.isOpen ? <div data-testid="invite-modal" /> : null),
 }));
 
-vi.mock("../../components/chat/PinnedMessagesPanel/PinnedMessagesPanel", () => ({
-    PinnedMessagesPanel: (props: { isOpen: boolean }) => (props.isOpen ? <div data-testid="pinned-panel" /> : null),
-}));
-
-vi.mock("../../components/chat/MessageSearchPanel/MessageSearchPanel", () => ({
-    MessageSearchPanel: () => <div data-testid="search-panel" />,
+vi.mock("../../components/chat/RoomInfoPanel/RoomInfoPanel", () => ({
+    RoomInfoPanel: (props: { tab: string | null }) => (props.tab ? <div data-testid={`${props.tab}-panel`} /> : null),
 }));
 
 vi.mock("../../components/chat/WatchParty/WatchPartyButton", () => ({
@@ -146,8 +142,7 @@ interface ControllerOptions {
     editProfileOpen?: boolean;
     inviteModalOpen?: boolean;
     moderationDialogOpen?: boolean;
-    pinnedOpen?: boolean;
-    searchOpen?: boolean;
+    panelTab?: "search" | "pins" | null;
     nicknameDialogTarget?: ChatRoomMember | null;
     nicknameDialogError?: string;
     nicknameDialogSaving?: boolean;
@@ -165,8 +160,7 @@ function stubController(options: ControllerOptions = {}) {
         setReplyingTo: vi.fn(),
         setLightboxSrc: vi.fn(),
         setToast: vi.fn(),
-        setPinnedOpen: vi.fn(),
-        setSearchOpen: vi.fn(),
+        openPanel: vi.fn(),
         setEditProfileOpen: vi.fn(),
         setInviteModalOpen: vi.fn(),
         setModerationDialogOpen: vi.fn(),
@@ -291,10 +285,8 @@ function stubController(options: ControllerOptions = {}) {
         },
         panels: {
             ...base.panels,
-            pinnedOpen: options.pinnedOpen ?? false,
-            setPinnedOpen: handlers.setPinnedOpen,
-            searchOpen: options.searchOpen ?? false,
-            setSearchOpen: handlers.setSearchOpen,
+            panelTab: options.panelTab ?? null,
+            openPanel: handlers.openPanel,
             lightboxSrc: options.lightboxSrc ?? null,
             setLightboxSrc: handlers.setLightboxSrc,
             editProfileOpen: options.editProfileOpen ?? false,
@@ -461,33 +453,33 @@ describe("RoomPage header", () => {
     it("opens the message search when asked", async () => {
         // given
         const user = userEvent.setup();
-        const { setSearchOpen } = renderRoom();
+        const { openPanel } = renderRoom();
 
         // when
         await user.click(screen.getByRole("button", { name: "Search messages" }));
 
         // then
-        expect(setSearchOpen).toHaveBeenCalledWith(true);
+        expect(openPanel).toHaveBeenCalledWith("search");
     });
 
     it("opens the pinned messages when asked", async () => {
         // given
         const user = userEvent.setup();
-        const { setPinnedOpen } = renderRoom();
+        const { openPanel } = renderRoom();
 
         // when
         await user.click(screen.getByRole("button", { name: "Pinned messages" }));
 
         // then
-        expect(setPinnedOpen).toHaveBeenCalledWith(true);
+        expect(openPanel).toHaveBeenCalledWith("pins");
     });
 
     it("keeps the search panel closed until it is opened", () => {
         // given
-        const searchOpen = false;
+        const panelTab = null;
 
         // when
-        renderRoom({ searchOpen });
+        renderRoom({ panelTab });
 
         // then
         expect(screen.queryByTestId("search-panel")).not.toBeInTheDocument();
@@ -495,10 +487,10 @@ describe("RoomPage header", () => {
 
     it("shows the search panel once it is open", () => {
         // given
-        const searchOpen = true;
+        const panelTab = "search" as const;
 
         // when
-        renderRoom({ searchOpen });
+        renderRoom({ panelTab });
 
         // then
         expect(screen.getByTestId("search-panel")).toBeInTheDocument();
@@ -1204,13 +1196,13 @@ describe("RoomPage dialogs", () => {
 
     it("shows the pinned messages panel only once it is opened", () => {
         // given
-        const pinnedOpen = true;
+        const panelTab = "pins" as const;
 
         // when
-        renderRoom({ pinnedOpen });
+        renderRoom({ panelTab });
 
         // then
-        expect(screen.getByTestId("pinned-panel")).toBeInTheDocument();
+        expect(screen.getByTestId("pins-panel")).toBeInTheDocument();
     });
 });
 

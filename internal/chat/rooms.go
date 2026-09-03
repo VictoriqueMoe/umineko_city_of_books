@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
@@ -230,15 +231,9 @@ func roomUpdateAuditDetails(row *repository.ChatRoomRow, name, description strin
 }
 
 func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error) {
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	page := bounds.NewPage(limit, offset)
+	limit = page.Limit()
+	offset = page.Offset()
 
 	blockedIDs, _ := r.blockSvc.GetBlockedIDs(ctx, viewerID)
 	tag = strings.ToLower(strings.TrimSpace(tag))
@@ -268,15 +263,9 @@ func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPO
 }
 
 func (r *roomsService) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, roleFilter string, includeArchived bool, limit, offset int) (*dto.ChatRoomListResponse, error) {
-	if limit <= 0 {
-		limit = 20
-	}
-	if limit > 100 {
-		limit = 100
-	}
-	if offset < 0 {
-		offset = 0
-	}
+	page := bounds.NewPage(limit, offset)
+	limit = page.Limit()
+	offset = page.Offset()
 	if roleFilter != "host" && roleFilter != "member" {
 		roleFilter = ""
 	}
