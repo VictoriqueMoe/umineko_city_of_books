@@ -1,11 +1,11 @@
 {
     "name": "umineko-city-of-books",
-    "private": true,
     "version": "7.2.0",
+    "private": true,
     "type": "module",
     "scripts": {
         "dev": "vite",
-        "build": "tsc -b && vite build",
+        "build": "npm run typecheck && vite build",
         "build:app": "tsc -b && vite build --mode app --outDir dist-app --emptyOutDir",
         "build:ota": "npm run build:app && node scripts/make-ota.mjs",
         "cap:sync": "npm run build:app && cap sync",
