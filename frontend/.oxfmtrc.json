@@ -6,6 +6,6 @@
     "arrowParens": "avoid",
     "proseWrap": "never",
     "printWidth": 120,
-    "sortPackageJson": false,
+    "sortPackageJson": true,
     "ignorePatterns": ["coverage", "dist", "dist-app", "node_modules", "public"]
 }
