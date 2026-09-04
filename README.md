@@ -59,7 +59,7 @@ Every one of those is written out in full, with its rules, limits and edge cases
 
 **Backend.** Go 1.27, Fiber v3, PostgreSQL via `jackc/pgx/v5` behind the `pgx/v5/stdlib` adapter, goose for migrations, testcontainers-go for DAO tests against a real Postgres, `gofiber/contrib/v3/websocket` for the hub, zerolog, `wneessen/go-mail`, `disintegration/imaging`, bluemonday, `openai/openai-go` v3, `valkey-io/valkey-go`, `prometheus/client_golang`, the OpenTelemetry Go SDK with XSAM/otelsql, `grafana/pyroscope-go`, `hellofresh/health-go`, `firebase.google.com/go`, `livekit/server-sdk-go`, `corentings/chess`, and mockery plus staticcheck pinned in the `go.mod` tool block.
 
-**Frontend.** React 19, TypeScript 6, Vite 8, React Router v8 (the `react-router` package, never `react-router-dom`), TanStack Query v5, CSS Modules, DOMPurify with marked and highlight.js, TipTap 3, livekit-client with `@livekit/components-react`, hls.js, `@hyperbeam/web`, chess.js with react-chessboard, emoji-picker-react, `@marsidev/react-turnstile`, firebase, Capacitor 8 with `@capgo/capacitor-updater`, and Vitest 4 with Testing Library, ESLint 10 and Prettier.
+**Frontend.** React 19, TypeScript 6, Vite 8, React Router v8 (the `react-router` package, never `react-router-dom`), TanStack Query v5, CSS Modules, DOMPurify with marked and highlight.js, TipTap 3, livekit-client with `@livekit/components-react`, hls.js, `@hyperbeam/web`, chess.js with react-chessboard, emoji-picker-react, `@marsidev/react-turnstile`, firebase, Capacitor 8 with `@capgo/capacitor-updater`, and Vitest 4 with Testing Library, oxlint and oxfmt.
 
 **Infrastructure.** A Docker multi-stage build (Node build stage, Go build stage, Alpine runtime carrying FFmpeg and libwebp-tools), two Valkey instances (one coordinating LiveKit ingress and egress, one LRU-capped app cache), Caddy or another reverse proxy in front, session auth on httpOnly cookies with no JWTs, mockery v3 from `.mockery.yml` for every Go interface mock, and a `docker-compose.prod.yml` carrying `prometheus-*` scrape labels beside a `postgres-exporter` sidecar.
 
@@ -269,15 +269,15 @@ npm run typecheck   # tsc -b only, no bundle
 npm test            # vitest run
 npm run test:watch  # vitest in watch mode
 npm run test:coverage
-npm run lint        # eslint, --max-warnings=0
-npm run lint:fix    # eslint with autofix
-npm run prettier    # prettier check
-npm run prettier:fix
+npm run lint        # oxlint, --max-warnings=0
+npm run lint:fix    # oxlint with autofix
+npm run format      # oxfmt check
+npm run format:fix
 ```
 
 Tests are vitest and React Testing Library under jsdom, colocated with the code (`Foo.tsx` next to `Foo.test.tsx`), with the shared render helpers, fixtures and jsdom setup in `frontend/src/test-utils/`. `tsconfig.json` includes the test files, so `npm run typecheck` (and therefore `npm run build`) typechecks them too.
 
-CI runs `npm run prettier`, `npm run lint`, `npm test`, then `npm run build`. Run the same four before committing frontend changes; all of them need to pass cleanly.
+CI runs `npm run format`, `npm run lint`, `npm test`, then `npm run build`. Run the same four before committing frontend changes; all of them need to pass cleanly.
 
 ### Mobile app (Capacitor)
 

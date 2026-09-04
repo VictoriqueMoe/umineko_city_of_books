@@ -73,7 +73,15 @@ import {
 } from "./mutations/ship";
 
 export type CommentFamily =
-    "announcement" | "art" | "fanfic" | "journal" | "mystery" | "oc" | "post" | "secret" | "ship";
+    | "announcement"
+    | "art"
+    | "fanfic"
+    | "journal"
+    | "mystery"
+    | "oc"
+    | "post"
+    | "secret"
+    | "ship";
 
 export type CommentOperation = "create" | "update" | "delete" | "like" | "unlike" | "uploadMedia";
 

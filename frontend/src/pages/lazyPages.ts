@@ -5,7 +5,7 @@ import { type ComponentType, lazy } from "react";
 // The `any` mirrors React's own `lazy<T extends ComponentType<any>>` signature —
 // you can't satisfy that constraint with `never`, `unknown`, or `object` because
 // of how props variance interacts with class components inside ComponentType.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// oxlint-disable-next-line typescript/no-explicit-any
 function named<T extends ComponentType<any>, K extends string>(loader: () => Promise<Record<K, T>>, name: K) {
     return lazy(() => loader().then(m => ({ default: m[name] })));
 }

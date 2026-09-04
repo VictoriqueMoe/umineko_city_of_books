@@ -36,10 +36,10 @@ jobs:
       - name: Install frontend dependencies
         run: cd frontend && npm ci
 
-      - name: Prettier
-        run: cd frontend && npm run prettier
+      - name: Format
+        run: cd frontend && npm run format
 
-      - name: ESLint
+      - name: Lint
         run: cd frontend && npm run lint
 
       - name: Test

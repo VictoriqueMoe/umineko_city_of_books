@@ -1,3 +1,5 @@
+import type { OxlintOverride } from "oxlint";
+
 const RENDER = ["src/components/**/*.{ts,tsx}", "src/pages/**/*.{ts,tsx}", "src/App.tsx", "src/App.test.tsx"];
 const ORCHESTRATION = ["src/hooks/**/*.{ts,tsx}", "src/context/**/*.{ts,tsx}", "src/games/*/hooks/**/*.ts"];
 const DATA_HOOKS = ["src/hooks/queries/**/*.ts", "src/hooks/mutations/**/*.ts"];
@@ -15,35 +17,8 @@ const COMPOSITION_ROOT = ["src/main.tsx"];
 const EVERY_SOURCE_FILE = ["src/**/*.{ts,tsx}"];
 const RENDER_TESTS = ["src/components/**/*.test.{ts,tsx}", "src/pages/**/*.test.{ts,tsx}", "src/App.test.tsx"];
 const PURE_TESTS = ["src/domain/**/*.test.{ts,tsx}", "src/utils/**/*.test.{ts,tsx}"];
-const MAY_STUB_GLOBAL_FETCH = [
-    "src/api/beacons/watchPartyLeave.test.ts",
-    "src/api/client.test.ts",
-    "src/api/endpoints/quote.test.ts",
-    "src/api/ota.test.ts",
-];
-const CACHE_KEY_ASSERTING_TESTS = [
-    "src/api/cache/patchUser.test.ts",
-    "src/api/queryClient.test.ts",
-    "src/hooks/mutations/admin.test.ts",
-    "src/hooks/mutations/announcement.test.ts",
-    "src/hooks/mutations/art.test.ts",
-    "src/hooks/mutations/auth.test.ts",
-    "src/hooks/mutations/gameRoom.test.ts",
-    "src/hooks/mutations/report.test.ts",
-    "src/hooks/mutations/secret.test.ts",
-    "src/hooks/mutations/ship.test.ts",
-    "src/hooks/mutations/theory.test.ts",
-    "src/hooks/mutations/user.test.ts",
-    "src/hooks/queries/art.test.ts",
-    "src/hooks/queries/chat.test.ts",
-    "src/hooks/queries/fanfic.test.ts",
-    "src/hooks/queries/giphy.test.ts",
-    "src/hooks/queries/journal.test.ts",
-    "src/hooks/queries/quoteCharacters.test.ts",
-    "src/hooks/queries/site.test.ts",
-    "src/hooks/queries/user.test.ts",
-    "src/hooks/useProfileSettingsForm.test.ts",
-];
+const TRANSPORT_TESTS = ["src/api/**/*.test.{ts,tsx}"];
+const CACHE_KEY_ASSERTING_TESTS = ["src/api/**/*.test.{ts,tsx}", "src/hooks/**/*.test.{ts,tsx}"];
 const RENDER_TESTS_STILL_MOCKING_TRANSPORT = [
     "src/components/chat/WatchParty/WatchPartyModal.test.tsx",
     "src/components/games/chat/GameChat.test.tsx",
@@ -82,56 +57,8 @@ const platformApiMessage =
     "src/platform may not import src/api. The server call is passed in as a parameter by the caller.";
 const apiPlatformMessage =
     "src/api may import platform/capabilities only, which answers a device question with no effect. Anything else from src/platform is injected.";
-const rawQueryKeyMessage =
-    "Query keys are built in src/api/queryKeys.ts only. Call the builder instead of writing a key array.";
-const dynamicApiImportMessage =
-    "Reaching src/api through import() bypasses the layer rules. Import it in the layer that is allowed to.";
-const renderTestTransportMockMessage =
-    "A render test may not mock api/endpoints, api/queryKeys, api/client or api/queryClient. Mock the hook in src/hooks that the component calls, so the test states the same contract the component is allowed to depend on.";
-const stubGlobalFetchMessage =
-    "Only the transport layer's own test may stub global fetch. A test above the transport mocks the module it calls instead of the network.";
-const pureTestRenderMessage =
-    "A test under domain or utils may not import @testing-library/react. A pure module takes values and returns values, so its test needs no DOM.";
 
-const rawQueryKeySelectors = [
-    {
-        selector:
-            "CallExpression[callee.property.name=/^(setQueryData|getQueryData|setQueriesData|getQueriesData|invalidateQueries|removeQueries|cancelQueries|resetQueries|refetchQueries|fetchQuery|prefetchQuery|ensureQueryData)$/] > ArrayExpression:first-child",
-        message: rawQueryKeyMessage,
-    },
-    {
-        selector: "Property[key.name='queryKey'] > ArrayExpression > Literal:first-child",
-        message: rawQueryKeyMessage,
-    },
-];
-const dynamicApiImportSelectors = [
-    {
-        selector: "TSImportType[source.value=/(^|\\/)api\\//]",
-        message: dynamicApiImportMessage,
-    },
-    {
-        selector: "ImportExpression[source.value=/(^|\\/)api\\//]",
-        message: dynamicApiImportMessage,
-    },
-];
-const stubGlobalFetchSelector = {
-    selector:
-        "CallExpression[callee.object.name='vi'][callee.property.name='stubGlobal'] > Literal[value='fetch']:first-child",
-    message: stubGlobalFetchMessage,
-};
-const renderTestTransportMockSelector = {
-    selector:
-        "CallExpression[callee.object.name='vi'][callee.property.name='mock'] > Literal[value=/api\\/(endpoints|queryKeys|client|queryClient)/]:first-child",
-    message: renderTestTransportMockMessage,
-};
-const pureTestRenderSelector = {
-    selector: "ImportDeclaration[source.value=/^@testing-library\\/react/]",
-    message: pureTestRenderMessage,
-};
-
-const everyFileSelectors = [...rawQueryKeySelectors, ...dynamicApiImportSelectors, stubGlobalFetchSelector];
-
-export const layerRules = [
+export const layerRules: OxlintOverride[] = [
     {
         files: DATA_HOOKS,
         rules: {
@@ -140,7 +67,7 @@ export const layerRules = [
     },
     {
         files: ORCHESTRATION,
-        ignores: DATA_HOOKS,
+        excludeFiles: DATA_HOOKS,
         rules: {
             "no-restricted-imports": [
                 "error",
@@ -166,7 +93,7 @@ export const layerRules = [
     },
     {
         files: PURE,
-        ignores: PURE_OVERLAPPING_ORCHESTRATION,
+        excludeFiles: PURE_OVERLAPPING_ORCHESTRATION,
         rules: {
             "no-restricted-imports": [
                 "error",
@@ -209,7 +136,7 @@ export const layerRules = [
     },
     {
         files: EVERY_SOURCE_FILE,
-        ignores: [...RENDER, ...DATA_HOOKS, ...ORCHESTRATION, ...PURE, ...ADAPTERS, ...COMPOSITION_ROOT],
+        excludeFiles: [...RENDER, ...DATA_HOOKS, ...ORCHESTRATION, ...PURE, ...ADAPTERS, ...COMPOSITION_ROOT],
         rules: {
             "no-restricted-imports": [
                 "error",
@@ -222,43 +149,45 @@ export const layerRules = [
     {
         files: EVERY_SOURCE_FILE,
         rules: {
-            "no-restricted-syntax": ["error", ...everyFileSelectors],
+            "layers/no-raw-query-key": "error",
+            "layers/no-dynamic-api-import": "error",
+            "layers/no-stub-global-fetch": "error",
         },
     },
     {
         files: RENDER_TESTS,
         rules: {
-            "no-restricted-syntax": ["error", ...everyFileSelectors, renderTestTransportMockSelector],
+            "layers/no-transport-mock-in-render-test": "error",
         },
     },
     {
         files: PURE_TESTS,
         rules: {
-            "no-restricted-syntax": ["error", ...everyFileSelectors, pureTestRenderSelector],
+            "layers/no-render-import-in-pure-test": "error",
         },
     },
     {
-        files: MAY_STUB_GLOBAL_FETCH,
+        files: TRANSPORT_TESTS,
         rules: {
-            "no-restricted-syntax": ["error", ...rawQueryKeySelectors, ...dynamicApiImportSelectors],
+            "layers/no-stub-global-fetch": "off",
         },
     },
     {
         files: CACHE_KEY_ASSERTING_TESTS,
         rules: {
-            "no-restricted-syntax": ["error", ...dynamicApiImportSelectors, stubGlobalFetchSelector],
+            "layers/no-raw-query-key": "off",
         },
     },
     {
         files: RENDER_TESTS_STILL_MOCKING_TRANSPORT,
         rules: {
-            "no-restricted-syntax": ["error", ...everyFileSelectors],
+            "layers/no-transport-mock-in-render-test": "off",
         },
     },
     {
         files: ["src/api/queryKeys.ts"],
         rules: {
-            "no-restricted-syntax": ["error", ...dynamicApiImportSelectors, stubGlobalFetchSelector],
+            "layers/no-raw-query-key": "off",
         },
     },
 ];

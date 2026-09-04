@@ -5,7 +5,8 @@ import type { SpectatorMessage } from "../types/api";
 import type { GameChatHistory } from "./queries/gameRoom";
 
 export type GameChatEventName =
-    typeof REALTIME_EVENTS.PLAYER_CHAT_MESSAGE | typeof REALTIME_EVENTS.SPECTATOR_CHAT_MESSAGE;
+    | typeof REALTIME_EVENTS.PLAYER_CHAT_MESSAGE
+    | typeof REALTIME_EVENTS.SPECTATOR_CHAT_MESSAGE;
 
 interface ArrivalBuffer {
     roomId: string;

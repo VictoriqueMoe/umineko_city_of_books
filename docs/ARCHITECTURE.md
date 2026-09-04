@@ -415,27 +415,29 @@ The hard rules behind the table are unchanged: no layer skipping, render never t
 
 ### 4.3 What enforces each row
 
-Two eslint rule ids do all of it, configured per glob in `frontend/eslint.layers.js` and spread into `frontend/eslint.config.js` as `layerRules`. Lint runs at `--max-warnings=0`, so a new violating file fails on its first commit.
+One built-in oxlint rule id and five rules from a local oxlint plugin do all of it, configured per glob in `frontend/oxlint.layers.ts` and spread into `frontend/oxlint.config.ts` as `layerRules`. `no-restricted-imports` is oxlint's own; the five `layers/*` rules live in `frontend/oxlint-plugin-layers.mjs`, which is a JS plugin loaded through `jsPlugins` and holds the AST selectors oxlint has no built-in rule for. Lint runs at `--max-warnings=0`, so a new violating file fails on its first commit.
 
-| Boundary                                           | Rule id                 | Where it is configured                                                                               |
-|----------------------------------------------------|-------------------------|------------------------------------------------------------------------------------------------------|
-| render may not import `src/api` at all             | `no-restricted-imports` | `RENDER` block, group `**/api/*`, `**/api/**`, `allowTypeImports: false`         |
-| render may not import react-query                  | `no-restricted-imports` | `RENDER` block, group `@tanstack/react-query`, `allowTypeImports: false`         |
-| orchestration may not import the transport modules | `no-restricted-imports` | `ORCHESTRATION` block, `ignores: DATA_HOOKS`, groups `api/client`, `api/queryClient`, `api/endpoints` |
-| data hooks may import the transport                | `no-restricted-imports` | `DATA_HOOKS` block sets the rule to `off`                                        |
-| pure may not import `src/api`                      | `no-restricted-imports` | `PURE` block, group `**/api/*`, `**/api/**`                                      |
-| pure may not import React or react-query           | `no-restricted-imports` | `PURE` block, group `react`, `react-dom`, `@tanstack/react-query`                |
-| adapters may not import upward                     | `no-restricted-imports` | `API` and `PLATFORM` blocks, group `**/components/**`, `**/pages/**`, `**/hooks/**`, `**/context/**` |
-| `src/api` may import `platform/capabilities` only  | `no-restricted-imports` | `API` block, group `**/platform/*`, `**/platform/**` with `!**/platform/capabilities` |
-| `src/platform` may not import `src/api`            | `no-restricted-imports` | `PLATFORM` block, group `**/api/*`, `**/api/**`                                  |
-| everything unclaimed may not reach the transport   | `no-restricted-imports` | `EVERY_SOURCE_FILE` block, `ignores` the five layers plus `src/main.tsx`          |
-| query keys are built in one file                   | `no-restricted-syntax`  | `rawQueryKeySelectors`, armed on every source file, dropped in `src/api/queryKeys.ts` which keeps the other selectors armed |
-| dynamic and inline type imports of `src/api`       | `no-restricted-syntax`  | `dynamicApiImportSelectors`, armed on every source file                                              |
-| only the transport's own tests stub global fetch   | `no-restricted-syntax`  | `stubGlobalFetchSelector`, armed on every source file, relaxed for `MAY_STUB_GLOBAL_FETCH` |
-| a render test mocks hooks, not the transport       | `no-restricted-syntax`  | `renderTestTransportMockSelector`, added on `RENDER_TESTS`                        |
-| a pure test needs no DOM                           | `no-restricted-syntax`  | `pureTestRenderSelector`, added on `PURE_TESTS`                                   |
+| Boundary                                           | Rule id                                   | Where it is configured                                                                                     |
+|----------------------------------------------------|-------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| render may not import `src/api` at all             | `no-restricted-imports`                   | `RENDER` block, group `**/api/*`, `**/api/**`, `allowTypeImports: false`                                   |
+| render may not import react-query                  | `no-restricted-imports`                   | `RENDER` block, group `@tanstack/react-query`, `allowTypeImports: false`                                   |
+| orchestration may not import the transport modules | `no-restricted-imports`                   | `ORCHESTRATION` block, `excludeFiles: DATA_HOOKS`, groups `api/client`, `api/queryClient`, `api/endpoints` |
+| data hooks may import the transport                | `no-restricted-imports`                   | `DATA_HOOKS` block sets the rule to `off`                                                                  |
+| pure may not import `src/api`                      | `no-restricted-imports`                   | `PURE` block, group `**/api/*`, `**/api/**`                                                                |
+| pure may not import React or react-query           | `no-restricted-imports`                   | `PURE` block, group `react`, `react-dom`, `@tanstack/react-query`                                          |
+| adapters may not import upward                     | `no-restricted-imports`                   | `API` and `PLATFORM` blocks, group `**/components/**`, `**/pages/**`, `**/hooks/**`, `**/context/**`       |
+| `src/api` may import `platform/capabilities` only  | `no-restricted-imports`                   | `API` block, group `**/platform/*`, `**/platform/**` with `!**/platform/capabilities`                      |
+| `src/platform` may not import `src/api`            | `no-restricted-imports`                   | `PLATFORM` block, group `**/api/*`, `**/api/**`                                                            |
+| everything unclaimed may not reach the transport   | `no-restricted-imports`                   | `EVERY_SOURCE_FILE` block, `excludeFiles` the five layers plus `src/main.tsx`                              |
+| query keys are built in one file                   | `layers/no-raw-query-key`                 | armed on every source file, switched `off` for `CACHE_KEY_ASSERTING_TESTS` and for `src/api/queryKeys.ts`  |
+| dynamic and inline type imports of `src/api`       | `layers/no-dynamic-api-import`            | armed on every source file                                                                                 |
+| only the transport's own tests stub global fetch   | `layers/no-stub-global-fetch`             | armed on every source file, switched `off` for `MAY_STUB_GLOBAL_FETCH`                                     |
+| a render test mocks hooks, not the transport       | `layers/no-transport-mock-in-render-test` | armed on `RENDER_TESTS`, switched `off` for `RENDER_TESTS_STILL_MOCKING_TRANSPORT`                         |
+| a pure test needs no DOM                           | `layers/no-render-import-in-pure-test`    | armed on `PURE_TESTS`                                                                                      |
 
-The layer globs match `*.test.ts` and `*.test.tsx` as well as source, so a test file is bound by the layer it sits in. `src/main.tsx` is exempt from the import rule only; the three syntax selectors still apply to it.
+The layer globs match `*.test.ts` and `*.test.tsx` as well as source, so a test file is bound by the layer it sits in. `src/main.tsx` is exempt from the import rule only; the three `layers/*` rules armed on every source file still apply to it.
+
+Where ESLint expressed the last five rows as one `no-restricted-syntax` rule holding a list of selectors, and relaxed a file by re-listing a shorter list, oxlint expresses them as five separate rules and relaxes a file by switching one of them `off`. The selector strings and the message text are unchanged: oxlint runs real esquery inside a JS plugin, so they moved across verbatim.
 
 Two rows are conventions with no rule behind them, and are listed here so nobody mistakes them for enforced: render to platform (above), and "the pure layer holds no domain vocabulary in `utils/`", which is a naming judgement a linter cannot make.
 
@@ -450,9 +452,9 @@ There are four. A fifth may not be added without adding it here.
 
 ### 4.5 The two standing holdout lists
 
-The Phase 4 migration exemptions are gone: `migrationExemptions` no longer exists, and `eslint.config.js` spreads `layerRules` alone. Two lists remain inside `layerRules`, and neither is a migration leftover.
+The Phase 4 migration exemptions are gone: `migrationExemptions` no longer exists, and `oxlint.config.ts` spreads `layerRules` alone. Two lists remain inside `layerRules`, and neither is a migration leftover.
 
-**`CACHE_KEY_ASSERTING_TESTS`, 21 files, permanent.** These are test files that write a query-key array literal, and they should. Two reasons, both structural. A data-hook test that asserts which key a mutation invalidated has to state the literal (`expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin"] })` in `src/hooks/mutations/admin.test.ts`): calling the builder there would compare the builder to itself and pass whatever the builder did. And `src/api/cache/patchUser.test.ts` and `src/api/queryClient.test.ts` seed synthetic cache entries such as `["profile", "u1"]` and `["theories"]` to exercise generic cache machinery, where the arrays are test data rather than app keys. The block drops the two raw-key selectors and keeps every other selector armed, so those files are still held to the dynamic-import and global-fetch rules.
+**`CACHE_KEY_ASSERTING_TESTS`, 21 files, permanent.** These are test files that write a query-key array literal, and they should. Two reasons, both structural. A data-hook test that asserts which key a mutation invalidated has to state the literal (`expect(invalidate).toHaveBeenCalledWith({ queryKey: ["admin"] })` in `src/hooks/mutations/admin.test.ts`): calling the builder there would compare the builder to itself and pass whatever the builder did. And `src/api/cache/patchUser.test.ts` and `src/api/queryClient.test.ts` seed synthetic cache entries such as `["profile", "u1"]` and `["theories"]` to exercise generic cache machinery, where the arrays are test data rather than app keys. The block switches `layers/no-raw-query-key` off and leaves every other rule armed, so those files are still held to the dynamic-import and global-fetch rules.
 
 **`RENDER_TESTS_STILL_MOCKING_TRANSPORT`, 7 files, open.** These render tests `vi.mock` an `api/endpoints/*` module so that the component's real data hook runs against a faked transport. They are genuine violations of the rule in 4.3, kept as a ratchet holdout rather than a blessing: every render test not on this list is held to the rule, and a new one cannot join. Draining them means moving each page's data assertions down into the owning hook's test, which is the work that was done for `ChatPage`, `RoomPage`, `LiveDirectory` and `StreamChatPopout` and is still owed for `WatchPartyModal`, `GameChat`, `GoLivePanel`, `LiveWatchPage`, `StreamChatPanel`, `StreamOverlaySection` and `RoomsListPage`.
 
@@ -794,7 +796,7 @@ The README lists the stack. This section holds the reasons, because a version nu
 - **`chess.js`** and **react-chessboard** for the chess board. `chess.js` computes legal-move highlights and rejects an illegal drag before it is sent (`frontend/src/components/games/chess/ChessBoardView.tsx:210,243`); the server's own validator above remains the authority, and the client copy exists only so the board feels immediate.
 - **emoji-picker-react** for chat reactions, **`@marsidev/react-turnstile`** for bot protection, and **firebase** for web push.
 - **Capacitor 8** (`@capacitor/*`) with **`@capgo/capacitor-updater`** packages the same SPA as the mobile app, using bearer-token auth and native push. There is no second frontend.
-- **Vitest 4** with Testing Library and jsdom, **ESLint 10** run as `eslint --max-warnings=0 .`, and **Prettier** run as `prettier ./src --check`. CI runs Prettier, then ESLint, then the tests, then the build (`.github/workflows/ci.yml:39-49`), and a warning fails the job exactly as an error does.
+- **Vitest 4** with Testing Library and jsdom, **oxlint** run as `oxlint --max-warnings=0 .`, and **oxfmt** run as `oxfmt --check ./src`. CI runs oxfmt, then oxlint, then the tests, then the build (`.github/workflows/ci.yml:39-49`), and a warning fails the job exactly as an error does. Both replaced ESLint 10 and Prettier 3; the rule set was carried across one for one, and the only two rules with no oxlint equivalent are `no-octal` and `no-dupe-args`, which tsc and the parser already catch.
 
 ### 7.3 Infrastructure
 
@@ -819,7 +821,7 @@ None of these is required to boot the server, and the feature each one powers is
 
 The open question this section was held for, whether it should describe today's layout or the post-refactor target, closed when the refactor landed: they are now the same tree. What follows is the frontend half, written against it. The backend half is section 3, where each layer's test style is stated with the layer.
 
-A test belongs to the layer its subject sits in, and it may reach exactly one layer down. That is not a convention: the layer globs in `frontend/eslint.layers.js` match `*.test.ts` and `*.test.tsx` as well as source, so a test file inherits its directory's import rules, and three `no-restricted-syntax` selectors police the test-only habits. The two holdout lists in 4.5 are the only exceptions, and both are named files rather than globs.
+A test belongs to the layer its subject sits in, and it may reach exactly one layer down. That is not a convention: the layer globs in `frontend/oxlint.layers.ts` match `*.test.ts` and `*.test.tsx` as well as source, so a test file inherits its directory's import rules, and three `layers/*` rules police the test-only habits. The two holdout lists in 4.5 are the only exceptions, and both are named files rather than globs.
 
 | Layer         | What its test does                                                                    | What it may not do                                                            |
 |---------------|---------------------------------------------------------------------------------------|-------------------------------------------------------------------------------|
@@ -866,14 +868,16 @@ The backend half first, then the frontend. Section 4 gives the frontend director
                         follow, block, report, search, announcement and the rest
 ```
 
-The frontend, rooted at `frontend/`. Every directory below `src/` carries the layer section 4 gives it, and `frontend/eslint.layers.js` is where that layer is spelled as a glob.
+The frontend, rooted at `frontend/`. Every directory below `src/` carries the layer section 4 gives it, and `frontend/oxlint.layers.ts` is where that layer is spelled as a glob.
 
 ```
   index.html            the SPA shell vite builds; the built output goes to ../static
   vite.config.ts        build, dev proxy and the ../static outDir
   vitest.config.ts      jsdom, the setup file, and the coverage include and exclude lists
-  eslint.layers.js      the layer globs, the import and syntax rules, and the named file lists
-  eslint.config.js      the base config, which spreads layerRules last
+  oxlint.layers.ts      the layer globs, the import and syntax rules, and the named file lists
+  oxlint.config.ts      the base config, which spreads layerRules last
+  oxlint-plugin-layers.mjs  the five esquery rules the layer blocks switch on and off
+  .oxfmtrc.json         the formatter settings, migrated from .prettierrc
   capacitor.config.ts   the Android wrapper's app id, web dir, plugins and dev server override
   scripts/              build-time helpers: the OTA bundle, test:names, the local Capacitor run
   android/              the generated Capacitor project, kept in the repository
