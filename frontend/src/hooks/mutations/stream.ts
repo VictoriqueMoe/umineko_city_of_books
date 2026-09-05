@@ -42,10 +42,9 @@ export function useStopStream() {
 
     return useMutation({
         mutationFn: (streamId: string) => stopStream(streamId),
-        onSuccess: (_result, streamId) => {
+        onSuccess: () => {
             refreshOwnerView(qc);
             refreshDirectory(qc);
-            qc.invalidateQueries({ queryKey: queryKeys.streams.detail(streamId) });
         },
     });
 }
@@ -55,8 +54,8 @@ export function useUpdateStreamTitle() {
 
     return useMutation({
         mutationFn: ({ streamId, title }: { streamId: string; title: string }) => updateStreamTitle(streamId, title),
-        onSuccess: (stream, { streamId }) => {
-            qc.setQueryData<LiveStream>(queryKeys.streams.detail(streamId), stream);
+        onSuccess: stream => {
+            qc.setQueryData<LiveStream>(queryKeys.streams.byUsername(stream.streamerUsername), stream);
             refreshOwnerView(qc);
             refreshDirectory(qc);
         },

@@ -457,6 +457,89 @@ func (_c *MockLiveStreamRepository_GetActiveByUser_Call) RunAndReturn(run func(c
 	return _c
 }
 
+// GetActiveByUsername provides a mock function for the type MockLiveStreamRepository
+func (_mock *MockLiveStreamRepository) GetActiveByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*LiveStreamRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, username, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, username)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetActiveByUsername")
+	}
+
+	var r0 *LiveStreamRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*LiveStreamRow, error)); ok {
+		return returnFunc(ctx, username, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *LiveStreamRow); ok {
+		r0 = returnFunc(ctx, username, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*LiveStreamRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, username, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockLiveStreamRepository_GetActiveByUsername_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetActiveByUsername'
+type MockLiveStreamRepository_GetActiveByUsername_Call struct {
+	*mock.Call
+}
+
+// GetActiveByUsername is a helper method to define mock.On call
+//   - ctx context.Context
+//   - username string
+//   - tx ...*sql.Tx
+func (_e *MockLiveStreamRepository_Expecter) GetActiveByUsername(ctx any, username any, tx ...any) *MockLiveStreamRepository_GetActiveByUsername_Call {
+	return &MockLiveStreamRepository_GetActiveByUsername_Call{Call: _e.mock.On("GetActiveByUsername",
+		append([]any{ctx, username}, tx...)...)}
+}
+
+func (_c *MockLiveStreamRepository_GetActiveByUsername_Call) Run(run func(ctx context.Context, username string, tx ...*sql.Tx)) *MockLiveStreamRepository_GetActiveByUsername_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_GetActiveByUsername_Call) Return(liveStreamRow *LiveStreamRow, err error) *MockLiveStreamRepository_GetActiveByUsername_Call {
+	_c.Call.Return(liveStreamRow, err)
+	return _c
+}
+
+func (_c *MockLiveStreamRepository_GetActiveByUsername_Call) RunAndReturn(run func(ctx context.Context, username string, tx ...*sql.Tx) (*LiveStreamRow, error)) *MockLiveStreamRepository_GetActiveByUsername_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetByID provides a mock function for the type MockLiveStreamRepository
 func (_mock *MockLiveStreamRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error) {
 	var tmpRet mock.Arguments

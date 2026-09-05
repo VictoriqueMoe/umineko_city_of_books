@@ -4,11 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Room } from "livekit-client";
 import { makeStream as makeLiveStream, makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
+import { emitRealtimeEvent } from "../../test-utils/ws";
 import type { LiveStream, UserProfile } from "../../types/api";
 import { LiveWatchPage } from "./LiveWatchPage";
 
 const mocks = vi.hoisted(() => ({
     getStream: vi.fn(),
+    getStreamByUsername: vi.fn(),
     getStreamViewerToken: vi.fn(),
     uploadStreamThumbnail: vi.fn(),
     connectRoom: vi.fn(),
@@ -20,6 +22,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("../../api/endpoints/stream", () => ({
     listLiveStreams: vi.fn(),
     getStream: mocks.getStream,
+    getStreamByUsername: mocks.getStreamByUsername,
     getMyStream: vi.fn(),
     getStreamCredentials: vi.fn(),
     getStreamViewerToken: mocks.getStreamViewerToken,
@@ -88,17 +91,17 @@ function makeStream(overrides: Partial<LiveStream> = {}): LiveStream {
     });
 }
 
-function renderWatch(options: { user?: UserProfile | null; streamID?: string } = {}) {
+function renderWatch(options: { user?: UserProfile | null; username?: string } = {}) {
     return renderWithProviders(<LiveWatchPage />, {
         user: options.user ?? null,
-        route: `/live/${options.streamID ?? "stream-1"}`,
-        path: "/live/:streamID",
+        route: `/${options.username ?? "beatrice"}/live`,
+        path: "/:username/live",
     });
 }
 
 beforeEach(() => {
     mocks.useIsMobile.mockReturnValue(false);
-    mocks.getStream.mockResolvedValue(makeStream());
+    mocks.getStreamByUsername.mockResolvedValue(makeStream());
     mocks.getStreamViewerToken.mockResolvedValue({ token: "tok", url: "wss://livekit.test" });
     mocks.uploadStreamThumbnail.mockResolvedValue(undefined);
     mocks.connectRoom.mockReset();
@@ -114,7 +117,7 @@ beforeEach(() => {
 describe("LiveWatchPage loading and lookup", () => {
     it("waits while the stream is being looked up", () => {
         // given
-        mocks.getStream.mockReturnValue(new Promise<LiveStream>(() => {}));
+        mocks.getStreamByUsername.mockReturnValue(new Promise<LiveStream>(() => {}));
 
         // when
         renderWatch();
@@ -123,16 +126,44 @@ describe("LiveWatchPage loading and lookup", () => {
         expect(screen.getByText("Loading stream...")).toBeInTheDocument();
     });
 
-    it("says the stream was not found when the lookup comes back empty", async () => {
+    it("says the streamer is offline when the lookup comes back empty", async () => {
         // given
-        mocks.getStream.mockResolvedValue(null as unknown as LiveStream);
+        mocks.getStreamByUsername.mockResolvedValue(null as unknown as LiveStream);
 
         // when
-        renderWatch();
+        renderWatch({ username: "beatrice" });
 
         // then
-        expect(await screen.findByText("Stream not found.")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Back to live streams" })).toHaveAttribute("href", "/live");
+        expect(await screen.findByText("beatrice is not live right now")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "View profile" })).toHaveAttribute("href", "/user/beatrice");
+        expect(screen.getByRole("link", { name: /All live streams/ })).toHaveAttribute("href", "/live");
+    });
+
+    it("says the streamer is offline when the server has no stream for them", async () => {
+        // given the by-username lookup 404s, which is what the server sends once a stream ends
+        mocks.getStreamByUsername.mockRejectedValue(new Error("stream not found"));
+
+        // when
+        renderWatch({ username: "beatrice" });
+
+        // then the permanent page says so instead of showing a dead stage
+        expect(await screen.findByText("beatrice is not live right now")).toBeInTheDocument();
+        expect(screen.queryByTestId("stream-stage")).not.toBeInTheDocument();
+    });
+
+    it("drops a finished stream rather than leaving its stale live data on screen", async () => {
+        // given a viewer watching a live stream
+        renderWatch({ username: "beatrice" });
+        await screen.findByTestId("stream-stage");
+
+        // when the stream ends and the refetch 404s
+        mocks.getStreamByUsername.mockRejectedValue(new Error("stream not found"));
+        act(() => {
+            emitRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-1" } });
+        });
+
+        // then the page falls back to the offline state
+        expect(await screen.findByText("beatrice is not live right now")).toBeInTheDocument();
     });
 
     it("hands the whole page to the mobile view on a small screen", async () => {
@@ -149,9 +180,9 @@ describe("LiveWatchPage loading and lookup", () => {
 });
 
 describe("LiveWatchPage stage", () => {
-    it("says the stream is offline when it has stopped", async () => {
+    it("holds the stage while the stream is still starting up", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ status: "offline" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ status: "starting" }));
 
         // when
         renderWatch();
@@ -163,7 +194,7 @@ describe("LiveWatchPage stage", () => {
 
     it("plays the live room once the connection is up", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream());
+        mocks.getStreamByUsername.mockResolvedValue(makeStream());
 
         // when
         renderWatch();
@@ -214,7 +245,7 @@ describe("LiveWatchPage stage", () => {
 
     it("plays the smooth feed when the stream prefers hls", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
 
         // when
         renderWatch();
@@ -225,7 +256,7 @@ describe("LiveWatchPage stage", () => {
 
     it("falls back to the low latency room when the stream prefers hls but has no url", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: undefined }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: undefined }));
 
         // when
         renderWatch();
@@ -239,7 +270,7 @@ describe("LiveWatchPage stage", () => {
 describe("LiveWatchPage controls", () => {
     it("offers no quality choice when the stream has no smooth feed", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ hlsUrl: undefined }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ hlsUrl: undefined }));
 
         // when
         renderWatch();
@@ -252,7 +283,7 @@ describe("LiveWatchPage controls", () => {
     it("lets the viewer switch to the smooth feed", async () => {
         // given
         const pointer = userEvent.setup();
-        mocks.getStream.mockResolvedValue(makeStream({ hlsUrl: "https://edge/s.m3u8" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ hlsUrl: "https://edge/s.m3u8" }));
         renderWatch();
         await screen.findByTestId("stream-stage");
 
@@ -266,7 +297,7 @@ describe("LiveWatchPage controls", () => {
     it("lets the viewer switch back to the low latency feed", async () => {
         // given
         const pointer = userEvent.setup();
-        mocks.getStream.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
         renderWatch();
         await screen.findByTestId("hls-player");
 
@@ -317,7 +348,7 @@ describe("LiveWatchPage controls", () => {
 describe("LiveWatchPage meta", () => {
     it("names the stream and links to the streamer and the directory", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ title: "Ciconia blind run" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ title: "Ciconia blind run" }));
 
         // when
         renderWatch();
@@ -330,7 +361,7 @@ describe("LiveWatchPage meta", () => {
 
     it("falls back to the username when the streamer has no display name", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ streamerDisplayName: "" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ streamerDisplayName: "" }));
 
         // when
         renderWatch();
@@ -341,10 +372,10 @@ describe("LiveWatchPage meta", () => {
 
     it("puts the stream's chat in the sidebar", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ id: "stream-42" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ id: "stream-42" }));
 
         // when
-        renderWatch({ streamID: "stream-42" });
+        renderWatch();
 
         // then
         const panel = await screen.findByTestId("stream-chat");
@@ -354,7 +385,7 @@ describe("LiveWatchPage meta", () => {
 
     it("lists the viewers only once the room is connected", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ status: "offline" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ status: "starting" }));
 
         // when
         renderWatch();
@@ -366,7 +397,7 @@ describe("LiveWatchPage meta", () => {
 
     it("shows the uptime while the stream is live", async () => {
         // given
-        mocks.getStream.mockResolvedValue(makeStream({ startedAt: "2026-02-01T12:00:00Z" }));
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ startedAt: "2026-02-01T12:00:00Z" }));
 
         // when
         renderWatch();
@@ -397,7 +428,8 @@ describe("LiveWatchPage popping the chat out", () => {
     it("opens the chat in a window of its own", async () => {
         // given
         const open = stubWindowOpen(makePopout());
-        renderWatch({ streamID: "stream-7" });
+        mocks.getStreamByUsername.mockResolvedValue(makeStream({ id: "stream-7" }));
+        renderWatch();
         await screen.findByTestId("stream-chat");
 
         // when
@@ -405,7 +437,7 @@ describe("LiveWatchPage popping the chat out", () => {
 
         // then
         expect(open).toHaveBeenCalledWith(
-            "/live/stream-7/chat",
+            "/beatrice/live/chat",
             "stream-chat-stream-7",
             expect.stringContaining("popup=yes"),
         );
@@ -472,7 +504,7 @@ describe("LiveWatchPage popping the chat out", () => {
     it("takes the chat back when the popped out window says it has closed", async () => {
         // given
         stubWindowOpen(makePopout());
-        renderWatch({ streamID: "stream-1" });
+        renderWatch();
         await screen.findByTestId("stream-chat");
         await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
 
@@ -493,7 +525,7 @@ describe("LiveWatchPage popping the chat out", () => {
     it("ignores a close message about a different stream", async () => {
         // given
         stubWindowOpen(makePopout());
-        renderWatch({ streamID: "stream-1" });
+        renderWatch();
         await screen.findByTestId("stream-chat");
         await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
 
@@ -514,7 +546,7 @@ describe("LiveWatchPage popping the chat out", () => {
     it("ignores a close message sent from another site", async () => {
         // given
         stubWindowOpen(makePopout());
-        renderWatch({ streamID: "stream-1" });
+        renderWatch();
         await screen.findByTestId("stream-chat");
         await userEvent.click(screen.getByRole("button", { name: "Pop out" }));
 

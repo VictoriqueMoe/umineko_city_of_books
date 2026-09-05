@@ -9,31 +9,32 @@ import { useStreamThumbnailCapture } from "../../hooks/useStreamThumbnailCapture
 import { VolumeSlider } from "../../components/VolumeSlider/VolumeSlider";
 import { StreamChatPanel } from "./StreamChatPanel";
 import { StreamStage, StreamUptime, StreamViewers } from "./streamParts";
+import { StreamerOffline } from "./StreamerOffline";
 import { MobileLiveView } from "./MobileLiveView";
 import { HLSVideoPlayer } from "../../components/live/HLSVideoPlayer";
 import styles from "./live.module.css";
 
 export function LiveWatchPage() {
-    const { streamID } = useParams<{ streamID: string }>();
+    const { username } = useParams<{ username: string }>();
     const isMobile = useIsMobile();
 
-    const { stream, loading, plan, room, error, showOwnPreview, setShowOwnPreview, setMode } = useLiveStream(streamID);
+    const { stream, loading, plan, room, error, showOwnPreview, setShowOwnPreview, setMode } = useLiveStream(username);
     const { isLive, mode, isOwnStream } = plan;
 
-    usePageTitle(stream ? stream.title : "Live");
+    usePageTitle(stream ? stream.title : username ? `${username} is offline` : "Live");
 
     const [volume, setVolume] = useState(1);
     const stageRef = useRef<HTMLDivElement>(null);
 
     const thumbnails = useStreamThumbnailCapture({
-        streamId: streamID,
+        streamId: stream?.id,
         isOwnStream,
         isLive,
         room,
         stageRef,
     });
 
-    const chat = useStreamChatPopout(streamID);
+    const chat = useStreamChatPopout(username, stream?.id);
 
     function toggleFullscreen() {
         const el = stageRef.current;
@@ -52,12 +53,7 @@ export function LiveWatchPage() {
     }
 
     if (!stream) {
-        return (
-            <div className={styles.page}>
-                <div className="empty-state">Stream not found.</div>
-                <Link to="/live">Back to live streams</Link>
-            </div>
-        );
+        return <StreamerOffline username={username} />;
     }
 
     const name = stream.streamerDisplayName || stream.streamerUsername;

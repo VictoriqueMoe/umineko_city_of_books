@@ -25,7 +25,7 @@ func (s *Service) getAllStreamRoutes() []FSetupRoute {
 		s.setupUploadStreamThumbnailRoute,
 		s.setupStreamCredentialsRoute,
 		s.setupResetStreamCredentialsRoute,
-		s.setupGetStreamRoute,
+		s.setupGetStreamByUsernameRoute,
 	}
 }
 
@@ -78,8 +78,8 @@ func (s *Service) setupResetStreamCredentialsRoute(r fiber.Router) {
 	}), s.resetStreamCredentials)
 }
 
-func (s *Service) setupGetStreamRoute(r fiber.Router) {
-	r.Get("/streams/:id", s.getStream)
+func (s *Service) setupGetStreamByUsernameRoute(r fiber.Router) {
+	r.Get("/streams/user/:username", s.getStreamByUsername)
 }
 
 func (s *Service) startStream(ctx fiber.Ctx) error {
@@ -157,13 +157,8 @@ func (s *Service) listLiveStreams(ctx fiber.Ctx) error {
 	})
 }
 
-func (s *Service) getStream(ctx fiber.Ctx) error {
-	streamID, ok := utils.ParseIDParam(ctx, "id")
-	if !ok {
-		return nil
-	}
-
-	streamView, err := s.StreamService.Get(ctx.Context(), streamID)
+func (s *Service) getStreamByUsername(ctx fiber.Ctx) error {
+	streamView, err := s.StreamService.GetByUsername(ctx.Context(), ctx.Params("username"))
 	if err != nil {
 		return mapStreamError(ctx, err)
 	}

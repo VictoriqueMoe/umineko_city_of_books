@@ -188,7 +188,7 @@ func (s *Service) register(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, auth.ErrInvalidUsername) {
+		if errors.Is(err, auth.ErrInvalidUsername) || errors.Is(err, auth.ErrReservedUsername) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, auth.ErrRegistrationDisabled) {

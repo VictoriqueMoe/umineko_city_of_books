@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { getMyStream, getStream, getStreamCredentials, listLiveStreams } from "../../api/endpoints/stream";
+import { getMyStream, getStreamByUsername, getStreamCredentials, listLiveStreams } from "../../api/endpoints/stream";
 import { queryKeys } from "../../api/queryKeys";
 import { errorMessage } from "../../utils/errorMessage";
 import type { LiveStream, StreamCredentials, StreamOwner } from "../../types/api";
@@ -34,17 +34,18 @@ interface UseStreamResult {
     error: string;
 }
 
-export function useStream(streamId: string | undefined): UseStreamResult {
+export function useStreamByUsername(username: string | undefined): UseStreamResult {
     const query = useQuery({
-        queryKey: queryKeys.streams.detail(streamId),
-        queryFn: () => getStream(streamId as string),
-        enabled: !!streamId,
+        queryKey: queryKeys.streams.byUsername(username),
+        queryFn: () => getStreamByUsername(username as string),
+        enabled: !!username,
+        retry: false,
     });
 
     return {
-        stream: query.data ?? null,
+        stream: query.isError ? null : (query.data ?? null),
         loading: query.isLoading,
-        error: query.error ? errorMessage(query.error, "Could not load the stream.") : "",
+        error: query.isError ? errorMessage(query.error, "Could not load the stream.") : "",
     };
 }
 

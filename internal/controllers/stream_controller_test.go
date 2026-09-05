@@ -145,3 +145,53 @@ func TestUpdateStreamTitle_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestGetStreamByUsername(t *testing.T) {
+	streamID := uuid.New()
+
+	cases := []struct {
+		name       string
+		username   string
+		serviceErr error
+		want       *dto.LiveStreamResponse
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:       "a live streamer resolves from their stable url",
+			username:   "Featherine",
+			want:       &dto.LiveStreamResponse{ID: streamID, Title: "Ciconia blind run", StreamerUsername: "Featherine"},
+			wantStatus: http.StatusOK,
+			wantBody:   "Ciconia blind run",
+		},
+		{
+			name:       "an offline or unknown streamer is a 404",
+			username:   "nobody",
+			serviceErr: stream.ErrStreamNotFound,
+			wantStatus: http.StatusNotFound,
+			wantBody:   "stream not found",
+		},
+		{
+			name:       "a username is never parsed as a stream id",
+			username:   "not-a-uuid",
+			serviceErr: stream.ErrStreamNotFound,
+			wantStatus: http.StatusNotFound,
+			wantBody:   "stream not found",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			h, ss := newStreamHarness(t)
+			ss.EXPECT().GetByUsername(mock.Anything, tc.username).Return(tc.want, tc.serviceErr)
+
+			// when
+			status, body := h.NewRequest(http.MethodGet, "/streams/user/"+tc.username).Do()
+
+			// then
+			require.Equal(t, tc.wantStatus, status)
+			assert.Contains(t, string(body), tc.wantBody)
+		})
+	}
+}

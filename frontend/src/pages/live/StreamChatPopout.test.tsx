@@ -41,10 +41,10 @@ function stubStream(stream: LiveStream | null = makeStream()) {
     mocks.useStreamDetail.mockReturnValue({ stream, loading: false, error: "" });
 }
 
-function renderPopout(streamId = "stream-1") {
+function renderPopout(username = "beatrice") {
     return renderWithProviders(<StreamChatPopout />, {
-        route: `/live/${streamId}/chat`,
-        path: "/live/:streamID/chat",
+        route: `/${username}/live/chat`,
+        path: "/:username/live/chat",
     });
 }
 
@@ -57,16 +57,16 @@ afterEach(() => {
 });
 
 describe("StreamChatPopout", () => {
-    it("fetches the stream named in the address", async () => {
+    it("fetches the streamer named in the address", async () => {
         // given
-        const streamId = "stream-42";
+        const username = "lambdadelta";
 
         // when
-        renderPopout(streamId);
+        renderPopout(username);
 
         // then
         await waitFor(() => {
-            expect(mocks.useStreamDetail).toHaveBeenCalledWith("stream-42");
+            expect(mocks.useStreamDetail).toHaveBeenCalledWith("lambdadelta");
         });
     });
 
@@ -75,7 +75,7 @@ describe("StreamChatPopout", () => {
         stubStream(makeStream({ id: "stream-9", status: "live" }));
 
         // when
-        renderPopout("stream-9");
+        renderPopout();
 
         // then
         const panel = await screen.findByTestId("panel");
@@ -120,7 +120,7 @@ describe("StreamChatPopout", () => {
         // given
         const postMessage = vi.fn();
         vi.stubGlobal("opener", { closed: false, postMessage });
-        renderPopout("stream-1");
+        renderPopout();
         await screen.findByTestId("panel");
 
         // when
@@ -137,7 +137,7 @@ describe("StreamChatPopout", () => {
         // given
         const postMessage = vi.fn();
         vi.stubGlobal("opener", { closed: true, postMessage });
-        renderPopout("stream-1");
+        renderPopout();
         await screen.findByTestId("panel");
 
         // when
@@ -152,7 +152,7 @@ describe("StreamChatPopout", () => {
         vi.stubGlobal("opener", null);
 
         // when
-        renderPopout("stream-1");
+        renderPopout();
 
         // then
         expect(await screen.findByTestId("panel")).toBeInTheDocument();
@@ -160,7 +160,7 @@ describe("StreamChatPopout", () => {
 
     it("never joins the stream's livekit room, it only carries the chat", async () => {
         // given
-        renderPopout("stream-1");
+        renderPopout();
 
         // when
         await screen.findByTestId("panel");

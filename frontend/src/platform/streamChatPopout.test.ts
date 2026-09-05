@@ -1,26 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-    STREAM_CHAT_POPOUT_CLOSED,
-    openStreamChatPopout,
-    streamChatPopoutName,
-    streamChatPopoutPath,
-} from "./streamChatPopout";
+import { STREAM_CHAT_POPOUT_CLOSED, openStreamChatPopout, streamChatPopoutName } from "./streamChatPopout";
 
 afterEach(() => {
     vi.unstubAllGlobals();
-});
-
-describe("streamChatPopoutPath", () => {
-    it("points at the bare chat page for the stream", () => {
-        // given
-        const streamId = "stream-7";
-
-        // when
-        const path = streamChatPopoutPath(streamId);
-
-        // then
-        expect(path).toBe("/live/stream-7/chat");
-    });
 });
 
 describe("streamChatPopoutName", () => {
@@ -48,11 +30,11 @@ describe("openStreamChatPopout", () => {
         vi.stubGlobal("open", open);
 
         // when
-        openStreamChatPopout("stream-7");
+        openStreamChatPopout("beatrice", "stream-7");
 
         // then
         const [url, name, features] = open.mock.calls[0] as unknown as [string, string, string];
-        expect(url).toBe("/live/stream-7/chat");
+        expect(url).toBe("/beatrice/live/chat");
         expect(name).toBe("stream-chat-stream-7");
         expect(features).toContain("popup=yes");
         expect(features).toContain("resizable=yes");
@@ -66,7 +48,7 @@ describe("openStreamChatPopout", () => {
         );
 
         // when
-        const opened = openStreamChatPopout("stream-7");
+        const opened = openStreamChatPopout("beatrice", "stream-7");
 
         // then
         expect(opened).toBeNull();

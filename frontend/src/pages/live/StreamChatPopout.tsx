@@ -7,12 +7,12 @@ import { StreamChatPanel } from "./StreamChatPanel";
 import styles from "./live.module.css";
 
 export function StreamChatPopout() {
-    const { streamID } = useParams<{ streamID: string }>();
+    const { username } = useParams<{ username: string }>();
 
-    const { stream, loading } = useStreamDetail(streamID);
+    const { stream, loading } = useStreamDetail(username);
 
     usePageTitle(stream ? `Chat: ${stream.title}` : "Stream chat");
-    useStreamChatPopoutReporter(streamID);
+    useStreamChatPopoutReporter(stream?.id);
 
     if (loading) {
         return <div className="loading">Loading chat...</div>;

@@ -185,3 +185,60 @@ func TestLiveStreamDAO_SetTitle(t *testing.T) {
 	require.NotNil(t, row)
 	assert.Equal(t, "New Title", row.Title)
 }
+
+func TestLiveStreamDAO_GetActiveByUsername(t *testing.T) {
+	// given a streamer with a mixed-case username and an active stream
+	repos := daotest.NewRepos(t)
+	repo := repos.LiveStream
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos, daotest.WithUsername("Featherine"), daotest.WithDisplayName("Featherine"))
+
+	stream, err := repo.Create(ctx, user.ID, "Ciconia blind run", 3)
+	require.NoError(t, err)
+	require.NotNil(t, stream)
+
+	lookups := []struct {
+		name     string
+		username string
+	}{
+		{name: "the stored casing", username: "Featherine"},
+		{name: "all lower case", username: "featherine"},
+		{name: "all upper case", username: "FEATHERINE"},
+	}
+
+	for _, tc := range lookups {
+		t.Run(tc.name, func(t *testing.T) {
+			// when the stable url is resolved
+			row, err := repo.GetActiveByUsername(ctx, tc.username)
+
+			// then the same stream comes back regardless of casing
+			require.NoError(t, err)
+			require.NotNil(t, row)
+			assert.Equal(t, stream.ID, row.ID)
+			assert.Equal(t, "Featherine", row.Username)
+		})
+	}
+
+	t.Run("an unknown username resolves to nothing", func(t *testing.T) {
+		// when
+		row, err := repo.GetActiveByUsername(ctx, "nobody")
+
+		// then
+		require.NoError(t, err)
+		assert.Nil(t, row)
+	})
+
+	t.Run("an ended stream no longer answers the stable url", func(t *testing.T) {
+		// given the stream has ended
+		ended, err := repo.MarkOffline(ctx, stream.ID)
+		require.NoError(t, err)
+		require.True(t, ended)
+
+		// when the stable url is resolved again
+		row, err := repo.GetActiveByUsername(ctx, "Featherine")
+
+		// then the historical row is not returned
+		require.NoError(t, err)
+		assert.Nil(t, row)
+	})
+}

@@ -324,22 +324,22 @@ describe("queryKeys.streams", () => {
     it("keys the directory, one stream, the owner view and the ingress credentials apart", () => {
         // then
         expect(queryKeys.streams.live()).toEqual(["streams", "live"]);
-        expect(queryKeys.streams.detail("s1")).toEqual(["streams", "detail", "s1"]);
+        expect(queryKeys.streams.byUsername("beato")).toEqual(["streams", "by-username", "beato"]);
         expect(queryKeys.streams.mine()).toEqual(["streams", "mine"]);
         expect(queryKeys.streams.credentials()).toEqual(["streams", "credentials"]);
     });
 
     it("never lets the owner view or the credentials collide with a stream whose id spells them", () => {
         // then
-        expect(queryKeys.streams.mine()).not.toEqual(queryKeys.streams.detail("mine"));
-        expect(queryKeys.streams.credentials()).not.toEqual(queryKeys.streams.detail("credentials"));
+        expect(queryKeys.streams.mine()).not.toEqual(queryKeys.streams.byUsername("mine"));
+        expect(queryKeys.streams.credentials()).not.toEqual(queryKeys.streams.byUsername("credentials"));
     });
 
     it("keeps every stream key apart", () => {
         // given
         const keys = [
             queryKeys.streams.live(),
-            queryKeys.streams.detail("s1"),
+            queryKeys.streams.byUsername("beato"),
             queryKeys.streams.mine(),
             queryKeys.streams.credentials(),
         ];

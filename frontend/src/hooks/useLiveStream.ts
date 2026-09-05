@@ -1,12 +1,13 @@
 import { useState } from "react";
 import type { Room } from "livekit-client";
+import { queryKeys } from "../api/queryKeys";
 import { useStreamDetailSync } from "../api/realtime/sync/useStreamDetailSync";
 import { resolvePlaybackPlan, type PlaybackPlan } from "../domain/live/playback";
 import type { LiveStream, StreamDefaultMode } from "../types/api";
 import { useAuth } from "./useAuth";
 import { useLiveKitRoom } from "./useLiveKitRoom";
 import { useStreamViewerToken } from "./mutations/stream";
-import { useStream } from "./queries/stream";
+import { useStreamByUsername } from "./queries/stream";
 
 export interface UseStreamDetailResult {
     stream: LiveStream | null;
@@ -25,17 +26,21 @@ export interface UseLiveStreamResult {
     setMode: (mode: StreamDefaultMode) => void;
 }
 
-export function useStreamDetail(streamId: string | undefined): UseStreamDetailResult {
-    const detail = useStream(streamId);
+export function useStreamDetail(username: string | undefined): UseStreamDetailResult {
+    const detail = useStreamByUsername(username);
 
-    useStreamDetailSync(streamId);
+    useStreamDetailSync({
+        streamId: detail.stream?.id,
+        username,
+        queryKey: queryKeys.streams.byUsername(username),
+    });
 
     return detail;
 }
 
-export function useLiveStream(streamId: string | undefined): UseLiveStreamResult {
+export function useLiveStream(username: string | undefined): UseLiveStreamResult {
     const { user } = useAuth();
-    const { stream, loading } = useStreamDetail(streamId);
+    const { stream, loading } = useStreamDetail(username);
 
     const [modeOverride, setModeOverride] = useState<StreamDefaultMode | null>(null);
     const [showOwnPreview, setShowOwnPreview] = useState(false);
@@ -50,7 +55,7 @@ export function useLiveStream(streamId: string | undefined): UseLiveStreamResult
     const viewerToken = useStreamViewerToken();
 
     const { room, error } = useLiveKitRoom({
-        streamId,
+        streamId: stream?.id,
         isLive: plan.isLive,
         wantsRoom: plan.wantsRoom,
         wantsMedia: plan.wantsMedia,

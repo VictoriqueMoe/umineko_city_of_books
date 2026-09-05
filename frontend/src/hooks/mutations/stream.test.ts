@@ -124,7 +124,7 @@ describe("useStartStream", () => {
 });
 
 describe("useStopStream", () => {
-    it("stops the stream and refreshes the directory, the owner view and the stream itself", async () => {
+    it("stops the stream and refreshes the directory and the owner view", async () => {
         // given
         const { result, invalidated } = setup(() => useStopStream());
 
@@ -138,12 +138,11 @@ describe("useStopStream", () => {
         expect(mocks.stopStream).toHaveBeenCalledWith(streamId);
         expect(invalidated()).toContain(JSON.stringify(queryKeys.streams.live()));
         expect(invalidated()).toContain(JSON.stringify(queryKeys.streams.mine()));
-        expect(invalidated()).toContain(JSON.stringify(queryKeys.streams.detail(streamId)));
     });
 });
 
 describe("useUpdateStreamTitle", () => {
-    it("writes the returned stream straight into the cached detail", async () => {
+    it("writes the returned stream straight into the streamer's cached page", async () => {
         // given
         const { result, queryClient } = setup(() => useUpdateStreamTitle());
 
@@ -155,7 +154,7 @@ describe("useUpdateStreamTitle", () => {
         // then
         await waitFor(() => expect(result.current.isSuccess).toBe(true));
         expect(mocks.updateStreamTitle).toHaveBeenCalledWith(streamId, "Chapter two");
-        expect(queryClient.getQueryData<LiveStream>(queryKeys.streams.detail(streamId))?.title).toBe("Chapter two");
+        expect(queryClient.getQueryData<LiveStream>(queryKeys.streams.byUsername("beato"))?.title).toBe("Chapter two");
     });
 
     it("refreshes the directory and the owner view so both carry the new title", async () => {

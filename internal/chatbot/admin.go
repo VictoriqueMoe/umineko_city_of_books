@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/reserved"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
 
@@ -397,6 +398,10 @@ func toResponse(bot repository.Chatbot) dto.ChatbotResponse {
 func (a *adminService) validateUpsert(ctx context.Context, req dto.ChatbotUpsertRequest) error {
 	if strings.TrimSpace(req.Username) == "" || strings.TrimSpace(req.DisplayName) == "" || strings.TrimSpace(req.SystemPrompt) == "" {
 		return ErrBotInvalid
+	}
+
+	if reserved.IsPathSegment(strings.TrimSpace(req.Username)) {
+		return fmt.Errorf("%w: username is reserved by the site", ErrBotInvalid)
 	}
 
 	switch req.ReasoningEffort {

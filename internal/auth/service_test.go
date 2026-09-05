@@ -420,6 +420,36 @@ func TestRegister_ReservedUsername(t *testing.T) {
 	}
 }
 
+func TestRegister_ReservedRouteSegment(t *testing.T) {
+	cases := []struct {
+		name     string
+		username string
+	}{
+		{name: "the live directory", username: "live"},
+		{name: "a route with a live child", username: "games"},
+		{name: "the profile prefix", username: "user"},
+		{name: "a static mount", username: "uploads"},
+		{name: "a hyphenated route", username: "game-board"},
+		{name: "casing does not get past the guard", username: "LIVE"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a site route segment offered as a username
+			svc, m := newTestService(t)
+			expectOpenRegistration(m)
+			req := validRegisterRequest()
+			req.Username = tc.username
+
+			// when the account is registered
+			_, _, err := svc.Register(context.Background(), req)
+
+			// then it is refused, so /{username}/live can never be shadowed by a site route
+			require.ErrorIs(t, err, ErrReservedUsername)
+		})
+	}
+}
+
 func TestRegister_PasswordTooShort(t *testing.T) {
 	// given
 	svc, m := newTestService(t)

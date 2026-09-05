@@ -1,18 +1,30 @@
 import { useQueryClient } from "@tanstack/react-query";
 import type { LiveStream } from "../../../types/api";
-import { queryKeys } from "../../queryKeys";
 import { REALTIME_EVENTS } from "../events";
 import { useRealtimeEvent } from "../useRealtime";
 
-export function useStreamDetailSync(streamId: string | undefined): void {
+export interface StreamDetailSyncTarget {
+    streamId: string | undefined;
+    username?: string;
+    queryKey: readonly unknown[];
+}
+
+function sameUsername(a: string | undefined, b: string | undefined): boolean {
+    return !!a && !!b && a.toLowerCase() === b.toLowerCase();
+}
+
+export function useStreamDetailSync(target: StreamDetailSyncTarget): void {
     const queryClient = useQueryClient();
+    const { streamId, username, queryKey } = target;
 
     useRealtimeEvent(REALTIME_EVENTS.STREAM_LIVE, event => {
-        if (!streamId || event.data.id !== streamId) {
+        const isThisStream =
+            (!!streamId && event.data.id === streamId) || sameUsername(username, event.data.streamerUsername);
+        if (!isThisStream) {
             return;
         }
 
-        queryClient.invalidateQueries({ queryKey: queryKeys.streams.detail(streamId) });
+        queryClient.invalidateQueries({ queryKey });
     });
 
     useRealtimeEvent(REALTIME_EVENTS.STREAM_OFFLINE, event => {
@@ -20,7 +32,7 @@ export function useStreamDetailSync(streamId: string | undefined): void {
             return;
         }
 
-        queryClient.invalidateQueries({ queryKey: queryKeys.streams.detail(streamId) });
+        queryClient.invalidateQueries({ queryKey });
     });
 
     useRealtimeEvent(REALTIME_EVENTS.STREAM_TITLE, event => {
@@ -30,8 +42,6 @@ export function useStreamDetailSync(streamId: string | undefined): void {
             return;
         }
 
-        queryClient.setQueryData<LiveStream>(queryKeys.streams.detail(streamId), prev =>
-            prev ? { ...prev, title } : prev,
-        );
+        queryClient.setQueryData<LiveStream>(queryKey, prev => (prev ? { ...prev, title } : prev));
     });
 }

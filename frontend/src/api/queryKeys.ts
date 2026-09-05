@@ -114,7 +114,7 @@ export const queryKeys = {
     },
     streams: {
         live: () => ["streams", "live"] as const,
-        detail: (id: string | undefined) => ["streams", "detail", id] as const,
+        byUsername: (username: string | undefined) => ["streams", "by-username", username] as const,
         mine: () => ["streams", "mine"] as const,
         credentials: () => ["streams", "credentials"] as const,
     },

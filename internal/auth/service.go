@@ -20,6 +20,7 @@ import (
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/reserved"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
@@ -142,6 +143,10 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 
 	if !isValidUsername(req.Username) {
 		return nil, "", ErrInvalidUsername
+	}
+
+	if reserved.IsPathSegment(req.Username) {
+		return nil, "", ErrReservedUsername
 	}
 
 	if isReservedUsername(req.Username) {

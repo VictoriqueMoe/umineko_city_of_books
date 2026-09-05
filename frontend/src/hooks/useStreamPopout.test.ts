@@ -36,7 +36,7 @@ afterEach(() => {
 describe("useStreamChatPopout", () => {
     it("keeps the chat where it is until it is asked to pop out", () => {
         // given
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
 
         // when
         const { poppedOut } = view.result.current;
@@ -48,7 +48,7 @@ describe("useStreamChatPopout", () => {
     it("opens the chat in a window of its own", () => {
         // given
         const open = stubWindowOpen(makePopoutWindow());
-        const view = renderHook(() => useStreamChatPopout("stream-7"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-7"));
 
         // when
         act(() => {
@@ -57,7 +57,7 @@ describe("useStreamChatPopout", () => {
 
         // then
         expect(open).toHaveBeenCalledWith(
-            "/live/stream-7/chat",
+            "/beatrice/live/chat",
             "stream-chat-stream-7",
             expect.stringContaining("popup=yes"),
         );
@@ -68,7 +68,7 @@ describe("useStreamChatPopout", () => {
         // given
         const popout = makePopoutWindow();
         stubWindowOpen(popout);
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
 
         // when
         act(() => {
@@ -82,7 +82,7 @@ describe("useStreamChatPopout", () => {
     it("leaves the chat where it is when the browser blocks the popup", () => {
         // given
         stubWindowOpen(null);
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
 
         // when
         act(() => {
@@ -96,7 +96,7 @@ describe("useStreamChatPopout", () => {
     it("opens nothing without a stream to chat about", () => {
         // given
         const open = stubWindowOpen(makePopoutWindow());
-        const view = renderHook(() => useStreamChatPopout(undefined));
+        const view = renderHook(() => useStreamChatPopout("beatrice", undefined));
 
         // when
         act(() => {
@@ -111,7 +111,7 @@ describe("useStreamChatPopout", () => {
         // given
         const popout = makePopoutWindow();
         stubWindowOpen(popout);
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
         act(() => {
             view.result.current.popOut();
         });
@@ -128,7 +128,7 @@ describe("useStreamChatPopout", () => {
 
     it("takes the chat back when the popped out window says it has closed", () => {
         // given
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
         act(() => {
             view.result.current.popOut();
         });
@@ -142,7 +142,7 @@ describe("useStreamChatPopout", () => {
 
     it("ignores a close message about a different stream", () => {
         // given
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
         act(() => {
             view.result.current.popOut();
         });
@@ -156,7 +156,7 @@ describe("useStreamChatPopout", () => {
 
     it("ignores a close message sent from another site", () => {
         // given
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
         act(() => {
             view.result.current.popOut();
         });
@@ -170,7 +170,7 @@ describe("useStreamChatPopout", () => {
 
     it("ignores a message that is not the popout handshake", () => {
         // given
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
         act(() => {
             view.result.current.popOut();
         });
@@ -192,7 +192,7 @@ describe("useStreamChatPopout", () => {
     it("stops listening for the handshake once the page is gone", () => {
         // given
         const removeEventListener = vi.spyOn(window, "removeEventListener");
-        const view = renderHook(() => useStreamChatPopout("stream-1"));
+        const view = renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
         act(() => {
             view.result.current.popOut();
         });
@@ -210,7 +210,7 @@ describe("useStreamChatPopout", () => {
         const addEventListener = vi.spyOn(window, "addEventListener");
 
         // when
-        renderHook(() => useStreamChatPopout("stream-1"));
+        renderHook(() => useStreamChatPopout("beatrice", "stream-1"));
 
         // then
         expect(addEventListener).not.toHaveBeenCalledWith("message", expect.any(Function));

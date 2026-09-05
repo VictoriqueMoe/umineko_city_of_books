@@ -38,6 +38,7 @@ type (
 		GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error)
 		GetByRoom(ctx context.Context, room string, tx ...*sql.Tx) (*LiveStreamRow, error)
 		GetActiveByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error)
+		GetActiveByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*LiveStreamRow, error)
 		ListLive(ctx context.Context, tx ...*sql.Tx) ([]LiveStreamRow, error)
 		ListStartingBefore(ctx context.Context, cutoff string, tx ...*sql.Tx) ([]LiveStreamRow, error)
 		CountActive(ctx context.Context, tx ...*sql.Tx) (int, error)
@@ -109,6 +110,10 @@ func (r *liveStreamRepository) GetByRoom(ctx context.Context, room string, tx ..
 
 func (r *liveStreamRepository) GetActiveByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*LiveStreamRow, error) {
 	return r.dao.GetActiveByUser(ctx, userID, tx...)
+}
+
+func (r *liveStreamRepository) GetActiveByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*LiveStreamRow, error) {
+	return r.dao.GetActiveByUsername(ctx, username, tx...)
 }
 
 func (r *liveStreamRepository) ListLive(ctx context.Context, tx ...*sql.Tx) ([]LiveStreamRow, error) {

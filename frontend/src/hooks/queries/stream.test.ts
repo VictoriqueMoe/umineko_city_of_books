@@ -6,17 +6,17 @@ import { queryKeys } from "../../api/queryKeys";
 import { makeStream as makeLiveStream } from "../../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import type { LiveStream, LiveStreamListResponse, StreamOwner } from "../../types/api";
-import { useLiveStreams, useLiveStreamsCount, useMyStream, useStream, useStreamCredentials } from "./stream";
+import { useLiveStreams, useLiveStreamsCount, useMyStream, useStreamByUsername, useStreamCredentials } from "./stream";
 
 vi.mock("../../api/endpoints/stream", () => ({
     listLiveStreams: vi.fn(),
-    getStream: vi.fn(),
+    getStreamByUsername: vi.fn(),
     getMyStream: vi.fn(),
     getStreamCredentials: vi.fn(),
 }));
 
 const listLiveStreams = vi.mocked(endpoints.listLiveStreams);
-const getStream = vi.mocked(endpoints.getStream);
+const getStreamByUsername = vi.mocked(endpoints.getStreamByUsername);
 const getMyStream = vi.mocked(endpoints.getMyStream);
 const getStreamCredentials = vi.mocked(endpoints.getStreamCredentials);
 
@@ -50,7 +50,7 @@ let queryClient: QueryClient;
 beforeEach(() => {
     queryClient = createTestQueryClient();
     listLiveStreams.mockResolvedValue(makeList([makeStream("stream-1"), makeStream("stream-2")]));
-    getStream.mockResolvedValue(makeStream("stream-1"));
+    getStreamByUsername.mockResolvedValue(makeStream("stream-1"));
     getMyStream.mockResolvedValue(makeOwner("stream-1"));
     getStreamCredentials.mockResolvedValue({
         whipUrl: "https://ingress.example/whip",
@@ -141,41 +141,53 @@ describe("useLiveStreamsCount", () => {
     });
 });
 
-describe("useStream", () => {
-    it("reads one stream by id", async () => {
+describe("useStreamByUsername", () => {
+    it("reads a streamer's current stream by their name", async () => {
         // given
-        const { result } = renderHook(() => useStream("stream-1"), { wrapper: providerWrapper({ queryClient }) });
+        const { result } = renderHook(() => useStreamByUsername("beatrice"), {
+            wrapper: providerWrapper({ queryClient }),
+        });
 
         // then
         await waitFor(() => {
             expect(result.current.stream?.id).toBe("stream-1");
         });
-        expect(getStream).toHaveBeenCalledWith("stream-1");
-        expect(queryClient.getQueryData(queryKeys.streams.detail("stream-1"))).toBeDefined();
+        expect(getStreamByUsername).toHaveBeenCalledWith("beatrice");
+        expect(queryClient.getQueryData(queryKeys.streams.byUsername("beatrice"))).toBeDefined();
     });
 
-    it("asks for nothing while the route has no stream id", () => {
+    it("asks for nothing while the route has no username", () => {
         // given
-        const { result } = renderHook(() => useStream(undefined), { wrapper: providerWrapper({ queryClient }) });
+        const { result } = renderHook(() => useStreamByUsername(undefined), {
+            wrapper: providerWrapper({ queryClient }),
+        });
 
         // then
-        expect(getStream).not.toHaveBeenCalled();
+        expect(getStreamByUsername).not.toHaveBeenCalled();
         expect(result.current.stream).toBeNull();
         expect(result.current.loading).toBe(false);
     });
 
-    it("reports the failure rather than rendering an empty stream", async () => {
-        // given
-        getStream.mockRejectedValue(new Error("the stream has gone dark"));
-
-        // when
-        const { result } = renderHook(() => useStream("stream-1"), { wrapper: providerWrapper({ queryClient }) });
-
-        // then
-        await waitFor(() => {
-            expect(result.current.error).toBe("the stream has gone dark");
+    it("drops the stream rather than leaving stale live data on screen", async () => {
+        // given a streamer who was live and has now stopped, so the lookup 404s
+        const { result } = renderHook(() => useStreamByUsername("beatrice"), {
+            wrapper: providerWrapper({ queryClient }),
         });
-        expect(result.current.stream).toBeNull();
+        await waitFor(() => {
+            expect(result.current.stream).not.toBeNull();
+        });
+
+        // when the refetch fails
+        getStreamByUsername.mockRejectedValue(new Error("stream not found"));
+        await act(async () => {
+            await queryClient.refetchQueries({ queryKey: queryKeys.streams.byUsername("beatrice") });
+        });
+
+        // then nothing stale survives
+        await waitFor(() => {
+            expect(result.current.stream).toBeNull();
+        });
+        expect(result.current.error).toBe("stream not found");
     });
 });
 

@@ -11,16 +11,16 @@ export interface StreamChatPopout {
     bringBack: () => void;
 }
 
-export function useStreamChatPopout(streamId: string | undefined): StreamChatPopout {
+export function useStreamChatPopout(username: string | undefined, streamId: string | undefined): StreamChatPopout {
     const [poppedOut, setPoppedOut] = useState(false);
     const popoutRef = useRef<Window | null>(null);
 
     const popOut = useCallback(() => {
-        if (!streamId) {
+        if (!username || !streamId) {
             return;
         }
 
-        const opened = openStreamChatPopout(streamId);
+        const opened = openStreamChatPopout(username, streamId);
         if (!opened) {
             return;
         }
@@ -28,7 +28,7 @@ export function useStreamChatPopout(streamId: string | undefined): StreamChatPop
         popoutRef.current = opened;
         setPoppedOut(true);
         opened.focus();
-    }, [streamId]);
+    }, [username, streamId]);
 
     const bringBack = useCallback(() => {
         popoutRef.current?.close();

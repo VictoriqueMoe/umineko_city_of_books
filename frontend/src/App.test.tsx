@@ -260,6 +260,45 @@ describe("App", () => {
         expect(screen.getByTestId("page-PostDetailPage")).toBeInTheDocument();
     });
 
+    it("gives a streamer their own stable live page", () => {
+        // given
+        const route = "/Featherine/live";
+
+        // when
+        renderApp(route);
+
+        // then
+        expect(screen.getByTestId("page-LiveWatchPage")).toBeInTheDocument();
+    });
+
+    it("no longer serves the retired per-stream link", () => {
+        // given
+        const route = "/live/95c3f467-283a-456b-a33e-164c438683ed";
+
+        // when
+        renderApp(route);
+
+        // then
+        expect(screen.getByTestId("page-NotFoundPage")).toBeInTheDocument();
+    });
+
+    it("keeps the site's own routes ahead of a username", () => {
+        // given every two-segment route whose second half is "live"
+        const cases = [
+            { route: "/games/live", testId: "page-LiveGamesPage" },
+            { route: "/live", testId: "page-LiveDirectoryPage" },
+        ];
+
+        for (const tc of cases) {
+            // when
+            const view = renderApp(tc.route, { user: member });
+
+            // then
+            expect(screen.getByTestId(tc.testId)).toBeInTheDocument();
+            view.unmount();
+        }
+    });
+
     it("shows the not found page for a route nobody claims", () => {
         // given
         const route = "/the-golden-land";

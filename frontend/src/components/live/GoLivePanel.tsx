@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { FPS_OPTIONS, MAX_BITRATE, MIN_BITRATE, STREAM_RESOLUTIONS } from "../../domain/live/bitrate";
 import { LIVE_STATUS } from "../../domain/live/playback";
+import { streamWatchPath } from "../../domain/live/streamUrl";
+import { useAuth } from "../../hooks/useAuth";
 import { useGoLive } from "../../hooks/useGoLive";
+import { siteUrl } from "../../platform/siteOrigin";
 import { Button } from "../Button/Button";
 import { Input } from "../Input/Input";
 import styles from "./GoLivePanel.module.css";
@@ -34,10 +37,27 @@ export function GoLivePanel() {
         copy,
     } = useGoLive();
 
+    const { user } = useAuth();
     const [setupOpen, setSetupOpen] = useState(false);
+
+    const watchUrl = user ? siteUrl(streamWatchPath(user.username)) : "";
 
     return (
         <div className={styles.panel}>
+            {user && (
+                <div className={styles.field}>
+                    <span className={styles.fieldLabel}>Your stream page</span>
+                    <div className={styles.copyRow}>
+                        <code className={styles.code}>{watchUrl}</code>
+                        <Button size="small" variant="secondary" onClick={() => copy("watch", watchUrl)}>
+                            {copied === "watch" ? "Copied" : "Copy"}
+                        </Button>
+                    </div>
+                    <span className={styles.resetHint}>
+                        This address never changes, so you can share it once and reuse it for every stream.
+                    </span>
+                </div>
+            )}
             {owner ? (
                 owner.stream.status === LIVE_STATUS ? (
                     <>

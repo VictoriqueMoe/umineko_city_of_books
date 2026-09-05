@@ -634,3 +634,35 @@
     color: #e0736b;
     font-size: 0.85rem;
 }
+
+.offlineCard {
+    max-width: 34rem;
+    margin: 3rem auto 0;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px solid rgba(var(--gold-rgb), 0.2);
+    border-radius: 12px;
+}
+
+.offlineTitle {
+    margin: 0 0 0.75rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.offlineHint {
+    margin: 0 0 1.5rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.offlineLinks {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+}

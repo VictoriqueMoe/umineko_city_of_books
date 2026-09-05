@@ -158,55 +158,55 @@ func (_c *MockService_Enabled_Call) RunAndReturn(run func() bool) *MockService_E
 	return _c
 }
 
-// Get provides a mock function for the type MockService
-func (_mock *MockService) Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamResponse, error) {
-	ret := _mock.Called(ctx, streamID)
+// GetByUsername provides a mock function for the type MockService
+func (_mock *MockService) GetByUsername(ctx context.Context, username string) (*dto.LiveStreamResponse, error) {
+	ret := _mock.Called(ctx, username)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Get")
+		panic("no return value specified for GetByUsername")
 	}
 
 	var r0 *dto.LiveStreamResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) (*dto.LiveStreamResponse, error)); ok {
-		return returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (*dto.LiveStreamResponse, error)); ok {
+		return returnFunc(ctx, username)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) *dto.LiveStreamResponse); ok {
-		r0 = returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) *dto.LiveStreamResponse); ok {
+		r0 = returnFunc(ctx, username)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.LiveStreamResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
-		r1 = returnFunc(ctx, streamID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, username)
 	} else {
 		r1 = ret.Error(1)
 	}
 	return r0, r1
 }
 
-// MockService_Get_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Get'
-type MockService_Get_Call struct {
+// MockService_GetByUsername_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetByUsername'
+type MockService_GetByUsername_Call struct {
 	*mock.Call
 }
 
-// Get is a helper method to define mock.On call
+// GetByUsername is a helper method to define mock.On call
 //   - ctx context.Context
-//   - streamID uuid.UUID
-func (_e *MockService_Expecter) Get(ctx any, streamID any) *MockService_Get_Call {
-	return &MockService_Get_Call{Call: _e.mock.On("Get", ctx, streamID)}
+//   - username string
+func (_e *MockService_Expecter) GetByUsername(ctx any, username any) *MockService_GetByUsername_Call {
+	return &MockService_GetByUsername_Call{Call: _e.mock.On("GetByUsername", ctx, username)}
 }
 
-func (_c *MockService_Get_Call) Run(run func(ctx context.Context, streamID uuid.UUID)) *MockService_Get_Call {
+func (_c *MockService_GetByUsername_Call) Run(run func(ctx context.Context, username string)) *MockService_GetByUsername_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 string
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(string)
 		}
 		run(
 			arg0,
@@ -216,12 +216,12 @@ func (_c *MockService_Get_Call) Run(run func(ctx context.Context, streamID uuid.
 	return _c
 }
 
-func (_c *MockService_Get_Call) Return(liveStreamResponse *dto.LiveStreamResponse, err error) *MockService_Get_Call {
+func (_c *MockService_GetByUsername_Call) Return(liveStreamResponse *dto.LiveStreamResponse, err error) *MockService_GetByUsername_Call {
 	_c.Call.Return(liveStreamResponse, err)
 	return _c
 }
 
-func (_c *MockService_Get_Call) RunAndReturn(run func(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamResponse, error)) *MockService_Get_Call {
+func (_c *MockService_GetByUsername_Call) RunAndReturn(run func(ctx context.Context, username string) (*dto.LiveStreamResponse, error)) *MockService_GetByUsername_Call {
 	_c.Call.Return(run)
 	return _c
 }

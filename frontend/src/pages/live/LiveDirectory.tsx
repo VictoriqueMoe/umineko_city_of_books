@@ -56,7 +56,7 @@ function StreamCard({ stream }: { stream: LiveStream }) {
     const name = stream.streamerDisplayName || stream.streamerUsername;
 
     return (
-        <Link to={`/live/${stream.id}`} className={styles.card}>
+        <Link to={`/${stream.streamerUsername}/live`} className={styles.card}>
             <div className={styles.cardThumb}>
                 {stream.thumbnailUrl ? (
                     <img src={stream.thumbnailUrl} alt="" className={styles.thumbImg} />

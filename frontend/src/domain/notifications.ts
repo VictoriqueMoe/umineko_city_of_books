@@ -373,7 +373,7 @@ const notificationConfigs: Record<NotificationType, NotificationConfig> = {
     stream_live: {
         text: "went live",
         category: "social",
-        route: notif => `/live/${notif.reference_id}`,
+        route: notif => (notif.actor.username ? `/${notif.actor.username}/live` : "/live"),
     },
     mystery_created: {
         text: "posted a new mystery",

@@ -30,7 +30,7 @@ func TestEntityPath(t *testing.T) {
 		{name: "fanfic", kind: KindFanfic, id: "abc", want: "/fanfiction/abc"},
 		{name: "journal", kind: KindJournal, id: "abc", want: "/journals/abc"},
 		{name: "room", kind: KindRoom, id: "abc", want: "/rooms/abc"},
-		{name: "live stream", kind: KindLiveStream, id: "abc", want: "/live/abc"},
+		{name: "live stream keys on username", kind: KindLiveStream, id: "kyle", want: "/kyle/live"},
 		{name: "user keys on username", kind: KindUser, id: "kyle", want: "/user/kyle"},
 		{name: "unknown kind yields no path", kind: Kind("nonsense"), id: "abc", want: ""},
 	}
@@ -80,6 +80,7 @@ func TestCanonicalMetaPath(t *testing.T) {
 		{name: "repeated trailing slashes are trimmed", path: "/theory/abc///", want: "/theory/abc"},
 		{name: "root stays root", path: "/", want: "/"},
 		{name: "empty becomes root", path: "", want: "/"},
+		{name: "casing collapses onto one key", path: "/Featherine/live", want: "/featherine/live"},
 	}
 
 	for _, tc := range tests {

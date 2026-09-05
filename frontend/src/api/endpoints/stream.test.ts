@@ -41,10 +41,10 @@ describe("the live stream API", () => {
             request: ["/streams/live"],
         },
         {
-            name: "getStream reads a single stream",
-            call: () => api.getStream("s-1"),
+            name: "getStreamByUsername reads a streamer's current stream",
+            call: () => api.getStreamByUsername("Featherine"),
             transport: fetchMock,
-            request: ["/streams/s-1"],
+            request: ["/streams/user/Featherine"],
         },
         {
             name: "getMyStream reads the caller's own stream",

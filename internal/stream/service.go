@@ -33,7 +33,7 @@ type (
 		UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, title string) (*dto.LiveStreamResponse, error)
 		MyStream(ctx context.Context, userID uuid.UUID) (*dto.StreamOwnerResponse, error)
 		ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error)
-		Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamResponse, error)
+		GetByUsername(ctx context.Context, username string) (*dto.LiveStreamResponse, error)
 		MintViewerToken(ctx context.Context, streamID uuid.UUID, viewer *dto.StreamViewer) (token, url string, err error)
 		HandleWebhook(ctx context.Context, authHeader string, body []byte) (handled bool, err error)
 		ReconcileOnce(ctx context.Context) (int, error)
@@ -607,9 +607,7 @@ func (s *service) StopStream(ctx context.Context, userID, streamID uuid.UUID) er
 
 	s.teardown(ctx, stream)
 
-	if err := s.ogCache.ClearMetaCache(ctx, og.KindLiveStream, streamID.String()); err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("clear og meta cache failed")
-	}
+	s.clearStreamMeta(ctx, stream)
 
 	return nil
 }
@@ -641,6 +639,8 @@ func (s *service) UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, t
 	}
 
 	stream.Title = title
+
+	s.clearStreamMeta(ctx, stream)
 
 	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamTitle,
@@ -676,8 +676,13 @@ func (s *service) ListLive(ctx context.Context) ([]dto.LiveStreamResponse, error
 	return out, nil
 }
 
-func (s *service) Get(ctx context.Context, streamID uuid.UUID) (*dto.LiveStreamResponse, error) {
-	stream, err := s.repo.GetByID(ctx, streamID)
+func (s *service) GetByUsername(ctx context.Context, username string) (*dto.LiveStreamResponse, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil, ErrStreamNotFound
+	}
+
+	stream, err := s.repo.GetActiveByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
@@ -927,10 +932,18 @@ func (s *service) broadcastLive(ctx context.Context, id uuid.UUID) {
 		return
 	}
 
+	s.clearStreamMeta(ctx, stream)
+
 	s.hub.BroadcastPublic(ws.Message{
 		Type: wsStreamLive,
 		Data: toPublic(stream),
 	})
+}
+
+func (s *service) clearStreamMeta(ctx context.Context, stream *repository.LiveStreamRow) {
+	if err := s.ogCache.ClearMetaCache(ctx, og.KindLiveStream, stream.Username); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("username", stream.Username).Msg("clear og meta cache failed")
+	}
 }
 
 func toPublic(row *repository.LiveStreamRow) dto.LiveStreamResponse {

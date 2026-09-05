@@ -49,7 +49,12 @@ var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) 
 		}
 		return u + "#msg-" + r.ID
 	},
-	repository.SearchEntityLiveStream: selfURL("/live/"),
+	repository.SearchEntityLiveStream: func(r repository.SearchResult) string {
+		if r.AuthorUsername == "" {
+			return ""
+		}
+		return "/" + r.AuthorUsername + "/live"
+	},
 }
 
 func selfURL(prefix string) func(repository.SearchResult) string {

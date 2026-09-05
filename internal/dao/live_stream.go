@@ -104,6 +104,19 @@ func (r *liveStreamDAO) GetActiveByUser(ctx context.Context, userID uuid.UUID, t
 	return scanLiveStreamRow(row.Scan)
 }
 
+func (r *liveStreamDAO) GetActiveByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*repository.LiveStreamRow, error) {
+	row := txOrDB(r.db, tx).QueryRowContext(ctx,
+		`SELECT `+liveStreamSelectColumns+`
+		   FROM live_streams s
+		   JOIN users u ON u.id = s.user_id
+		  WHERE LOWER(u.username) = LOWER($1) AND s.status <> 'offline'
+		  LIMIT 1`,
+		username,
+	)
+
+	return scanLiveStreamRow(row.Scan)
+}
+
 func (r *liveStreamDAO) listBy(ctx context.Context, tx []*sql.Tx, where string, args ...any) ([]repository.LiveStreamRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT `+liveStreamSelectColumns+`

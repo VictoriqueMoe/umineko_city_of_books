@@ -14,12 +14,14 @@ import { useLiveStream } from "./useLiveStream";
 
 const mocks = vi.hoisted(() => ({
     getStream: vi.fn(),
+    getStreamByUsername: vi.fn(),
     getStreamViewerToken: vi.fn(),
 }));
 
 vi.mock("../api/endpoints/stream", () => ({
     listLiveStreams: vi.fn(),
     getStream: mocks.getStream,
+    getStreamByUsername: mocks.getStreamByUsername,
     getMyStream: vi.fn(),
     getStreamCredentials: vi.fn(),
     getStreamViewerToken: mocks.getStreamViewerToken,
@@ -36,7 +38,7 @@ vi.mock("../api/livekit/connect", () => ({
     disconnectRoom: vi.fn(),
 }));
 
-const { getStream, getStreamViewerToken } = mocks;
+const { getStreamByUsername, getStreamViewerToken } = mocks;
 const connectRoom = vi.mocked(livekit.connectRoom);
 const disconnectRoom = vi.mocked(livekit.disconnectRoom);
 
@@ -67,8 +69,8 @@ function lastOptions(): ConnectRoomOptions {
 
 let queryClient: QueryClient;
 
-function mount(options: { user?: UserProfile | null; streamId?: string } = {}) {
-    return renderHook(() => useLiveStream(options.streamId ?? "stream-1"), {
+function mount(options: { user?: UserProfile | null; username?: string } = {}) {
+    return renderHook(() => useLiveStream(options.username ?? "beatrice"), {
         wrapper: providerWrapper({ queryClient, user: options.user ?? null }),
     });
 }
@@ -78,27 +80,27 @@ beforeEach(() => {
     connectRoom.mockReset();
     disconnectRoom.mockReset();
     connectRoom.mockResolvedValue(makeRoom("room-1"));
-    getStream.mockResolvedValue(makeStream());
+    getStreamByUsername.mockResolvedValue(makeStream());
     getStreamViewerToken.mockResolvedValue({ token: "tok", url: "wss://livekit.test" });
 });
 
 describe("useLiveStream lookup", () => {
     it("asks the server for the stream named in the address", async () => {
         // given
-        mount({ streamId: "stream-77" });
+        mount({ username: "lambdadelta" });
 
         // when
         await waitFor(() => {
-            expect(getStream).toHaveBeenCalledWith("stream-77");
+            expect(getStreamByUsername).toHaveBeenCalledWith("lambdadelta");
         });
 
         // then
-        expect(getStream).toHaveBeenCalledTimes(1);
+        expect(getStreamByUsername).toHaveBeenCalledTimes(1);
     });
 
     it("waits while the stream is being looked up", () => {
         // given
-        getStream.mockReturnValue(new Promise<LiveStream>(() => {}));
+        getStreamByUsername.mockReturnValue(new Promise<LiveStream>(() => {}));
 
         // when
         const view = mount();
@@ -152,7 +154,7 @@ describe("useLiveStream playback plan", () => {
 
     it("opens no livekit room while the smooth feed is playing", async () => {
         // given
-        getStream.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
+        getStreamByUsername.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: "https://edge/s.m3u8" }));
         const view = mount({ user: makeUser({ id: "viewer-1" }) });
 
         // when
@@ -167,7 +169,7 @@ describe("useLiveStream playback plan", () => {
 
     it("falls back to the low latency room when the stream prefers hls but has no url", async () => {
         // given
-        getStream.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: undefined }));
+        getStreamByUsername.mockResolvedValue(makeStream({ defaultMode: "hls", hlsUrl: undefined }));
         const view = mount({ user: makeUser({ id: "viewer-1" }) });
 
         // when
@@ -181,7 +183,7 @@ describe("useLiveStream playback plan", () => {
 
     it("opens no room while the stream is offline", async () => {
         // given
-        getStream.mockResolvedValue(makeStream({ status: "offline" }));
+        getStreamByUsername.mockResolvedValue(makeStream({ status: "offline" }));
         const view = mount({ user: makeUser({ id: "viewer-1" }) });
 
         // when
@@ -221,7 +223,7 @@ describe("useLiveStream playback plan", () => {
 
     it("tears the room down when the viewer switches to the smooth feed", async () => {
         // given
-        getStream.mockResolvedValue(makeStream({ hlsUrl: "https://edge/s.m3u8" }));
+        getStreamByUsername.mockResolvedValue(makeStream({ hlsUrl: "https://edge/s.m3u8" }));
         const room = makeRoom("room-1");
         const view = mount({ user: makeUser({ id: "viewer-1" }) });
         await waitFor(() => {
@@ -245,9 +247,9 @@ describe("useLiveStream playback plan", () => {
 describe("useLiveStream live updates", () => {
     it("refetches the stream when it goes offline", async () => {
         // given
-        mount({ user: makeUser({ id: "viewer-1" }) });
+        const view = mount({ user: makeUser({ id: "viewer-1" }) });
         await waitFor(() => {
-            expect(getStream).toHaveBeenCalled();
+            expect(view.result.current.stream).not.toBeNull();
         });
         vi.spyOn(queryClient, "invalidateQueries");
 
@@ -255,14 +257,14 @@ describe("useLiveStream live updates", () => {
         emitRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-1" } });
 
         // then
-        expectInvalidated(queryClient, queryKeys.streams.detail("stream-1"));
+        expectInvalidated(queryClient, queryKeys.streams.byUsername("beatrice"));
     });
 
     it("refetches the stream when it comes back live", async () => {
         // given
         mount({ user: makeUser({ id: "viewer-1" }) });
         await waitFor(() => {
-            expect(getStream).toHaveBeenCalled();
+            expect(getStreamByUsername).toHaveBeenCalled();
         });
         vi.spyOn(queryClient, "invalidateQueries");
 
@@ -270,7 +272,7 @@ describe("useLiveStream live updates", () => {
         emitRealtimeEvent({ type: "stream_live", data: makeStream({ id: "stream-1" }) });
 
         // then
-        expectInvalidated(queryClient, queryKeys.streams.detail("stream-1"));
+        expectInvalidated(queryClient, queryKeys.streams.byUsername("beatrice"));
     });
 
     it("renames the stream in place when the streamer changes the title", async () => {
@@ -291,9 +293,9 @@ describe("useLiveStream live updates", () => {
 
     it("ignores another stream going offline", async () => {
         // given
-        mount({ user: makeUser({ id: "viewer-1" }) });
+        const view = mount({ user: makeUser({ id: "viewer-1" }) });
         await waitFor(() => {
-            expect(getStream).toHaveBeenCalled();
+            expect(view.result.current.stream).not.toBeNull();
         });
         vi.spyOn(queryClient, "invalidateQueries");
 
@@ -322,7 +324,7 @@ describe("useLiveStream live updates", () => {
         // given
         const view = mount({ user: makeUser({ id: "viewer-1" }) });
         await waitFor(() => {
-            expect(getStream).toHaveBeenCalled();
+            expect(view.result.current.stream).not.toBeNull();
         });
         vi.spyOn(queryClient, "invalidateQueries");
 

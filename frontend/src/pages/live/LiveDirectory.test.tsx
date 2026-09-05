@@ -117,7 +117,7 @@ describe("LiveDirectory", () => {
         expect(await screen.findByText("Ciconia blind run")).toBeInTheDocument();
         expect(screen.getByText("Beatrice")).toBeInTheDocument();
         expect(screen.getByText(/12/)).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Ciconia blind run/ })).toHaveAttribute("href", "/live/stream-9");
+        expect(screen.getByRole("link", { name: /Ciconia blind run/ })).toHaveAttribute("href", "/beatrice/live");
     });
 
     it("falls back to the streamer's username when they have no display name", async () => {

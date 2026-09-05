@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
@@ -321,4 +322,155 @@ func TestResolver_Resolve_HidesDraftJournalEntry(t *testing.T) {
 	assert.NotContains(t, html, draftTitle)
 	assert.NotContains(t, html, "Secret unpublished body")
 	assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
+}
+
+func TestResolver_Resolve_LiveStreamByUsername(t *testing.T) {
+	streamID := uuid.New()
+	row := &repository.LiveStreamRow{
+		ID:          streamID,
+		Title:       "Ciconia blind run",
+		Status:      "live",
+		Username:    "Featherine",
+		DisplayName: "Featherine",
+	}
+
+	tests := []struct {
+		name      string
+		path      string
+		row       *repository.LiveStreamRow
+		wantTitle string
+		wantURL   string
+	}{
+		{
+			name:      "stable username url resolves the live stream",
+			path:      "/Featherine/live",
+			row:       row,
+			wantTitle: "Ciconia blind run - Featherine's live stream",
+			wantURL:   "https://example.com/Featherine/live",
+		},
+		{
+			name:      "an offline streamer gets the default shell",
+			path:      "/Featherine/live",
+			row:       nil,
+			wantTitle: "When They Cry City of Books",
+			wantURL:   "https://example.com/",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a request for a streamer's stable live URL
+			ss := settings.NewMockService(t)
+			ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+			streamRepo := repository.NewMockLiveStreamRepository(t)
+			streamRepo.EXPECT().GetActiveByUsername(mock.Anything, "Featherine").Return(tc.row, nil)
+
+			r := &Resolver{settingsSvc: ss, liveStreamRepo: streamRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+			// when the crawler is served
+			html := r.Resolve(context.Background(), tc.path, "")
+
+			// then the card advertises the stable url
+			assert.Contains(t, html, `property="og:title" content="`+tc.wantTitle+`"`)
+			assert.Contains(t, html, `property="og:url" content="`+tc.wantURL+`"`)
+		})
+	}
+}
+
+func TestResolver_Resolve_RetiredStreamURLHasNoCard(t *testing.T) {
+	// given a link shared under the retired /live/{uuid} address
+	streamID := uuid.New()
+
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	streamRepo := repository.NewMockLiveStreamRepository(t)
+
+	r := &Resolver{settingsSvc: ss, liveStreamRepo: streamRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when a crawler unfurls it
+	html := r.Resolve(context.Background(), "/live/"+streamID.String(), "")
+
+	// then no stream is looked up and the generic site card is served
+	assert.Contains(t, html, `property="og:title" content="When They Cry City of Books"`)
+	streamRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
+}
+
+func TestResolver_Resolve_ReservedSegmentsAreNotStreamers(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      string
+		wantTitle string
+	}{
+		{name: "games live keeps its own card", path: "/games/live", wantTitle: "Live Games - When They Cry City of Books"},
+		{name: "the live directory keeps its own card", path: "/live", wantTitle: "Live Streams - When They Cry City of Books"},
+		{name: "a static mount is never a streamer", path: "/uploads/live", wantTitle: "When They Cry City of Books"},
+		{name: "a protected page is never a streamer", path: "/settings/live", wantTitle: "When They Cry City of Books"},
+		{name: "casing does not get a reserved name past the guard", path: "/Games/LIVE", wantTitle: "When They Cry City of Books"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a reserved first segment followed by "live"
+			ss := settings.NewMockService(t)
+			ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+			streamRepo := repository.NewMockLiveStreamRepository(t)
+
+			r := &Resolver{settingsSvc: ss, liveStreamRepo: streamRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+			// when it is resolved
+			html := r.Resolve(context.Background(), tc.path, "")
+
+			// then no streamer lookup happens and the site's own meta stands
+			assert.Contains(t, html, `property="og:title" content="`+tc.wantTitle+`"`)
+			streamRepo.AssertNotCalled(t, "GetActiveByUsername", mock.Anything, mock.Anything)
+		})
+	}
+}
+
+func TestResolver_Resolve_LiveStreamCasingSharesOneCard(t *testing.T) {
+	// given a live streamer whose stable url is linked in mixed case
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	streamRepo := repository.NewMockLiveStreamRepository(t)
+	streamRepo.EXPECT().GetActiveByUsername(mock.Anything, mock.Anything).
+		Return(&repository.LiveStreamRow{Title: "Ciconia blind run", Status: "live", Username: "Featherine", DisplayName: "Featherine"}, nil)
+
+	r := &Resolver{settingsSvc: ss, liveStreamRepo: streamRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when an oddly cased variant is crawled first, then the real link
+	first := r.Resolve(context.Background(), "/FEATHERINE/LIVE", "")
+	second := r.Resolve(context.Background(), "/featherine/live", "")
+
+	// then neither poisons the other: both render the same card
+	assert.Contains(t, first, `property="og:url" content="https://example.com/Featherine/live"`)
+	assert.Contains(t, second, `property="og:url" content="https://example.com/Featherine/live"`)
+}
+
+func TestResolver_Resolve_CasingDoesNotPoisonOtherEntities(t *testing.T) {
+	// given a page whose path segment is case-sensitive
+	ss := settings.NewMockService(t)
+	ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+	r := &Resolver{settingsSvc: ss, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+	// when a mis-cased variant is crawled before the real one
+	r.Resolve(context.Background(), "/GAMES/past", "")
+	html := r.Resolve(context.Background(), "/games/past", "")
+
+	// then the real page still gets its own card
+	assert.Contains(t, html, `property="og:title" content="Past Games - When They Cry City of Books"`)
 }

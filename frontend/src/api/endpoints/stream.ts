@@ -12,8 +12,8 @@ export async function listLiveStreams(): Promise<LiveStreamListResponse> {
     return apiFetch<LiveStreamListResponse>("/streams/live");
 }
 
-export async function getStream(id: string): Promise<LiveStream> {
-    return apiFetch<LiveStream>(`/streams/${id}`);
+export async function getStreamByUsername(username: string): Promise<LiveStream> {
+    return apiFetch<LiveStream>(`/streams/user/${encodeURIComponent(username)}`);
 }
 
 export async function getMyStream(): Promise<StreamOwner | null> {

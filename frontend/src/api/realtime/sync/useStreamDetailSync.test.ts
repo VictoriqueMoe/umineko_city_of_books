@@ -17,16 +17,27 @@ function emit(event: RealtimeEvent): void {
 }
 
 function readDetail(queryClient: QueryClient, streamId: string): LiveStream | undefined {
-    return queryClient.getQueryData<LiveStream>(queryKeys.streams.detail(streamId));
+    return queryClient.getQueryData<LiveStream>(queryKeys.streams.byUsername(streamId));
 }
 
 let queryClient: QueryClient;
 
 function mount(streamId: string | undefined) {
-    return renderHook(({ id }: { id: string | undefined }) => useStreamDetailSync(id), {
-        wrapper: providerWrapper({ queryClient }),
-        initialProps: { id: streamId },
-    });
+    return renderHook(
+        ({ id }: { id: string | undefined }) =>
+            useStreamDetailSync({ streamId: id, queryKey: queryKeys.streams.byUsername(id) }),
+        {
+            wrapper: providerWrapper({ queryClient }),
+            initialProps: { id: streamId },
+        },
+    );
+}
+
+function mountByUsername(username: string | undefined, streamId: string | undefined) {
+    return renderHook(
+        () => useStreamDetailSync({ streamId, username, queryKey: queryKeys.streams.byUsername(username) }),
+        { wrapper: providerWrapper({ queryClient }) },
+    );
 }
 
 beforeEach(() => {
@@ -43,7 +54,7 @@ describe("useStreamDetailSync", () => {
         emit({ type: "stream_live", data: makeStream({ id: "stream-1" }) });
 
         // then
-        expectInvalidated(queryClient, queryKeys.streams.detail("stream-1"));
+        expectInvalidated(queryClient, queryKeys.streams.byUsername("stream-1"));
     });
 
     it("invalidates its own stream when that stream goes offline", () => {
@@ -55,7 +66,7 @@ describe("useStreamDetailSync", () => {
         emit({ type: "stream_offline", data: { streamId: "stream-1" } });
 
         // then
-        expectInvalidated(queryClient, queryKeys.streams.detail("stream-1"));
+        expectInvalidated(queryClient, queryKeys.streams.byUsername("stream-1"));
     });
 
     it("ignores another stream going live or offline", () => {
@@ -73,7 +84,7 @@ describe("useStreamDetailSync", () => {
 
     it("patches the cached title of its own stream", () => {
         // given
-        queryClient.setQueryData<LiveStream>(queryKeys.streams.detail("stream-1"), makeStream());
+        queryClient.setQueryData<LiveStream>(queryKeys.streams.byUsername("stream-1"), makeStream());
         mount("stream-1");
 
         // when
@@ -85,7 +96,7 @@ describe("useStreamDetailSync", () => {
 
     it("ignores a title for another stream", () => {
         // given
-        queryClient.setQueryData<LiveStream>(queryKeys.streams.detail("stream-1"), makeStream());
+        queryClient.setQueryData<LiveStream>(queryKeys.streams.byUsername("stream-1"), makeStream());
         mount("stream-1");
 
         // when
@@ -129,7 +140,31 @@ describe("useStreamDetailSync", () => {
         emit({ type: "stream_offline", data: { streamId: "stream-2" } });
 
         // then
-        expectInvalidated(queryClient, queryKeys.streams.detail("stream-2"));
+        expectInvalidated(queryClient, queryKeys.streams.byUsername("stream-2"));
+    });
+
+    it("wakes a username-keyed page when that streamer goes live, before any stream id is known", () => {
+        // given a viewer parked on /featherine/live while she is offline
+        vi.spyOn(queryClient, "invalidateQueries");
+        mountByUsername("Featherine", undefined);
+
+        // when she starts broadcasting
+        emit({ type: "stream_live", data: makeStream({ id: "stream-1", streamerUsername: "featherine" }) });
+
+        // then the page refetches even though it never held a stream id
+        expectInvalidated(queryClient, queryKeys.streams.byUsername("Featherine"));
+    });
+
+    it("ignores another streamer going live on a username-keyed page", () => {
+        // given
+        vi.spyOn(queryClient, "invalidateQueries");
+        mountByUsername("Featherine", undefined);
+
+        // when
+        emit({ type: "stream_live", data: makeStream({ id: "stream-1", streamerUsername: "beatrice" }) });
+
+        // then
+        expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
     });
 
     it("stops reacting once it is unmounted", () => {

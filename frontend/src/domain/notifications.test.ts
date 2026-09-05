@@ -207,7 +207,7 @@ describe("getNotificationRoute", () => {
         { reference_type: "theory_response:r9", expected: "/theory/ref-1#response-r9" },
     ];
 
-    it("links a going-live notification to the stream, not the theory fallback", () => {
+    it("links a going-live notification to the streamer's stable page, not the theory fallback", () => {
         // given
         const notif = makeNotification({ type: "stream_live", reference_type: "stream" });
 
@@ -215,7 +215,19 @@ describe("getNotificationRoute", () => {
         const route = getNotificationRoute(notif);
 
         // then
-        expect(route).toBe("/live/ref-1");
+        expect(route).toBe("/beatrice/live");
+    });
+
+    it("falls back to the live directory when the notification carries no actor username", () => {
+        // given an older notification whose actor was not resolved
+        const notif = makeNotification({ type: "stream_live", reference_type: "stream" });
+        notif.actor.username = "";
+
+        // when
+        const route = getNotificationRoute(notif);
+
+        // then
+        expect(route).toBe("/live");
     });
 
     it("links a new mystery notification to the mystery", () => {

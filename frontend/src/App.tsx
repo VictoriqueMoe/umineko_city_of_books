@@ -8,6 +8,7 @@ import { usePushNotifications } from "./hooks/usePushNotifications";
 import { MOBILE_QUERY } from "./hooks/useIsMobile";
 import { canAccessAdmin } from "./domain/permissions";
 import { homePageRoute, HOME_PAGE_FALLBACK } from "./domain/user/homePage";
+import { isStreamChatPopoutPath, isStreamWatchPath } from "./domain/live/streamUrl";
 import { Header } from "./components/layout/Header/Header";
 import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
@@ -142,9 +143,7 @@ function RouteFallback() {
     return <div className="loading">Loading...</div>;
 }
 
-const CHAT_LAYOUT_ROUTES = [/^\/rooms\/[^/]+$/, /^\/chat(\/|$)/, /^\/live\/[^/]+$/];
-
-const STREAM_CHAT_POPOUT_ROUTE = /^\/live\/[^/]+\/chat$/;
+const CHAT_LAYOUT_ROUTES = [/^\/rooms\/[^/]+$/, /^\/chat(\/|$)/];
 
 const PUBLIC_AUTH_ROUTES: { path: string; element: ReactElement }[] = [
     { path: "/login", element: <LoginPage /> },
@@ -157,6 +156,10 @@ const PUBLIC_AUTH_ROUTES: { path: string; element: ReactElement }[] = [
 const PUBLIC_AUTH_PATHS = new Set(PUBLIC_AUTH_ROUTES.map(route => route.path));
 
 function isChatLayoutPath(pathname: string): boolean {
+    if (isStreamWatchPath(pathname)) {
+        return true;
+    }
+
     for (const pattern of CHAT_LAYOUT_ROUTES) {
         if (pattern.test(pathname)) {
             return true;
@@ -164,10 +167,6 @@ function isChatLayoutPath(pathname: string): boolean {
     }
 
     return false;
-}
-
-function isStreamChatPopoutPath(pathname: string): boolean {
-    return STREAM_CHAT_POPOUT_ROUTE.test(pathname);
 }
 
 function AppLayout() {
@@ -224,7 +223,7 @@ function AppLayout() {
         return (
             <Suspense fallback={<RouteFallback />}>
                 <Routes>
-                    <Route path="/live/:streamID/chat" element={<StreamChatPopoutPage />} />
+                    <Route path="/:username/live/chat" element={<StreamChatPopoutPage />} />
                 </Routes>
             </Suspense>
         );
@@ -303,7 +302,6 @@ function AppLayout() {
                                 <Route path="/quotes" element={<QuoteBrowserPage />} />
                                 <Route path="/search" element={<SearchPage />} />
                                 <Route path="/live" element={<LiveDirectoryPage />} />
-                                <Route path="/live/:streamID" element={<LiveWatchPage />} />
                                 <Route
                                     path="/games/chess/scoreboard"
                                     element={<Navigate to="/games/chess" replace />}
@@ -407,6 +405,8 @@ function AppLayout() {
                                         <Route path="chatbots" element={<AdminChatbots />} />
                                     </Route>
                                 </Route>
+
+                                <Route path="/:username/live" element={<LiveWatchPage />} />
 
                                 <Route path="*" element={<NotFoundPage />} />
                             </Routes>

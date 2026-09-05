@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/reserved"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/text"
@@ -70,6 +71,7 @@ const (
 	defaultDescription = "A social platform for fans of Umineko, Higurashi, and the wider When They Cry series. Post theories, solve mysteries, share fan art, chronicle read-throughs, ship pairings, write fanfiction, and chat in live rooms."
 	defaultImagePath   = "/Featherine.jpg"
 	baseURLPlaceholder = "__BASE_URL__"
+	statusLive         = "live"
 	maxDescRunes       = 200
 	maxDescClipRunes   = 197
 )
@@ -165,7 +167,16 @@ func canonicalMetaPath(path string) string {
 		return "/"
 	}
 
+	parts := strings.Split(strings.Trim(trimmed, "/"), "/")
+	if isStreamerLivePath(parts) {
+		return "/" + strings.ToLower(parts[0]) + "/live"
+	}
+
 	return trimmed
+}
+
+func isStreamerLivePath(parts []string) bool {
+	return len(parts) == 2 && strings.EqualFold(parts[1], "live") && !reserved.IsPathSegment(parts[0])
 }
 
 func (r *Resolver) withDefaultImage(ctx context.Context) (string, string) {
@@ -208,7 +219,7 @@ func entityPath(kind Kind, id string) string {
 	case KindRoom:
 		return "/rooms/" + id
 	case KindLiveStream:
-		return "/live/" + id
+		return "/" + id + "/live"
 	case KindUser:
 		return "/user/" + id
 	}
@@ -418,12 +429,6 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 		}
 	}
 
-	if len(parts) == 2 && parts[0] == "live" {
-		if _, err := uuid.Parse(parts[1]); err == nil {
-			return r.liveStreamMeta(ctx, parts[1])
-		}
-	}
-
 	if len(parts) == 2 && parts[0] == "gallery" {
 		corner := parts[1]
 		name := strings.ToUpper(corner[:1]) + corner[1:]
@@ -502,6 +507,10 @@ func (r *Resolver) metaForPath(ctx context.Context, path, partyID string) *Meta 
 				URL:         fmt.Sprintf("%s/games/%s/%s", r.baseURL, parts[1], parts[2]),
 			}
 		}
+	}
+
+	if isStreamerLivePath(parts) {
+		return r.liveStreamMetaByUsername(ctx, parts[0])
 	}
 
 	return nil
@@ -981,14 +990,17 @@ func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr str
 	}
 }
 
-func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
-	id, err := uuid.Parse(idStr)
+func (r *Resolver) liveStreamMetaByUsername(ctx context.Context, username string) *Meta {
+	stream, err := r.liveStreamRepo.GetActiveByUsername(ctx, username)
 	if err != nil {
 		return nil
 	}
 
-	stream, err := r.liveStreamRepo.GetByID(ctx, id)
-	if err != nil || stream == nil || stream.Status != "live" {
+	return r.liveStreamMeta(ctx, stream)
+}
+
+func (r *Resolver) liveStreamMeta(ctx context.Context, stream *repository.LiveStreamRow) *Meta {
+	if stream == nil || stream.Status != statusLive {
 		return nil
 	}
 
@@ -1008,7 +1020,7 @@ func (r *Resolver) liveStreamMeta(ctx context.Context, idStr string) *Meta {
 	meta := &Meta{
 		Title:       fmt.Sprintf("%s - %s's live stream", stream.Title, name),
 		Description: desc,
-		URL:         fmt.Sprintf("%s/live/%s", r.baseURL, idStr),
+		URL:         fmt.Sprintf("%s/%s/live", r.baseURL, stream.Username),
 	}
 	if stream.ThumbnailURL != "" {
 		meta.Image = r.absoluteURL(stream.ThumbnailURL)
