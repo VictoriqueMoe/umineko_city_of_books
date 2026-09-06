@@ -63,7 +63,7 @@ func (s *Service) setupRegisterRoute(r fiber.Router) {
 }
 
 func (s *Service) setupLoginRoute(r fiber.Router) {
-	r.Post("/auth/login", middleware.RateLimitCredentials(), middleware.RequireTurnstile(s.SettingsService), s.login)
+	r.Post("/auth/login", middleware.RateLimitCredentials(), middleware.RateLimitCredentialsByAccount("username"), middleware.RequireTurnstile(s.SettingsService), s.login)
 }
 
 func (s *Service) setupLogoutRoute(r fiber.Router) {
@@ -71,7 +71,7 @@ func (s *Service) setupLogoutRoute(r fiber.Router) {
 }
 
 func (s *Service) setupForgotPasswordRoute(r fiber.Router) {
-	r.Post("/auth/forgot-password", middleware.RateLimitMail(), middleware.RequireTurnstile(s.SettingsService), s.forgotPassword)
+	r.Post("/auth/forgot-password", middleware.RateLimitMail(), middleware.RateLimitMailByAccount("username"), middleware.RequireTurnstile(s.SettingsService), s.forgotPassword)
 }
 
 func (s *Service) setupResetPasswordRoute(r fiber.Router) {

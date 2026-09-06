@@ -56,16 +56,24 @@ func RequireTurnstile(settingsSvc settings.Service) fiber.Handler {
 		defer resp.Body.Close()
 
 		var result struct {
-			Success bool `json:"success"`
+			Success    bool     `json:"success"`
+			ErrorCodes []string `json:"error-codes"`
+			Hostname   string   `json:"hostname"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-			logger.Ctx(ctx.Context()).Error().Err(err).Msg("turnstile response decode failed")
+			logger.Ctx(ctx.Context()).Error().Err(err).Int("status", resp.StatusCode).Msg("turnstile response decode failed")
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "verification failed",
 			})
 		}
 
 		if !result.Success {
+			logger.Ctx(ctx.Context()).Warn().
+				Strs("error_codes", result.ErrorCodes).
+				Str("hostname", result.Hostname).
+				Str("path", ctx.Path()).
+				Msg("turnstile verification rejected")
+
 			return ctx.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "verification failed, please try again",
 			})

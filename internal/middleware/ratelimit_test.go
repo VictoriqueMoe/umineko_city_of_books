@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gofiber/fiber/v3"
@@ -95,6 +96,55 @@ func TestRateLimitByClientIP_KeysOnResolvedClientIP(t *testing.T) {
 			var lastStatus int
 			for range MailAttemptsPerHour + 1 {
 				lastStatus, _ = postLimited(t, app)
+			}
+
+			// then
+			assert.Equal(t, tc.wantStatus, lastStatus)
+		})
+	}
+}
+
+func TestRateLimitByAccount_KeysOnBodyFieldNotIP(t *testing.T) {
+	cases := []struct {
+		name       string
+		bodyFor    func(call int) string
+		ipFor      func(call int) string
+		wantStatus int
+	}{
+		{"rotating IPs cannot escape one account's budget", func(int) string { return `{"username":"Beatrice","password":"x"}` }, func(call int) string { return fmt.Sprintf("203.0.113.%d", call) }, http.StatusTooManyRequests},
+		{"case and whitespace do not make a new key", func(call int) string {
+			if call%2 == 0 {
+				return `{"username":" beatrice ","password":"x"}`
+			}
+			return `{"username":"BEATRICE","password":"x"}`
+		}, func(call int) string { return fmt.Sprintf("203.0.113.%d", call) }, http.StatusTooManyRequests},
+		{"different accounts keep separate budgets", func(call int) string { return fmt.Sprintf(`{"username":"user%d","password":"x"}`, call) }, func(int) string { return "203.0.113.7" }, http.StatusOK},
+		{"unparseable body falls back to the client IP", func(int) string { return "not json" }, func(int) string { return "203.0.113.7" }, http.StatusTooManyRequests},
+		{"missing field falls back to the client IP", func(int) string { return `{"password":"x"}` }, func(int) string { return "203.0.113.7" }, http.StatusTooManyRequests},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			app := fiber.New()
+			call := 0
+			app.Use(func(ctx fiber.Ctx) error {
+				ctx.Locals("client_ip", tc.ipFor(call))
+				return ctx.Next()
+			})
+			app.Post("/limited", RateLimitCredentialsByAccount("username"), func(ctx fiber.Ctx) error {
+				return ctx.JSON(fiber.Map{"status": "ok"})
+			})
+
+			// when
+			var lastStatus int
+			for call = 0; call <= CredentialAttemptsPerMinute; call++ {
+				req := httptest.NewRequest("POST", "/limited", strings.NewReader(tc.bodyFor(call)))
+				req.Header.Set("Content-Type", "application/json")
+				resp, err := app.Test(req)
+				require.NoError(t, err)
+				lastStatus = resp.StatusCode
+				resp.Body.Close()
 			}
 
 			// then

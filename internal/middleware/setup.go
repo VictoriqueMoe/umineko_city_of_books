@@ -65,6 +65,8 @@ func Setup(app *fiber.App, settingsSvc settings.Service, sessionMgr *session.Man
 		},
 	}))
 
+	app.Use(RejectPlainTextBodies())
+
 	app.Use(func(ctx fiber.Ctx) error {
 		ip := ctx.IP()
 		if ip == "" {
