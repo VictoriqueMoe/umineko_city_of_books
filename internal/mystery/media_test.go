@@ -199,7 +199,7 @@ func TestUploadMedia_MysteryNotFound(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -213,7 +213,7 @@ func TestUploadMedia_NotAuthor(t *testing.T) {
 	stubNotAuthor(m, mid, userID)
 
 	// when
-	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadMedia(context.Background(), mid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
 
 	// then
 	require.ErrorIs(t, err, ErrNotAuthor)

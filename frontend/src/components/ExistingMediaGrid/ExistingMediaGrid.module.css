@@ -55,3 +55,17 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+.spoilerFlag {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--gold);
+    font-size: 0.55rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+}

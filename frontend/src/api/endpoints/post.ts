@@ -1,4 +1,5 @@
 import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
+import { mediaFormData } from "./mediaFormData";
 import type { CreatePollPayload, Poll, PostDetail, PostListResponse, PostMedia } from "../../types/api";
 
 export async function getCornerCounts(): Promise<Record<string, number>> {
@@ -68,10 +69,8 @@ export async function deletePost(id: string): Promise<void> {
     await apiDelete(`/posts/${id}`);
 }
 
-export async function uploadPostMedia(postId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/posts/${postId}/media`, formData);
+export async function uploadPostMedia(postId: string, file: File, isSpoiler = false): Promise<PostMedia> {
+    return apiPostFormData<PostMedia>(`/posts/${postId}/media`, mediaFormData(file, isSpoiler));
 }
 
 export async function deletePostMedia(postId: string, mediaId: number): Promise<void> {

@@ -73,6 +73,7 @@ type (
 			filename string,
 			fileSize int64,
 			reader io.Reader,
+			isSpoiler bool,
 		) (*dto.PostMediaResponse, error)
 
 		ListCharacters(series quotefinder.Series) ([]dto.CharacterListEntry, error)
@@ -541,6 +542,7 @@ func (s *service) UploadCommentMedia(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.shipRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
@@ -550,7 +552,7 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "ships", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "ships", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.shipRepo.AddCommentMedia(ctx, repository.NewShipCommentMedia{
 				CommentID:    commentID,
@@ -559,6 +561,7 @@ func (s *service) UploadCommentMedia(
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.shipRepo.UpdateCommentMediaURL,

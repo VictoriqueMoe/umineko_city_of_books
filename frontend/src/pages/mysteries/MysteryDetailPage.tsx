@@ -156,7 +156,12 @@ export function MysteryDetailPage() {
 
                 {(isAuthor || canEdit) && (
                     <div className={styles.mediaUploader}>
-                        <MediaPreviews files={board.pendingMedia} onRemove={board.removePendingMedia} />
+                        <MediaPreviews
+                            files={board.pendingMedia}
+                            onRemove={board.removePendingMedia}
+                            spoilers={board.pendingMediaSpoilers}
+                            onToggleSpoiler={board.togglePendingMediaSpoiler}
+                        />
                         <div className={styles.mediaUploaderActions}>
                             <MediaPickerButton onFiles={board.addPendingMedia} onError={board.setMediaError} />
                             {board.pendingMedia.length > 0 && (

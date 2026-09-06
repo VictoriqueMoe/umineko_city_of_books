@@ -4,12 +4,13 @@ import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
 import { GifPicker } from "../../chat/GifPicker/GifPicker";
+import { useStagedMedia } from "../../../hooks/useStagedMedia";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea } from "../../MentionTextArea/MentionTextArea";
 import styles from "./CommentComposer.module.css";
 
 type CreateCommentFn = (postId: string, body: string, parentId?: string) => Promise<{ id: string }>;
-type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
+type UploadMediaFn = (commentId: string, file: File, isSpoiler: boolean) => Promise<unknown>;
 
 interface CommentComposerProps {
     postId: string;
@@ -22,7 +23,8 @@ interface CommentComposerProps {
 export function CommentComposer({ postId, parentId, onCreated, createCommentFn, uploadMediaFn }: CommentComposerProps) {
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
+    const media = useStagedMedia();
+    const addMedia = media.add;
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
@@ -30,20 +32,8 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
     const uploadMediaMutation = useUploadCommentMedia(postId);
     const defaultCreate: CreateCommentFn = (_postId, b, parent) =>
         createCommentMutation.mutateAsync({ body: b, parentId: parent });
-    const defaultUpload: UploadMediaFn = (commentId, file) => uploadMediaMutation.mutateAsync({ commentId, file });
-
-    function removeFile(index: number) {
-        setFiles(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function reorderFile(from: number, to: number) {
-        setFiles(prev => {
-            const next = prev.slice();
-            const [moved] = next.splice(from, 1);
-            next.splice(to, 0, moved);
-            return next;
-        });
-    }
+    const defaultUpload: UploadMediaFn = (commentId, file, isSpoiler) =>
+        uploadMediaMutation.mutateAsync({ commentId, file, isSpoiler });
 
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
@@ -66,10 +56,10 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                 setError(errors.join(" "));
             }
             if (valid.length > 0) {
-                setFiles(prev => [...prev, ...valid]);
+                addMedia(valid);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
+        [addMedia, siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
     async function handleGifPick(gif: { url: string }) {
@@ -91,7 +81,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
     }
 
     async function handleSubmit() {
-        if ((!body.trim() && files.length === 0) || submitting) {
+        if ((!body.trim() && media.files.length === 0) || submitting) {
             return;
         }
         setSubmitting(true);
@@ -101,16 +91,16 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
             const doUpload = uploadMediaFn || defaultUpload;
             const { id } = await doCreate(postId, body.trim(), parentId);
             const failedFiles: File[] = [];
-            for (const file of files) {
+            for (const item of media.staged) {
                 try {
-                    await doUpload(id, file);
+                    await doUpload(id, item.file, item.isSpoiler);
                 } catch (err) {
                     setError(err instanceof Error ? err.message : "Failed to upload media");
-                    failedFiles.push(file);
+                    failedFiles.push(item.file);
                 }
             }
             setBody("");
-            setFiles(failedFiles);
+            media.keepOnly(failedFiles);
             onCreated();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Failed to post comment");
@@ -131,10 +121,17 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                 showColours
             />
 
-            <MediaPreviews files={files} onRemove={removeFile} onReorder={reorderFile} size="small" />
+            <MediaPreviews
+                files={media.files}
+                onRemove={media.remove}
+                onReorder={media.reorder}
+                spoilers={media.spoilers}
+                onToggleSpoiler={media.toggleSpoiler}
+                size="small"
+            />
 
             <div className={styles.bar}>
-                <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
+                <MediaPickerButton onFiles={media.add} onError={setError} />
                 <div className={styles.gifAnchor}>
                     <Button
                         variant="ghost"
@@ -150,7 +147,7 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
                     variant="primary"
                     size="small"
                     onClick={handleSubmit}
-                    disabled={submitting || (!body.trim() && files.length === 0)}
+                    disabled={submitting || (!body.trim() && media.files.length === 0)}
                 >
                     {submitting ? "..." : parentId ? "Reply" : "Comment"}
                 </Button>

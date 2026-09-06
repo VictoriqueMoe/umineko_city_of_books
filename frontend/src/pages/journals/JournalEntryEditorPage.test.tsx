@@ -456,6 +456,7 @@ describe("JournalEntryEditorPage", () => {
             expect(uploadAsync).toHaveBeenCalledWith({
                 entryId: "entry-new",
                 file: expect.objectContaining({ name: "beato.png" }),
+                isSpoiler: false,
             });
         });
     });

@@ -708,7 +708,7 @@ func TestService_UploadCommentMedia_NotFound(t *testing.T) {
 	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("nope"))
 
 	// when
-	_, err := h.svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, strings.NewReader("x"))
+	_, err := h.svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, strings.NewReader("x"), false)
 
 	// then
 	assert.ErrorIs(t, err, announcement.ErrCommentNotFound)
@@ -722,7 +722,7 @@ func TestService_UploadCommentMedia_NotAuthor(t *testing.T) {
 	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(otherID, nil)
 
 	// when
-	_, err := h.svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, strings.NewReader("x"))
+	_, err := h.svc.UploadCommentMedia(context.Background(), commentID, uuid.New(), "image/png", "photo.png", 10, strings.NewReader("x"), false)
 
 	// then
 	assert.ErrorIs(t, err, announcement.ErrForbidden)

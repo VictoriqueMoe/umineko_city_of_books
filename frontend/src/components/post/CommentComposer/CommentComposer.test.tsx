@@ -187,8 +187,8 @@ describe("CommentComposer", () => {
 
         // then
         await waitFor(() => expect(uploadMediaFn).toHaveBeenCalledTimes(2));
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(1, "comment-9", first);
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(2, "comment-9", second);
+        expect(uploadMediaFn).toHaveBeenNthCalledWith(1, "comment-9", first, false);
+        expect(uploadMediaFn).toHaveBeenNthCalledWith(2, "comment-9", second, false);
     });
 
     it("reports a failed upload but still finishes posting the comment", async () => {
@@ -286,8 +286,8 @@ describe("CommentComposer", () => {
 
         // then
         await waitFor(() => expect(uploadMediaFn).toHaveBeenCalledTimes(2));
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(1, "comment-9", second);
-        expect(uploadMediaFn).toHaveBeenNthCalledWith(2, "comment-9", first);
+        expect(uploadMediaFn).toHaveBeenNthCalledWith(1, "comment-9", second, false);
+        expect(uploadMediaFn).toHaveBeenNthCalledWith(2, "comment-9", first, false);
     });
 
     it("posts a picked GIF as a comment of its own and closes the picker", async () => {

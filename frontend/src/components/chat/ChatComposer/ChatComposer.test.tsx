@@ -117,6 +117,7 @@ describe("ChatComposer", () => {
             body: "without love it cannot be seen",
             reply_to_id: undefined,
             files: [],
+            spoilers: [],
         });
         expect(onSent).toHaveBeenCalledWith(makeChatMessage());
     });
@@ -185,6 +186,7 @@ describe("ChatComposer", () => {
             body: "I deny it",
             reply_to_id: "m-earlier",
             files: [],
+            spoilers: [],
         });
         expect(onCancelReply).toHaveBeenCalled();
     });
@@ -223,6 +225,7 @@ describe("ChatComposer", () => {
             recipientId: "u-battler",
             body: "are you there",
             files: [],
+            spoilers: [],
         });
         expect(onSent).toHaveBeenCalledWith(makeChatMessage(), { id: "room-9" });
         expect(mocks.sendChatMessage).not.toHaveBeenCalled();
@@ -242,6 +245,50 @@ describe("ChatComposer", () => {
         expect(mocks.sendFirstDM).not.toHaveBeenCalled();
     });
 
+    it("sends an attachment marked as a spoiler with its flag set", async () => {
+        // given a picked image the sender has marked as a spoiler
+        const user = userEvent.setup();
+        const file = new File(["portrait"], "beatrice.png", { type: "image/png" });
+        const { container } = renderComposer();
+        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, file);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
+        await user.click(screen.getByRole("button", { name: "Send" }));
+
+        // then
+        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
+        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+            body: "",
+            reply_to_id: undefined,
+            files: [file],
+            spoilers: [true],
+        });
+    });
+
+    it("keeps the spoiler flag with its own attachment when an earlier one is removed", async () => {
+        // given two attachments where only the second is a spoiler
+        const user = userEvent.setup();
+        const first = new File(["one"], "one.png", { type: "image/png" });
+        const second = new File(["two"], "two.png", { type: "image/png" });
+        const { container } = renderComposer();
+        await user.upload(container.querySelector('input[type="file"]') as HTMLInputElement, [first, second]);
+        await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
+
+        // when the first attachment is removed
+        await user.click(screen.getAllByRole("button", { name: "Remove" })[0]);
+        await user.click(screen.getByRole("button", { name: "Send" }));
+
+        // then the flag has moved down with its own file rather than staying on index 1
+        await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
+        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+            body: "",
+            reply_to_id: undefined,
+            files: [second],
+            spoilers: [true],
+        });
+    });
+
     it("lets an attachment stand in for a body and sends it with the message", async () => {
         // given
         const user = userEvent.setup();
@@ -255,7 +302,12 @@ describe("ChatComposer", () => {
 
         // then
         await waitFor(() => expect(mocks.sendChatMessage).toHaveBeenCalledTimes(1));
-        expect(mocks.sendChatMessage).toHaveBeenCalledWith({ body: "", reply_to_id: undefined, files: [file] });
+        expect(mocks.sendChatMessage).toHaveBeenCalledWith({
+            body: "",
+            reply_to_id: undefined,
+            files: [file],
+            spoilers: [false],
+        });
     });
 
     it("drops an attachment again when its remove control is used", async () => {

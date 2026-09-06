@@ -461,7 +461,7 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 	defer reader.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	result, err := s.JournalService.UploadCommentMedia(ctx.Context(), commentID, userID, contentType, file.Filename, file.Size, reader)
+	result, err := s.JournalService.UploadCommentMedia(ctx.Context(), commentID, userID, contentType, file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the comment author")
@@ -518,7 +518,7 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 	defer reader.Close()
 
 	contentType := file.Header.Get("Content-Type")
-	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Filename, file.Size, reader)
+	result, err := s.JournalService.UploadEntryMedia(ctx.Context(), entryID, userID, contentType, file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the entry author")

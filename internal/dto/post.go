@@ -12,6 +12,7 @@ type (
 		SortOrder    int    `json:"sort_order"`
 		Width        int    `json:"width,omitempty"`
 		Height       int    `json:"height,omitempty"`
+		IsSpoiler    bool   `json:"is_spoiler,omitempty"`
 	}
 
 	PostResponse struct {

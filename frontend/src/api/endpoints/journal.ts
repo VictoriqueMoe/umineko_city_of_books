@@ -1,4 +1,5 @@
 import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
+import { mediaFormData } from "./mediaFormData";
 import type {
     CreateJournalPayload,
     JournalComment,
@@ -98,10 +99,8 @@ export async function deleteJournalEntry(entryId: string): Promise<void> {
     await apiDelete(`/journal-entries/${entryId}`);
 }
 
-export async function uploadJournalEntryMedia(entryId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/journal-entries/${entryId}/media`, formData);
+export async function uploadJournalEntryMedia(entryId: string, file: File, isSpoiler = false): Promise<PostMedia> {
+    return apiPostFormData<PostMedia>(`/journal-entries/${entryId}/media`, mediaFormData(file, isSpoiler));
 }
 
 export async function deleteJournalEntryMedia(entryId: string, mediaId: number): Promise<void> {

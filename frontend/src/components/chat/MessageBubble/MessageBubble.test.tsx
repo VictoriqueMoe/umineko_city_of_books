@@ -226,6 +226,80 @@ describe("MessageBubble", () => {
         expect(onLightbox).toHaveBeenCalledWith("https://cdn.example/photo.png");
     });
 
+    it("covers a spoiler attachment and keeps the first click away from the lightbox", async () => {
+        // given an attachment the sender marked as a spoiler
+        const onLightbox = vi.fn();
+        const user = userEvent.setup();
+        const message = makeChatMessage({
+            media: [
+                {
+                    id: 1,
+                    media_url: "https://cdn.example/ending.png",
+                    media_type: "image",
+                    sort_order: 0,
+                    is_spoiler: true,
+                },
+            ],
+        });
+        const { container } = renderWithProviders(
+            <MessageBubble message={message} isOwn={false} onLightbox={onLightbox} />,
+        );
+        const image = container.querySelector('img[src="https://cdn.example/ending.png"]') as Element;
+
+        // when the viewer clicks it once
+        await user.click(image);
+
+        // then that click only revealed it
+        expect(onLightbox).not.toHaveBeenCalled();
+
+        // when they click again
+        await user.click(image);
+
+        // then it opens full size
+        expect(onLightbox).toHaveBeenCalledWith("https://cdn.example/ending.png");
+    });
+
+    it("strips the controls from a spoiler video until it is revealed", async () => {
+        // given a video marked as a spoiler
+        const user = userEvent.setup();
+        const message = makeChatMessage({
+            media: [
+                {
+                    id: 1,
+                    media_url: "https://cdn.example/ending.mp4",
+                    media_type: "video",
+                    sort_order: 0,
+                    is_spoiler: true,
+                },
+            ],
+        });
+        const { container } = renderWithProviders(<MessageBubble message={message} isOwn={false} />);
+        const video = container.querySelector('video[src="https://cdn.example/ending.mp4"]') as HTMLVideoElement;
+
+        // then it cannot be played while covered
+        expect(video.controls).toBe(false);
+        expect(screen.getByText("Spoiler")).toBeInTheDocument();
+
+        // when it is revealed
+        await user.click(video);
+
+        // then it becomes a normal player
+        expect(video.controls).toBe(true);
+    });
+
+    it("leaves an ordinary attachment uncovered", () => {
+        // given an attachment with no spoiler flag
+        const message = makeChatMessage({
+            media: [{ id: 1, media_url: "https://cdn.example/photo.png", media_type: "image", sort_order: 0 }],
+        });
+
+        // when
+        renderWithProviders(<MessageBubble message={message} isOwn={false} />);
+
+        // then
+        expect(screen.queryByText("Spoiler")).not.toBeInTheDocument();
+    });
+
     it("embeds a Giphy link instead of showing the raw url", async () => {
         // given
         const onLightbox = vi.fn();

@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { PostMedia } from "../../../types/api";
 import { Lightbox } from "../../Lightbox/Lightbox";
 import { AudioAttachment } from "../../AudioAttachment/AudioAttachment";
+import { SpoilerCover } from "../../SpoilerImage/SpoilerCover";
+import { spoilerBlurClass } from "../../SpoilerImage/spoilerBlur";
 import styles from "./MediaGallery.module.css";
 
 interface MediaGalleryProps {
@@ -37,39 +39,51 @@ export function MediaGallery({ media }: MediaGalleryProps) {
             <div className={`${styles.gallery} ${gridClass}`}>
                 {media.map((item, i) => (
                     <div key={item.id} className={itemClass(i)}>
-                        {item.media_type === "audio" ? (
-                            <AudioAttachment src={item.media_url} filename={item.filename} />
-                        ) : item.media_type === "video" ? (
-                            <video
-                                className={styles.media}
-                                src={item.media_url}
-                                poster={item.thumbnail_url || undefined}
-                                controls
-                                preload="metadata"
-                                onClick={e => e.stopPropagation()}
-                                onLoadedMetadata={
-                                    oddMany && i === lastIdx
-                                        ? e => measureLast(e.currentTarget.videoWidth, e.currentTarget.videoHeight)
-                                        : undefined
-                                }
-                            />
-                        ) : (
-                            <img
-                                className={styles.media}
-                                src={item.media_url}
-                                alt=""
-                                width={520}
-                                height={510}
-                                loading="lazy"
-                                decoding="async"
-                                onLoad={
-                                    oddMany && i === lastIdx
-                                        ? e => measureLast(e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)
-                                        : undefined
-                                }
-                                onClick={() => setLightboxIdx(i)}
-                            />
-                        )}
+                        <SpoilerCover isSpoiler={item.is_spoiler ?? false} className={styles.cover}>
+                            {covered =>
+                                item.media_type === "audio" ? (
+                                    <AudioAttachment src={item.media_url} filename={item.filename} />
+                                ) : item.media_type === "video" ? (
+                                    <video
+                                        className={`${styles.media} ${spoilerBlurClass(covered)}`}
+                                        src={item.media_url}
+                                        poster={item.thumbnail_url || undefined}
+                                        controls={!covered}
+                                        preload="metadata"
+                                        onClick={covered ? undefined : e => e.stopPropagation()}
+                                        onLoadedMetadata={
+                                            oddMany && i === lastIdx
+                                                ? e =>
+                                                      measureLast(
+                                                          e.currentTarget.videoWidth,
+                                                          e.currentTarget.videoHeight,
+                                                      )
+                                                : undefined
+                                        }
+                                    />
+                                ) : (
+                                    <img
+                                        className={`${styles.media} ${spoilerBlurClass(covered)}`}
+                                        src={item.media_url}
+                                        alt=""
+                                        width={520}
+                                        height={510}
+                                        loading="lazy"
+                                        decoding="async"
+                                        onLoad={
+                                            oddMany && i === lastIdx
+                                                ? e =>
+                                                      measureLast(
+                                                          e.currentTarget.naturalWidth,
+                                                          e.currentTarget.naturalHeight,
+                                                      )
+                                                : undefined
+                                        }
+                                        onClick={covered ? undefined : () => setLightboxIdx(i)}
+                                    />
+                                )
+                            }
+                        </SpoilerCover>
                     </div>
                 ))}
             </div>

@@ -44,12 +44,12 @@ func (_m *MockJournalDAO) EXPECT() *MockJournalDAO_Expecter {
 }
 
 // AddCommentMedia provides a mock function for the type MockJournalDAO
-func (_mock *MockJournalDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockJournalDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx)
+		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder)
+		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler)
 	}
 	ret := tmpRet
 
@@ -59,16 +59,16 @@ func (_mock *MockJournalDAO) AddCommentMedia(ctx context.Context, commentID uuid
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -88,13 +88,14 @@ type MockJournalDAO_AddCommentMedia_Call struct {
 //   - thumbnailURL string
 //   - filename string
 //   - sortOrder int
+//   - isSpoiler bool
 //   - tx ...*sql.Tx
-func (_e *MockJournalDAO_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, filename any, sortOrder any, tx ...any) *MockJournalDAO_AddCommentMedia_Call {
+func (_e *MockJournalDAO_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, filename any, sortOrder any, isSpoiler any, tx ...any) *MockJournalDAO_AddCommentMedia_Call {
 	return &MockJournalDAO_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder}, tx...)...)}
+		append([]any{ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler}, tx...)...)}
 }
 
-func (_c *MockJournalDAO_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx)) *MockJournalDAO_AddCommentMedia_Call {
+func (_c *MockJournalDAO_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx)) *MockJournalDAO_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -124,12 +125,16 @@ func (_c *MockJournalDAO_AddCommentMedia_Call) Run(run func(ctx context.Context,
 		if args[6] != nil {
 			arg6 = args[6].(int)
 		}
-		var arg7 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 7 {
-			variadicArgs = args[7].([]*sql.Tx)
+		var arg7 bool
+		if args[7] != nil {
+			arg7 = args[7].(bool)
 		}
-		arg7 = variadicArgs
+		var arg8 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 8 {
+			variadicArgs = args[8].([]*sql.Tx)
+		}
+		arg8 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -138,7 +143,8 @@ func (_c *MockJournalDAO_AddCommentMedia_Call) Run(run func(ctx context.Context,
 			arg4,
 			arg5,
 			arg6,
-			arg7...,
+			arg7,
+			arg8...,
 		)
 	})
 	return _c
@@ -149,18 +155,18 @@ func (_c *MockJournalDAO_AddCommentMedia_Call) Return(n int64, err error) *MockJ
 	return _c
 }
 
-func (_c *MockJournalDAO_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error)) *MockJournalDAO_AddCommentMedia_Call {
+func (_c *MockJournalDAO_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error)) *MockJournalDAO_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddMedia provides a mock function for the type MockJournalDAO
-func (_mock *MockJournalDAO) AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockJournalDAO) AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx)
+		tmpRet = _mock.Called(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder)
+		tmpRet = _mock.Called(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler)
 	}
 	ret := tmpRet
 
@@ -170,16 +176,16 @@ func (_mock *MockJournalDAO) AddMedia(ctx context.Context, entityID uuid.UUID, m
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -199,13 +205,14 @@ type MockJournalDAO_AddMedia_Call struct {
 //   - thumbnailURL string
 //   - filename string
 //   - sortOrder int
+//   - isSpoiler bool
 //   - tx ...*sql.Tx
-func (_e *MockJournalDAO_Expecter) AddMedia(ctx any, entityID any, mediaURL any, mediaType any, thumbnailURL any, filename any, sortOrder any, tx ...any) *MockJournalDAO_AddMedia_Call {
+func (_e *MockJournalDAO_Expecter) AddMedia(ctx any, entityID any, mediaURL any, mediaType any, thumbnailURL any, filename any, sortOrder any, isSpoiler any, tx ...any) *MockJournalDAO_AddMedia_Call {
 	return &MockJournalDAO_AddMedia_Call{Call: _e.mock.On("AddMedia",
-		append([]any{ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder}, tx...)...)}
+		append([]any{ctx, entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler}, tx...)...)}
 }
 
-func (_c *MockJournalDAO_AddMedia_Call) Run(run func(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx)) *MockJournalDAO_AddMedia_Call {
+func (_c *MockJournalDAO_AddMedia_Call) Run(run func(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx)) *MockJournalDAO_AddMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -235,12 +242,16 @@ func (_c *MockJournalDAO_AddMedia_Call) Run(run func(ctx context.Context, entity
 		if args[6] != nil {
 			arg6 = args[6].(int)
 		}
-		var arg7 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 7 {
-			variadicArgs = args[7].([]*sql.Tx)
+		var arg7 bool
+		if args[7] != nil {
+			arg7 = args[7].(bool)
 		}
-		arg7 = variadicArgs
+		var arg8 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 8 {
+			variadicArgs = args[8].([]*sql.Tx)
+		}
+		arg8 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -249,7 +260,8 @@ func (_c *MockJournalDAO_AddMedia_Call) Run(run func(ctx context.Context, entity
 			arg4,
 			arg5,
 			arg6,
-			arg7...,
+			arg7,
+			arg8...,
 		)
 	})
 	return _c
@@ -260,7 +272,7 @@ func (_c *MockJournalDAO_AddMedia_Call) Return(n int64, err error) *MockJournalD
 	return _c
 }
 
-func (_c *MockJournalDAO_AddMedia_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error)) *MockJournalDAO_AddMedia_Call {
+func (_c *MockJournalDAO_AddMedia_Call) RunAndReturn(run func(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error)) *MockJournalDAO_AddMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }

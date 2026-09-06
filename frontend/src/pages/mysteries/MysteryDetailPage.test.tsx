@@ -1009,7 +1009,7 @@ describe("MysteryDetailPage", () => {
 
         // then
         await waitFor(() => {
-            expect(uploadMedia).toHaveBeenCalledWith(expect.any(File));
+            expect(uploadMedia).toHaveBeenCalledWith({ file: expect.any(File), isSpoiler: false });
         });
         expect(refresh).not.toHaveBeenCalled();
     });

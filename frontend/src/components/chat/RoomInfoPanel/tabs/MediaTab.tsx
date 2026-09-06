@@ -1,7 +1,10 @@
+import { useState } from "react";
 import type { ChatMessage, PostMedia } from "../../../../types/api";
 import { useChatRoomAttachments } from "../../../../hooks/queries/chat";
 import { useLoadMoreOnView } from "../useLoadMoreOnView";
 import { AudioThumb } from "../../../AudioAttachment/AudioAttachment";
+import { SpoilerOverlay } from "../../../SpoilerImage/SpoilerCover";
+import { spoilerBlurClass } from "../../../SpoilerImage/spoilerBlur";
 import { RelativeTimestamp } from "../../../RelativeTimestamp/RelativeTimestamp";
 import styles from "./MediaTab.module.css";
 
@@ -30,6 +33,57 @@ function flatten(messages: ChatMessage[]): Cell[] {
     return cells;
 }
 
+function MediaThumb({ media, onLightbox }: { media: PostMedia; onLightbox?: (src: string) => void }) {
+    const [revealed, setRevealed] = useState(false);
+    const covered = (media.is_spoiler ?? false) && !revealed;
+
+    function handleClick() {
+        if (covered) {
+            setRevealed(true);
+            return;
+        }
+
+        onLightbox?.(media.media_url);
+    }
+
+    return (
+        <button
+            type="button"
+            className={styles.thumbBtn}
+            aria-label={covered ? "Reveal spoiler" : "Open full size"}
+            disabled={media.media_type !== "image" && !covered}
+            onClick={handleClick}
+        >
+            {media.media_type === "audio" && (
+                <span className={styles.audio}>
+                    <AudioThumb />
+                    <span dir="auto" className={styles.filename}>
+                        {media.filename ?? "Audio"}
+                    </span>
+                </span>
+            )}
+            {media.media_type === "video" && (
+                <video
+                    className={`${styles.thumb} ${spoilerBlurClass(covered)}`}
+                    src={media.media_url}
+                    poster={media.thumbnail_url || undefined}
+                    muted
+                    preload="metadata"
+                />
+            )}
+            {media.media_type === "image" && (
+                <img
+                    className={`${styles.thumb} ${spoilerBlurClass(covered)}`}
+                    src={media.thumbnail_url || media.media_url}
+                    alt=""
+                    loading="lazy"
+                />
+            )}
+            {covered && <SpoilerOverlay compact />}
+        </button>
+    );
+}
+
 export function MediaTab({ roomId, isActive, onJump, onJumped, onLightbox }: MediaTabProps) {
     const { messages, loading, loadingMore, hasMore, loadMore } = useChatRoomAttachments(roomId, "media", isActive);
     const sentinelRef = useLoadMoreOnView({ hasMore, loadingMore, loadMore });
@@ -47,39 +101,7 @@ export function MediaTab({ roomId, isActive, onJump, onJumped, onLightbox }: Med
         <div className={styles.grid}>
             {cells.map(cell => (
                 <div key={cell.key} className={styles.cell}>
-                    <button
-                        type="button"
-                        className={styles.thumbBtn}
-                        aria-label="Open full size"
-                        disabled={cell.media.media_type !== "image"}
-                        onClick={() => onLightbox?.(cell.media.media_url)}
-                    >
-                        {cell.media.media_type === "audio" && (
-                            <span className={styles.audio}>
-                                <AudioThumb />
-                                <span dir="auto" className={styles.filename}>
-                                    {cell.media.filename ?? "Audio"}
-                                </span>
-                            </span>
-                        )}
-                        {cell.media.media_type === "video" && (
-                            <video
-                                className={styles.thumb}
-                                src={cell.media.media_url}
-                                poster={cell.media.thumbnail_url || undefined}
-                                muted
-                                preload="metadata"
-                            />
-                        )}
-                        {cell.media.media_type === "image" && (
-                            <img
-                                className={styles.thumb}
-                                src={cell.media.thumbnail_url || cell.media.media_url}
-                                alt=""
-                                loading="lazy"
-                            />
-                        )}
-                    </button>
+                    <MediaThumb media={cell.media} onLightbox={onLightbox} />
                     <button
                         type="button"
                         className={styles.jumpBtn}

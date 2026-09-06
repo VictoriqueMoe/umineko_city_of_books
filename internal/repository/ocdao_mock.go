@@ -41,12 +41,12 @@ func (_m *MockOCDAO) EXPECT() *MockOCDAO_Expecter {
 }
 
 // AddCommentMedia provides a mock function for the type MockOCDAO
-func (_mock *MockOCDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockOCDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx)
+		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder)
+		tmpRet = _mock.Called(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler)
 	}
 	ret := tmpRet
 
@@ -56,16 +56,16 @@ func (_mock *MockOCDAO) AddCommentMedia(ctx context.Context, commentID uuid.UUID
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, int, bool, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -85,13 +85,14 @@ type MockOCDAO_AddCommentMedia_Call struct {
 //   - thumbnailURL string
 //   - filename string
 //   - sortOrder int
+//   - isSpoiler bool
 //   - tx ...*sql.Tx
-func (_e *MockOCDAO_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, filename any, sortOrder any, tx ...any) *MockOCDAO_AddCommentMedia_Call {
+func (_e *MockOCDAO_Expecter) AddCommentMedia(ctx any, commentID any, mediaURL any, mediaType any, thumbnailURL any, filename any, sortOrder any, isSpoiler any, tx ...any) *MockOCDAO_AddCommentMedia_Call {
 	return &MockOCDAO_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder}, tx...)...)}
+		append([]any{ctx, commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler}, tx...)...)}
 }
 
-func (_c *MockOCDAO_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx)) *MockOCDAO_AddCommentMedia_Call {
+func (_c *MockOCDAO_AddCommentMedia_Call) Run(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx)) *MockOCDAO_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -121,12 +122,16 @@ func (_c *MockOCDAO_AddCommentMedia_Call) Run(run func(ctx context.Context, comm
 		if args[6] != nil {
 			arg6 = args[6].(int)
 		}
-		var arg7 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 7 {
-			variadicArgs = args[7].([]*sql.Tx)
+		var arg7 bool
+		if args[7] != nil {
+			arg7 = args[7].(bool)
 		}
-		arg7 = variadicArgs
+		var arg8 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 8 {
+			variadicArgs = args[8].([]*sql.Tx)
+		}
+		arg8 = variadicArgs
 		run(
 			arg0,
 			arg1,
@@ -135,7 +140,8 @@ func (_c *MockOCDAO_AddCommentMedia_Call) Run(run func(ctx context.Context, comm
 			arg4,
 			arg5,
 			arg6,
-			arg7...,
+			arg7,
+			arg8...,
 		)
 	})
 	return _c
@@ -146,7 +152,7 @@ func (_c *MockOCDAO_AddCommentMedia_Call) Return(n int64, err error) *MockOCDAO_
 	return _c
 }
 
-func (_c *MockOCDAO_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, tx ...*sql.Tx) (int64, error)) *MockOCDAO_AddCommentMedia_Call {
+func (_c *MockOCDAO_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error)) *MockOCDAO_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }

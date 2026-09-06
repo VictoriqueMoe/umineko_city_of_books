@@ -110,9 +110,9 @@ describe("post mutations", () => {
         {
             name: "useUploadPostMedia attaches the file to the post it was built with",
             useHook: () => useUploadPostMedia(postId),
-            variables: file,
+            variables: { file },
             endpoint: vi.mocked(endpoints.uploadPostMedia),
-            args: [postId, file],
+            args: [postId, file, false],
             keys: [queryKeys.post.detail(postId)],
         },
         {
@@ -120,7 +120,7 @@ describe("post mutations", () => {
             useHook: () => useUploadPostMediaById(),
             variables: { id: "p-other", file },
             endpoint: vi.mocked(endpoints.uploadPostMedia),
-            args: ["p-other", file],
+            args: ["p-other", file, false],
             keys: [queryKeys.post.detail("p-other")],
         },
         {
@@ -216,7 +216,7 @@ describe("post mutations", () => {
             useHook: () => useUploadCommentMedia(postId),
             variables: { commentId: "c-1", file },
             endpoint: vi.mocked(comments.uploadCommentMedia),
-            args: ["c-1", file],
+            args: ["c-1", file, false],
             keys: [queryKeys.post.detail(postId)],
         },
     ];

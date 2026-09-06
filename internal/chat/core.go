@@ -104,6 +104,7 @@ type (
 		ContentType string
 		Filename    string
 		Size        int64
+		IsSpoiler   bool
 		Open        func() (io.ReadCloser, error)
 	}
 )

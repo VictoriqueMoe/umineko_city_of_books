@@ -43,7 +43,7 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 
 		BroadcastProgress(ctx context.Context, parentID string, actor uuid.UUID)
 		BroadcastSolved(ctx context.Context, parentID string, actor uuid.UUID, solvedAt string)
@@ -407,6 +407,7 @@ func (s *service) UploadCommentMedia(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.secretRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
@@ -419,7 +420,7 @@ func (s *service) UploadCommentMedia(
 	existing, _ := s.secretRepo.GetCommentMedia(ctx, commentID)
 	sortOrder := len(existing)
 
-	resp, err := s.uploader.SaveAndRecord(ctx, "secrets", contentType, filename, fileSize, reader,
+	resp, err := s.uploader.SaveAndRecord(ctx, "secrets", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
 			return s.secretRepo.AddCommentMedia(ctx, repository.NewSecretCommentMedia{
 				CommentID: commentID,
@@ -427,6 +428,7 @@ func (s *service) UploadCommentMedia(
 				MediaType: mediaType,
 				Filename:  filename,
 				SortOrder: sortOrder,
+				IsSpoiler: isSpoiler,
 			})
 		},
 		s.secretRepo.UpdateCommentMediaURL,

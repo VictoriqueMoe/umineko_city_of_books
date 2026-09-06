@@ -268,16 +268,16 @@ describe("mystery mutations", () => {
         {
             name: "useUploadMysteryMedia uploads the file to its own mystery",
             useHook: () => useUploadMysteryMedia(mysteryId),
-            variables: file,
+            variables: { file },
             endpoint: vi.mocked(endpoints.uploadMysteryMedia),
-            args: [mysteryId, file],
+            args: [mysteryId, file, false],
         },
         {
             name: "useUploadMysteryMediaToAny takes the mystery id from the variables instead",
             useHook: () => useUploadMysteryMediaToAny(),
             variables: { mysteryId: "m-other", file },
             endpoint: vi.mocked(endpoints.uploadMysteryMedia),
-            args: ["m-other", file],
+            args: ["m-other", file, false],
         },
         {
             name: "useDeleteMysteryMedia deletes a numbered media item from its own mystery",

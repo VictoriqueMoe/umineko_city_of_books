@@ -17,6 +17,7 @@ type (
 		ThumbnailURL string
 		Filename     string
 		SortOrder    int
+		IsSpoiler    bool
 	}
 
 	PostLikeUser struct {
@@ -36,6 +37,7 @@ func (m *PostMediaRow) ToResponse() dto.PostMediaResponse {
 		ThumbnailURL: m.ThumbnailURL,
 		Filename:     m.Filename,
 		SortOrder:    m.SortOrder,
+		IsSpoiler:    m.IsSpoiler,
 	}
 }
 

@@ -59,6 +59,7 @@ func (s *service) UploadMedia(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
 	if err != nil {
@@ -71,7 +72,7 @@ func (s *service) UploadMedia(
 	existing, _ := s.mysteryRepo.GetMedia(ctx, mysteryID)
 	sortOrder := len(existing)
 
-	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader,
+	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
 			return s.mysteryRepo.AddMedia(ctx, repository.NewMysteryMedia{
 				MysteryID: mysteryID,
@@ -79,6 +80,7 @@ func (s *service) UploadMedia(
 				MediaType: mediaType,
 				Filename:  filename,
 				SortOrder: sortOrder,
+				IsSpoiler: isSpoiler,
 			})
 		},
 		s.mysteryRepo.UpdateMediaURL,

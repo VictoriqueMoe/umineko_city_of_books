@@ -138,6 +138,7 @@ type (
 		ThumbnailURL string
 		Filename     string
 		SortOrder    int
+		IsSpoiler    bool
 	}
 
 	NewMysteryCommentMedia struct {
@@ -147,6 +148,7 @@ type (
 		ThumbnailURL string
 		Filename     string
 		SortOrder    int
+		IsSpoiler    bool
 	}
 
 	MysteryDelete struct {

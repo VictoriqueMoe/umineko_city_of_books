@@ -162,3 +162,47 @@ describe("MediaGallery", () => {
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 });
+
+describe("MediaGallery spoilers", () => {
+    it("covers an attachment the author marked and keeps the first click off the lightbox", async () => {
+        // given a spoilered image
+        const user = userEvent.setup();
+        const { container } = renderWithProviders(<MediaGallery media={[makeMedia({ is_spoiler: true })]} />);
+
+        // then it is covered
+        expect(screen.getByText("Spoiler")).toBeInTheDocument();
+
+        // when the viewer clicks it once
+        await user.click(galleryImages(container)[0]);
+
+        // then that click only revealed it
+        expect(screen.queryByText("Spoiler")).not.toBeInTheDocument();
+        expect(container.querySelector("[data-testid='lightbox']")).toBeNull();
+    });
+
+    it("leaves an ordinary attachment uncovered", () => {
+        // given an attachment with no flag
+        renderWithProviders(<MediaGallery media={[makeMedia()]} />);
+
+        // then
+        expect(screen.queryByText("Spoiler")).not.toBeInTheDocument();
+    });
+
+    it("strips the controls from a spoilered video until it is revealed", async () => {
+        // given
+        const user = userEvent.setup();
+        const { container } = renderWithProviders(
+            <MediaGallery media={[makeMedia({ media_type: "video", is_spoiler: true })]} />,
+        );
+        const video = container.querySelector("video") as HTMLVideoElement;
+
+        // then it cannot be played while covered
+        expect(video.controls).toBe(false);
+
+        // when revealed
+        await user.click(video);
+
+        // then it becomes a normal player
+        expect(video.controls).toBe(true);
+    });
+});

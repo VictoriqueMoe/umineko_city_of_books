@@ -15,6 +15,7 @@ import { readCursorKey, unreadAuthorIds } from "../domain/mystery/unread";
 import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail } from "../types/api";
 import { errorMessage } from "../utils/errorMessage";
 import { useAuth } from "./useAuth";
+import { stageMedia, type StagedMedia } from "./useStagedMedia";
 import { type CommentHandlers, useCommentHandlers } from "./useCommentHandlers";
 import { useMystery } from "./queries/mystery";
 import {
@@ -92,8 +93,10 @@ export interface MysteryBoard {
     uploadAttachment: (file: File | null | undefined) => Promise<void>;
     removeAttachment: (attachment: MysteryAttachment) => Promise<void>;
     pendingMedia: File[];
+    pendingMediaSpoilers: boolean[];
     addPendingMedia: (files: File[]) => void;
     removePendingMedia: (index: number) => void;
+    togglePendingMediaSpoiler: (index: number) => void;
     uploadingMedia: boolean;
     mediaError: string;
     setMediaError: (message: string) => void;
@@ -153,7 +156,9 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     const [readPlayers, setReadPlayers] = useState<Set<string>>(new Set());
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const [attachmentError, setAttachmentError] = useState("");
-    const [pendingMedia, setPendingMedia] = useState<File[]>([]);
+    const [pendingStaged, setPendingStaged] = useState<StagedMedia[]>([]);
+    const pendingMedia = useMemo(() => pendingStaged.map(s => s.file), [pendingStaged]);
+    const pendingMediaSpoilers = useMemo(() => pendingStaged.map(s => s.isSpoiler), [pendingStaged]);
     const [uploadingMedia, setUploadingMedia] = useState(false);
     const [mediaError, setMediaError] = useState("");
 
@@ -400,31 +405,37 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     );
 
     const addPendingMedia = useCallback((files: File[]) => {
-        setPendingMedia(previous => [...previous, ...files]);
+        setPendingStaged(previous => [...previous, ...stageMedia(files)]);
+    }, []);
+
+    const togglePendingMediaSpoiler = useCallback((index: number) => {
+        setPendingStaged(previous =>
+            previous.map((item, position) => (position === index ? { ...item, isSpoiler: !item.isSpoiler } : item)),
+        );
     }, []);
 
     const removePendingMedia = useCallback((index: number) => {
-        setPendingMedia(previous => previous.filter((_, position) => position !== index));
+        setPendingStaged(previous => previous.filter((_, position) => position !== index));
     }, []);
 
     const uploadMedia = useCallback(async () => {
-        if (pendingMedia.length === 0 || uploadingMedia) {
+        if (pendingStaged.length === 0 || uploadingMedia) {
             return;
         }
 
         setUploadingMedia(true);
         setMediaError("");
         try {
-            for (const file of pendingMedia) {
-                await uploadMediaMutation.mutateAsync(file);
+            for (const item of pendingStaged) {
+                await uploadMediaMutation.mutateAsync({ file: item.file, isSpoiler: item.isSpoiler });
             }
-            setPendingMedia([]);
+            setPendingStaged([]);
         } catch (e) {
             setMediaError(errorMessage(e, "Failed to upload image"));
         } finally {
             setUploadingMedia(false);
         }
-    }, [pendingMedia, uploadMediaMutation, uploadingMedia]);
+    }, [pendingStaged, uploadMediaMutation, uploadingMedia]);
 
     const removeMedia = useCallback(
         async (mediaId: number) => {
@@ -473,6 +484,8 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
         pendingMedia,
         addPendingMedia,
         removePendingMedia,
+        pendingMediaSpoilers,
+        togglePendingMediaSpoiler,
         uploadingMedia,
         mediaError,
         setMediaError,

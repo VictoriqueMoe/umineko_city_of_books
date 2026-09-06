@@ -614,6 +614,10 @@ func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
 	media, _ := r.postRepo.GetMedia(ctx, id)
 	if len(media) > 0 {
 		first := media[0]
+		if first.IsSpoiler {
+			return meta
+		}
+
 		if first.MediaType == "video" && first.ThumbnailURL != "" {
 			meta.Image = first.ThumbnailURL
 		} else if first.MediaType == "image" {

@@ -92,3 +92,100 @@
 .previewMove:not(:disabled):hover {
     color: var(--gold);
 }
+
+.previewToolbar {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    display: flex;
+    gap: 1px;
+    padding: 1px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 5px;
+}
+
+.previewToolbarSmall {
+    top: 1px;
+    right: 1px;
+}
+
+.toolbarBtn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 3px;
+    min-width: 22px;
+    min-height: 22px;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 0;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.toolbarBtn:hover {
+    color: var(--gold);
+}
+
+.toolbarBtn[aria-pressed="true"] {
+    color: var(--gold);
+}
+
+.toolbarBtnDanger:hover {
+    color: #e74c3c;
+}
+
+.spoilerFlag {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--gold);
+    font-size: 0.55rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 1px 4px;
+    border-radius: 3px;
+    pointer-events: none;
+}
+
+@media (pointer: coarse) {
+    .previewSmall {
+        width: 76px;
+        height: 76px;
+    }
+
+    .previewToolbar {
+        gap: 2px;
+        padding: 2px;
+    }
+
+    .toolbarBtn {
+        min-width: 30px;
+        min-height: 30px;
+        padding: 6px;
+    }
+
+    .toolbarBtn:hover {
+        color: #fff;
+    }
+
+    .toolbarBtn:active {
+        color: var(--gold);
+    }
+
+    .toolbarBtnDanger:hover {
+        color: #fff;
+    }
+
+    .toolbarBtnDanger:active {
+        color: #e74c3c;
+    }
+
+    .toolbarBtn[aria-pressed="true"] {
+        color: var(--gold);
+    }
+}

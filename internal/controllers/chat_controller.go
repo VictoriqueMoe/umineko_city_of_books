@@ -5,6 +5,8 @@ import (
 	"io"
 	"mime/multipart"
 	"net/url"
+	"strconv"
+	"strings"
 
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
@@ -142,8 +144,13 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 	}
 
 	form, _ := ctx.MultipartForm()
+	spoilers, ok := parseSpoilerIndexes(form)
+	if !ok {
+		return utils.BadRequest(ctx, "invalid spoiler_indexes")
+	}
+
 	body := formValue(form, "body")
-	files := collectChatFileUploads(form)
+	files := collectChatFileUploads(form, spoilers)
 
 	resp, err := s.ChatService.SendDMMessage(ctx.Context(), userID, recipientID, body, files)
 	if err != nil {
@@ -261,11 +268,17 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 	if !ok {
 		return utils.BadRequest(ctx, "invalid reply_to_id")
 	}
+
+	spoilers, ok := parseSpoilerIndexes(form)
+	if !ok {
+		return utils.BadRequest(ctx, "invalid spoiler_indexes")
+	}
+
 	req := dto.SendMessageRequest{
 		Body:      formValue(form, "body"),
 		ReplyToID: replyToID,
 	}
-	files := collectChatFileUploads(form)
+	files := collectChatFileUploads(form, spoilers)
 
 	resp, err := s.ChatService.SendMessage(ctx.Context(), userID, roomID, req, files)
 	if err != nil {
@@ -1115,25 +1128,55 @@ func (s *Service) removeReaction(ctx fiber.Ctx) error {
 	return utils.OK(ctx)
 }
 
-func collectChatFileUploads(form *multipart.Form) []chat.FileUpload {
+func collectChatFileUploads(form *multipart.Form, spoilers map[int]struct{}) []chat.FileUpload {
 	if form == nil {
 		return nil
 	}
+
 	headers := form.File["media"]
 	if len(headers) == 0 {
 		return nil
 	}
+
 	uploads := make([]chat.FileUpload, 0, len(headers))
-	for _, h := range headers {
+	for i, h := range headers {
+		_, isSpoiler := spoilers[i]
+
 		uploads = append(uploads, chat.FileUpload{
 			ContentType: h.Header.Get("Content-Type"),
+			Filename:    h.Filename,
 			Size:        h.Size,
+			IsSpoiler:   isSpoiler,
 			Open: func() (io.ReadCloser, error) {
 				return h.Open()
 			},
 		})
 	}
+
 	return uploads
+}
+
+func parseSpoilerIndexes(form *multipart.Form) (map[int]struct{}, bool) {
+	if form == nil {
+		return nil, true
+	}
+
+	values := form.Value["spoiler_indexes"]
+	if len(values) == 0 || values[0] == "" {
+		return nil, true
+	}
+
+	indexes := make(map[int]struct{})
+	for _, token := range strings.Split(values[0], ",") {
+		i, err := strconv.Atoi(strings.TrimSpace(token))
+		if err != nil || i < 0 {
+			return nil, false
+		}
+
+		indexes[i] = struct{}{}
+	}
+
+	return indexes, true
 }
 
 func parseReplyToID(form *multipart.Form) (*uuid.UUID, bool) {

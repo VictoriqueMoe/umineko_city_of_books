@@ -6,6 +6,7 @@ import { useDeleteGallery, useSetArtGallery, useSetGalleryCover, useUpdateGaller
 import { useAuth } from "../../hooks/useAuth";
 import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
+import { SpoilerImage } from "../../components/SpoilerImage/SpoilerImage";
 import { Button } from "../../components/Button/Button";
 import { Modal } from "../../components/Modal/Modal";
 import { Pagination } from "../../components/Pagination/Pagination";
@@ -163,10 +164,12 @@ export function GalleryDetailPage() {
                 <div className={styles.grid}>
                     {art.map(a => (
                         <Link key={a.id} to={`/gallery/art/${a.id}`} className={styles.artCard}>
-                            <img
+                            <SpoilerImage
                                 src={a.thumbnail_url || a.image_url}
                                 alt={a.title}
-                                className={styles.artImage}
+                                isSpoiler={a.is_spoiler}
+                                imageClassName={styles.artImage}
+                                compact
                                 loading="lazy"
                                 onError={e => {
                                     if (e.currentTarget.src !== a.image_url) {
@@ -189,10 +192,12 @@ export function GalleryDetailPage() {
                 <div className={styles.manageGrid}>
                     {art.map(a => (
                         <div key={a.id} className={styles.manageCard}>
-                            <img
+                            <SpoilerImage
                                 src={a.thumbnail_url || a.image_url}
                                 alt={a.title}
-                                className={styles.artImage}
+                                isSpoiler={a.is_spoiler}
+                                imageClassName={styles.artImage}
+                                compact
                                 loading="lazy"
                                 onError={e => {
                                     if (e.currentTarget.src !== a.image_url) {

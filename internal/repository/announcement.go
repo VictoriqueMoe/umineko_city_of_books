@@ -67,6 +67,7 @@ type (
 		ThumbnailURL string
 		Filename     string
 		SortOrder    int
+		IsSpoiler    bool
 	}
 
 	AnnouncementRow struct {

@@ -155,11 +155,11 @@ func (r *postDAO) Create(ctx context.Context, spec repository.NewPost, tx ...*sq
 }
 
 func (r *postDAO) AddMedia(ctx context.Context, spec repository.NewPostMedia, tx ...*sql.Tx) (int64, error) {
-	return r.mediaDAO.AddMedia(ctx, spec.PostID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
+	return r.mediaDAO.AddMedia(ctx, spec.PostID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.IsSpoiler, tx...)
 }
 
 func (r *postDAO) AddCommentMedia(ctx context.Context, spec repository.NewPostCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, tx...)
+	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.IsSpoiler, tx...)
 }
 
 func (r *postDAO) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
@@ -579,7 +579,7 @@ func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result ma
 	}
 
 	mediaRows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		utils.Rebind(`SELECT post_id, media_url, media_type, thumbnail_url, sort_order
+		utils.Rebind(`SELECT post_id, media_url, media_type, thumbnail_url, sort_order, is_spoiler
 		FROM post_media WHERE post_id IN (`+placeholders+`) ORDER BY sort_order LIMIT 4`), args...,
 	)
 	if err != nil {
@@ -591,8 +591,9 @@ func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result ma
 		var (
 			postID, mediaURL, mediaType, thumbnailURL string
 			sortOrder                                 int
+			isSpoiler                                 bool
 		)
-		if err := mediaRows.Scan(&postID, &mediaURL, &mediaType, &thumbnailURL, &sortOrder); err != nil {
+		if err := mediaRows.Scan(&postID, &mediaURL, &mediaType, &thumbnailURL, &sortOrder, &isSpoiler); err != nil {
 			continue
 		}
 		key := "post:" + postID
@@ -603,6 +604,7 @@ func (r *postDAO) fetchPostPreviews(ctx context.Context, ids []string, result ma
 					MediaType:    mediaType,
 					ThumbnailURL: thumbnailURL,
 					SortOrder:    sortOrder,
+					IsSpoiler:    isSpoiler,
 				})
 			}
 		}

@@ -10,6 +10,7 @@ import { Button } from "../../components/Button/Button";
 import { Input } from "../../components/Input/Input";
 import { MentionTextArea } from "../../components/MentionTextArea/MentionTextArea";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
+import { useStagedMedia } from "../../hooks/useStagedMedia";
 import { GifPicker } from "../../components/chat/GifPicker/GifPicker";
 import {
     useCreateJournalEntry,
@@ -37,7 +38,8 @@ export function JournalEntryEditorPage() {
 
     const [titleDraft, setTitleDraft] = useState<string | null>(null);
     const [bodyDraft, setBodyDraft] = useState<string | null>(null);
-    const [files, setFiles] = useState<File[]>([]);
+    const media = useStagedMedia();
+    const addMedia = media.add;
     const [pendingDeletions, setPendingDeletions] = useState<number[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
@@ -66,15 +68,11 @@ export function JournalEntryEditorPage() {
                 setError(errors.join(" "));
             }
             if (valid.length > 0) {
-                setFiles(prev => [...prev, ...valid]);
+                addMedia(valid);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size],
+        [addMedia, siteInfo.max_image_size, siteInfo.max_video_size],
     );
-
-    function removeFile(index: number) {
-        setFiles(prev => prev.filter((_, i) => i !== index));
-    }
 
     if (jLoading || (isEdit && eLoading)) {
         return <div className="loading">Loading...</div>;
@@ -93,9 +91,9 @@ export function JournalEntryEditorPage() {
 
     async function uploadAllTo(entryId: string): Promise<boolean> {
         let allDone = true;
-        for (const file of files) {
+        for (const item of media.staged) {
             try {
-                await uploadMediaMutation.mutateAsync({ entryId, file });
+                await uploadMediaMutation.mutateAsync({ entryId, file: item.file, isSpoiler: item.isSpoiler });
             } catch (err) {
                 setError(err instanceof Error ? err.message : "Failed to upload media");
                 allDone = false;
@@ -122,7 +120,7 @@ export function JournalEntryEditorPage() {
     }
 
     async function save(asDraft: boolean) {
-        if ((!body.trim() && files.length === 0) || submitting) {
+        if ((!body.trim() && media.files.length === 0) || submitting) {
             return;
         }
         setSubmitting(true);
@@ -228,10 +226,15 @@ export function JournalEntryEditorPage() {
                     />
                 )}
 
-                <MediaPreviews files={files} onRemove={removeFile} />
+                <MediaPreviews
+                    files={media.files}
+                    onRemove={media.remove}
+                    spoilers={media.spoilers}
+                    onToggleSpoiler={media.toggleSpoiler}
+                />
 
                 <div className={styles.toolbar}>
-                    <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
+                    <MediaPickerButton onFiles={media.add} onError={setError} />
                     <div className={styles.gifAnchor}>
                         <Button
                             type="button"
@@ -259,7 +262,7 @@ export function JournalEntryEditorPage() {
                             variant="ghost"
                             size="medium"
                             onClick={() => save(true)}
-                            disabled={submitting || (!body.trim() && files.length === 0)}
+                            disabled={submitting || (!body.trim() && media.files.length === 0)}
                         >
                             {submitting ? "Saving..." : "Save as draft"}
                         </Button>
@@ -267,7 +270,7 @@ export function JournalEntryEditorPage() {
                     <Button
                         variant="primary"
                         size="medium"
-                        disabled={submitting || (!body.trim() && files.length === 0)}
+                        disabled={submitting || (!body.trim() && media.files.length === 0)}
                     >
                         {submitting
                             ? "Saving..."

@@ -38,7 +38,7 @@ type (
 		DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, corner string, search string, sort string, seed int, page bounds.Page, resolvedFilter string) (*dto.PostListResponse, error)
 		ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error)
-		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 		DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error
 		LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
 		UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error
@@ -47,7 +47,7 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 		GetCornerCounts(ctx context.Context) (map[string]int, error)
 		VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error)
 		ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error
@@ -452,7 +452,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}
 }
 
-func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -461,7 +461,7 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, fmt.Errorf("not the post author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.postRepo.AddMedia(ctx, repository.NewPostMedia{
 				PostID:       postID,
@@ -470,6 +470,7 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.postRepo.UpdateMediaURL,
@@ -495,7 +496,7 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 	return nil
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -504,7 +505,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.postRepo.AddCommentMedia(ctx, repository.NewPostCommentMedia{
 				CommentID:    commentID,
@@ -513,6 +514,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.postRepo.UpdateCommentMediaURL,

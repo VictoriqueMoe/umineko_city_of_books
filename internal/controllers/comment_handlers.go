@@ -58,7 +58,7 @@ func (s *Service) handleUnlikeComment(ctx fiber.Ctx, unlike func(context.Context
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
 
-func handleUploadCommentMedia[T any](ctx fiber.Ctx, upload func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader) (T, error)) error {
+func handleUploadCommentMedia[T any](ctx fiber.Ctx, upload func(context.Context, uuid.UUID, uuid.UUID, string, string, int64, io.Reader, bool) (T, error)) error {
 	commentID, ok := utils.ParseID(ctx)
 	if !ok {
 		return nil
@@ -76,10 +76,14 @@ func handleUploadCommentMedia[T any](ctx fiber.Ctx, upload func(context.Context,
 	}
 	defer reader.Close()
 
-	result, err := upload(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
+	result, err := upload(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
 		return utils.BadRequest(ctx, err.Error())
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func isSpoilerUpload(ctx fiber.Ctx) bool {
+	return ctx.FormValue("is_spoiler") == "true"
 }

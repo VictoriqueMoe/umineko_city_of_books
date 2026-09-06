@@ -152,7 +152,8 @@ export const useUploadJournalCommentMedia = journalCommentMutations.useUploadMed
 export function useUploadJournalEntryMedia(_journalId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ entryId, file }: { entryId: string; file: File }) => uploadJournalEntryMedia(entryId, file),
+        mutationFn: ({ entryId, file, isSpoiler }: { entryId: string; file: File; isSpoiler?: boolean }) =>
+            uploadJournalEntryMedia(entryId, file, isSpoiler ?? false),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.journal.all }),
     });
 }

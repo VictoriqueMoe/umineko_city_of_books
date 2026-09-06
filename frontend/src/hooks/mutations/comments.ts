@@ -5,7 +5,7 @@ interface CommentApi<TMedia> {
     remove: (id: string) => Promise<void>;
     like: (id: string) => Promise<void>;
     unlike: (id: string) => Promise<void>;
-    uploadMedia: (commentId: string, file: File) => Promise<TMedia>;
+    uploadMedia: (commentId: string, file: File, isSpoiler?: boolean) => Promise<TMedia>;
 }
 
 export function commentMutations<TMedia>(invalidateKey: QueryKey, api: CommentApi<TMedia>) {
@@ -41,8 +41,8 @@ export function commentMutations<TMedia>(invalidateKey: QueryKey, api: CommentAp
         useUploadMedia(_parentId?: string) {
             const qc = useQueryClient();
             return useMutation({
-                mutationFn: ({ commentId, file }: { commentId: string; file: File }) =>
-                    api.uploadMedia(commentId, file),
+                mutationFn: ({ commentId, file, isSpoiler }: { commentId: string; file: File; isSpoiler?: boolean }) =>
+                    api.uploadMedia(commentId, file, isSpoiler ?? false),
                 onSuccess: () => qc.invalidateQueries({ queryKey: invalidateKey }),
             });
         },

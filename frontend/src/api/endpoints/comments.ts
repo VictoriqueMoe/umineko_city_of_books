@@ -1,5 +1,6 @@
 import { apiDelete, apiPost, apiPostFormData, apiPut } from "../client";
 import type { PostMedia } from "../../types/api";
+import { mediaFormData } from "./mediaFormData";
 
 type CommentLikeBody = undefined | Record<string, never>;
 
@@ -23,10 +24,8 @@ function commentEndpoints(parentPath: string, commentPath: string, likeBody: Com
         async unlike(id: string): Promise<void> {
             await apiDelete(`${commentPath}/${id}/like`);
         },
-        async uploadMedia(commentId: string, file: File): Promise<PostMedia> {
-            const formData = new FormData();
-            formData.append("media", file);
-            return apiPostFormData<PostMedia>(`${commentPath}/${commentId}/media`, formData);
+        async uploadMedia(commentId: string, file: File, isSpoiler = false): Promise<PostMedia> {
+            return apiPostFormData<PostMedia>(`${commentPath}/${commentId}/media`, mediaFormData(file, isSpoiler));
         },
     };
 }

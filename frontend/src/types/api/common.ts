@@ -43,6 +43,7 @@ export interface PostMedia {
     sort_order: number;
     width?: number;
     height?: number;
+    is_spoiler?: boolean;
 }
 
 export type LinkPreviewType = "" | "link" | "youtube" | "image" | "video";

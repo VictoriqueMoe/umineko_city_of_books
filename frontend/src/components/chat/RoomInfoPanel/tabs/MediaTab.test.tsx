@@ -108,6 +108,36 @@ describe("MediaTab", () => {
         expect(container.querySelector("img")).toHaveAttribute("src", "/thumb.png");
     });
 
+    it("keeps a spoiler covered in the grid until it is clicked", async () => {
+        // given a spoiler image in the room's media grid
+        stub([
+            withMedia("m1", [
+                {
+                    id: 1,
+                    media_url: "/full.png",
+                    media_type: "image",
+                    thumbnail_url: "/thumb.png",
+                    sort_order: 0,
+                    is_spoiler: true,
+                },
+            ]),
+        ]);
+        const user = userEvent.setup();
+        const { onLightbox } = renderTab();
+
+        // when the viewer clicks the covered tile
+        await user.click(screen.getByRole("button", { name: "Reveal spoiler" }));
+
+        // then it only revealed, rather than jumping straight to full size
+        expect(onLightbox).not.toHaveBeenCalled();
+
+        // when they click the revealed tile
+        await user.click(screen.getByRole("button", { name: "Open full size" }));
+
+        // then it opens
+        expect(onLightbox).toHaveBeenCalledWith("/full.png");
+    });
+
     it("opens an image in the lightbox at full size rather than jumping", async () => {
         // given
         stub([

@@ -4,7 +4,7 @@ import { useChatRoomPinnedMessages } from "../../../../hooks/queries/chat";
 import { useUnpinChatMessage } from "../../../../hooks/mutations/chat";
 import { RelativeTimestamp } from "../../../RelativeTimestamp/RelativeTimestamp";
 import { renderRich } from "../../../richText/richText";
-import { AudioAttachment } from "../../../AudioAttachment/AudioAttachment";
+import { ChatMessageMedia } from "../../ChatMessageMedia/ChatMessageMedia";
 import { clampChars } from "../../../../utils/text";
 import styles from "../../PinnedMessagesPanel/PinnedMessagesPanel.module.css";
 
@@ -86,31 +86,15 @@ export function PinsTab({ roomId, isActive, onJump, onJumped, canUnpin, onLightb
                             )}
                             {m.media && m.media.length > 0 && (
                                 <div className={styles.pinMedia}>
-                                    {m.media.map(media =>
-                                        media.media_type === "audio" ? (
-                                            <AudioAttachment
-                                                key={media.id}
-                                                src={media.media_url}
-                                                filename={media.filename}
-                                            />
-                                        ) : media.media_type === "video" ? (
-                                            <video
-                                                key={media.id}
-                                                className={`${styles.pinMediaItem} ${styles.pinMediaItemVideo}`}
-                                                src={media.media_url}
-                                                controls
-                                                poster={media.thumbnail_url || undefined}
-                                            />
-                                        ) : (
-                                            <img
-                                                key={media.id}
-                                                className={styles.pinMediaItem}
-                                                src={media.media_url}
-                                                alt=""
-                                                onClick={() => onLightbox?.(media.media_url)}
-                                            />
-                                        ),
-                                    )}
+                                    {m.media.map(media => (
+                                        <ChatMessageMedia
+                                            key={media.id}
+                                            media={media}
+                                            itemClassName={styles.pinMediaItem}
+                                            videoClassName={styles.pinMediaItemVideo}
+                                            onLightbox={onLightbox}
+                                        />
+                                    ))}
                                 </div>
                             )}
                             <div className={styles.pinActions}>

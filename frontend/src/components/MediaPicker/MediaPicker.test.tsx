@@ -267,6 +267,66 @@ describe("MediaPreviews", () => {
         expect(screen.getByRole("presentation")).toBeInTheDocument();
         expect(screen.queryByLabelText("Audio file")).not.toBeInTheDocument();
     });
+
+    it("offers no spoiler control to a caller that cannot handle it", () => {
+        // given a surface that has not opted in
+        const files = [makeFile("a.png", "image/png")];
+
+        // when
+        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+
+        // then the tile looks exactly as it always did
+        expect(screen.queryByRole("button", { name: "Mark as spoiler" })).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    });
+
+    it("marks the file whose spoiler control was pressed", async () => {
+        // given
+        const onToggleSpoiler = vi.fn();
+        const user = userEvent.setup();
+        const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
+        renderWithProviders(
+            <MediaPreviews files={files} onRemove={noop} spoilers={[false, false]} onToggleSpoiler={onToggleSpoiler} />,
+        );
+
+        // when
+        await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
+
+        // then
+        expect(onToggleSpoiler).toHaveBeenCalledWith(1);
+    });
+
+    it("shows which tiles are marked, so the sender can see before they send", () => {
+        // given one marked file and one not
+        const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
+
+        // when
+        renderWithProviders(
+            <MediaPreviews files={files} onRemove={noop} spoilers={[false, true]} onToggleSpoiler={noop} />,
+        );
+
+        // then
+        const toggles = screen.getAllByRole("button", { name: "Mark as spoiler" });
+        expect(toggles[0]).toHaveAttribute("aria-pressed", "false");
+        expect(toggles[1]).toHaveAttribute("aria-pressed", "true");
+        expect(screen.getByText("Spoiler")).toBeInTheDocument();
+    });
+
+    it("keeps both controls as real buttons that never submit a surrounding form", () => {
+        // given a composer rendered inside a form, as the journal editor does
+        const files = [makeFile("a.png", "image/png")];
+
+        // when
+        renderWithProviders(
+            <form>
+                <MediaPreviews files={files} onRemove={noop} spoilers={[false]} onToggleSpoiler={noop} />
+            </form>,
+        );
+
+        // then neither can submit it
+        expect(screen.getByRole("button", { name: "Mark as spoiler" })).toHaveAttribute("type", "button");
+        expect(screen.getByRole("button", { name: "Remove" })).toHaveAttribute("type", "button");
+    });
 });
 
 describe("MediaPickerButton", () => {

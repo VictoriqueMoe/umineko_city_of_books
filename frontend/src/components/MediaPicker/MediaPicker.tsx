@@ -11,10 +11,61 @@ interface MediaPreviewsProps {
     files: File[];
     onRemove: (index: number) => void;
     onReorder?: (from: number, to: number) => void;
+    spoilers?: boolean[];
+    onToggleSpoiler?: (index: number) => void;
     size?: Size;
 }
 
-export function MediaPreviews({ files, onRemove, onReorder, size = "normal" }: MediaPreviewsProps) {
+function EyeIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M1.5 8s2.4-4 6.5-4 6.5 4 6.5 4-2.4 4-6.5 4-6.5-4-6.5-4Z" />
+            <circle cx="8" cy="8" r="1.8" />
+        </svg>
+    );
+}
+
+function BinIcon() {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 16 16"
+            width="12"
+            height="12"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+        >
+            <path d="M2.5 4h11" />
+            <path d="M6 4V2.5h4V4" />
+            <path d="M3.8 4l.7 9h7l.7-9" />
+            <path d="M6.6 6.5v4M9.4 6.5v4" />
+        </svg>
+    );
+}
+
+export function MediaPreviews({
+    files,
+    onRemove,
+    onReorder,
+    spoilers,
+    onToggleSpoiler,
+    size = "normal",
+}: MediaPreviewsProps) {
     const dragIndex = useRef<number | null>(null);
 
     const liveUrls = useRef<string[]>([]);
@@ -57,6 +108,8 @@ export function MediaPreviews({ files, onRemove, onReorder, size = "normal" }: M
     const previewClass = size === "small" ? `${styles.preview} ${styles.previewSmall}` : styles.preview;
     const removeClass =
         size === "small" ? `${styles.previewRemove} ${styles.previewRemoveSmall}` : styles.previewRemove;
+    const toolbarClass =
+        size === "small" ? `${styles.previewToolbar} ${styles.previewToolbarSmall}` : styles.previewToolbar;
 
     return (
         <div className={styles.previews}>
@@ -88,9 +141,38 @@ export function MediaPreviews({ files, onRemove, onReorder, size = "normal" }: M
                         {url && !file.type.startsWith("video/") && !file.type.startsWith("audio/") && (
                             <img className={styles.previewMedia} src={url} alt="" />
                         )}
-                        <button className={removeClass} onClick={() => onRemove(i)} aria-label="Remove">
-                            x
-                        </button>
+                        {onToggleSpoiler ? (
+                            <div className={toolbarClass}>
+                                <button
+                                    type="button"
+                                    className={styles.toolbarBtn}
+                                    onClick={() => onToggleSpoiler(i)}
+                                    aria-label="Mark as spoiler"
+                                    aria-pressed={spoilers?.[i] === true}
+                                    title="Mark as spoiler, blurred until the viewer clicks to reveal it"
+                                >
+                                    <EyeIcon />
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`${styles.toolbarBtn} ${styles.toolbarBtnDanger}`}
+                                    onClick={() => onRemove(i)}
+                                    aria-label="Remove"
+                                >
+                                    <BinIcon />
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                type="button"
+                                className={removeClass}
+                                onClick={() => onRemove(i)}
+                                aria-label="Remove"
+                            >
+                                x
+                            </button>
+                        )}
+                        {spoilers?.[i] === true && <span className={styles.spoilerFlag}>Spoiler</span>}
                         {canReorder && (
                             <div className={styles.previewReorder}>
                                 <button

@@ -172,7 +172,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                                     return;
                                 }
                                 e.target.value = "";
-                                const result = await uploadMediaMutation.mutateAsync(file);
+                                const result = await uploadMediaMutation.mutateAsync({ file });
                                 setEditMedia(prev => [...prev, result]);
                             }}
                         />

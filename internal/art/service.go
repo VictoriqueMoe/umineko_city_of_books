@@ -48,7 +48,7 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 
 		CreateGallery(ctx context.Context, userID uuid.UUID, req dto.CreateGalleryRequest) (uuid.UUID, error)
 		UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateGalleryRequest) error
@@ -644,7 +644,7 @@ func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID
 	return s.artRepo.UnlikeComment(ctx, userID, commentID)
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.artRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -653,7 +653,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "art", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "art", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.artRepo.AddCommentMedia(ctx, repository.NewArtCommentMedia{
 				CommentID:    commentID,
@@ -662,6 +662,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.artRepo.UpdateCommentMediaURL,

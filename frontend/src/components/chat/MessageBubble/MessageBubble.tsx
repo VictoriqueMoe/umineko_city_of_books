@@ -19,7 +19,7 @@ import { RolePill } from "../../RolePill/RolePill";
 import { renderRich } from "../../richText/richText";
 import { GifEmbed } from "../../GifEmbed/GifEmbed";
 import { EmojiPicker } from "../EmojiPicker/EmojiPicker";
-import { AudioAttachment } from "../../AudioAttachment/AudioAttachment";
+import { ChatMessageMedia } from "../ChatMessageMedia/ChatMessageMedia";
 import { LinkPreviews } from "../../LinkPreviews/LinkPreviews";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { formatExactDateTime } from "../../../utils/time";
@@ -510,31 +510,14 @@ function MessageBubbleBase({
                 )}
                 {message.media && message.media.length > 0 && (
                     <div className={styles.messageMedia}>
-                        {message.media.map(m =>
-                            m.media_type === "audio" ? (
-                                <AudioAttachment key={m.id} src={m.media_url} filename={m.filename} />
-                            ) : m.media_type === "video" ? (
-                                <video
-                                    key={m.id}
-                                    className={styles.messageMediaItem}
-                                    src={m.media_url}
-                                    controls
-                                    poster={m.thumbnail_url || undefined}
-                                />
-                            ) : (
-                                <img
-                                    key={m.id}
-                                    className={styles.messageMediaItem}
-                                    src={m.media_url}
-                                    alt=""
-                                    width={m.width || undefined}
-                                    height={m.height || undefined}
-                                    loading="lazy"
-                                    decoding="async"
-                                    onClick={() => onLightbox?.(m.media_url)}
-                                />
-                            ),
-                        )}
+                        {message.media.map(m => (
+                            <ChatMessageMedia
+                                key={m.id}
+                                media={m}
+                                itemClassName={styles.messageMediaItem}
+                                onLightbox={onLightbox}
+                            />
+                        ))}
                     </div>
                 )}
                 {message.reactions && message.reactions.length > 0 && (

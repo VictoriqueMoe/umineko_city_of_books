@@ -166,6 +166,7 @@ func (s *service) UploadCommentMedia(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
@@ -178,7 +179,7 @@ func (s *service) UploadCommentMedia(
 	existing, _ := s.mysteryRepo.GetCommentMedia(ctx, commentID)
 	sortOrder := len(existing)
 
-	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader,
+	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
 			return s.mysteryRepo.AddCommentMedia(ctx, repository.NewMysteryCommentMedia{
 				CommentID: commentID,
@@ -186,6 +187,7 @@ func (s *service) UploadCommentMedia(
 				MediaType: mediaType,
 				Filename:  filename,
 				SortOrder: sortOrder,
+				IsSpoiler: isSpoiler,
 			})
 		},
 		s.mysteryRepo.UpdateCommentMediaURL,

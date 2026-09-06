@@ -501,7 +501,7 @@ describe("useSendFirstDMMessage", () => {
         });
 
         // then
-        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, "are you there", undefined);
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, "are you there", undefined, undefined);
     });
 
     it("returns the freshly created room together with the message", async () => {
@@ -518,7 +518,7 @@ describe("useSendFirstDMMessage", () => {
         });
 
         // then
-        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, "a gift", [file]);
+        expect(mocks.sendFirstDMMessage).toHaveBeenCalledWith(userId, "a gift", [file], undefined);
         expect(sent).toEqual({ room: { id: roomId }, message: { id: messageId } });
     });
 });

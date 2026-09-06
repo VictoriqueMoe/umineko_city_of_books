@@ -591,6 +591,20 @@ describe("PostCard", () => {
         expect(mocks.navigate).not.toHaveBeenCalled();
     });
 
+    it("reveals a spoiler attachment instead of opening the post", async () => {
+        // given a feed card carrying a spoilered image
+        const testUser = userEvent.setup();
+        const { container } = renderCard(makePost({ media: [{ ...makeMedia(1), is_spoiler: true }] }));
+        const image = container.querySelector('img[src="https://witch.test/media-1.png"]') as Element;
+
+        // when the viewer clicks the cover
+        await testUser.click(image);
+
+        // then it only uncovers, rather than navigating to the post
+        expect(screen.queryByText("Spoiler")).not.toBeInTheDocument();
+        expect(mocks.navigate).not.toHaveBeenCalled();
+    });
+
     it("opens the post in a new tab on a middle click", () => {
         // given
         const open = vi.spyOn(window, "open").mockReturnValue(null);

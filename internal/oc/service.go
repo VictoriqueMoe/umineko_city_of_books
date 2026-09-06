@@ -94,6 +94,7 @@ type (
 			filename string,
 			fileSize int64,
 			reader io.Reader,
+			isSpoiler bool,
 		) (*dto.PostMediaResponse, error)
 	}
 
@@ -766,6 +767,7 @@ func (s *service) UploadCommentMedia(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.ocRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
@@ -775,9 +777,9 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "ocs", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "ocs", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.ocRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, filename, sortOrder)
+			return s.ocRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, filename, sortOrder, isSpoiler)
 		},
 		s.ocRepo.UpdateCommentMediaURL,
 		s.ocRepo.UpdateCommentMediaThumbnail,

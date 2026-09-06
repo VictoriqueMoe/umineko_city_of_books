@@ -422,7 +422,7 @@ func TestUploadCommentMedia_CommentNotFound(t *testing.T) {
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(uuid.Nil, errors.New("boom"))
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
 
 	// then
 	require.ErrorIs(t, err, ErrNotFound)
@@ -436,7 +436,7 @@ func TestUploadCommentMedia_NotAuthor(t *testing.T) {
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(uuid.New(), nil)
 
 	// when
-	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil))
+	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
 
 	// then
 	require.Error(t, err)

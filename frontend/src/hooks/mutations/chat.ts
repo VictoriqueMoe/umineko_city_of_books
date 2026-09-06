@@ -245,15 +245,24 @@ export function useInviteChatRoomMembers(roomId: string) {
 
 export function useSendChatMessage(roomId: string) {
     return useMutation({
-        mutationFn: (payload: { body: string; reply_to_id?: string; files?: File[] }) =>
+        mutationFn: (payload: { body: string; reply_to_id?: string; files?: File[]; spoilers?: boolean[] }) =>
             sendChatMessage(roomId, payload),
     });
 }
 
 export function useSendFirstDMMessage() {
     return useMutation({
-        mutationFn: ({ recipientId, body, files }: { recipientId: string; body: string; files?: File[] }) =>
-            sendFirstDMMessage(recipientId, body, files),
+        mutationFn: ({
+            recipientId,
+            body,
+            files,
+            spoilers,
+        }: {
+            recipientId: string;
+            body: string;
+            files?: File[];
+            spoilers?: boolean[];
+        }) => sendFirstDMMessage(recipientId, body, files, spoilers),
     });
 }
 

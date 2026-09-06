@@ -315,7 +315,7 @@ func (s *Service) uploadAnnouncementCommentMedia(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	resp, err := s.AnnouncementService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
+	resp, err := s.AnnouncementService.UploadCommentMedia(ctx.Context(), commentID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
 		switch {
 		case errors.Is(err, announcementsvc.ErrCommentNotFound):

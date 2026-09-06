@@ -258,7 +258,7 @@ func (s *Service) uploadPostMedia(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
+	result, err := s.PostService.UploadPostMedia(ctx.Context(), postID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
 		return utils.BadRequest(ctx, err.Error())
 	}

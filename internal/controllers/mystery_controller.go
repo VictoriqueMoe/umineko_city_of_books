@@ -567,7 +567,7 @@ func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
 	}
 	defer reader.Close()
 
-	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader)
+	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
 		if errors.Is(err, mysterysvc.ErrNotFound) {
 			return utils.NotFound(ctx, "mystery not found")

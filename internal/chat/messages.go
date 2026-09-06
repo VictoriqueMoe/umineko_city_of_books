@@ -676,7 +676,7 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		if err != nil {
 			return nil, fmt.Errorf("open media: %w", err)
 		}
-		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r,
+		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r, f.IsSpoiler,
 			func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 				return m.chatRepo.AddMessageMedia(ctx, repository.NewChatMessageMedia{
 					MessageID:    messageID,
@@ -687,6 +687,7 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 					SortOrder:    sortOrder,
 					Width:        width,
 					Height:       height,
+					IsSpoiler:    f.IsSpoiler,
 				})
 			},
 			m.chatRepo.UpdateMessageMediaURL,
@@ -699,6 +700,7 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 
 		saved.Width = width
 		saved.Height = height
+		saved.IsSpoiler = f.IsSpoiler
 
 		results = append(results, *saved)
 	}

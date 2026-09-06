@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import type { CreatePollPayload } from "../../../types/api";
 import { useCreatePost, useUploadPostMediaById } from "../../../hooks/mutations/post";
+import { useStagedMedia } from "../../../hooks/useStagedMedia";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
@@ -19,7 +20,8 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     const navigate = useNavigate();
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
+    const media = useStagedMedia();
+    const addMedia = media.add;
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [showPoll, setShowPoll] = useState(false);
@@ -47,7 +49,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
     }
 
     async function handleSubmit() {
-        if (submitting || (!body.trim() && files.length === 0)) {
+        if (submitting || (!body.trim() && media.files.length === 0)) {
             return;
         }
         if (showPoll) {
@@ -71,16 +73,16 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
             const { id } = await createPostMutation.mutateAsync({ body: body.trim(), corner, poll: pollPayload });
             const mediaErrors: string[] = [];
             const failedFiles: File[] = [];
-            for (const file of files) {
+            for (const item of media.staged) {
                 try {
-                    await uploadMediaMutation.mutateAsync({ id, file });
+                    await uploadMediaMutation.mutateAsync({ id, file: item.file, isSpoiler: item.isSpoiler });
                 } catch (err) {
-                    mediaErrors.push(err instanceof Error ? err.message : `Failed to upload ${file.name}`);
-                    failedFiles.push(file);
+                    mediaErrors.push(err instanceof Error ? err.message : `Failed to upload ${item.file.name}`);
+                    failedFiles.push(item.file);
                 }
             }
             setBody("");
-            setFiles(failedFiles);
+            media.keepOnly(failedFiles);
             setShowPoll(false);
             setPollOptions(["", ""]);
             setPollDuration(86400);
@@ -94,19 +96,6 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
         } finally {
             setSubmitting(false);
         }
-    }
-
-    function removeFile(index: number) {
-        setFiles(prev => prev.filter((_, i) => i !== index));
-    }
-
-    function reorderFile(from: number, to: number) {
-        setFiles(prev => {
-            const next = prev.slice();
-            const [moved] = next.splice(from, 1);
-            next.splice(to, 0, moved);
-            return next;
-        });
     }
 
     const handlePasteFiles = useCallback(
@@ -130,10 +119,10 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 setError(errors.join(" "));
             }
             if (valid.length > 0) {
-                setFiles(prev => [...prev, ...valid]);
+                addMedia(valid);
             }
         },
-        [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
+        [addMedia, siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
     );
 
     return (
@@ -148,7 +137,13 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                 showColours
             />
 
-            <MediaPreviews files={files} onRemove={removeFile} onReorder={reorderFile} />
+            <MediaPreviews
+                files={media.files}
+                onRemove={media.remove}
+                onReorder={media.reorder}
+                spoilers={media.spoilers}
+                onToggleSpoiler={media.toggleSpoiler}
+            />
 
             {showPoll && (
                 <PollCreator
@@ -166,7 +161,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
 
             <div className={styles.bar}>
                 <div className={styles.barLeft}>
-                    <MediaPickerButton onFiles={valid => setFiles(prev => [...prev, ...valid])} onError={setError} />
+                    <MediaPickerButton onFiles={media.add} onError={setError} />
                     <div className={styles.gifAnchor}>
                         <Button
                             variant="ghost"
@@ -188,7 +183,7 @@ export function PostComposer({ corner = "general" }: PostComposerProps) {
                     variant="primary"
                     size="small"
                     onClick={handleSubmit}
-                    disabled={submitting || (!body.trim() && files.length === 0)}
+                    disabled={submitting || (!body.trim() && media.files.length === 0)}
                 >
                     {submitting ? "Posting..." : "Post"}
                 </Button>

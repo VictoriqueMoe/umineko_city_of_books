@@ -66,7 +66,7 @@ type (
 		DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 	}
 
 	fanficFields struct {
@@ -971,6 +971,7 @@ func (s *service) UploadCommentMedia(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 ) (*dto.PostMediaResponse, error) {
 	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
@@ -980,7 +981,7 @@ func (s *service) UploadCommentMedia(
 		return nil, fmt.Errorf("not the comment author")
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.fanficRepo.AddCommentMedia(ctx, repository.NewFanficCommentMedia{
 				CommentID:    commentID,
@@ -989,6 +990,7 @@ func (s *service) UploadCommentMedia(
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.fanficRepo.UpdateCommentMediaURL,

@@ -12,6 +12,24 @@ import type {
     VoiceTokenResponse,
 } from "../../types/api";
 
+function appendMediaParts(formData: FormData, files?: File[], spoilers?: boolean[]): void {
+    if (!files || files.length === 0) {
+        return;
+    }
+
+    const spoilerIndexes: number[] = [];
+    for (const [i, file] of files.entries()) {
+        formData.append("media", file);
+        if (spoilers?.[i] === true) {
+            spoilerIndexes.push(i);
+        }
+    }
+
+    if (spoilerIndexes.length > 0) {
+        formData.append("spoiler_indexes", spoilerIndexes.join(","));
+    }
+}
+
 export async function resolveDMRoom(recipientId: string): Promise<{ room: ChatRoom | null; recipient: User }> {
     return apiFetch<{ room: ChatRoom | null; recipient: User }>(`/chat/dm/${encodeURIComponent(recipientId)}/resolve`);
 }
@@ -20,14 +38,11 @@ export async function sendFirstDMMessage(
     recipientId: string,
     body: string,
     files?: File[],
+    spoilers?: boolean[],
 ): Promise<{ room: ChatRoom; message: ChatMessage }> {
     const formData = new FormData();
     formData.append("body", body);
-    if (files) {
-        for (let i = 0; i < files.length; i++) {
-            formData.append("media", files[i]);
-        }
-    }
+    appendMediaParts(formData, files, spoilers);
     return apiPostFormData<{ room: ChatRoom; message: ChatMessage }>(`/chat/dm/${recipientId}/messages`, formData);
 }
 
@@ -180,18 +195,14 @@ export async function getRoomMessagesBefore(
 
 export async function sendChatMessage(
     roomId: string,
-    payload: { body: string; reply_to_id?: string; files?: File[] },
+    payload: { body: string; reply_to_id?: string; files?: File[]; spoilers?: boolean[] },
 ): Promise<ChatMessage> {
     const formData = new FormData();
     formData.append("body", payload.body);
     if (payload.reply_to_id) {
         formData.append("reply_to_id", payload.reply_to_id);
     }
-    if (payload.files) {
-        for (let i = 0; i < payload.files.length; i++) {
-            formData.append("media", payload.files[i]);
-        }
-    }
+    appendMediaParts(formData, payload.files, payload.spoilers);
     return apiPostFormData<ChatMessage>(`/chat/rooms/${roomId}/messages`, formData);
 }
 

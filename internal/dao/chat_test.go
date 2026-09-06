@@ -1782,6 +1782,39 @@ func TestChatDAO_AddMessageMedia(t *testing.T) {
 	assert.Equal(t, "/url", media[msgID][0].MediaURL)
 	assert.Equal(t, "image", media[msgID][0].MediaType)
 	assert.Equal(t, "/thumb", media[msgID][0].ThumbnailURL)
+	assert.False(t, media[msgID][0].IsSpoiler)
+}
+
+func TestChatDAO_MessageMediaSpoilerRoundTrips(t *testing.T) {
+	// given a message carrying one ordinary attachment and one marked as a spoiler
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	user := daotest.CreateUser(t, repos)
+	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, err)
+	require.NoError(t, repos.Chat.AddMember(ctx, room.ID, user.ID))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: room.ID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, err)
+
+	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msg.ID, MediaURL: "/plain", MediaType: "image", SortOrder: 0})
+	require.NoError(t, err)
+	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msg.ID, MediaURL: "/hidden", MediaType: "image", SortOrder: 1, IsSpoiler: true})
+	require.NoError(t, err)
+
+	// when the message is read back
+	media, err := repos.Chat.GetMessageMediaBatch(ctx, []uuid.UUID{msg.ID})
+
+	// then the flag survives, so the attachment stays covered after a refresh
+	require.NoError(t, err)
+	require.Len(t, media[msg.ID], 2)
+
+	byURL := make(map[string]bool)
+	for _, m := range media[msg.ID] {
+		byURL[m.MediaURL] = m.IsSpoiler
+	}
+
+	assert.False(t, byURL["/plain"])
+	assert.True(t, byURL["/hidden"])
 }
 
 func TestChatDAO_UpdateMessageMediaURL(t *testing.T) {

@@ -186,7 +186,8 @@ export function useDeleteMysteryAttachment(mysteryId: string) {
 export function useUploadMysteryMedia(mysteryId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (file: File) => uploadMysteryMedia(mysteryId, file),
+        mutationFn: ({ file, isSpoiler }: { file: File; isSpoiler?: boolean }) =>
+            uploadMysteryMedia(mysteryId, file, isSpoiler ?? false),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
     });
 }
@@ -194,7 +195,8 @@ export function useUploadMysteryMedia(mysteryId: string) {
 export function useUploadMysteryMediaToAny() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ mysteryId, file }: { mysteryId: string; file: File }) => uploadMysteryMedia(mysteryId, file),
+        mutationFn: ({ mysteryId, file, isSpoiler }: { mysteryId: string; file: File; isSpoiler?: boolean }) =>
+            uploadMysteryMedia(mysteryId, file, isSpoiler ?? false),
         onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.mystery.all }),
     });
 }

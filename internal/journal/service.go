@@ -54,8 +54,8 @@ type (
 		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 		UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
-		UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
+		UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 		DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, mediaID int64, userID uuid.UUID) error
 
 		FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
@@ -939,7 +939,7 @@ func (s *service) UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	return s.repo.UnlikeComment(ctx, userID, id)
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -955,6 +955,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		filename,
 		fileSize,
 		reader,
+		isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.repo.AddCommentMedia(ctx, repository.NewJournalCommentMedia{
 				CommentID:    commentID,
@@ -963,6 +964,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.repo.UpdateCommentMediaURL,
@@ -970,7 +972,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 	)
 }
 
-func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetEntryAuthorID(ctx, entryID)
 	if err != nil {
 		return nil, ErrNotFound
@@ -986,6 +988,7 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 		filename,
 		fileSize,
 		reader,
+		isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.repo.AddMedia(ctx, repository.NewJournalEntryMedia{
 				EntryID:      entryID,
@@ -994,6 +997,7 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.repo.UpdateMediaURL,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
@@ -54,6 +54,15 @@ function formatSendError(err: unknown): string {
 
 const TYPING_THROTTLE_MS = 2500;
 
+interface PendingAttachment {
+    file: File;
+    spoiler: boolean;
+}
+
+function toPendingAttachments(files: File[]): PendingAttachment[] {
+    return files.map(file => ({ file, spoiler: false }));
+}
+
 export function ChatComposer({
     roomId,
     draftRecipientId,
@@ -86,7 +95,7 @@ export function ChatComposer({
     const timedOut = isTimeoutActive(timeoutUntil, nowTick);
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
-    const [files, setFiles] = useState<File[]>([]);
+    const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const sendChatMessageMutation = useSendChatMessage(roomId ?? "");
@@ -131,17 +140,24 @@ export function ChatComposer({
         [onTyping],
     );
 
+    const files = useMemo(() => attachments.map(a => a.file), [attachments]);
+    const spoilers = useMemo(() => attachments.map(a => a.spoiler), [attachments]);
+
     function removeFile(index: number) {
-        setFiles(prev => prev.filter((_, i) => i !== index));
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    }
+
+    function toggleSpoiler(index: number) {
+        setAttachments(prev => prev.map((a, i) => (i === index ? { ...a, spoiler: !a.spoiler } : a)));
     }
 
     const handlePasteFiles = useCallback(
         (pasted: File[]) => {
             const errors: string[] = [];
             const valid: File[] = [];
-            for (let i = 0; i < pasted.length; i++) {
+            for (const file of pasted) {
                 const err = validateFileSize(
-                    pasted[i],
+                    file,
                     siteInfo.max_image_size,
                     siteInfo.max_video_size,
                     siteInfo.max_audio_size,
@@ -149,14 +165,14 @@ export function ChatComposer({
                 if (err) {
                     errors.push(err);
                 } else {
-                    valid.push(pasted[i]);
+                    valid.push(file);
                 }
             }
             if (errors.length > 0) {
                 setError(errors.join(" "));
             }
             if (valid.length > 0) {
-                setFiles(prev => [...prev, ...valid]);
+                setAttachments(prev => [...prev, ...toPendingAttachments(valid)]);
             }
         },
         [siteInfo.max_image_size, siteInfo.max_video_size, siteInfo.max_audio_size],
@@ -221,6 +237,7 @@ export function ChatComposer({
                     recipientId: draftRecipientId,
                     body: trimmed,
                     files,
+                    spoilers,
                 });
                 onSent(created.message, created.room);
             } else {
@@ -228,11 +245,12 @@ export function ChatComposer({
                     body: trimmed,
                     reply_to_id: replyingTo?.id,
                     files,
+                    spoilers,
                 });
                 onSent(message);
             }
             setBody("");
-            setFiles([]);
+            setAttachments([]);
             if (onCancelReply) {
                 onCancelReply();
             }
@@ -307,7 +325,13 @@ export function ChatComposer({
             )}
             {files.length > 0 && (
                 <div className={styles.previews}>
-                    <MediaPreviews files={files} onRemove={removeFile} size="small" />
+                    <MediaPreviews
+                        files={files}
+                        onRemove={removeFile}
+                        spoilers={spoilers}
+                        onToggleSpoiler={toggleSpoiler}
+                        size="small"
+                    />
                 </div>
             )}
             <div className={styles.textareaWrapper} onKeyDown={handleKeyDown}>
@@ -338,7 +362,7 @@ export function ChatComposer({
                 {showToolbarItems && (
                     <>
                         <MediaPickerButton
-                            onFiles={valid => setFiles(prev => [...prev, ...valid])}
+                            onFiles={valid => setAttachments(prev => [...prev, ...toPendingAttachments(valid)])}
                             onError={setError}
                         />
                         <div className={styles.gifAnchor}>

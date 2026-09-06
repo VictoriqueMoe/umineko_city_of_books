@@ -244,8 +244,43 @@ describe("PostComposer", () => {
         await user.click(postButton());
 
         // then
-        expect(mocks.uploadMedia).toHaveBeenCalledWith({ id: newPostId, file });
+        expect(mocks.uploadMedia).toHaveBeenCalledWith({ id: newPostId, file, isSpoiler: false });
         expect(mocks.navigate).toHaveBeenCalledWith(`/game-board/${newPostId}`);
+    });
+
+    it("uploads an attachment the author marked as a spoiler with its flag set", async () => {
+        // given an attached image the author has marked
+        const user = userEvent.setup();
+        const file = makeImage();
+        const { container } = renderWithProviders(<PostComposer />);
+        fireEvent.change(fileInput(container), { target: { files: [file] } });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Mark as spoiler" }));
+        await user.type(bodyField(), "look at this");
+        await user.click(postButton());
+
+        // then
+        expect(mocks.uploadMedia).toHaveBeenCalledWith({ id: newPostId, file, isSpoiler: true });
+    });
+
+    it("keeps the spoiler flag with its own attachment when they are reordered", async () => {
+        // given two attachments where only the second is marked
+        const user = userEvent.setup();
+        const first = makeImage("first.png");
+        const second = makeImage("second.png");
+        const { container } = renderWithProviders(<PostComposer />);
+        fireEvent.change(fileInput(container), { target: { files: [first, second] } });
+        await user.click(screen.getAllByRole("button", { name: "Mark as spoiler" })[1]);
+
+        // when the marked one is moved to the front
+        await user.click(screen.getAllByRole("button", { name: "Move earlier" })[1]);
+        await user.type(bodyField(), "look at this");
+        await user.click(postButton());
+
+        // then the flag travelled with its own file
+        expect(mocks.uploadMedia).toHaveBeenNthCalledWith(1, { id: newPostId, file: second, isSpoiler: true });
+        expect(mocks.uploadMedia).toHaveBeenNthCalledWith(2, { id: newPostId, file: first, isSpoiler: false });
     });
 
     it("reports a failed upload instead of leaving for the new post", async () => {

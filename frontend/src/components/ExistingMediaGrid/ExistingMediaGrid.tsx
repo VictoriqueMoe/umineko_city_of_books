@@ -1,6 +1,11 @@
 import type { PostMedia } from "../../types/api";
 import { AudioThumb } from "../AudioAttachment/AudioAttachment";
+import { spoilerBlurClass } from "../SpoilerImage/spoilerBlur";
 import styles from "./ExistingMediaGrid.module.css";
+
+function blurIfSpoiler(media: PostMedia): string {
+    return spoilerBlurClass(media.is_spoiler === true);
+}
 
 interface ExistingMediaGridProps {
     media: PostMedia[];
@@ -31,10 +36,11 @@ export function ExistingMediaGrid({
                         {m.media_type === "audio" ? (
                             <AudioThumb className={styles.thumb} />
                         ) : m.media_type === "video" ? (
-                            <video src={m.media_url} className={styles.thumb} />
+                            <video src={m.media_url} className={`${styles.thumb} ${blurIfSpoiler(m)}`} />
                         ) : (
-                            <img src={imageSrc} className={styles.thumb} alt="" />
+                            <img src={imageSrc} className={`${styles.thumb} ${blurIfSpoiler(m)}`} alt="" />
                         )}
+                        {m.is_spoiler === true && <span className={styles.spoilerFlag}>Spoiler</span>}
                         <button
                             type="button"
                             className={styles.remove}

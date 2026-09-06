@@ -19,6 +19,7 @@ import { InfoPanel } from "../../components/InfoPanel/InfoPanel";
 import { ErrorBanner } from "../../components/ErrorBanner/ErrorBanner";
 import { ToggleSwitch } from "../../components/ToggleSwitch/ToggleSwitch";
 import { MediaPickerButton, MediaPreviews } from "../../components/MediaPicker/MediaPicker";
+import { useStagedMedia } from "../../hooks/useStagedMedia";
 import { ALL_KNOX_RULES_ON, KNOX_RULES } from "./knoxRules";
 import type { KnoxContract } from "../../types/api";
 import { ExistingMediaGrid } from "../../components/ExistingMediaGrid/ExistingMediaGrid";
@@ -47,7 +48,7 @@ export function CreateMysteryPage() {
     const navigate = useNavigate();
     const [draft, setDraft] = useState<MysteryDraft>({ sourceId: null });
     const [attachments, setAttachments] = useState<File[]>([]);
-    const [mediaFiles, setMediaFiles] = useState<File[]>([]);
+    const media = useStagedMedia();
     const [pendingMediaDeletions, setPendingMediaDeletions] = useState<number[]>([]);
     const attachmentInputRef = useRef<HTMLInputElement>(null);
     const [submitting, setSubmitting] = useState(false);
@@ -189,15 +190,19 @@ export function CreateMysteryPage() {
             setAttachments(unsentAttachments);
 
             const unsentMedia: File[] = [];
-            for (const file of mediaFiles) {
+            for (const item of media.staged) {
                 try {
-                    await uploadMediaMutation.mutateAsync({ mysteryId: targetId, file });
+                    await uploadMediaMutation.mutateAsync({
+                        mysteryId: targetId,
+                        file: item.file,
+                        isSpoiler: item.isSpoiler,
+                    });
                 } catch (thrown) {
-                    unsentMedia.push(file);
-                    failures.push(uploadFailure(file.name, thrown));
+                    unsentMedia.push(item.file);
+                    failures.push(uploadFailure(item.file.name, thrown));
                 }
             }
-            setMediaFiles(unsentMedia);
+            media.keepOnly(unsentMedia);
 
             if (failures.length > 0) {
                 setError(uploadFailureMessage(failures));
@@ -364,13 +369,12 @@ export function CreateMysteryPage() {
                         />
                     )}
                     <MediaPreviews
-                        files={mediaFiles}
-                        onRemove={i => setMediaFiles(prev => prev.filter((_, j) => j !== i))}
+                        files={media.files}
+                        onRemove={media.remove}
+                        spoilers={media.spoilers}
+                        onToggleSpoiler={media.toggleSpoiler}
                     />
-                    <MediaPickerButton
-                        onFiles={valid => setMediaFiles(prev => [...prev, ...valid])}
-                        onError={setError}
-                    />
+                    <MediaPickerButton onFiles={media.add} onError={setError} />
                 </div>
 
                 <div className={styles.attachments} style={{ marginTop: "1.5rem" }}>

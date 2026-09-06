@@ -43,7 +43,7 @@ type (
 		DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 		LikeComment(ctx context.Context, userID, commentID uuid.UUID) error
 		UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error
-		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error)
+		UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error)
 	}
 
 	service struct {
@@ -474,7 +474,7 @@ func (s *service) UnlikeComment(ctx context.Context, userID, commentID uuid.UUID
 	return s.repo.UnlikeComment(ctx, userID, commentID)
 }
 
-func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader) (*dto.PostMediaResponse, error) {
+func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.repo.GetCommentAuthorID(ctx, commentID)
 	if err != nil {
 		return nil, ErrCommentNotFound
@@ -483,7 +483,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid
 		return nil, ErrForbidden
 	}
 
-	return s.uploader.SaveAndRecord(ctx, "announcements", contentType, filename, fileSize, reader,
+	return s.uploader.SaveAndRecord(ctx, "announcements", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
 			return s.repo.AddCommentMedia(ctx, repository.NewAnnouncementCommentMedia{
 				CommentID:    commentID,
@@ -492,6 +492,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID, userID uuid
 				ThumbnailURL: thumbURL,
 				Filename:     filename,
 				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
 			})
 		},
 		s.repo.UpdateCommentMediaURL,

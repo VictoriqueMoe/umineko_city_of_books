@@ -2555,3 +2555,91 @@ func TestVoiceToken_ServiceErrors(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSpoilerIndexes(t *testing.T) {
+	tests := []struct {
+		name   string
+		form   *multipart.Form
+		want   map[int]struct{}
+		wantOK bool
+	}{
+		{name: "no form means no spoilers", form: nil, want: nil, wantOK: true},
+		{
+			name:   "an absent field means no spoilers",
+			form:   &multipart.Form{Value: map[string][]string{}},
+			want:   nil,
+			wantOK: true,
+		},
+		{
+			name:   "an empty field means no spoilers",
+			form:   &multipart.Form{Value: map[string][]string{"spoiler_indexes": {""}}},
+			want:   nil,
+			wantOK: true,
+		},
+		{
+			name:   "a single index",
+			form:   &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0"}}},
+			want:   map[int]struct{}{0: {}},
+			wantOK: true,
+		},
+		{
+			name:   "several indexes",
+			form:   &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0,2"}}},
+			want:   map[int]struct{}{0: {}, 2: {}},
+			wantOK: true,
+		},
+		{
+			name:   "surrounding space is tolerated",
+			form:   &multipart.Form{Value: map[string][]string{"spoiler_indexes": {" 1 , 3 "}}},
+			want:   map[int]struct{}{1: {}, 3: {}},
+			wantOK: true,
+		},
+		{
+			name:   "a negative index is refused",
+			form:   &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"-1"}}},
+			want:   nil,
+			wantOK: false,
+		},
+		{
+			name:   "a non-numeric token is refused",
+			form:   &multipart.Form{Value: map[string][]string{"spoiler_indexes": {"0,beatrice"}}},
+			want:   nil,
+			wantOK: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a multipart form carrying the sender's spoiler choices
+
+			// when it is parsed
+			got, ok := parseSpoilerIndexes(tc.form)
+
+			// then only a well-formed list is accepted
+			assert.Equal(t, tc.wantOK, ok)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+func TestCollectChatFileUploads_MarksOnlyTheChosenFiles(t *testing.T) {
+	// given two attachments where only the second was marked
+	form := &multipart.Form{
+		File: map[string][]*multipart.FileHeader{
+			"media": {
+				{Filename: "one.png"},
+				{Filename: "two.png"},
+			},
+		},
+	}
+
+	// when they are collected
+	uploads := collectChatFileUploads(form, map[int]struct{}{1: {}})
+
+	// then the flag lands on the file the sender picked, and the filename is carried
+	require.Len(t, uploads, 2)
+	assert.False(t, uploads[0].IsSpoiler)
+	assert.True(t, uploads[1].IsSpoiler)
+	assert.Equal(t, "one.png", uploads[0].Filename)
+	assert.Equal(t, "two.png", uploads[1].Filename)
+}

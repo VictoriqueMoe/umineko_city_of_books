@@ -1,0 +1,18 @@
+.mediaCover {
+    display: inline-block;
+    overflow: hidden;
+    border-radius: 6px;
+    line-height: 0;
+}
+
+.audioCover {
+    display: inline-block;
+    overflow: hidden;
+    border-radius: 6px;
+}
+
+.audioPlaceholder {
+    width: 220px;
+    height: 44px;
+    background: rgba(var(--bg-card-rgb), 0.9);
+}

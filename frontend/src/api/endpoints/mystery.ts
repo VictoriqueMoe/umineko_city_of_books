@@ -1,4 +1,5 @@
 import { apiDelete, apiFetch, apiPost, apiPostFormData, apiPut, buildQueryString } from "../client";
+import { mediaFormData } from "./mediaFormData";
 import type {
     GMLeaderboardResponse,
     KnoxContract,
@@ -125,10 +126,8 @@ export async function deleteMysteryAttachment(mysteryId: string, attachmentId: n
     await apiDelete(`/mysteries/${mysteryId}/attachments/${attachmentId}`);
 }
 
-export async function uploadMysteryMedia(mysteryId: string, file: File): Promise<PostMedia> {
-    const formData = new FormData();
-    formData.append("media", file);
-    return apiPostFormData<PostMedia>(`/mysteries/${mysteryId}/media`, formData);
+export async function uploadMysteryMedia(mysteryId: string, file: File, isSpoiler = false): Promise<PostMedia> {
+    return apiPostFormData<PostMedia>(`/mysteries/${mysteryId}/media`, mediaFormData(file, isSpoiler));
 }
 
 export async function deleteMysteryMedia(mysteryId: string, mediaId: number): Promise<void> {

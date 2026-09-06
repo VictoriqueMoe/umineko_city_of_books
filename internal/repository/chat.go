@@ -162,6 +162,7 @@ type (
 		SortOrder    int
 		Width        int
 		Height       int
+		IsSpoiler    bool
 	}
 
 	SystemRoomMembership struct {

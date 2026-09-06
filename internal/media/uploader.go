@@ -65,6 +65,7 @@ func (u *Uploader) SaveAndRecord(
 	filename string,
 	fileSize int64,
 	reader io.Reader,
+	isSpoiler bool,
 	addFn AddFn,
 	updateURL UpdateURLFn,
 	updateThumb UpdateURLFn,
@@ -127,5 +128,6 @@ func (u *Uploader) SaveAndRecord(
 		MediaURL:  urlPath,
 		MediaType: mediaType,
 		Filename:  safeName,
+		IsSpoiler: isSpoiler,
 	}, nil
 }

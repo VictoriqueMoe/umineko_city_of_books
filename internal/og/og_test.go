@@ -474,3 +474,52 @@ func TestResolver_Resolve_CasingDoesNotPoisonOtherEntities(t *testing.T) {
 	// then the real page still gets its own card
 	assert.Contains(t, html, `property="og:title" content="Past Games - When They Cry City of Books"`)
 }
+
+func TestResolver_Resolve_PostSpoilerImageStaysOffTheCard(t *testing.T) {
+	postID := uuid.New()
+
+	tests := []struct {
+		name      string
+		media     []model.PostMediaRow
+		wantImage bool
+	}{
+		{
+			name:      "an ordinary attachment becomes the card image",
+			media:     []model.PostMediaRow{{MediaURL: "/uploads/posts/one.png", MediaType: "image"}},
+			wantImage: true,
+		},
+		{
+			name:      "a spoilered attachment is withheld",
+			media:     []model.PostMediaRow{{MediaURL: "/uploads/posts/ending.png", MediaType: "image", IsSpoiler: true}},
+			wantImage: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a post whose first attachment may or may not be a spoiler
+			ss := settings.NewMockService(t)
+			ss.EXPECT().Get(mock.Anything, config.SettingOGDefaultImage).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("")
+			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
+
+			postRepo := repository.NewMockPostRepository(t)
+			postRepo.EXPECT().GetByID(mock.Anything, postID, uuid.Nil).
+				Return(&model.PostRow{ID: postID, Body: "look at this"}, nil)
+			postRepo.EXPECT().GetMedia(mock.Anything, postID).Return(tc.media, nil)
+
+			r := &Resolver{settingsSvc: ss, postRepo: postRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
+
+			// when a crawler unfurls the post
+			html := r.Resolve(context.Background(), "/game-board/"+postID.String(), "")
+
+			// then a spoilered image never reaches the card
+			if tc.wantImage {
+				assert.Contains(t, html, "/uploads/posts/one.png")
+				return
+			}
+
+			assert.NotContains(t, html, "ending.png")
+		})
+	}
+}

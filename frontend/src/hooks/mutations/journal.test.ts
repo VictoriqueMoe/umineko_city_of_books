@@ -556,7 +556,7 @@ describe("useUploadJournalEntryMedia", () => {
         });
 
         // then
-        expect(mocks.uploadJournalEntryMedia).toHaveBeenCalledWith(entryId, file);
+        expect(mocks.uploadJournalEntryMedia).toHaveBeenCalledWith(entryId, file, false);
         expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: journalKey });
     });
 });

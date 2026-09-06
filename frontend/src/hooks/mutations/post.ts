@@ -71,7 +71,8 @@ export function useDeletePost() {
 export function useUploadPostMedia(id: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (file: File) => uploadPostMedia(id, file),
+        mutationFn: ({ file, isSpoiler }: { file: File; isSpoiler?: boolean }) =>
+            uploadPostMedia(id, file, isSpoiler ?? false),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.post.detail(id) });
         },
@@ -81,7 +82,8 @@ export function useUploadPostMedia(id: string) {
 export function useUploadPostMediaById() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, file }: { id: string; file: File }) => uploadPostMedia(id, file),
+        mutationFn: ({ id, file, isSpoiler }: { id: string; file: File; isSpoiler?: boolean }) =>
+            uploadPostMedia(id, file, isSpoiler ?? false),
         onSuccess: (_d, vars) => {
             qc.invalidateQueries({ queryKey: queryKeys.post.detail(vars.id) });
         },
@@ -201,7 +203,8 @@ export function useUnlikeComment(postId: string) {
 export function useUploadCommentMedia(postId: string) {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ commentId, file }: { commentId: string; file: File }) => uploadCommentMedia(commentId, file),
+        mutationFn: ({ commentId, file, isSpoiler }: { commentId: string; file: File; isSpoiler?: boolean }) =>
+            uploadCommentMedia(commentId, file, isSpoiler ?? false),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: queryKeys.post.detail(postId) });
         },
