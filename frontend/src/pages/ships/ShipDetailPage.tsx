@@ -7,6 +7,7 @@ import { useShip } from "../../hooks/queries/ship";
 import { useDeleteShip, useUpdateShip, useVoteShip } from "../../hooks/mutations/ship";
 import { useAuth } from "../../hooks/useAuth";
 import { useCommentHandlers } from "../../hooks/useCommentHandlers";
+import { useResetOnChange } from "../../hooks/useResetOnChange";
 import { contentPermissions } from "../../domain/contentPermissions";
 import { errorMessage } from "../../utils/errorMessage";
 import { Button } from "../../components/Button/Button";
@@ -49,6 +50,19 @@ export function ShipDetailPage() {
     const [saving, setSaving] = useState(false);
     const [editError, setEditError] = useState("");
     const [voteError, setVoteError] = useState("");
+
+    useResetOnChange(id, () => {
+        setVoting(false);
+        setLightboxOpen(false);
+        setEditing(false);
+        setEditTitle("");
+        setEditDesc("");
+        setEditChars([]);
+        setSaving(false);
+        setEditError("");
+        setVoteError("");
+    });
+
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;
 

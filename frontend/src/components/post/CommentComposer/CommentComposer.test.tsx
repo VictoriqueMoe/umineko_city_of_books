@@ -335,4 +335,17 @@ describe("CommentComposer", () => {
         // then
         expect(await screen.findByText("giphy is unreachable")).toBeInTheDocument();
     });
+
+    it("drops an unsent draft when the composer is reused for another post", async () => {
+        // given an unsent draft on one post
+        const user = userEvent.setup();
+        const { rerender } = setup();
+        await user.type(screen.getByPlaceholderText("Write a comment..."), "Beato did it");
+
+        // when the same instance is handed a different post, as it is when the route id changes
+        rerender(<CommentComposer postId="post-2" onCreated={() => {}} />);
+
+        // then the draft does not follow the reader to the other post
+        expect(screen.getByPlaceholderText("Write a comment...")).toHaveValue("");
+    });
 });

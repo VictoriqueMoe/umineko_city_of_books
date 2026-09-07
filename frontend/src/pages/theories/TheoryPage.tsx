@@ -3,6 +3,7 @@ import { useLocation, useNavigate, useParams } from "react-router";
 import { useTheory } from "../../hooks/queries/theory";
 import { useScrollToHash } from "../../hooks/useScrollToHash";
 import { useDeleteTheory, useVoteTheory } from "../../hooks/mutations/theory";
+import { useResetOnChange } from "../../hooks/useResetOnChange";
 import { useVote } from "../../hooks/useVote";
 import { useAuth } from "../../hooks/useAuth";
 import { usePageTitle } from "../../hooks/usePageTitle";
@@ -49,6 +50,11 @@ export function TheoryPage() {
     const { score, userVote, vote } = useVote(theory?.vote_score ?? 0, theory?.user_vote ?? 0, voteFn);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const refuteMutation = useRefuteTheory(theoryId);
+
+    useResetOnChange(theoryId, () => {
+        setSpoilerDismissed(false);
+        setDeleteConfirmOpen(false);
+    });
 
     const subject: ContentSubject = { family: "theory", authorId: theory?.author.id };
     const isAuthor = isContentOwner(user, subject);

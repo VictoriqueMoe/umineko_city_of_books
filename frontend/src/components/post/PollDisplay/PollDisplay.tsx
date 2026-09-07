@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import type { Poll } from "../../../types/api";
 import { useVotePoll } from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
+import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { parseServerDate } from "../../../utils/time";
 import { Button } from "../../Button/Button";
 import styles from "./PollDisplay.module.css";
@@ -39,6 +40,12 @@ export function PollDisplay({ poll: initialPoll, postId, onVoted }: PollDisplayP
     const [selected, setSelected] = useState<number | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const voteMutation = useVotePoll();
+
+    useResetOnChange(postId, () => {
+        setPoll(initialPoll);
+        setSelected(null);
+        setSubmitting(false);
+    });
 
     const hasVoted = poll.user_voted_option !== null;
     const showResults = hasVoted || poll.expired;

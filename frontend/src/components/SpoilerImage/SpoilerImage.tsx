@@ -30,7 +30,7 @@ export function SpoilerImage({
     onError,
 }: SpoilerImageProps) {
     return (
-        <SpoilerCover isSpoiler={isSpoiler} className={className} compact={compact} onClick={onClick}>
+        <SpoilerCover isSpoiler={isSpoiler} contentKey={src} className={className} compact={compact} onClick={onClick}>
             {covered => (
                 <img
                     src={src}

@@ -261,4 +261,22 @@ describe("PollDisplay", () => {
         // then
         expect(screen.getByText("Poll ended")).toBeInTheDocument();
     });
+
+    it("shows the other post's poll when reused for a different post", () => {
+        // given a poll the viewer has already voted in
+        const voted = makePoll({ user_voted_option: 0, total_votes: 1 });
+        const { rerender } = setup(voted);
+
+        // when the same instance is handed a different post, as it is when the route id changes
+        const other = makePoll({
+            id: "poll-2",
+            options: [makeOption({ id: 0, label: "Bernkastel" }), makeOption({ id: 1, label: "Lambdadelta" })],
+        });
+        rerender(<PollDisplay poll={other} postId="post-2" />);
+
+        // then
+        expect(screen.getByText("Bernkastel")).toBeInTheDocument();
+        expect(screen.queryByText("Beatrice")).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Submit Vote" })).toBeInTheDocument();
+    });
 });

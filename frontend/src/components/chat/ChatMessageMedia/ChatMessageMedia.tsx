@@ -21,7 +21,7 @@ export function ChatMessageMedia({ media, itemClassName, videoClassName, onLight
         }
 
         return (
-            <SpoilerCover isSpoiler className={styles.audioCover}>
+            <SpoilerCover isSpoiler contentKey={media.media_url} className={styles.audioCover}>
                 {covered =>
                     covered ? (
                         <div className={styles.audioPlaceholder} />
@@ -48,7 +48,7 @@ export function ChatMessageMedia({ media, itemClassName, videoClassName, onLight
         }
 
         return (
-            <SpoilerCover isSpoiler className={styles.mediaCover}>
+            <SpoilerCover isSpoiler contentKey={media.media_url} className={styles.mediaCover}>
                 {covered => (
                     <video
                         className={`${videoClass} ${spoilerBlurClass(covered)}`}

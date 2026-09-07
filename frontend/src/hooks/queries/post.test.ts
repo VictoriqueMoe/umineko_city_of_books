@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import type { QueryClient } from "@tanstack/react-query";
+import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Post, PostDetail, PostListResponse } from "../../types/api";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
@@ -228,6 +228,24 @@ describe("usePost", () => {
         // then
         await waitFor(() => expect(result.current.loading).toBe(false));
         expect(result.current.post).toEqual({ id: "p-2", body: "the witch laughed" });
+    });
+
+    it("never reports loading when the id switches to a post already in the cache", () => {
+        // given
+        const qc = new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 30_000 } } });
+        qc.setQueryData(queryKeys.post.detail("p-a"), { id: "p-a", body: "based" });
+        qc.setQueryData(queryKeys.post.detail("p-b"), { id: "p-b", body: "erika" });
+        const { result, rerender } = renderHook(({ id }: { id: string }) => usePost(id), {
+            wrapper: providerWrapper({ queryClient: qc }),
+            initialProps: { id: "p-a" },
+        });
+
+        // when
+        rerender({ id: "p-b" });
+
+        // then
+        expect(result.current.loading).toBe(false);
+        expect(result.current.post).toEqual({ id: "p-b", body: "erika" });
     });
 
     it("fetches the post again when refresh is called", async () => {

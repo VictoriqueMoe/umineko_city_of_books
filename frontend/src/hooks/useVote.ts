@@ -1,20 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useRef } from "react";
+import { useSyncedState } from "./useResetOnChange";
 
 export function useVote(initialScore: number, initialUserVote: number, voteFn: (value: number) => Promise<void>) {
-    const [score, setScore] = useState(initialScore);
-    const [userVote, setUserVote] = useState(initialUserVote);
-    const [prevInitialScore, setPrevInitialScore] = useState(initialScore);
-    const [prevInitialUserVote, setPrevInitialUserVote] = useState(initialUserVote);
+    const [score, setScore] = useSyncedState(initialScore);
+    const [userVote, setUserVote] = useSyncedState(initialUserVote);
     const latestRequest = useRef(0);
-
-    if (prevInitialScore !== initialScore) {
-        setPrevInitialScore(initialScore);
-        setScore(initialScore);
-    }
-    if (prevInitialUserVote !== initialUserVote) {
-        setPrevInitialUserVote(initialUserVote);
-        setUserVote(initialUserVote);
-    }
 
     const vote = useCallback(
         async (value: number) => {
@@ -38,7 +28,7 @@ export function useVote(initialScore: number, initialUserVote: number, voteFn: (
                 setUserVote(oldVote);
             }
         },
-        [score, userVote, voteFn],
+        [score, userVote, voteFn, setScore, setUserVote],
     );
 
     return { score, userVote, vote };

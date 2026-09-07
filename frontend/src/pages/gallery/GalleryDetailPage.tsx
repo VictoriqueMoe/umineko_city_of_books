@@ -4,6 +4,7 @@ import { usePageTitle } from "../../hooks/usePageTitle";
 import { useGallery } from "../../hooks/queries/art";
 import { useDeleteGallery, useSetArtGallery, useSetGalleryCover, useUpdateGallery } from "../../hooks/mutations/art";
 import { useAuth } from "../../hooks/useAuth";
+import { useResetOnChange } from "../../hooks/useResetOnChange";
 import { ArtUploadForm } from "../../components/art/ArtUploadForm/ArtUploadForm";
 import { ProfileLink } from "../../components/ProfileLink/ProfileLink";
 import { SpoilerImage } from "../../components/SpoilerImage/SpoilerImage";
@@ -19,13 +20,23 @@ export function GalleryDetailPage() {
     const { user } = useAuth();
     const limit = 24;
     const [offset, setOffset] = useState(0);
-    const { gallery, art, total, loading, refresh } = useGallery(id ?? "", limit, offset);
-    usePageTitle(gallery?.name ?? "Gallery");
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [editName, setEditName] = useState("");
     const [editDesc, setEditDesc] = useState("");
     const [managing, setManaging] = useState(false);
+
+    useResetOnChange(id, () => {
+        setOffset(0);
+        setDeleteConfirmOpen(false);
+        setEditing(false);
+        setEditName("");
+        setEditDesc("");
+        setManaging(false);
+    });
+
+    const { gallery, art, total, loading, refresh } = useGallery(id ?? "", limit, offset);
+    usePageTitle(gallery?.name ?? "Gallery");
 
     const deleteGalleryMutation = useDeleteGallery();
     const updateGalleryMutation = useUpdateGallery(id ?? "");

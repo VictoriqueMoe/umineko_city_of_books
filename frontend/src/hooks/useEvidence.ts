@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { EvidenceInput, EvidenceItem, Quote, Series } from "../types/api";
 import { evidenceQuoteKey, useEvidenceQuotes } from "./queries/quote";
+import { useResetOnChange } from "./useResetOnChange";
 
 const DEFAULT_LANG = "en";
 const NO_EVIDENCE: readonly EvidenceItem[] = [];
@@ -25,6 +26,11 @@ export function useEvidence(initialEvidence?: EvidenceItem[], series: Series = "
 
     const seed = initialEvidence ?? NO_EVIDENCE;
     const { quotes, settled } = useEvidenceQuotes(seed, series, DEFAULT_LANG);
+
+    useResetOnChange(series, () => {
+        setEvidence([]);
+        setPickerOpen(false);
+    });
 
     useEffect(() => {
         if (initialised.current || seed.length === 0 || !settled) {

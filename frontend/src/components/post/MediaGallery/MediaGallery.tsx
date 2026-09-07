@@ -39,7 +39,11 @@ export function MediaGallery({ media }: MediaGalleryProps) {
             <div className={`${styles.gallery} ${gridClass}`}>
                 {media.map((item, i) => (
                     <div key={item.id} className={itemClass(i)}>
-                        <SpoilerCover isSpoiler={item.is_spoiler ?? false} className={styles.cover}>
+                        <SpoilerCover
+                            isSpoiler={item.is_spoiler ?? false}
+                            contentKey={item.media_url}
+                            className={styles.cover}
+                        >
                             {covered =>
                                 item.media_type === "audio" ? (
                                     <AudioAttachment src={item.media_url} filename={item.filename} />

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import type { Series } from "../../../types/api";
 import { useCreateResponse } from "../../../hooks/mutations/theory";
 import { useEvidence } from "../../../hooks/useEvidence";
+import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { getSeriesConfig } from "../../../domain/series";
 import { Button } from "../../Button/Button";
 import { Input } from "../../Input/Input";
@@ -33,6 +34,14 @@ export function ResponseEditor({
     const ev = useEvidence(undefined, series);
     const isReply = parentId !== undefined;
     const createMutation = useCreateResponse(theoryId);
+
+    useResetOnChange(theoryId, () => {
+        setSide(inheritedSide ?? null);
+        setBody("");
+        setSubmitting(false);
+        setError("");
+        ev.clear();
+    });
 
     async function handleSubmit(e: React.SubmitEvent) {
         e.preventDefault();

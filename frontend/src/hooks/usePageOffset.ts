@@ -1,8 +1,10 @@
 import { useCallback, useState } from "react";
 import { useSearchParams } from "react-router";
+import { useResetOnChange } from "./useResetOnChange";
 
 export interface PageOffsetOptions {
     limit: number;
+    resetKey?: unknown;
 }
 
 export interface SearchParamPageOptions extends PageOffsetOptions {
@@ -41,8 +43,12 @@ function parsePageIndex(raw: string | null, firstPage: number): number {
     return Math.max(0, Math.floor(parsed) - firstPage);
 }
 
-export function usePageOffset({ limit }: PageOffsetOptions): PageOffset {
+export function usePageOffset({ limit, resetKey }: PageOffsetOptions): PageOffset {
     const [offset, setOffset] = useState(0);
+
+    useResetOnChange(resetKey, () => {
+        setOffset(0);
+    });
 
     const goNext = useCallback(() => {
         setOffset(current => current + limit);

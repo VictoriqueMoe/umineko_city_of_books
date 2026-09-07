@@ -119,10 +119,15 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
         return () => {
             abortRef.current?.abort();
             abortRef.current = null;
+            joiningRef.current = false;
             disconnectRoom(roomRef.current);
             roomRef.current = null;
+            setRoom(null);
+            setStatus("idle");
+            setError(null);
+            setWsPresence(null);
         };
-    }, []);
+    }, [roomId]);
 
     return {
         status,

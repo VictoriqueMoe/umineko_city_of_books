@@ -6,6 +6,7 @@ import { useArt } from "../../hooks/queries/art";
 import { useDeleteArt, useLikeArt, useUnlikeArt, useUpdateArt } from "../../hooks/mutations/art";
 import { useAuth } from "../../hooks/useAuth";
 import { useCommentHandlers } from "../../hooks/useCommentHandlers";
+import { useResetOnChange } from "../../hooks/useResetOnChange";
 import { contentPermissions, isContentOwner, type ContentSubject } from "../../domain/contentPermissions";
 import { renderRich } from "../../components/richText/richText";
 import { parseServerDate } from "../../utils/time";
@@ -37,6 +38,16 @@ export function ArtDetailPage() {
     const [editSpoiler, setEditSpoiler] = useState(false);
     const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
+
+    useResetOnChange(id, () => {
+        setEditing(false);
+        setEditTitle("");
+        setEditDesc("");
+        setEditTags([]);
+        setEditSpoiler(false);
+        setDeleteConfirmOpen(false);
+        setLightboxOpen(false);
+    });
 
     const hash = location.hash;
     const highlightedComment = hash.startsWith("#comment-") ? hash.replace("#comment-", "") : null;

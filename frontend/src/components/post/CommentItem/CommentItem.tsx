@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { CommentBase } from "../../../types/api";
 import { useDeleteComment, useLikeComment, useUnlikeComment, useUpdateComment } from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
+import { useSyncedState } from "../../../hooks/useResetOnChange";
 import { can } from "../../../domain/permissions";
 import { extractGif } from "../../../utils/gif";
 import { renderRich } from "../../richText/richText";
@@ -85,8 +86,8 @@ function SingleComment({
     const doUpdate =
         updateFn || ((id: string, body: string) => updateMutation.mutateAsync({ commentId: id, body }).then(() => {}));
 
-    const [liked, setLiked] = useState(comment.user_liked);
-    const [likeCount, setLikeCount] = useState(comment.like_count);
+    const [liked, setLiked] = useSyncedState(comment.user_liked);
+    const [likeCount, setLikeCount] = useSyncedState(comment.like_count);
     const [showReply, setShowReply] = useState(false);
     const [editing, setEditing] = useState(false);
     const [editBody, setEditBody] = useState(comment.body);
@@ -207,7 +208,14 @@ function SingleComment({
                 )}
 
                 {canEditComment && !editing && (
-                    <Button variant="ghost" size="small" onClick={() => setEditing(true)}>
+                    <Button
+                        variant="ghost"
+                        size="small"
+                        onClick={() => {
+                            setEditBody(comment.body);
+                            setEditing(true);
+                        }}
+                    >
                         Edit
                     </Button>
                 )}

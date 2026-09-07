@@ -619,4 +619,26 @@ describe("PostCard", () => {
         // then
         expect(open).toHaveBeenCalledWith(`/game-board/${postId}`, "_blank");
     });
+
+    it("drops the previous post's body, media and like state when reused for another post", () => {
+        // given the card is showing one post
+        const first = makePost({ body: "based", like_count: 4, user_liked: true });
+        const second = makePost({
+            id: "22222222-2222-2222-2222-222222222222",
+            body: "furudo erika if she was a beautiful black woman",
+            media: [makeMedia(1)],
+            like_count: 0,
+            user_liked: false,
+        });
+        const { container, rerender } = renderCard(first, { user: strangerProfile });
+
+        // when the same instance is handed a different post, as it is when the route id changes
+        rerender(<PostCard post={second} />);
+
+        // then nothing of the first post survives
+        expect(screen.getByText("furudo erika if she was a beautiful black woman")).toBeInTheDocument();
+        expect(screen.queryByText("based")).not.toBeInTheDocument();
+        expect(container.querySelector('img[src="https://witch.test/media-1.png"]')).not.toBeNull();
+        expect(likeButton()).toHaveTextContent("♡");
+    });
 });

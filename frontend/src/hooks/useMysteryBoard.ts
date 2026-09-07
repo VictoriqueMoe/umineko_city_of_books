@@ -15,6 +15,7 @@ import { readCursorKey, unreadAuthorIds } from "../domain/mystery/unread";
 import type { MysteryAttachment, MysteryAttempt, MysteryClue, MysteryDetail } from "../types/api";
 import { errorMessage } from "../utils/errorMessage";
 import { useAuth } from "./useAuth";
+import { useResetOnChange } from "./useResetOnChange";
 import { stageMedia, type StagedMedia } from "./useStagedMedia";
 import { type CommentHandlers, useCommentHandlers } from "./useCommentHandlers";
 import { useMystery } from "./queries/mystery";
@@ -161,6 +162,21 @@ export function useMysteryBoard(mysteryId: string): MysteryBoard {
     const pendingMediaSpoilers = useMemo(() => pendingStaged.map(s => s.isSpoiler), [pendingStaged]);
     const [uploadingMedia, setUploadingMedia] = useState(false);
     const [mediaError, setMediaError] = useState("");
+
+    useResetOnChange(mysteryId, () => {
+        setAttemptBody("");
+        setSubmitting(false);
+        setNewClueBody("");
+        setAddingClue(false);
+        setCollapsedPlayers(new Set());
+        setArrivedPlayers(new Set());
+        setReadPlayers(new Set());
+        setUploadingAttachment(false);
+        setAttachmentError("");
+        setPendingStaged([]);
+        setUploadingMedia(false);
+        setMediaError("");
+    });
 
     const attempts = mystery?.attempts ?? NO_ATTEMPTS;
 

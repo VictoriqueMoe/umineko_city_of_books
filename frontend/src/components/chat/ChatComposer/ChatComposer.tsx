@@ -3,6 +3,7 @@ import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
 import { readChatSendRejection, useSendChatMessage, useSendFirstDMMessage } from "../../../hooks/mutations/chat";
+import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { formatFullDateTime, parseServerDate } from "../../../utils/time";
@@ -117,6 +118,14 @@ export function ChatComposer({
     }, [timeoutUntil]);
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
     const lastTypingSentRef = useRef(0);
+
+    useResetOnChange(roomId ?? draftRecipientId, () => {
+        setBody("");
+        setAttachments([]);
+        setSubmitting(false);
+        setError("");
+        setGifPickerOpen(false);
+    });
 
     const replyTargetId = replyingTo?.id ?? null;
     useEffect(() => {

@@ -4,6 +4,7 @@ import { groupByAuthor, type ArtistGalleries } from "../domain/art/groupByAuthor
 import type { Art, Gallery, TagCount, UserProfile } from "../types/api";
 import { errorMessage } from "../utils/errorMessage";
 import { useAuth } from "./useAuth";
+import { useResetOnChange } from "./useResetOnChange";
 import { useSearchParamPage, type PageOffset } from "./usePageOffset";
 import { useCreateGallery } from "./mutations/art";
 import { useAllGalleries, useArtFeed } from "./queries/art";
@@ -63,6 +64,14 @@ export function useArtGallery(corner: string): ArtGallery {
     const [showUpload, setShowUpload] = useState(false);
     const [newGalleryName, setNewGalleryName] = useState("");
     const [galleryError, setGalleryError] = useState("");
+
+    useResetOnChange(corner, () => {
+        setSearchInput(search);
+        setSelectedGalleryOverride(null);
+        setShowUpload(false);
+        setNewGalleryName("");
+        setGalleryError("");
+    });
 
     const feed = useArtFeed(
         corner,

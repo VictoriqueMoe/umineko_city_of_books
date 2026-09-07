@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { useCreateComment, useUploadCommentMedia } from "../../../hooks/mutations/post";
+import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
 import { Button } from "../../Button/Button";
@@ -28,6 +29,15 @@ export function CommentComposer({ postId, parentId, onCreated, createCommentFn, 
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState("");
     const [gifPickerOpen, setGifPickerOpen] = useState(false);
+
+    useResetOnChange(postId, () => {
+        setBody("");
+        setSubmitting(false);
+        setError("");
+        setGifPickerOpen(false);
+        media.reset();
+    });
+
     const createCommentMutation = useCreateComment(postId);
     const uploadMediaMutation = useUploadCommentMedia(postId);
     const defaultCreate: CreateCommentFn = (_postId, b, parent) =>

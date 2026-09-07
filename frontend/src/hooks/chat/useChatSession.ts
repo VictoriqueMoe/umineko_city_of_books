@@ -150,6 +150,7 @@ export function useChatSession(options: UseChatSessionOptions): ChatSession {
     if (roomId !== undefined && roomId !== boundRoomId) {
         setBoundRoomId(roomId);
         setEndedRoomId(null);
+        setEditingMessageId(null);
     }
 
     const status = resolveStatus(roomId, boundRoomId, endedRoomId);

@@ -96,6 +96,20 @@ describe("SpoilerImage", () => {
         expect(screen.queryByText("Spoiler")).not.toBeInTheDocument();
     });
 
+    it("covers the next picture again when it takes the place of a revealed one", async () => {
+        // given a spoiler the viewer has uncovered
+        const user = userEvent.setup();
+        const { rerender } = renderWithProviders(<SpoilerImage src={SRC} alt="the golden truth" isSpoiler />);
+        await user.click(screen.getByAltText("the golden truth"));
+        expect(screen.queryByText("Spoiler")).not.toBeInTheDocument();
+
+        // when the same slot is handed a different picture
+        rerender(<SpoilerImage src="https://witch.test/other.png" alt="another truth" isSpoiler />);
+
+        // then
+        expect(screen.getByText("Spoiler")).toBeInTheDocument();
+    });
+
     it("reports a broken image through onError", () => {
         // given
         const onError = vi.fn();

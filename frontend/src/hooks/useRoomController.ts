@@ -5,6 +5,7 @@ import { typingNames as resolveTypingNames } from "../domain/chat/memberRoster";
 import { isTimeoutActive } from "../domain/chat/roomPolicy";
 import { queryKeys } from "../api/queryKeys";
 import { useDeleteChatRoom, useJoinChatRoom, useLeaveChatRoom } from "./mutations/chat";
+import { useResetOnChange } from "./useResetOnChange";
 import { useWatchParty } from "./useWatchParty";
 import { REALTIME_EVENTS } from "../api/realtime/events";
 import { useRealtimeEvent } from "../api/realtime/useRealtime";
@@ -61,6 +62,15 @@ export function useRoomController() {
     const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [inviteModalOpen, setInviteModalOpen] = useState(false);
     const [moderationDialogOpen, setModerationDialogOpen] = useState(false);
+
+    useResetOnChange(roomId, () => {
+        setJoining(false);
+        setPanelTab(null);
+        setLightboxSrc(null);
+        setEditProfileOpen(false);
+        setInviteModalOpen(false);
+        setModerationDialogOpen(false);
+    });
 
     const prefs = useRoomViewPrefs(roomId);
     const watchParty = useWatchParty(roomId ?? null, user?.id ?? null);

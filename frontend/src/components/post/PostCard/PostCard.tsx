@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import type { Post, PostMedia } from "../../../types/api";
 import {
@@ -10,6 +10,7 @@ import {
     useUploadPostMedia,
 } from "../../../hooks/mutations/post";
 import { useAuth } from "../../../hooks/useAuth";
+import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { usePostLikeEvents } from "../../../hooks/usePostEvents";
 import { can } from "../../../domain/permissions";
 import { extractGif } from "../../../utils/gif";
@@ -52,6 +53,24 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(0);
+
+    useResetOnChange(post.id, () => {
+        setLiked(post.user_liked);
+        setLikeCount(post.like_count);
+        setEditing(false);
+        setDisplayBody(post.body);
+        setEditBody(post.body);
+        setEditMedia(post.media);
+        setDisplayMedia(post.media);
+        setSaving(false);
+        setShareOpen(false);
+        setReplyOpen(false);
+    });
+
+    useEffect(() => {
+        pendingLikeRef.current = 0;
+    }, [post.id]);
+
     const likeMutation = useLikePost();
     const unlikeMutation = useUnlikePost();
     const deleteMutation = useDeletePost();

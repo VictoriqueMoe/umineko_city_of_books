@@ -17,6 +17,7 @@ import {
     type ChatSessionStatus,
 } from "./chat/useChatSession";
 import { useRoomScopedOverride } from "./chat/useRoomScopedOverride";
+import { useResetOnChange } from "./useResetOnChange";
 import {
     useAddChatMessageReaction,
     useMarkChatRoomRead,
@@ -140,11 +141,9 @@ export function useChatThread(options: ChatThreadOptions = {}): ChatThread {
     const [readReceipts, setReadReceipts] = useState<Record<string, Record<string, string>>>({});
     const [mutePending, setMutePending] = useState(false);
 
-    const [syncedRoomId, setSyncedRoomId] = useState(roomId);
-    if (syncedRoomId !== roomId) {
-        setSyncedRoomId(roomId);
+    useResetOnChange(roomId, () => {
         setReplyingTo(null);
-    }
+    });
 
     const session = useChatSession({
         roomId: attached ? roomId : undefined,

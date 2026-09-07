@@ -514,6 +514,19 @@ describe("ChatComposer", () => {
         expect(screen.queryByRole("button", { name: "choose gif" })).not.toBeInTheDocument();
     });
 
+    it("leaves an unsent draft behind when the reader opens another conversation", async () => {
+        // given a message typed but not sent
+        const user = userEvent.setup();
+        const { rerender } = renderComposer();
+        await user.type(screen.getByPlaceholderText(ENTER_PLACEHOLDER), "meet me at the rose garden");
+
+        // when the reader switches to a different conversation
+        rerender(<ChatComposer roomId="room-2" draftRecipientId={null} onSent={() => {}} />);
+
+        // then the draft does not follow them into it
+        expect(screen.getByPlaceholderText(ENTER_PLACEHOLDER)).toHaveValue("");
+    });
+
     it("reports a failure to send the chosen GIF", async () => {
         // given
         const user = userEvent.setup();

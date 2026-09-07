@@ -3,6 +3,7 @@ import { usePostPlayerChat, usePostSpectatorChat } from "../../../hooks/mutation
 import { usePlayerChat, useSpectatorChat } from "../../../hooks/queries/gameRoom";
 import { useAuth } from "../../../hooks/useAuth";
 import { useGameChatMessages, type GameChatEventName } from "../../../hooks/useGameChatMessages";
+import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { Button } from "../../Button/Button";
 import { RelativeTimestamp } from "../../RelativeTimestamp/RelativeTimestamp";
 import { renderRich } from "../../richText/richText";
@@ -58,6 +59,11 @@ export function GameChat({ roomId, variant, watcherCount = 0 }: GameChatProps) {
     const [body, setBody] = useState("");
     const [error, setError] = useState("");
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    useResetOnChange(roomId, () => {
+        setBody("");
+        setError("");
+    });
 
     useEffect(() => {
         if (scrollRef.current) {

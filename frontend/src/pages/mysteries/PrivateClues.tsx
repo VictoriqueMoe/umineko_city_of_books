@@ -1,5 +1,6 @@
 import { type MouseEvent, useState } from "react";
 import { cluesForPlayer } from "../../domain/mystery";
+import { useResetOnChange } from "../../hooks/useResetOnChange";
 import type { MysteryClue } from "../../types/api";
 import { renderRich } from "../../components/richText/richText";
 import { Button } from "../../components/Button/Button";
@@ -41,6 +42,14 @@ export function ClueCopyButton({ text }: { text: string }) {
     );
 }
 
+function readCollapsed(storageKey: string): boolean {
+    try {
+        return window.localStorage.getItem(storageKey) === "1";
+    } catch {
+        return false;
+    }
+}
+
 export function PrivateClues({
     clues,
     playerId,
@@ -61,13 +70,14 @@ export function PrivateClues({
     const storageKey = `mystery:${mysteryId}:private-clues:${playerId}:collapsed`;
     const [editingClueId, setEditingClueId] = useState<number | null>(null);
     const [editClueBody, setEditClueBody] = useState("");
-    const [collapsed, setCollapsed] = useState<boolean>(() => {
-        try {
-            return window.localStorage.getItem(storageKey) === "1";
-        } catch {
-            return false;
-        }
+    const [collapsed, setCollapsed] = useState<boolean>(() => readCollapsed(storageKey));
+
+    useResetOnChange(storageKey, () => {
+        setEditingClueId(null);
+        setEditClueBody("");
+        setCollapsed(readCollapsed(storageKey));
     });
+
     const playerClues = cluesForPlayer(clues, playerId);
 
     function toggleCollapsed() {

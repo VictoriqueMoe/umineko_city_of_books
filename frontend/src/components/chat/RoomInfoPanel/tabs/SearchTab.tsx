@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import DOMPurify from "dompurify";
 import type { SearchResult } from "../../../../types/api";
 import { useRoomMessageSearch } from "../../../../hooks/queries/search";
+import { useResetOnChange } from "../../../../hooks/useResetOnChange";
 import { Pagination } from "../../../Pagination/Pagination";
 import { RelativeTimestamp } from "../../../RelativeTimestamp/RelativeTimestamp";
 import { clampChars } from "../../../../utils/text";
@@ -24,6 +25,13 @@ export function SearchTab({ roomId, isActive, onJump, onJumped }: SearchTabProps
     const [term, setTerm] = useState("");
     const [debounced, setDebounced] = useState("");
     const [page, setPage] = useState(0);
+
+    useResetOnChange(roomId, () => {
+        setTerm("");
+        setDebounced("");
+        setPage(0);
+    });
+
     const offset = page * PAGE_LIMIT;
 
     useEffect(() => {

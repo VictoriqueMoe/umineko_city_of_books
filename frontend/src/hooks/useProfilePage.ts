@@ -5,6 +5,7 @@ import { useBlock } from "./useBlock";
 import { useFollow } from "./useFollow";
 import { usePageOffset, type PageOffset } from "./usePageOffset";
 import { usePageTitle } from "./usePageTitle";
+import { useResetOnChange } from "./useResetOnChange";
 import { useUserOCs } from "./queries/oc";
 import { useProfile } from "./queries/profile";
 import { useTheoryFeed } from "./queries/theory";
@@ -56,6 +57,11 @@ export function useProfilePage(username: string) {
     usePageTitle(profile?.display_name ?? "Profile");
 
     const [explicitTab, setExplicitTab] = useState<ProfileTab | null>(null);
+
+    useResetOnChange(username, () => {
+        setExplicitTab(null);
+    });
+
     const activeTab: ProfileTab =
         explicitTab ?? (profile?.private?.default_profile_tab as ProfileTab | undefined) ?? "posts";
     const setActiveTab = setExplicitTab as (tab: ProfileTab) => void;
@@ -66,7 +72,7 @@ export function useProfilePage(username: string) {
 
     const profileID = profile?.id ?? "";
 
-    const theoriesPage = usePageOffset({ limit: 20 });
+    const theoriesPage = usePageOffset({ limit: 20, resetKey: username });
     const theoriesQuery = useTheoryFeed({
         sort: "new",
         episode: 0,
@@ -76,55 +82,55 @@ export function useProfilePage(username: string) {
         enabled: activeTab === "theories" && !!profileID,
     });
 
-    const postsPage = usePageOffset({ limit: 20 });
+    const postsPage = usePageOffset({ limit: 20, resetKey: username });
     const postsQuery = useUserPosts(activeTab === "posts" ? profileID : "", postsPage.limit, postsPage.offset);
 
-    const artPage = usePageOffset({ limit: 24 });
+    const artPage = usePageOffset({ limit: 24, resetKey: username });
     const artQuery = useUserArt(activeTab === "art" ? profileID : "", artPage.limit, artPage.offset);
 
     const galleriesQuery = useUserGalleries(activeTab === "galleries" ? profileID : "");
 
-    const shipsPage = usePageOffset({ limit: 20 });
+    const shipsPage = usePageOffset({ limit: 20, resetKey: username });
     const shipsQuery = useUserShips(activeTab === "ships" ? profileID : "", shipsPage.limit, shipsPage.offset);
 
     const ocsQuery = useUserOCs(activeTab === "ocs" ? profileID : "");
 
-    const mysteriesPage = usePageOffset({ limit: 20 });
+    const mysteriesPage = usePageOffset({ limit: 20, resetKey: username });
     const mysteriesQuery = useUserMysteries(
         activeTab === "mysteries" ? profileID : "",
         mysteriesPage.limit,
         mysteriesPage.offset,
     );
 
-    const fanficsPage = usePageOffset({ limit: 20 });
+    const fanficsPage = usePageOffset({ limit: 20, resetKey: username });
     const fanficsQuery = useUserFanfics(
         activeTab === "fanfics" ? profileID : "",
         fanficsPage.limit,
         fanficsPage.offset,
     );
 
-    const favouritesPage = usePageOffset({ limit: 20 });
+    const favouritesPage = usePageOffset({ limit: 20, resetKey: username });
     const favouritesQuery = useUserFanficFavourites(
         activeTab === "fanfic-favourites" ? profileID : "",
         favouritesPage.limit,
         favouritesPage.offset,
     );
 
-    const journalsPage = usePageOffset({ limit: 20 });
+    const journalsPage = usePageOffset({ limit: 20, resetKey: username });
     const journalsQuery = useUserJournals(
         activeTab === "journals" ? profileID : "",
         journalsPage.limit,
         journalsPage.offset,
     );
 
-    const followedJournalsPage = usePageOffset({ limit: 20 });
+    const followedJournalsPage = usePageOffset({ limit: 20, resetKey: username });
     const followedJournalsQuery = useUserFollowedJournals(
         activeTab === "journal-follows" ? profileID : "",
         followedJournalsPage.limit,
         followedJournalsPage.offset,
     );
 
-    const activityPage = usePageOffset({ limit: 20 });
+    const activityPage = usePageOffset({ limit: 20, resetKey: username });
     const activityQuery = useUserActivity(
         activeTab === "activity" ? username : "",
         activityPage.limit,
