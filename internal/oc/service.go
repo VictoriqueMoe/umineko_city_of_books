@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -15,10 +16,11 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -147,7 +149,7 @@ func NewService(
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -221,7 +223,7 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 		return uuid.Nil, err
 	}
 
-	exists, err := s.ocRepo.HasOC(ctx, userID, name)
+	exists, err := s.ocRepo.HasOC(ctx, spec.OCNameLookup{UserID: userID, Name: name})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -231,7 +233,7 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 
 	description := strings.TrimSpace(req.Description)
 
-	created, err := s.ocRepo.Create(ctx, repository.NewOC{
+	created, err := s.ocRepo.Create(ctx, spec.NewOC{
 		UserID:           userID,
 		Name:             name,
 		Description:      description,
@@ -250,7 +252,7 @@ func (s *service) CreateOC(ctx context.Context, userID uuid.UUID, req dto.Create
 }
 
 func (s *service) GetOC(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.OCDetailResponse, error) {
-	row, err := s.ocRepo.GetByID(ctx, id, viewerID)
+	row, err := s.ocRepo.GetByID(ctx, spec.OCByID{ID: id, ViewerID: viewerID})
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +263,13 @@ func (s *service) GetOC(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (
 	gallery, _ := s.ocRepo.GetGallery(ctx, id)
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	comments, _, _ := s.ocRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	comments, _, _ := s.ocRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 
 	commentIDs := make([]uuid.UUID, len(comments))
 	for i, c := range comments {
@@ -306,7 +314,7 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 
 	description := strings.TrimSpace(req.Description)
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
-	if err := s.ocRepo.Update(ctx, repository.OCUpdate{
+	if err := s.ocRepo.Update(ctx, spec.OCUpdate{
 		ID:               id,
 		UserID:           userID,
 		Name:             name,
@@ -320,7 +328,7 @@ func (s *service) UpdateOC(ctx context.Context, id uuid.UUID, userID uuid.UUID, 
 
 	ownerID, err := s.ocRepo.GetAuthorID(ctx, id)
 	if err == nil {
-		row, _ := s.ocRepo.GetByID(ctx, id, ownerID)
+		row, _ := s.ocRepo.GetByID(ctx, spec.OCByID{ID: id, ViewerID: ownerID})
 		s.sendOwnerOCEvent(ownerID, "updated", row)
 	}
 	return nil
@@ -334,7 +342,7 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
 
-	paths, err := s.ocRepo.DeleteOC(ctx, repository.OCDeletion{
+	paths, err := s.ocRepo.DeleteOC(ctx, spec.OCDeletion{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: asAdmin,
@@ -347,15 +355,15 @@ func (s *service) DeleteOC(ctx context.Context, id uuid.UUID, userID uuid.UUID) 
 
 	s.sendOwnerOCDeleted(ownerID, id)
 
-	action := repository.AuditActionOCDelete
+	action := audit.ActionOCDelete
 	if ownerID != userID {
-		action = repository.AuditActionOCDeleteAdmin
+		action = audit.ActionOCDeleteAdmin
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetOC,
+		TargetType: audit.TargetOC,
 		TargetID:   id.String(),
 		SubjectID:  ownerID,
 	})
@@ -379,7 +387,17 @@ func (s *service) ListOCs(
 ) (*dto.OCListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	rows, total, err := s.ocRepo.List(ctx, viewerID, sort, crackOCsOnly, series, customSeriesName, ownerID, page.Limit(), page.Offset(), blockedIDs)
+	rows, total, err := s.ocRepo.List(ctx, spec.OCListFilter{
+		ViewerID:         viewerID,
+		Sort:             sort,
+		CrackOCsOnly:     crackOCsOnly,
+		Series:           series,
+		CustomSeriesName: customSeriesName,
+		OwnerID:          ownerID,
+		Limit:            page.Limit(),
+		Offset:           page.Offset(),
+		ExcludeUserIDs:   blockedIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -393,7 +411,12 @@ func (s *service) ListOCsByUser(
 	viewerID uuid.UUID,
 	page bounds.Page,
 ) (*dto.OCListResponse, error) {
-	rows, total, err := s.ocRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.ocRepo.ListByUser(ctx, spec.OCUserListFilter{
+		UserID:   userID,
+		ViewerID: viewerID,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -449,11 +472,11 @@ func (s *service) UploadOCImage(ctx context.Context, ocID uuid.UUID, userID uuid
 		return "", err
 	}
 
-	if err := s.ocRepo.UpdateImage(ctx, ocID, urlPath, ""); err != nil {
+	if err := s.ocRepo.UpdateImage(ctx, spec.OCImageUpdate{ID: ocID, ImageURL: urlPath, ThumbnailURL: ""}); err != nil {
 		return "", err
 	}
 
-	row, _ := s.ocRepo.GetByID(ctx, ocID, authorID)
+	row, _ := s.ocRepo.GetByID(ctx, spec.OCByID{ID: ocID, ViewerID: authorID})
 	s.sendOwnerOCEvent(authorID, "updated", row)
 	return urlPath, nil
 }
@@ -488,7 +511,13 @@ func (s *service) AddGalleryImage(
 	}
 
 	existing, _ := s.ocRepo.GetGallery(ctx, ocID)
-	id, err := s.ocRepo.AddGalleryImage(ctx, ocID, urlPath, "", caption, len(existing))
+	id, err := s.ocRepo.AddGalleryImage(ctx, spec.NewOCGalleryImage{
+		OCID:         ocID,
+		ImageURL:     urlPath,
+		ThumbnailURL: "",
+		Caption:      caption,
+		SortOrder:    len(existing),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -521,7 +550,12 @@ func (s *service) UpdateGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 		req.SortOrder = &clamped
 	}
 
-	return s.ocRepo.UpdateGalleryImage(ctx, imageID, ocID, req.Caption, req.SortOrder)
+	return s.ocRepo.UpdateGalleryImage(ctx, spec.OCGalleryImageUpdate{
+		ID:        imageID,
+		OCID:      ocID,
+		Caption:   req.Caption,
+		SortOrder: req.SortOrder,
+	})
 }
 
 func (s *service) DeleteGalleryImage(ctx context.Context, ocID uuid.UUID, imageID int64, userID uuid.UUID) error {
@@ -532,7 +566,7 @@ func (s *service) DeleteGalleryImage(ctx context.Context, ocID uuid.UUID, imageI
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
 		return fmt.Errorf("not the oc owner")
 	}
-	return s.ocRepo.DeleteGalleryImage(ctx, imageID, ocID)
+	return s.ocRepo.DeleteGalleryImage(ctx, spec.MediaDeletion{ID: imageID, TargetID: ocID})
 }
 
 func (s *service) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, value int) error {
@@ -543,7 +577,7 @@ func (s *service) Vote(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, va
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
 		return block.ErrUserBlocked
 	}
-	return s.ocRepo.Vote(ctx, userID, ocID, value)
+	return s.ocRepo.Vote(ctx, spec.Vote{UserID: userID, TargetID: ocID, Value: value})
 }
 
 func (s *service) ToggleFavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID) (bool, error) {
@@ -555,7 +589,7 @@ func (s *service) ToggleFavourite(ctx context.Context, userID uuid.UUID, ocID uu
 		return false, block.ErrUserBlocked
 	}
 
-	row, err := s.ocRepo.GetByID(ctx, ocID, userID)
+	row, err := s.ocRepo.GetByID(ctx, spec.OCByID{ID: ocID, ViewerID: userID})
 	if err != nil {
 		return false, err
 	}
@@ -564,13 +598,13 @@ func (s *service) ToggleFavourite(ctx context.Context, userID uuid.UUID, ocID uu
 	}
 
 	if row.UserFavourited {
-		if err := s.ocRepo.Unfavourite(ctx, userID, ocID); err != nil {
+		if err := s.ocRepo.Unfavourite(ctx, spec.Like{UserID: userID, TargetID: ocID}); err != nil {
 			return false, err
 		}
 		return false, nil
 	}
 
-	if err := s.ocRepo.Favourite(ctx, userID, ocID); err != nil {
+	if err := s.ocRepo.Favourite(ctx, spec.Like{UserID: userID, TargetID: ocID}); err != nil {
 		return false, err
 	}
 
@@ -678,12 +712,14 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrNotFound
 	}
 
-	if s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		err = s.ocRepo.UpdateCommentAsAdmin(ctx, id, body)
-	} else {
-		err = s.ocRepo.UpdateComment(ctx, id, userID, body)
-	}
-	if err != nil {
+	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
+
+	if err := s.ocRepo.UpdateComment(ctx, spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
+	}); err != nil {
 		return err
 	}
 
@@ -691,10 +727,10 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return nil
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionOCCommentUpdateAdmin,
-		TargetType: repository.AuditTargetOCComment,
+		Action:     audit.ActionOCCommentUpdateAdmin,
+		TargetType: audit.TargetOCComment,
 		TargetID:   id.String(),
 		SubjectID:  authorID,
 	})
@@ -705,7 +741,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
 
-	paths, err := s.ocRepo.DeleteCommentWithMedia(ctx, repository.OCCommentDeletion{
+	paths, err := s.ocRepo.DeleteCommentWithMedia(ctx, spec.CommentDeletion{
 		CommentID: id,
 		UserID:    userID,
 		AsAdmin:   asAdmin,
@@ -727,7 +763,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return block.ErrUserBlocked
 	}
-	if err := s.ocRepo.LikeComment(ctx, userID, commentID); err != nil {
+	if err := s.ocRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
 
@@ -756,7 +792,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.ocRepo.UnlikeComment(ctx, userID, commentID)
+	return s.ocRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UploadCommentMedia(
@@ -779,14 +815,22 @@ func (s *service) UploadCommentMedia(
 
 	return s.uploader.SaveAndRecord(ctx, "ocs", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.ocRepo.AddCommentMedia(ctx, commentID, mediaURL, mediaType, thumbURL, filename, sortOrder, isSpoiler)
+			return s.ocRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:     commentID,
+				MediaURL:     mediaURL,
+				MediaType:    mediaType,
+				ThumbnailURL: thumbURL,
+				Filename:     filename,
+				SortOrder:    sortOrder,
+				IsSpoiler:    isSpoiler,
+			})
 		},
 		s.ocRepo.UpdateCommentMediaURL,
 		s.ocRepo.UpdateCommentMediaThumbnail,
 	)
 }
 
-func ocCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.OCCommentResponse {
+func ocCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.OCCommentResponse {
 	return dto.OCCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,

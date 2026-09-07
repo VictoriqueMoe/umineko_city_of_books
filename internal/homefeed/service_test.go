@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/homefeed"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
@@ -19,7 +20,7 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
 	hub := ws.NewHub()
-	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	svc := homefeed.NewService(repo, hub, nil)
 
 	theoryID := uuid.New()
@@ -29,19 +30,19 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 	authorID := uuid.New()
 	memberID := uuid.New()
 	roomID := uuid.New()
-	repo.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{
+	repo.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]model.HomeActivityRow{
 		{Kind: "theory", ID: theoryID, Title: "T", Body: "x", Corner: "umineko", AuthorID: authorID, Username: "u", DisplayName: "U"},
 		{Kind: "post", ID: postID, Title: "", Body: "p", Corner: "general", AuthorID: authorID, Username: "u", DisplayName: "U"},
 		{Kind: "journal", ID: journalID, Title: "J", Body: "j", AuthorID: authorID},
 		{Kind: "art", ID: artID, Title: "A", AuthorID: authorID},
 	}, nil)
-	repo.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]repository.HomeMemberRow{
+	repo.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]model.HomeMemberRow{
 		{ID: memberID, Username: "newbie", DisplayName: "Newbie"},
 	}, nil)
-	repo.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]repository.HomePublicRoomRow{
+	repo.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]model.HomePublicRoomRow{
 		{ID: roomID, Name: "Hangout", Description: "d", MemberCount: 3, LastMessageAt: new("2026-04-24T12:00:00Z")},
 	}, nil)
-	repo.EXPECT().ListCornerActivity24h(mock.Anything).Return([]repository.HomeCornerActivityRow{
+	repo.EXPECT().ListCornerActivity24h(mock.Anything).Return([]model.HomeCornerActivityRow{
 		{Corner: "umineko", PostCount: 7, UniquePosters: 3, LastPostAt: new("2026-04-24T11:00:00Z")},
 	}, nil)
 
@@ -72,14 +73,14 @@ func TestService_HomeActivity_ComposesAllSections(t *testing.T) {
 func TestService_HomeActivity_UnknownKindFallsBackToRoot(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
-	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	svc := homefeed.NewService(repo, ws.NewHub(), nil)
-	repo.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{
+	repo.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]model.HomeActivityRow{
 		{Kind: "mystery", ID: uuid.New()},
 	}, nil)
-	repo.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]repository.HomeMemberRow{}, nil)
-	repo.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]repository.HomePublicRoomRow{}, nil)
-	repo.EXPECT().ListCornerActivity24h(mock.Anything).Return([]repository.HomeCornerActivityRow{}, nil)
+	repo.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]model.HomeMemberRow{}, nil)
+	repo.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]model.HomePublicRoomRow{}, nil)
+	repo.EXPECT().ListCornerActivity24h(mock.Anything).Return([]model.HomeCornerActivityRow{}, nil)
 
 	// when
 	resp, err := svc.HomeActivity(context.Background())
@@ -104,24 +105,24 @@ func TestService_HomeActivity_PropagatesErrors(t *testing.T) {
 		{
 			"members error",
 			func(r *repository.MockHomeFeedRepository) {
-				r.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{}, nil)
+				r.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]model.HomeActivityRow{}, nil)
 				r.EXPECT().ListRecentMembers(mock.Anything, 5).Return(nil, errors.New("boom"))
 			},
 		},
 		{
 			"rooms error",
 			func(r *repository.MockHomeFeedRepository) {
-				r.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{}, nil)
-				r.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]repository.HomeMemberRow{}, nil)
+				r.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]model.HomeActivityRow{}, nil)
+				r.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]model.HomeMemberRow{}, nil)
 				r.EXPECT().ListPublicRooms(mock.Anything, 5).Return(nil, errors.New("boom"))
 			},
 		},
 		{
 			"corners error",
 			func(r *repository.MockHomeFeedRepository) {
-				r.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]repository.HomeActivityRow{}, nil)
-				r.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]repository.HomeMemberRow{}, nil)
-				r.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]repository.HomePublicRoomRow{}, nil)
+				r.EXPECT().ListRecentActivity(mock.Anything, 10).Return([]model.HomeActivityRow{}, nil)
+				r.EXPECT().ListRecentMembers(mock.Anything, 5).Return([]model.HomeMemberRow{}, nil)
+				r.EXPECT().ListPublicRooms(mock.Anything, 5).Return([]model.HomePublicRoomRow{}, nil)
 				r.EXPECT().ListCornerActivity24h(mock.Anything).Return(nil, errors.New("boom"))
 			},
 		},
@@ -130,7 +131,7 @@ func TestService_HomeActivity_PropagatesErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			repo := repository.NewMockHomeFeedRepository(t)
-			repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+			repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 			svc := homefeed.NewService(repo, ws.NewHub(), nil)
 			tc.setup(repo)
 
@@ -146,9 +147,9 @@ func TestService_HomeActivity_PropagatesErrors(t *testing.T) {
 func TestService_SidebarActivity_BuildsMap(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
-	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	svc := homefeed.NewService(repo, ws.NewHub(), nil)
-	repo.EXPECT().ListSidebarActivity(mock.Anything).Return([]repository.SidebarActivityEntry{
+	repo.EXPECT().ListSidebarActivity(mock.Anything).Return([]model.SidebarActivityEntry{
 		{Key: "rooms", LatestAt: "2026-04-24T09:00:00Z"},
 		{Key: "mysteries", LatestAt: "2026-04-24T08:00:00Z"},
 	}, nil)
@@ -165,7 +166,7 @@ func TestService_SidebarActivity_BuildsMap(t *testing.T) {
 func TestService_SidebarActivity_PropagatesError(t *testing.T) {
 	// given
 	repo := repository.NewMockHomeFeedRepository(t)
-	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+	repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 	svc := homefeed.NewService(repo, ws.NewHub(), nil)
 	repo.EXPECT().ListSidebarActivity(mock.Anything).Return(nil, errors.New("boom"))
 

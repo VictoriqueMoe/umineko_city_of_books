@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -15,11 +16,12 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
@@ -130,7 +132,7 @@ func NewService(
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -165,7 +167,12 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	description := strings.TrimSpace(req.Description)
 
-	created, err := s.shipRepo.CreateWithCharacters(ctx, userID, title, description, req.Characters)
+	created, err := s.shipRepo.CreateWithCharacters(ctx, spec.NewShipWithCharacters{
+		UserID:      userID,
+		Title:       title,
+		Description: description,
+		Characters:  req.Characters,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -176,7 +183,7 @@ func (s *service) CreateShip(ctx context.Context, userID uuid.UUID, req dto.Crea
 }
 
 func (s *service) GetShip(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.ShipDetailResponse, error) {
-	row, err := s.shipRepo.GetByID(ctx, id, viewerID)
+	row, err := s.shipRepo.GetByID(ctx, spec.ShipLookup{ID: id, ViewerID: viewerID})
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +194,13 @@ func (s *service) GetShip(ctx context.Context, id uuid.UUID, viewerID uuid.UUID)
 	characters, _ := s.shipRepo.GetCharacters(ctx, id)
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	comments, _, _ := s.shipRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	comments, _, _ := s.shipRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 
 	commentIDs := make([]uuid.UUID, len(comments))
 	for i, c := range comments {
@@ -237,7 +250,7 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	description := strings.TrimSpace(req.Description)
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
 
-	if err := s.shipRepo.UpdateWithCharacters(ctx, repository.ShipUpdate{
+	if err := s.shipRepo.UpdateWithCharacters(ctx, spec.ShipUpdate{
 		ID:          id,
 		UserID:      userID,
 		Title:       title,
@@ -249,10 +262,10 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	}
 
 	if authorID != userID {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionShipUpdateAdmin,
-			TargetType: repository.AuditTargetShip,
+			Action:     audit.ActionShipUpdateAdmin,
+			TargetType: audit.TargetShip,
 			TargetID:   id.String(),
 			Details:    fmt.Sprintf("title=%s", title),
 			SubjectID:  authorID,
@@ -263,7 +276,7 @@ func (s *service) UpdateShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 }
 
 func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	doomed, err := s.shipRepo.GetByID(ctx, id, userID)
+	doomed, err := s.shipRepo.GetByID(ctx, spec.ShipLookup{ID: id, ViewerID: userID})
 	if err != nil {
 		return err
 	}
@@ -273,7 +286,7 @@ func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
 
-	paths, err := s.shipRepo.DeleteShip(ctx, repository.ShipDeletion{
+	paths, err := s.shipRepo.DeleteShip(ctx, spec.ShipDeletion{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: asAdmin,
@@ -284,15 +297,15 @@ func (s *service) DeleteShip(ctx context.Context, id uuid.UUID, userID uuid.UUID
 
 	s.uploadSvc.Delete(paths...)
 
-	action := repository.AuditActionShipDelete
+	action := audit.ActionShipDelete
 	if doomed.UserID != userID {
-		action = repository.AuditActionShipDeleteAdmin
+		action = audit.ActionShipDeleteAdmin
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetShip,
+		TargetType: audit.TargetShip,
 		TargetID:   id.String(),
 		Details:    fmt.Sprintf("title=%s vote_score=%d comments=%d", doomed.Title, doomed.VoteScore, doomed.CommentCount),
 		SubjectID:  doomed.UserID,
@@ -316,7 +329,16 @@ func (s *service) ListShips(
 ) (*dto.ShipListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	rows, total, err := s.shipRepo.List(ctx, viewerID, sort, crackshipsOnly, series, characterID, page.Limit(), page.Offset(), blockedIDs)
+	rows, total, err := s.shipRepo.List(ctx, spec.ShipListing{
+		ViewerID:       viewerID,
+		Sort:           sort,
+		CrackshipsOnly: crackshipsOnly,
+		Series:         series,
+		CharacterID:    characterID,
+		Limit:          page.Limit(),
+		Offset:         page.Offset(),
+		ExcludeUserIDs: blockedIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +352,12 @@ func (s *service) ListShipsByUser(
 	viewerID uuid.UUID,
 	page bounds.Page,
 ) (*dto.ShipListResponse, error) {
-	rows, total, err := s.shipRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.shipRepo.ListByUser(ctx, spec.ShipUserListing{
+		UserID:   userID,
+		ViewerID: viewerID,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -374,7 +401,11 @@ func (s *service) UploadShipImage(ctx context.Context, shipID uuid.UUID, userID 
 		return "", err
 	}
 
-	if err := s.shipRepo.UpdateImage(ctx, shipID, urlPath, ""); err != nil {
+	if err := s.shipRepo.UpdateImage(ctx, spec.ShipImageUpdate{
+		ID:           shipID,
+		ImageURL:     urlPath,
+		ThumbnailURL: "",
+	}); err != nil {
 		return "", err
 	}
 
@@ -390,7 +421,7 @@ func (s *service) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, 
 		return block.ErrUserBlocked
 	}
 
-	return s.shipRepo.Vote(ctx, userID, shipID, value)
+	return s.shipRepo.Vote(ctx, spec.Vote{UserID: userID, TargetID: shipID, Value: value})
 }
 
 func (s *service) CreateComment(ctx context.Context, shipID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
@@ -469,7 +500,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
-	return s.shipRepo.UpdateCommentBody(ctx, repository.ShipCommentUpdate{
+	return s.shipRepo.UpdateCommentBody(ctx, spec.CommentUpdate{
 		CommentID: id,
 		UserID:    userID,
 		Body:      body,
@@ -480,7 +511,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
 
-	paths, err := s.shipRepo.DeleteCommentWithAudit(ctx, repository.ShipCommentDeletion{
+	paths, err := s.shipRepo.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
 		CommentID: id,
 		UserID:    userID,
 		AsAdmin:   asAdmin,
@@ -502,7 +533,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return block.ErrUserBlocked
 	}
-	if err := s.shipRepo.LikeComment(ctx, userID, commentID); err != nil {
+	if err := s.shipRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
 
@@ -531,7 +562,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.shipRepo.UnlikeComment(ctx, userID, commentID)
+	return s.shipRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UploadCommentMedia(
@@ -554,8 +585,8 @@ func (s *service) UploadCommentMedia(
 
 	return s.uploader.SaveAndRecord(ctx, "ships", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.shipRepo.AddCommentMedia(ctx, repository.NewShipCommentMedia{
-				CommentID:    commentID,
+			return s.shipRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:     commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -581,7 +612,7 @@ func (s *service) ListCharacters(series quotefinder.Series) ([]dto.CharacterList
 	return result, nil
 }
 
-func shipCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.ShipCommentResponse {
+func shipCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.ShipCommentResponse {
 	return dto.ShipCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,

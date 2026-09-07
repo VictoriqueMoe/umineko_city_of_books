@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/contentfilter"
@@ -20,6 +21,8 @@ import (
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
@@ -152,7 +155,7 @@ func (c *core) deleteRoomWithMedia(ctx context.Context, roomID uuid.UUID) error 
 	return nil
 }
 
-func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, reason string) {
+func (c *core) cleanupDeadSession(session *model.ChatWatchPartySessionRow, reason string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -168,7 +171,7 @@ func (c *core) cleanupDeadSession(session *repository.ChatWatchPartySessionRow, 
 	if err := c.watchPartyRepo.MarkAllParticipantsLeft(ctx, session.ID); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("cleanup dead session: mark participants left failed")
 	}
-	if err := c.watchPartyRepo.EndSession(ctx, session.ID, reason); err != nil {
+	if err := c.watchPartyRepo.EndSession(ctx, spec.WatchPartySessionEnd{SessionID: session.ID, Reason: reason}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("cleanup dead session: end session failed")
 	}
 	if err := c.deleteRoomWithMedia(ctx, session.ID); err != nil {
@@ -223,12 +226,12 @@ func (c *core) clearWatchPartyParticipation(ctx context.Context, roomID, userID 
 	for i := range sessions {
 		sessionID := sessions[i].ID
 
-		participant, err := c.watchPartyRepo.GetParticipant(ctx, sessionID, userID)
+		participant, err := c.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID})
 		if err != nil || participant == nil || participant.LeftAt.Valid {
 			continue
 		}
 
-		if err := c.watchPartyRepo.RemoveParticipant(ctx, sessionID, userID); err != nil {
+		if err := c.watchPartyRepo.RemoveParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("evict: mark watch party participant left failed")
 			continue
 		}
@@ -267,7 +270,7 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 		return nil
 	}
 
-	room, err := c.chatRepo.GetRoomByID(ctx, roomID, senderID)
+	room, err := c.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: senderID})
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
 	}
@@ -291,7 +294,7 @@ func (c *core) ensureLockAllowsRoom(ctx context.Context, senderID, roomID uuid.U
 }
 
 func (c *core) moderatorKind(ctx context.Context, roomID, userID uuid.UUID) (string, error) {
-	memberRole, err := c.chatRepo.GetMemberRole(ctx, roomID, userID)
+	memberRole, err := c.chatRepo.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return "", fmt.Errorf("get member role: %w", err)
 	}
@@ -322,7 +325,7 @@ func (c *core) canModerateRoom(ctx context.Context, roomID, userID uuid.UUID) (b
 func (c *core) evictUserFromRoom(ctx context.Context, roomID, targetID uuid.UUID, reason string) error {
 	members, _ := c.chatRepo.GetRoomMembers(ctx, roomID)
 
-	if err := c.chatRepo.RemoveMember(ctx, roomID, targetID); err != nil {
+	if err := c.chatRepo.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID}); err != nil {
 		return fmt.Errorf("remove member: %w", err)
 	}
 
@@ -406,21 +409,21 @@ func (c *core) rejectBotsOutsideRP(ctx context.Context, isRP bool, userIDs []uui
 	return nil
 }
 
-func isAuditableRoom(row *repository.ChatRoomRow) bool {
+func isAuditableRoom(row *model.ChatRoomRow) bool {
 	return row.PubliclyVisible()
 }
 
-func isAuditableSendContext(row *repository.ChatRoomSendContext) bool {
+func isAuditableSendContext(row *model.ChatRoomSendContext) bool {
 	return row.PubliclyVisible()
 }
 
-func (c *core) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (c *core) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := c.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
 }
 
-func (c *core) toVanityRoleResponses(rows []repository.VanityRoleRow) []dto.VanityRoleResponse {
+func (c *core) toVanityRoleResponses(rows []model.VanityRoleRow) []dto.VanityRoleResponse {
 	if len(rows) == 0 {
 		return nil
 	}
@@ -437,7 +440,7 @@ func (c *core) toVanityRoleResponses(rows []repository.VanityRoleRow) []dto.Vani
 	return out
 }
 
-func (c *core) rowToResponse(row repository.ChatRoomRow) dto.ChatRoomResponse {
+func (c *core) rowToResponse(row model.ChatRoomRow) dto.ChatRoomResponse {
 	return dto.ChatRoomResponse{
 		ID:            row.ID,
 		Name:          row.Name,
@@ -494,7 +497,7 @@ func (c *core) postRoomActionMessage(ctx context.Context, roomID, actorID uuid.U
 		return
 	}
 
-	row, err := c.chatRepo.InsertSystemMessage(ctx, roomID, actorID, actionBody)
+	row, err := c.chatRepo.InsertSystemMessage(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: actorID, Body: actionBody})
 	if err != nil {
 		return
 	}
@@ -508,14 +511,14 @@ func (c *core) roomActionMessageBody(ctx context.Context, roomID, actorID uuid.U
 		return ""
 	}
 
-	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, roomID, actorID); timedOut {
+	if timedOut, _ := c.chatRepo.HasActiveMemberTimeout(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: actorID}); timedOut {
 		return ""
 	}
 
 	return actionBody
 }
 
-func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, row *repository.ChatMessageRow) {
+func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID uuid.UUID, row *model.ChatMessageRow) {
 	if row == nil {
 		return
 	}
@@ -532,7 +535,7 @@ func (c *core) broadcastRoomActionMessage(ctx context.Context, roomID, actorID u
 	c.hub.SendToUsers(members, event)
 }
 
-func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []repository.ChatMessageRow) []dto.ChatMessageResponse {
+func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows []model.ChatMessageRow) []dto.ChatMessageResponse {
 	messageIDs := make([]uuid.UUID, len(rows))
 	senderIDs := make([]uuid.UUID, 0, len(rows))
 	seenSender := make(map[uuid.UUID]struct{})
@@ -544,7 +547,7 @@ func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows 
 		}
 	}
 	mediaBatch, _ := c.chatRepo.GetMessageMediaBatch(ctx, messageIDs)
-	reactionBatch, _ := c.chatRepo.GetReactionsBatch(ctx, messageIDs, viewerID)
+	reactionBatch, _ := c.chatRepo.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: messageIDs, ViewerID: viewerID})
 	vanityMap, _ := c.vanityRoleRepo.GetRolesForUsersBatch(ctx, senderIDs)
 
 	messages := make([]dto.ChatMessageResponse, 0, len(rows))
@@ -554,7 +557,7 @@ func (c *core) hydrateMessageRows(ctx context.Context, viewerID uuid.UUID, rows 
 	return messages
 }
 
-func (c *core) messageRowToResponse(row repository.ChatMessageRow, media []dto.PostMediaResponse, reactions []repository.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
+func (c *core) messageRowToResponse(row model.ChatMessageRow, media []dto.PostMediaResponse, reactions []model.ReactionGroup, vanityRoles []dto.VanityRoleResponse) dto.ChatMessageResponse {
 	resp := dto.ChatMessageResponse{
 		ID:     row.ID,
 		RoomID: row.RoomID,
@@ -593,7 +596,7 @@ func (c *core) messageRowToResponse(row repository.ChatMessageRow, media []dto.P
 	return resp
 }
 
-func toDTOReactions(groups []repository.ReactionGroup) []dto.ReactionGroup {
+func toDTOReactions(groups []model.ReactionGroup) []dto.ReactionGroup {
 	if len(groups) == 0 {
 		return []dto.ReactionGroup{}
 	}
@@ -627,7 +630,7 @@ func (c *core) effectiveLocked(ctx context.Context, roomID, userID uuid.UUID) (b
 	if siteRole.IsSiteStaff() {
 		return false, nil
 	}
-	locked, err := c.chatRepo.IsMemberNicknameLocked(ctx, roomID, userID)
+	locked, err := c.chatRepo.IsMemberNicknameLocked(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return false, fmt.Errorf("check nickname locked: %w", err)
 	}
@@ -635,7 +638,7 @@ func (c *core) effectiveLocked(ctx context.Context, roomID, userID uuid.UUID) (b
 }
 
 func (c *core) assertRoomMember(ctx context.Context, roomID, userID uuid.UUID) error {
-	isMember, err := c.chatRepo.IsMember(ctx, roomID, userID)
+	isMember, err := c.chatRepo.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return fmt.Errorf("check membership: %w", err)
 	}
@@ -658,7 +661,7 @@ func (c *core) requireSiteMod(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (c *core) assertTargetEditable(ctx context.Context, roomID, targetID uuid.UUID) error {
-	targetRole, err := c.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	targetRole, err := c.chatRepo.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 	if err != nil {
 		return fmt.Errorf("get target role: %w", err)
 	}
@@ -677,7 +680,7 @@ func (c *core) assertTargetEditable(ctx context.Context, roomID, targetID uuid.U
 
 func (c *core) displayNameFor(ctx context.Context, userID, roomID uuid.UUID) string {
 	if roomID != uuid.Nil {
-		if nickname, _ := c.chatRepo.GetMemberNickname(ctx, roomID, userID); strings.TrimSpace(nickname) != "" {
+		if nickname, _ := c.chatRepo.GetMemberNickname(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID}); strings.TrimSpace(nickname) != "" {
 			return nickname
 		}
 	}
@@ -813,7 +816,7 @@ func formatTimeoutUntilForUser(raw string) string {
 	return trimmed
 }
 
-func (c *core) memberRowToMemberResponse(m repository.ChatRoomMemberRow, vanityRoles []dto.VanityRoleResponse, presence string) dto.ChatRoomMemberResponse {
+func (c *core) memberRowToMemberResponse(m model.ChatRoomMemberRow, vanityRoles []dto.VanityRoleResponse, presence string) dto.ChatRoomMemberResponse {
 	return dto.ChatRoomMemberResponse{
 		User: dto.UserResponse{
 			ID:          m.UserID,
@@ -844,7 +847,7 @@ func (c *core) broadcastToRoomMembers(ctx context.Context, roomID uuid.UUID, msg
 }
 
 func (c *core) checkSenderTimeout(ctx context.Context, roomID, senderID uuid.UUID) error {
-	activeTimeout, timeoutUntil, _, err := c.chatRepo.GetMemberTimeoutState(ctx, roomID, senderID)
+	activeTimeout, timeoutUntil, _, err := c.chatRepo.GetMemberTimeoutState(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: senderID})
 	if err != nil {
 		return fmt.Errorf("get timeout state: %w", err)
 	}
@@ -943,7 +946,7 @@ func (c *core) getRoomMemberResponses(ctx context.Context, roomID, viewerID uuid
 	members := make([]dto.UserResponse, 0, len(memberIDs))
 	for _, memberID := range memberIDs {
 		if hasGhost && !viewerIsStaff {
-			ghost, _ := c.chatRepo.IsGhostMember(ctx, roomID, memberID)
+			ghost, _ := c.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
 			if ghost {
 				continue
 			}
@@ -957,8 +960,8 @@ func (c *core) getRoomMemberResponses(ctx context.Context, roomID, viewerID uuid
 	return members, len(members), nil
 }
 
-func (c *core) loadRoomForMod(ctx context.Context, roomID, actorID uuid.UUID) (*repository.ChatRoomRow, error) {
-	row, err := c.chatRepo.GetRoomByID(ctx, roomID, actorID)
+func (c *core) loadRoomForMod(ctx context.Context, roomID, actorID uuid.UUID) (*model.ChatRoomRow, error) {
+	row, err := c.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: actorID})
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
 	}

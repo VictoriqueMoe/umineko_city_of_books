@@ -7,6 +7,8 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,9 +23,9 @@ func newCachedPermissionRepo(t *testing.T) (PermissionRepository, *MockPermissio
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockPermissionRepository(t)
+	permissionDAO := NewMockPermissionRepository(t)
 
-	return NewPermissionRepo(dao, cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
+	return NewPermissionRepo(permissionDAO, cache.NewManager(engines.NewValkeyWithClient(client))), permissionDAO, client
 }
 
 func expectDel(t *testing.T, client *valkeymock.Client, key string) *gomock.Call {
@@ -41,12 +43,12 @@ func expectDel(t *testing.T, client *valkeymock.Client, key string) *gomock.Call
 
 func TestSetRolePermissions_InvalidatesRolePermissionCache(t *testing.T) {
 	// given
-	repo, dao, client := newCachedPermissionRepo(t)
-	dao.EXPECT().SetRolePermissions(mock.Anything, "moderator", []string{"ban_user"}).Return(nil)
+	repo, permissionDAO, client := newCachedPermissionRepo(t)
+	permissionDAO.EXPECT().SetRolePermissions(mock.Anything, spec.RolePermissionsUpdate{RoleName: "moderator", Permissions: []string{"ban_user"}}).Return(nil)
 	expectDel(t, client, cache.RolePermissions.Key())
 
 	// when
-	err := repo.SetRolePermissions(context.Background(), "moderator", []string{"ban_user"})
+	err := repo.SetRolePermissions(context.Background(), spec.RolePermissionsUpdate{RoleName: "moderator", Permissions: []string{"ban_user"}})
 
 	// then
 	require.NoError(t, err)
@@ -54,12 +56,12 @@ func TestSetRolePermissions_InvalidatesRolePermissionCache(t *testing.T) {
 
 func TestSetRolePermissions_DaoErrorSkipsInvalidation(t *testing.T) {
 	// given
-	repo, dao, client := newCachedPermissionRepo(t)
-	dao.EXPECT().SetRolePermissions(mock.Anything, "moderator", []string(nil)).Return(errors.New("db down"))
+	repo, permissionDAO, client := newCachedPermissionRepo(t)
+	permissionDAO.EXPECT().SetRolePermissions(mock.Anything, spec.RolePermissionsUpdate{RoleName: "moderator", Permissions: nil}).Return(errors.New("db down"))
 	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 	// when
-	err := repo.SetRolePermissions(context.Background(), "moderator", nil)
+	err := repo.SetRolePermissions(context.Background(), spec.RolePermissionsUpdate{RoleName: "moderator", Permissions: nil})
 
 	// then
 	require.Error(t, err)
@@ -67,12 +69,12 @@ func TestSetRolePermissions_DaoErrorSkipsInvalidation(t *testing.T) {
 
 func TestSetVanityRolePermissions_InvalidatesVanityPermissionCache(t *testing.T) {
 	// given
-	repo, dao, client := newCachedPermissionRepo(t)
-	dao.EXPECT().SetVanityRolePermissions(mock.Anything, "vanity-a", []string{"use_chatbot"}).Return(nil)
+	repo, permissionDAO, client := newCachedPermissionRepo(t)
+	permissionDAO.EXPECT().SetVanityRolePermissions(mock.Anything, spec.VanityRolePermissionsUpdate{VanityRoleID: "vanity-a", Permissions: []string{"use_chatbot"}}).Return(nil)
 	expectDel(t, client, cache.VanityRolePermissions.Key())
 
 	// when
-	err := repo.SetVanityRolePermissions(context.Background(), "vanity-a", []string{"use_chatbot"})
+	err := repo.SetVanityRolePermissions(context.Background(), spec.VanityRolePermissionsUpdate{VanityRoleID: "vanity-a", Permissions: []string{"use_chatbot"}})
 
 	// then
 	require.NoError(t, err)
@@ -81,10 +83,10 @@ func TestSetVanityRolePermissions_InvalidatesVanityPermissionCache(t *testing.T)
 func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 	// given
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockVanityRoleDAO(t)
-	repo := NewVanityRoleRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)))
+	vanityDAO := dao.NewMockVanityRoleDAO(t)
+	repo := NewVanityRoleRepo(nil, vanityDAO, cache.NewManager(engines.NewValkeyWithClient(client)))
 	userID := uuid.New()
-	dao.EXPECT().AssignToUser(mock.Anything, userID, "vanity-a").Return(nil)
+	vanityDAO.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"}).Return(nil)
 
 	var commands []string
 	client.EXPECT().
@@ -97,7 +99,7 @@ func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 		Times(1)
 
 	// when
-	err := repo.AssignToUser(context.Background(), userID, "vanity-a")
+	err := repo.AssignToUser(context.Background(), spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"})
 
 	// then
 	require.NoError(t, err)
@@ -107,10 +109,10 @@ func TestAssignToUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 	// given
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockVanityRoleDAO(t)
-	repo := NewVanityRoleRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)))
+	vanityDAO := dao.NewMockVanityRoleDAO(t)
+	repo := NewVanityRoleRepo(nil, vanityDAO, cache.NewManager(engines.NewValkeyWithClient(client)))
 	userID := uuid.New()
-	dao.EXPECT().UnassignFromUser(mock.Anything, userID, "vanity-a").Return(nil)
+	vanityDAO.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"}).Return(nil)
 
 	var commands []string
 	client.EXPECT().
@@ -123,7 +125,7 @@ func TestUnassignFromUser_InvalidatesVanityAssignmentAndUserKeys(t *testing.T) {
 		Times(1)
 
 	// when
-	err := repo.UnassignFromUser(context.Background(), userID, "vanity-a")
+	err := repo.UnassignFromUser(context.Background(), spec.VanityRoleAssignment{UserID: userID, RoleID: "vanity-a"})
 
 	// then
 	require.NoError(t, err)
@@ -156,8 +158,8 @@ func TestPermissionCacheKeys_DoNotCollide(t *testing.T) {
 
 func TestGetRolePermissions_CachesDaoResult(t *testing.T) {
 	// given
-	repo, dao, client := newCachedPermissionRepo(t)
-	dao.EXPECT().GetRolePermissions(mock.Anything).Return(map[string][]string{"moderator": {"ban_user"}}, nil)
+	repo, permissionDAO, client := newCachedPermissionRepo(t)
+	permissionDAO.EXPECT().GetRolePermissions(mock.Anything).Return(map[string][]string{"moderator": {"ban_user"}}, nil)
 
 	var commands [][]string
 	client.EXPECT().

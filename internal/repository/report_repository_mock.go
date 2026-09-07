@@ -7,8 +7,9 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
-	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -40,12 +41,12 @@ func (_m *MockReportRepository) EXPECT() *MockReportRepository_Expecter {
 }
 
 // Create provides a mock function for the type MockReportRepository
-func (_mock *MockReportRepository) Create(ctx context.Context, spec NewReport, tx ...*sql.Tx) (*ReportRow, error) {
+func (_mock *MockReportRepository) Create(ctx context.Context, s spec.NewReport, tx ...*sql.Tx) (*model.ReportRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -53,20 +54,20 @@ func (_mock *MockReportRepository) Create(ctx context.Context, spec NewReport, t
 		panic("no return value specified for Create")
 	}
 
-	var r0 *ReportRow
+	var r0 *model.ReportRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewReport, ...*sql.Tx) (*ReportRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewReport, ...*sql.Tx) (*model.ReportRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewReport, ...*sql.Tx) *ReportRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewReport, ...*sql.Tx) *model.ReportRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ReportRow)
+			r0 = ret.Get(0).(*model.ReportRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewReport, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewReport, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,22 +81,22 @@ type MockReportRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewReport
+//   - s spec.NewReport
 //   - tx ...*sql.Tx
-func (_e *MockReportRepository_Expecter) Create(ctx any, spec any, tx ...any) *MockReportRepository_Create_Call {
+func (_e *MockReportRepository_Expecter) Create(ctx any, s any, tx ...any) *MockReportRepository_Create_Call {
 	return &MockReportRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockReportRepository_Create_Call) Run(run func(ctx context.Context, spec NewReport, tx ...*sql.Tx)) *MockReportRepository_Create_Call {
+func (_c *MockReportRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewReport, tx ...*sql.Tx)) *MockReportRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewReport
+		var arg1 spec.NewReport
 		if args[1] != nil {
-			arg1 = args[1].(NewReport)
+			arg1 = args[1].(spec.NewReport)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -112,18 +113,18 @@ func (_c *MockReportRepository_Create_Call) Run(run func(ctx context.Context, sp
 	return _c
 }
 
-func (_c *MockReportRepository_Create_Call) Return(reportRow *ReportRow, err error) *MockReportRepository_Create_Call {
+func (_c *MockReportRepository_Create_Call) Return(reportRow *model.ReportRow, err error) *MockReportRepository_Create_Call {
 	_c.Call.Return(reportRow, err)
 	return _c
 }
 
-func (_c *MockReportRepository_Create_Call) RunAndReturn(run func(ctx context.Context, spec NewReport, tx ...*sql.Tx) (*ReportRow, error)) *MockReportRepository_Create_Call {
+func (_c *MockReportRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewReport, tx ...*sql.Tx) (*model.ReportRow, error)) *MockReportRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockReportRepository
-func (_mock *MockReportRepository) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*ReportRow, error) {
+func (_mock *MockReportRepository) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*model.ReportRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -136,16 +137,16 @@ func (_mock *MockReportRepository) GetByID(ctx context.Context, id int, tx ...*s
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 *ReportRow
+	var r0 *model.ReportRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) (*ReportRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) (*model.ReportRow, error)); ok {
 		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) *ReportRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) *model.ReportRow); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ReportRow)
+			r0 = ret.Get(0).(*model.ReportRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
@@ -195,23 +196,23 @@ func (_c *MockReportRepository_GetByID_Call) Run(run func(ctx context.Context, i
 	return _c
 }
 
-func (_c *MockReportRepository_GetByID_Call) Return(reportRow *ReportRow, err error) *MockReportRepository_GetByID_Call {
+func (_c *MockReportRepository_GetByID_Call) Return(reportRow *model.ReportRow, err error) *MockReportRepository_GetByID_Call {
 	_c.Call.Return(reportRow, err)
 	return _c
 }
 
-func (_c *MockReportRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id int, tx ...*sql.Tx) (*ReportRow, error)) *MockReportRepository_GetByID_Call {
+func (_c *MockReportRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id int, tx ...*sql.Tx) (*model.ReportRow, error)) *MockReportRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockReportRepository
-func (_mock *MockReportRepository) List(ctx context.Context, status string, limit int, offset int, tx ...*sql.Tx) ([]ReportRow, int, error) {
+func (_mock *MockReportRepository) List(ctx context.Context, q spec.ReportFilter, tx ...*sql.Tx) ([]model.ReportRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, status, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, status, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -219,26 +220,26 @@ func (_mock *MockReportRepository) List(ctx context.Context, status string, limi
 		panic("no return value specified for List")
 	}
 
-	var r0 []ReportRow
+	var r0 []model.ReportRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) ([]ReportRow, int, error)); ok {
-		return returnFunc(ctx, status, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ReportFilter, ...*sql.Tx) ([]model.ReportRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) []ReportRow); ok {
-		r0 = returnFunc(ctx, status, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ReportFilter, ...*sql.Tx) []model.ReportRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ReportRow)
+			r0 = ret.Get(0).([]model.ReportRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, status, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ReportFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, status, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.ReportFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -252,67 +253,55 @@ type MockReportRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - status string
-//   - limit int
-//   - offset int
+//   - q spec.ReportFilter
 //   - tx ...*sql.Tx
-func (_e *MockReportRepository_Expecter) List(ctx any, status any, limit any, offset any, tx ...any) *MockReportRepository_List_Call {
+func (_e *MockReportRepository_Expecter) List(ctx any, q any, tx ...any) *MockReportRepository_List_Call {
 	return &MockReportRepository_List_Call{Call: _e.mock.On("List",
-		append([]any{ctx, status, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockReportRepository_List_Call) Run(run func(ctx context.Context, status string, limit int, offset int, tx ...*sql.Tx)) *MockReportRepository_List_Call {
+func (_c *MockReportRepository_List_Call) Run(run func(ctx context.Context, q spec.ReportFilter, tx ...*sql.Tx)) *MockReportRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.ReportFilter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.ReportFilter)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockReportRepository_List_Call) Return(reportRows []ReportRow, n int, err error) *MockReportRepository_List_Call {
+func (_c *MockReportRepository_List_Call) Return(reportRows []model.ReportRow, n int, err error) *MockReportRepository_List_Call {
 	_c.Call.Return(reportRows, n, err)
 	return _c
 }
 
-func (_c *MockReportRepository_List_Call) RunAndReturn(run func(ctx context.Context, status string, limit int, offset int, tx ...*sql.Tx) ([]ReportRow, int, error)) *MockReportRepository_List_Call {
+func (_c *MockReportRepository_List_Call) RunAndReturn(run func(ctx context.Context, q spec.ReportFilter, tx ...*sql.Tx) ([]model.ReportRow, int, error)) *MockReportRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Resolve provides a mock function for the type MockReportRepository
-func (_mock *MockReportRepository) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string, tx ...*sql.Tx) error {
+func (_mock *MockReportRepository) Resolve(ctx context.Context, s spec.ReportResolution, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, resolvedBy, comment, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, resolvedBy, comment)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -321,8 +310,8 @@ func (_mock *MockReportRepository) Resolve(ctx context.Context, id int, resolved
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, resolvedBy, comment, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ReportResolution, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -336,45 +325,33 @@ type MockReportRepository_Resolve_Call struct {
 
 // Resolve is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int
-//   - resolvedBy uuid.UUID
-//   - comment string
+//   - s spec.ReportResolution
 //   - tx ...*sql.Tx
-func (_e *MockReportRepository_Expecter) Resolve(ctx any, id any, resolvedBy any, comment any, tx ...any) *MockReportRepository_Resolve_Call {
+func (_e *MockReportRepository_Expecter) Resolve(ctx any, s any, tx ...any) *MockReportRepository_Resolve_Call {
 	return &MockReportRepository_Resolve_Call{Call: _e.mock.On("Resolve",
-		append([]any{ctx, id, resolvedBy, comment}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockReportRepository_Resolve_Call) Run(run func(ctx context.Context, id int, resolvedBy uuid.UUID, comment string, tx ...*sql.Tx)) *MockReportRepository_Resolve_Call {
+func (_c *MockReportRepository_Resolve_Call) Run(run func(ctx context.Context, s spec.ReportResolution, tx ...*sql.Tx)) *MockReportRepository_Resolve_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 spec.ReportResolution
 		if args[1] != nil {
-			arg1 = args[1].(int)
+			arg1 = args[1].(spec.ReportResolution)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -385,7 +362,7 @@ func (_c *MockReportRepository_Resolve_Call) Return(err error) *MockReportReposi
 	return _c
 }
 
-func (_c *MockReportRepository_Resolve_Call) RunAndReturn(run func(ctx context.Context, id int, resolvedBy uuid.UUID, comment string, tx ...*sql.Tx) error) *MockReportRepository_Resolve_Call {
+func (_c *MockReportRepository_Resolve_Call) RunAndReturn(run func(ctx context.Context, s spec.ReportResolution, tx ...*sql.Tx) error) *MockReportRepository_Resolve_Call {
 	_c.Call.Return(run)
 	return _c
 }

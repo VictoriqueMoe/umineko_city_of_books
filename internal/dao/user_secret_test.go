@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,8 +19,8 @@ func TestUserSecretDAO_UnlockAndListForUser(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	require.NoError(t, repos.UserSecret.Unlock(ctx, user.ID, "alpha"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, user.ID, "beta"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: user.ID, SecretID: "alpha"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: user.ID, SecretID: "beta"}))
 
 	// then
 	got, err := repos.UserSecret.ListForUser(ctx, user.ID)
@@ -32,10 +33,10 @@ func TestUserSecretDAO_Unlock_DuplicateIsNoop(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.UserSecret.Unlock(ctx, user.ID, "dup"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: user.ID, SecretID: "dup"}))
 
 	// when
-	err := repos.UserSecret.Unlock(ctx, user.ID, "dup")
+	err := repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: user.ID, SecretID: "dup"})
 
 	// then
 	require.NoError(t, err)
@@ -64,9 +65,9 @@ func TestUserSecretDAO_GetUserIDsWithSecret(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 	c := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.UserSecret.Unlock(ctx, a.ID, "shared"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, b.ID, "shared"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, c.ID, "other"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: a.ID, SecretID: "shared"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: b.ID, SecretID: "shared"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: c.ID, SecretID: "other"}))
 
 	// when
 	got, err := repos.UserSecret.GetUserIDsWithSecret(ctx, "shared")
@@ -90,10 +91,10 @@ func TestUserSecretDAO_GetUserIDsWithAnyPiece(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 	c := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.UserSecret.Unlock(ctx, a.ID, "p1"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, a.ID, "p2"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, b.ID, "p2"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, c.ID, "p3"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: a.ID, SecretID: "p1"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: a.ID, SecretID: "p2"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: b.ID, SecretID: "p2"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: c.ID, SecretID: "p3"}))
 
 	// when
 	got, err := repos.UserSecret.GetUserIDsWithAnyPiece(ctx, []string{"p1", "p2"})
@@ -133,7 +134,7 @@ func TestUserSecretDAO_IsSolvedByAnyone(t *testing.T) {
 	assert.False(t, solved)
 
 	// when
-	require.NoError(t, repos.UserSecret.Unlock(ctx, user.ID, "x"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: user.ID, SecretID: "x"}))
 
 	// then
 	solved, err = repos.UserSecret.IsSolvedByAnyone(ctx, "x")
@@ -147,9 +148,9 @@ func TestUserSecretDAO_DeleteSecrets(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.UserSecret.Unlock(ctx, a.ID, "keep"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, a.ID, "drop1"))
-	require.NoError(t, repos.UserSecret.Unlock(ctx, b.ID, "drop2"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: a.ID, SecretID: "keep"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: a.ID, SecretID: "drop1"}))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: b.ID, SecretID: "drop2"}))
 
 	// when
 	require.NoError(t, repos.UserSecret.DeleteSecrets(ctx, []string{"drop1", "drop2"}))
@@ -168,7 +169,7 @@ func TestUserSecretDAO_DeleteSecrets_EmptyInputIsNoop(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.UserSecret.Unlock(ctx, user.ID, "intact"))
+	require.NoError(t, repos.UserSecret.Unlock(ctx, spec.SecretUnlock{UserID: user.ID, SecretID: "intact"}))
 
 	// when
 	err := repos.UserSecret.DeleteSecrets(ctx, nil)

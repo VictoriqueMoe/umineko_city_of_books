@@ -12,17 +12,20 @@ import (
 	"testing/synctest"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
@@ -35,7 +38,7 @@ import (
 
 type testMocks struct {
 	postRepo     *repository.MockPostRepository
-	postComments *repository.MockCommentDAO[uuid.UUID]
+	postComments *dao.MockCommentDAO[uuid.UUID]
 	userRepo     *repository.MockUserRepository
 	roleRepo     *repository.MockRoleRepository
 	auditRepo    *repository.MockAuditLogRepository
@@ -62,9 +65,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
 
-	postComments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindPostComment): postComments},
+	postComments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindPostComment): postComments},
 	})
 
 	svc := NewService(postRepo, userRepo, roleRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, hub, contentfilter.New(), nil, nil).(*service)
@@ -92,10 +95,10 @@ func validCreatePostReq() dto.CreatePostRequest {
 }
 
 func expectBackgroundSocial(m *testMocks) {
-	m.postRepo.EXPECT().IncrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	m.postRepo.EXPECT().IncrementShareCount(mock.Anything, mock.Anything).Return(nil).Maybe()
+	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
-	m.postRepo.EXPECT().GetSharedContentAuthor(mock.Anything, mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
+	m.postRepo.EXPECT().GetSharedContentAuthor(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil).Maybe()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
 	m.postRepo.EXPECT().GetCommentEntityID(mock.Anything, mock.Anything).Return(uuid.Nil, errors.New("ignored")).Maybe()
@@ -221,7 +224,7 @@ func TestCreatePost_RepoCreateError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(nil, errors.New("boom"))
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreatePost(context.Background(), userID, validCreatePostReq())
@@ -235,7 +238,7 @@ func TestCreatePost_EmptyCornerDefaults(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "general", Body: "hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	req := dto.CreatePostRequest{Body: "hello"}
@@ -253,7 +256,7 @@ func TestCreatePost_OK_Suggestions(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: "suggestions", Body: "hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: "suggestions", Body: "hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	req := validCreatePostReq()
@@ -272,9 +275,9 @@ func TestCreatePost_WithPollCreatesPoll(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.MatchedBy(func(spec repository.NewPost) bool {
-		return spec.UserID == userID && spec.Corner == "general" && spec.Body == "hello" &&
-			spec.Poll != nil && spec.Poll.DurationSeconds == 3600 && slices.Equal(spec.Poll.Options, []string{"a", "b"})
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.MatchedBy(func(newPost spec.NewPost) bool {
+		return newPost.UserID == userID && newPost.Corner == "general" && newPost.Body == "hello" &&
+			newPost.Poll != nil && newPost.Poll.DurationSeconds == 3600 && slices.Equal(newPost.Poll.Options, []string{"a", "b"})
 	})).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
@@ -297,8 +300,8 @@ func TestCreatePost_WithPollRepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.MatchedBy(func(spec repository.NewPost) bool {
-		return spec.Poll != nil && spec.Poll.DurationSeconds == 3600 && slices.Equal(spec.Poll.Options, []string{"a", "b"})
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, mock.MatchedBy(func(newPost spec.NewPost) bool {
+		return newPost.Poll != nil && newPost.Poll.DurationSeconds == 3600 && slices.Equal(newPost.Poll.Options, []string{"a", "b"})
 	})).Return(nil, errors.New("boom"))
 
 	req := validCreatePostReq()
@@ -320,11 +323,11 @@ func TestCreatePost_ShareOK(t *testing.T) {
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
 	sharedID := uuid.New().String()
-	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{
+	m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{
 		UserID:        userID,
 		Corner:        "general",
 		Body:          "",
-		SharedContent: &repository.SharedContentRef{ID: sharedID, Type: "theory"},
+		SharedContent: &model.SharedContentRef{ID: sharedID, Type: "theory"},
 	}).Return(&model.PostRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
@@ -347,7 +350,7 @@ func TestGetPost_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	viewer := uuid.New()
-	m.postRepo.EXPECT().GetByID(mock.Anything, id, viewer).Return(nil, errors.New("boom"))
+	m.postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: id, ViewerID: viewer}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.GetPost(context.Background(), id, viewer, "")
@@ -361,7 +364,7 @@ func TestGetPost_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	viewer := uuid.New()
-	m.postRepo.EXPECT().GetByID(mock.Anything, id, viewer).Return(nil, nil)
+	m.postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: id, ViewerID: viewer}).Return(nil, nil)
 
 	// when
 	_, err := svc.GetPost(context.Background(), id, viewer, "")
@@ -377,16 +380,16 @@ func TestGetPost_OK(t *testing.T) {
 	authorID := uuid.New()
 	viewer := uuid.New()
 	row := &model.PostRow{ID: id, UserID: authorID}
-	m.postRepo.EXPECT().GetByID(mock.Anything, id, viewer).Return(row, nil)
-	m.postRepo.EXPECT().RecordView(mock.Anything, id, "hash").Return(true, nil)
+	m.postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: id, ViewerID: viewer}).Return(row, nil)
+	m.postRepo.EXPECT().RecordView(mock.Anything, spec.ViewRecord{TargetID: id, ViewerHash: "hash"}).Return(true, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
 	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil)
-	m.postRepo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, mock.Anything).Return(nil, 0, nil)
+	m.postRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: viewer, Limit: 500}).Return(nil, 0, nil)
 	m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetLikedBy(mock.Anything, id, mock.Anything).Return(nil, nil)
+	m.postRepo.EXPECT().GetLikedBy(mock.Anything, spec.LikedByQuery{TargetID: id}).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewer, authorID).Return(false, nil)
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, id, viewer).Return(nil, nil, nil, nil)
-	m.postRepo.EXPECT().GetShareCount(mock.Anything, id.String(), "post").Return(0, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: id, ViewerID: viewer}).Return(nil, nil, nil, nil)
+	m.postRepo.EXPECT().GetShareCount(mock.Anything, model.SharedContentRef{ID: id.String(), Type: "post"}).Return(0, nil)
 
 	// when
 	got, err := svc.GetPost(context.Background(), id, viewer, "hash")
@@ -403,14 +406,14 @@ func TestGetPost_AnonymousNoViewHash(t *testing.T) {
 	id := uuid.New()
 	authorID := uuid.New()
 	row := &model.PostRow{ID: id, UserID: authorID}
-	m.postRepo.EXPECT().GetByID(mock.Anything, id, uuid.Nil).Return(row, nil)
+	m.postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: id, ViewerID: uuid.Nil}).Return(row, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
 	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil)
-	m.postRepo.EXPECT().GetComments(mock.Anything, id, uuid.Nil, 500, 0, mock.Anything).Return(nil, 0, nil)
+	m.postRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: uuid.Nil, Limit: 500}).Return(nil, 0, nil)
 	m.postRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetLikedBy(mock.Anything, id, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, id, uuid.Nil).Return(nil, nil, nil, nil)
-	m.postRepo.EXPECT().GetShareCount(mock.Anything, id.String(), "post").Return(5, nil)
+	m.postRepo.EXPECT().GetLikedBy(mock.Anything, spec.LikedByQuery{TargetID: id}).Return(nil, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: id, ViewerID: uuid.Nil}).Return(nil, nil, nil, nil)
+	m.postRepo.EXPECT().GetShareCount(mock.Anything, model.SharedContentRef{ID: id.String(), Type: "post"}).Return(5, nil)
 
 	// when
 	got, err := svc.GetPost(context.Background(), id, uuid.Nil, "")
@@ -439,7 +442,7 @@ func TestUpdatePost_AsAdmin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
-	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -455,7 +458,7 @@ func TestUpdatePost_AsAdminRepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
-	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdatePost(context.Background(), id, userID, dto.UpdatePostRequest{Body: "body"})
@@ -470,7 +473,7 @@ func TestUpdatePost_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
-	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(nil)
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -486,7 +489,7 @@ func TestUpdatePost_AsOwnerRepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
-	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, repository.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateWithDetails(mock.Anything, spec.PostUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdatePost(context.Background(), id, userID, dto.UpdatePostRequest{Body: "body"})
@@ -500,20 +503,20 @@ func expectPostDeleteLookups(m *testMocks, id uuid.UUID, authorID uuid.UUID, med
 	m.postRepo.EXPECT().GetMedia(mock.Anything, id).Return(make([]model.PostMediaRow, mediaCount), nil)
 }
 
-func postDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool, mediaCount int) repository.PostDelete {
-	action := repository.AuditActionPostDelete
+func postDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool, mediaCount int) spec.PostDelete {
+	action := audit.ActionPostDelete
 	if authorID != userID {
-		action = repository.AuditActionPostDeleteAdmin
+		action = audit.ActionPostDeleteAdmin
 	}
 
-	return repository.PostDelete{
+	return spec.PostDelete{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: asAdmin,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetPost,
+			TargetType: audit.TargetPost,
 			TargetID:   id.String(),
 			Details:    fmt.Sprintf("media=%d", mediaCount),
 			SubjectID:  authorID,
@@ -617,13 +620,13 @@ func testDeletePostSharedContentDecrements(t *testing.T) {
 	expectPostDeleteLookups(m, id, userID, 0)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
 	m.postRepo.EXPECT().DeleteWithSharedContent(mock.Anything, postDeleteSpec(id, userID, userID, false, 0)).
-		Return(&repository.SharedContentRef{ID: sharedID, Type: sharedType}, nil, nil)
+		Return(&model.SharedContentRef{ID: sharedID, Type: sharedType}, nil, nil)
 	m.uploadSvc.EXPECT().Delete().Return()
 
 	var wg sync.WaitGroup
 	wg.Add(1)
-	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, sharedID, sharedType).
-		Run(func(_ context.Context, _ string, _ string, _ ...*sql.Tx) { wg.Done() }).
+	m.postRepo.EXPECT().DecrementShareCount(mock.Anything, model.SharedContentRef{ID: sharedID, Type: sharedType}).
+		Run(func(_ context.Context, _ model.SharedContentRef, _ ...*sql.Tx) { wg.Done() }).
 		Return(nil)
 
 	// when
@@ -640,10 +643,10 @@ func TestListFeed_FollowingTab(t *testing.T) {
 	viewer := uuid.New()
 	rows := []model.PostRow{{ID: uuid.New()}}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.postRepo.EXPECT().ListByFollowing(mock.Anything, viewer, "general", "new", 0, 10, 0, mock.Anything).Return(rows, 1, nil)
+	m.postRepo.EXPECT().ListByFollowing(mock.Anything, spec.PostFollowingFeedQuery{UserID: viewer, Corner: "general", Sort: "new", Limit: 10}).Return(rows, 1, nil)
 	m.postRepo.EXPECT().GetMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
-	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
+	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, spec.PostPollBatchQuery{PostIDs: []uuid.UUID{rows[0].ID}, ViewerID: viewer}).Return(nil, nil, nil, nil)
+	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, spec.SharedContentBatchRef{ContentIDs: []string{rows[0].ID.String()}, ContentType: "post"}).Return(nil, nil)
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
@@ -660,10 +663,10 @@ func TestListFeed_AllTab(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.Nil
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.postRepo.EXPECT().ListAll(mock.Anything, viewer, "general", "q", "new", 0, 5, 0, mock.Anything, "resolved").Return(nil, 0, nil)
+	m.postRepo.EXPECT().ListAll(mock.Anything, spec.PostFeedQuery{ViewerID: viewer, Corner: "general", Search: "q", Sort: "new", Limit: 5, ResolvedFilter: "resolved"}).Return(nil, 0, nil)
 	m.postRepo.EXPECT().GetMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
-	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
+	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, spec.PostPollBatchQuery{PostIDs: []uuid.UUID{}, ViewerID: viewer}).Return(nil, nil, nil, nil)
+	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, spec.SharedContentBatchRef{ContentIDs: []string{}, ContentType: "post"}).Return(nil, nil)
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
@@ -679,7 +682,7 @@ func TestListFeed_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.postRepo.EXPECT().ListAll(mock.Anything, viewer, "general", "", "new", 0, 10, 0, mock.Anything, "").Return(nil, 0, errors.New("boom"))
+	m.postRepo.EXPECT().ListAll(mock.Anything, spec.PostFeedQuery{ViewerID: viewer, Corner: "general", Sort: "new", Limit: 10}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListFeed(context.Background(), "all", viewer, "", "", "new", 0, bounds.NewPage(10, 0), "")
@@ -693,10 +696,10 @@ func TestListUserPosts_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	target := uuid.New()
 	viewer := uuid.New()
-	m.postRepo.EXPECT().ListByUser(mock.Anything, target, viewer, 10, 0).Return(nil, 2, nil)
+	m.postRepo.EXPECT().ListByUser(mock.Anything, spec.PostUserPage{UserID: target, ViewerID: viewer, Limit: 10}).Return(nil, 2, nil)
 	m.postRepo.EXPECT().GetMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, mock.Anything, viewer).Return(nil, nil, nil, nil)
-	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, mock.Anything, "post").Return(nil, nil)
+	m.postRepo.EXPECT().GetPollsByPostIDs(mock.Anything, spec.PostPollBatchQuery{PostIDs: []uuid.UUID{}, ViewerID: viewer}).Return(nil, nil, nil, nil)
+	m.postRepo.EXPECT().GetShareCountsBatch(mock.Anything, spec.SharedContentBatchRef{ContentIDs: []string{}, ContentType: "post"}).Return(nil, nil)
 	m.postRepo.EXPECT().GetSharedContentPreviews(mock.Anything).Return(nil)
 
 	// when
@@ -712,7 +715,7 @@ func TestListUserPosts_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	target := uuid.New()
 	viewer := uuid.New()
-	m.postRepo.EXPECT().ListByUser(mock.Anything, target, viewer, 10, 0).Return(nil, 0, errors.New("boom"))
+	m.postRepo.EXPECT().ListByUser(mock.Anything, spec.PostUserPage{UserID: target, ViewerID: viewer, Limit: 10}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListUserPosts(context.Background(), target, viewer, bounds.NewPage(10, 0))
@@ -803,7 +806,7 @@ func TestDeletePostMedia_RepoError(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
-	m.postRepo.EXPECT().DeleteMedia(mock.Anything, int64(1), postID).Return("", errors.New("boom"))
+	m.postRepo.EXPECT().DeleteMedia(mock.Anything, spec.MediaDeletion{ID: 1, TargetID: postID}).Return("", errors.New("boom"))
 
 	// when
 	err := svc.DeletePostMedia(context.Background(), postID, 1, userID)
@@ -818,7 +821,7 @@ func TestDeletePostMedia_OK(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(userID, nil)
-	m.postRepo.EXPECT().DeleteMedia(mock.Anything, int64(1), postID).Return("/uploads/posts/a.webp", nil)
+	m.postRepo.EXPECT().DeleteMedia(mock.Anything, spec.MediaDeletion{ID: 1, TargetID: postID}).Return("/uploads/posts/a.webp", nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/posts/a.webp"}).Return()
 
 	// when
@@ -911,7 +914,7 @@ func TestLikePost_LikeRepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().Like(mock.Anything, userID, postID).Return(errors.New("boom"))
+	m.postRepo.EXPECT().Like(mock.Anything, spec.Like{UserID: userID, TargetID: postID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.LikePost(context.Background(), userID, postID)
@@ -928,7 +931,7 @@ func TestLikePost_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().Like(mock.Anything, userID, postID).Return(nil)
+	m.postRepo.EXPECT().Like(mock.Anything, spec.Like{UserID: userID, TargetID: postID}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -943,7 +946,7 @@ func TestUnlikePost_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().Unlike(mock.Anything, userID, postID).Return(nil)
+	m.postRepo.EXPECT().Unlike(mock.Anything, spec.Like{UserID: userID, TargetID: postID}).Return(nil)
 
 	// when
 	err := svc.UnlikePost(context.Background(), userID, postID)
@@ -957,7 +960,7 @@ func TestUnlikePost_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().Unlike(mock.Anything, userID, postID).Return(errors.New("boom"))
+	m.postRepo.EXPECT().Unlike(mock.Anything, spec.Like{UserID: userID, TargetID: postID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnlikePost(context.Background(), userID, postID)
@@ -1015,7 +1018,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postComments.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
+	m.postComments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: userID, Body: "hi"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateComment(context.Background(), postID, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -1032,7 +1035,7 @@ func TestCreateComment_OKTopLevel(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postComments.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.postComments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: userID, Body: "hi"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1052,7 +1055,7 @@ func TestCreateComment_OKReply(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postComments.EXPECT().CreateComment(mock.Anything, postID, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.postComments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: &parentID, UserID: userID, Body: "hi"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1075,8 +1078,8 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.postComments.EXPECT().
-		CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "look at this @alice").
-		Return(&repository.CommentRow{ID: commentID}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: userID, Body: "look at this @alice"}).
+		Return(&model.CommentRow{ID: commentID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -1127,7 +1130,7 @@ func TestCreatePost_MentionNotifiesTheNamedUserOutsideSuggestions(t *testing.T) 
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
 			m.postRepo.EXPECT().
-				CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: tt.corner, Body: "look at this @alice"}).
+				CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tt.corner, Body: "look at this @alice"}).
 				Return(&model.PostRow{ID: postID}, nil)
 
 			var wg sync.WaitGroup
@@ -1192,11 +1195,11 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionPostCommentUpdateAdmin,
-		TargetType: repository.AuditTargetPostComment,
+		Action:     audit.ActionPostCommentUpdateAdmin,
+		TargetType: audit.TargetPostComment,
 		TargetID:   id.String(),
 		SubjectID:  authorID,
 	}).Return(nil)
@@ -1216,7 +1219,7 @@ func TestUpdateComment_ModeratorEditingOwnCommentIsNotAudited(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1234,7 +1237,7 @@ func TestUpdateComment_AsAdminRepoError(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "body", AsAdmin: true}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
@@ -1264,7 +1267,7 @@ func TestUpdateComment_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(nil)
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1281,7 +1284,7 @@ func TestUpdateComment_AsOwnerRepoError(t *testing.T) {
 	userID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, repository.PostCommentUpdate{ID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(errors.New("boom"))
+	m.postRepo.EXPECT().UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "body", AsAdmin: false}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "body"})
@@ -1290,20 +1293,22 @@ func TestUpdateComment_AsOwnerRepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func postCommentDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) repository.PostCommentDelete {
-	action := repository.AuditActionPostCommentDelete
+func postCommentDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) spec.PostCommentDelete {
+	action := audit.ActionPostCommentDelete
 	if authorID != userID {
-		action = repository.AuditActionPostCommentDeleteAdmin
+		action = audit.ActionPostCommentDeleteAdmin
 	}
 
-	return repository.PostCommentDelete{
-		ID:      id,
-		UserID:  userID,
-		AsAdmin: asAdmin,
-		Audit: repository.NewAuditEntry{
+	return spec.PostCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: id,
+			UserID:    userID,
+			AsAdmin:   asAdmin,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetPostComment,
+			TargetType: audit.TargetPostComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		},
@@ -1430,7 +1435,7 @@ func TestLikeComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(errors.New("boom"))
+	m.postRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, commentID)
@@ -1447,7 +1452,7 @@ func TestLikeComment_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.postRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1462,7 +1467,7 @@ func TestUnlikeComment_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.postRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, commentID)
@@ -1476,7 +1481,7 @@ func TestUnlikeComment_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(errors.New("boom"))
+	m.postRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, commentID)
@@ -1516,7 +1521,7 @@ func TestVotePoll_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(nil, nil, nil, errors.New("boom"))
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(nil, nil, nil, errors.New("boom"))
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1530,7 +1535,7 @@ func TestVotePoll_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(nil, nil, nil, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(nil, nil, nil, nil)
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1547,7 +1552,7 @@ func TestVotePoll_AlreadyVoted(t *testing.T) {
 	pollID := uuid.New().String()
 	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, nil, new(1), nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, nil, new(1), nil)
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 
@@ -1565,7 +1570,7 @@ func TestVotePoll_Expired(t *testing.T) {
 	userID := uuid.New()
 	authorID := uuid.New()
 	poll := &model.PollRow{ID: uuid.New().String(), ExpiresAt: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, nil, nil, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, nil, nil, nil)
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 
@@ -1584,7 +1589,7 @@ func TestVotePoll_InvalidOption(t *testing.T) {
 	authorID := uuid.New()
 	poll := &model.PollRow{ID: uuid.New().String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}, {ID: 2}}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, nil, nil)
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 
@@ -1604,10 +1609,10 @@ func TestVotePoll_VoteRepoError(t *testing.T) {
 	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, nil, nil)
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(errors.New("boom"))
+	m.postRepo.EXPECT().VotePoll(mock.Anything, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: 1}).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1625,10 +1630,10 @@ func TestVotePoll_VoteAlreadyVotedDBError(t *testing.T) {
 	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, nil, nil)
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(errors.New("user already voted on this poll"))
+	m.postRepo.EXPECT().VotePoll(mock.Anything, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: 1}).Return(errors.New("user already voted on this poll"))
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1646,11 +1651,11 @@ func TestVotePoll_RefreshError(t *testing.T) {
 	authorID := uuid.New()
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 	options := []model.PollOptionRow{{ID: 1}}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, nil, nil).Once()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(nil, nil, nil, errors.New("boom")).Once()
+	m.postRepo.EXPECT().VotePoll(mock.Anything, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: 1}).Return(nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(nil, nil, nil, errors.New("boom")).Once()
 
 	// when
 	_, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1669,11 +1674,11 @@ func TestVotePoll_OK(t *testing.T) {
 	expiresAt := time.Now().Add(time.Hour).UTC().Format(time.RFC3339)
 	poll := &model.PollRow{ID: pollID.String(), ExpiresAt: expiresAt}
 	options := []model.PollOptionRow{{ID: 1}}
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, nil, nil).Once()
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
-	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, new(1), nil).Once()
+	m.postRepo.EXPECT().VotePoll(mock.Anything, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: 1}).Return(nil)
+	m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, new(1), nil).Once()
 
 	// when
 	got, err := svc.VotePoll(context.Background(), postID, userID, 1)
@@ -1719,14 +1724,14 @@ func TestVotePoll_BlockRelation(t *testing.T) {
 			pollID := uuid.New()
 			poll := &model.PollRow{ID: pollID.String(), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339)}
 			options := []model.PollOptionRow{{ID: 1}}
-			m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, nil, nil).Once()
+			m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, nil, nil).Once()
 			m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, tc.authorErr)
 			if tc.authorErr == nil {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(tc.blocked, nil)
 			}
 			if tc.expectVote {
-				m.postRepo.EXPECT().VotePoll(mock.Anything, pollID, userID, 1).Return(nil)
-				m.postRepo.EXPECT().GetPollByPostID(mock.Anything, postID, userID).Return(poll, options, new(1), nil).Once()
+				m.postRepo.EXPECT().VotePoll(mock.Anything, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: 1}).Return(nil)
+				m.postRepo.EXPECT().GetPollByPostID(mock.Anything, spec.PostPollQuery{PostID: postID, ViewerID: userID}).Return(poll, options, new(1), nil).Once()
 			}
 
 			// when
@@ -1736,7 +1741,7 @@ func TestVotePoll_BlockRelation(t *testing.T) {
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Nil(t, got)
-				m.postRepo.AssertNotCalled(t, "VotePoll", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				m.postRepo.AssertNotCalled(t, "VotePoll", mock.Anything, mock.Anything)
 
 				return
 			}
@@ -1768,7 +1773,7 @@ func TestResolveSuggestion_InvalidStatusNormalised(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermResolveSuggestion).Return(true)
-	m.postRepo.EXPECT().ResolveSuggestion(mock.Anything, postID, userID, "done").Return(nil)
+	m.postRepo.EXPECT().ResolveSuggestion(mock.Anything, spec.SuggestionResolution{PostID: postID, ResolvedBy: userID, Status: "done"}).Return(nil)
 	expectBackgroundSocial(m)
 
 	// when
@@ -1784,7 +1789,7 @@ func TestResolveSuggestion_Archived(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermResolveSuggestion).Return(true)
-	m.postRepo.EXPECT().ResolveSuggestion(mock.Anything, postID, userID, "archived").Return(nil)
+	m.postRepo.EXPECT().ResolveSuggestion(mock.Anything, spec.SuggestionResolution{PostID: postID, ResolvedBy: userID, Status: "archived"}).Return(nil)
 
 	// when
 	err := svc.ResolveSuggestion(context.Background(), postID, userID, "archived")
@@ -1799,7 +1804,7 @@ func TestResolveSuggestion_RepoError(t *testing.T) {
 	postID := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermResolveSuggestion).Return(true)
-	m.postRepo.EXPECT().ResolveSuggestion(mock.Anything, postID, userID, "done").Return(errors.New("boom"))
+	m.postRepo.EXPECT().ResolveSuggestion(mock.Anything, spec.SuggestionResolution{PostID: postID, ResolvedBy: userID, Status: "done"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.ResolveSuggestion(context.Background(), postID, userID, "done")
@@ -1856,7 +1861,7 @@ func TestUnresolveSuggestion_RepoError(t *testing.T) {
 func TestGetShareCount_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.postRepo.EXPECT().GetShareCount(mock.Anything, "abc", "post").Return(7, nil)
+	m.postRepo.EXPECT().GetShareCount(mock.Anything, model.SharedContentRef{ID: "abc", Type: "post"}).Return(7, nil)
 
 	// when
 	got, err := svc.GetShareCount(context.Background(), "abc", "post")
@@ -1869,7 +1874,7 @@ func TestGetShareCount_OK(t *testing.T) {
 func TestGetShareCount_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.postRepo.EXPECT().GetShareCount(mock.Anything, "abc", "post").Return(0, errors.New("boom"))
+	m.postRepo.EXPECT().GetShareCount(mock.Anything, model.SharedContentRef{ID: "abc", Type: "post"}).Return(0, errors.New("boom"))
 
 	// when
 	_, err := svc.GetShareCount(context.Background(), "abc", "post")

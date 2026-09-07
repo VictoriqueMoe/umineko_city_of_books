@@ -5,19 +5,26 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/google/uuid"
-
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	ReportDAO interface {
+		Create(ctx context.Context, s spec.NewReport, tx ...*sql.Tx) (*model.ReportRow, error)
+		List(ctx context.Context, q spec.ReportFilter, tx ...*sql.Tx) ([]model.ReportRow, int, error)
+		GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*model.ReportRow, error)
+		Resolve(ctx context.Context, s spec.ReportResolution, tx ...*sql.Tx) error
+	}
+
 	reportDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *reportDAO) Create(ctx context.Context, spec repository.NewReport, tx ...*sql.Tx) (*repository.ReportRow, error) {
-	var row repository.ReportRow
+func (r *reportDAO) Create(ctx context.Context, s spec.NewReport, tx ...*sql.Tx) (*model.ReportRow, error) {
+	var row model.ReportRow
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH rep AS (
 		     INSERT INTO reports (reporter_id, target_type, target_id, context_id, reason)
@@ -29,7 +36,7 @@ func (r *reportDAO) Create(ctx context.Context, spec repository.NewReport, tx ..
 		        rep.resolved_by, ''::text, rep.created_at
 		 FROM rep
 		 JOIN users u ON rep.reporter_id = u.id`,
-		spec.ReporterID, spec.TargetType, spec.TargetID, spec.ContextID, spec.Reason,
+		s.ReporterID, s.TargetType, s.TargetID, s.ContextID, s.Reason,
 	).Scan(
 		&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
 		&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
@@ -42,12 +49,12 @@ func (r *reportDAO) Create(ctx context.Context, spec repository.NewReport, tx ..
 	return &row, nil
 }
 
-func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, tx ...*sql.Tx) ([]repository.ReportRow, int, error) {
+func (r *reportDAO) List(ctx context.Context, q spec.ReportFilter, tx ...*sql.Tx) ([]model.ReportRow, int, error) {
 	where := ""
 	var args []any
-	if status != "" {
+	if q.Status != "" {
 		where = " WHERE r.status = $1"
-		args = append(args, status)
+		args = append(args, q.Status)
 	}
 
 	var total int
@@ -71,7 +78,7 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, 
 		 LEFT JOIN users ru ON r.resolved_by = ru.id
 		 %s ORDER BY r.created_at DESC LIMIT $%d OFFSET $%d`, where, limitIdx, offsetIdx,
 	)
-	args = append(args, limit, offset)
+	args = append(args, q.Limit, q.Offset)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
@@ -79,9 +86,9 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, 
 	}
 	defer rows.Close()
 
-	var reports []repository.ReportRow
+	var reports []model.ReportRow
 	for rows.Next() {
-		var row repository.ReportRow
+		var row model.ReportRow
 		if err := rows.Scan(
 			&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
 			&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
@@ -91,11 +98,13 @@ func (r *reportDAO) List(ctx context.Context, status string, limit, offset int, 
 		}
 		reports = append(reports, row)
 	}
+
 	return reports, total, rows.Err()
 }
 
-func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*repository.ReportRow, error) {
-	var row repository.ReportRow
+func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*model.ReportRow, error) {
+	var row model.ReportRow
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT r.id, r.reporter_id, u.display_name, u.avatar_url,
 		        r.target_type, r.target_id, COALESCE(r.context_id, ''), r.reason, r.status,
@@ -112,16 +121,18 @@ func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*reposi
 	if err != nil {
 		return nil, fmt.Errorf("get report by id: %w", err)
 	}
+
 	return &row, nil
 }
 
-func (r *reportDAO) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, comment string, tx ...*sql.Tx) error {
+func (r *reportDAO) Resolve(ctx context.Context, s spec.ReportResolution, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE reports SET status = 'resolved', resolved_by = $1, resolution_comment = $2 WHERE id = $3`,
-		resolvedBy, comment, id,
+		s.ResolvedBy, s.Comment, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("resolve report: %w", err)
 	}
+
 	return nil
 }

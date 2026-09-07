@@ -13,9 +13,10 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
@@ -137,17 +138,17 @@ func (s *service) List(ctx context.Context, viewerID uuid.UUID) (*dto.SecretList
 	return &dto.SecretListResponse{Secrets: result, SolversLeaderboard: solvers}, nil
 }
 
-func (s *service) buildSummary(ctx context.Context, spec secrets.Spec, viewerID uuid.UUID, commentCount int) (dto.SecretSummary, error) {
-	pieceIDs := secrets.PieceIDStrings(spec)
+func (s *service) buildSummary(ctx context.Context, secretSpec secrets.Spec, viewerID uuid.UUID, commentCount int) (dto.SecretSummary, error) {
+	pieceIDs := secrets.PieceIDStrings(secretSpec)
 	summary := dto.SecretSummary{
-		ID:           string(spec.ID),
-		Title:        spec.Title,
-		Description:  spec.Description,
+		ID:           string(secretSpec.ID),
+		Title:        secretSpec.Title,
+		Description:  secretSpec.Description,
 		TotalPieces:  len(pieceIDs),
 		CommentCount: commentCount,
 	}
 
-	solver, err := s.secretRepo.GetFirstSolver(ctx, string(spec.ID))
+	solver, err := s.secretRepo.GetFirstSolver(ctx, string(secretSpec.ID))
 	if err != nil {
 		return summary, err
 	}
@@ -164,25 +165,25 @@ func (s *service) buildSummary(ctx context.Context, spec secrets.Spec, viewerID 
 	}
 
 	if viewerID != uuid.Nil && len(pieceIDs) > 0 {
-		count, _ := s.secretRepo.GetPieceCountForUser(ctx, viewerID, pieceIDs)
+		count, _ := s.secretRepo.GetPieceCountForUser(ctx, spec.SecretPieceCount{UserID: viewerID, PieceIDs: pieceIDs})
 		summary.ViewerProgress = count
 	}
 	return summary, nil
 }
 
 func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.SecretDetailResponse, error) {
-	spec, ok := secrets.Lookup(id)
-	if !ok || spec.Title == "" {
+	secretSpec, ok := secrets.Lookup(id)
+	if !ok || secretSpec.Title == "" {
 		return nil, ErrNotFound
 	}
 
 	commentCounts, _ := s.secretRepo.CountCommentsBySecret(ctx, []string{id})
-	summary, err := s.buildSummary(ctx, spec, viewerID, commentCounts[id])
+	summary, err := s.buildSummary(ctx, secretSpec, viewerID, commentCounts[id])
 	if err != nil {
 		return nil, err
 	}
 
-	pieceIDs := secrets.PieceIDStrings(spec)
+	pieceIDs := secrets.PieceIDStrings(secretSpec)
 	var leaderboard []dto.SecretLeaderboardEntry
 	if len(pieceIDs) > 0 {
 		rows, err := s.secretRepo.GetProgressLeaderboard(ctx, pieceIDs)
@@ -209,7 +210,13 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	commentRows, _, _ := s.secretRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	commentRows, _, _ := s.secretRepo.GetComments(ctx, spec.CommentQuery[string]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 	var comments []dto.SecretCommentResponse
 	if len(commentRows) > 0 {
 		commentIDs := make([]uuid.UUID, len(commentRows))
@@ -233,7 +240,7 @@ func (s *service) Get(ctx context.Context, id string, viewerID uuid.UUID) (*dto.
 
 	return &dto.SecretDetailResponse{
 		SecretSummary: summary,
-		Riddle:        spec.Riddle,
+		Riddle:        secretSpec.Riddle,
 		Leaderboard:   leaderboard,
 		Comments:      comments,
 	}, nil
@@ -252,8 +259,8 @@ func (s *service) solvedUserSet(ctx context.Context, parentID string) (map[uuid.
 }
 
 func (s *service) CreateComment(ctx context.Context, secretID string, userID uuid.UUID, req dto.CreateSecretCommentRequest) (uuid.UUID, error) {
-	spec, ok := secrets.Lookup(secretID)
-	if !ok || spec.Title == "" {
+	secretSpec, ok := secrets.Lookup(secretID)
+	if !ok || secretSpec.Title == "" {
 		return uuid.Nil, ErrNotFound
 	}
 	body := strings.TrimSpace(req.Body)
@@ -331,7 +338,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
-	return s.secretRepo.UpdateCommentBody(ctx, repository.SecretCommentUpdate{
+	return s.secretRepo.UpdateCommentBody(ctx, spec.CommentUpdate{
 		CommentID: id,
 		UserID:    userID,
 		Body:      body,
@@ -342,7 +349,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
 
-	paths, err := s.secretRepo.DeleteCommentWithAudit(ctx, repository.SecretCommentDeletion{
+	paths, err := s.secretRepo.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
 		CommentID: id,
 		UserID:    userID,
 		AsAdmin:   asAdmin,
@@ -364,7 +371,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return ErrUserBlocked
 	}
-	if err := s.secretRepo.LikeComment(ctx, userID, commentID); err != nil {
+	if err := s.secretRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
 
@@ -396,7 +403,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.secretRepo.UnlikeComment(ctx, userID, commentID)
+	return s.secretRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UploadCommentMedia(
@@ -422,8 +429,8 @@ func (s *service) UploadCommentMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "secrets", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
-			return s.secretRepo.AddCommentMedia(ctx, repository.NewSecretCommentMedia{
-				CommentID: commentID,
+			return s.secretRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:  commentID,
 				MediaURL:  mediaURL,
 				MediaType: mediaType,
 				Filename:  filename,
@@ -442,12 +449,12 @@ func (s *service) UploadCommentMedia(
 }
 
 func (s *service) BroadcastProgress(ctx context.Context, parentID string, actor uuid.UUID) {
-	spec, ok := secrets.Lookup(parentID)
-	if !ok || spec.Title == "" {
+	secretSpec, ok := secrets.Lookup(parentID)
+	if !ok || secretSpec.Title == "" {
 		return
 	}
-	pieceIDs := secrets.PieceIDStrings(spec)
-	summary, err := s.secretRepo.GetUserProgressSummary(ctx, actor, pieceIDs)
+	pieceIDs := secrets.PieceIDStrings(secretSpec)
+	summary, err := s.secretRepo.GetUserProgressSummary(ctx, spec.SecretPieceCount{UserID: actor, PieceIDs: pieceIDs})
 	if err != nil || summary == nil {
 		return
 	}
@@ -471,7 +478,7 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 	if err != nil || user == nil {
 		return
 	}
-	spec, specOK := secrets.Lookup(parentID)
+	secretSpec, specOK := secrets.Lookup(parentID)
 	solverName := user.DisplayName
 	if solverName == "" {
 		solverName = user.Username
@@ -489,20 +496,20 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 	}
 	s.hub.BroadcastToTopic(secretRoomID(parentID), ws.Message{Type: "secret_solved", Data: event})
 
-	if specOK && spec.VanityRoleID != "" {
+	if specOK && secretSpec.VanityRoleID != "" {
 		s.hub.Broadcast(ws.Message{Type: "vanity_roles_changed", Data: map[string]any{}})
 	}
 
-	if specOK && spec.Title != "" {
-		pieceIDs := secrets.PieceIDStrings(spec)
+	if specOK && secretSpec.Title != "" {
+		pieceIDs := secrets.PieceIDStrings(secretSpec)
 		participants, err := s.userSecretSvc.GetUserIDsWithAnyPiece(ctx, pieceIDs)
 		if err == nil {
 			closedData := map[string]any{
 				"secret_id":    parentID,
-				"secret_title": spec.Title,
+				"secret_title": secretSpec.Title,
 				"solver":       event.Solver,
 			}
-			message := fmt.Sprintf("solved %s before you could. Uu~ try again next time.", spec.Title)
+			message := fmt.Sprintf("solved %s before you could. Uu~ try again next time.", secretSpec.Title)
 			emailLink := fmt.Sprintf("/secrets/%s", parentID)
 			go func(participants []uuid.UUID, actorName, action, link, msg string) {
 				bgCtx := context.Background()
@@ -527,7 +534,7 @@ func (s *service) BroadcastSolved(ctx context.Context, parentID string, actor uu
 	}
 }
 
-func secretCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.SecretCommentResponse {
+func secretCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.SecretCommentResponse {
 	return dto.SecretCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,

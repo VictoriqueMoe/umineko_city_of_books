@@ -4,8 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -15,7 +18,7 @@ import (
 
 func createOC(t *testing.T, repos *repository.Repositories, userID uuid.UUID, name, series, customSeries string) uuid.UUID {
 	t.Helper()
-	created, err := repos.OC.Create(context.Background(), repository.NewOC{UserID: userID, Name: name, Description: "desc", Series: series, CustomSeriesName: customSeries})
+	created, err := repos.OC.Create(context.Background(), spec.NewOC{UserID: userID, Name: name, Description: "desc", Series: series, CustomSeriesName: customSeries})
 	require.NoError(t, err)
 	return created.ID
 }
@@ -26,11 +29,11 @@ func TestOCDAO_Create(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	created, err := repos.OC.Create(context.Background(), repository.NewOC{UserID: user.ID, Name: "Linda", Description: "the OC bio", Series: "umineko"})
+	created, err := repos.OC.Create(context.Background(), spec.NewOC{UserID: user.ID, Name: "Linda", Description: "the OC bio", Series: "umineko"})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), created.ID, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: created.ID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, "Linda", row.Name)
@@ -45,11 +48,11 @@ func TestOCDAO_CreateCustomSeries(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	created, err := repos.OC.Create(context.Background(), repository.NewOC{UserID: user.ID, Name: "Linda", Series: "custom", CustomSeriesName: "Higanbana"})
+	created, err := repos.OC.Create(context.Background(), spec.NewOC{UserID: user.ID, Name: "Linda", Series: "custom", CustomSeriesName: "Higanbana"})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), created.ID, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: created.ID, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "custom", row.Series)
 	assert.Equal(t, "Higanbana", row.CustomSeriesName)
@@ -62,9 +65,9 @@ func TestOCDAO_HasOC_CaseInsensitive(t *testing.T) {
 	createOC(t, repos, user.ID, "Linda", "umineko", "")
 
 	// when
-	got1, err := repos.OC.HasOC(context.Background(), user.ID, "linda")
+	got1, err := repos.OC.HasOC(context.Background(), spec.OCNameLookup{UserID: user.ID, Name: "linda"})
 	require.NoError(t, err)
-	got2, err := repos.OC.HasOC(context.Background(), user.ID, "Other")
+	got2, err := repos.OC.HasOC(context.Background(), spec.OCNameLookup{UserID: user.ID, Name: "Other"})
 	require.NoError(t, err)
 
 	// then
@@ -79,11 +82,11 @@ func TestOCDAO_Update_AsOwner(t *testing.T) {
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
 
 	// when
-	err := repos.OC.Update(context.Background(), repository.OCUpdate{ID: id, UserID: user.ID, Name: "Linda Renamed", Description: "new bio", Series: "ciconia"})
+	err := repos.OC.Update(context.Background(), spec.OCUpdate{ID: id, UserID: user.ID, Name: "Linda Renamed", Description: "new bio", Series: "ciconia"})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), id, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "Linda Renamed", row.Name)
 	assert.Equal(t, "new bio", row.Description)
@@ -98,7 +101,7 @@ func TestOCDAO_Update_NotOwnedFails(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when
-	err := repos.OC.Update(context.Background(), repository.OCUpdate{ID: id, UserID: stranger.ID, Name: "Hijacked", Series: "umineko"})
+	err := repos.OC.Update(context.Background(), spec.OCUpdate{ID: id, UserID: stranger.ID, Name: "Hijacked", Series: "umineko"})
 
 	// then
 	require.Error(t, err)
@@ -112,11 +115,11 @@ func TestOCDAO_Update_AsAdmin(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when
-	err := repos.OC.Update(context.Background(), repository.OCUpdate{ID: id, UserID: admin.ID, Name: "Modded", Series: "umineko", AsAdmin: true})
+	err := repos.OC.Update(context.Background(), spec.OCUpdate{ID: id, UserID: admin.ID, Name: "Modded", Series: "umineko", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "Modded", row.Name)
 }
@@ -128,11 +131,11 @@ func TestOCDAO_UpdateImage(t *testing.T) {
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
 
 	// when
-	err := repos.OC.UpdateImage(context.Background(), id, "/uploads/ocs/x.png", "/uploads/ocs/x_thumb.png")
+	err := repos.OC.UpdateImage(context.Background(), spec.OCImageUpdate{ID: id, ImageURL: "/uploads/ocs/x.png", ThumbnailURL: "/uploads/ocs/x_thumb.png"})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), id, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "/uploads/ocs/x.png", row.ImageURL)
 	assert.Equal(t, "/uploads/ocs/x_thumb.png", row.ThumbnailURL)
@@ -145,11 +148,11 @@ func TestOCDAO_Delete_AsOwner(t *testing.T) {
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
 
 	// when
-	err := repos.OC.Delete(context.Background(), id, user.ID)
+	err := repos.OC.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), id, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -162,7 +165,7 @@ func TestOCDAO_Delete_NotOwnedFails(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when
-	err := repos.OC.Delete(context.Background(), id, stranger.ID)
+	err := repos.OC.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: stranger.ID})
 
 	// then
 	require.Error(t, err)
@@ -179,7 +182,7 @@ func TestOCDAO_DeleteAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.OC.GetByID(context.Background(), id, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -189,20 +192,20 @@ func TestOCDAO_DeleteOC_ReturnsImageGalleryAndCommentMediaPaths(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	require.NoError(t, repos.OC.UpdateImage(context.Background(), id, "/uploads/ocs/portrait.png", "/uploads/ocs/portrait_thumb.png"))
-	_, err := repos.OC.AddGalleryImage(context.Background(), id, "/uploads/ocs/gallery.png", "/uploads/ocs/gallery_thumb.png", "First", 0)
+	require.NoError(t, repos.OC.UpdateImage(context.Background(), spec.OCImageUpdate{ID: id, ImageURL: "/uploads/ocs/portrait.png", ThumbnailURL: "/uploads/ocs/portrait_thumb.png"}))
+	_, err := repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: id, ImageURL: "/uploads/ocs/gallery.png", ThumbnailURL: "/uploads/ocs/gallery_thumb.png", Caption: "First", SortOrder: 0})
 	require.NoError(t, err)
-	_, err = repos.OC.AddGalleryImage(context.Background(), id, "/uploads/ocs/gallery_two.png", "", "Second", 1)
+	_, err = repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: id, ImageURL: "/uploads/ocs/gallery_two.png", Caption: "Second", SortOrder: 1})
 	require.NoError(t, err)
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "nice")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "nice"})
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment.png", "image", "/uploads/ocs/comment_thumb.png", "comment.png", 0, false)
+	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: comment.ID, MediaURL: "/uploads/ocs/comment.png", MediaType: "image", ThumbnailURL: "/uploads/ocs/comment_thumb.png", Filename: "comment.png", SortOrder: 0})
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/comment_two.gif", "image", "", "comment_two.gif", 1, false)
+	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: comment.ID, MediaURL: "/uploads/ocs/comment_two.gif", MediaType: "image", Filename: "comment_two.gif", SortOrder: 1})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.OC.DeleteOC(context.Background(), repository.OCDeletion{ID: id, UserID: user.ID})
+	paths, err := repos.OC.DeleteOC(context.Background(), spec.OCDeletion{ID: id, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -216,7 +219,7 @@ func TestOCDAO_DeleteOC_ReturnsImageGalleryAndCommentMediaPaths(t *testing.T) {
 		"/uploads/ocs/comment_thumb.png",
 		"/uploads/ocs/comment_two.gif",
 	}, paths)
-	row, err := repos.OC.GetByID(context.Background(), id, user.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -227,15 +230,15 @@ func TestOCDAO_DeleteOC_NotOwnedFails(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
-	require.NoError(t, repos.OC.UpdateImage(context.Background(), id, "/uploads/ocs/portrait.png", ""))
+	require.NoError(t, repos.OC.UpdateImage(context.Background(), spec.OCImageUpdate{ID: id, ImageURL: "/uploads/ocs/portrait.png"}))
 
 	// when
-	paths, err := repos.OC.DeleteOC(context.Background(), repository.OCDeletion{ID: id, UserID: stranger.ID})
+	paths, err := repos.OC.DeleteOC(context.Background(), spec.OCDeletion{ID: id, UserID: stranger.ID})
 
 	// then
 	require.Error(t, err)
 	assert.Empty(t, paths)
-	row, err := repos.OC.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.NotNil(t, row)
 }
@@ -246,16 +249,16 @@ func TestOCDAO_DeleteOC_AsAdmin_ReturnsGalleryPaths(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
-	_, err := repos.OC.AddGalleryImage(context.Background(), id, "/uploads/ocs/mod.png", "/uploads/ocs/mod_thumb.png", "", 0)
+	_, err := repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: id, ImageURL: "/uploads/ocs/mod.png", ThumbnailURL: "/uploads/ocs/mod_thumb.png", SortOrder: 0})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.OC.DeleteOC(context.Background(), repository.OCDeletion{ID: id, UserID: moderator.ID, AsAdmin: true})
+	paths, err := repos.OC.DeleteOC(context.Background(), spec.OCDeletion{ID: id, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"/uploads/ocs/mod.png", "/uploads/ocs/mod_thumb.png"}, paths)
-	row, err := repos.OC.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -265,19 +268,19 @@ func TestOCDAO_DeleteCommentWithMedia_ReturnsOnlyThatCommentMediaPaths(t *testin
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	target, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "target")
+	target, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "target"})
 	require.NoError(t, err)
-	other, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "other")
+	other, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "other"})
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target.png", "image", "/uploads/ocs/target_thumb.png", "target.png", 0, false)
+	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: target.ID, MediaURL: "/uploads/ocs/target.png", MediaType: "image", ThumbnailURL: "/uploads/ocs/target_thumb.png", Filename: "target.png", SortOrder: 0})
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), target.ID, "/uploads/ocs/target_two.gif", "image", "", "target_two.gif", 1, false)
+	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: target.ID, MediaURL: "/uploads/ocs/target_two.gif", MediaType: "image", Filename: "target_two.gif", SortOrder: 1})
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), other.ID, "/uploads/ocs/other.png", "image", "", "other.png", 0, false)
+	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: other.ID, MediaURL: "/uploads/ocs/other.png", MediaType: "image", Filename: "other.png", SortOrder: 0})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: target.ID, UserID: user.ID})
+	paths, err := repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: target.ID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -298,18 +301,18 @@ func TestOCDAO_DeleteCommentWithMedia_AsAdmin(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "spam")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "spam"})
 	require.NoError(t, err)
-	_, err = repos.OC.AddCommentMedia(context.Background(), comment.ID, "/uploads/ocs/spam.png", "image", "/uploads/ocs/spam_thumb.png", "spam.png", 0, false)
+	_, err = repos.OC.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: comment.ID, MediaURL: "/uploads/ocs/spam.png", MediaType: "image", ThumbnailURL: "/uploads/ocs/spam_thumb.png", Filename: "spam.png", SortOrder: 0})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
+	paths, err := repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"/uploads/ocs/spam.png", "/uploads/ocs/spam_thumb.png"}, paths)
-	_, total, err := repos.OC.GetComments(context.Background(), id, user.ID, 20, 0, nil)
+	_, total, err := repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: user.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -320,19 +323,19 @@ func TestOCDAO_DeleteCommentWithMedia_AsAdminWritesAudit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	moderator := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "spam")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "spam"})
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
+	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionOCCommentDeleteAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionOCCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, repository.AuditTargetOCComment, entries[0].TargetType)
+	assert.Equal(t, audit.TargetOCComment, entries[0].TargetType)
 	assert.Equal(t, comment.ID.String(), entries[0].TargetID)
 	require.NotNil(t, entries[0].SubjectID)
 	assert.Equal(t, user.ID, *entries[0].SubjectID)
@@ -344,15 +347,15 @@ func TestOCDAO_DeleteCommentWithMedia_AsOwnerWritesAudit(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "mine")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "mine"})
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: user.ID})
+	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionOCCommentDelete, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionOCCommentDelete, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, user.ID, entries[0].ActorID)
@@ -366,18 +369,18 @@ func TestOCDAO_DeleteCommentWithMedia_NotOwnedWritesNoAudit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	stranger := daotest.CreateUser(t, repos)
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, user.ID, "mine")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: user.ID, Body: "mine"})
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), repository.OCCommentDeletion{CommentID: comment.ID, UserID: stranger.ID})
+	_, err = repos.OC.DeleteCommentWithMedia(context.Background(), spec.CommentDeletion{CommentID: comment.ID, UserID: stranger.ID})
 
 	// then
 	require.Error(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionOCCommentDeleteAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionOCCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Empty(t, entries)
-	_, total, err := repos.OC.GetComments(context.Background(), id, user.ID, 20, 0, nil)
+	_, total, err := repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: user.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 }
@@ -390,7 +393,7 @@ func TestOCDAO_List_FiltersBySeries(t *testing.T) {
 	createOC(t, repos, user.ID, "Rena", "higurashi", "")
 
 	// when
-	rows, total, err := repos.OC.List(context.Background(), uuid.Nil, "new", false, "umineko", "", uuid.Nil, 20, 0, nil)
+	rows, total, err := repos.OC.List(context.Background(), spec.OCListFilter{ViewerID: uuid.Nil, Sort: "new", CrackOCsOnly: false, Series: "umineko", OwnerID: uuid.Nil, Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -407,7 +410,7 @@ func TestOCDAO_List_FiltersByCustomSeriesName(t *testing.T) {
 	createOC(t, repos, user.ID, "B", "custom", "Roseguns")
 
 	// when
-	rows, total, err := repos.OC.List(context.Background(), uuid.Nil, "new", false, "custom", "higanbana", uuid.Nil, 20, 0, nil)
+	rows, total, err := repos.OC.List(context.Background(), spec.OCListFilter{ViewerID: uuid.Nil, Sort: "new", CrackOCsOnly: false, Series: "custom", CustomSeriesName: "higanbana", OwnerID: uuid.Nil, Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -426,7 +429,7 @@ func TestOCDAO_ListByUser(t *testing.T) {
 	createOC(t, repos, other.ID, "Rena", "higurashi", "")
 
 	// when
-	rows, total, err := repos.OC.ListByUser(context.Background(), owner.ID, owner.ID, 20, 0)
+	rows, total, err := repos.OC.ListByUser(context.Background(), spec.OCUserListFilter{UserID: owner.ID, ViewerID: owner.ID, Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -458,9 +461,9 @@ func TestOCDAO_GalleryRoundTrip(t *testing.T) {
 	id := createOC(t, repos, user.ID, "Linda", "umineko", "")
 
 	// when
-	first, err := repos.OC.AddGalleryImage(context.Background(), id, "/uploads/ocs/a.png", "", "First", 0)
+	first, err := repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: id, ImageURL: "/uploads/ocs/a.png", Caption: "First", SortOrder: 0})
 	require.NoError(t, err)
-	_, err = repos.OC.AddGalleryImage(context.Background(), id, "/uploads/ocs/b.png", "", "Second", 1)
+	_, err = repos.OC.AddGalleryImage(context.Background(), spec.NewOCGalleryImage{OCID: id, ImageURL: "/uploads/ocs/b.png", Caption: "Second", SortOrder: 1})
 	require.NoError(t, err)
 
 	images, err := repos.OC.GetGallery(context.Background(), id)
@@ -470,7 +473,7 @@ func TestOCDAO_GalleryRoundTrip(t *testing.T) {
 	assert.Len(t, images, 2)
 
 	// when (update first caption)
-	require.NoError(t, repos.OC.UpdateGalleryImage(context.Background(), first, id, new("Updated"), nil))
+	require.NoError(t, repos.OC.UpdateGalleryImage(context.Background(), spec.OCGalleryImageUpdate{ID: first, OCID: id, Caption: new("Updated")}))
 
 	// then
 	got, err := repos.OC.GetGallery(context.Background(), id)
@@ -479,7 +482,7 @@ func TestOCDAO_GalleryRoundTrip(t *testing.T) {
 	assert.Equal(t, "Updated", got[0].Caption)
 
 	// when (delete second)
-	require.NoError(t, repos.OC.DeleteGalleryImage(context.Background(), got[1].ID, id))
+	require.NoError(t, repos.OC.DeleteGalleryImage(context.Background(), spec.MediaDeletion{ID: got[1].ID, TargetID: id}))
 
 	got, err = repos.OC.GetGallery(context.Background(), id)
 	require.NoError(t, err)
@@ -494,21 +497,21 @@ func TestOCDAO_VoteRoundTrip(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when (upvote)
-	require.NoError(t, repos.OC.Vote(context.Background(), voter.ID, id, 1))
-	row, err := repos.OC.GetByID(context.Background(), id, voter.ID)
+	require.NoError(t, repos.OC.Vote(context.Background(), spec.Vote{UserID: voter.ID, TargetID: id, Value: 1}))
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: voter.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.VoteScore)
 	assert.Equal(t, 1, row.UserVote)
 
 	// when (downvote replaces)
-	require.NoError(t, repos.OC.Vote(context.Background(), voter.ID, id, -1))
-	row, err = repos.OC.GetByID(context.Background(), id, voter.ID)
+	require.NoError(t, repos.OC.Vote(context.Background(), spec.Vote{UserID: voter.ID, TargetID: id, Value: -1}))
+	row, err = repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: voter.ID})
 	require.NoError(t, err)
 	assert.Equal(t, -1, row.VoteScore)
 
 	// when (clear)
-	require.NoError(t, repos.OC.Vote(context.Background(), voter.ID, id, 0))
-	row, err = repos.OC.GetByID(context.Background(), id, voter.ID)
+	require.NoError(t, repos.OC.Vote(context.Background(), spec.Vote{UserID: voter.ID, TargetID: id, Value: 0}))
+	row, err = repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: voter.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.VoteScore)
 }
@@ -521,21 +524,21 @@ func TestOCDAO_FavouriteRoundTrip(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when (favourite)
-	require.NoError(t, repos.OC.Favourite(context.Background(), fan.ID, id))
-	row, err := repos.OC.GetByID(context.Background(), id, fan.ID)
+	require.NoError(t, repos.OC.Favourite(context.Background(), spec.Like{UserID: fan.ID, TargetID: id}))
+	row, err := repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: fan.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.FavouriteCount)
 	assert.True(t, row.UserFavourited)
 
 	// when (idempotent)
-	require.NoError(t, repos.OC.Favourite(context.Background(), fan.ID, id))
-	row, err = repos.OC.GetByID(context.Background(), id, fan.ID)
+	require.NoError(t, repos.OC.Favourite(context.Background(), spec.Like{UserID: fan.ID, TargetID: id}))
+	row, err = repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: fan.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.FavouriteCount)
 
 	// when (unfavourite)
-	require.NoError(t, repos.OC.Unfavourite(context.Background(), fan.ID, id))
-	row, err = repos.OC.GetByID(context.Background(), id, fan.ID)
+	require.NoError(t, repos.OC.Unfavourite(context.Background(), spec.Like{UserID: fan.ID, TargetID: id}))
+	row, err = repos.OC.GetByID(context.Background(), spec.OCByID{ID: id, ViewerID: fan.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.FavouriteCount)
 	assert.False(t, row.UserFavourited)
@@ -549,32 +552,32 @@ func TestOCDAO_CommentsRoundTrip(t *testing.T) {
 	id := createOC(t, repos, owner.ID, "Linda", "umineko", "")
 
 	// when (create)
-	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), id, nil, commenter.ID, "great oc")
+	comment, err := repos.Comments.ByID[string(mention.KindOCComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: id, UserID: commenter.ID, Body: "great oc"})
 	require.NoError(t, err)
 	commentID := comment.ID
 
-	rows, total, err := repos.OC.GetComments(context.Background(), id, commenter.ID, 20, 0, nil)
+	rows, total, err := repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	require.Len(t, rows, 1)
 	assert.Equal(t, "great oc", rows[0].Body)
 
 	// when (update)
-	require.NoError(t, repos.OC.UpdateComment(context.Background(), commentID, commenter.ID, "edited"))
-	rows, _, err = repos.OC.GetComments(context.Background(), id, commenter.ID, 20, 0, nil)
+	require.NoError(t, repos.OC.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: commenter.ID, Body: "edited"}))
+	rows, _, err = repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, "edited", rows[0].Body)
 
 	// when (like)
-	require.NoError(t, repos.OC.LikeComment(context.Background(), commenter.ID, commentID))
-	rows, _, err = repos.OC.GetComments(context.Background(), id, commenter.ID, 20, 0, nil)
+	require.NoError(t, repos.OC.LikeComment(context.Background(), spec.CommentLike{UserID: commenter.ID, CommentID: commentID}))
+	rows, _, err = repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, rows[0].LikeCount)
 	assert.True(t, rows[0].UserLiked)
 
 	// when (delete)
-	require.NoError(t, repos.OC.DeleteComment(context.Background(), commentID, commenter.ID))
-	_, total, err = repos.OC.GetComments(context.Background(), id, commenter.ID, 20, 0, nil)
+	require.NoError(t, repos.OC.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: commenter.ID}))
+	_, total, err = repos.OC.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: commenter.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }

@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -50,23 +53,27 @@ func newTestStreamService(t *testing.T) (Service, *streamMocks) {
 	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
 }
 
-func credentialsSpec(userID uuid.UUID, ingressID, whipURL, streamKey string) any {
-	return mock.MatchedBy(func(spec repository.NewStreamCredentials) bool {
-		return spec.UserID == userID &&
-			spec.IngressID == ingressID &&
-			spec.WhipURL == whipURL &&
-			spec.StreamKey == streamKey
-	})
+func credentialsSpec(userID uuid.UUID, ingressID, whipURL, streamKey string) spec.NewStreamCredentials {
+	return spec.NewStreamCredentials{
+		UserID:    userID,
+		IngressID: ingressID,
+		WhipURL:   whipURL,
+		StreamKey: streamKey,
+		Room:      userRoom(userID),
+	}
 }
 
-func activationSpec(streamID uuid.UUID, ingressID, whipURL, streamKey, defaultMode string) any {
-	return mock.MatchedBy(func(spec repository.LiveStreamActivation) bool {
-		return spec.Ingress.ID == streamID &&
-			spec.Ingress.IngressID == ingressID &&
-			spec.Ingress.WhipURL == whipURL &&
-			spec.Ingress.StreamKey == streamKey &&
-			spec.DefaultMode == defaultMode
-	})
+func activationSpec(streamID uuid.UUID, ingressID, whipURL, streamKey, defaultMode string) spec.LiveStreamActivation {
+	return spec.LiveStreamActivation{
+		Ingress: spec.LiveStreamIngressUpdate{
+			ID:        streamID,
+			IngressID: ingressID,
+			Room:      roomPrefix + streamID.String(),
+			WhipURL:   whipURL,
+			StreamKey: streamKey,
+		},
+		DefaultMode: defaultMode,
+	}
 }
 
 func expectStreamingEnabled(m *streamMocks, enabled bool) {
@@ -122,7 +129,7 @@ func TestStartStream_AlreadyLive(t *testing.T) {
 	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
 	userID := uuid.New()
 
-	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&repository.LiveStreamRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&model.LiveStreamRow{ID: uuid.New()}, nil)
 
 	// when
 	_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC, 6000)
@@ -160,7 +167,7 @@ func TestStartStream_HappyPath(t *testing.T) {
 
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
 	m.repo.EXPECT().CountActive(mock.Anything).Return(0, nil)
-	m.repo.EXPECT().Create(mock.Anything, userID, "My Stream", 3).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().Create(mock.Anything, spec.NewLiveStream{UserID: userID, Title: "My Stream", MaxConcurrent: 3}).Return(&model.LiveStreamRow{
 		ID:          streamID,
 		UserID:      userID,
 		Title:       "My Stream",
@@ -191,8 +198,8 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 		repoErr error
 		want    error
 	}{
-		{"capacity", repository.ErrLiveStreamCapacity, ErrAtCapacity},
-		{"duplicate", repository.ErrLiveStreamActiveExists, ErrAlreadyLive},
+		{"capacity", dao.ErrLiveStreamCapacity, ErrAtCapacity},
+		{"duplicate", dao.ErrLiveStreamActiveExists, ErrAlreadyLive},
 	}
 
 	for _, tc := range cases {
@@ -206,7 +213,7 @@ func TestStartStream_CreateRaceMapsErrors(t *testing.T) {
 
 			m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
 			m.repo.EXPECT().CountActive(mock.Anything).Return(0, nil)
-			m.repo.EXPECT().Create(mock.Anything, userID, "title", 3).Return(nil, tc.repoErr)
+			m.repo.EXPECT().Create(mock.Anything, spec.NewLiveStream{UserID: userID, Title: "title", MaxConcurrent: 3}).Return(nil, tc.repoErr)
 
 			// when
 			_, err := svc.StartStream(context.Background(), userID, "title", dto.StreamDefaultModeWebRTC, 6000)
@@ -234,7 +241,7 @@ func TestCredentials_ReturnsExistingWithoutCreatingIngress(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	expectStreamingEnabled(m, true)
 	userID := uuid.New()
-	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(&model.StreamCredentialsRow{
 		UserID: userID, IngressID: "ing", WhipURL: "https://whip/w", StreamKey: "key", Room: userRoom(userID),
 	}, nil)
 	m.settings.EXPECT().GetBool(mock.Anything, config.SettingStreamHLSEnabled).Return(false)
@@ -271,7 +278,7 @@ func TestResetCredentials_BlockedWhileLive(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	expectStreamingEnabled(m, true)
 	userID := uuid.New()
-	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&repository.LiveStreamRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(&model.LiveStreamRow{ID: uuid.New()}, nil)
 
 	// when
 	_, err := svc.ResetCredentials(context.Background(), userID, "Beato")
@@ -286,7 +293,7 @@ func TestResetCredentials_DeletesOldIngressThenRecreates(t *testing.T) {
 	expectStreamingEnabled(m, true)
 	userID := uuid.New()
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
-	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(&model.StreamCredentialsRow{
 		UserID: userID, IngressID: "old_ing", Room: userRoom(userID),
 	}, nil).Once()
 	m.lk.EXPECT().DeleteIngress(mock.Anything, "old_ing").Return(nil)
@@ -310,7 +317,7 @@ func TestResetCredentials_DeleteIngressFailureKeepsCreds(t *testing.T) {
 	expectStreamingEnabled(m, true)
 	userID := uuid.New()
 	m.repo.EXPECT().GetActiveByUser(mock.Anything, userID).Return(nil, nil)
-	m.creds.EXPECT().Get(mock.Anything, userID).Return(&repository.StreamCredentialsRow{
+	m.creds.EXPECT().Get(mock.Anything, userID).Return(&model.StreamCredentialsRow{
 		UserID: userID, IngressID: "old_ing", Room: userRoom(userID),
 	}, nil)
 	m.lk.EXPECT().DeleteIngress(mock.Anything, "old_ing").Return(assert.AnError)
@@ -328,7 +335,7 @@ func TestMintViewerToken_NotLive(t *testing.T) {
 	expectStreamingEnabled(m, true)
 	streamID := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, Status: "starting"}, nil)
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{ID: streamID, Status: "starting"}, nil)
 
 	// when
 	_, _, err := svc.MintViewerToken(context.Background(), streamID, nil)
@@ -343,7 +350,7 @@ func TestMintViewerToken_Live_IsSubscribeOnly(t *testing.T) {
 	expectStreamingEnabled(m, true)
 	streamID := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, Status: "live", LivekitRoom: "live_room",
 	}, nil)
 	m.lk.EXPECT().MintViewerToken("live_room", mock.Anything, "", "").Return("tok", nil)
@@ -364,7 +371,7 @@ func TestMintViewerToken_LoggedInCarriesNameAndMetadata(t *testing.T) {
 	expectStreamingEnabled(m, true)
 	streamID := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, Status: "live", LivekitRoom: "live_room",
 	}, nil)
 	expectedMeta := `{"userId":"` + userID.String() + `","username":"beato","avatarUrl":"/a.png"}`
@@ -385,7 +392,7 @@ func TestSaveThumbnail_RejectsOfflineStream(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 	ownerID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "starting"}, nil)
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "starting"}, nil)
 
 	// when
 	err := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))
@@ -400,7 +407,7 @@ func TestSaveThumbnail_RejectsNonOwner(t *testing.T) {
 	streamID := uuid.New()
 	ownerID := uuid.New()
 	attackerID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: ownerID, Status: "live", ThumbnailURL: "/uploads/old.webp",
 	}, nil)
 
@@ -416,11 +423,11 @@ func TestSaveThumbnail_StoresAndDeletesOldThumbnail(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 	ownerID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: ownerID, Status: "live", ThumbnailURL: "/uploads/old.webp",
 	}, nil)
 	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, int64(100), mock.Anything, mock.Anything).Return("/uploads/new.webp", nil)
-	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil)
+	m.repo.EXPECT().SetThumbnail(mock.Anything, spec.LiveStreamThumbnailUpdate{ID: streamID, URL: "/uploads/new.webp"}).Return(nil)
 	m.upload.EXPECT().Delete([]string{"/uploads/old.webp"}).Return()
 
 	// when
@@ -435,9 +442,9 @@ func TestSaveThumbnail_ThrottlesRapidUploads(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 	ownerID := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "live"}, nil).Twice()
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{ID: streamID, UserID: ownerID, Status: "live"}, nil).Twice()
 	m.upload.EXPECT().SaveImage(mock.Anything, "stream-thumbnails", streamID, mock.Anything, mock.Anything, mock.Anything).Return("/uploads/new.webp", nil).Once()
-	m.repo.EXPECT().SetThumbnail(mock.Anything, streamID, "/uploads/new.webp").Return(nil).Once()
+	m.repo.EXPECT().SetThumbnail(mock.Anything, spec.LiveStreamThumbnailUpdate{ID: streamID, URL: "/uploads/new.webp"}).Return(nil).Once()
 
 	// when
 	err1 := svc.SaveThumbnail(context.Background(), ownerID, streamID, 100, bytes.NewReader([]byte("x")))
@@ -466,7 +473,7 @@ func TestStopStream_NotOwner(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: uuid.New(), Status: "live",
 	}, nil)
 
@@ -483,7 +490,7 @@ func TestStopStream_HappyPath(t *testing.T) {
 	streamID := uuid.New()
 	owner := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: owner, Status: "live", IngressID: "ing",
 	}, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, streamID).Return(true, nil)
@@ -511,7 +518,7 @@ func TestUpdateTitle_OfflineStreamNotFound(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: uuid.New(), Status: "offline",
 	}, nil)
 
@@ -527,7 +534,7 @@ func TestUpdateTitle_NotOwner(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: uuid.New(), Status: "live",
 	}, nil)
 
@@ -544,10 +551,10 @@ func TestUpdateTitle_HappyPath(t *testing.T) {
 	streamID := uuid.New()
 	owner := uuid.New()
 
-	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&repository.LiveStreamRow{
+	m.repo.EXPECT().GetByID(mock.Anything, streamID).Return(&model.LiveStreamRow{
 		ID: streamID, UserID: owner, Status: "live", Title: "Old title",
 	}, nil)
-	m.repo.EXPECT().SetTitle(mock.Anything, streamID, "New title").Return(nil)
+	m.repo.EXPECT().SetTitle(mock.Anything, spec.LiveStreamTitleUpdate{ID: streamID, Title: "New title"}).Return(nil)
 
 	// when
 	resp, err := svc.UpdateTitle(context.Background(), owner, streamID, "  New title  ")
@@ -582,7 +589,7 @@ func TestHandleWebhook_BroadcasterJoinedMarksLive(t *testing.T) {
 	streamID := uuid.New()
 	userID := uuid.New()
 	room := "live_" + streamID.String()
-	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "starting", LivekitRoom: room}
+	row := &model.LiveStreamRow{ID: streamID, UserID: userID, Status: "starting", LivekitRoom: room}
 
 	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 		Type:     livekit.EventParticipantJoined,
@@ -617,8 +624,8 @@ func newFanoutStreamService(t *testing.T) (Service, *streamMocks) {
 	return svc, &streamMocks{repo: repo, creds: creds, followRepo: followRepo, lk: lk, settings: settingsSvc, upload: uploadSvc, notif: notifSvc}
 }
 
-func expectBroadcasterJoined(m *streamMocks, streamID uuid.UUID, userID uuid.UUID, room string) *repository.LiveStreamRow {
-	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "starting", LivekitRoom: room, Title: "reading EP4"}
+func expectBroadcasterJoined(m *streamMocks, streamID uuid.UUID, userID uuid.UUID, room string) *model.LiveStreamRow {
+	row := &model.LiveStreamRow{ID: streamID, UserID: userID, Status: "starting", LivekitRoom: room, Title: "reading EP4"}
 
 	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 		Type:     livekit.EventParticipantJoined,
@@ -703,7 +710,7 @@ func TestHandleWebhook_ViewerJoinedNeverNotifiesFollowers(t *testing.T) {
 	streamID := uuid.New()
 	userID := uuid.New()
 	room := "live_" + streamID.String()
-	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room}
+	row := &model.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room}
 
 	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 		Type:     livekit.EventParticipantJoined,
@@ -711,7 +718,7 @@ func TestHandleWebhook_ViewerJoinedNeverNotifiesFollowers(t *testing.T) {
 		Identity: "viewer_" + uuid.New().String(),
 	}, nil)
 	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
-	m.repo.EXPECT().AdjustViewerCount(mock.Anything, streamID, 1).Return(0, false, nil).Maybe()
+	m.repo.EXPECT().AdjustViewerCount(mock.Anything, spec.LiveStreamViewerAdjustment{ID: streamID, Delta: 1}).Return(0, false, nil).Maybe()
 
 	// when
 	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
@@ -729,7 +736,7 @@ func TestHandleWebhook_BroadcasterVideoPublishedStartsEgress(t *testing.T) {
 	streamID := uuid.New()
 	userID := uuid.New()
 	room := "live_" + streamID.String()
-	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room}
+	row := &model.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room}
 
 	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 		Type:      livekit.EventTrackPublished,
@@ -754,7 +761,7 @@ func TestHandleWebhook_BroadcasterLeftTearsDown(t *testing.T) {
 	streamID := uuid.New()
 	userID := uuid.New()
 	room := "live_" + streamID.String()
-	row := &repository.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room, IngressID: "ing"}
+	row := &model.LiveStreamRow{ID: streamID, UserID: userID, Status: "live", LivekitRoom: room, IngressID: "ing"}
 
 	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 		Type:     livekit.EventParticipantLeft,
@@ -777,7 +784,7 @@ func TestHandleWebhook_ViewerJoinedAdjustsCount(t *testing.T) {
 	svc, m := newTestStreamService(t)
 	streamID := uuid.New()
 	room := "live_" + streamID.String()
-	row := &repository.LiveStreamRow{ID: streamID, Status: "live", LivekitRoom: room}
+	row := &model.LiveStreamRow{ID: streamID, Status: "live", LivekitRoom: room}
 
 	m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 		Type:     livekit.EventParticipantJoined,
@@ -785,7 +792,7 @@ func TestHandleWebhook_ViewerJoinedAdjustsCount(t *testing.T) {
 		Identity: "viewer_" + uuid.New().String(),
 	}, nil)
 	m.repo.EXPECT().GetByRoom(mock.Anything, room).Return(row, nil)
-	m.repo.EXPECT().AdjustViewerCount(mock.Anything, streamID, 1).Return(1, true, nil)
+	m.repo.EXPECT().AdjustViewerCount(mock.Anything, spec.LiveStreamViewerAdjustment{ID: streamID, Delta: 1}).Return(1, true, nil)
 
 	// when
 	handled, err := svc.HandleWebhook(context.Background(), "auth", []byte("body"))
@@ -810,7 +817,7 @@ func TestHandleWebhook_MonitorJoinLeaveDoesNotAdjustCount(t *testing.T) {
 			svc, m := newTestStreamService(t)
 			streamID := uuid.New()
 			room := "live_" + streamID.String()
-			row := &repository.LiveStreamRow{ID: streamID, Status: "live", LivekitRoom: room}
+			row := &model.LiveStreamRow{ID: streamID, Status: "live", LivekitRoom: room}
 
 			m.lk.EXPECT().ParseWebhook("auth", []byte("body")).Return(&livekit.Event{
 				Type:     tt.eventType,
@@ -825,7 +832,7 @@ func TestHandleWebhook_MonitorJoinLeaveDoesNotAdjustCount(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			assert.True(t, handled)
-			m.repo.AssertNotCalled(t, "AdjustViewerCount", mock.Anything, mock.Anything, mock.Anything)
+			m.repo.AssertNotCalled(t, "AdjustViewerCount", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -836,7 +843,7 @@ func TestReconcileOnce_ReapsStaleStarting(t *testing.T) {
 	staleID := uuid.New()
 
 	m.lk.EXPECT().Enabled().Return(true)
-	m.repo.EXPECT().ListStartingBefore(mock.Anything, mock.Anything).Return([]repository.LiveStreamRow{
+	m.repo.EXPECT().ListStartingBefore(mock.Anything, mock.Anything).Return([]model.LiveStreamRow{
 		{ID: staleID, Status: "starting", IngressID: "ing", LivekitRoom: "live_" + staleID.String()},
 	}, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, staleID).Return(true, nil)
@@ -862,7 +869,7 @@ func TestReconcileOnce_ReapsLiveRoomWithNoBroadcaster(t *testing.T) {
 	m.lk.EXPECT().ActiveRooms(mock.Anything).Return(map[string][]string{
 		room: {"viewer_" + uuid.NewString()},
 	}, nil)
-	m.repo.EXPECT().ListLive(mock.Anything).Return([]repository.LiveStreamRow{
+	m.repo.EXPECT().ListLive(mock.Anything).Return([]model.LiveStreamRow{
 		{ID: liveID, Status: "live", LivekitRoom: room},
 	}, nil)
 	m.repo.EXPECT().MarkOffline(mock.Anything, liveID).Return(true, nil)
@@ -887,7 +894,7 @@ func TestReconcileOnce_KeepsLiveRoomWithBroadcaster(t *testing.T) {
 	m.lk.EXPECT().ActiveRooms(mock.Anything).Return(map[string][]string{
 		room: {"broadcaster_" + userID.String()},
 	}, nil)
-	m.repo.EXPECT().ListLive(mock.Anything).Return([]repository.LiveStreamRow{
+	m.repo.EXPECT().ListLive(mock.Anything).Return([]model.LiveStreamRow{
 		{ID: liveID, Status: "live", LivekitRoom: room},
 	}, nil)
 

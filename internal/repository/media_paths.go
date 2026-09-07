@@ -7,13 +7,13 @@ func dedupePaths(paths []string) []string {
 
 	seen := make(map[string]bool, len(paths))
 	result := make([]string, 0, len(paths))
-	for i := range paths {
-		if seen[paths[i]] {
+	for _, path := range paths {
+		if seen[path] {
 			continue
 		}
 
-		seen[paths[i]] = true
-		result = append(result, paths[i])
+		seen[path] = true
+		result = append(result, path)
 	}
 
 	return result

@@ -7,6 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -40,12 +42,12 @@ func (_m *MockChatbotBasePromptRepository) EXPECT() *MockChatbotBasePromptReposi
 }
 
 // Create provides a mock function for the type MockChatbotBasePromptRepository
-func (_mock *MockChatbotBasePromptRepository) Create(ctx context.Context, name string, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
+func (_mock *MockChatbotBasePromptRepository) Create(ctx context.Context, s spec.NewChatbotBasePrompt, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, name, prompt, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, name, prompt)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -53,20 +55,20 @@ func (_mock *MockChatbotBasePromptRepository) Create(ctx context.Context, name s
 		panic("no return value specified for Create")
 	}
 
-	var r0 *ChatbotBasePrompt
+	var r0 *model.ChatbotBasePrompt
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...*sql.Tx) (*ChatbotBasePrompt, error)); ok {
-		return returnFunc(ctx, name, prompt, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChatbotBasePrompt, ...*sql.Tx) (*model.ChatbotBasePrompt, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...*sql.Tx) *ChatbotBasePrompt); ok {
-		r0 = returnFunc(ctx, name, prompt, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChatbotBasePrompt, ...*sql.Tx) *model.ChatbotBasePrompt); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ChatbotBasePrompt)
+			r0 = ret.Get(0).(*model.ChatbotBasePrompt)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, name, prompt, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewChatbotBasePrompt, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,50 +82,44 @@ type MockChatbotBasePromptRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - name string
-//   - prompt string
+//   - s spec.NewChatbotBasePrompt
 //   - tx ...*sql.Tx
-func (_e *MockChatbotBasePromptRepository_Expecter) Create(ctx any, name any, prompt any, tx ...any) *MockChatbotBasePromptRepository_Create_Call {
+func (_e *MockChatbotBasePromptRepository_Expecter) Create(ctx any, s any, tx ...any) *MockChatbotBasePromptRepository_Create_Call {
 	return &MockChatbotBasePromptRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, name, prompt}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockChatbotBasePromptRepository_Create_Call) Run(run func(ctx context.Context, name string, prompt string, tx ...*sql.Tx)) *MockChatbotBasePromptRepository_Create_Call {
+func (_c *MockChatbotBasePromptRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewChatbotBasePrompt, tx ...*sql.Tx)) *MockChatbotBasePromptRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.NewChatbotBasePrompt
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.NewChatbotBasePrompt)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_Create_Call) Return(chatbotBasePrompt *ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_Create_Call {
+func (_c *MockChatbotBasePromptRepository_Create_Call) Return(chatbotBasePrompt *model.ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_Create_Call {
 	_c.Call.Return(chatbotBasePrompt, err)
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_Create_Call) RunAndReturn(run func(ctx context.Context, name string, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_Create_Call {
+func (_c *MockChatbotBasePromptRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewChatbotBasePrompt, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -201,7 +197,7 @@ func (_c *MockChatbotBasePromptRepository_Delete_Call) RunAndReturn(run func(ctx
 }
 
 // GetByID provides a mock function for the type MockChatbotBasePromptRepository
-func (_mock *MockChatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
+func (_mock *MockChatbotBasePromptRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -214,16 +210,16 @@ func (_mock *MockChatbotBasePromptRepository) GetByID(ctx context.Context, id uu
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 *ChatbotBasePrompt
+	var r0 *model.ChatbotBasePrompt
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*ChatbotBasePrompt, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*model.ChatbotBasePrompt, error)); ok {
 		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *ChatbotBasePrompt); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *model.ChatbotBasePrompt); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ChatbotBasePrompt)
+			r0 = ret.Get(0).(*model.ChatbotBasePrompt)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -273,18 +269,18 @@ func (_c *MockChatbotBasePromptRepository_GetByID_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_GetByID_Call) Return(chatbotBasePrompt *ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_GetByID_Call {
+func (_c *MockChatbotBasePromptRepository_GetByID_Call) Return(chatbotBasePrompt *model.ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_GetByID_Call {
 	_c.Call.Return(chatbotBasePrompt, err)
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_GetByID_Call {
+func (_c *MockChatbotBasePromptRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockChatbotBasePromptRepository
-func (_mock *MockChatbotBasePromptRepository) List(ctx context.Context, tx ...*sql.Tx) ([]ChatbotBasePrompt, error) {
+func (_mock *MockChatbotBasePromptRepository) List(ctx context.Context, tx ...*sql.Tx) ([]model.ChatbotBasePrompt, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -297,16 +293,16 @@ func (_mock *MockChatbotBasePromptRepository) List(ctx context.Context, tx ...*s
 		panic("no return value specified for List")
 	}
 
-	var r0 []ChatbotBasePrompt
+	var r0 []model.ChatbotBasePrompt
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]ChatbotBasePrompt, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.ChatbotBasePrompt, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []ChatbotBasePrompt); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.ChatbotBasePrompt); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ChatbotBasePrompt)
+			r0 = ret.Get(0).([]model.ChatbotBasePrompt)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -350,23 +346,23 @@ func (_c *MockChatbotBasePromptRepository_List_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_List_Call) Return(chatbotBasePrompts []ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_List_Call {
+func (_c *MockChatbotBasePromptRepository_List_Call) Return(chatbotBasePrompts []model.ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_List_Call {
 	_c.Call.Return(chatbotBasePrompts, err)
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_List_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_List_Call {
+func (_c *MockChatbotBasePromptRepository_List_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockChatbotBasePromptRepository
-func (_mock *MockChatbotBasePromptRepository) Update(ctx context.Context, id uuid.UUID, name string, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error) {
+func (_mock *MockChatbotBasePromptRepository) Update(ctx context.Context, s spec.ChatbotBasePromptUpdate, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, name, prompt, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, name, prompt)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -374,20 +370,20 @@ func (_mock *MockChatbotBasePromptRepository) Update(ctx context.Context, id uui
 		panic("no return value specified for Update")
 	}
 
-	var r0 *ChatbotBasePrompt
+	var r0 *model.ChatbotBasePrompt
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) (*ChatbotBasePrompt, error)); ok {
-		return returnFunc(ctx, id, name, prompt, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatbotBasePromptUpdate, ...*sql.Tx) (*model.ChatbotBasePrompt, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) *ChatbotBasePrompt); ok {
-		r0 = returnFunc(ctx, id, name, prompt, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatbotBasePromptUpdate, ...*sql.Tx) *model.ChatbotBasePrompt); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ChatbotBasePrompt)
+			r0 = ret.Get(0).(*model.ChatbotBasePrompt)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, name, prompt, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ChatbotBasePromptUpdate, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -401,56 +397,44 @@ type MockChatbotBasePromptRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - name string
-//   - prompt string
+//   - s spec.ChatbotBasePromptUpdate
 //   - tx ...*sql.Tx
-func (_e *MockChatbotBasePromptRepository_Expecter) Update(ctx any, id any, name any, prompt any, tx ...any) *MockChatbotBasePromptRepository_Update_Call {
+func (_e *MockChatbotBasePromptRepository_Expecter) Update(ctx any, s any, tx ...any) *MockChatbotBasePromptRepository_Update_Call {
 	return &MockChatbotBasePromptRepository_Update_Call{Call: _e.mock.On("Update",
-		append([]any{ctx, id, name, prompt}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockChatbotBasePromptRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, name string, prompt string, tx ...*sql.Tx)) *MockChatbotBasePromptRepository_Update_Call {
+func (_c *MockChatbotBasePromptRepository_Update_Call) Run(run func(ctx context.Context, s spec.ChatbotBasePromptUpdate, tx ...*sql.Tx)) *MockChatbotBasePromptRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ChatbotBasePromptUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ChatbotBasePromptUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_Update_Call) Return(chatbotBasePrompt *ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_Update_Call {
+func (_c *MockChatbotBasePromptRepository_Update_Call) Return(chatbotBasePrompt *model.ChatbotBasePrompt, err error) *MockChatbotBasePromptRepository_Update_Call {
 	_c.Call.Return(chatbotBasePrompt, err)
 	return _c
 }
 
-func (_c *MockChatbotBasePromptRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, name string, prompt string, tx ...*sql.Tx) (*ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_Update_Call {
+func (_c *MockChatbotBasePromptRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s spec.ChatbotBasePromptUpdate, tx ...*sql.Tx) (*model.ChatbotBasePrompt, error)) *MockChatbotBasePromptRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

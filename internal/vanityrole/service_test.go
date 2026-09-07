@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/vanityrole"
 
@@ -17,7 +18,7 @@ func TestService_List_Delegates(t *testing.T) {
 	// given
 	repo := repository.NewMockVanityRoleRepository(t)
 	svc := vanityrole.NewService(repo)
-	rows := []repository.VanityRoleRow{{ID: "r1", Label: "VIP"}}
+	rows := []model.VanityRoleRow{{ID: "r1", Label: "VIP"}}
 	repo.EXPECT().List(mock.Anything).Return(rows, nil)
 
 	// when

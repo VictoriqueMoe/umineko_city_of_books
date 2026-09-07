@@ -4,7 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
@@ -16,12 +17,12 @@ func TestCreateStreamRoom_CreatesRoomAndHost(t *testing.T) {
 	svc, m := newTestService(t)
 	streamID := uuid.New()
 	streamerID := uuid.New()
-	m.chatRepo.EXPECT().CreateSystemRoomWithHost(mock.Anything, repository.NewChatSystemRoom{
+	m.chatRepo.EXPECT().CreateSystemRoomWithHost(mock.Anything, spec.NewChatSystemRoom{
 		ID:         streamID,
 		Name:       "My stream",
 		SystemKind: SystemKindLiveStream,
 		CreatedBy:  streamerID,
-	}).Return(&repository.ChatRoomRow{ID: uuid.New()}, nil)
+	}).Return(&model.ChatRoomRow{ID: uuid.New()}, nil)
 
 	// when
 	err := svc.CreateStreamRoom(context.Background(), streamID, streamerID, "My stream")
@@ -50,7 +51,7 @@ func TestJoinStreamChat_RejectsNonStreamRoom(t *testing.T) {
 	svc, m := newTestService(t)
 	streamID := uuid.New()
 	userID := uuid.New()
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, streamID, userID).Return(&repository.ChatRoomRow{IsSystem: false}, nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: streamID, ViewerID: userID}).Return(&model.ChatRoomRow{IsSystem: false}, nil)
 
 	// when
 	err := svc.JoinStreamChat(context.Background(), streamID, userID)
@@ -64,9 +65,9 @@ func TestJoinStreamChat_AddsNewMember(t *testing.T) {
 	svc, m := newTestService(t)
 	streamID := uuid.New()
 	userID := uuid.New()
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, streamID, userID).Return(&repository.ChatRoomRow{IsSystem: true, SystemKind: SystemKindLiveStream}, nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, streamID, userID).Return(false, nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, streamID, userID, "member", false).Return(nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: streamID, ViewerID: userID}).Return(&model.ChatRoomRow{IsSystem: true, SystemKind: SystemKindLiveStream}, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: streamID, UserID: userID}).Return(false, nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, spec.NewChatRoomMember{RoomID: streamID, UserID: userID, Role: "member", Ghost: false}).Return(nil)
 
 	// when
 	err := svc.JoinStreamChat(context.Background(), streamID, userID)
@@ -80,8 +81,8 @@ func TestJoinStreamChat_PreservesExistingHostRole(t *testing.T) {
 	svc, m := newTestService(t)
 	streamID := uuid.New()
 	hostID := uuid.New()
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, streamID, hostID).Return(&repository.ChatRoomRow{IsSystem: true, SystemKind: SystemKindLiveStream}, nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, streamID, hostID).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: streamID, ViewerID: hostID}).Return(&model.ChatRoomRow{IsSystem: true, SystemKind: SystemKindLiveStream}, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: streamID, UserID: hostID}).Return(true, nil)
 
 	// when
 	err := svc.JoinStreamChat(context.Background(), streamID, hostID)

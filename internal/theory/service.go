@@ -5,6 +5,7 @@ import (
 
 	"fmt"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
@@ -14,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/quotefinder"
@@ -106,7 +108,7 @@ func (s *service) clearPageCache(ctx context.Context, id string) {
 	}
 }
 
-func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -146,7 +148,7 @@ func (s *service) CreateTheory(ctx context.Context, userID uuid.UUID, req dto.Cr
 		}
 	}
 
-	created, err := s.repo.Create(ctx, repository.NewTheory{
+	created, err := s.repo.Create(ctx, spec.NewTheory{
 		UserID:   userID,
 		Title:    req.Title,
 		Body:     req.Body,
@@ -184,14 +186,14 @@ func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid
 	}
 	detail.Evidence = evidence
 
-	responses, err := s.repo.GetResponses(ctx, id, userID)
+	responses, err := s.repo.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: id, ViewerID: userID})
 	if err != nil {
 		return nil, err
 	}
 	detail.Responses = responses
 
 	if userID != uuid.Nil {
-		vote, err := s.repo.GetUserTheoryVote(ctx, userID, id)
+		vote, err := s.repo.GetUserTheoryVote(ctx, spec.TheoryVoteLookup{UserID: userID, TheoryID: id})
 		if err != nil {
 			logger.Ctx(ctx).Error().Err(err).Str("theory_id", id.String()).Msg("failed to get user theory vote")
 		}
@@ -203,7 +205,7 @@ func (s *service) GetTheoryDetail(ctx context.Context, id uuid.UUID, userID uuid
 
 func (s *service) ListTheories(ctx context.Context, p params.ListParams, userID uuid.UUID) (*dto.TheoryListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, userID)
-	theories, total, err := s.repo.List(ctx, p, userID, blockedIDs)
+	theories, total, err := s.repo.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: userID, ExcludeUserIDs: blockedIDs})
 	if err != nil {
 		return nil, err
 	}
@@ -227,7 +229,7 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyTheory)
 
-	if err := s.repo.Update(ctx, repository.TheoryUpdate{
+	if err := s.repo.Update(ctx, spec.TheoryUpdate{
 		ID:       id,
 		UserID:   userID,
 		Title:    req.Title,
@@ -242,10 +244,10 @@ func (s *service) UpdateTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 	if asAdmin {
 		go s.notifyContentEdited(ctx, id, "theory", id, userID)
 
-		s.audit(ctx, repository.NewAuditEntry{
+		s.audit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionTheoryUpdateAdmin,
-			TargetType: repository.AuditTargetTheory,
+			Action:     audit.ActionTheoryUpdateAdmin,
+			TargetType: audit.TargetTheory,
 			TargetID:   id.String(),
 			Details:    fmt.Sprintf("title=%q", req.Title),
 			SubjectID:  authorID,
@@ -284,21 +286,21 @@ func (s *service) DeleteTheory(ctx context.Context, id uuid.UUID, userID uuid.UU
 	if s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory) {
 		err = s.repo.DeleteAsAdmin(ctx, id)
 	} else {
-		err = s.repo.Delete(ctx, id, userID)
+		err = s.repo.Delete(ctx, spec.OwnedDeletion{ID: id, UserID: userID})
 	}
 	if err != nil {
 		return err
 	}
 
-	action := repository.AuditActionTheoryDelete
+	action := audit.ActionTheoryDelete
 	if authorID != userID {
-		action = repository.AuditActionTheoryDeleteAdmin
+		action = audit.ActionTheoryDeleteAdmin
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetTheory,
+		TargetType: audit.TargetTheory,
 		TargetID:   id.String(),
 		Details:    fmt.Sprintf("title=%q", title),
 		SubjectID:  authorID,
@@ -341,7 +343,7 @@ func (s *service) CreateResponse(ctx context.Context, theoryID uuid.UUID, userID
 		}
 	}
 
-	created, err := s.repo.CreateResponse(ctx, repository.NewTheoryResponse{
+	created, err := s.repo.CreateResponse(ctx, spec.NewTheoryResponse{
 		TheoryID: theoryID,
 		UserID:   userID,
 		ParentID: req.ParentID,
@@ -445,7 +447,7 @@ func (s *service) resolveEvidenceWeights(ctx context.Context, theoryID uuid.UUID
 
 		weight := quotefinder.TruthWeight(q)
 		if weight != 1.0 {
-			if err := s.repo.SetEvidenceTruthWeight(ctx, ev.ID, weight); err != nil {
+			if err := s.repo.SetEvidenceTruthWeight(ctx, spec.EvidenceTruthWeightUpdate{EvidenceID: ev.ID, Weight: weight}); err != nil {
 				logger.Ctx(ctx).Error().Err(err).Int("evidence_id", ev.ID).Msg("failed to set truth weight")
 			}
 		}
@@ -459,17 +461,17 @@ func (s *service) DeleteResponse(ctx context.Context, id uuid.UUID, userID uuid.
 	if s.authz.Can(ctx, userID, authz.PermDeleteAnyResponse) {
 		err = s.repo.DeleteResponseAsAdmin(ctx, id)
 	} else {
-		err = s.repo.DeleteResponse(ctx, id, userID)
+		err = s.repo.DeleteResponse(ctx, spec.OwnedDeletion{ID: id, UserID: userID})
 	}
 	if err != nil {
 		return err
 	}
 
 	if responseAuthorID != uuid.Nil && responseAuthorID != userID {
-		s.audit(ctx, repository.NewAuditEntry{
+		s.audit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionTheoryResponseDeleteAdmin,
-			TargetType: repository.AuditTargetTheoryResponse,
+			Action:     audit.ActionTheoryResponseDeleteAdmin,
+			TargetType: audit.TargetTheoryResponse,
 			TargetID:   id.String(),
 			Details:    fmt.Sprintf("theory=%s", theoryID),
 			SubjectID:  responseAuthorID,
@@ -521,7 +523,7 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 		return ErrCannotRefuteWithOwn
 	}
 
-	if err := s.repo.MarkRefuted(ctx, theoryID, responseID); err != nil {
+	if err := s.repo.MarkRefuted(ctx, spec.TheoryRefutation{TheoryID: theoryID, ResponseID: responseID}); err != nil {
 		return err
 	}
 
@@ -530,10 +532,10 @@ func (s *service) RefuteTheory(ctx context.Context, theoryID uuid.UUID, userID u
 		by = "staff"
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionTheoryRefuted,
-		TargetType: repository.AuditTargetTheory,
+		Action:     audit.ActionTheoryRefuted,
+		TargetType: audit.TargetTheory,
 		TargetID:   theoryID.String(),
 		Details:    fmt.Sprintf("response=%s by=%s", responseID, by),
 		SubjectID:  meta.AuthorID,
@@ -569,7 +571,7 @@ func (s *service) VoteTheory(ctx context.Context, userID uuid.UUID, theoryID uui
 		return block.ErrUserBlocked
 	}
 
-	if err := s.repo.VoteTheory(ctx, userID, theoryID, value); err != nil {
+	if err := s.repo.VoteTheory(ctx, spec.Vote{UserID: userID, TargetID: theoryID, Value: value}); err != nil {
 		return err
 	}
 
@@ -604,7 +606,7 @@ func (s *service) VoteResponse(ctx context.Context, userID uuid.UUID, responseID
 		return block.ErrUserBlocked
 	}
 
-	if err := s.repo.VoteResponse(ctx, userID, responseID, value); err != nil {
+	if err := s.repo.VoteResponse(ctx, spec.Vote{UserID: userID, TargetID: responseID, Value: value}); err != nil {
 		return err
 	}
 

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -29,9 +29,9 @@ func newCommentDAO[K comparable](db *sql.DB, table, fk, likesTable, mediaTable s
 	return &commentDAO[K]{db: db, table: table, fk: fk, likesTable: likesTable, mediaTable: mediaTable}
 }
 
-func (c *commentDAO[K]) CreateComment(ctx context.Context, entityID K, parentID *uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) (*repository.CommentRow, error) {
+func (c *commentDAO[K]) CreateComment(ctx context.Context, s spec.NewComment[K], tx ...*sql.Tx) (*model.CommentRow, error) {
 	var (
-		cm        repository.CommentRow
+		cm        model.CommentRow
 		createdAt time.Time
 		updatedAt *time.Time
 	)
@@ -47,7 +47,7 @@ func (c *commentDAO[K]) CreateComment(ctx context.Context, entityID K, parentID 
 		FROM ins c
 		JOIN users u ON c.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = c.user_id`,
-		entityID, parentID, userID, body,
+		s.TargetID, s.ParentID, s.UserID, s.Body,
 	).Scan(
 		&cm.ID, &cm.EntityID, &cm.ParentID, &cm.UserID, &cm.Body, &createdAt, &updatedAt,
 		&cm.AuthorUsername, &cm.AuthorDisplayName, &cm.AuthorAvatarURL, &cm.AuthorRole, &cm.AuthorBanned,
@@ -63,29 +63,21 @@ func (c *commentDAO[K]) CreateComment(ctx context.Context, entityID K, parentID 
 	return &cm, nil
 }
 
-func (c *commentDAO[K]) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
-	return c.updateComment(ctx, id, &userID, body, tx...)
-}
-
-func (c *commentDAO[K]) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
-	return c.updateComment(ctx, id, nil, body, tx...)
-}
-
-func (c *commentDAO[K]) updateComment(ctx context.Context, id uuid.UUID, userID *uuid.UUID, body string, tx ...*sql.Tx) error {
+func (c *commentDAO[K]) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var (
 		res sql.Result
 		err error
 	)
 
-	if userID != nil {
+	if s.AsAdmin {
 		res, err = txOrDB(c.db, tx).ExecContext(ctx,
-			`UPDATE `+c.table+` SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-			body, id, *userID,
+			`UPDATE `+c.table+` SET body = $1, updated_at = NOW() WHERE id = $2`,
+			s.Body, s.CommentID,
 		)
 	} else {
 		res, err = txOrDB(c.db, tx).ExecContext(ctx,
-			`UPDATE `+c.table+` SET body = $1, updated_at = NOW() WHERE id = $2`,
-			body, id,
+			`UPDATE `+c.table+` SET body = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
+			s.Body, s.CommentID, s.UserID,
 		)
 	}
 	if err != nil {
@@ -100,8 +92,16 @@ func (c *commentDAO[K]) updateComment(ctx context.Context, id uuid.UUID, userID 
 	return nil
 }
 
-func (c *commentDAO[K]) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(c.db, tx).ExecContext(ctx, `DELETE FROM `+c.table+` WHERE id = $1 AND user_id = $2`, id, userID)
+func (c *commentDAO[K]) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
+	if s.AsAdmin {
+		if _, err := txOrDB(c.db, tx).ExecContext(ctx, `DELETE FROM `+c.table+` WHERE id = $1`, s.CommentID); err != nil {
+			return fmt.Errorf("admin delete comment in %s: %w", c.table, err)
+		}
+
+		return nil
+	}
+
+	res, err := txOrDB(c.db, tx).ExecContext(ctx, `DELETE FROM `+c.table+` WHERE id = $1 AND user_id = $2`, s.CommentID, s.UserID)
 	if err != nil {
 		return fmt.Errorf("delete comment in %s: %w", c.table, err)
 	}
@@ -114,25 +114,16 @@ func (c *commentDAO[K]) DeleteComment(ctx context.Context, id uuid.UUID, userID 
 	return nil
 }
 
-func (c *commentDAO[K]) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(c.db, tx).ExecContext(ctx, `DELETE FROM `+c.table+` WHERE id = $1`, id)
-	if err != nil {
-		return fmt.Errorf("admin delete comment in %s: %w", c.table, err)
-	}
-
-	return nil
-}
-
-func (c *commentDAO[K]) GetComments(ctx context.Context, entityID K, viewerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]repository.CommentRow, int, error) {
+func (c *commentDAO[K]) GetComments(ctx context.Context, q spec.CommentQuery[K], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var total int
 
-	exclSQL, exclArgs := ExcludeClause("user_id", excludeUserIDs, 2)
-	countArgs := append([]any{entityID}, exclArgs...)
+	exclSQL, exclArgs := ExcludeClause("user_id", q.ExcludeUserIDs, 2)
+	countArgs := append([]any{q.TargetID}, exclArgs...)
 	if err := txOrDB(c.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM `+c.table+` WHERE `+c.fk+` = $1`+exclSQL, countArgs...).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count comments in %s: %w", c.table, err)
 	}
 
-	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", excludeUserIDs, 3)
+	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", q.ExcludeUserIDs, 3)
 	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
 	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
 	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
@@ -146,17 +137,17 @@ func (c *commentDAO[K]) GetComments(ctx context.Context, entityID K, viewerID uu
 		WHERE c.`+c.fk+` = $2`+exclSQL2+`
 		ORDER BY c.created_at ASC
 		LIMIT `+limitPH+` OFFSET `+offsetPH,
-		append([]any{viewerID, entityID}, append(exclArgs2, limit, offset)...)...,
+		append([]any{q.ViewerID, q.TargetID}, append(exclArgs2, q.Limit, q.Offset)...)...,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get comments in %s: %w", c.table, err)
 	}
 	defer rows.Close()
 
-	var comments []repository.CommentRow
+	var comments []model.CommentRow
 	for rows.Next() {
 		var (
-			cm        repository.CommentRow
+			cm        model.CommentRow
 			createdAt time.Time
 			updatedAt *time.Time
 		)
@@ -176,9 +167,9 @@ func (c *commentDAO[K]) GetComments(ctx context.Context, entityID K, viewerID uu
 	return comments, total, rows.Err()
 }
 
-func (c *commentDAO[K]) GetCommentByID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (*repository.CommentRow, error) {
+func (c *commentDAO[K]) GetCommentByID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error) {
 	var (
-		cm        repository.CommentRow
+		cm        model.CommentRow
 		createdAt time.Time
 		updatedAt *time.Time
 	)
@@ -227,10 +218,10 @@ func (c *commentDAO[K]) GetCommentAuthorID(ctx context.Context, commentID uuid.U
 	return userID, nil
 }
 
-func (c *commentDAO[K]) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (c *commentDAO[K]) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	_, err := txOrDB(c.db, tx).ExecContext(ctx,
 		`INSERT INTO `+c.likesTable+` (user_id, comment_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, commentID,
+		s.UserID, s.CommentID,
 	)
 	if err != nil {
 		return fmt.Errorf("like comment in %s: %w", c.likesTable, err)
@@ -239,10 +230,10 @@ func (c *commentDAO[K]) LikeComment(ctx context.Context, userID uuid.UUID, comme
 	return nil
 }
 
-func (c *commentDAO[K]) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (c *commentDAO[K]) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	_, err := txOrDB(c.db, tx).ExecContext(ctx,
 		`DELETE FROM `+c.likesTable+` WHERE user_id = $1 AND comment_id = $2`,
-		userID, commentID,
+		s.UserID, s.CommentID,
 	)
 	if err != nil {
 		return fmt.Errorf("unlike comment in %s: %w", c.likesTable, err)
@@ -251,13 +242,13 @@ func (c *commentDAO[K]) UnlikeComment(ctx context.Context, userID uuid.UUID, com
 	return nil
 }
 
-func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, commentID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error) {
+func (c *commentDAO[K]) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(c.db, tx).QueryRowContext(ctx,
 		`INSERT INTO `+c.mediaTable+` (comment_id, media_url, media_type, thumbnail_url, filename, sort_order, is_spoiler)
 		VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(sort_order) + 1 FROM `+c.mediaTable+` WHERE comment_id = $1), $6), $7)
 		RETURNING id`,
-		commentID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler,
+		s.TargetID, s.MediaURL, s.MediaType, s.ThumbnailURL, s.Filename, s.SortOrder, s.IsSpoiler,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add comment media in %s: %w", c.mediaTable, err)
@@ -321,8 +312,8 @@ func (c *commentDAO[K]) GetCommentMediaBatch(ctx context.Context, commentIDs []u
 	return result, rows.Err()
 }
 
-func (c *commentDAO[K]) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
-	_, err := txOrDB(c.db, tx).ExecContext(ctx, `UPDATE `+c.mediaTable+` SET media_url = $1 WHERE id = $2`, mediaURL, id)
+func (c *commentDAO[K]) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(c.db, tx).ExecContext(ctx, `UPDATE `+c.mediaTable+` SET media_url = $1 WHERE id = $2`, s.URL, s.ID)
 	if err != nil {
 		return fmt.Errorf("update comment media url in %s: %w", c.mediaTable, err)
 	}
@@ -330,8 +321,8 @@ func (c *commentDAO[K]) UpdateCommentMediaURL(ctx context.Context, id int64, med
 	return nil
 }
 
-func (c *commentDAO[K]) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
-	_, err := txOrDB(c.db, tx).ExecContext(ctx, `UPDATE `+c.mediaTable+` SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
+func (c *commentDAO[K]) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(c.db, tx).ExecContext(ctx, `UPDATE `+c.mediaTable+` SET thumbnail_url = $1 WHERE id = $2`, s.URL, s.ID)
 	if err != nil {
 		return fmt.Errorf("update comment media thumbnail in %s: %w", c.mediaTable, err)
 	}

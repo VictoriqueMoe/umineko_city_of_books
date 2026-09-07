@@ -3,10 +3,11 @@ package admin
 import (
 	"context"
 	"fmt"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 	userpkg "umineko_city_of_books/internal/user"
 	"umineko_city_of_books/internal/ws"
@@ -43,10 +44,10 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 			return err
 		}
 
-		if err := s.roleRepo.SetRole(ctx, targetID, r); err != nil {
+		if err := s.roleRepo.SetRole(ctx, spec.UserRoleSpec{UserID: targetID, Role: r}); err != nil {
 			return fmt.Errorf("set role: %w", err)
 		}
-		s.auditUserDetails(ctx, actorID, repository.AuditActionSetRole, targetID, string(r))
+		s.auditUserDetails(ctx, actorID, audit.ActionSetRole, targetID, string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.EnsureSystemRooms(ctx); err != nil {
 				logger.Ctx(ctx).Error().Err(err).Msg("ensure system rooms after role change")
@@ -62,10 +63,10 @@ func (s *service) SetUserRole(ctx context.Context, actorID uuid.UUID, targetID u
 
 func (s *service) RemoveUserRole(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, r role.Role) error {
 	return s.guardedAction(ctx, actorID, targetID, func() error {
-		if err := s.roleRepo.RemoveRole(ctx, targetID, r); err != nil {
+		if err := s.roleRepo.RemoveRole(ctx, spec.UserRoleSpec{UserID: targetID, Role: r}); err != nil {
 			return fmt.Errorf("remove role: %w", err)
 		}
-		s.auditUserDetails(ctx, actorID, repository.AuditActionRemoveRole, targetID, string(r))
+		s.auditUserDetails(ctx, actorID, audit.ActionRemoveRole, targetID, string(r))
 		if s.chatSync != nil {
 			if err := s.chatSync.SyncSystemRoomMembership(ctx, targetID, ""); err != nil {
 				logger.Ctx(ctx).Error().Err(err).Str("user_id", targetID.String()).Msg("sync system rooms after role remove")
@@ -92,13 +93,13 @@ func (s *service) BanUser(ctx context.Context, actorID uuid.UUID, targetID uuid.
 			return err
 		}
 
-		if err := s.userRepo.BanUser(ctx, targetID, actorID, reason); err != nil {
+		if err := s.userRepo.BanUser(ctx, spec.UserBan{UserID: targetID, BannedBy: actorID, Reason: reason}); err != nil {
 			return fmt.Errorf("ban user: %w", err)
 		}
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Ctx(ctx).Error().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after ban")
 		}
-		s.auditUserDetails(ctx, actorID, repository.AuditActionBanUser, targetID, reason)
+		s.auditUserDetails(ctx, actorID, audit.ActionBanUser, targetID, reason)
 		s.broadcastBanChange(targetID, true, reason)
 		return nil
 	})
@@ -109,7 +110,7 @@ func (s *service) UnbanUser(ctx context.Context, actorID uuid.UUID, targetID uui
 		if err := s.userRepo.UnbanUser(ctx, targetID); err != nil {
 			return fmt.Errorf("unban user: %w", err)
 		}
-		s.auditUser(ctx, actorID, repository.AuditActionUnbanUser, targetID)
+		s.auditUser(ctx, actorID, audit.ActionUnbanUser, targetID)
 		s.broadcastBanChange(targetID, false, "")
 		return nil
 	})
@@ -132,10 +133,10 @@ func (s *service) LockUser(ctx context.Context, actorID uuid.UUID, targetID uuid
 			return err
 		}
 
-		if err := s.userRepo.LockUser(ctx, targetID, actorID, reason); err != nil {
+		if err := s.userRepo.LockUser(ctx, spec.UserLock{UserID: targetID, LockedBy: actorID, Reason: reason}); err != nil {
 			return fmt.Errorf("lock user: %w", err)
 		}
-		s.auditUserDetails(ctx, actorID, repository.AuditActionLockUser, targetID, reason)
+		s.auditUserDetails(ctx, actorID, audit.ActionLockUser, targetID, reason)
 		s.broadcastLockChange(targetID, true, reason)
 		return nil
 	})
@@ -146,7 +147,7 @@ func (s *service) UnlockUser(ctx context.Context, actorID uuid.UUID, targetID uu
 		if err := s.userRepo.UnlockUser(ctx, targetID); err != nil {
 			return fmt.Errorf("unlock user: %w", err)
 		}
-		s.auditUser(ctx, actorID, repository.AuditActionUnlockUser, targetID)
+		s.auditUser(ctx, actorID, audit.ActionUnlockUser, targetID)
 		s.broadcastLockChange(targetID, false, "")
 		return nil
 	})
@@ -158,10 +159,10 @@ func (s *service) ApproveUser(ctx context.Context, actorID uuid.UUID, targetID u
 			return err
 		}
 
-		if err := s.userRepo.ApproveUser(ctx, targetID, actorID); err != nil {
+		if err := s.userRepo.ApproveUser(ctx, spec.UserApproval{UserID: targetID, ApprovedBy: actorID}); err != nil {
 			return fmt.Errorf("approve user: %w", err)
 		}
-		s.auditUser(ctx, actorID, repository.AuditActionApproveUser, targetID)
+		s.auditUser(ctx, actorID, audit.ActionApproveUser, targetID)
 		return nil
 	})
 }
@@ -171,7 +172,7 @@ func (s *service) UnapproveUser(ctx context.Context, actorID uuid.UUID, targetID
 		if err := s.userRepo.UnapproveUser(ctx, targetID); err != nil {
 			return fmt.Errorf("unapprove user: %w", err)
 		}
-		s.auditUser(ctx, actorID, repository.AuditActionUnapproveUser, targetID)
+		s.auditUser(ctx, actorID, audit.ActionUnapproveUser, targetID)
 		return nil
 	})
 }
@@ -206,7 +207,7 @@ func (s *service) DeleteUser(ctx context.Context, actorID uuid.UUID, targetID uu
 			details = "username=" + user.Username
 		}
 
-		s.auditDetails(ctx, actorID, repository.AuditActionDeleteUser, repository.AuditTargetUser, targetID.String(), details)
+		s.auditDetails(ctx, actorID, audit.ActionDeleteUser, audit.TargetUser, targetID.String(), details)
 		return nil
 	})
 }
@@ -228,14 +229,14 @@ func (s *service) ResetUserPassword(ctx context.Context, actorID uuid.UUID, targ
 			return fmt.Errorf("hash password: %w", err)
 		}
 
-		if err := s.userRepo.SetPasswordHash(ctx, targetID, string(passwordHash)); err != nil {
+		if err := s.userRepo.SetPasswordHash(ctx, spec.UserPasswordHashUpdate{UserID: targetID, PasswordHash: string(passwordHash)}); err != nil {
 			return fmt.Errorf("set password: %w", err)
 		}
 
 		if err := s.sessionMgr.DeleteAllForUser(ctx, targetID); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Str("user_id", targetID.String()).Msg("failed to invalidate sessions after password reset")
 		}
-		s.auditUser(ctx, actorID, repository.AuditActionResetPassword, targetID)
+		s.auditUser(ctx, actorID, audit.ActionResetPassword, targetID)
 		newPassword = generated
 		return nil
 	})
@@ -253,7 +254,7 @@ func (s *service) SetUserEmail(ctx context.Context, actorID uuid.UUID, targetID 
 			return fmt.Errorf("set email: %w", err)
 		}
 
-		s.auditUserDetails(ctx, actorID, repository.AuditActionSetUserEmail, targetID, changeDetails(previous, email))
+		s.auditUserDetails(ctx, actorID, audit.ActionSetUserEmail, targetID, changeDetails(previous, email))
 		return nil
 	})
 }
@@ -287,7 +288,7 @@ func (s *service) VerifyUserEmail(ctx context.Context, actorID uuid.UUID, target
 			return fmt.Errorf("verify email: %w", err)
 		}
 
-		s.auditUser(ctx, actorID, repository.AuditActionVerifyUserEmail, targetID)
+		s.auditUser(ctx, actorID, audit.ActionVerifyUserEmail, targetID)
 		return nil
 	})
 }
@@ -298,7 +299,7 @@ func (s *service) UnverifyUserEmail(ctx context.Context, actorID uuid.UUID, targ
 			return fmt.Errorf("unverify email: %w", err)
 		}
 
-		s.auditUser(ctx, actorID, repository.AuditActionUnverifyUserEmail, targetID)
+		s.auditUser(ctx, actorID, audit.ActionUnverifyUserEmail, targetID)
 		return nil
 	})
 }
@@ -312,11 +313,11 @@ func (s *service) SetUserDisplayName(ctx context.Context, actorID uuid.UUID, tar
 
 		previous := s.currentDisplayName(ctx, targetID)
 
-		if err := s.userRepo.SetDisplayName(ctx, targetID, clamped); err != nil {
+		if err := s.userRepo.SetDisplayName(ctx, spec.UserDisplayNameUpdate{UserID: targetID, DisplayName: clamped}); err != nil {
 			return fmt.Errorf("set display name: %w", err)
 		}
 
-		s.auditUserDetails(ctx, actorID, repository.AuditActionSetDisplayName, targetID, changeDetails(previous, clamped))
+		s.auditUserDetails(ctx, actorID, audit.ActionSetDisplayName, targetID, changeDetails(previous, clamped))
 		s.broadcastDisplayNameChange(targetID, clamped)
 		return nil
 	})
@@ -324,13 +325,13 @@ func (s *service) SetUserDisplayName(ctx context.Context, actorID uuid.UUID, tar
 
 func (s *service) SetDisplayNameLocked(ctx context.Context, actorID uuid.UUID, targetID uuid.UUID, locked bool) error {
 	return s.guardedAction(ctx, actorID, targetID, func() error {
-		if err := s.userRepo.SetDisplayNameLocked(ctx, targetID, locked); err != nil {
+		if err := s.userRepo.SetDisplayNameLocked(ctx, spec.UserDisplayNameLockUpdate{UserID: targetID, Locked: locked}); err != nil {
 			return fmt.Errorf("set display name lock: %w", err)
 		}
 
-		action := repository.AuditActionUnlockDisplayName
+		action := audit.ActionUnlockDisplayName
 		if locked {
-			action = repository.AuditActionLockDisplayName
+			action = audit.ActionLockDisplayName
 		}
 		s.auditUser(ctx, actorID, action, targetID)
 		return nil
@@ -353,7 +354,7 @@ func (s *service) ForceLogout(ctx context.Context, actorID uuid.UUID, targetID u
 			return fmt.Errorf("delete sessions: %w", err)
 		}
 
-		s.auditUser(ctx, actorID, repository.AuditActionForceLogout, targetID)
+		s.auditUser(ctx, actorID, audit.ActionForceLogout, targetID)
 		return nil
 	})
 }
@@ -371,7 +372,7 @@ func (s *service) ListAccountsOnIP(ctx context.Context, targetID uuid.UUID) (*dt
 		return &dto.AdminIPMatchesResponse{Users: []dto.AdminUserItem{}}, nil
 	}
 
-	users, err := s.userRepo.ListByIP(ctx, *target.IP, targetID)
+	users, err := s.userRepo.ListByIP(ctx, spec.UserIPFilter{IP: *target.IP, ExcludeUserID: targetID})
 	if err != nil {
 		return nil, fmt.Errorf("list users by ip: %w", err)
 	}
@@ -394,7 +395,7 @@ func (s *service) ListAccountsOnIP(ctx context.Context, targetID uuid.UUID) (*dt
 }
 
 func (s *service) GetUserAuditLog(ctx context.Context, targetID uuid.UUID, page bounds.Page) (*dto.AuditLogListResponse, error) {
-	entries, total, err := s.auditRepo.ListForUser(ctx, targetID, page.Limit(), page.Offset())
+	entries, total, err := s.auditRepo.ListForUser(ctx, spec.AuditLogUserListing{UserID: targetID, Page: page})
 	if err != nil {
 		return nil, fmt.Errorf("get user audit log: %w", err)
 	}

@@ -7,17 +7,20 @@ import (
 	"sync"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 
@@ -29,7 +32,7 @@ import (
 
 type testMocks struct {
 	artRepo     *repository.MockArtRepository
-	artComments *repository.MockCommentDAO[uuid.UUID]
+	artComments *dao.MockCommentDAO[uuid.UUID]
 	postRepo    *repository.MockPostRepository
 	userRepo    *repository.MockUserRepository
 	auditRepo   *repository.MockAuditLogRepository
@@ -54,9 +57,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 
-	artComments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindArtComment): artComments},
+	artComments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindArtComment): artComments},
 	})
 
 	svc := NewService(artRepo, postRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New(), nil, nil).(*service)
@@ -148,14 +151,16 @@ func TestCreateArt_RepoError(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		CreateWithTags(mock.Anything, repository.NewArtWithTags{
-			UserID:      userID,
-			Corner:      "general",
-			ArtType:     "drawing",
-			Title:       "t",
-			Description: "d",
-			ImageURL:    "/uploads/art/x.png",
-			Tags:        []string{"a"},
+		CreateWithTags(mock.Anything, spec.NewArtWithTags{
+			NewArt: spec.NewArt{
+				UserID:      userID,
+				Corner:      "general",
+				ArtType:     "drawing",
+				Title:       "t",
+				Description: "d",
+				ImageURL:    "/uploads/art/x.png",
+			},
+			Tags: []string{"a"},
 		}).
 		Return(nil, errors.New("db"))
 
@@ -179,14 +184,16 @@ func TestCreateArt_OK_DefaultsAndTagCap(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		CreateWithTags(mock.Anything, repository.NewArtWithTags{
-			UserID:    userID,
-			Corner:    "general",
-			ArtType:   "drawing",
-			Title:     "t",
-			ImageURL:  "/uploads/art/x.png",
-			IsSpoiler: true,
-			Tags:      capped,
+		CreateWithTags(mock.Anything, spec.NewArtWithTags{
+			NewArt: spec.NewArt{
+				UserID:    userID,
+				Corner:    "general",
+				ArtType:   "drawing",
+				Title:     "t",
+				ImageURL:  "/uploads/art/x.png",
+				IsSpoiler: true,
+			},
+			Tags: capped,
 		}).
 		Return(&model.ArtRow{ID: uuid.New()}, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
@@ -210,12 +217,14 @@ func TestCreateArt_OK_CustomCornerAndType(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		CreateWithTags(mock.Anything, repository.NewArtWithTags{
-			UserID:   userID,
-			Corner:   "umineko",
-			ArtType:  "sketch",
-			Title:    "t",
-			ImageURL: "/uploads/art/x.png",
+		CreateWithTags(mock.Anything, spec.NewArtWithTags{
+			NewArt: spec.NewArt{
+				UserID:   userID,
+				Corner:   "umineko",
+				ArtType:  "sketch",
+				Title:    "t",
+				ImageURL: "/uploads/art/x.png",
+			},
 		}).
 		Return(&model.ArtRow{ID: uuid.New()}, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("").Maybe()
@@ -231,7 +240,7 @@ func TestGetArt_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
-	m.artRepo.EXPECT().GetByID(mock.Anything, id, uuid.Nil).Return(nil, errors.New("boom"))
+	m.artRepo.EXPECT().GetByID(mock.Anything, spec.ArtLookup{ID: id, ViewerID: uuid.Nil}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.GetArt(context.Background(), id, uuid.Nil, "")
@@ -244,7 +253,7 @@ func TestGetArt_NotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	id := uuid.New()
-	m.artRepo.EXPECT().GetByID(mock.Anything, id, uuid.Nil).Return(nil, nil)
+	m.artRepo.EXPECT().GetByID(mock.Anything, spec.ArtLookup{ID: id, ViewerID: uuid.Nil}).Return(nil, nil)
 
 	// when
 	_, err := svc.GetArt(context.Background(), id, uuid.Nil, "")
@@ -260,14 +269,14 @@ func TestGetArt_OK_WithViewerHashAndBlocked(t *testing.T) {
 	viewerID := uuid.New()
 	authorID := uuid.New()
 	row := &model.ArtRow{ID: id, UserID: authorID, Title: "T", ImageURL: "/u/x.png", ViewCount: 5}
-	m.artRepo.EXPECT().GetByID(mock.Anything, id, viewerID).Return(row, nil)
-	m.artRepo.EXPECT().RecordView(mock.Anything, id, "hashy").Return(true, nil)
+	m.artRepo.EXPECT().GetByID(mock.Anything, spec.ArtLookup{ID: id, ViewerID: viewerID}).Return(row, nil)
+	m.artRepo.EXPECT().RecordView(mock.Anything, spec.ViewRecord{TargetID: id, ViewerHash: "hashy"}).Return(true, nil)
 	blocked := []uuid.UUID{uuid.New()}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(blocked, nil)
 	m.artRepo.EXPECT().GetTags(mock.Anything, id).Return([]string{"tag"}, nil)
-	m.artRepo.EXPECT().GetComments(mock.Anything, id, viewerID, 500, 0, blocked).Return(nil, 0, nil)
+	m.artRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: viewerID, Limit: 500, ExcludeUserIDs: blocked}).Return(nil, 0, nil)
 	m.artRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.artRepo.EXPECT().GetLikedBy(mock.Anything, id, blocked).Return(nil, nil)
+	m.artRepo.EXPECT().GetLikedBy(mock.Anything, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blocked}).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(true, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
 
@@ -287,12 +296,12 @@ func TestGetArt_OK_AnonymousNoHash(t *testing.T) {
 	id := uuid.New()
 	authorID := uuid.New()
 	row := &model.ArtRow{ID: id, UserID: authorID, Title: "T", ImageURL: "/u/x.png"}
-	m.artRepo.EXPECT().GetByID(mock.Anything, id, uuid.Nil).Return(row, nil)
+	m.artRepo.EXPECT().GetByID(mock.Anything, spec.ArtLookup{ID: id, ViewerID: uuid.Nil}).Return(row, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
 	m.artRepo.EXPECT().GetTags(mock.Anything, id).Return(nil, nil)
-	m.artRepo.EXPECT().GetComments(mock.Anything, id, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
+	m.artRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: uuid.Nil, Limit: 500}).Return(nil, 0, nil)
 	m.artRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
-	m.artRepo.EXPECT().GetLikedBy(mock.Anything, id, []uuid.UUID(nil)).Return(nil, nil)
+	m.artRepo.EXPECT().GetLikedBy(mock.Anything, spec.LikedByQuery{TargetID: id}).Return(nil, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("")
 
 	// when
@@ -321,8 +330,8 @@ func TestUpdateArt_AsOwner_RepoError(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 	m.artRepo.EXPECT().
-		UpdateWithTags(mock.Anything, repository.ArtUpdateWithTags{
-			ID: id, UserID: userID, Title: "t",
+		UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{
+			ArtUpdate: spec.ArtUpdate{ID: id, UserID: userID, Title: "t"},
 		}).
 		Return(errors.New("not owner"))
 
@@ -341,9 +350,9 @@ func TestUpdateArt_AsOwner_OK(t *testing.T) {
 	tags := []string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"}
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 	m.artRepo.EXPECT().
-		UpdateWithTags(mock.Anything, repository.ArtUpdateWithTags{
-			ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true,
-			Tags: tags[:10],
+		UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{
+			ArtUpdate: spec.ArtUpdate{ID: id, UserID: userID, Title: "t", Description: "d", IsSpoiler: true},
+			Tags:      tags[:10],
 		}).
 		Return(nil)
 
@@ -361,8 +370,8 @@ func TestUpdateArt_AsAdmin_SpawnsNotify(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
 	m.artRepo.EXPECT().
-		UpdateWithTags(mock.Anything, repository.ArtUpdateWithTags{
-			ArtUpdate: repository.ArtUpdate{ID: id, UserID: userID, Title: "t", AsAdmin: true},
+		UpdateWithTags(mock.Anything, spec.ArtUpdateWithTags{
+			ArtUpdate: spec.ArtUpdate{ID: id, UserID: userID, Title: "t", AsAdmin: true},
 		}).
 		Return(nil)
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, id).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
@@ -374,20 +383,20 @@ func TestUpdateArt_AsAdmin_SpawnsNotify(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func artDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) repository.ArtDelete {
-	action := repository.AuditActionArtDelete
+func artDeleteSpec(id uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) spec.ArtDelete {
+	action := audit.ActionArtDelete
 	if authorID != userID {
-		action = repository.AuditActionArtDeleteAdmin
+		action = audit.ActionArtDeleteAdmin
 	}
 
-	return repository.ArtDelete{
+	return spec.ArtDelete{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: asAdmin,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetArt,
+			TargetType: audit.TargetArt,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		},
@@ -499,7 +508,7 @@ func TestListArt_RepoError(t *testing.T) {
 	viewerID := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
 	m.artRepo.EXPECT().
-		ListAll(mock.Anything, viewerID, "general", "", "", "", "", 10, 0, []uuid.UUID(nil)).
+		ListAll(mock.Anything, spec.ArtFilter{ViewerID: viewerID, Corner: "general", Limit: 10}).
 		Return(nil, 0, errors.New("db"))
 
 	// when
@@ -517,7 +526,7 @@ func TestListArt_OK_DefaultsCornerAndThumbnails(t *testing.T) {
 	rows := []model.ArtRow{{ID: artID, UserID: uuid.New(), Title: "A", ImageURL: "/u/x.png"}}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
 	m.artRepo.EXPECT().
-		ListAll(mock.Anything, viewerID, "general", "drawing", "q", "tag", "new", 10, 5, []uuid.UUID(nil)).
+		ListAll(mock.Anything, spec.ArtFilter{ViewerID: viewerID, Corner: "general", ArtType: "drawing", Search: "q", Tag: "tag", Sort: "new", Limit: 10, Offset: 5}).
 		Return(rows, 1, nil)
 	m.artRepo.EXPECT().GetTagsBatch(mock.Anything, []uuid.UUID{artID}).Return(nil, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
@@ -540,7 +549,7 @@ func TestListByUser_RepoError(t *testing.T) {
 	userID := uuid.New()
 	viewerID := uuid.New()
 	m.artRepo.EXPECT().
-		ListByUser(mock.Anything, userID, viewerID, 10, 0).
+		ListByUser(mock.Anything, spec.ArtUserFilter{UserID: userID, ViewerID: viewerID, Limit: 10}).
 		Return(nil, 0, errors.New("boom"))
 
 	// when
@@ -557,7 +566,7 @@ func TestListByUser_OK(t *testing.T) {
 	viewerID := uuid.New()
 	artID := uuid.New()
 	rows := []model.ArtRow{{ID: artID, UserID: userID, Title: "A", ImageURL: "/u/y.png"}}
-	m.artRepo.EXPECT().ListByUser(mock.Anything, userID, viewerID, 10, 0).Return(rows, 1, nil)
+	m.artRepo.EXPECT().ListByUser(mock.Anything, spec.ArtUserFilter{UserID: userID, ViewerID: viewerID, Limit: 10}).Return(rows, 1, nil)
 	m.artRepo.EXPECT().GetTagsBatch(mock.Anything, []uuid.UUID{artID}).Return(nil, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("")
 
@@ -608,7 +617,7 @@ func TestLikeArt_LikeRepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().Like(mock.Anything, userID, artID).Return(errors.New("dup"))
+	m.artRepo.EXPECT().Like(mock.Anything, spec.Like{UserID: userID, TargetID: artID}).Return(errors.New("dup"))
 
 	// when
 	err := svc.LikeArt(context.Background(), userID, artID)
@@ -625,7 +634,7 @@ func TestLikeArt_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().Like(mock.Anything, userID, artID).Return(nil)
+	m.artRepo.EXPECT().Like(mock.Anything, spec.Like{UserID: userID, TargetID: artID}).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -640,7 +649,7 @@ func TestUnlikeArt_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	artID := uuid.New()
 	userID := uuid.New()
-	m.artRepo.EXPECT().Unlike(mock.Anything, userID, artID).Return(nil)
+	m.artRepo.EXPECT().Unlike(mock.Anything, spec.Like{UserID: userID, TargetID: artID}).Return(nil)
 
 	// when
 	err := svc.UnlikeArt(context.Background(), userID, artID)
@@ -654,7 +663,7 @@ func TestUnlikeArt_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	artID := uuid.New()
 	userID := uuid.New()
-	m.artRepo.EXPECT().Unlike(mock.Anything, userID, artID).Return(errors.New("boom"))
+	m.artRepo.EXPECT().Unlike(mock.Anything, spec.Like{UserID: userID, TargetID: artID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnlikeArt(context.Background(), userID, artID)
@@ -692,7 +701,7 @@ func TestGetCornerCounts_OK(t *testing.T) {
 func TestGetPopularTags_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.artRepo.EXPECT().GetPopularTags(mock.Anything, "general", 30).Return(nil, errors.New("boom"))
+	m.artRepo.EXPECT().GetPopularTags(mock.Anything, spec.PopularTagFilter{Corner: "general", Limit: 30}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.GetPopularTags(context.Background(), "general")
@@ -704,7 +713,7 @@ func TestGetPopularTags_RepoError(t *testing.T) {
 func TestGetPopularTags_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.artRepo.EXPECT().GetPopularTags(mock.Anything, "umineko", 30).Return([]model.TagCount{{Tag: "a", Count: 4}}, nil)
+	m.artRepo.EXPECT().GetPopularTags(mock.Anything, spec.PopularTagFilter{Corner: "umineko", Limit: 30}).Return([]model.TagCount{{Tag: "a", Count: 4}}, nil)
 
 	// when
 	got, err := svc.GetPopularTags(context.Background(), "umineko")
@@ -767,7 +776,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.artComments.EXPECT().
-		CreateComment(mock.Anything, artID, (*uuid.UUID)(nil), userID, "hi").
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: nil, UserID: userID, Body: "hi"}).
 		Return(nil, errors.New("db"))
 
 	// when
@@ -786,8 +795,8 @@ func TestCreateComment_OK_TopLevel(t *testing.T) {
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.artComments.EXPECT().
-		CreateComment(mock.Anything, artID, (*uuid.UUID)(nil), userID, "hi").
-		Return(&repository.CommentRow{ID: uuid.New()}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: nil, UserID: userID, Body: "hi"}).
+		Return(&model.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -808,8 +817,8 @@ func TestCreateComment_OK_Reply(t *testing.T) {
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.artComments.EXPECT().
-		CreateComment(mock.Anything, artID, &parentID, userID, "hi").
-		Return(&repository.CommentRow{ID: uuid.New()}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: &parentID, UserID: userID, Body: "hi"}).
+		Return(&model.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -831,8 +840,8 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	m.artRepo.EXPECT().GetArtAuthorID(mock.Anything, artID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.artComments.EXPECT().
-		CreateComment(mock.Anything, artID, (*uuid.UUID)(nil), userID, "look at this @alice").
-		Return(&repository.CommentRow{ID: commentID}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: artID, ParentID: nil, UserID: userID, Body: "look at this @alice"}).
+		Return(&model.CommentRow{ID: commentID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -925,7 +934,7 @@ func TestUpdateComment_AsAdmin_RepoError(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.New(), nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.artRepo.EXPECT().
-		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
+		UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
 		Return(errors.New("db"))
 
 	// when
@@ -958,12 +967,12 @@ func TestUpdateComment_AsAdmin_OK(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.artRepo.EXPECT().
-		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
+		UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
 		Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionArtCommentUpdateAdmin,
-		TargetType: repository.AuditTargetArtComment,
+		Action:     audit.ActionArtCommentUpdateAdmin,
+		TargetType: audit.TargetArtComment,
 		TargetID:   commentID.String(),
 		SubjectID:  authorID,
 	}).Return(nil)
@@ -984,7 +993,7 @@ func TestUpdateComment_ModeratorEditingOwnCommentIsNotAudited(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.artRepo.EXPECT().
-		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
+		UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: commentID, UserID: userID, Body: "hi", AsAdmin: true}).
 		Return(nil)
 	m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
@@ -1004,7 +1013,7 @@ func TestUpdateComment_AsOwner_RepoError(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	m.artRepo.EXPECT().
-		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi"}).
+		UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: commentID, UserID: userID, Body: "hi"}).
 		Return(errors.New("not owner"))
 
 	// when
@@ -1022,7 +1031,7 @@ func TestUpdateComment_AsOwner_OK(t *testing.T) {
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	m.artRepo.EXPECT().
-		UpdateCommentWithDetails(mock.Anything, repository.ArtCommentUpdate{ID: commentID, UserID: userID, Body: "hi"}).
+		UpdateCommentWithDetails(mock.Anything, spec.CommentUpdate{CommentID: commentID, UserID: userID, Body: "hi"}).
 		Return(nil)
 
 	// when
@@ -1032,20 +1041,22 @@ func TestUpdateComment_AsOwner_OK(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func artCommentDeleteSpec(commentID uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) repository.ArtCommentDelete {
-	action := repository.AuditActionArtCommentDelete
+func artCommentDeleteSpec(commentID uuid.UUID, userID uuid.UUID, authorID uuid.UUID, asAdmin bool) spec.ArtCommentDeletion {
+	action := audit.ActionArtCommentDelete
 	if authorID != userID {
-		action = repository.AuditActionArtCommentDeleteAdmin
+		action = audit.ActionArtCommentDeleteAdmin
 	}
 
-	return repository.ArtCommentDelete{
-		ID:      commentID,
-		UserID:  userID,
-		AsAdmin: asAdmin,
-		Audit: repository.NewAuditEntry{
+	return spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: commentID,
+			UserID:    userID,
+			AsAdmin:   asAdmin,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetArtComment,
+			TargetType: audit.TargetArtComment,
 			TargetID:   commentID.String(),
 			SubjectID:  authorID,
 		},
@@ -1161,7 +1172,7 @@ func TestLikeComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(errors.New("db"))
+	m.artRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errors.New("db"))
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, commentID)
@@ -1178,7 +1189,7 @@ func TestLikeComment_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.artRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.artRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.artRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 	m.artRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -1193,7 +1204,7 @@ func TestUnlikeComment_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	m.artRepo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.artRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, commentID)
@@ -1207,7 +1218,7 @@ func TestUnlikeComment_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	m.artRepo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(errors.New("boom"))
+	m.artRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, commentID)
@@ -1275,7 +1286,7 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image", Filename: "photo.png"}).
+		AddCommentMedia(mock.Anything, spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image", Filename: "photo.png"}).
 		Return(int64(0), errors.New("db"))
 
 	// when
@@ -1297,7 +1308,7 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 		SaveImage(mock.Anything, "art", mock.Anything, int64(10), int64(1000), mock.Anything).
 		Return("/uploads/art/x.png", nil)
 	m.artRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image", Filename: "photo.png"}).
+		AddCommentMedia(mock.Anything, spec.NewMedia{TargetID: commentID, MediaURL: "/uploads/art/x.png", MediaType: "image", Filename: "photo.png"}).
 		Return(int64(42), nil)
 
 	// when
@@ -1325,7 +1336,7 @@ func TestCreateGallery_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.artRepo.EXPECT().
-		CreateGallery(mock.Anything, userID, "n", "d").
+		CreateGallery(mock.Anything, spec.NewGallery{UserID: userID, Name: "n", Description: "d"}).
 		Return(nil, errors.New("db"))
 
 	// when
@@ -1340,7 +1351,7 @@ func TestCreateGallery_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.artRepo.EXPECT().
-		CreateGallery(mock.Anything, userID, "n", "d").
+		CreateGallery(mock.Anything, spec.NewGallery{UserID: userID, Name: "n", Description: "d"}).
 		Return(&model.GalleryRow{ID: uuid.New()}, nil)
 
 	// when
@@ -1368,7 +1379,7 @@ func TestUpdateGallery_OK(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.artRepo.EXPECT().
-		UpdateGallery(mock.Anything, id, userID, "n", "d").
+		UpdateGallery(mock.Anything, spec.GalleryUpdate{ID: id, UserID: userID, Name: "n", Description: "d"}).
 		Return(nil)
 
 	// when
@@ -1384,7 +1395,7 @@ func TestUpdateGallery_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.artRepo.EXPECT().
-		UpdateGallery(mock.Anything, id, userID, "n", "").
+		UpdateGallery(mock.Anything, spec.GalleryUpdate{ID: id, UserID: userID, Name: "n"}).
 		Return(errors.New("not owner"))
 
 	// when
@@ -1400,7 +1411,7 @@ func TestSetGalleryCover_OK(t *testing.T) {
 	galleryID := uuid.New()
 	userID := uuid.New()
 	coverID := uuid.New()
-	m.artRepo.EXPECT().SetGalleryCover(mock.Anything, galleryID, userID, &coverID).Return(nil)
+	m.artRepo.EXPECT().SetGalleryCover(mock.Anything, spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: userID, CoverArtID: &coverID}).Return(nil)
 
 	// when
 	err := svc.SetGalleryCover(context.Background(), galleryID, userID, &coverID)
@@ -1414,7 +1425,7 @@ func TestSetGalleryCover_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	galleryID := uuid.New()
 	userID := uuid.New()
-	m.artRepo.EXPECT().SetGalleryCover(mock.Anything, galleryID, userID, (*uuid.UUID)(nil)).Return(errors.New("boom"))
+	m.artRepo.EXPECT().SetGalleryCover(mock.Anything, spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: userID, CoverArtID: nil}).Return(errors.New("boom"))
 
 	// when
 	err := svc.SetGalleryCover(context.Background(), galleryID, userID, nil)
@@ -1429,7 +1440,7 @@ func TestDeleteGallery_DeleteError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(&model.GalleryRow{ID: id, UserID: userID, Name: "sketches", ArtCount: 3}, nil)
-	m.artRepo.EXPECT().DeleteGallery(mock.Anything, id, userID).Return(nil, errors.New("not owner"))
+	m.artRepo.EXPECT().DeleteGallery(mock.Anything, spec.GalleryRef{GalleryID: id, UserID: userID}).Return(nil, errors.New("not owner"))
 
 	// when
 	err := svc.DeleteGallery(context.Background(), id, userID)
@@ -1460,12 +1471,12 @@ func TestDeleteGallery_OK_DeletesImages(t *testing.T) {
 	userID := uuid.New()
 	paths := []string{"/u/a.png", "/u/a-thumb.png", "/u/b.png", "/u/comment.png"}
 	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(&model.GalleryRow{ID: id, UserID: userID, Name: "sketches", ArtCount: 2}, nil)
-	m.artRepo.EXPECT().DeleteGallery(mock.Anything, id, userID).Return(paths, nil)
+	m.artRepo.EXPECT().DeleteGallery(mock.Anything, spec.GalleryRef{GalleryID: id, UserID: userID}).Return(paths, nil)
 	m.uploadSvc.EXPECT().Delete(paths).Return()
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionGalleryDelete,
-		TargetType: repository.AuditTargetGallery,
+		Action:     audit.ActionGalleryDelete,
+		TargetType: audit.TargetGallery,
 		TargetID:   id.String(),
 		Details:    `name="sketches" art=2 files=4`,
 		SubjectID:  userID,
@@ -1512,7 +1523,7 @@ func TestGetGallery_ListError(t *testing.T) {
 	g := &model.GalleryRow{ID: id, Name: "G"}
 	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(g, nil)
 	m.artRepo.EXPECT().
-		ListArtInGallery(mock.Anything, id, viewerID, 10, 0).
+		ListArtInGallery(mock.Anything, spec.GalleryArtFilter{GalleryID: id, ViewerID: viewerID, Limit: 10}).
 		Return(nil, 0, errors.New("boom"))
 
 	// when
@@ -1531,7 +1542,7 @@ func TestGetGallery_OK_WithCoverThumbnail(t *testing.T) {
 	g := &model.GalleryRow{ID: id, Name: "G", CoverImageURL: "/u/cover.png"}
 	rows := []model.ArtRow{{ID: artID, ImageURL: "/u/x.png"}}
 	m.artRepo.EXPECT().GetGalleryByID(mock.Anything, id).Return(g, nil)
-	m.artRepo.EXPECT().ListArtInGallery(mock.Anything, id, viewerID, 10, 0).Return(rows, 1, nil)
+	m.artRepo.EXPECT().ListArtInGallery(mock.Anything, spec.GalleryArtFilter{GalleryID: id, ViewerID: viewerID, Limit: 10}).Return(rows, 1, nil)
 	m.artRepo.EXPECT().GetTagsBatch(mock.Anything, []uuid.UUID{artID}).Return(nil, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com")
 
@@ -1570,8 +1581,8 @@ func TestListUserGalleries_OK_WithPreviews(t *testing.T) {
 	m.artRepo.EXPECT().ListGalleriesByUser(mock.Anything, userID).Return(rows, nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://example.com").Maybe()
 	m.artRepo.EXPECT().
-		GetGalleryPreviewImages(mock.Anything, galleryID, 3).
-		Return([]repository.PreviewImage{{ImageURL: "/u/p.png"}}, nil)
+		GetGalleryPreviewImages(mock.Anything, spec.GalleryPreviewFilter{GalleryID: galleryID, Limit: 3}).
+		Return([]model.PreviewImage{{ImageURL: "/u/p.png"}}, nil)
 
 	// when
 	got, err := svc.ListUserGalleries(context.Background(), userID)
@@ -1635,7 +1646,7 @@ func TestSetArtGallery_OK(t *testing.T) {
 	artID := uuid.New()
 	userID := uuid.New()
 	galleryID := uuid.New()
-	m.artRepo.EXPECT().SetGallery(mock.Anything, artID, userID, &galleryID).Return(nil)
+	m.artRepo.EXPECT().SetGallery(mock.Anything, spec.ArtGalleryAssignment{ArtID: artID, UserID: userID, GalleryID: &galleryID}).Return(nil)
 
 	// when
 	err := svc.SetArtGallery(context.Background(), artID, userID, &galleryID)
@@ -1649,7 +1660,7 @@ func TestSetArtGallery_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	artID := uuid.New()
 	userID := uuid.New()
-	m.artRepo.EXPECT().SetGallery(mock.Anything, artID, userID, (*uuid.UUID)(nil)).Return(errors.New("not owner"))
+	m.artRepo.EXPECT().SetGallery(mock.Anything, spec.ArtGalleryAssignment{ArtID: artID, UserID: userID, GalleryID: nil}).Return(errors.New("not owner"))
 
 	// when
 	err := svc.SetArtGallery(context.Background(), artID, userID, nil)

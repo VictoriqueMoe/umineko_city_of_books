@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
@@ -96,7 +97,9 @@ func TestToken_GeneratesWhenMissing(t *testing.T) {
 	svc, m := newTestOverlayService(t)
 	userID := uuid.New()
 	m.repo.EXPECT().GetByUser(mock.Anything, userID).Return("", nil)
-	m.repo.EXPECT().Upsert(mock.Anything, userID, mock.AnythingOfType("string")).Return(nil)
+	m.repo.EXPECT().Upsert(mock.Anything, mock.MatchedBy(func(s spec.OverlayTokenUpsert) bool {
+		return s.UserID == userID && s.Token != ""
+	})).Return(nil)
 
 	// when
 	tok, err := svc.Token(context.Background(), userID)
@@ -123,7 +126,9 @@ func TestResetToken_GeneratesUniqueTokens(t *testing.T) {
 	// given
 	svc, m := newTestOverlayService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().Upsert(mock.Anything, userID, mock.AnythingOfType("string")).Return(nil).Twice()
+	m.repo.EXPECT().Upsert(mock.Anything, mock.MatchedBy(func(s spec.OverlayTokenUpsert) bool {
+		return s.UserID == userID && s.Token != ""
+	})).Return(nil).Twice()
 
 	// when
 	tok1, err1 := svc.ResetToken(context.Background(), userID)
@@ -140,7 +145,9 @@ func TestResetToken_UpsertError(t *testing.T) {
 	// given
 	svc, m := newTestOverlayService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().Upsert(mock.Anything, userID, mock.Anything).Return(errors.New("boom"))
+	m.repo.EXPECT().Upsert(mock.Anything, mock.MatchedBy(func(s spec.OverlayTokenUpsert) bool {
+		return s.UserID == userID
+	})).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.ResetToken(context.Background(), userID)

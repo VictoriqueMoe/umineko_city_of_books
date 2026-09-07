@@ -5,10 +5,12 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 
@@ -328,14 +330,14 @@ func TestIsChatbotOptedIn(t *testing.T) {
 	cases := []struct {
 		name       string
 		configured string
-		held       []repository.VanityRoleRow
+		held       []model.VanityRoleRow
 		repoErr    error
 		want       bool
 		wantErr    bool
 	}{
 		{"no role configured", "", nil, nil, false, false},
-		{"holds the role", roleID, []repository.VanityRoleRow{{ID: "other"}, {ID: roleID}}, nil, true, false},
-		{"does not hold the role", roleID, []repository.VanityRoleRow{{ID: "other"}}, nil, false, false},
+		{"holds the role", roleID, []model.VanityRoleRow{{ID: "other"}, {ID: roleID}}, nil, true, false},
+		{"does not hold the role", roleID, []model.VanityRoleRow{{ID: "other"}}, nil, false, false},
 		{"holds nothing", roleID, nil, nil, false, false},
 		{"repository error", roleID, nil, errors.New("boom"), false, true},
 	}
@@ -414,22 +416,22 @@ func TestSetChatbotOptIn_GrantsAndRevokesThroughRepository(t *testing.T) {
 			svc, _, _, _, vanityRepo, settingsSvc, auditRepo := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
-			action := repository.AuditActionUnassignVanityRole
+			action := audit.ActionUnassignVanityRole
 			if tc.optIn {
-				action = repository.AuditActionAssignVanityRole
+				action = audit.ActionAssignVanityRole
 				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
 				settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
 				vanityRepo.EXPECT().GetByID(mock.Anything, roleID).
-					Return(&repository.VanityRoleRow{ID: roleID}, nil)
-				vanityRepo.EXPECT().AssignToUser(mock.Anything, userID, roleID).Return(tc.repoErr)
+					Return(&model.VanityRoleRow{ID: roleID}, nil)
+				vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(tc.repoErr)
 			} else {
-				vanityRepo.EXPECT().UnassignFromUser(mock.Anything, userID, roleID).Return(tc.repoErr)
+				vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(tc.repoErr)
 			}
 			if tc.repoErr == nil {
-				auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+				auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 					ActorID:    userID,
 					Action:     action,
-					TargetType: repository.AuditTargetVanityRole,
+					TargetType: audit.TargetVanityRole,
 					TargetID:   roleID,
 					SubjectID:  userID,
 				}).Return(nil)
@@ -467,11 +469,11 @@ func TestSetChatbotOptIn_OptOutWorksEvenWhenOptInIsNoLongerOffered(t *testing.T)
 			svc, _, _, _, vanityRepo, settingsSvc, auditRepo := newFullTestService(t)
 			userID := uuid.New()
 			settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return(roleID)
-			vanityRepo.EXPECT().UnassignFromUser(mock.Anything, userID, roleID).Return(nil)
-			auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+			vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}).Return(nil)
+			auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 				ActorID:    userID,
-				Action:     repository.AuditActionUnassignVanityRole,
-				TargetType: repository.AuditTargetVanityRole,
+				Action:     audit.ActionUnassignVanityRole,
+				TargetType: audit.TargetVanityRole,
 				TargetID:   roleID,
 				SubjectID:  userID,
 			}).Return(nil)
@@ -493,14 +495,14 @@ func TestSetChatbotOptIn_RefusesToGrantASystemRole(t *testing.T) {
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
 	settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
 	vanityRepo.EXPECT().GetByID(mock.Anything, "bot").
-		Return(&repository.VanityRoleRow{ID: "bot", IsSystem: true}, nil)
+		Return(&model.VanityRoleRow{ID: "bot", IsSystem: true}, nil)
 
 	// when
 	err := svc.SetChatbotOptIn(context.Background(), userID, true)
 
 	// then
 	require.ErrorIs(t, err, ErrChatbotOptInUnavailable)
-	vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything, mock.Anything)
+	vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything)
 }
 
 func TestScoreAdjustment_AuditsPreviousAndNextValue(t *testing.T) {
@@ -525,18 +527,18 @@ func TestScoreAdjustment_AuditsPreviousAndNextValue(t *testing.T) {
 			current.ID = target
 			userRepo.EXPECT().GetByID(mock.Anything, target).Return(&current, nil)
 
-			action := repository.AuditActionMysteryScoreAdjust
+			action := audit.ActionMysteryScoreAdjust
 			if tc.gm {
-				action = repository.AuditActionGMScoreAdjust
-				userRepo.EXPECT().UpdateGMScoreAdjustment(mock.Anything, target, tc.next).Return(nil)
+				action = audit.ActionGMScoreAdjust
+				userRepo.EXPECT().UpdateGMScoreAdjustment(mock.Anything, spec.UserGMScoreUpdate{UserID: target, Adjustment: tc.next}).Return(nil)
 			} else {
-				userRepo.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, target, tc.next).Return(nil)
+				userRepo.EXPECT().UpdateMysteryScoreAdjustment(mock.Anything, spec.UserMysteryScoreUpdate{UserID: target, Adjustment: tc.next}).Return(nil)
 			}
 
-			auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+			auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 				ActorID:    actor,
 				Action:     action,
-				TargetType: repository.AuditTargetUser,
+				TargetType: audit.TargetUser,
 				TargetID:   target.String(),
 				Details:    tc.want,
 				SubjectID:  target,
@@ -582,8 +584,8 @@ func TestScoreAdjustment_UnknownUserIsRejected(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, ErrUserNotFound)
-			userRepo.AssertNotCalled(t, "UpdateMysteryScoreAdjustment", mock.Anything, mock.Anything, mock.Anything)
-			userRepo.AssertNotCalled(t, "UpdateGMScoreAdjustment", mock.Anything, mock.Anything, mock.Anything)
+			userRepo.AssertNotCalled(t, "UpdateMysteryScoreAdjustment", mock.Anything, mock.Anything)
+			userRepo.AssertNotCalled(t, "UpdateGMScoreAdjustment", mock.Anything, mock.Anything)
 		})
 	}
 }

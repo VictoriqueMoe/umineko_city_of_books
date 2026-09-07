@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -34,7 +35,7 @@ func (s *Service) Recalculate(ctx context.Context, theoryID uuid.UUID) {
 
 	score := s.calculate(withLove, withoutLove)
 
-	if err := s.theoryRepo.UpdateCredibilityScore(ctx, theoryID, score); err != nil {
+	if err := s.theoryRepo.UpdateCredibilityScore(ctx, spec.TheoryCredibilityUpdate{TheoryID: theoryID, Score: score}); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("theory_id", theoryID.String()).Msg("failed to update credibility score")
 	}
 }

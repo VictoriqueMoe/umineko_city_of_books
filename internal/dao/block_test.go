@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,11 +19,11 @@ func TestBlockDAO_Block(t *testing.T) {
 	blocked := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Block.Block(context.Background(), blocker.ID, blocked.ID)
+	err := repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID})
 
 	// then
 	require.NoError(t, err)
-	isBlocked, err := repos.Block.IsBlocked(context.Background(), blocker.ID, blocked.ID)
+	isBlocked, err := repos.Block.IsBlocked(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID})
 	require.NoError(t, err)
 	assert.True(t, isBlocked)
 }
@@ -32,10 +33,10 @@ func TestBlockDAO_Block_Idempotent(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	blocker := daotest.CreateUser(t, repos)
 	blocked := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), blocker.ID, blocked.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID}))
 
 	// when
-	err := repos.Block.Block(context.Background(), blocker.ID, blocked.ID)
+	err := repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID})
 
 	// then
 	require.NoError(t, err)
@@ -49,14 +50,14 @@ func TestBlockDAO_Unblock(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	blocker := daotest.CreateUser(t, repos)
 	blocked := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), blocker.ID, blocked.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID}))
 
 	// when
-	err := repos.Block.Unblock(context.Background(), blocker.ID, blocked.ID)
+	err := repos.Block.Unblock(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID})
 
 	// then
 	require.NoError(t, err)
-	isBlocked, err := repos.Block.IsBlocked(context.Background(), blocker.ID, blocked.ID)
+	isBlocked, err := repos.Block.IsBlocked(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID})
 	require.NoError(t, err)
 	assert.False(t, isBlocked)
 }
@@ -68,7 +69,7 @@ func TestBlockDAO_Unblock_NonExistingNoop(t *testing.T) {
 	blocked := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Block.Unblock(context.Background(), blocker.ID, blocked.ID)
+	err := repos.Block.Unblock(context.Background(), spec.BlockSpec{BlockerID: blocker.ID, BlockedID: blocked.ID})
 
 	// then
 	require.NoError(t, err)
@@ -81,7 +82,7 @@ func TestBlockDAO_IsBlocked_False(t *testing.T) {
 	b := daotest.CreateUser(t, repos)
 
 	// when
-	isBlocked, err := repos.Block.IsBlocked(context.Background(), a.ID, b.ID)
+	isBlocked, err := repos.Block.IsBlocked(context.Background(), spec.BlockSpec{BlockerID: a.ID, BlockedID: b.ID})
 
 	// then
 	require.NoError(t, err)
@@ -93,10 +94,10 @@ func TestBlockDAO_IsBlocked_DirectionMatters(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), a.ID, b.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: a.ID, BlockedID: b.ID}))
 
 	// when
-	reverse, err := repos.Block.IsBlocked(context.Background(), b.ID, a.ID)
+	reverse, err := repos.Block.IsBlocked(context.Background(), spec.BlockSpec{BlockerID: b.ID, BlockedID: a.ID})
 
 	// then
 	require.NoError(t, err)
@@ -108,11 +109,11 @@ func TestBlockDAO_IsBlockedEither_AblocksB(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), a.ID, b.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: a.ID, BlockedID: b.ID}))
 
 	// when
-	forward, err := repos.Block.IsBlockedEither(context.Background(), a.ID, b.ID)
-	reverse, err2 := repos.Block.IsBlockedEither(context.Background(), b.ID, a.ID)
+	forward, err := repos.Block.IsBlockedEither(context.Background(), spec.BlockPairSpec{UserA: a.ID, UserB: b.ID})
+	reverse, err2 := repos.Block.IsBlockedEither(context.Background(), spec.BlockPairSpec{UserA: b.ID, UserB: a.ID})
 
 	// then
 	require.NoError(t, err)
@@ -126,11 +127,11 @@ func TestBlockDAO_IsBlockedEither_BblocksA(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), b.ID, a.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: b.ID, BlockedID: a.ID}))
 
 	// when
-	forward, err := repos.Block.IsBlockedEither(context.Background(), a.ID, b.ID)
-	reverse, err2 := repos.Block.IsBlockedEither(context.Background(), b.ID, a.ID)
+	forward, err := repos.Block.IsBlockedEither(context.Background(), spec.BlockPairSpec{UserA: a.ID, UserB: b.ID})
+	reverse, err2 := repos.Block.IsBlockedEither(context.Background(), spec.BlockPairSpec{UserA: b.ID, UserB: a.ID})
 
 	// then
 	require.NoError(t, err)
@@ -146,7 +147,7 @@ func TestBlockDAO_IsBlockedEither_None(t *testing.T) {
 	b := daotest.CreateUser(t, repos)
 
 	// when
-	either, err := repos.Block.IsBlockedEither(context.Background(), a.ID, b.ID)
+	either, err := repos.Block.IsBlockedEither(context.Background(), spec.BlockPairSpec{UserA: a.ID, UserB: b.ID})
 
 	// then
 	require.NoError(t, err)
@@ -173,9 +174,9 @@ func TestBlockDAO_GetBlockedIDs_BothDirections(t *testing.T) {
 	blockedByUser := daotest.CreateUser(t, repos)
 	blockerOfUser := daotest.CreateUser(t, repos)
 	unrelated := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), user.ID, blockedByUser.ID))
-	require.NoError(t, repos.Block.Block(context.Background(), blockerOfUser.ID, user.ID))
-	require.NoError(t, repos.Block.Block(context.Background(), unrelated.ID, blockedByUser.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: user.ID, BlockedID: blockedByUser.ID}))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: blockerOfUser.ID, BlockedID: user.ID}))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: unrelated.ID, BlockedID: blockedByUser.ID}))
 
 	// when
 	ids, err := repos.Block.GetBlockedIDs(context.Background(), user.ID)
@@ -204,8 +205,8 @@ func TestBlockDAO_GetBlockedUsers_OnlyOutbound(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	target := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Block.Block(context.Background(), user.ID, target.ID))
-	require.NoError(t, repos.Block.Block(context.Background(), other.ID, user.ID))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: user.ID, BlockedID: target.ID}))
+	require.NoError(t, repos.Block.Block(context.Background(), spec.BlockSpec{BlockerID: other.ID, BlockedID: user.ID}))
 
 	// when
 	users, err := repos.Block.GetBlockedUsers(context.Background(), user.ID)

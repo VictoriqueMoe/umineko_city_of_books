@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"regexp"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
@@ -14,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/giphy/banlist"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/session"
@@ -58,7 +60,7 @@ type (
 		UpdateSettings(ctx context.Context, actorID uuid.UUID, settings map[string]string) error
 		SendTestEmail(ctx context.Context, actorID uuid.UUID) error
 
-		GetAuditLog(ctx context.Context, action repository.AuditAction, page bounds.Page) (*dto.AuditLogListResponse, error)
+		GetAuditLog(ctx context.Context, action audit.Action, page bounds.Page) (*dto.AuditLogListResponse, error)
 
 		CreateInvite(ctx context.Context, actorID uuid.UUID) (*dto.InviteResponse, error)
 		ListInvites(ctx context.Context, page bounds.Page) (*dto.InviteListResponse, error)
@@ -178,12 +180,12 @@ func (s *service) rejectBotTarget(ctx context.Context, targetID uuid.UUID) error
 	return nil
 }
 
-func (s *service) audit(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, targetType repository.AuditTargetType, targetID string) {
+func (s *service) audit(ctx context.Context, actorID uuid.UUID, action audit.Action, targetType audit.TargetType, targetID string) {
 	s.auditDetails(ctx, actorID, action, targetType, targetID, "")
 }
 
-func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, targetType repository.AuditTargetType, targetID, details string) {
-	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action audit.Action, targetType audit.TargetType, targetID, details string) {
+	if err := s.auditRepo.Create(ctx, audit.NewEntry{
 		ActorID:    actorID,
 		Action:     action,
 		TargetType: targetType,
@@ -194,15 +196,15 @@ func (s *service) auditDetails(ctx context.Context, actorID uuid.UUID, action re
 	}
 }
 
-func (s *service) auditUser(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, subjectID uuid.UUID) {
+func (s *service) auditUser(ctx context.Context, actorID uuid.UUID, action audit.Action, subjectID uuid.UUID) {
 	s.auditUserDetails(ctx, actorID, action, subjectID, "")
 }
 
-func (s *service) auditUserDetails(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, subjectID uuid.UUID, details string) {
-	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+func (s *service) auditUserDetails(ctx context.Context, actorID uuid.UUID, action audit.Action, subjectID uuid.UUID, details string) {
+	if err := s.auditRepo.Create(ctx, audit.NewEntry{
 		ActorID:    actorID,
 		Action:     action,
-		TargetType: repository.AuditTargetUser,
+		TargetType: audit.TargetUser,
 		TargetID:   subjectID.String(),
 		Details:    details,
 		SubjectID:  subjectID,
@@ -211,8 +213,8 @@ func (s *service) auditUserDetails(ctx context.Context, actorID uuid.UUID, actio
 	}
 }
 
-func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action repository.AuditAction, targetType repository.AuditTargetType, targetID string, subjectID uuid.UUID) {
-	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+func (s *service) auditSubject(ctx context.Context, actorID uuid.UUID, action audit.Action, targetType audit.TargetType, targetID string, subjectID uuid.UUID) {
+	if err := s.auditRepo.Create(ctx, audit.NewEntry{
 		ActorID:    actorID,
 		Action:     action,
 		TargetType: targetType,
@@ -270,7 +272,11 @@ func (s *service) GetStats(ctx context.Context) (*dto.AdminStatsResponse, error)
 }
 
 func (s *service) ListUsers(ctx context.Context, search string, page bounds.Page) (*dto.AdminUserListResponse, error) {
-	users, total, err := s.userRepo.ListAll(ctx, search, page.Limit(), page.Offset())
+	users, total, err := s.userRepo.ListAll(ctx, spec.UserListFilter{
+		Search: search,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}

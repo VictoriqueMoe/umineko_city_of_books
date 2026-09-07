@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -29,7 +30,7 @@ func TestGetLeaderboard_RepoError(t *testing.T) {
 func TestGetLeaderboard_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	entries := []repository.LeaderboardEntry{{UserID: uuid.New(), Username: "u", Score: 5}}
+	entries := []model.LeaderboardEntry{{UserID: uuid.New(), Username: "u", Score: 5}}
 	m.repo.EXPECT().GetLeaderboard(mock.Anything, 10).Return(entries, nil)
 
 	// when
@@ -70,7 +71,7 @@ func TestGetGMLeaderboard_RepoError(t *testing.T) {
 func TestGetGMLeaderboard_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	entries := []repository.GMLeaderboardEntry{{UserID: uuid.New(), Score: 7, MysteryCount: 2, PlayerCount: 4}}
+	entries := []model.GMLeaderboardEntry{{UserID: uuid.New(), Score: 7, MysteryCount: 2, PlayerCount: 4}}
 	m.repo.EXPECT().GetGMLeaderboard(mock.Anything, 5).Return(entries, nil)
 
 	// when
@@ -99,7 +100,7 @@ func TestListByUser_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("boom"))
+	m.repo.EXPECT().ListByUser(mock.Anything, spec.MysteryUserListFilter{UserID: userID, Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListByUser(context.Background(), userID, bounds.NewPage(10, 0))
@@ -116,8 +117,8 @@ func TestListByUser_TruncatesLongBody(t *testing.T) {
 	for range 300 {
 		body.WriteString("x")
 	}
-	rows := []repository.MysteryRow{{ID: uuid.New(), Body: body.String()}}
-	m.repo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(rows, 1, nil)
+	rows := []model.MysteryRow{{ID: uuid.New(), Body: body.String()}}
+	m.repo.EXPECT().ListByUser(mock.Anything, spec.MysteryUserListFilter{UserID: userID, Limit: 10, Offset: 0}).Return(rows, 1, nil)
 
 	// when
 	got, err := svc.ListByUser(context.Background(), userID, bounds.NewPage(10, 0))

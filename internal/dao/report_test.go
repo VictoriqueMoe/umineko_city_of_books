@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +18,7 @@ func TestReportDAO_Create(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	created, err := repos.Report.Create(context.Background(), repository.NewReport{
+	created, err := repos.Report.Create(context.Background(), spec.NewReport{
 		ReporterID: user.ID,
 		TargetType: "post",
 		TargetID:   "post-1",
@@ -35,7 +35,7 @@ func TestReportDAO_GetByID(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Reporter"))
-	created, err := repos.Report.Create(context.Background(), repository.NewReport{
+	created, err := repos.Report.Create(context.Background(), spec.NewReport{
 		ReporterID: user.ID,
 		TargetType: "post",
 		TargetID:   "post-1",
@@ -81,7 +81,7 @@ func TestReportDAO_List_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	rows, total, err := repos.Report.List(context.Background(), "", 10, 0)
+	rows, total, err := repos.Report.List(context.Background(), spec.ReportFilter{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -94,13 +94,13 @@ func TestReportDAO_List_All(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	_, err1 := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
-	_, err2 := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "comment", TargetID: "c1", Reason: "abuse"})
+	_, err1 := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
+	_, err2 := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "comment", TargetID: "c1", Reason: "abuse"})
 	require.NoError(t, err1)
 	require.NoError(t, err2)
 
 	// when
-	rows, total, err := repos.Report.List(ctx, "", 10, 0)
+	rows, total, err := repos.Report.List(ctx, spec.ReportFilter{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -114,17 +114,17 @@ func TestReportDAO_List_FilterByStatus(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	resolver := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	idOpenRow, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
+	idOpenRow, err := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
 	require.NoError(t, err)
 	idOpen := idOpenRow.ID
-	idResolvedRow, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p2", Reason: "spam"})
+	idResolvedRow, err := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p2", Reason: "spam"})
 	require.NoError(t, err)
 	idResolved := idResolvedRow.ID
-	require.NoError(t, repos.Report.Resolve(ctx, int(idResolved), resolver.ID, "handled"))
+	require.NoError(t, repos.Report.Resolve(ctx, spec.ReportResolution{ID: int(idResolved), ResolvedBy: resolver.ID, Comment: "handled"}))
 
 	// when
-	openRows, openTotal, openErr := repos.Report.List(ctx, "open", 10, 0)
-	resolvedRows, resolvedTotal, resolvedErr := repos.Report.List(ctx, "resolved", 10, 0)
+	openRows, openTotal, openErr := repos.Report.List(ctx, spec.ReportFilter{Status: "open", Limit: 10, Offset: 0})
+	resolvedRows, resolvedTotal, resolvedErr := repos.Report.List(ctx, spec.ReportFilter{Status: "resolved", Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, openErr)
@@ -144,13 +144,13 @@ func TestReportDAO_List_OrderedByCreatedAtDesc(t *testing.T) {
 	ctx := context.Background()
 	ids := make([]int, 3)
 	for i := range 3 {
-		created, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p", Reason: "r"})
+		created, err := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p", Reason: "r"})
 		require.NoError(t, err)
 		ids[i] = created.ID
 	}
 
 	// when
-	rows, _, err := repos.Report.List(ctx, "", 10, 0)
+	rows, _, err := repos.Report.List(ctx, spec.ReportFilter{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -175,14 +175,14 @@ func TestReportDAO_List_Pagination(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	for range 5 {
-		_, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p", Reason: "r"})
+		_, err := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p", Reason: "r"})
 		require.NoError(t, err)
 	}
 
 	// when
-	page1, total1, err1 := repos.Report.List(ctx, "", 2, 0)
-	page2, total2, err2 := repos.Report.List(ctx, "", 2, 2)
-	page3, total3, err3 := repos.Report.List(ctx, "", 2, 4)
+	page1, total1, err1 := repos.Report.List(ctx, spec.ReportFilter{Limit: 2, Offset: 0})
+	page2, total2, err2 := repos.Report.List(ctx, spec.ReportFilter{Limit: 2, Offset: 2})
+	page3, total3, err3 := repos.Report.List(ctx, spec.ReportFilter{Limit: 2, Offset: 4})
 
 	// then
 	require.NoError(t, err1)
@@ -207,12 +207,12 @@ func TestReportDAO_Resolve(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	resolver := daotest.CreateUser(t, repos, daotest.WithDisplayName("Mod"))
 	ctx := context.Background()
-	created, err := repos.Report.Create(ctx, repository.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
+	created, err := repos.Report.Create(ctx, spec.NewReport{ReporterID: user.ID, TargetType: "post", TargetID: "p1", Reason: "spam"})
 	require.NoError(t, err)
 	id := created.ID
 
 	// when
-	err = repos.Report.Resolve(ctx, int(id), resolver.ID, "warned user")
+	err = repos.Report.Resolve(ctx, spec.ReportResolution{ID: int(id), ResolvedBy: resolver.ID, Comment: "warned user"})
 
 	// then
 	require.NoError(t, err)
@@ -230,7 +230,7 @@ func TestReportDAO_Resolve_NonExistent(t *testing.T) {
 	resolver := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Report.Resolve(context.Background(), 9999, resolver.ID, "comment")
+	err := repos.Report.Resolve(context.Background(), spec.ReportResolution{ID: 9999, ResolvedBy: resolver.ID, Comment: "comment"})
 
 	// then
 	require.NoError(t, err)

@@ -12,9 +12,10 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 
@@ -73,7 +74,7 @@ func TestFollow_RepoErrorBubbles(t *testing.T) {
 	follower := uuid.New()
 	target := uuid.New()
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, follower, target).Return(false, nil)
-	followRepo.EXPECT().Follow(mock.Anything, follower, target).Return(errors.New("db down"))
+	followRepo.EXPECT().Follow(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(errors.New("db down"))
 
 	// when
 	err := svc.Follow(context.Background(), follower, target)
@@ -99,7 +100,7 @@ func testFollowOKSendsNotification(t *testing.T) {
 		DisplayName: "Alice",
 	}
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, follower, target).Return(false, nil)
-	followRepo.EXPECT().Follow(mock.Anything, follower, target).Return(nil)
+	followRepo.EXPECT().Follow(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -128,7 +129,7 @@ func TestFollow_OK_UserLookupErrorSwallowed(t *testing.T) {
 	follower := uuid.New()
 	target := uuid.New()
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, follower, target).Return(false, nil)
-	followRepo.EXPECT().Follow(mock.Anything, follower, target).Return(nil)
+	followRepo.EXPECT().Follow(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(nil)
 
 	done := make(chan struct{})
 	userRepo.EXPECT().GetByID(mock.Anything, follower).
@@ -153,7 +154,7 @@ func TestFollow_OK_NilUserSwallowed(t *testing.T) {
 	follower := uuid.New()
 	target := uuid.New()
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, follower, target).Return(false, nil)
-	followRepo.EXPECT().Follow(mock.Anything, follower, target).Return(nil)
+	followRepo.EXPECT().Follow(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(nil)
 
 	done := make(chan struct{})
 	userRepo.EXPECT().GetByID(mock.Anything, follower).
@@ -177,7 +178,7 @@ func TestUnfollow_Delegates(t *testing.T) {
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	follower := uuid.New()
 	target := uuid.New()
-	followRepo.EXPECT().Unfollow(mock.Anything, follower, target).Return(nil)
+	followRepo.EXPECT().Unfollow(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(nil)
 
 	// when
 	err := svc.Unfollow(context.Background(), follower, target)
@@ -191,7 +192,7 @@ func TestUnfollow_RepoError(t *testing.T) {
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	follower := uuid.New()
 	target := uuid.New()
-	followRepo.EXPECT().Unfollow(mock.Anything, follower, target).Return(errors.New("boom"))
+	followRepo.EXPECT().Unfollow(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(errors.New("boom"))
 
 	// when
 	err := svc.Unfollow(context.Background(), follower, target)
@@ -215,7 +216,7 @@ func TestIsFollowing_Delegates(t *testing.T) {
 			svc, followRepo, _, _, _, _ := newTestService(t)
 			follower := uuid.New()
 			target := uuid.New()
-			followRepo.EXPECT().IsFollowing(mock.Anything, follower, target).Return(tc.ret, nil)
+			followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(tc.ret, nil)
 
 			// when
 			got, err := svc.IsFollowing(context.Background(), follower, target)
@@ -232,7 +233,7 @@ func TestIsFollowing_RepoError(t *testing.T) {
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	follower := uuid.New()
 	target := uuid.New()
-	followRepo.EXPECT().IsFollowing(mock.Anything, follower, target).Return(false, errors.New("boom"))
+	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: follower, FollowingID: target}).Return(false, errors.New("boom"))
 
 	// when
 	_, err := svc.IsFollowing(context.Background(), follower, target)
@@ -309,8 +310,8 @@ func TestGetFollowStats_WithViewerPopulatesRelations(t *testing.T) {
 	viewer := uuid.New()
 	followRepo.EXPECT().GetFollowerCount(mock.Anything, userID).Return(10, nil)
 	followRepo.EXPECT().GetFollowingCount(mock.Anything, userID).Return(20, nil)
-	followRepo.EXPECT().IsFollowing(mock.Anything, viewer, userID).Return(true, nil)
-	followRepo.EXPECT().IsFollowing(mock.Anything, userID, viewer).Return(false, nil)
+	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: viewer, FollowingID: userID}).Return(true, nil)
+	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: userID, FollowingID: viewer}).Return(false, nil)
 
 	// when
 	got, err := svc.GetFollowStats(context.Background(), userID, viewer)
@@ -330,8 +331,8 @@ func TestGetFollowStats_RelationErrorsSwallowed(t *testing.T) {
 	viewer := uuid.New()
 	followRepo.EXPECT().GetFollowerCount(mock.Anything, userID).Return(0, nil)
 	followRepo.EXPECT().GetFollowingCount(mock.Anything, userID).Return(0, nil)
-	followRepo.EXPECT().IsFollowing(mock.Anything, viewer, userID).Return(false, errors.New("boom"))
-	followRepo.EXPECT().IsFollowing(mock.Anything, userID, viewer).Return(false, errors.New("boom"))
+	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: viewer, FollowingID: userID}).Return(false, errors.New("boom"))
+	followRepo.EXPECT().IsFollowing(mock.Anything, spec.FollowSpec{FollowerID: userID, FollowingID: viewer}).Return(false, errors.New("boom"))
 
 	// when
 	got, err := svc.GetFollowStats(context.Background(), userID, viewer)
@@ -346,9 +347,9 @@ func TestGetFollowers_OK(t *testing.T) {
 	// given
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	u1 := repository.FollowUser{ID: uuid.New(), Username: "alice", DisplayName: "Alice", AvatarURL: "a.png", Role: "user"}
-	u2 := repository.FollowUser{ID: uuid.New(), Username: "bob", DisplayName: "Bob", AvatarURL: "b.png", Role: "admin"}
-	followRepo.EXPECT().GetFollowers(mock.Anything, userID, 10, 0).Return([]repository.FollowUser{u1, u2}, 2, nil)
+	u1 := model.FollowUser{ID: uuid.New(), Username: "alice", DisplayName: "Alice", AvatarURL: "a.png", Role: "user"}
+	u2 := model.FollowUser{ID: uuid.New(), Username: "bob", DisplayName: "Bob", AvatarURL: "b.png", Role: "admin"}
+	followRepo.EXPECT().GetFollowers(mock.Anything, spec.FollowListSpec{UserID: userID, Limit: 10, Offset: 0}).Return([]model.FollowUser{u1, u2}, 2, nil)
 
 	// when
 	got, total, err := svc.GetFollowers(context.Background(), userID, bounds.NewPage(10, 0))
@@ -367,7 +368,7 @@ func TestGetFollowers_RepoError(t *testing.T) {
 	// given
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	followRepo.EXPECT().GetFollowers(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("boom"))
+	followRepo.EXPECT().GetFollowers(mock.Anything, spec.FollowListSpec{UserID: userID, Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, _, err := svc.GetFollowers(context.Background(), userID, bounds.NewPage(10, 0))
@@ -380,8 +381,8 @@ func TestGetFollowing_OK(t *testing.T) {
 	// given
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	u := repository.FollowUser{ID: uuid.New(), Username: "carol", DisplayName: "Carol", Role: "moderator"}
-	followRepo.EXPECT().GetFollowing(mock.Anything, userID, 5, 10).Return([]repository.FollowUser{u}, 1, nil)
+	u := model.FollowUser{ID: uuid.New(), Username: "carol", DisplayName: "Carol", Role: "moderator"}
+	followRepo.EXPECT().GetFollowing(mock.Anything, spec.FollowListSpec{UserID: userID, Limit: 5, Offset: 10}).Return([]model.FollowUser{u}, 1, nil)
 
 	// when
 	got, total, err := svc.GetFollowing(context.Background(), userID, bounds.NewPage(5, 10))
@@ -398,7 +399,7 @@ func TestGetFollowing_RepoError(t *testing.T) {
 	// given
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	followRepo.EXPECT().GetFollowing(mock.Anything, userID, 5, 10).Return(nil, 0, errors.New("boom"))
+	followRepo.EXPECT().GetFollowing(mock.Anything, spec.FollowListSpec{UserID: userID, Limit: 5, Offset: 10}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, _, err := svc.GetFollowing(context.Background(), userID, bounds.NewPage(5, 10))
@@ -411,9 +412,9 @@ func TestGetMutualFollowers_OK(t *testing.T) {
 	// given
 	svc, followRepo, _, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	u1 := repository.FollowUser{ID: uuid.New(), Username: "alice"}
-	u2 := repository.FollowUser{ID: uuid.New(), Username: "bob"}
-	followRepo.EXPECT().GetMutualFollowers(mock.Anything, userID).Return([]repository.FollowUser{u1, u2}, nil)
+	u1 := model.FollowUser{ID: uuid.New(), Username: "alice"}
+	u2 := model.FollowUser{ID: uuid.New(), Username: "bob"}
+	followRepo.EXPECT().GetMutualFollowers(mock.Anything, userID).Return([]model.FollowUser{u1, u2}, nil)
 
 	// when
 	got, err := svc.GetMutualFollowers(context.Background(), userID)

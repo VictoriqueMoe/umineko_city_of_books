@@ -6,6 +6,7 @@ import (
 	"math"
 	"testing"
 
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -86,8 +87,8 @@ func TestRecalculate_HappyPath(t *testing.T) {
 	svc, repo := newTestService(t)
 	theoryID := uuid.New()
 	repo.EXPECT().GetResponseEvidenceWeights(mock.Anything, theoryID).Return(5.0, 5.0, nil)
-	repo.EXPECT().UpdateCredibilityScore(mock.Anything, theoryID, mock.MatchedBy(func(score float64) bool {
-		return math.Abs(score-50.0) < 1e-9
+	repo.EXPECT().UpdateCredibilityScore(mock.Anything, mock.MatchedBy(func(s spec.TheoryCredibilityUpdate) bool {
+		return s.TheoryID == theoryID && math.Abs(s.Score-50.0) < 1e-9
 	})).Return(nil)
 
 	// when
@@ -113,7 +114,9 @@ func TestRecalculate_UpdateErrorSwallowed(t *testing.T) {
 	svc, repo := newTestService(t)
 	theoryID := uuid.New()
 	repo.EXPECT().GetResponseEvidenceWeights(mock.Anything, theoryID).Return(1.0, 0.0, nil)
-	repo.EXPECT().UpdateCredibilityScore(mock.Anything, theoryID, mock.Anything).Return(errors.New("write failed"))
+	repo.EXPECT().UpdateCredibilityScore(mock.Anything, mock.MatchedBy(func(s spec.TheoryCredibilityUpdate) bool {
+		return s.TheoryID == theoryID
+	})).Return(errors.New("write failed"))
 
 	// when
 	svc.Recalculate(context.Background(), theoryID)

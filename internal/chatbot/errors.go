@@ -5,8 +5,8 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/chat"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/openai"
-	"umineko_city_of_books/internal/repository"
 )
 
 var (
@@ -22,24 +22,24 @@ var (
 
 func classifyProvider(ctx context.Context, err error) outcome {
 	if rateErr, ok := errors.AsType[*openai.RateLimitError](err); ok {
-		return outcome{reason: reasonProviderLimited, stage: stagePostModel, status: repository.InvocationFailed, clearsAt: rateErr.ResetAt, err: err}
+		return outcome{reason: reasonProviderLimited, stage: stagePostModel, status: model.InvocationFailed, clearsAt: rateErr.ResetAt, err: err}
 	}
 
 	if errors.Is(err, openai.ErrDisabled) {
-		return outcome{reason: reasonNotConfigured, stage: stagePostModel, status: repository.InvocationFailed, err: err}
+		return outcome{reason: reasonNotConfigured, stage: stagePostModel, status: model.InvocationFailed, err: err}
 	}
 
 	if ctx.Err() != nil {
-		return outcome{reason: reasonTimeout, stage: stagePostModel, status: repository.InvocationFailed, err: err}
+		return outcome{reason: reasonTimeout, stage: stagePostModel, status: model.InvocationFailed, err: err}
 	}
 
-	return outcome{reason: reasonProviderDown, stage: stagePostModel, status: repository.InvocationFailed, detail: openai.Reason(err), err: err}
+	return outcome{reason: reasonProviderDown, stage: stagePostModel, status: model.InvocationFailed, detail: openai.Reason(err), err: err}
 }
 
 func classifyDelivery(err error) outcome {
 	if _, banned := errors.AsType[*chat.ErrBannedWordMatch](err); banned {
-		return outcome{reason: reasonFiltered, stage: stagePostModel, status: repository.InvocationRefused, err: err}
+		return outcome{reason: reasonFiltered, stage: stagePostModel, status: model.InvocationRefused, err: err}
 	}
 
-	return outcome{reason: reasonUndeliverable, stage: stagePostModel, status: repository.InvocationRefused, err: err}
+	return outcome{reason: reasonUndeliverable, stage: stagePostModel, status: model.InvocationRefused, err: err}
 }

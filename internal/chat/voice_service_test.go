@@ -11,6 +11,8 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
@@ -88,8 +90,8 @@ func TestMintVoiceToken_NotMember(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&model.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup}, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(false, nil)
 
 	// when
 	_, _, err := svc.MintVoiceToken(context.Background(), roomID, userID)
@@ -105,10 +107,10 @@ func TestMintVoiceToken_HappyPath(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, CreatedBy: userID}, nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&model.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, CreatedBy: userID}, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
-	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(false, nil)
+	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
 	// when
@@ -144,10 +146,10 @@ func TestMintVoiceToken_ForceMuteSurvivesRestart(t *testing.T) {
 			roomID := uuid.New()
 			userID := uuid.New()
 
-			m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&repository.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, CreatedBy: userID}, nil)
-			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+			m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(&model.ChatRoomSendContext{ID: roomID, Type: dto.RoomTypeGroup, CreatedBy: userID}, nil)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
-			m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(tc.stored, nil)
+			m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(tc.stored, nil)
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil)
 
 			// when
@@ -180,9 +182,9 @@ func TestForceMuteVoice_PersistsBeforeLiveKit(t *testing.T) {
 	targetID := uuid.New()
 
 	var order []string
-	chatRepo.EXPECT().GetMemberRole(mock.Anything, roomID, actorID).Return("host", nil)
-	chatRepo.EXPECT().SetVoiceForceMuted(mock.Anything, roomID, targetID, actorID, true).
-		Run(func(ctx context.Context, a, b, c uuid.UUID, muted bool, _ ...*sql.Tx) {
+	chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: actorID}).Return("host", nil)
+	chatRepo.EXPECT().SetVoiceForceMuted(mock.Anything, spec.ChatVoiceForceMuteUpdate{RoomID: roomID, UserID: targetID, MutedBy: actorID, Muted: true}).
+		Run(func(_ context.Context, _ spec.ChatVoiceForceMuteUpdate, _ ...*sql.Tx) {
 			order = append(order, "persist")
 		}).Return(nil)
 	lk.EXPECT().SetCanPublish(mock.Anything, roomID.String(), targetID.String(), false, false).
@@ -251,9 +253,9 @@ func TestHandleVoiceWebhook_UpdatesPresence(t *testing.T) {
 	userID := uuid.New()
 
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return([]uuid.UUID{userID}, nil)
-	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, userID).Return(false, nil)
+	m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(sampleUser(userID), nil).Maybe()
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, userID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: userID, Body: "User joined the voice chat."}).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
 
 	body := []byte(fmt.Sprintf(`{"event":"participant_joined","room":{"name":%q},"participant":{"identity":%q}}`, roomID, userID))

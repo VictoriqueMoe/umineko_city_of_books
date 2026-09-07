@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -63,7 +65,7 @@ func TestRegisterToken_DelegatesToRepo(t *testing.T) {
 			// given
 			svc, repo, _ := newTestService(t, false, "")
 			userID := uuid.New()
-			repo.EXPECT().Upsert(mock.Anything, userID, "token-123", "android").Return(tc.repoErr)
+			repo.EXPECT().Upsert(mock.Anything, spec.NewDeviceToken{UserID: userID, Token: "token-123", Platform: "android"}).Return(tc.repoErr)
 
 			// when
 			err := svc.RegisterToken(context.Background(), userID, "token-123", "android")
@@ -88,7 +90,7 @@ func TestUnregisterToken_DelegatesToRepoScopedToCaller(t *testing.T) {
 			// given
 			svc, repo, _ := newTestService(t, false, "")
 			userID := uuid.New()
-			repo.EXPECT().Delete(mock.Anything, userID, "token-123").Return(tc.repoErr)
+			repo.EXPECT().Delete(mock.Anything, spec.DeviceTokenDeletion{UserID: userID, Token: "token-123"}).Return(tc.repoErr)
 
 			// when
 			err := svc.UnregisterToken(context.Background(), userID, "token-123")
@@ -159,7 +161,7 @@ func TestBuildMessage_AddressesWebByFidAndNativeByToken(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			reg := repository.DeviceRegistration{Token: "reg_id", Platform: tc.platform}
+			reg := model.DeviceRegistration{Token: "reg_id", Platform: tc.platform}
 			notification := Notification{Title: "Beatrice", Body: "replied to your theory", Data: map[string]string{"type": "reply"}}
 
 			// when

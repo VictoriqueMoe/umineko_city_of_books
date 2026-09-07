@@ -7,13 +7,15 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	slursrule "umineko_city_of_books/internal/contentfilter/rules/slurs"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/user"
@@ -81,9 +83,9 @@ func validRegisterRequest() dto.RegisterRequest {
 	}
 }
 
-func accountSpec(username, email, displayName string) repository.NewAccount {
-	return repository.NewAccount{
-		User: repository.NewUser{
+func accountSpec(username, email, displayName string) spec.NewAccount {
+	return spec.NewAccount{
+		User: spec.NewUser{
 			Username:     username,
 			Email:        email,
 			PasswordHash: "already-hashed",
@@ -94,20 +96,20 @@ func accountSpec(username, email, displayName string) repository.NewAccount {
 	}
 }
 
-func matchesRegistration(account repository.NewAccount, inviteCode string) any {
-	return mock.MatchedBy(func(spec repository.NewRegistration) bool {
-		return spec.Account == account &&
-			spec.InviteCode == inviteCode &&
-			spec.VerificationHash != "" &&
-			!spec.VerificationExpiresAt.IsZero() &&
-			spec.SessionToken != "" &&
-			!spec.SessionExpiresAt.IsZero()
+func matchesRegistration(account spec.NewAccount, inviteCode string) any {
+	return mock.MatchedBy(func(registration spec.NewRegistration) bool {
+		return registration.Account == account &&
+			registration.InviteCode == inviteCode &&
+			registration.VerificationHash != "" &&
+			!registration.VerificationExpiresAt.IsZero() &&
+			registration.SessionToken != "" &&
+			!registration.SessionExpiresAt.IsZero()
 	})
 }
 
 func expectVerificationSent(m *testMocks, userID uuid.UUID, email string) {
-	m.verifyRepo.EXPECT().Issue(mock.Anything, mock.MatchedBy(func(spec repository.NewEmailVerification) bool {
-		return spec.UserID == userID && spec.TokenHash != "" && !spec.ExpiresAt.IsZero()
+	m.verifyRepo.EXPECT().Issue(mock.Anything, mock.MatchedBy(func(verification spec.NewEmailVerification) bool {
+		return verification.UserID == userID && verification.TokenHash != "" && !verification.ExpiresAt.IsZero()
 	})).Return(nil)
 	expectVerificationEmailSent(m, email)
 }
@@ -174,8 +176,8 @@ func TestForgotPassword_OK(t *testing.T) {
 	userID := uuid.New()
 	m.emailSvc.EXPECT().Enabled(mock.Anything).Return(true)
 	m.userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(&model.User{ID: userID, Email: "alice@example.com"}, nil)
-	m.resetRepo.EXPECT().Issue(mock.Anything, mock.MatchedBy(func(spec repository.NewPasswordReset) bool {
-		return spec.UserID == userID && spec.TokenHash != "" && !spec.ExpiresAt.IsZero()
+	m.resetRepo.EXPECT().Issue(mock.Anything, mock.MatchedBy(func(reset spec.NewPasswordReset) bool {
+		return reset.UserID == userID && reset.TokenHash != "" && !reset.ExpiresAt.IsZero()
 	})).Return(nil)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://localhost:4323")
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingSiteName).Return("City of Books")
@@ -228,7 +230,7 @@ func TestResetPassword_Expired(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	expectMinPasswordLength(m, 8)
-	expired := &repository.PasswordResetToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(-time.Hour)}
+	expired := &model.PasswordResetToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(-time.Hour)}
 	m.resetRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(expired, nil)
 
 	// when
@@ -242,7 +244,7 @@ func TestResetPassword_AlreadyUsed(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	expectMinPasswordLength(m, 8)
-	used := &repository.PasswordResetToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour), UsedAt: new(time.Now().Add(-time.Minute))}
+	used := &model.PasswordResetToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(time.Hour), UsedAt: new(time.Now().Add(-time.Minute))}
 	m.resetRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(used, nil)
 
 	// when
@@ -257,12 +259,12 @@ func TestResetPassword_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	expectMinPasswordLength(m, 8)
-	valid := &repository.PasswordResetToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
+	valid := &model.PasswordResetToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
 	m.resetRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(valid, nil)
-	m.userRepo.EXPECT().ResetPassword(mock.Anything, mock.MatchedBy(func(spec repository.PasswordUpdate) bool {
-		return spec.UserID == userID &&
-			spec.TokenHash == hashResetToken("sometoken") &&
-			bcrypt.CompareHashAndPassword([]byte(spec.PasswordHash), []byte("newpassword123")) == nil
+	m.userRepo.EXPECT().ResetPassword(mock.Anything, mock.MatchedBy(func(update spec.PasswordUpdate) bool {
+		return update.UserID == userID &&
+			update.TokenHash == hashResetToken("sometoken") &&
+			bcrypt.CompareHashAndPassword([]byte(update.PasswordHash), []byte("newpassword123")) == nil
 	})).Return(nil)
 
 	// when
@@ -277,7 +279,7 @@ func TestResetPassword_RepositoryErrorBubbles(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	expectMinPasswordLength(m, 8)
-	valid := &repository.PasswordResetToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
+	valid := &model.PasswordResetToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
 	m.resetRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(valid, nil)
 	m.userRepo.EXPECT().ResetPassword(mock.Anything, mock.Anything).Return(errors.New("mark reset token used: boom"))
 
@@ -363,7 +365,7 @@ func TestRegister_InviteAlreadyUsed(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRegistrationType).Return("invite")
 	req := validRegisterRequest()
 	req.InviteCode = "code123"
-	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&repository.Invite{Code: "code123", UsedBy: new(uuid.New())}, nil)
+	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&model.Invite{Code: "code123", UsedBy: new(uuid.New())}, nil)
 
 	// when
 	_, _, err := svc.Register(context.Background(), req)
@@ -471,7 +473,7 @@ func TestRegister_UsernameTaken(t *testing.T) {
 	expectOpenRegistration(m)
 	expectMinPasswordLength(m, 8)
 	req := validRegisterRequest()
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(user.ErrUsernameTaken)
 
 	// when
@@ -487,9 +489,9 @@ func TestRegister_CreateUserError(t *testing.T) {
 	expectOpenRegistration(m)
 	expectMinPasswordLength(m, 8)
 	req := validRegisterRequest()
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
-	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.DisplayName).Return(repository.NewAccount{}, errors.New("db down"))
+	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.DisplayName).Return(spec.NewAccount{}, errors.New("db down"))
 
 	// when
 	_, _, err := svc.Register(context.Background(), req)
@@ -506,7 +508,7 @@ func TestRegister_SessionCreateError(t *testing.T) {
 	expectMinPasswordLength(m, 8)
 	req := validRegisterRequest()
 	account := accountSpec(req.Username, "alice@example.com", req.DisplayName)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.DisplayName).Return(account, nil)
 	expectSessionDuration(m)
@@ -529,15 +531,15 @@ func TestRegister_OpenOK_DefaultsDisplayName(t *testing.T) {
 	req.DisplayName = ""
 	userID := uuid.New()
 	account := accountSpec(req.Username, "alice@example.com", req.Username)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.Username).Return(account, nil)
 	expectSessionDuration(m)
 
-	var registered repository.NewRegistration
+	var registered spec.NewRegistration
 	m.userRepo.EXPECT().RegisterAccount(mock.Anything, matchesRegistration(account, "")).
-		Run(func(ctx context.Context, spec repository.NewRegistration, tx ...*sql.Tx) {
-			registered = spec
+		Run(func(_ context.Context, registration spec.NewRegistration, _ ...*sql.Tx) {
+			registered = registration
 		}).
 		Return(&model.User{ID: userID, Username: req.Username}, nil)
 	expectVerificationEmailSent(m, "alice@example.com")
@@ -557,11 +559,11 @@ func TestRegister_InviteOK_PassesCodeToRepository(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRegistrationType).Return("invite")
 	req := validRegisterRequest()
 	req.InviteCode = "code123"
-	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&repository.Invite{Code: "code123"}, nil)
+	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&model.Invite{Code: "code123"}, nil)
 	expectMinPasswordLength(m, 8)
 	userID := uuid.New()
 	account := accountSpec(req.Username, "alice@example.com", req.DisplayName)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.DisplayName).Return(account, nil)
 	expectSessionDuration(m)
@@ -575,7 +577,7 @@ func TestRegister_InviteOK_PassesCodeToRepository(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 	assert.Equal(t, userID, resp.ID)
-	m.inviteRepo.AssertNotCalled(t, "MarkUsed", mock.Anything, mock.Anything, mock.Anything)
+	m.inviteRepo.AssertNotCalled(t, "MarkUsed", mock.Anything, mock.Anything)
 }
 
 func TestRegister_InviteMarkUsedFailureAbortsRegistration(t *testing.T) {
@@ -584,10 +586,10 @@ func TestRegister_InviteMarkUsedFailureAbortsRegistration(t *testing.T) {
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingRegistrationType).Return("invite")
 	req := validRegisterRequest()
 	req.InviteCode = "code123"
-	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&repository.Invite{Code: "code123"}, nil)
+	m.inviteRepo.EXPECT().GetByCode(mock.Anything, "code123").Return(&model.Invite{Code: "code123"}, nil)
 	expectMinPasswordLength(m, 8)
 	account := accountSpec(req.Username, "alice@example.com", req.DisplayName)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.DisplayName).Return(account, nil)
 	expectSessionDuration(m)
@@ -613,7 +615,7 @@ func TestRegister_MinPasswordLengthZeroSkipsCheck(t *testing.T) {
 	req.Password = "x"
 	userID := uuid.New()
 	account := accountSpec(req.Username, "alice@example.com", req.DisplayName)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(false, nil)
 	m.userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, req.Username).Return(nil)
 	m.userSvc.EXPECT().NewAccountSpec(mock.Anything, req.Username, "alice@example.com", req.Password, req.DisplayName).Return(account, nil)
 	expectSessionDuration(m)
@@ -648,10 +650,10 @@ func TestLogin_BannedUser(t *testing.T) {
 	userID := uuid.New()
 	m.userSvc.EXPECT().ValidateCredentials(mock.Anything, req.Username, req.Password).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
 	m.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(true, nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionLoginBanned,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionLoginBanned,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "username=alice",
 		SubjectID:  userID,
@@ -672,7 +674,13 @@ func TestLogin_SessionCreateError(t *testing.T) {
 	m.userSvc.EXPECT().ValidateCredentials(mock.Anything, req.Username, req.Password).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
 	m.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, nil)
 	expectSessionDuration(m)
-	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(errors.New("boom"))
+
+	var created spec.NewSession
+	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, session spec.NewSession, _ ...*sql.Tx) {
+			created = session
+		}).
+		Return(errors.New("boom"))
 
 	// when
 	_, _, err := svc.Login(context.Background(), req)
@@ -680,6 +688,7 @@ func TestLogin_SessionCreateError(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create session")
+	assert.Equal(t, userID, created.UserID)
 }
 
 func TestLogin_OK(t *testing.T) {
@@ -690,7 +699,13 @@ func TestLogin_OK(t *testing.T) {
 	m.userSvc.EXPECT().ValidateCredentials(mock.Anything, req.Username, req.Password).Return(&dto.UserResponse{ID: userID, Username: req.Username}, nil)
 	m.userRepo.EXPECT().IsBanned(mock.Anything, userID).Return(false, nil)
 	expectSessionDuration(m)
-	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(nil)
+
+	var created spec.NewSession
+	m.sessionRepo.EXPECT().Create(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, session spec.NewSession, _ ...*sql.Tx) {
+			created = session
+		}).
+		Return(nil)
 
 	// when
 	resp, token, err := svc.Login(context.Background(), req)
@@ -699,6 +714,8 @@ func TestLogin_OK(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 	assert.Equal(t, userID, resp.ID)
+	assert.Equal(t, userID, created.UserID)
+	assert.Equal(t, token, created.Token)
 }
 
 func TestLogin_BannedCheckErrorRefusesTheLogin(t *testing.T) {
@@ -773,7 +790,7 @@ func TestRegister_EmailTaken(t *testing.T) {
 	expectOpenRegistration(m)
 	expectMinPasswordLength(m, 8)
 	req := validRegisterRequest()
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "alice@example.com", uuid.Nil).Return(true, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "alice@example.com", ExcludeUserID: uuid.Nil}).Return(true, nil)
 
 	// when
 	_, _, err := svc.Register(context.Background(), req)
@@ -798,7 +815,7 @@ func TestSetEmail_EmailTaken(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.userRepo.EXPECT().GetPasswordHash(mock.Anything, userID).Return(hashFor(t, "pw"), nil)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "taken@example.com", userID).Return(true, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "taken@example.com", ExcludeUserID: userID}).Return(true, nil)
 
 	// when
 	err := svc.SetEmail(context.Background(), userID, "taken@example.com", "pw")
@@ -818,7 +835,7 @@ func TestSetEmail_WrongPasswordIsRejected(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrIncorrectPassword)
-	m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+	m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything)
 	m.emailSvc.AssertNotCalled(t, "Send", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
@@ -833,7 +850,7 @@ func TestSetEmail_EmptyPasswordIsRejected(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrIncorrectPassword)
-	m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+	m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything)
 }
 
 func TestSetEmail_OK(t *testing.T) {
@@ -841,13 +858,13 @@ func TestSetEmail_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.userRepo.EXPECT().GetPasswordHash(mock.Anything, userID).Return(hashFor(t, "pw"), nil)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "new@example.com", ExcludeUserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.userRepo.EXPECT().SetEmail(mock.Anything, spec.UserEmailUpdate{UserID: userID, Email: "new@example.com"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangeEmail,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangeEmail,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "new@example.com",
 		SubjectID:  userID,
@@ -866,13 +883,13 @@ func TestSetEmail_AlertsPreviousAddress(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.userRepo.EXPECT().GetPasswordHash(mock.Anything, userID).Return(hashFor(t, "pw"), nil)
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "new@example.com", ExcludeUserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
-	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.userRepo.EXPECT().SetEmail(mock.Anything, spec.UserEmailUpdate{UserID: userID, Email: "new@example.com"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangeEmail,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangeEmail,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "old@example.com -> new@example.com",
 		SubjectID:  userID,
@@ -892,9 +909,9 @@ func TestSetEmailForUser_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "new@example.com", ExcludeUserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, spec.UserEmailUpdate{UserID: userID, Email: "new@example.com"}).Return(nil)
 	expectVerificationSent(m, userID, "new@example.com")
 
 	// when
@@ -908,9 +925,9 @@ func TestSetEmailForUser_RequiresNoPassword(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "new@example.com", ExcludeUserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, spec.UserEmailUpdate{UserID: userID, Email: "new@example.com"}).Return(nil)
 	expectVerificationSent(m, userID, "new@example.com")
 
 	// when
@@ -925,9 +942,9 @@ func TestSetEmailForUser_AlertsPreviousAddress(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+	m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "new@example.com", ExcludeUserID: userID}).Return(false, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
-	m.userRepo.EXPECT().SetEmail(mock.Anything, userID, "new@example.com").Return(nil)
+	m.userRepo.EXPECT().SetEmail(mock.Anything, spec.UserEmailUpdate{UserID: userID, Email: "new@example.com"}).Return(nil)
 	m.emailSvc.EXPECT().Enabled(mock.Anything).Return(true)
 	m.emailSvc.EXPECT().Send(mock.Anything, "old@example.com", mock.Anything, mock.Anything).Return(nil)
 	expectVerificationSent(m, userID, "new@example.com")
@@ -957,7 +974,7 @@ func TestSetEmailForUser_Rejections(t *testing.T) {
 			name:  "email already in use",
 			email: "taken@example.com",
 			arrange: func(m *testMocks, userID uuid.UUID) {
-				m.userRepo.EXPECT().EmailInUse(mock.Anything, "taken@example.com", userID).Return(true, nil)
+				m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "taken@example.com", ExcludeUserID: userID}).Return(true, nil)
 			},
 			want: ErrEmailTaken,
 		},
@@ -965,7 +982,7 @@ func TestSetEmailForUser_Rejections(t *testing.T) {
 			name:  "user gone",
 			email: "new@example.com",
 			arrange: func(m *testMocks, userID uuid.UUID) {
-				m.userRepo.EXPECT().EmailInUse(mock.Anything, "new@example.com", userID).Return(false, nil)
+				m.userRepo.EXPECT().EmailInUse(mock.Anything, spec.UserEmailFilter{Email: "new@example.com", ExcludeUserID: userID}).Return(false, nil)
 				m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
 			},
 			want: ErrUserNotFound,
@@ -983,7 +1000,7 @@ func TestSetEmailForUser_Rejections(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tt.want)
-			m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything, mock.Anything)
+			m.userRepo.AssertNotCalled(t, "SetEmail", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -993,7 +1010,7 @@ func TestMarkEmailVerified_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "a@example.com"}, nil)
-	m.userRepo.EXPECT().SetEmailVerified(mock.Anything, userID, true).Return(nil)
+	m.userRepo.EXPECT().SetEmailVerified(mock.Anything, spec.UserEmailVerification{UserID: userID, Verified: true}).Return(nil)
 
 	// when
 	err := svc.MarkEmailVerified(context.Background(), userID)
@@ -1025,7 +1042,7 @@ func TestMarkEmailVerified_Rejections(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tt.want)
-			m.userRepo.AssertNotCalled(t, "SetEmailVerified", mock.Anything, mock.Anything, mock.Anything)
+			m.userRepo.AssertNotCalled(t, "SetEmailVerified", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -1039,7 +1056,7 @@ func TestMarkEmailUnverified_OK(t *testing.T) {
 		Email:         "a@example.com",
 		EmailVerified: true,
 	}, nil)
-	m.userRepo.EXPECT().SetEmailVerified(mock.Anything, userID, false).Return(nil)
+	m.userRepo.EXPECT().SetEmailVerified(mock.Anything, spec.UserEmailVerification{UserID: userID, Verified: false}).Return(nil)
 
 	// when
 	err := svc.MarkEmailUnverified(context.Background(), userID)
@@ -1057,7 +1074,7 @@ func TestMarkEmailUnverified_SendsNoEmail(t *testing.T) {
 		Email:         "a@example.com",
 		EmailVerified: true,
 	}, nil)
-	m.userRepo.EXPECT().SetEmailVerified(mock.Anything, userID, false).Return(nil)
+	m.userRepo.EXPECT().SetEmailVerified(mock.Anything, spec.UserEmailVerification{UserID: userID, Verified: false}).Return(nil)
 
 	// when
 	err := svc.MarkEmailUnverified(context.Background(), userID)
@@ -1091,7 +1108,7 @@ func TestMarkEmailUnverified_Rejections(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, tt.want)
-			m.userRepo.AssertNotCalled(t, "SetEmailVerified", mock.Anything, mock.Anything, mock.Anything)
+			m.userRepo.AssertNotCalled(t, "SetEmailVerified", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -1122,7 +1139,7 @@ func TestVerifyEmail_InvalidToken(t *testing.T) {
 func TestVerifyEmail_Expired(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	expired := &repository.EmailVerificationToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(-time.Hour)}
+	expired := &model.EmailVerificationToken{UserID: uuid.New(), ExpiresAt: time.Now().Add(-time.Hour)}
 	m.verifyRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(expired, nil)
 
 	// when
@@ -1136,9 +1153,9 @@ func TestVerifyEmail_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	rec := &repository.EmailVerificationToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
+	rec := &model.EmailVerificationToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
 	m.verifyRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(rec, nil)
-	m.userRepo.EXPECT().ConfirmEmailVerification(mock.Anything, userID, hashResetToken("sometoken")).Return(nil)
+	m.userRepo.EXPECT().ConfirmEmailVerification(mock.Anything, spec.UserEmailConfirmation{UserID: userID, TokenHash: hashResetToken("sometoken")}).Return(nil)
 
 	// when
 	err := svc.VerifyEmail(context.Background(), "sometoken")
@@ -1151,9 +1168,9 @@ func TestVerifyEmail_TokenConsumptionFailureBubbles(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	rec := &repository.EmailVerificationToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
+	rec := &model.EmailVerificationToken{UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}
 	m.verifyRepo.EXPECT().GetByTokenHash(mock.Anything, mock.Anything).Return(rec, nil)
-	m.userRepo.EXPECT().ConfirmEmailVerification(mock.Anything, userID, hashResetToken("sometoken")).Return(errors.New("mark verification token used: boom"))
+	m.userRepo.EXPECT().ConfirmEmailVerification(mock.Anything, spec.UserEmailConfirmation{UserID: userID, TokenHash: hashResetToken("sometoken")}).Return(errors.New("mark verification token used: boom"))
 
 	// when
 	err := svc.VerifyEmail(context.Background(), "sometoken")

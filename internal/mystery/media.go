@@ -6,10 +6,11 @@ import (
 	"io"
 	"os"
 	"strings"
+
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -38,7 +39,12 @@ func (s *service) UploadAttachment(ctx context.Context, mysteryID uuid.UUID, use
 		return nil, err
 	}
 
-	dbID, err := s.mysteryRepo.AddAttachment(ctx, mysteryID, urlPath, fileName, int(fileSize))
+	dbID, err := s.mysteryRepo.AddAttachment(ctx, spec.NewMysteryAttachment{
+		MysteryID: mysteryID,
+		FileURL:   urlPath,
+		FileName:  fileName,
+		FileSize:  int(fileSize),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +80,8 @@ func (s *service) UploadMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
-			return s.mysteryRepo.AddMedia(ctx, repository.NewMysteryMedia{
-				MysteryID: mysteryID,
+			return s.mysteryRepo.AddMedia(ctx, spec.NewMedia{
+				TargetID:  mysteryID,
 				MediaURL:  mediaURL,
 				MediaType: mediaType,
 				Filename:  filename,
@@ -102,7 +108,7 @@ func (s *service) DeleteMedia(ctx context.Context, mediaID int64, mysteryID uuid
 		return ErrNotAuthor
 	}
 
-	mediaURL, err := s.mysteryRepo.DeleteMedia(ctx, mediaID, mysteryID)
+	mediaURL, err := s.mysteryRepo.DeleteMedia(ctx, spec.MediaDeletion{ID: mediaID, TargetID: mysteryID})
 	if err != nil {
 		return err
 	}
@@ -129,7 +135,7 @@ func (s *service) DeleteAttachment(ctx context.Context, attachmentID int64, myst
 		}
 	}
 
-	if err := s.mysteryRepo.DeleteAttachment(ctx, attachmentID, mysteryID); err != nil {
+	if err := s.mysteryRepo.DeleteAttachment(ctx, spec.MysteryAttachmentDeletion{ID: attachmentID, MysteryID: mysteryID}); err != nil {
 		return err
 	}
 

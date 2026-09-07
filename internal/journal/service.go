@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -19,6 +20,8 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
@@ -113,7 +116,7 @@ func NewService(
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -166,7 +169,7 @@ func journalUpdateDetails(before *dto.JournalResponse, req dto.CreateJournalRequ
 	return changedDetails(changed)
 }
 
-func journalEntryUpdateDetails(before *repository.JournalEntryRow, title *string, body string, isDraft bool) string {
+func journalEntryUpdateDetails(before *model.JournalEntryRow, title *string, body string, isDraft bool) string {
 	var changed []string
 
 	if !sameOptional(before.Title, title) {
@@ -203,7 +206,11 @@ func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.C
 		}
 	}
 
-	created, err := s.repo.Create(ctx, userID, req)
+	created, err := s.repo.Create(ctx, spec.NewJournal{
+		UserID: userID,
+		Title:  req.Title,
+		Work:   req.Work,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -214,7 +221,7 @@ func (s *service) CreateJournal(ctx context.Context, userID uuid.UUID, req dto.C
 }
 
 func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID uuid.UUID) (*dto.JournalDetailResponse, error) {
-	journal, err := s.repo.GetByID(ctx, id, viewerID)
+	journal, err := s.repo.GetByID(ctx, spec.JournalLookup{ID: id, ViewerID: viewerID})
 	if err != nil || journal == nil {
 		if journal == nil && err == nil {
 			return nil, ErrNotFound
@@ -223,7 +230,13 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	commentRows, _, err := s.repo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	commentRows, _, err := s.repo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +249,7 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 
 	flatComments := make([]dto.JournalCommentResponse, len(commentRows))
 	for i, c := range commentRows {
-		flatComments[i] = repository.JournalCommentToDTO(c, mediaMap[c.ID], journal.Author.ID)
+		flatComments[i] = model.JournalCommentToDTO(c, mediaMap[c.ID], journal.Author.ID)
 	}
 
 	tree := utils.BuildTree(flatComments,
@@ -255,18 +268,21 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 		if e.IsDraft && !isAuthor {
 			continue
 		}
-		entries = append(entries, repository.JournalEntrySummaryToDTO(e))
+		entries = append(entries, model.JournalEntrySummaryToDTO(e))
 	}
 
 	var latestEntry *dto.JournalEntryResponse
 	if journal.LatestEntryNumber != nil {
-		entry, err := s.repo.GetEntry(ctx, id, *journal.LatestEntryNumber)
+		entry, err := s.repo.GetEntry(ctx, spec.JournalEntryLookup{
+			JournalID:   id,
+			EntryNumber: *journal.LatestEntryNumber,
+		})
 		if err != nil {
 			return nil, err
 		}
 		if entry != nil {
 			entryMediaMap, _ := s.repo.GetMediaBatch(ctx, []uuid.UUID{entry.ID})
-			latestEntry = new(repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID]))
+			latestEntry = new(model.JournalEntryToDTO(entry, entryMediaMap[entry.ID]))
 		}
 	}
 
@@ -280,7 +296,17 @@ func (s *service) GetJournalDetail(ctx context.Context, id uuid.UUID, viewerID u
 
 func (s *service) ListJournals(ctx context.Context, p params.ListParams, viewerID uuid.UUID) (*dto.JournalListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	journals, total, err := s.repo.List(ctx, p, viewerID, blockedIDs)
+	journals, total, err := s.repo.List(ctx, spec.JournalQuery{
+		Sort:            p.Sort,
+		Work:            p.Work,
+		AuthorID:        p.AuthorID,
+		Search:          p.Search,
+		IncludeArchived: p.IncludeArchived,
+		Limit:           p.Limit,
+		Offset:          p.Offset,
+		ViewerID:        viewerID,
+		ExcludeUserIDs:  blockedIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +324,12 @@ func (s *service) ListJournalsByUser(ctx context.Context, authorID uuid.UUID, vi
 }
 
 func (s *service) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.JournalListResponse, error) {
-	journals, total, err := s.repo.ListFollowedByUser(ctx, followerID, viewerID, page.Limit(), page.Offset())
+	journals, total, err := s.repo.ListFollowedByUser(ctx, spec.JournalFollowedQuery{
+		FollowerID: followerID,
+		ViewerID:   viewerID,
+		Limit:      page.Limit(),
+		Offset:     page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -328,10 +359,10 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	var before *dto.JournalResponse
 	if asAdmin {
-		before, _ = s.repo.GetByID(ctx, id, userID)
+		before, _ = s.repo.GetByID(ctx, spec.JournalLookup{ID: id, ViewerID: userID})
 	}
 
-	if err := s.repo.Update(ctx, repository.JournalUpdate{
+	if err := s.repo.Update(ctx, spec.JournalUpdate{
 		ID:      id,
 		UserID:  userID,
 		Title:   req.Title,
@@ -342,10 +373,10 @@ func (s *service) UpdateJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionJournalUpdateAdmin,
-			TargetType: repository.AuditTargetJournal,
+			Action:     audit.ActionJournalUpdateAdmin,
+			TargetType: audit.TargetJournal,
 			TargetID:   id.String(),
 			Details:    journalUpdateDetails(before, req),
 			SubjectID:  authorID,
@@ -364,14 +395,18 @@ func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyJournal)
 	title, _ := s.repo.GetTitle(ctx, id)
 
-	paths, err := s.repo.Delete(ctx, id, userID, asAdmin)
+	paths, err := s.repo.DeleteWithMedia(ctx, spec.JournalDeletion{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: asAdmin,
+	})
 	if err != nil {
 		return err
 	}
 
-	action := repository.AuditActionJournalDelete
+	action := audit.ActionJournalDelete
 	if asAdmin {
-		action = repository.AuditActionJournalDeleteAdmin
+		action = audit.ActionJournalDeleteAdmin
 	}
 
 	details := ""
@@ -379,10 +414,10 @@ func (s *service) DeleteJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 		details = "title=" + title
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetJournal,
+		TargetType: audit.TargetJournal,
 		TargetID:   id.String(),
 		Details:    details,
 		SubjectID:  authorID,
@@ -421,7 +456,7 @@ func (s *service) SetJournalPaused(ctx context.Context, id uuid.UUID, userID uui
 		return ErrNotAuthor
 	}
 
-	return s.repo.SetPaused(ctx, id, userID, paused)
+	return s.repo.SetPaused(ctx, spec.JournalPause{ID: id, UserID: userID, Paused: paused})
 }
 
 func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID uuid.UUID, req dto.CreateJournalEntryRequest) (uuid.UUID, int, error) {
@@ -454,7 +489,7 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 		titlePtr = &titleTrim
 	}
 
-	created, err := s.repo.CreateEntry(ctx, repository.NewJournalEntry{
+	created, err := s.repo.CreateEntry(ctx, spec.NewJournalEntry{
 		JournalID:   journalID,
 		EntryNumber: nextNumber,
 		Title:       titlePtr,
@@ -467,10 +502,10 @@ func (s *service) CreateEntry(ctx context.Context, journalID uuid.UUID, userID u
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionJournalEntryCreateAdmin,
-			TargetType: repository.AuditTargetJournalEntry,
+			Action:     audit.ActionJournalEntryCreateAdmin,
+			TargetType: audit.TargetJournalEntry,
 			TargetID:   created.ID.String(),
 			Details:    fmt.Sprintf("journal_id=%s,entry_number=%d,is_draft=%t", journalID, nextNumber, req.IsDraft),
 			SubjectID:  authorID,
@@ -550,7 +585,10 @@ func (s *service) notifyEntryPublished(journalID uuid.UUID, entryNumber int, act
 }
 
 func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, viewerID uuid.UUID) (*dto.JournalEntryResponse, []dto.JournalCommentResponse, error) {
-	entry, err := s.repo.GetEntry(ctx, journalID, entryNumber)
+	entry, err := s.repo.GetEntry(ctx, spec.JournalEntryLookup{
+		JournalID:   journalID,
+		EntryNumber: entryNumber,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -568,7 +606,13 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	commentRows, _, err := s.repo.GetEntryComments(ctx, entry.ID, viewerID, 500, 0, blockedIDs)
+	commentRows, _, err := s.repo.GetEntryComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       entry.ID,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -581,7 +625,7 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 
 	flatComments := make([]dto.JournalCommentResponse, len(commentRows))
 	for i, c := range commentRows {
-		flatComments[i] = repository.JournalCommentToDTO(c, mediaMap[c.ID], authorID)
+		flatComments[i] = model.JournalCommentToDTO(c, mediaMap[c.ID], authorID)
 	}
 
 	tree := utils.BuildTree(flatComments,
@@ -591,7 +635,7 @@ func (s *service) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber
 	)
 
 	entryMediaMap, _ := s.repo.GetMediaBatch(ctx, []uuid.UUID{entry.ID})
-	return new(repository.JournalEntryToDTO(entry, entryMediaMap[entry.ID])), tree, nil
+	return new(model.JournalEntryToDTO(entry, entryMediaMap[entry.ID])), tree, nil
 }
 
 func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uuid.UUID, req dto.UpdateJournalEntryRequest) error {
@@ -629,7 +673,7 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 
 	publishing := existing.IsDraft && !req.IsDraft
 
-	if err := s.repo.UpdateEntry(ctx, repository.JournalEntryUpdate{
+	if err := s.repo.UpdateEntry(ctx, spec.JournalEntryUpdate{
 		ID:                   entryID,
 		JournalID:            existing.JournalID,
 		Title:                titlePtr,
@@ -642,10 +686,10 @@ func (s *service) UpdateEntry(ctx context.Context, entryID uuid.UUID, userID uui
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionJournalEntryUpdateAdmin,
-			TargetType: repository.AuditTargetJournalEntry,
+			Action:     audit.ActionJournalEntryUpdateAdmin,
+			TargetType: audit.TargetJournalEntry,
 			TargetID:   entryID.String(),
 			Details:    journalEntryUpdateDetails(existing, titlePtr, body, req.IsDraft),
 			SubjectID:  authorID,
@@ -672,20 +716,20 @@ func (s *service) DeleteEntry(ctx context.Context, entryID uuid.UUID, userID uui
 		return ErrNotAuthor
 	}
 
-	paths, err := s.repo.DeleteEntry(ctx, entryID)
+	paths, err := s.repo.DeleteEntryWithMedia(ctx, entryID)
 	if err != nil {
 		return err
 	}
 
-	action := repository.AuditActionJournalEntryDelete
+	action := audit.ActionJournalEntryDelete
 	if asAdmin {
-		action = repository.AuditActionJournalEntryDeleteAdmin
+		action = audit.ActionJournalEntryDeleteAdmin
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetJournalEntry,
+		TargetType: audit.TargetJournalEntry,
 		TargetID:   entryID.String(),
 		SubjectID:  authorID,
 	})
@@ -740,7 +784,7 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 
 	isAuthorComment := userID == authorID
 
-	spec := mention.CommentSpec{
+	commentSpec := mention.CommentSpec{
 		Kind:                 mention.KindJournalComment,
 		EntityID:             journalID,
 		EntryID:              entryID,
@@ -750,11 +794,11 @@ func (s *service) CreateComment(ctx context.Context, journalID uuid.UUID, userID
 		RecordAuthorActivity: isAuthorComment,
 	}
 	if entryNumber != nil {
-		spec.Kind = mention.KindJournalEntryComment
-		spec.EntryNumber = *entryNumber
+		commentSpec.Kind = mention.KindJournalEntryComment
+		commentSpec.EntryNumber = *entryNumber
 	}
 
-	commentID, err := s.mentionSvc.CreateComment(ctx, spec)
+	commentID, err := s.mentionSvc.CreateComment(ctx, commentSpec)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -854,20 +898,20 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
-	if err := s.repo.UpdateComment(ctx, repository.JournalCommentUpdate{
-		ID:      id,
-		UserID:  userID,
-		Body:    body,
-		AsAdmin: asAdmin,
+	if err := s.repo.UpdateComment(ctx, spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
 	}); err != nil {
 		return err
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionJournalCommentUpdateAdmin,
-			TargetType: repository.AuditTargetJournalComment,
+			Action:     audit.ActionJournalCommentUpdateAdmin,
+			TargetType: audit.TargetJournalComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		})
@@ -884,7 +928,11 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
 
-	paths, err := s.repo.DeleteComment(ctx, id, userID, asAdmin)
+	paths, err := s.repo.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   asAdmin,
+	})
 	if err != nil {
 		return err
 	}
@@ -902,7 +950,7 @@ func (s *service) LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUI
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return block.ErrUserBlocked
 	}
-	if err := s.repo.LikeComment(ctx, userID, id); err != nil {
+	if err := s.repo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: id}); err != nil {
 		return err
 	}
 
@@ -936,7 +984,7 @@ func (s *service) LikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUI
 }
 
 func (s *service) UnlikeComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	return s.repo.UnlikeComment(ctx, userID, id)
+	return s.repo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: id})
 }
 
 func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
@@ -957,8 +1005,8 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		reader,
 		isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.repo.AddCommentMedia(ctx, repository.NewJournalCommentMedia{
-				CommentID:    commentID,
+			return s.repo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:     commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -990,8 +1038,8 @@ func (s *service) UploadEntryMedia(ctx context.Context, entryID uuid.UUID, userI
 		reader,
 		isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.repo.AddMedia(ctx, repository.NewJournalEntryMedia{
-				EntryID:      entryID,
+			return s.repo.AddMedia(ctx, spec.NewMedia{
+				TargetID:     entryID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -1014,7 +1062,7 @@ func (s *service) DeleteEntryMedia(ctx context.Context, entryID uuid.UUID, media
 		return ErrNotAuthor
 	}
 
-	mediaURL, err := s.repo.DeleteMedia(ctx, mediaID, entryID)
+	mediaURL, err := s.repo.DeleteMedia(ctx, spec.MediaDeletion{ID: mediaID, TargetID: entryID})
 	if err != nil {
 		return err
 	}
@@ -1035,7 +1083,7 @@ func (s *service) FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 		return block.ErrUserBlocked
 	}
 
-	if err := s.repo.Follow(ctx, userID, id); err != nil {
+	if err := s.repo.Follow(ctx, spec.JournalFollow{UserID: userID, JournalID: id}); err != nil {
 		return err
 	}
 
@@ -1059,7 +1107,7 @@ func (s *service) FollowJournal(ctx context.Context, id uuid.UUID, userID uuid.U
 }
 
 func (s *service) UnfollowJournal(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	return s.repo.Unfollow(ctx, userID, id)
+	return s.repo.Unfollow(ctx, spec.JournalFollow{UserID: userID, JournalID: id})
 }
 
 func (s *service) ArchiveStale(ctx context.Context) (int, error) {

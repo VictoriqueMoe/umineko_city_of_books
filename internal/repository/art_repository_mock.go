@@ -7,7 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -41,12 +42,12 @@ func (_m *MockArtRepository) EXPECT() *MockArtRepository_Expecter {
 }
 
 // AddCommentMedia provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) AddCommentMedia(ctx context.Context, spec NewArtCommentMedia, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockArtRepository) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -56,16 +57,16 @@ func (_mock *MockArtRepository) AddCommentMedia(ctx context.Context, spec NewArt
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewArtCommentMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewArtCommentMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewArtCommentMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -79,22 +80,22 @@ type MockArtRepository_AddCommentMedia_Call struct {
 
 // AddCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewArtCommentMedia
+//   - s spec.NewMedia
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) AddCommentMedia(ctx any, spec any, tx ...any) *MockArtRepository_AddCommentMedia_Call {
+func (_e *MockArtRepository_Expecter) AddCommentMedia(ctx any, s any, tx ...any) *MockArtRepository_AddCommentMedia_Call {
 	return &MockArtRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, spec NewArtCommentMedia, tx ...*sql.Tx)) *MockArtRepository_AddCommentMedia_Call {
+func (_c *MockArtRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockArtRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewArtCommentMedia
+		var arg1 spec.NewMedia
 		if args[1] != nil {
-			arg1 = args[1].(NewArtCommentMedia)
+			arg1 = args[1].(spec.NewMedia)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -116,7 +117,7 @@ func (_c *MockArtRepository_AddCommentMedia_Call) Return(n int64, err error) *Mo
 	return _c
 }
 
-func (_c *MockArtRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewArtCommentMedia, tx ...*sql.Tx) (int64, error)) *MockArtRepository_AddCommentMedia_Call {
+func (_c *MockArtRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockArtRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -369,12 +370,12 @@ func (_c *MockArtRepository_CountUserArtToday_Call) RunAndReturn(run func(ctx co
 }
 
 // CreateArt provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) CreateArt(ctx context.Context, spec NewArt, tx ...*sql.Tx) (*model.ArtRow, error) {
+func (_mock *MockArtRepository) CreateArt(ctx context.Context, s spec.NewArt, tx ...*sql.Tx) (*model.ArtRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -384,18 +385,18 @@ func (_mock *MockArtRepository) CreateArt(ctx context.Context, spec NewArt, tx .
 
 	var r0 *model.ArtRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewArt, ...*sql.Tx) (*model.ArtRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewArt, ...*sql.Tx) (*model.ArtRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewArt, ...*sql.Tx) *model.ArtRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewArt, ...*sql.Tx) *model.ArtRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ArtRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewArt, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewArt, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -409,22 +410,22 @@ type MockArtRepository_CreateArt_Call struct {
 
 // CreateArt is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewArt
+//   - s spec.NewArt
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) CreateArt(ctx any, spec any, tx ...any) *MockArtRepository_CreateArt_Call {
+func (_e *MockArtRepository_Expecter) CreateArt(ctx any, s any, tx ...any) *MockArtRepository_CreateArt_Call {
 	return &MockArtRepository_CreateArt_Call{Call: _e.mock.On("CreateArt",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_CreateArt_Call) Run(run func(ctx context.Context, spec NewArt, tx ...*sql.Tx)) *MockArtRepository_CreateArt_Call {
+func (_c *MockArtRepository_CreateArt_Call) Run(run func(ctx context.Context, s spec.NewArt, tx ...*sql.Tx)) *MockArtRepository_CreateArt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewArt
+		var arg1 spec.NewArt
 		if args[1] != nil {
-			arg1 = args[1].(NewArt)
+			arg1 = args[1].(spec.NewArt)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -446,18 +447,18 @@ func (_c *MockArtRepository_CreateArt_Call) Return(artRow *model.ArtRow, err err
 	return _c
 }
 
-func (_c *MockArtRepository_CreateArt_Call) RunAndReturn(run func(ctx context.Context, spec NewArt, tx ...*sql.Tx) (*model.ArtRow, error)) *MockArtRepository_CreateArt_Call {
+func (_c *MockArtRepository_CreateArt_Call) RunAndReturn(run func(ctx context.Context, s spec.NewArt, tx ...*sql.Tx) (*model.ArtRow, error)) *MockArtRepository_CreateArt_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateGallery provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) CreateGallery(ctx context.Context, userID uuid.UUID, name string, description string, tx ...*sql.Tx) (*model.GalleryRow, error) {
+func (_mock *MockArtRepository) CreateGallery(ctx context.Context, s spec.NewGallery, tx ...*sql.Tx) (*model.GalleryRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, name, description, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, name, description)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -467,18 +468,18 @@ func (_mock *MockArtRepository) CreateGallery(ctx context.Context, userID uuid.U
 
 	var r0 *model.GalleryRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) (*model.GalleryRow, error)); ok {
-		return returnFunc(ctx, userID, name, description, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewGallery, ...*sql.Tx) (*model.GalleryRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) *model.GalleryRow); ok {
-		r0 = returnFunc(ctx, userID, name, description, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewGallery, ...*sql.Tx) *model.GalleryRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.GalleryRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, name, description, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewGallery, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -492,45 +493,33 @@ type MockArtRepository_CreateGallery_Call struct {
 
 // CreateGallery is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - name string
-//   - description string
+//   - s spec.NewGallery
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) CreateGallery(ctx any, userID any, name any, description any, tx ...any) *MockArtRepository_CreateGallery_Call {
+func (_e *MockArtRepository_Expecter) CreateGallery(ctx any, s any, tx ...any) *MockArtRepository_CreateGallery_Call {
 	return &MockArtRepository_CreateGallery_Call{Call: _e.mock.On("CreateGallery",
-		append([]any{ctx, userID, name, description}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_CreateGallery_Call) Run(run func(ctx context.Context, userID uuid.UUID, name string, description string, tx ...*sql.Tx)) *MockArtRepository_CreateGallery_Call {
+func (_c *MockArtRepository_CreateGallery_Call) Run(run func(ctx context.Context, s spec.NewGallery, tx ...*sql.Tx)) *MockArtRepository_CreateGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewGallery
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewGallery)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -541,18 +530,18 @@ func (_c *MockArtRepository_CreateGallery_Call) Return(galleryRow *model.Gallery
 	return _c
 }
 
-func (_c *MockArtRepository_CreateGallery_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, name string, description string, tx ...*sql.Tx) (*model.GalleryRow, error)) *MockArtRepository_CreateGallery_Call {
+func (_c *MockArtRepository_CreateGallery_Call) RunAndReturn(run func(ctx context.Context, s spec.NewGallery, tx ...*sql.Tx) (*model.GalleryRow, error)) *MockArtRepository_CreateGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateWithTags provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) CreateWithTags(ctx context.Context, spec NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error) {
+func (_mock *MockArtRepository) CreateWithTags(ctx context.Context, s spec.NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -562,18 +551,18 @@ func (_mock *MockArtRepository) CreateWithTags(ctx context.Context, spec NewArtW
 
 	var r0 *model.ArtRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewArtWithTags, ...*sql.Tx) (*model.ArtRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewArtWithTags, ...*sql.Tx) (*model.ArtRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewArtWithTags, ...*sql.Tx) *model.ArtRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewArtWithTags, ...*sql.Tx) *model.ArtRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ArtRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewArtWithTags, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewArtWithTags, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -587,22 +576,22 @@ type MockArtRepository_CreateWithTags_Call struct {
 
 // CreateWithTags is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewArtWithTags
+//   - s spec.NewArtWithTags
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) CreateWithTags(ctx any, spec any, tx ...any) *MockArtRepository_CreateWithTags_Call {
+func (_e *MockArtRepository_Expecter) CreateWithTags(ctx any, s any, tx ...any) *MockArtRepository_CreateWithTags_Call {
 	return &MockArtRepository_CreateWithTags_Call{Call: _e.mock.On("CreateWithTags",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_CreateWithTags_Call) Run(run func(ctx context.Context, spec NewArtWithTags, tx ...*sql.Tx)) *MockArtRepository_CreateWithTags_Call {
+func (_c *MockArtRepository_CreateWithTags_Call) Run(run func(ctx context.Context, s spec.NewArtWithTags, tx ...*sql.Tx)) *MockArtRepository_CreateWithTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewArtWithTags
+		var arg1 spec.NewArtWithTags
 		if args[1] != nil {
-			arg1 = args[1].(NewArtWithTags)
+			arg1 = args[1].(spec.NewArtWithTags)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -624,18 +613,18 @@ func (_c *MockArtRepository_CreateWithTags_Call) Return(artRow *model.ArtRow, er
 	return _c
 }
 
-func (_c *MockArtRepository_CreateWithTags_Call) RunAndReturn(run func(ctx context.Context, spec NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error)) *MockArtRepository_CreateWithTags_Call {
+func (_c *MockArtRepository_CreateWithTags_Call) RunAndReturn(run func(ctx context.Context, s spec.NewArtWithTags, tx ...*sql.Tx) (*model.ArtRow, error)) *MockArtRepository_CreateWithTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -644,8 +633,8 @@ func (_mock *MockArtRepository) Delete(ctx context.Context, id uuid.UUID, userID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -659,39 +648,33 @@ type MockArtRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.OwnedDeletion
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) Delete(ctx any, id any, userID any, tx ...any) *MockArtRepository_Delete_Call {
+func (_e *MockArtRepository_Expecter) Delete(ctx any, s any, tx ...any) *MockArtRepository_Delete_Call {
 	return &MockArtRepository_Delete_Call{Call: _e.mock.On("Delete",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_Delete_Call {
+func (_c *MockArtRepository_Delete_Call) Run(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx)) *MockArtRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.OwnedDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.OwnedDeletion)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -702,18 +685,18 @@ func (_c *MockArtRepository_Delete_Call) Return(err error) *MockArtRepository_De
 	return _c
 }
 
-func (_c *MockArtRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_Delete_Call {
+func (_c *MockArtRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error) *MockArtRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteArtInGallery provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteArtInGallery(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) DeleteArtInGallery(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, galleryID, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, galleryID, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -722,8 +705,8 @@ func (_mock *MockArtRepository) DeleteArtInGallery(ctx context.Context, galleryI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, galleryID, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryRef, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -737,39 +720,33 @@ type MockArtRepository_DeleteArtInGallery_Call struct {
 
 // DeleteArtInGallery is a helper method to define mock.On call
 //   - ctx context.Context
-//   - galleryID uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.GalleryRef
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteArtInGallery(ctx any, galleryID any, userID any, tx ...any) *MockArtRepository_DeleteArtInGallery_Call {
+func (_e *MockArtRepository_Expecter) DeleteArtInGallery(ctx any, s any, tx ...any) *MockArtRepository_DeleteArtInGallery_Call {
 	return &MockArtRepository_DeleteArtInGallery_Call{Call: _e.mock.On("DeleteArtInGallery",
-		append([]any{ctx, galleryID, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_DeleteArtInGallery_Call) Run(run func(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_DeleteArtInGallery_Call {
+func (_c *MockArtRepository_DeleteArtInGallery_Call) Run(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx)) *MockArtRepository_DeleteArtInGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -780,7 +757,7 @@ func (_c *MockArtRepository_DeleteArtInGallery_Call) Return(err error) *MockArtR
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteArtInGallery_Call) RunAndReturn(run func(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_DeleteArtInGallery_Call {
+func (_c *MockArtRepository_DeleteArtInGallery_Call) RunAndReturn(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) error) *MockArtRepository_DeleteArtInGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -858,12 +835,12 @@ func (_c *MockArtRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx contex
 }
 
 // DeleteComment provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -872,8 +849,8 @@ func (_mock *MockArtRepository) DeleteComment(ctx context.Context, id uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -887,100 +864,22 @@ type MockArtRepository_DeleteComment_Call struct {
 
 // DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *MockArtRepository_DeleteComment_Call {
+func (_e *MockArtRepository_Expecter) DeleteComment(ctx any, s any, tx ...any) *MockArtRepository_DeleteComment_Call {
 	return &MockArtRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_DeleteComment_Call {
+func (_c *MockArtRepository_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockArtRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockArtRepository_DeleteComment_Call) Return(err error) *MockArtRepository_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockArtRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentAsAdmin provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockArtRepository_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
-type MockArtRepository_DeleteCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *MockArtRepository_DeleteCommentAsAdmin_Call {
-	return &MockArtRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
-		append([]any{ctx, id}, tx...)...)}
-}
-
-func (_c *MockArtRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -997,23 +896,23 @@ func (_c *MockArtRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockArtRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockArtRepository_DeleteComment_Call) Return(err error) *MockArtRepository_DeleteComment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockArtRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *MockArtRepository_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteCommentWithAudit provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteCommentWithAudit(ctx context.Context, spec ArtCommentDelete, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockArtRepository) DeleteCommentWithAudit(ctx context.Context, s spec.ArtCommentDeletion, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1023,18 +922,18 @@ func (_mock *MockArtRepository) DeleteCommentWithAudit(ctx context.Context, spec
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtCommentDelete, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtCommentDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtCommentDelete, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtCommentDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ArtCommentDelete, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ArtCommentDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1048,22 +947,22 @@ type MockArtRepository_DeleteCommentWithAudit_Call struct {
 
 // DeleteCommentWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ArtCommentDelete
+//   - s spec.ArtCommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteCommentWithAudit(ctx any, spec any, tx ...any) *MockArtRepository_DeleteCommentWithAudit_Call {
+func (_e *MockArtRepository_Expecter) DeleteCommentWithAudit(ctx any, s any, tx ...any) *MockArtRepository_DeleteCommentWithAudit_Call {
 	return &MockArtRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, spec ArtCommentDelete, tx ...*sql.Tx)) *MockArtRepository_DeleteCommentWithAudit_Call {
+func (_c *MockArtRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, s spec.ArtCommentDeletion, tx ...*sql.Tx)) *MockArtRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ArtCommentDelete
+		var arg1 spec.ArtCommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(ArtCommentDelete)
+			arg1 = args[1].(spec.ArtCommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1085,18 +984,18 @@ func (_c *MockArtRepository_DeleteCommentWithAudit_Call) Return(strings []string
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, spec ArtCommentDelete, tx ...*sql.Tx) ([]string, error)) *MockArtRepository_DeleteCommentWithAudit_Call {
+func (_c *MockArtRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtCommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockArtRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteGallery provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockArtRepository) DeleteGallery(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1106,18 +1005,18 @@ func (_mock *MockArtRepository) DeleteGallery(ctx context.Context, id uuid.UUID,
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryRef, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryRef, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.GalleryRef, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1131,39 +1030,33 @@ type MockArtRepository_DeleteGallery_Call struct {
 
 // DeleteGallery is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.GalleryRef
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteGallery(ctx any, id any, userID any, tx ...any) *MockArtRepository_DeleteGallery_Call {
+func (_e *MockArtRepository_Expecter) DeleteGallery(ctx any, s any, tx ...any) *MockArtRepository_DeleteGallery_Call {
 	return &MockArtRepository_DeleteGallery_Call{Call: _e.mock.On("DeleteGallery",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_DeleteGallery_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_DeleteGallery_Call {
+func (_c *MockArtRepository_DeleteGallery_Call) Run(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx)) *MockArtRepository_DeleteGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1174,18 +1067,18 @@ func (_c *MockArtRepository_DeleteGallery_Call) Return(strings []string, err err
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteGallery_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockArtRepository_DeleteGallery_Call {
+func (_c *MockArtRepository_DeleteGallery_Call) RunAndReturn(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]string, error)) *MockArtRepository_DeleteGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteGalleryRow provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteGalleryRow(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) DeleteGalleryRow(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1194,8 +1087,8 @@ func (_mock *MockArtRepository) DeleteGalleryRow(ctx context.Context, id uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryRef, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1209,39 +1102,33 @@ type MockArtRepository_DeleteGalleryRow_Call struct {
 
 // DeleteGalleryRow is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.GalleryRef
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteGalleryRow(ctx any, id any, userID any, tx ...any) *MockArtRepository_DeleteGalleryRow_Call {
+func (_e *MockArtRepository_Expecter) DeleteGalleryRow(ctx any, s any, tx ...any) *MockArtRepository_DeleteGalleryRow_Call {
 	return &MockArtRepository_DeleteGalleryRow_Call{Call: _e.mock.On("DeleteGalleryRow",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_DeleteGalleryRow_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_DeleteGalleryRow_Call {
+func (_c *MockArtRepository_DeleteGalleryRow_Call) Run(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx)) *MockArtRepository_DeleteGalleryRow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1252,7 +1139,7 @@ func (_c *MockArtRepository_DeleteGalleryRow_Call) Return(err error) *MockArtRep
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteGalleryRow_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_DeleteGalleryRow_Call {
+func (_c *MockArtRepository_DeleteGalleryRow_Call) RunAndReturn(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) error) *MockArtRepository_DeleteGalleryRow_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1330,12 +1217,12 @@ func (_c *MockArtRepository_DeleteTags_Call) RunAndReturn(run func(ctx context.C
 }
 
 // DeleteWithImage provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) DeleteWithImage(ctx context.Context, spec ArtDelete, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockArtRepository) DeleteWithImage(ctx context.Context, s spec.ArtDelete, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1345,18 +1232,18 @@ func (_mock *MockArtRepository) DeleteWithImage(ctx context.Context, spec ArtDel
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtDelete, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtDelete, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtDelete, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtDelete, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ArtDelete, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ArtDelete, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1370,22 +1257,22 @@ type MockArtRepository_DeleteWithImage_Call struct {
 
 // DeleteWithImage is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ArtDelete
+//   - s spec.ArtDelete
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) DeleteWithImage(ctx any, spec any, tx ...any) *MockArtRepository_DeleteWithImage_Call {
+func (_e *MockArtRepository_Expecter) DeleteWithImage(ctx any, s any, tx ...any) *MockArtRepository_DeleteWithImage_Call {
 	return &MockArtRepository_DeleteWithImage_Call{Call: _e.mock.On("DeleteWithImage",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_DeleteWithImage_Call) Run(run func(ctx context.Context, spec ArtDelete, tx ...*sql.Tx)) *MockArtRepository_DeleteWithImage_Call {
+func (_c *MockArtRepository_DeleteWithImage_Call) Run(run func(ctx context.Context, s spec.ArtDelete, tx ...*sql.Tx)) *MockArtRepository_DeleteWithImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ArtDelete
+		var arg1 spec.ArtDelete
 		if args[1] != nil {
-			arg1 = args[1].(ArtDelete)
+			arg1 = args[1].(spec.ArtDelete)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1407,7 +1294,7 @@ func (_c *MockArtRepository_DeleteWithImage_Call) Return(strings []string, err e
 	return _c
 }
 
-func (_c *MockArtRepository_DeleteWithImage_Call) RunAndReturn(run func(ctx context.Context, spec ArtDelete, tx ...*sql.Tx) ([]string, error)) *MockArtRepository_DeleteWithImage_Call {
+func (_c *MockArtRepository_DeleteWithImage_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtDelete, tx ...*sql.Tx) ([]string, error)) *MockArtRepository_DeleteWithImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1579,12 +1466,12 @@ func (_c *MockArtRepository_GetArtImagePaths_Call) RunAndReturn(run func(ctx con
 }
 
 // GetByID provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ArtRow, error) {
+func (_mock *MockArtRepository) GetByID(ctx context.Context, s spec.ArtLookup, tx ...*sql.Tx) (*model.ArtRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, viewerID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, viewerID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1594,18 +1481,18 @@ func (_mock *MockArtRepository) GetByID(ctx context.Context, id uuid.UUID, viewe
 
 	var r0 *model.ArtRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*model.ArtRow, error)); ok {
-		return returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtLookup, ...*sql.Tx) (*model.ArtRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *model.ArtRow); ok {
-		r0 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtLookup, ...*sql.Tx) *model.ArtRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ArtRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ArtLookup, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1619,39 +1506,33 @@ type MockArtRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - viewerID uuid.UUID
+//   - s spec.ArtLookup
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) GetByID(ctx any, id any, viewerID any, tx ...any) *MockArtRepository_GetByID_Call {
+func (_e *MockArtRepository_Expecter) GetByID(ctx any, s any, tx ...any) *MockArtRepository_GetByID_Call {
 	return &MockArtRepository_GetByID_Call{Call: _e.mock.On("GetByID",
-		append([]any{ctx, id, viewerID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_GetByID_Call {
+func (_c *MockArtRepository_GetByID_Call) Run(run func(ctx context.Context, s spec.ArtLookup, tx ...*sql.Tx)) *MockArtRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ArtLookup
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ArtLookup)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1662,7 +1543,7 @@ func (_c *MockArtRepository_GetByID_Call) Return(artRow *model.ArtRow, err error
 	return _c
 }
 
-func (_c *MockArtRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ArtRow, error)) *MockArtRepository_GetByID_Call {
+func (_c *MockArtRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtLookup, tx ...*sql.Tx) (*model.ArtRow, error)) *MockArtRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2000,12 +1881,12 @@ func (_c *MockArtRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ctx
 }
 
 // GetComments provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetComments(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+func (_mock *MockArtRepository) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, artID, viewerID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, artID, viewerID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2013,26 +1894,26 @@ func (_mock *MockArtRepository) GetComments(ctx context.Context, artID uuid.UUID
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []CommentRow
+	var r0 []model.CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, artID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
-		r0 = returnFunc(ctx, artID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
+			r0 = ret.Get(0).([]model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, artID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, artID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2046,68 +1927,44 @@ type MockArtRepository_GetComments_Call struct {
 
 // GetComments is a helper method to define mock.On call
 //   - ctx context.Context
-//   - artID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.CommentQuery[uuid.UUID]
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) GetComments(ctx any, artID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockArtRepository_GetComments_Call {
+func (_e *MockArtRepository_Expecter) GetComments(ctx any, q any, tx ...any) *MockArtRepository_GetComments_Call {
 	return &MockArtRepository_GetComments_Call{Call: _e.mock.On("GetComments",
-		append([]any{ctx, artID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_GetComments_Call) Run(run func(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_GetComments_Call {
+func (_c *MockArtRepository_GetComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockArtRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentQuery[uuid.UUID]
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		var arg6 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 6 {
-			variadicArgs = args[6].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg6 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockArtRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockArtRepository_GetComments_Call {
+func (_c *MockArtRepository_GetComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockArtRepository_GetComments_Call {
 	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockArtRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockArtRepository_GetComments_Call {
+func (_c *MockArtRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockArtRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2273,12 +2130,12 @@ func (_c *MockArtRepository_GetGalleryByID_Call) RunAndReturn(run func(ctx conte
 }
 
 // GetGalleryPreviewImages provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetGalleryPreviewImages(ctx context.Context, galleryID uuid.UUID, limit int, tx ...*sql.Tx) ([]PreviewImage, error) {
+func (_mock *MockArtRepository) GetGalleryPreviewImages(ctx context.Context, q spec.GalleryPreviewFilter, tx ...*sql.Tx) ([]model.PreviewImage, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, galleryID, limit, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, galleryID, limit)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2286,20 +2143,20 @@ func (_mock *MockArtRepository) GetGalleryPreviewImages(ctx context.Context, gal
 		panic("no return value specified for GetGalleryPreviewImages")
 	}
 
-	var r0 []PreviewImage
+	var r0 []model.PreviewImage
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) ([]PreviewImage, error)); ok {
-		return returnFunc(ctx, galleryID, limit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryPreviewFilter, ...*sql.Tx) ([]model.PreviewImage, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) []PreviewImage); ok {
-		r0 = returnFunc(ctx, galleryID, limit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryPreviewFilter, ...*sql.Tx) []model.PreviewImage); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]PreviewImage)
+			r0 = ret.Get(0).([]model.PreviewImage)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, galleryID, limit, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.GalleryPreviewFilter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2313,50 +2170,44 @@ type MockArtRepository_GetGalleryPreviewImages_Call struct {
 
 // GetGalleryPreviewImages is a helper method to define mock.On call
 //   - ctx context.Context
-//   - galleryID uuid.UUID
-//   - limit int
+//   - q spec.GalleryPreviewFilter
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) GetGalleryPreviewImages(ctx any, galleryID any, limit any, tx ...any) *MockArtRepository_GetGalleryPreviewImages_Call {
+func (_e *MockArtRepository_Expecter) GetGalleryPreviewImages(ctx any, q any, tx ...any) *MockArtRepository_GetGalleryPreviewImages_Call {
 	return &MockArtRepository_GetGalleryPreviewImages_Call{Call: _e.mock.On("GetGalleryPreviewImages",
-		append([]any{ctx, galleryID, limit}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_GetGalleryPreviewImages_Call) Run(run func(ctx context.Context, galleryID uuid.UUID, limit int, tx ...*sql.Tx)) *MockArtRepository_GetGalleryPreviewImages_Call {
+func (_c *MockArtRepository_GetGalleryPreviewImages_Call) Run(run func(ctx context.Context, q spec.GalleryPreviewFilter, tx ...*sql.Tx)) *MockArtRepository_GetGalleryPreviewImages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryPreviewFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryPreviewFilter)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockArtRepository_GetGalleryPreviewImages_Call) Return(previewImages []PreviewImage, err error) *MockArtRepository_GetGalleryPreviewImages_Call {
+func (_c *MockArtRepository_GetGalleryPreviewImages_Call) Return(previewImages []model.PreviewImage, err error) *MockArtRepository_GetGalleryPreviewImages_Call {
 	_c.Call.Return(previewImages, err)
 	return _c
 }
 
-func (_c *MockArtRepository_GetGalleryPreviewImages_Call) RunAndReturn(run func(ctx context.Context, galleryID uuid.UUID, limit int, tx ...*sql.Tx) ([]PreviewImage, error)) *MockArtRepository_GetGalleryPreviewImages_Call {
+func (_c *MockArtRepository_GetGalleryPreviewImages_Call) RunAndReturn(run func(ctx context.Context, q spec.GalleryPreviewFilter, tx ...*sql.Tx) ([]model.PreviewImage, error)) *MockArtRepository_GetGalleryPreviewImages_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2443,12 +2294,12 @@ func (_c *MockArtRepository_GetImageURL_Call) RunAndReturn(run func(ctx context.
 }
 
 // GetLikedBy provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetLikedBy(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.PostLikeUser, error) {
+func (_mock *MockArtRepository) GetLikedBy(ctx context.Context, q spec.LikedByQuery, tx ...*sql.Tx) ([]model.PostLikeUser, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, artID, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, artID, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2458,18 +2309,18 @@ func (_mock *MockArtRepository) GetLikedBy(ctx context.Context, artID uuid.UUID,
 
 	var r0 []model.PostLikeUser
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID, ...*sql.Tx) ([]model.PostLikeUser, error)); ok {
-		return returnFunc(ctx, artID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.LikedByQuery, ...*sql.Tx) ([]model.PostLikeUser, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []uuid.UUID, ...*sql.Tx) []model.PostLikeUser); ok {
-		r0 = returnFunc(ctx, artID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.LikedByQuery, ...*sql.Tx) []model.PostLikeUser); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.PostLikeUser)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, []uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, artID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.LikedByQuery, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2483,39 +2334,33 @@ type MockArtRepository_GetLikedBy_Call struct {
 
 // GetLikedBy is a helper method to define mock.On call
 //   - ctx context.Context
-//   - artID uuid.UUID
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.LikedByQuery
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) GetLikedBy(ctx any, artID any, excludeUserIDs any, tx ...any) *MockArtRepository_GetLikedBy_Call {
+func (_e *MockArtRepository_Expecter) GetLikedBy(ctx any, q any, tx ...any) *MockArtRepository_GetLikedBy_Call {
 	return &MockArtRepository_GetLikedBy_Call{Call: _e.mock.On("GetLikedBy",
-		append([]any{ctx, artID, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_GetLikedBy_Call) Run(run func(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_GetLikedBy_Call {
+func (_c *MockArtRepository_GetLikedBy_Call) Run(run func(ctx context.Context, q spec.LikedByQuery, tx ...*sql.Tx)) *MockArtRepository_GetLikedBy_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.LikedByQuery
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.LikedByQuery)
 		}
-		var arg2 []uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].([]uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2526,18 +2371,18 @@ func (_c *MockArtRepository_GetLikedBy_Call) Return(postLikeUsers []model.PostLi
 	return _c
 }
 
-func (_c *MockArtRepository_GetLikedBy_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.PostLikeUser, error)) *MockArtRepository_GetLikedBy_Call {
+func (_c *MockArtRepository_GetLikedBy_Call) RunAndReturn(run func(ctx context.Context, q spec.LikedByQuery, tx ...*sql.Tx) ([]model.PostLikeUser, error)) *MockArtRepository_GetLikedBy_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetPopularTags provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) GetPopularTags(ctx context.Context, corner string, limit int, tx ...*sql.Tx) ([]model.TagCount, error) {
+func (_mock *MockArtRepository) GetPopularTags(ctx context.Context, q spec.PopularTagFilter, tx ...*sql.Tx) ([]model.TagCount, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, corner, limit, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, corner, limit)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2547,18 +2392,18 @@ func (_mock *MockArtRepository) GetPopularTags(ctx context.Context, corner strin
 
 	var r0 []model.TagCount
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) ([]model.TagCount, error)); ok {
-		return returnFunc(ctx, corner, limit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.PopularTagFilter, ...*sql.Tx) ([]model.TagCount, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) []model.TagCount); ok {
-		r0 = returnFunc(ctx, corner, limit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.PopularTagFilter, ...*sql.Tx) []model.TagCount); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.TagCount)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, corner, limit, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.PopularTagFilter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2572,39 +2417,33 @@ type MockArtRepository_GetPopularTags_Call struct {
 
 // GetPopularTags is a helper method to define mock.On call
 //   - ctx context.Context
-//   - corner string
-//   - limit int
+//   - q spec.PopularTagFilter
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) GetPopularTags(ctx any, corner any, limit any, tx ...any) *MockArtRepository_GetPopularTags_Call {
+func (_e *MockArtRepository_Expecter) GetPopularTags(ctx any, q any, tx ...any) *MockArtRepository_GetPopularTags_Call {
 	return &MockArtRepository_GetPopularTags_Call{Call: _e.mock.On("GetPopularTags",
-		append([]any{ctx, corner, limit}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_GetPopularTags_Call) Run(run func(ctx context.Context, corner string, limit int, tx ...*sql.Tx)) *MockArtRepository_GetPopularTags_Call {
+func (_c *MockArtRepository_GetPopularTags_Call) Run(run func(ctx context.Context, q spec.PopularTagFilter, tx ...*sql.Tx)) *MockArtRepository_GetPopularTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.PopularTagFilter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.PopularTagFilter)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2615,7 +2454,7 @@ func (_c *MockArtRepository_GetPopularTags_Call) Return(tagCounts []model.TagCou
 	return _c
 }
 
-func (_c *MockArtRepository_GetPopularTags_Call) RunAndReturn(run func(ctx context.Context, corner string, limit int, tx ...*sql.Tx) ([]model.TagCount, error)) *MockArtRepository_GetPopularTags_Call {
+func (_c *MockArtRepository_GetPopularTags_Call) RunAndReturn(run func(ctx context.Context, q spec.PopularTagFilter, tx ...*sql.Tx) ([]model.TagCount, error)) *MockArtRepository_GetPopularTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2786,13 +2625,85 @@ func (_c *MockArtRepository_GetTagsBatch_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
-// InsertTags provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) InsertTags(ctx context.Context, artID uuid.UUID, tags []string, tx ...*sql.Tx) error {
+// IncrementViewCount provides a mock function for the type MockArtRepository
+func (_mock *MockArtRepository) IncrementViewCount(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, artID, tags, tx)
+		tmpRet = _mock.Called(ctx, id, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, artID, tags)
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for IncrementViewCount")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockArtRepository_IncrementViewCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncrementViewCount'
+type MockArtRepository_IncrementViewCount_Call struct {
+	*mock.Call
+}
+
+// IncrementViewCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockArtRepository_Expecter) IncrementViewCount(ctx any, id any, tx ...any) *MockArtRepository_IncrementViewCount_Call {
+	return &MockArtRepository_IncrementViewCount_Call{Call: _e.mock.On("IncrementViewCount",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockArtRepository_IncrementViewCount_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_IncrementViewCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockArtRepository_IncrementViewCount_Call) Return(err error) *MockArtRepository_IncrementViewCount_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockArtRepository_IncrementViewCount_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_IncrementViewCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// InsertTags provides a mock function for the type MockArtRepository
+func (_mock *MockArtRepository) InsertTags(ctx context.Context, s spec.ArtTagInsert, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2801,8 +2712,8 @@ func (_mock *MockArtRepository) InsertTags(ctx context.Context, artID uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, artID, tags, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtTagInsert, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2816,39 +2727,33 @@ type MockArtRepository_InsertTags_Call struct {
 
 // InsertTags is a helper method to define mock.On call
 //   - ctx context.Context
-//   - artID uuid.UUID
-//   - tags []string
+//   - s spec.ArtTagInsert
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) InsertTags(ctx any, artID any, tags any, tx ...any) *MockArtRepository_InsertTags_Call {
+func (_e *MockArtRepository_Expecter) InsertTags(ctx any, s any, tx ...any) *MockArtRepository_InsertTags_Call {
 	return &MockArtRepository_InsertTags_Call{Call: _e.mock.On("InsertTags",
-		append([]any{ctx, artID, tags}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_InsertTags_Call) Run(run func(ctx context.Context, artID uuid.UUID, tags []string, tx ...*sql.Tx)) *MockArtRepository_InsertTags_Call {
+func (_c *MockArtRepository_InsertTags_Call) Run(run func(ctx context.Context, s spec.ArtTagInsert, tx ...*sql.Tx)) *MockArtRepository_InsertTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ArtTagInsert
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ArtTagInsert)
 		}
-		var arg2 []string
-		if args[2] != nil {
-			arg2 = args[2].([]string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2859,18 +2764,18 @@ func (_c *MockArtRepository_InsertTags_Call) Return(err error) *MockArtRepositor
 	return _c
 }
 
-func (_c *MockArtRepository_InsertTags_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, tags []string, tx ...*sql.Tx) error) *MockArtRepository_InsertTags_Call {
+func (_c *MockArtRepository_InsertTags_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtTagInsert, tx ...*sql.Tx) error) *MockArtRepository_InsertTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Like provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) Like(ctx context.Context, userID uuid.UUID, artID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) Like(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, artID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, artID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2879,8 +2784,8 @@ func (_mock *MockArtRepository) Like(ctx context.Context, userID uuid.UUID, artI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, artID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.Like, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2894,39 +2799,33 @@ type MockArtRepository_Like_Call struct {
 
 // Like is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - artID uuid.UUID
+//   - s spec.Like
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) Like(ctx any, userID any, artID any, tx ...any) *MockArtRepository_Like_Call {
+func (_e *MockArtRepository_Expecter) Like(ctx any, s any, tx ...any) *MockArtRepository_Like_Call {
 	return &MockArtRepository_Like_Call{Call: _e.mock.On("Like",
-		append([]any{ctx, userID, artID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_Like_Call) Run(run func(ctx context.Context, userID uuid.UUID, artID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_Like_Call {
+func (_c *MockArtRepository_Like_Call) Run(run func(ctx context.Context, s spec.Like, tx ...*sql.Tx)) *MockArtRepository_Like_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.Like
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.Like)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2937,18 +2836,18 @@ func (_c *MockArtRepository_Like_Call) Return(err error) *MockArtRepository_Like
 	return _c
 }
 
-func (_c *MockArtRepository_Like_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, artID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_Like_Call {
+func (_c *MockArtRepository_Like_Call) RunAndReturn(run func(ctx context.Context, s spec.Like, tx ...*sql.Tx) error) *MockArtRepository_Like_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LikeComment provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2957,8 +2856,8 @@ func (_mock *MockArtRepository) LikeComment(ctx context.Context, userID uuid.UUI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2972,39 +2871,33 @@ type MockArtRepository_LikeComment_Call struct {
 
 // LikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockArtRepository_LikeComment_Call {
+func (_e *MockArtRepository_Expecter) LikeComment(ctx any, s any, tx ...any) *MockArtRepository_LikeComment_Call {
 	return &MockArtRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_LikeComment_Call {
+func (_c *MockArtRepository_LikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockArtRepository_LikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3015,18 +2908,18 @@ func (_c *MockArtRepository_LikeComment_Call) Return(err error) *MockArtReposito
 	return _c
 }
 
-func (_c *MockArtRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_LikeComment_Call {
+func (_c *MockArtRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockArtRepository_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListAll provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) ListAll(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
+func (_mock *MockArtRepository) ListAll(ctx context.Context, q spec.ArtFilter, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -3037,23 +2930,23 @@ func (_mock *MockArtRepository) ListAll(ctx context.Context, viewerID uuid.UUID,
 	var r0 []model.ArtRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, string, int, int, []uuid.UUID, ...*sql.Tx) ([]model.ArtRow, int, error)); ok {
-		return returnFunc(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtFilter, ...*sql.Tx) ([]model.ArtRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, string, int, int, []uuid.UUID, ...*sql.Tx) []model.ArtRow); ok {
-		r0 = returnFunc(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtFilter, ...*sql.Tx) []model.ArtRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.ArtRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, string, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ArtFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, string, string, string, string, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.ArtFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3067,81 +2960,33 @@ type MockArtRepository_ListAll_Call struct {
 
 // ListAll is a helper method to define mock.On call
 //   - ctx context.Context
-//   - viewerID uuid.UUID
-//   - corner string
-//   - artType string
-//   - search string
-//   - tag string
-//   - sort string
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.ArtFilter
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) ListAll(ctx any, viewerID any, corner any, artType any, search any, tag any, sort any, limit any, offset any, excludeUserIDs any, tx ...any) *MockArtRepository_ListAll_Call {
+func (_e *MockArtRepository_Expecter) ListAll(ctx any, q any, tx ...any) *MockArtRepository_ListAll_Call {
 	return &MockArtRepository_ListAll_Call{Call: _e.mock.On("ListAll",
-		append([]any{ctx, viewerID, corner, artType, search, tag, sort, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_ListAll_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_ListAll_Call {
+func (_c *MockArtRepository_ListAll_Call) Run(run func(ctx context.Context, q spec.ArtFilter, tx ...*sql.Tx)) *MockArtRepository_ListAll_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ArtFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ArtFilter)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 string
-		if args[6] != nil {
-			arg6 = args[6].(string)
-		}
-		var arg7 int
-		if args[7] != nil {
-			arg7 = args[7].(int)
-		}
-		var arg8 int
-		if args[8] != nil {
-			arg8 = args[8].(int)
-		}
-		var arg9 []uuid.UUID
-		if args[9] != nil {
-			arg9 = args[9].([]uuid.UUID)
-		}
-		var arg10 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 10 {
-			variadicArgs = args[10].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg10 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-			arg8,
-			arg9,
-			arg10...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3152,7 +2997,7 @@ func (_c *MockArtRepository_ListAll_Call) Return(artRows []model.ArtRow, n int, 
 	return _c
 }
 
-func (_c *MockArtRepository_ListAll_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, corner string, artType string, search string, tag string, sort string, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.ArtRow, int, error)) *MockArtRepository_ListAll_Call {
+func (_c *MockArtRepository_ListAll_Call) RunAndReturn(run func(ctx context.Context, q spec.ArtFilter, tx ...*sql.Tx) ([]model.ArtRow, int, error)) *MockArtRepository_ListAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3241,12 +3086,12 @@ func (_c *MockArtRepository_ListAllGalleries_Call) RunAndReturn(run func(ctx con
 }
 
 // ListArtInGallery provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) ListArtInGallery(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
+func (_mock *MockArtRepository) ListArtInGallery(ctx context.Context, q spec.GalleryArtFilter, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, galleryID, viewerID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, galleryID, viewerID, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -3257,23 +3102,23 @@ func (_mock *MockArtRepository) ListArtInGallery(ctx context.Context, galleryID 
 	var r0 []model.ArtRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]model.ArtRow, int, error)); ok {
-		return returnFunc(ctx, galleryID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryArtFilter, ...*sql.Tx) ([]model.ArtRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []model.ArtRow); ok {
-		r0 = returnFunc(ctx, galleryID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryArtFilter, ...*sql.Tx) []model.ArtRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.ArtRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, galleryID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.GalleryArtFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, galleryID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.GalleryArtFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3287,51 +3132,33 @@ type MockArtRepository_ListArtInGallery_Call struct {
 
 // ListArtInGallery is a helper method to define mock.On call
 //   - ctx context.Context
-//   - galleryID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
+//   - q spec.GalleryArtFilter
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) ListArtInGallery(ctx any, galleryID any, viewerID any, limit any, offset any, tx ...any) *MockArtRepository_ListArtInGallery_Call {
+func (_e *MockArtRepository_Expecter) ListArtInGallery(ctx any, q any, tx ...any) *MockArtRepository_ListArtInGallery_Call {
 	return &MockArtRepository_ListArtInGallery_Call{Call: _e.mock.On("ListArtInGallery",
-		append([]any{ctx, galleryID, viewerID, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_ListArtInGallery_Call) Run(run func(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockArtRepository_ListArtInGallery_Call {
+func (_c *MockArtRepository_ListArtInGallery_Call) Run(run func(ctx context.Context, q spec.GalleryArtFilter, tx ...*sql.Tx)) *MockArtRepository_ListArtInGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryArtFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryArtFilter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3342,18 +3169,18 @@ func (_c *MockArtRepository_ListArtInGallery_Call) Return(artRows []model.ArtRow
 	return _c
 }
 
-func (_c *MockArtRepository_ListArtInGallery_Call) RunAndReturn(run func(ctx context.Context, galleryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.ArtRow, int, error)) *MockArtRepository_ListArtInGallery_Call {
+func (_c *MockArtRepository_ListArtInGallery_Call) RunAndReturn(run func(ctx context.Context, q spec.GalleryArtFilter, tx ...*sql.Tx) ([]model.ArtRow, int, error)) *MockArtRepository_ListArtInGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListByUser provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
+func (_mock *MockArtRepository) ListByUser(ctx context.Context, q spec.ArtUserFilter, tx ...*sql.Tx) ([]model.ArtRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -3364,23 +3191,23 @@ func (_mock *MockArtRepository) ListByUser(ctx context.Context, userID uuid.UUID
 	var r0 []model.ArtRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]model.ArtRow, int, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtUserFilter, ...*sql.Tx) ([]model.ArtRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []model.ArtRow); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtUserFilter, ...*sql.Tx) []model.ArtRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.ArtRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ArtUserFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.ArtUserFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3394,51 +3221,33 @@ type MockArtRepository_ListByUser_Call struct {
 
 // ListByUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
+//   - q spec.ArtUserFilter
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any, tx ...any) *MockArtRepository_ListByUser_Call {
+func (_e *MockArtRepository_Expecter) ListByUser(ctx any, q any, tx ...any) *MockArtRepository_ListByUser_Call {
 	return &MockArtRepository_ListByUser_Call{Call: _e.mock.On("ListByUser",
-		append([]any{ctx, userID, viewerID, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockArtRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockArtRepository_ListByUser_Call {
+func (_c *MockArtRepository_ListByUser_Call) Run(run func(ctx context.Context, q spec.ArtUserFilter, tx ...*sql.Tx)) *MockArtRepository_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ArtUserFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ArtUserFilter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3449,7 +3258,7 @@ func (_c *MockArtRepository_ListByUser_Call) Return(artRows []model.ArtRow, n in
 	return _c
 }
 
-func (_c *MockArtRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.ArtRow, int, error)) *MockArtRepository_ListByUser_Call {
+func (_c *MockArtRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, q spec.ArtUserFilter, tx ...*sql.Tx) ([]model.ArtRow, int, error)) *MockArtRepository_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3538,12 +3347,12 @@ func (_c *MockArtRepository_ListGalleriesByUser_Call) RunAndReturn(run func(ctx 
 }
 
 // ListGalleryArtImages provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) ListGalleryArtImages(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]ArtImageRef, error) {
+func (_mock *MockArtRepository) ListGalleryArtImages(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]model.ArtImageRef, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, galleryID, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, galleryID, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3551,20 +3360,20 @@ func (_mock *MockArtRepository) ListGalleryArtImages(ctx context.Context, galler
 		panic("no return value specified for ListGalleryArtImages")
 	}
 
-	var r0 []ArtImageRef
+	var r0 []model.ArtImageRef
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) ([]ArtImageRef, error)); ok {
-		return returnFunc(ctx, galleryID, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryRef, ...*sql.Tx) ([]model.ArtImageRef, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) []ArtImageRef); ok {
-		r0 = returnFunc(ctx, galleryID, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryRef, ...*sql.Tx) []model.ArtImageRef); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ArtImageRef)
+			r0 = ret.Get(0).([]model.ArtImageRef)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, galleryID, userID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.GalleryRef, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3578,61 +3387,55 @@ type MockArtRepository_ListGalleryArtImages_Call struct {
 
 // ListGalleryArtImages is a helper method to define mock.On call
 //   - ctx context.Context
-//   - galleryID uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.GalleryRef
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) ListGalleryArtImages(ctx any, galleryID any, userID any, tx ...any) *MockArtRepository_ListGalleryArtImages_Call {
+func (_e *MockArtRepository_Expecter) ListGalleryArtImages(ctx any, s any, tx ...any) *MockArtRepository_ListGalleryArtImages_Call {
 	return &MockArtRepository_ListGalleryArtImages_Call{Call: _e.mock.On("ListGalleryArtImages",
-		append([]any{ctx, galleryID, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_ListGalleryArtImages_Call) Run(run func(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_ListGalleryArtImages_Call {
+func (_c *MockArtRepository_ListGalleryArtImages_Call) Run(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx)) *MockArtRepository_ListGalleryArtImages_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockArtRepository_ListGalleryArtImages_Call) Return(artImageRefs []ArtImageRef, err error) *MockArtRepository_ListGalleryArtImages_Call {
+func (_c *MockArtRepository_ListGalleryArtImages_Call) Return(artImageRefs []model.ArtImageRef, err error) *MockArtRepository_ListGalleryArtImages_Call {
 	_c.Call.Return(artImageRefs, err)
 	return _c
 }
 
-func (_c *MockArtRepository_ListGalleryArtImages_Call) RunAndReturn(run func(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) ([]ArtImageRef, error)) *MockArtRepository_ListGalleryArtImages_Call {
+func (_c *MockArtRepository_ListGalleryArtImages_Call) RunAndReturn(run func(ctx context.Context, s spec.GalleryRef, tx ...*sql.Tx) ([]model.ArtImageRef, error)) *MockArtRepository_ListGalleryArtImages_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RecordView provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) RecordView(ctx context.Context, artID uuid.UUID, viewerHash string, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockArtRepository) RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, artID, viewerHash, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, artID, viewerHash)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3642,16 +3445,16 @@ func (_mock *MockArtRepository) RecordView(ctx context.Context, artID uuid.UUID,
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, artID, viewerHash, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ViewRecord, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, artID, viewerHash, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ViewRecord, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, artID, viewerHash, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ViewRecord, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3665,39 +3468,33 @@ type MockArtRepository_RecordView_Call struct {
 
 // RecordView is a helper method to define mock.On call
 //   - ctx context.Context
-//   - artID uuid.UUID
-//   - viewerHash string
+//   - s spec.ViewRecord
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) RecordView(ctx any, artID any, viewerHash any, tx ...any) *MockArtRepository_RecordView_Call {
+func (_e *MockArtRepository_Expecter) RecordView(ctx any, s any, tx ...any) *MockArtRepository_RecordView_Call {
 	return &MockArtRepository_RecordView_Call{Call: _e.mock.On("RecordView",
-		append([]any{ctx, artID, viewerHash}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_RecordView_Call) Run(run func(ctx context.Context, artID uuid.UUID, viewerHash string, tx ...*sql.Tx)) *MockArtRepository_RecordView_Call {
+func (_c *MockArtRepository_RecordView_Call) Run(run func(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx)) *MockArtRepository_RecordView_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ViewRecord
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ViewRecord)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3708,18 +3505,18 @@ func (_c *MockArtRepository_RecordView_Call) Return(b bool, err error) *MockArtR
 	return _c
 }
 
-func (_c *MockArtRepository_RecordView_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, viewerHash string, tx ...*sql.Tx) (bool, error)) *MockArtRepository_RecordView_Call {
+func (_c *MockArtRepository_RecordView_Call) RunAndReturn(run func(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)) *MockArtRepository_RecordView_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetGallery provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) SetGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) SetGallery(ctx context.Context, s spec.ArtGalleryAssignment, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, artID, userID, galleryID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, artID, userID, galleryID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3728,8 +3525,8 @@ func (_mock *MockArtRepository) SetGallery(ctx context.Context, artID uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, artID, userID, galleryID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtGalleryAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3743,45 +3540,33 @@ type MockArtRepository_SetGallery_Call struct {
 
 // SetGallery is a helper method to define mock.On call
 //   - ctx context.Context
-//   - artID uuid.UUID
-//   - userID uuid.UUID
-//   - galleryID *uuid.UUID
+//   - s spec.ArtGalleryAssignment
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) SetGallery(ctx any, artID any, userID any, galleryID any, tx ...any) *MockArtRepository_SetGallery_Call {
+func (_e *MockArtRepository_Expecter) SetGallery(ctx any, s any, tx ...any) *MockArtRepository_SetGallery_Call {
 	return &MockArtRepository_SetGallery_Call{Call: _e.mock.On("SetGallery",
-		append([]any{ctx, artID, userID, galleryID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_SetGallery_Call) Run(run func(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_SetGallery_Call {
+func (_c *MockArtRepository_SetGallery_Call) Run(run func(ctx context.Context, s spec.ArtGalleryAssignment, tx ...*sql.Tx)) *MockArtRepository_SetGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ArtGalleryAssignment
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ArtGalleryAssignment)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 *uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(*uuid.UUID)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3792,18 +3577,18 @@ func (_c *MockArtRepository_SetGallery_Call) Return(err error) *MockArtRepositor
 	return _c
 }
 
-func (_c *MockArtRepository_SetGallery_Call) RunAndReturn(run func(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_SetGallery_Call {
+func (_c *MockArtRepository_SetGallery_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtGalleryAssignment, tx ...*sql.Tx) error) *MockArtRepository_SetGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetGalleryCover provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) SetGalleryCover(ctx context.Context, s spec.GalleryCoverUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, galleryID, userID, coverArtID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, galleryID, userID, coverArtID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3812,8 +3597,8 @@ func (_mock *MockArtRepository) SetGalleryCover(ctx context.Context, galleryID u
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, *uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, galleryID, userID, coverArtID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryCoverUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3827,45 +3612,33 @@ type MockArtRepository_SetGalleryCover_Call struct {
 
 // SetGalleryCover is a helper method to define mock.On call
 //   - ctx context.Context
-//   - galleryID uuid.UUID
-//   - userID uuid.UUID
-//   - coverArtID *uuid.UUID
+//   - s spec.GalleryCoverUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) SetGalleryCover(ctx any, galleryID any, userID any, coverArtID any, tx ...any) *MockArtRepository_SetGalleryCover_Call {
+func (_e *MockArtRepository_Expecter) SetGalleryCover(ctx any, s any, tx ...any) *MockArtRepository_SetGalleryCover_Call {
 	return &MockArtRepository_SetGalleryCover_Call{Call: _e.mock.On("SetGalleryCover",
-		append([]any{ctx, galleryID, userID, coverArtID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_SetGalleryCover_Call) Run(run func(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_SetGalleryCover_Call {
+func (_c *MockArtRepository_SetGalleryCover_Call) Run(run func(ctx context.Context, s spec.GalleryCoverUpdate, tx ...*sql.Tx)) *MockArtRepository_SetGalleryCover_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryCoverUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryCoverUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 *uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].(*uuid.UUID)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3876,18 +3649,18 @@ func (_c *MockArtRepository_SetGalleryCover_Call) Return(err error) *MockArtRepo
 	return _c
 }
 
-func (_c *MockArtRepository_SetGalleryCover_Call) RunAndReturn(run func(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_SetGalleryCover_Call {
+func (_c *MockArtRepository_SetGalleryCover_Call) RunAndReturn(run func(ctx context.Context, s spec.GalleryCoverUpdate, tx ...*sql.Tx) error) *MockArtRepository_SetGalleryCover_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unlike provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) Unlike(ctx context.Context, userID uuid.UUID, artID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) Unlike(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, artID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, artID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3896,8 +3669,8 @@ func (_mock *MockArtRepository) Unlike(ctx context.Context, userID uuid.UUID, ar
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, artID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.Like, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3911,39 +3684,33 @@ type MockArtRepository_Unlike_Call struct {
 
 // Unlike is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - artID uuid.UUID
+//   - s spec.Like
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) Unlike(ctx any, userID any, artID any, tx ...any) *MockArtRepository_Unlike_Call {
+func (_e *MockArtRepository_Expecter) Unlike(ctx any, s any, tx ...any) *MockArtRepository_Unlike_Call {
 	return &MockArtRepository_Unlike_Call{Call: _e.mock.On("Unlike",
-		append([]any{ctx, userID, artID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_Unlike_Call) Run(run func(ctx context.Context, userID uuid.UUID, artID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_Unlike_Call {
+func (_c *MockArtRepository_Unlike_Call) Run(run func(ctx context.Context, s spec.Like, tx ...*sql.Tx)) *MockArtRepository_Unlike_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.Like
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.Like)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3954,18 +3721,18 @@ func (_c *MockArtRepository_Unlike_Call) Return(err error) *MockArtRepository_Un
 	return _c
 }
 
-func (_c *MockArtRepository_Unlike_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, artID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_Unlike_Call {
+func (_c *MockArtRepository_Unlike_Call) RunAndReturn(run func(ctx context.Context, s spec.Like, tx ...*sql.Tx) error) *MockArtRepository_Unlike_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnlikeComment provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3974,8 +3741,8 @@ func (_mock *MockArtRepository) UnlikeComment(ctx context.Context, userID uuid.U
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3989,39 +3756,33 @@ type MockArtRepository_UnlikeComment_Call struct {
 
 // UnlikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockArtRepository_UnlikeComment_Call {
+func (_e *MockArtRepository_Expecter) UnlikeComment(ctx any, s any, tx ...any) *MockArtRepository_UnlikeComment_Call {
 	return &MockArtRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockArtRepository_UnlikeComment_Call {
+func (_c *MockArtRepository_UnlikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockArtRepository_UnlikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4032,18 +3793,18 @@ func (_c *MockArtRepository_UnlikeComment_Call) Return(err error) *MockArtReposi
 	return _c
 }
 
-func (_c *MockArtRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockArtRepository_UnlikeComment_Call {
+func (_c *MockArtRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockArtRepository_UnlikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateArt provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateArt(ctx context.Context, spec ArtUpdate, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateArt(ctx context.Context, s spec.ArtUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4052,8 +3813,8 @@ func (_mock *MockArtRepository) UpdateArt(ctx context.Context, spec ArtUpdate, t
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4067,22 +3828,22 @@ type MockArtRepository_UpdateArt_Call struct {
 
 // UpdateArt is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ArtUpdate
+//   - s spec.ArtUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateArt(ctx any, spec any, tx ...any) *MockArtRepository_UpdateArt_Call {
+func (_e *MockArtRepository_Expecter) UpdateArt(ctx any, s any, tx ...any) *MockArtRepository_UpdateArt_Call {
 	return &MockArtRepository_UpdateArt_Call{Call: _e.mock.On("UpdateArt",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateArt_Call) Run(run func(ctx context.Context, spec ArtUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateArt_Call {
+func (_c *MockArtRepository_UpdateArt_Call) Run(run func(ctx context.Context, s spec.ArtUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateArt_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ArtUpdate
+		var arg1 spec.ArtUpdate
 		if args[1] != nil {
-			arg1 = args[1].(ArtUpdate)
+			arg1 = args[1].(spec.ArtUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -4104,18 +3865,18 @@ func (_c *MockArtRepository_UpdateArt_Call) Return(err error) *MockArtRepository
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateArt_Call) RunAndReturn(run func(ctx context.Context, spec ArtUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateArt_Call {
+func (_c *MockArtRepository_UpdateArt_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateArt_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateComment provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, body, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, body)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4124,8 +3885,8 @@ func (_mock *MockArtRepository) UpdateComment(ctx context.Context, id uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4139,45 +3900,33 @@ type MockArtRepository_UpdateComment_Call struct {
 
 // UpdateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - body string
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any, tx ...any) *MockArtRepository_UpdateComment_Call {
+func (_e *MockArtRepository_Expecter) UpdateComment(ctx any, s any, tx ...any) *MockArtRepository_UpdateComment_Call {
 	return &MockArtRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
-		append([]any{ctx, id, userID, body}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockArtRepository_UpdateComment_Call {
+func (_c *MockArtRepository_UpdateComment_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4188,96 +3937,18 @@ func (_c *MockArtRepository_UpdateComment_Call) Return(err error) *MockArtReposi
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error) *MockArtRepository_UpdateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentAsAdmin provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, body, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id, body)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, body, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockArtRepository_UpdateCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentAsAdmin'
-type MockArtRepository_UpdateCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - body string
-//   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any, tx ...any) *MockArtRepository_UpdateCommentAsAdmin_Call {
-	return &MockArtRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin",
-		append([]any{ctx, id, body}, tx...)...)}
-}
-
-func (_c *MockArtRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockArtRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockArtRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockArtRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockArtRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaThumbnail provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4286,8 +3957,8 @@ func (_mock *MockArtRepository) UpdateCommentMediaThumbnail(ctx context.Context,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4301,39 +3972,33 @@ type MockArtRepository_UpdateCommentMediaThumbnail_Call struct {
 
 // UpdateCommentMediaThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockArtRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, s any, tx ...any) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockArtRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
-		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockArtRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4344,18 +4009,18 @@ func (_c *MockArtRepository_UpdateCommentMediaThumbnail_Call) Return(err error) 
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockArtRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaURL provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, mediaURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4364,8 +4029,8 @@ func (_mock *MockArtRepository) UpdateCommentMediaURL(ctx context.Context, id in
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4379,39 +4044,33 @@ type MockArtRepository_UpdateCommentMediaURL_Call struct {
 
 // UpdateCommentMediaURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - mediaURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockArtRepository_UpdateCommentMediaURL_Call {
+func (_e *MockArtRepository_Expecter) UpdateCommentMediaURL(ctx any, s any, tx ...any) *MockArtRepository_UpdateCommentMediaURL_Call {
 	return &MockArtRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
-		append([]any{ctx, id, mediaURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentMediaURL_Call {
+func (_c *MockArtRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4422,18 +4081,18 @@ func (_c *MockArtRepository_UpdateCommentMediaURL_Call) Return(err error) *MockA
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentMediaURL_Call {
+func (_c *MockArtRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentWithDetails provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateCommentWithDetails(ctx context.Context, spec ArtCommentUpdate, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateCommentWithDetails(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4442,8 +4101,8 @@ func (_mock *MockArtRepository) UpdateCommentWithDetails(ctx context.Context, sp
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtCommentUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4457,22 +4116,22 @@ type MockArtRepository_UpdateCommentWithDetails_Call struct {
 
 // UpdateCommentWithDetails is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ArtCommentUpdate
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateCommentWithDetails(ctx any, spec any, tx ...any) *MockArtRepository_UpdateCommentWithDetails_Call {
+func (_e *MockArtRepository_Expecter) UpdateCommentWithDetails(ctx any, s any, tx ...any) *MockArtRepository_UpdateCommentWithDetails_Call {
 	return &MockArtRepository_UpdateCommentWithDetails_Call{Call: _e.mock.On("UpdateCommentWithDetails",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateCommentWithDetails_Call) Run(run func(ctx context.Context, spec ArtCommentUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentWithDetails_Call {
+func (_c *MockArtRepository_UpdateCommentWithDetails_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateCommentWithDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ArtCommentUpdate
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(ArtCommentUpdate)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -4494,18 +4153,18 @@ func (_c *MockArtRepository_UpdateCommentWithDetails_Call) Return(err error) *Mo
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateCommentWithDetails_Call) RunAndReturn(run func(ctx context.Context, spec ArtCommentUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentWithDetails_Call {
+func (_c *MockArtRepository_UpdateCommentWithDetails_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateCommentWithDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateGallery provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateGallery(ctx context.Context, s spec.GalleryUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, name, description, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, name, description)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4514,8 +4173,8 @@ func (_mock *MockArtRepository) UpdateGallery(ctx context.Context, id uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, name, description, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.GalleryUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4529,51 +4188,33 @@ type MockArtRepository_UpdateGallery_Call struct {
 
 // UpdateGallery is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - name string
-//   - description string
+//   - s spec.GalleryUpdate
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateGallery(ctx any, id any, userID any, name any, description any, tx ...any) *MockArtRepository_UpdateGallery_Call {
+func (_e *MockArtRepository_Expecter) UpdateGallery(ctx any, s any, tx ...any) *MockArtRepository_UpdateGallery_Call {
 	return &MockArtRepository_UpdateGallery_Call{Call: _e.mock.On("UpdateGallery",
-		append([]any{ctx, id, userID, name, description}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateGallery_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, tx ...*sql.Tx)) *MockArtRepository_UpdateGallery_Call {
+func (_c *MockArtRepository_UpdateGallery_Call) Run(run func(ctx context.Context, s spec.GalleryUpdate, tx ...*sql.Tx)) *MockArtRepository_UpdateGallery_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.GalleryUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.GalleryUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4584,18 +4225,18 @@ func (_c *MockArtRepository_UpdateGallery_Call) Return(err error) *MockArtReposi
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateGallery_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, name string, description string, tx ...*sql.Tx) error) *MockArtRepository_UpdateGallery_Call {
+func (_c *MockArtRepository_UpdateGallery_Call) RunAndReturn(run func(ctx context.Context, s spec.GalleryUpdate, tx ...*sql.Tx) error) *MockArtRepository_UpdateGallery_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateWithTags provides a mock function for the type MockArtRepository
-func (_mock *MockArtRepository) UpdateWithTags(ctx context.Context, spec ArtUpdateWithTags, tx ...*sql.Tx) error {
+func (_mock *MockArtRepository) UpdateWithTags(ctx context.Context, s spec.ArtUpdateWithTags, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4604,8 +4245,8 @@ func (_mock *MockArtRepository) UpdateWithTags(ctx context.Context, spec ArtUpda
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ArtUpdateWithTags, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ArtUpdateWithTags, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4619,22 +4260,22 @@ type MockArtRepository_UpdateWithTags_Call struct {
 
 // UpdateWithTags is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ArtUpdateWithTags
+//   - s spec.ArtUpdateWithTags
 //   - tx ...*sql.Tx
-func (_e *MockArtRepository_Expecter) UpdateWithTags(ctx any, spec any, tx ...any) *MockArtRepository_UpdateWithTags_Call {
+func (_e *MockArtRepository_Expecter) UpdateWithTags(ctx any, s any, tx ...any) *MockArtRepository_UpdateWithTags_Call {
 	return &MockArtRepository_UpdateWithTags_Call{Call: _e.mock.On("UpdateWithTags",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockArtRepository_UpdateWithTags_Call) Run(run func(ctx context.Context, spec ArtUpdateWithTags, tx ...*sql.Tx)) *MockArtRepository_UpdateWithTags_Call {
+func (_c *MockArtRepository_UpdateWithTags_Call) Run(run func(ctx context.Context, s spec.ArtUpdateWithTags, tx ...*sql.Tx)) *MockArtRepository_UpdateWithTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ArtUpdateWithTags
+		var arg1 spec.ArtUpdateWithTags
 		if args[1] != nil {
-			arg1 = args[1].(ArtUpdateWithTags)
+			arg1 = args[1].(spec.ArtUpdateWithTags)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -4656,7 +4297,7 @@ func (_c *MockArtRepository_UpdateWithTags_Call) Return(err error) *MockArtRepos
 	return _c
 }
 
-func (_c *MockArtRepository_UpdateWithTags_Call) RunAndReturn(run func(ctx context.Context, spec ArtUpdateWithTags, tx ...*sql.Tx) error) *MockArtRepository_UpdateWithTags_Call {
+func (_c *MockArtRepository_UpdateWithTags_Call) RunAndReturn(run func(ctx context.Context, s spec.ArtUpdateWithTags, tx ...*sql.Tx) error) *MockArtRepository_UpdateWithTags_Call {
 	_c.Call.Return(run)
 	return _c
 }

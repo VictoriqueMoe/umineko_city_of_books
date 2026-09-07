@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory/params"
 
@@ -15,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTheorySpec(userID uuid.UUID, title string, evidence ...dto.EvidenceInput) repository.NewTheory {
-	return repository.NewTheory{
+func newTheorySpec(userID uuid.UUID, title string, evidence ...dto.EvidenceInput) spec.NewTheory {
+	return spec.NewTheory{
 		UserID:   userID,
 		Title:    title,
 		Body:     "body of " + title,
@@ -26,8 +27,8 @@ func newTheorySpec(userID uuid.UUID, title string, evidence ...dto.EvidenceInput
 	}
 }
 
-func newTheoryUpdate(id uuid.UUID, userID uuid.UUID, title string) repository.TheoryUpdate {
-	return repository.TheoryUpdate{
+func newTheoryUpdate(id uuid.UUID, userID uuid.UUID, title string) spec.TheoryUpdate {
+	return spec.TheoryUpdate{
 		ID:      id,
 		UserID:  userID,
 		Title:   title,
@@ -68,7 +69,7 @@ func TestTheoryDAO_Create_DefaultsSeriesToUmineko(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	req := repository.NewTheory{UserID: user.ID, Title: "T", Body: "B", Episode: 1}
+	req := spec.NewTheory{UserID: user.ID, Title: "T", Body: "B", Episode: 1}
 
 	// when
 	created, err := repos.Theory.Create(context.Background(), req)
@@ -122,10 +123,10 @@ func TestTheoryDAO_GetByID_VoteAndSideCounts(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	id := createTheory(t, repos, author.ID, "T")
-	require.NoError(t, repos.Theory.VoteTheory(ctx, voter.ID, id, 1))
-	_, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: id, UserID: responder.ID, Side: "with_love", Body: "yes"})
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: id, Value: 1}))
+	_, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: id, UserID: responder.ID, Side: "with_love", Body: "yes"})
 	require.NoError(t, err)
-	_, err = repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: id, UserID: responder.ID, Side: "without_love", Body: "no"})
+	_, err = repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: id, UserID: responder.ID, Side: "without_love", Body: "no"})
 	require.NoError(t, err)
 
 	// when
@@ -144,7 +145,7 @@ func TestTheoryDAO_List_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	rows, total, err := repos.Theory.List(context.Background(), defaultListParams(), uuid.Nil, nil)
+	rows, total, err := repos.Theory.List(context.Background(), spec.TheoryListFilter{Params: defaultListParams(), ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -157,14 +158,14 @@ func TestTheoryDAO_List_FiltersBySeries(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	_, err := repos.Theory.Create(ctx, repository.NewTheory{UserID: user.ID, Title: "u", Body: "b", Series: "umineko"})
+	_, err := repos.Theory.Create(ctx, spec.NewTheory{UserID: user.ID, Title: "u", Body: "b", Series: "umineko"})
 	require.NoError(t, err)
-	_, err = repos.Theory.Create(ctx, repository.NewTheory{UserID: user.ID, Title: "h", Body: "b", Series: "higurashi"})
+	_, err = repos.Theory.Create(ctx, spec.NewTheory{UserID: user.ID, Title: "h", Body: "b", Series: "higurashi"})
 	require.NoError(t, err)
 	p := params.NewListParams("new", 0, uuid.Nil, "", "higurashi", 20, 0)
 
 	// when
-	rows, total, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, total, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -178,14 +179,14 @@ func TestTheoryDAO_List_FiltersByEpisode(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	_, err := repos.Theory.Create(ctx, repository.NewTheory{UserID: user.ID, Title: "e1", Body: "b", Episode: 1, Series: "umineko"})
+	_, err := repos.Theory.Create(ctx, spec.NewTheory{UserID: user.ID, Title: "e1", Body: "b", Episode: 1, Series: "umineko"})
 	require.NoError(t, err)
-	_, err = repos.Theory.Create(ctx, repository.NewTheory{UserID: user.ID, Title: "e2", Body: "b", Episode: 2, Series: "umineko"})
+	_, err = repos.Theory.Create(ctx, spec.NewTheory{UserID: user.ID, Title: "e2", Body: "b", Episode: 2, Series: "umineko"})
 	require.NoError(t, err)
 	p := params.NewListParams("new", 2, uuid.Nil, "", "umineko", 20, 0)
 
 	// when
-	rows, total, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, total, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -205,7 +206,7 @@ func TestTheoryDAO_List_FiltersByAuthor(t *testing.T) {
 	p := params.NewListParams("new", 0, a.ID, "", "umineko", 20, 0)
 
 	// when
-	rows, total, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, total, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -224,7 +225,7 @@ func TestTheoryDAO_List_FiltersBySearch(t *testing.T) {
 	p := params.NewListParams("new", 0, uuid.Nil, "Golden", "umineko", 20, 0)
 
 	// when
-	rows, total, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, total, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -243,7 +244,11 @@ func TestTheoryDAO_List_ExcludesUsers(t *testing.T) {
 	createTheory(t, repos, b.ID, "b1")
 
 	// when
-	rows, total, err := repos.Theory.List(ctx, defaultListParams(), uuid.Nil, []uuid.UUID{b.ID})
+	rows, total, err := repos.Theory.List(ctx, spec.TheoryListFilter{
+		Params:         defaultListParams(),
+		ViewerID:       uuid.Nil,
+		ExcludeUserIDs: []uuid.UUID{b.ID},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -265,11 +270,11 @@ func TestTheoryDAO_List_Pagination(t *testing.T) {
 	p3 := params.NewListParams("new", 0, uuid.Nil, "", "umineko", 2, 4)
 
 	// when
-	page1, total, err := repos.Theory.List(ctx, p1, uuid.Nil, nil)
+	page1, total, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p1, ViewerID: uuid.Nil})
 	require.NoError(t, err)
-	page2, _, err := repos.Theory.List(ctx, p2, uuid.Nil, nil)
+	page2, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p2, ViewerID: uuid.Nil})
 	require.NoError(t, err)
-	page3, _, err := repos.Theory.List(ctx, p3, uuid.Nil, nil)
+	page3, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p3, ViewerID: uuid.Nil})
 	require.NoError(t, err)
 
 	// then
@@ -286,12 +291,12 @@ func TestTheoryDAO_List_OrderByCredibility(t *testing.T) {
 	ctx := context.Background()
 	low := createTheory(t, repos, user.ID, "low")
 	high := createTheory(t, repos, user.ID, "high")
-	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, low, 10.0))
-	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, high, 90.0))
+	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, spec.TheoryCredibilityUpdate{TheoryID: low, Score: 10.0}))
+	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, spec.TheoryCredibilityUpdate{TheoryID: high, Score: 90.0}))
 	p := params.NewListParams("credibility", 0, uuid.Nil, "", "umineko", 20, 0)
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -307,12 +312,12 @@ func TestTheoryDAO_List_OrderByCredibilityAsc(t *testing.T) {
 	ctx := context.Background()
 	low := createTheory(t, repos, user.ID, "low")
 	high := createTheory(t, repos, user.ID, "high")
-	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, low, 10.0))
-	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, high, 90.0))
+	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, spec.TheoryCredibilityUpdate{TheoryID: low, Score: 10.0}))
+	require.NoError(t, repos.Theory.UpdateCredibilityScore(ctx, spec.TheoryCredibilityUpdate{TheoryID: high, Score: 90.0}))
 	p := params.NewListParams("credibility_asc", 0, uuid.Nil, "", "umineko", 20, 0)
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -329,11 +334,11 @@ func TestTheoryDAO_List_OrderByPopular(t *testing.T) {
 	ctx := context.Background()
 	quiet := createTheory(t, repos, author.ID, "quiet")
 	loud := createTheory(t, repos, author.ID, "loud")
-	require.NoError(t, repos.Theory.VoteTheory(ctx, voter.ID, loud, 1))
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: loud, Value: 1}))
 	p := params.NewListParams("popular", 0, uuid.Nil, "", "umineko", 20, 0)
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -351,12 +356,12 @@ func TestTheoryDAO_List_OrderByControversial(t *testing.T) {
 	ctx := context.Background()
 	calm := createTheory(t, repos, author.ID, "calm")
 	hot := createTheory(t, repos, author.ID, "hot")
-	require.NoError(t, repos.Theory.VoteTheory(ctx, v1.ID, hot, 1))
-	require.NoError(t, repos.Theory.VoteTheory(ctx, v2.ID, hot, -1))
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: v1.ID, TargetID: hot, Value: 1}))
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: v2.ID, TargetID: hot, Value: -1}))
 	p := params.NewListParams("controversial", 0, uuid.Nil, "", "umineko", 20, 0)
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -375,7 +380,7 @@ func TestTheoryDAO_List_OrderByOld(t *testing.T) {
 	p := params.NewListParams("old", 0, uuid.Nil, "", "umineko", 20, 0)
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, p, uuid.Nil, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: p, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -392,11 +397,11 @@ func TestTheoryDAO_List_TruncatesLongBody(t *testing.T) {
 	for range 250 {
 		body.WriteString("x")
 	}
-	_, err := repos.Theory.Create(ctx, repository.NewTheory{UserID: user.ID, Title: "long", Body: body.String(), Series: "umineko"})
+	_, err := repos.Theory.Create(ctx, spec.NewTheory{UserID: user.ID, Title: "long", Body: body.String(), Series: "umineko"})
 	require.NoError(t, err)
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, defaultListParams(), uuid.Nil, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: defaultListParams(), ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -412,10 +417,10 @@ func TestTheoryDAO_List_IncludesUserVote(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	id := createTheory(t, repos, author.ID, "t")
-	require.NoError(t, repos.Theory.VoteTheory(ctx, voter.ID, id, -1))
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: id, Value: -1}))
 
 	// when
-	rows, _, err := repos.Theory.List(ctx, defaultListParams(), voter.ID, nil)
+	rows, _, err := repos.Theory.List(ctx, spec.TheoryListFilter{Params: defaultListParams(), ViewerID: voter.ID})
 
 	// then
 	require.NoError(t, err)
@@ -429,7 +434,7 @@ func TestTheoryDAO_Update(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	id := createTheory(t, repos, user.ID, "old")
-	req := repository.TheoryUpdate{ID: id, UserID: user.ID, Title: "new", Body: "newbody", Episode: 5,
+	req := spec.TheoryUpdate{ID: id, UserID: user.ID, Title: "new", Body: "newbody", Episode: 5,
 		Evidence: []dto.EvidenceInput{{AudioID: "x", Note: "n"}}}
 
 	// when
@@ -472,7 +477,7 @@ func TestTheoryDAO_UpdateAsAdmin(t *testing.T) {
 	id := createTheory(t, repos, owner.ID, "x")
 
 	// when
-	err := repos.Theory.Update(ctx, repository.TheoryUpdate{ID: id, UserID: uuid.Nil, Title: "modded", Body: "modbody", Episode: 3, AsAdmin: true})
+	err := repos.Theory.Update(ctx, spec.TheoryUpdate{ID: id, UserID: uuid.Nil, Title: "modded", Body: "modbody", Episode: 3, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -485,11 +490,11 @@ func TestTheoryDAO_UpdateAsAdmin(t *testing.T) {
 func TestTheoryDAO_UpdateAsAdmin_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	spec := newTheoryUpdate(uuid.New(), uuid.Nil, "x")
-	spec.AsAdmin = true
+	update := newTheoryUpdate(uuid.New(), uuid.Nil, "x")
+	update.AsAdmin = true
 
 	// when
-	err := repos.Theory.Update(context.Background(), spec)
+	err := repos.Theory.Update(context.Background(), update)
 
 	// then
 	require.Error(t, err)
@@ -503,7 +508,7 @@ func TestTheoryDAO_Delete(t *testing.T) {
 	id := createTheory(t, repos, user.ID, "x")
 
 	// when
-	err := repos.Theory.Delete(ctx, id, user.ID)
+	err := repos.Theory.Delete(ctx, spec.OwnedDeletion{ID: id, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -521,7 +526,7 @@ func TestTheoryDAO_Delete_OnlyOwner(t *testing.T) {
 	id := createTheory(t, repos, owner.ID, "x")
 
 	// when
-	err := repos.Theory.Delete(ctx, id, other.ID)
+	err := repos.Theory.Delete(ctx, spec.OwnedDeletion{ID: id, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -604,7 +609,7 @@ func TestTheoryDAO_CreateResponse(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	req := repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "yes",
+	req := spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "yes",
 		Evidence: []dto.EvidenceInput{{AudioID: "x", Note: "n"}}}
 
 	// when
@@ -626,12 +631,12 @@ func TestTheoryDAO_CreateResponse_WithParent(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	parent, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "p"})
+	parent, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "p"})
 	require.NoError(t, err)
 	parentID := parent.ID
 
 	// when
-	child, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, ParentID: &parentID, Side: "with_love", Body: "c"})
+	child, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, ParentID: &parentID, Side: "with_love", Body: "c"})
 
 	// then
 	require.NoError(t, err)
@@ -648,16 +653,16 @@ func TestTheoryDAO_DeleteResponse(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
 
 	// when
-	err = repos.Theory.DeleteResponse(ctx, rid, responder.ID)
+	err = repos.Theory.DeleteResponse(ctx, spec.OwnedDeletion{ID: rid, UserID: responder.ID})
 
 	// then
 	require.NoError(t, err)
-	resps, err := repos.Theory.GetResponses(ctx, tid, uuid.Nil)
+	resps, err := repos.Theory.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: tid, ViewerID: uuid.Nil})
 	require.NoError(t, err)
 	assert.Empty(t, resps)
 }
@@ -670,12 +675,12 @@ func TestTheoryDAO_DeleteResponse_OnlyOwner(t *testing.T) {
 	other := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
 
 	// when
-	err = repos.Theory.DeleteResponse(ctx, rid, other.ID)
+	err = repos.Theory.DeleteResponse(ctx, spec.OwnedDeletion{ID: rid, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -688,7 +693,7 @@ func TestTheoryDAO_DeleteResponseAsAdmin(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
 
@@ -717,14 +722,14 @@ func TestTheoryDAO_GetResponses_BuildsTree(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	parentRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "parent"})
+	parentRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "parent"})
 	require.NoError(t, err)
 	parent := parentRow.ID
-	_, err = repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, ParentID: &parent, Side: "with_love", Body: "child"})
+	_, err = repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, ParentID: &parent, Side: "with_love", Body: "child"})
 	require.NoError(t, err)
 
 	// when
-	rows, err := repos.Theory.GetResponses(ctx, tid, uuid.Nil)
+	rows, err := repos.Theory.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: tid, ViewerID: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -742,14 +747,14 @@ func TestTheoryDAO_GetResponses_IncludesEvidenceAndUserVote(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x",
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x",
 		Evidence: []dto.EvidenceInput{{AudioID: "ev", Note: "n"}}})
 	require.NoError(t, err)
 	rid := ridRow.ID
-	require.NoError(t, repos.Theory.VoteResponse(ctx, voter.ID, rid, 1))
+	require.NoError(t, repos.Theory.VoteResponse(ctx, spec.Vote{UserID: voter.ID, TargetID: rid, Value: 1}))
 
 	// when
-	rows, err := repos.Theory.GetResponses(ctx, tid, voter.ID)
+	rows, err := repos.Theory.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: tid, ViewerID: voter.ID})
 
 	// then
 	require.NoError(t, err)
@@ -767,7 +772,7 @@ func TestTheoryDAO_GetResponseEvidence(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x",
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x",
 		Evidence: []dto.EvidenceInput{
 			{AudioID: "first", Note: "1"},
 			{AudioID: "second", Note: "2", Lang: "ja"},
@@ -796,11 +801,11 @@ func TestTheoryDAO_VoteTheory_Insert(t *testing.T) {
 	tid := createTheory(t, repos, author.ID, "t")
 
 	// when
-	err := repos.Theory.VoteTheory(ctx, voter.ID, tid, 1)
+	err := repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: tid, Value: 1})
 
 	// then
 	require.NoError(t, err)
-	v, err := repos.Theory.GetUserTheoryVote(ctx, voter.ID, tid)
+	v, err := repos.Theory.GetUserTheoryVote(ctx, spec.TheoryVoteLookup{UserID: voter.ID, TheoryID: tid})
 	require.NoError(t, err)
 	assert.Equal(t, 1, v)
 }
@@ -812,14 +817,14 @@ func TestTheoryDAO_VoteTheory_Update(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	require.NoError(t, repos.Theory.VoteTheory(ctx, voter.ID, tid, 1))
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: tid, Value: 1}))
 
 	// when
-	err := repos.Theory.VoteTheory(ctx, voter.ID, tid, -1)
+	err := repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: tid, Value: -1})
 
 	// then
 	require.NoError(t, err)
-	v, err := repos.Theory.GetUserTheoryVote(ctx, voter.ID, tid)
+	v, err := repos.Theory.GetUserTheoryVote(ctx, spec.TheoryVoteLookup{UserID: voter.ID, TheoryID: tid})
 	require.NoError(t, err)
 	assert.Equal(t, -1, v)
 }
@@ -831,14 +836,14 @@ func TestTheoryDAO_VoteTheory_Zero_Deletes(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	require.NoError(t, repos.Theory.VoteTheory(ctx, voter.ID, tid, 1))
+	require.NoError(t, repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: tid, Value: 1}))
 
 	// when
-	err := repos.Theory.VoteTheory(ctx, voter.ID, tid, 0)
+	err := repos.Theory.VoteTheory(ctx, spec.Vote{UserID: voter.ID, TargetID: tid, Value: 0})
 
 	// then
 	require.NoError(t, err)
-	v, err := repos.Theory.GetUserTheoryVote(ctx, voter.ID, tid)
+	v, err := repos.Theory.GetUserTheoryVote(ctx, spec.TheoryVoteLookup{UserID: voter.ID, TheoryID: tid})
 	require.NoError(t, err)
 	assert.Equal(t, 0, v)
 }
@@ -851,16 +856,16 @@ func TestTheoryDAO_VoteResponse_Insert(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
 
 	// when
-	err = repos.Theory.VoteResponse(ctx, voter.ID, rid, 1)
+	err = repos.Theory.VoteResponse(ctx, spec.Vote{UserID: voter.ID, TargetID: rid, Value: 1})
 
 	// then
 	require.NoError(t, err)
-	rows, err := repos.Theory.GetResponses(ctx, tid, voter.ID)
+	rows, err := repos.Theory.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: tid, ViewerID: voter.ID})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, 1, rows[0].UserVote)
@@ -874,17 +879,17 @@ func TestTheoryDAO_VoteResponse_Update(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
-	require.NoError(t, repos.Theory.VoteResponse(ctx, voter.ID, rid, 1))
+	require.NoError(t, repos.Theory.VoteResponse(ctx, spec.Vote{UserID: voter.ID, TargetID: rid, Value: 1}))
 
 	// when
-	err = repos.Theory.VoteResponse(ctx, voter.ID, rid, -1)
+	err = repos.Theory.VoteResponse(ctx, spec.Vote{UserID: voter.ID, TargetID: rid, Value: -1})
 
 	// then
 	require.NoError(t, err)
-	rows, err := repos.Theory.GetResponses(ctx, tid, voter.ID)
+	rows, err := repos.Theory.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: tid, ViewerID: voter.ID})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, -1, rows[0].UserVote)
@@ -898,17 +903,17 @@ func TestTheoryDAO_VoteResponse_Zero_Deletes(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
-	require.NoError(t, repos.Theory.VoteResponse(ctx, voter.ID, rid, 1))
+	require.NoError(t, repos.Theory.VoteResponse(ctx, spec.Vote{UserID: voter.ID, TargetID: rid, Value: 1}))
 
 	// when
-	err = repos.Theory.VoteResponse(ctx, voter.ID, rid, 0)
+	err = repos.Theory.VoteResponse(ctx, spec.Vote{UserID: voter.ID, TargetID: rid, Value: 0})
 
 	// then
 	require.NoError(t, err)
-	rows, err := repos.Theory.GetResponses(ctx, tid, voter.ID)
+	rows, err := repos.Theory.GetResponses(ctx, spec.TheoryResponseQuery{TheoryID: tid, ViewerID: voter.ID})
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Equal(t, 0, rows[0].UserVote)
@@ -923,7 +928,7 @@ func TestTheoryDAO_GetUserTheoryVote_None(t *testing.T) {
 	tid := createTheory(t, repos, author.ID, "t")
 
 	// when
-	v, err := repos.Theory.GetUserTheoryVote(ctx, voter.ID, tid)
+	v, err := repos.Theory.GetUserTheoryVote(ctx, spec.TheoryVoteLookup{UserID: voter.ID, TheoryID: tid})
 
 	// then
 	require.NoError(t, err)
@@ -963,7 +968,7 @@ func TestTheoryDAO_GetResponseInfo(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
 	rid := ridRow.ID
 
@@ -1018,7 +1023,7 @@ func TestTheoryDAO_GetTheorySeries(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
-	created, err := repos.Theory.Create(ctx, repository.NewTheory{UserID: user.ID, Title: "t", Body: "b", Series: "higurashi"})
+	created, err := repos.Theory.Create(ctx, spec.NewTheory{UserID: user.ID, Title: "t", Body: "b", Series: "higurashi"})
 	require.NoError(t, err)
 	id := created.ID
 
@@ -1047,11 +1052,11 @@ func TestTheoryDAO_GetRecentActivityByUser(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, user.ID, "MyTheory")
-	_, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: user.ID, Side: "with_love", Body: "resp"})
+	_, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: user.ID, Side: "with_love", Body: "resp"})
 	require.NoError(t, err)
 
 	// when
-	items, total, err := repos.Theory.GetRecentActivityByUser(ctx, user.ID, 10, 0)
+	items, total, err := repos.Theory.GetRecentActivityByUser(ctx, spec.UserActivityQuery{UserID: user.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1068,7 +1073,7 @@ func TestTheoryDAO_GetRecentActivityByUser_Empty(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	items, total, err := repos.Theory.GetRecentActivityByUser(context.Background(), user.ID, 10, 0)
+	items, total, err := repos.Theory.GetRecentActivityByUser(context.Background(), spec.UserActivityQuery{UserID: user.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1086,9 +1091,9 @@ func TestTheoryDAO_GetRecentActivityByUser_Pagination(t *testing.T) {
 	}
 
 	// when
-	page1, total, err := repos.Theory.GetRecentActivityByUser(ctx, user.ID, 2, 0)
+	page1, total, err := repos.Theory.GetRecentActivityByUser(ctx, spec.UserActivityQuery{UserID: user.ID, Limit: 2, Offset: 0})
 	require.NoError(t, err)
-	page2, _, err := repos.Theory.GetRecentActivityByUser(ctx, user.ID, 2, 2)
+	page2, _, err := repos.Theory.GetRecentActivityByUser(ctx, spec.UserActivityQuery{UserID: user.ID, Limit: 2, Offset: 2})
 	require.NoError(t, err)
 
 	// then
@@ -1122,9 +1127,9 @@ func TestTheoryDAO_CountUserResponsesToday(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	_, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
+	_, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x"})
 	require.NoError(t, err)
-	_, err = repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "without_love", Body: "y"})
+	_, err = repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "without_love", Body: "y"})
 	require.NoError(t, err)
 
 	// when
@@ -1143,7 +1148,7 @@ func TestTheoryDAO_UpdateCredibilityScore(t *testing.T) {
 	tid := createTheory(t, repos, user.ID, "t")
 
 	// when
-	err := repos.Theory.UpdateCredibilityScore(ctx, tid, 77.5)
+	err := repos.Theory.UpdateCredibilityScore(ctx, spec.TheoryCredibilityUpdate{TheoryID: tid, Score: 77.5})
 
 	// then
 	require.NoError(t, err)
@@ -1160,10 +1165,10 @@ func TestTheoryDAO_GetResponseEvidenceWeights(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	_, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "wl",
+	_, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "wl",
 		Evidence: []dto.EvidenceInput{{AudioID: "a", Note: "n"}, {AudioID: "b", Note: "n"}}})
 	require.NoError(t, err)
-	_, err = repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "without_love", Body: "wol",
+	_, err = repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "without_love", Body: "wol",
 		Evidence: []dto.EvidenceInput{{AudioID: "c", Note: "n"}}})
 	require.NoError(t, err)
 
@@ -1183,11 +1188,11 @@ func TestTheoryDAO_GetResponseEvidenceWeights_ExcludesReplies(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	parentRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "p",
+	parentRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "p",
 		Evidence: []dto.EvidenceInput{{AudioID: "a", Note: "n"}}})
 	require.NoError(t, err)
 	parent := parentRow.ID
-	_, err = repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, ParentID: &parent, Side: "with_love", Body: "child",
+	_, err = repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, ParentID: &parent, Side: "with_love", Body: "child",
 		Evidence: []dto.EvidenceInput{{AudioID: "b", Note: "n"}, {AudioID: "c", Note: "n"}}})
 	require.NoError(t, err)
 
@@ -1223,7 +1228,7 @@ func TestTheoryDAO_SetEvidenceTruthWeight(t *testing.T) {
 	responder := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 	tid := createTheory(t, repos, author.ID, "t")
-	ridRow, err := repos.Theory.CreateResponse(ctx, repository.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x",
+	ridRow, err := repos.Theory.CreateResponse(ctx, spec.NewTheoryResponse{TheoryID: tid, UserID: responder.ID, Side: "with_love", Body: "x",
 		Evidence: []dto.EvidenceInput{{AudioID: "a", Note: "n"}}})
 	require.NoError(t, err)
 	rid := ridRow.ID
@@ -1232,7 +1237,7 @@ func TestTheoryDAO_SetEvidenceTruthWeight(t *testing.T) {
 	require.Len(t, ev, 1)
 
 	// when
-	err = repos.Theory.SetEvidenceTruthWeight(ctx, ev[0].ID, 3.5)
+	err = repos.Theory.SetEvidenceTruthWeight(ctx, spec.EvidenceTruthWeightUpdate{EvidenceID: ev[0].ID, Weight: 3.5})
 
 	// then
 	require.NoError(t, err)

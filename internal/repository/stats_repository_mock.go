@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -39,7 +40,7 @@ func (_m *MockStatsRepository) EXPECT() *MockStatsRepository_Expecter {
 }
 
 // GetMostActiveUsers provides a mock function for the type MockStatsRepository
-func (_mock *MockStatsRepository) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]ActiveUser, error) {
+func (_mock *MockStatsRepository) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.ActiveUser, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, limit, tx)
@@ -52,16 +53,16 @@ func (_mock *MockStatsRepository) GetMostActiveUsers(ctx context.Context, limit 
 		panic("no return value specified for GetMostActiveUsers")
 	}
 
-	var r0 []ActiveUser
+	var r0 []model.ActiveUser
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]ActiveUser, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) ([]model.ActiveUser, error)); ok {
 		return returnFunc(ctx, limit, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []ActiveUser); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, int, ...*sql.Tx) []model.ActiveUser); ok {
 		r0 = returnFunc(ctx, limit, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ActiveUser)
+			r0 = ret.Get(0).([]model.ActiveUser)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, int, ...*sql.Tx) error); ok {
@@ -111,18 +112,18 @@ func (_c *MockStatsRepository_GetMostActiveUsers_Call) Run(run func(ctx context.
 	return _c
 }
 
-func (_c *MockStatsRepository_GetMostActiveUsers_Call) Return(activeUsers []ActiveUser, err error) *MockStatsRepository_GetMostActiveUsers_Call {
+func (_c *MockStatsRepository_GetMostActiveUsers_Call) Return(activeUsers []model.ActiveUser, err error) *MockStatsRepository_GetMostActiveUsers_Call {
 	_c.Call.Return(activeUsers, err)
 	return _c
 }
 
-func (_c *MockStatsRepository_GetMostActiveUsers_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]ActiveUser, error)) *MockStatsRepository_GetMostActiveUsers_Call {
+func (_c *MockStatsRepository_GetMostActiveUsers_Call) RunAndReturn(run func(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.ActiveUser, error)) *MockStatsRepository_GetMostActiveUsers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetOverview provides a mock function for the type MockStatsRepository
-func (_mock *MockStatsRepository) GetOverview(ctx context.Context, tx ...*sql.Tx) (*SiteStats, error) {
+func (_mock *MockStatsRepository) GetOverview(ctx context.Context, tx ...*sql.Tx) (*model.SiteStats, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -135,16 +136,16 @@ func (_mock *MockStatsRepository) GetOverview(ctx context.Context, tx ...*sql.Tx
 		panic("no return value specified for GetOverview")
 	}
 
-	var r0 *SiteStats
+	var r0 *model.SiteStats
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (*SiteStats, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (*model.SiteStats, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) *SiteStats); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) *model.SiteStats); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*SiteStats)
+			r0 = ret.Get(0).(*model.SiteStats)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -188,12 +189,12 @@ func (_c *MockStatsRepository_GetOverview_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockStatsRepository_GetOverview_Call) Return(siteStats *SiteStats, err error) *MockStatsRepository_GetOverview_Call {
+func (_c *MockStatsRepository_GetOverview_Call) Return(siteStats *model.SiteStats, err error) *MockStatsRepository_GetOverview_Call {
 	_c.Call.Return(siteStats, err)
 	return _c
 }
 
-func (_c *MockStatsRepository_GetOverview_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (*SiteStats, error)) *MockStatsRepository_GetOverview_Call {
+func (_c *MockStatsRepository_GetOverview_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (*model.SiteStats, error)) *MockStatsRepository_GetOverview_Call {
 	_c.Call.Return(run)
 	return _c
 }

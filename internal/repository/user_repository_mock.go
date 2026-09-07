@@ -7,8 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -114,12 +114,12 @@ func (_c *MockUserRepository_AdminDeleteAccount_Call) RunAndReturn(run func(ctx 
 }
 
 // ApproveUser provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) ApproveUser(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) ApproveUser(ctx context.Context, s spec.UserApproval, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, approvedBy, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, approvedBy)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -128,8 +128,8 @@ func (_mock *MockUserRepository) ApproveUser(ctx context.Context, userID uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, approvedBy, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserApproval, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -143,39 +143,33 @@ type MockUserRepository_ApproveUser_Call struct {
 
 // ApproveUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - approvedBy uuid.UUID
+//   - s spec.UserApproval
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) ApproveUser(ctx any, userID any, approvedBy any, tx ...any) *MockUserRepository_ApproveUser_Call {
+func (_e *MockUserRepository_Expecter) ApproveUser(ctx any, s any, tx ...any) *MockUserRepository_ApproveUser_Call {
 	return &MockUserRepository_ApproveUser_Call{Call: _e.mock.On("ApproveUser",
-		append([]any{ctx, userID, approvedBy}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_ApproveUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx)) *MockUserRepository_ApproveUser_Call {
+func (_c *MockUserRepository_ApproveUser_Call) Run(run func(ctx context.Context, s spec.UserApproval, tx ...*sql.Tx)) *MockUserRepository_ApproveUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserApproval
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserApproval)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -186,18 +180,18 @@ func (_c *MockUserRepository_ApproveUser_Call) Return(err error) *MockUserReposi
 	return _c
 }
 
-func (_c *MockUserRepository_ApproveUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, approvedBy uuid.UUID, tx ...*sql.Tx) error) *MockUserRepository_ApproveUser_Call {
+func (_c *MockUserRepository_ApproveUser_Call) RunAndReturn(run func(ctx context.Context, s spec.UserApproval, tx ...*sql.Tx) error) *MockUserRepository_ApproveUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // BanUser provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) BanUser(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) BanUser(ctx context.Context, s spec.UserBan, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, bannedBy, reason, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, bannedBy, reason)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -206,8 +200,8 @@ func (_mock *MockUserRepository) BanUser(ctx context.Context, userID uuid.UUID, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, bannedBy, reason, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserBan, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -221,45 +215,33 @@ type MockUserRepository_BanUser_Call struct {
 
 // BanUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - bannedBy uuid.UUID
-//   - reason string
+//   - s spec.UserBan
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) BanUser(ctx any, userID any, bannedBy any, reason any, tx ...any) *MockUserRepository_BanUser_Call {
+func (_e *MockUserRepository_Expecter) BanUser(ctx any, s any, tx ...any) *MockUserRepository_BanUser_Call {
 	return &MockUserRepository_BanUser_Call{Call: _e.mock.On("BanUser",
-		append([]any{ctx, userID, bannedBy, reason}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_BanUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string, tx ...*sql.Tx)) *MockUserRepository_BanUser_Call {
+func (_c *MockUserRepository_BanUser_Call) Run(run func(ctx context.Context, s spec.UserBan, tx ...*sql.Tx)) *MockUserRepository_BanUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserBan
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserBan)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -270,18 +252,18 @@ func (_c *MockUserRepository_BanUser_Call) Return(err error) *MockUserRepository
 	return _c
 }
 
-func (_c *MockUserRepository_BanUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, bannedBy uuid.UUID, reason string, tx ...*sql.Tx) error) *MockUserRepository_BanUser_Call {
+func (_c *MockUserRepository_BanUser_Call) RunAndReturn(run func(ctx context.Context, s spec.UserBan, tx ...*sql.Tx) error) *MockUserRepository_BanUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ConfirmEmailVerification provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) ConfirmEmailVerification(ctx context.Context, userID uuid.UUID, tokenHash string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) ConfirmEmailVerification(ctx context.Context, s spec.UserEmailConfirmation, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, tokenHash, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, tokenHash)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -290,8 +272,8 @@ func (_mock *MockUserRepository) ConfirmEmailVerification(ctx context.Context, u
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, tokenHash, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserEmailConfirmation, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -305,39 +287,33 @@ type MockUserRepository_ConfirmEmailVerification_Call struct {
 
 // ConfirmEmailVerification is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - tokenHash string
+//   - s spec.UserEmailConfirmation
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) ConfirmEmailVerification(ctx any, userID any, tokenHash any, tx ...any) *MockUserRepository_ConfirmEmailVerification_Call {
+func (_e *MockUserRepository_Expecter) ConfirmEmailVerification(ctx any, s any, tx ...any) *MockUserRepository_ConfirmEmailVerification_Call {
 	return &MockUserRepository_ConfirmEmailVerification_Call{Call: _e.mock.On("ConfirmEmailVerification",
-		append([]any{ctx, userID, tokenHash}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_ConfirmEmailVerification_Call) Run(run func(ctx context.Context, userID uuid.UUID, tokenHash string, tx ...*sql.Tx)) *MockUserRepository_ConfirmEmailVerification_Call {
+func (_c *MockUserRepository_ConfirmEmailVerification_Call) Run(run func(ctx context.Context, s spec.UserEmailConfirmation, tx ...*sql.Tx)) *MockUserRepository_ConfirmEmailVerification_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserEmailConfirmation
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserEmailConfirmation)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -348,7 +324,7 @@ func (_c *MockUserRepository_ConfirmEmailVerification_Call) Return(err error) *M
 	return _c
 }
 
-func (_c *MockUserRepository_ConfirmEmailVerification_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tokenHash string, tx ...*sql.Tx) error) *MockUserRepository_ConfirmEmailVerification_Call {
+func (_c *MockUserRepository_ConfirmEmailVerification_Call) RunAndReturn(run func(ctx context.Context, s spec.UserEmailConfirmation, tx ...*sql.Tx) error) *MockUserRepository_ConfirmEmailVerification_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -429,12 +405,12 @@ func (_c *MockUserRepository_Count_Call) RunAndReturn(run func(ctx context.Conte
 }
 
 // Create provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) Create(ctx context.Context, spec NewUser, tx ...*sql.Tx) (*model.User, error) {
+func (_mock *MockUserRepository) Create(ctx context.Context, s spec.NewUser, tx ...*sql.Tx) (*model.User, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -444,18 +420,18 @@ func (_mock *MockUserRepository) Create(ctx context.Context, spec NewUser, tx ..
 
 	var r0 *model.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewUser, ...*sql.Tx) (*model.User, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewUser, ...*sql.Tx) (*model.User, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewUser, ...*sql.Tx) *model.User); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewUser, ...*sql.Tx) *model.User); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewUser, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewUser, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -469,22 +445,22 @@ type MockUserRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewUser
+//   - s spec.NewUser
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) Create(ctx any, spec any, tx ...any) *MockUserRepository_Create_Call {
+func (_e *MockUserRepository_Expecter) Create(ctx any, s any, tx ...any) *MockUserRepository_Create_Call {
 	return &MockUserRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_Create_Call) Run(run func(ctx context.Context, spec NewUser, tx ...*sql.Tx)) *MockUserRepository_Create_Call {
+func (_c *MockUserRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewUser, tx ...*sql.Tx)) *MockUserRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewUser
+		var arg1 spec.NewUser
 		if args[1] != nil {
-			arg1 = args[1].(NewUser)
+			arg1 = args[1].(spec.NewUser)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -506,7 +482,7 @@ func (_c *MockUserRepository_Create_Call) Return(user *model.User, err error) *M
 	return _c
 }
 
-func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(ctx context.Context, spec NewUser, tx ...*sql.Tx) (*model.User, error)) *MockUserRepository_Create_Call {
+func (_c *MockUserRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewUser, tx ...*sql.Tx) (*model.User, error)) *MockUserRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -584,12 +560,12 @@ func (_c *MockUserRepository_DeleteAccount_Call) RunAndReturn(run func(ctx conte
 }
 
 // EmailInUse provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) EmailInUse(ctx context.Context, email string, excludeUserID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockUserRepository) EmailInUse(ctx context.Context, s spec.UserEmailFilter, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, email, excludeUserID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, email, excludeUserID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -599,16 +575,16 @@ func (_mock *MockUserRepository) EmailInUse(ctx context.Context, email string, e
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, email, excludeUserID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserEmailFilter, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, email, excludeUserID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserEmailFilter, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, email, excludeUserID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.UserEmailFilter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -622,39 +598,33 @@ type MockUserRepository_EmailInUse_Call struct {
 
 // EmailInUse is a helper method to define mock.On call
 //   - ctx context.Context
-//   - email string
-//   - excludeUserID uuid.UUID
+//   - s spec.UserEmailFilter
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) EmailInUse(ctx any, email any, excludeUserID any, tx ...any) *MockUserRepository_EmailInUse_Call {
+func (_e *MockUserRepository_Expecter) EmailInUse(ctx any, s any, tx ...any) *MockUserRepository_EmailInUse_Call {
 	return &MockUserRepository_EmailInUse_Call{Call: _e.mock.On("EmailInUse",
-		append([]any{ctx, email, excludeUserID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_EmailInUse_Call) Run(run func(ctx context.Context, email string, excludeUserID uuid.UUID, tx ...*sql.Tx)) *MockUserRepository_EmailInUse_Call {
+func (_c *MockUserRepository_EmailInUse_Call) Run(run func(ctx context.Context, s spec.UserEmailFilter, tx ...*sql.Tx)) *MockUserRepository_EmailInUse_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.UserEmailFilter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.UserEmailFilter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -665,7 +635,7 @@ func (_c *MockUserRepository_EmailInUse_Call) Return(b bool, err error) *MockUse
 	return _c
 }
 
-func (_c *MockUserRepository_EmailInUse_Call) RunAndReturn(run func(ctx context.Context, email string, excludeUserID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockUserRepository_EmailInUse_Call {
+func (_c *MockUserRepository_EmailInUse_Call) RunAndReturn(run func(ctx context.Context, s spec.UserEmailFilter, tx ...*sql.Tx) (bool, error)) *MockUserRepository_EmailInUse_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1671,12 +1641,12 @@ func (_c *MockUserRepository_IsLocked_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // ListAll provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) ListAll(ctx context.Context, search string, limit int, offset int, tx ...*sql.Tx) ([]model.User, int, error) {
+func (_mock *MockUserRepository) ListAll(ctx context.Context, s spec.UserListFilter, tx ...*sql.Tx) ([]model.User, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, search, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, search, limit, offset)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1687,23 +1657,23 @@ func (_mock *MockUserRepository) ListAll(ctx context.Context, search string, lim
 	var r0 []model.User
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) ([]model.User, int, error)); ok {
-		return returnFunc(ctx, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserListFilter, ...*sql.Tx) ([]model.User, int, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, int, ...*sql.Tx) []model.User); ok {
-		r0 = returnFunc(ctx, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserListFilter, ...*sql.Tx) []model.User); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.UserListFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.UserListFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1717,45 +1687,33 @@ type MockUserRepository_ListAll_Call struct {
 
 // ListAll is a helper method to define mock.On call
 //   - ctx context.Context
-//   - search string
-//   - limit int
-//   - offset int
+//   - s spec.UserListFilter
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) ListAll(ctx any, search any, limit any, offset any, tx ...any) *MockUserRepository_ListAll_Call {
+func (_e *MockUserRepository_Expecter) ListAll(ctx any, s any, tx ...any) *MockUserRepository_ListAll_Call {
 	return &MockUserRepository_ListAll_Call{Call: _e.mock.On("ListAll",
-		append([]any{ctx, search, limit, offset}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_ListAll_Call) Run(run func(ctx context.Context, search string, limit int, offset int, tx ...*sql.Tx)) *MockUserRepository_ListAll_Call {
+func (_c *MockUserRepository_ListAll_Call) Run(run func(ctx context.Context, s spec.UserListFilter, tx ...*sql.Tx)) *MockUserRepository_ListAll_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.UserListFilter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.UserListFilter)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1766,18 +1724,18 @@ func (_c *MockUserRepository_ListAll_Call) Return(users []model.User, n int, err
 	return _c
 }
 
-func (_c *MockUserRepository_ListAll_Call) RunAndReturn(run func(ctx context.Context, search string, limit int, offset int, tx ...*sql.Tx) ([]model.User, int, error)) *MockUserRepository_ListAll_Call {
+func (_c *MockUserRepository_ListAll_Call) RunAndReturn(run func(ctx context.Context, s spec.UserListFilter, tx ...*sql.Tx) ([]model.User, int, error)) *MockUserRepository_ListAll_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListByIP provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) ListByIP(ctx context.Context, ip string, excludeUserID uuid.UUID, tx ...*sql.Tx) ([]model.User, error) {
+func (_mock *MockUserRepository) ListByIP(ctx context.Context, s spec.UserIPFilter, tx ...*sql.Tx) ([]model.User, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, ip, excludeUserID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, ip, excludeUserID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1787,18 +1745,18 @@ func (_mock *MockUserRepository) ListByIP(ctx context.Context, ip string, exclud
 
 	var r0 []model.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) ([]model.User, error)); ok {
-		return returnFunc(ctx, ip, excludeUserID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserIPFilter, ...*sql.Tx) ([]model.User, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) []model.User); ok {
-		r0 = returnFunc(ctx, ip, excludeUserID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserIPFilter, ...*sql.Tx) []model.User); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, ip, excludeUserID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.UserIPFilter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1812,39 +1770,33 @@ type MockUserRepository_ListByIP_Call struct {
 
 // ListByIP is a helper method to define mock.On call
 //   - ctx context.Context
-//   - ip string
-//   - excludeUserID uuid.UUID
+//   - s spec.UserIPFilter
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) ListByIP(ctx any, ip any, excludeUserID any, tx ...any) *MockUserRepository_ListByIP_Call {
+func (_e *MockUserRepository_Expecter) ListByIP(ctx any, s any, tx ...any) *MockUserRepository_ListByIP_Call {
 	return &MockUserRepository_ListByIP_Call{Call: _e.mock.On("ListByIP",
-		append([]any{ctx, ip, excludeUserID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_ListByIP_Call) Run(run func(ctx context.Context, ip string, excludeUserID uuid.UUID, tx ...*sql.Tx)) *MockUserRepository_ListByIP_Call {
+func (_c *MockUserRepository_ListByIP_Call) Run(run func(ctx context.Context, s spec.UserIPFilter, tx ...*sql.Tx)) *MockUserRepository_ListByIP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.UserIPFilter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.UserIPFilter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1855,7 +1807,7 @@ func (_c *MockUserRepository_ListByIP_Call) Return(users []model.User, err error
 	return _c
 }
 
-func (_c *MockUserRepository_ListByIP_Call) RunAndReturn(run func(ctx context.Context, ip string, excludeUserID uuid.UUID, tx ...*sql.Tx) ([]model.User, error)) *MockUserRepository_ListByIP_Call {
+func (_c *MockUserRepository_ListByIP_Call) RunAndReturn(run func(ctx context.Context, s spec.UserIPFilter, tx ...*sql.Tx) ([]model.User, error)) *MockUserRepository_ListByIP_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1938,12 +1890,12 @@ func (_c *MockUserRepository_ListPublic_Call) RunAndReturn(run func(ctx context.
 }
 
 // LockUser provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) LockUser(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) LockUser(ctx context.Context, s spec.UserLock, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, lockedBy, reason, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, lockedBy, reason)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1952,8 +1904,8 @@ func (_mock *MockUserRepository) LockUser(ctx context.Context, userID uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, lockedBy, reason, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserLock, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1967,45 +1919,33 @@ type MockUserRepository_LockUser_Call struct {
 
 // LockUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - lockedBy uuid.UUID
-//   - reason string
+//   - s spec.UserLock
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) LockUser(ctx any, userID any, lockedBy any, reason any, tx ...any) *MockUserRepository_LockUser_Call {
+func (_e *MockUserRepository_Expecter) LockUser(ctx any, s any, tx ...any) *MockUserRepository_LockUser_Call {
 	return &MockUserRepository_LockUser_Call{Call: _e.mock.On("LockUser",
-		append([]any{ctx, userID, lockedBy, reason}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_LockUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string, tx ...*sql.Tx)) *MockUserRepository_LockUser_Call {
+func (_c *MockUserRepository_LockUser_Call) Run(run func(ctx context.Context, s spec.UserLock, tx ...*sql.Tx)) *MockUserRepository_LockUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserLock
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserLock)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2016,7 +1956,7 @@ func (_c *MockUserRepository_LockUser_Call) Return(err error) *MockUserRepositor
 	return _c
 }
 
-func (_c *MockUserRepository_LockUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, lockedBy uuid.UUID, reason string, tx ...*sql.Tx) error) *MockUserRepository_LockUser_Call {
+func (_c *MockUserRepository_LockUser_Call) RunAndReturn(run func(ctx context.Context, s spec.UserLock, tx ...*sql.Tx) error) *MockUserRepository_LockUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2166,12 +2106,12 @@ func (_c *MockUserRepository_MarkEmailVerified_Call) RunAndReturn(run func(ctx c
 }
 
 // RegisterAccount provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) RegisterAccount(ctx context.Context, spec NewRegistration, tx ...*sql.Tx) (*model.User, error) {
+func (_mock *MockUserRepository) RegisterAccount(ctx context.Context, registration spec.NewRegistration, tx ...*sql.Tx) (*model.User, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, registration, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, registration)
 	}
 	ret := tmpRet
 
@@ -2181,18 +2121,18 @@ func (_mock *MockUserRepository) RegisterAccount(ctx context.Context, spec NewRe
 
 	var r0 *model.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewRegistration, ...*sql.Tx) (*model.User, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewRegistration, ...*sql.Tx) (*model.User, error)); ok {
+		return returnFunc(ctx, registration, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewRegistration, ...*sql.Tx) *model.User); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewRegistration, ...*sql.Tx) *model.User); ok {
+		r0 = returnFunc(ctx, registration, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewRegistration, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewRegistration, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, registration, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2206,22 +2146,22 @@ type MockUserRepository_RegisterAccount_Call struct {
 
 // RegisterAccount is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewRegistration
+//   - registration spec.NewRegistration
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) RegisterAccount(ctx any, spec any, tx ...any) *MockUserRepository_RegisterAccount_Call {
+func (_e *MockUserRepository_Expecter) RegisterAccount(ctx any, registration any, tx ...any) *MockUserRepository_RegisterAccount_Call {
 	return &MockUserRepository_RegisterAccount_Call{Call: _e.mock.On("RegisterAccount",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, registration}, tx...)...)}
 }
 
-func (_c *MockUserRepository_RegisterAccount_Call) Run(run func(ctx context.Context, spec NewRegistration, tx ...*sql.Tx)) *MockUserRepository_RegisterAccount_Call {
+func (_c *MockUserRepository_RegisterAccount_Call) Run(run func(ctx context.Context, registration spec.NewRegistration, tx ...*sql.Tx)) *MockUserRepository_RegisterAccount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewRegistration
+		var arg1 spec.NewRegistration
 		if args[1] != nil {
-			arg1 = args[1].(NewRegistration)
+			arg1 = args[1].(spec.NewRegistration)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -2243,7 +2183,7 @@ func (_c *MockUserRepository_RegisterAccount_Call) Return(user *model.User, err 
 	return _c
 }
 
-func (_c *MockUserRepository_RegisterAccount_Call) RunAndReturn(run func(ctx context.Context, spec NewRegistration, tx ...*sql.Tx) (*model.User, error)) *MockUserRepository_RegisterAccount_Call {
+func (_c *MockUserRepository_RegisterAccount_Call) RunAndReturn(run func(ctx context.Context, registration spec.NewRegistration, tx ...*sql.Tx) (*model.User, error)) *MockUserRepository_RegisterAccount_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2330,12 +2270,12 @@ func (_c *MockUserRepository_RequiresEmailVerification_Call) RunAndReturn(run fu
 }
 
 // ResetPassword provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) ResetPassword(ctx context.Context, spec PasswordUpdate, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) ResetPassword(ctx context.Context, update spec.PasswordUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, update, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, update)
 	}
 	ret := tmpRet
 
@@ -2344,8 +2284,8 @@ func (_mock *MockUserRepository) ResetPassword(ctx context.Context, spec Passwor
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, PasswordUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.PasswordUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, update, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2359,22 +2299,22 @@ type MockUserRepository_ResetPassword_Call struct {
 
 // ResetPassword is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec PasswordUpdate
+//   - update spec.PasswordUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) ResetPassword(ctx any, spec any, tx ...any) *MockUserRepository_ResetPassword_Call {
+func (_e *MockUserRepository_Expecter) ResetPassword(ctx any, update any, tx ...any) *MockUserRepository_ResetPassword_Call {
 	return &MockUserRepository_ResetPassword_Call{Call: _e.mock.On("ResetPassword",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, update}, tx...)...)}
 }
 
-func (_c *MockUserRepository_ResetPassword_Call) Run(run func(ctx context.Context, spec PasswordUpdate, tx ...*sql.Tx)) *MockUserRepository_ResetPassword_Call {
+func (_c *MockUserRepository_ResetPassword_Call) Run(run func(ctx context.Context, update spec.PasswordUpdate, tx ...*sql.Tx)) *MockUserRepository_ResetPassword_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 PasswordUpdate
+		var arg1 spec.PasswordUpdate
 		if args[1] != nil {
-			arg1 = args[1].(PasswordUpdate)
+			arg1 = args[1].(spec.PasswordUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -2396,18 +2336,18 @@ func (_c *MockUserRepository_ResetPassword_Call) Return(err error) *MockUserRepo
 	return _c
 }
 
-func (_c *MockUserRepository_ResetPassword_Call) RunAndReturn(run func(ctx context.Context, spec PasswordUpdate, tx ...*sql.Tx) error) *MockUserRepository_ResetPassword_Call {
+func (_c *MockUserRepository_ResetPassword_Call) RunAndReturn(run func(ctx context.Context, update spec.PasswordUpdate, tx ...*sql.Tx) error) *MockUserRepository_ResetPassword_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SearchByName provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SearchByName(ctx context.Context, query string, limit int, tx ...*sql.Tx) ([]model.User, error) {
+func (_mock *MockUserRepository) SearchByName(ctx context.Context, s spec.UserSearchFilter, tx ...*sql.Tx) ([]model.User, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, query, limit, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, query, limit)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2417,18 +2357,18 @@ func (_mock *MockUserRepository) SearchByName(ctx context.Context, query string,
 
 	var r0 []model.User
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) ([]model.User, error)); ok {
-		return returnFunc(ctx, query, limit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserSearchFilter, ...*sql.Tx) ([]model.User, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int, ...*sql.Tx) []model.User); ok {
-		r0 = returnFunc(ctx, query, limit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserSearchFilter, ...*sql.Tx) []model.User); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.User)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, query, limit, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.UserSearchFilter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2442,39 +2382,33 @@ type MockUserRepository_SearchByName_Call struct {
 
 // SearchByName is a helper method to define mock.On call
 //   - ctx context.Context
-//   - query string
-//   - limit int
+//   - s spec.UserSearchFilter
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) SearchByName(ctx any, query any, limit any, tx ...any) *MockUserRepository_SearchByName_Call {
+func (_e *MockUserRepository_Expecter) SearchByName(ctx any, s any, tx ...any) *MockUserRepository_SearchByName_Call {
 	return &MockUserRepository_SearchByName_Call{Call: _e.mock.On("SearchByName",
-		append([]any{ctx, query, limit}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_SearchByName_Call) Run(run func(ctx context.Context, query string, limit int, tx ...*sql.Tx)) *MockUserRepository_SearchByName_Call {
+func (_c *MockUserRepository_SearchByName_Call) Run(run func(ctx context.Context, s spec.UserSearchFilter, tx ...*sql.Tx)) *MockUserRepository_SearchByName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.UserSearchFilter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.UserSearchFilter)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2485,18 +2419,18 @@ func (_c *MockUserRepository_SearchByName_Call) Return(users []model.User, err e
 	return _c
 }
 
-func (_c *MockUserRepository_SearchByName_Call) RunAndReturn(run func(ctx context.Context, query string, limit int, tx ...*sql.Tx) ([]model.User, error)) *MockUserRepository_SearchByName_Call {
+func (_c *MockUserRepository_SearchByName_Call) RunAndReturn(run func(ctx context.Context, s spec.UserSearchFilter, tx ...*sql.Tx) ([]model.User, error)) *MockUserRepository_SearchByName_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetDisplayName provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SetDisplayName(ctx context.Context, userID uuid.UUID, displayName string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) SetDisplayName(ctx context.Context, s spec.UserDisplayNameUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, displayName, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, displayName)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2505,8 +2439,8 @@ func (_mock *MockUserRepository) SetDisplayName(ctx context.Context, userID uuid
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, displayName, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserDisplayNameUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2520,39 +2454,33 @@ type MockUserRepository_SetDisplayName_Call struct {
 
 // SetDisplayName is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - displayName string
+//   - s spec.UserDisplayNameUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) SetDisplayName(ctx any, userID any, displayName any, tx ...any) *MockUserRepository_SetDisplayName_Call {
+func (_e *MockUserRepository_Expecter) SetDisplayName(ctx any, s any, tx ...any) *MockUserRepository_SetDisplayName_Call {
 	return &MockUserRepository_SetDisplayName_Call{Call: _e.mock.On("SetDisplayName",
-		append([]any{ctx, userID, displayName}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_SetDisplayName_Call) Run(run func(ctx context.Context, userID uuid.UUID, displayName string, tx ...*sql.Tx)) *MockUserRepository_SetDisplayName_Call {
+func (_c *MockUserRepository_SetDisplayName_Call) Run(run func(ctx context.Context, s spec.UserDisplayNameUpdate, tx ...*sql.Tx)) *MockUserRepository_SetDisplayName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserDisplayNameUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserDisplayNameUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2563,18 +2491,18 @@ func (_c *MockUserRepository_SetDisplayName_Call) Return(err error) *MockUserRep
 	return _c
 }
 
-func (_c *MockUserRepository_SetDisplayName_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, displayName string, tx ...*sql.Tx) error) *MockUserRepository_SetDisplayName_Call {
+func (_c *MockUserRepository_SetDisplayName_Call) RunAndReturn(run func(ctx context.Context, s spec.UserDisplayNameUpdate, tx ...*sql.Tx) error) *MockUserRepository_SetDisplayName_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetDisplayNameLocked provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SetDisplayNameLocked(ctx context.Context, userID uuid.UUID, locked bool, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) SetDisplayNameLocked(ctx context.Context, s spec.UserDisplayNameLockUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, locked, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, locked)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2583,8 +2511,8 @@ func (_mock *MockUserRepository) SetDisplayNameLocked(ctx context.Context, userI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, locked, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserDisplayNameLockUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2598,39 +2526,33 @@ type MockUserRepository_SetDisplayNameLocked_Call struct {
 
 // SetDisplayNameLocked is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - locked bool
+//   - s spec.UserDisplayNameLockUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) SetDisplayNameLocked(ctx any, userID any, locked any, tx ...any) *MockUserRepository_SetDisplayNameLocked_Call {
+func (_e *MockUserRepository_Expecter) SetDisplayNameLocked(ctx any, s any, tx ...any) *MockUserRepository_SetDisplayNameLocked_Call {
 	return &MockUserRepository_SetDisplayNameLocked_Call{Call: _e.mock.On("SetDisplayNameLocked",
-		append([]any{ctx, userID, locked}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_SetDisplayNameLocked_Call) Run(run func(ctx context.Context, userID uuid.UUID, locked bool, tx ...*sql.Tx)) *MockUserRepository_SetDisplayNameLocked_Call {
+func (_c *MockUserRepository_SetDisplayNameLocked_Call) Run(run func(ctx context.Context, s spec.UserDisplayNameLockUpdate, tx ...*sql.Tx)) *MockUserRepository_SetDisplayNameLocked_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserDisplayNameLockUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserDisplayNameLockUpdate)
 		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2641,18 +2563,18 @@ func (_c *MockUserRepository_SetDisplayNameLocked_Call) Return(err error) *MockU
 	return _c
 }
 
-func (_c *MockUserRepository_SetDisplayNameLocked_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, locked bool, tx ...*sql.Tx) error) *MockUserRepository_SetDisplayNameLocked_Call {
+func (_c *MockUserRepository_SetDisplayNameLocked_Call) RunAndReturn(run func(ctx context.Context, s spec.UserDisplayNameLockUpdate, tx ...*sql.Tx) error) *MockUserRepository_SetDisplayNameLocked_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetEmail provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SetEmail(ctx context.Context, userID uuid.UUID, email string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) SetEmail(ctx context.Context, s spec.UserEmailUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, email, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, email)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2661,8 +2583,8 @@ func (_mock *MockUserRepository) SetEmail(ctx context.Context, userID uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, email, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserEmailUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2676,39 +2598,33 @@ type MockUserRepository_SetEmail_Call struct {
 
 // SetEmail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - email string
+//   - s spec.UserEmailUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) SetEmail(ctx any, userID any, email any, tx ...any) *MockUserRepository_SetEmail_Call {
+func (_e *MockUserRepository_Expecter) SetEmail(ctx any, s any, tx ...any) *MockUserRepository_SetEmail_Call {
 	return &MockUserRepository_SetEmail_Call{Call: _e.mock.On("SetEmail",
-		append([]any{ctx, userID, email}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_SetEmail_Call) Run(run func(ctx context.Context, userID uuid.UUID, email string, tx ...*sql.Tx)) *MockUserRepository_SetEmail_Call {
+func (_c *MockUserRepository_SetEmail_Call) Run(run func(ctx context.Context, s spec.UserEmailUpdate, tx ...*sql.Tx)) *MockUserRepository_SetEmail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserEmailUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserEmailUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2719,18 +2635,18 @@ func (_c *MockUserRepository_SetEmail_Call) Return(err error) *MockUserRepositor
 	return _c
 }
 
-func (_c *MockUserRepository_SetEmail_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, email string, tx ...*sql.Tx) error) *MockUserRepository_SetEmail_Call {
+func (_c *MockUserRepository_SetEmail_Call) RunAndReturn(run func(ctx context.Context, s spec.UserEmailUpdate, tx ...*sql.Tx) error) *MockUserRepository_SetEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetEmailVerified provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SetEmailVerified(ctx context.Context, userID uuid.UUID, verified bool, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) SetEmailVerified(ctx context.Context, s spec.UserEmailVerification, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, verified, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, verified)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2739,8 +2655,8 @@ func (_mock *MockUserRepository) SetEmailVerified(ctx context.Context, userID uu
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, verified, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserEmailVerification, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2754,39 +2670,33 @@ type MockUserRepository_SetEmailVerified_Call struct {
 
 // SetEmailVerified is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - verified bool
+//   - s spec.UserEmailVerification
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) SetEmailVerified(ctx any, userID any, verified any, tx ...any) *MockUserRepository_SetEmailVerified_Call {
+func (_e *MockUserRepository_Expecter) SetEmailVerified(ctx any, s any, tx ...any) *MockUserRepository_SetEmailVerified_Call {
 	return &MockUserRepository_SetEmailVerified_Call{Call: _e.mock.On("SetEmailVerified",
-		append([]any{ctx, userID, verified}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_SetEmailVerified_Call) Run(run func(ctx context.Context, userID uuid.UUID, verified bool, tx ...*sql.Tx)) *MockUserRepository_SetEmailVerified_Call {
+func (_c *MockUserRepository_SetEmailVerified_Call) Run(run func(ctx context.Context, s spec.UserEmailVerification, tx ...*sql.Tx)) *MockUserRepository_SetEmailVerified_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserEmailVerification
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserEmailVerification)
 		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2797,18 +2707,18 @@ func (_c *MockUserRepository_SetEmailVerified_Call) Return(err error) *MockUserR
 	return _c
 }
 
-func (_c *MockUserRepository_SetEmailVerified_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, verified bool, tx ...*sql.Tx) error) *MockUserRepository_SetEmailVerified_Call {
+func (_c *MockUserRepository_SetEmailVerified_Call) RunAndReturn(run func(ctx context.Context, s spec.UserEmailVerification, tx ...*sql.Tx) error) *MockUserRepository_SetEmailVerified_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetPasswordHash provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) SetPasswordHash(ctx context.Context, userID uuid.UUID, passwordHash string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) SetPasswordHash(ctx context.Context, s spec.UserPasswordHashUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, passwordHash, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, passwordHash)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2817,8 +2727,8 @@ func (_mock *MockUserRepository) SetPasswordHash(ctx context.Context, userID uui
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, passwordHash, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserPasswordHashUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2832,39 +2742,33 @@ type MockUserRepository_SetPasswordHash_Call struct {
 
 // SetPasswordHash is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - passwordHash string
+//   - s spec.UserPasswordHashUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) SetPasswordHash(ctx any, userID any, passwordHash any, tx ...any) *MockUserRepository_SetPasswordHash_Call {
+func (_e *MockUserRepository_Expecter) SetPasswordHash(ctx any, s any, tx ...any) *MockUserRepository_SetPasswordHash_Call {
 	return &MockUserRepository_SetPasswordHash_Call{Call: _e.mock.On("SetPasswordHash",
-		append([]any{ctx, userID, passwordHash}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_SetPasswordHash_Call) Run(run func(ctx context.Context, userID uuid.UUID, passwordHash string, tx ...*sql.Tx)) *MockUserRepository_SetPasswordHash_Call {
+func (_c *MockUserRepository_SetPasswordHash_Call) Run(run func(ctx context.Context, s spec.UserPasswordHashUpdate, tx ...*sql.Tx)) *MockUserRepository_SetPasswordHash_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserPasswordHashUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserPasswordHashUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2875,7 +2779,7 @@ func (_c *MockUserRepository_SetPasswordHash_Call) Return(err error) *MockUserRe
 	return _c
 }
 
-func (_c *MockUserRepository_SetPasswordHash_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, passwordHash string, tx ...*sql.Tx) error) *MockUserRepository_SetPasswordHash_Call {
+func (_c *MockUserRepository_SetPasswordHash_Call) RunAndReturn(run func(ctx context.Context, s spec.UserPasswordHashUpdate, tx ...*sql.Tx) error) *MockUserRepository_SetPasswordHash_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3097,12 +3001,12 @@ func (_c *MockUserRepository_UnlockUser_Call) RunAndReturn(run func(ctx context.
 }
 
 // UpdateAppearance provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateAppearance(ctx context.Context, userID uuid.UUID, theme string, font string, wideLayout bool, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateAppearance(ctx context.Context, s spec.UserAppearanceUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, theme, font, wideLayout, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, theme, font, wideLayout)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3111,8 +3015,8 @@ func (_mock *MockUserRepository) UpdateAppearance(ctx context.Context, userID uu
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, theme, font, wideLayout, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserAppearanceUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3126,51 +3030,33 @@ type MockUserRepository_UpdateAppearance_Call struct {
 
 // UpdateAppearance is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - theme string
-//   - font string
-//   - wideLayout bool
+//   - s spec.UserAppearanceUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateAppearance(ctx any, userID any, theme any, font any, wideLayout any, tx ...any) *MockUserRepository_UpdateAppearance_Call {
+func (_e *MockUserRepository_Expecter) UpdateAppearance(ctx any, s any, tx ...any) *MockUserRepository_UpdateAppearance_Call {
 	return &MockUserRepository_UpdateAppearance_Call{Call: _e.mock.On("UpdateAppearance",
-		append([]any{ctx, userID, theme, font, wideLayout}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateAppearance_Call) Run(run func(ctx context.Context, userID uuid.UUID, theme string, font string, wideLayout bool, tx ...*sql.Tx)) *MockUserRepository_UpdateAppearance_Call {
+func (_c *MockUserRepository_UpdateAppearance_Call) Run(run func(ctx context.Context, s spec.UserAppearanceUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateAppearance_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserAppearanceUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserAppearanceUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 bool
-		if args[4] != nil {
-			arg4 = args[4].(bool)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3181,18 +3067,18 @@ func (_c *MockUserRepository_UpdateAppearance_Call) Return(err error) *MockUserR
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateAppearance_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, theme string, font string, wideLayout bool, tx ...*sql.Tx) error) *MockUserRepository_UpdateAppearance_Call {
+func (_c *MockUserRepository_UpdateAppearance_Call) RunAndReturn(run func(ctx context.Context, s spec.UserAppearanceUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateAppearance_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateAvatarURL provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateAvatarURL(ctx context.Context, userID uuid.UUID, avatarURL string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateAvatarURL(ctx context.Context, s spec.UserAvatarUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, avatarURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, avatarURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3201,8 +3087,8 @@ func (_mock *MockUserRepository) UpdateAvatarURL(ctx context.Context, userID uui
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, avatarURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserAvatarUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3216,39 +3102,33 @@ type MockUserRepository_UpdateAvatarURL_Call struct {
 
 // UpdateAvatarURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - avatarURL string
+//   - s spec.UserAvatarUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateAvatarURL(ctx any, userID any, avatarURL any, tx ...any) *MockUserRepository_UpdateAvatarURL_Call {
+func (_e *MockUserRepository_Expecter) UpdateAvatarURL(ctx any, s any, tx ...any) *MockUserRepository_UpdateAvatarURL_Call {
 	return &MockUserRepository_UpdateAvatarURL_Call{Call: _e.mock.On("UpdateAvatarURL",
-		append([]any{ctx, userID, avatarURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateAvatarURL_Call) Run(run func(ctx context.Context, userID uuid.UUID, avatarURL string, tx ...*sql.Tx)) *MockUserRepository_UpdateAvatarURL_Call {
+func (_c *MockUserRepository_UpdateAvatarURL_Call) Run(run func(ctx context.Context, s spec.UserAvatarUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateAvatarURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserAvatarUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserAvatarUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3259,18 +3139,18 @@ func (_c *MockUserRepository_UpdateAvatarURL_Call) Return(err error) *MockUserRe
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateAvatarURL_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, avatarURL string, tx ...*sql.Tx) error) *MockUserRepository_UpdateAvatarURL_Call {
+func (_c *MockUserRepository_UpdateAvatarURL_Call) RunAndReturn(run func(ctx context.Context, s spec.UserAvatarUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateAvatarURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateBannerURL provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateBannerURL(ctx context.Context, userID uuid.UUID, bannerURL string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateBannerURL(ctx context.Context, s spec.UserBannerUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, bannerURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, bannerURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3279,8 +3159,8 @@ func (_mock *MockUserRepository) UpdateBannerURL(ctx context.Context, userID uui
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, bannerURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserBannerUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3294,39 +3174,33 @@ type MockUserRepository_UpdateBannerURL_Call struct {
 
 // UpdateBannerURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - bannerURL string
+//   - s spec.UserBannerUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateBannerURL(ctx any, userID any, bannerURL any, tx ...any) *MockUserRepository_UpdateBannerURL_Call {
+func (_e *MockUserRepository_Expecter) UpdateBannerURL(ctx any, s any, tx ...any) *MockUserRepository_UpdateBannerURL_Call {
 	return &MockUserRepository_UpdateBannerURL_Call{Call: _e.mock.On("UpdateBannerURL",
-		append([]any{ctx, userID, bannerURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateBannerURL_Call) Run(run func(ctx context.Context, userID uuid.UUID, bannerURL string, tx ...*sql.Tx)) *MockUserRepository_UpdateBannerURL_Call {
+func (_c *MockUserRepository_UpdateBannerURL_Call) Run(run func(ctx context.Context, s spec.UserBannerUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateBannerURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserBannerUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserBannerUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3337,18 +3211,18 @@ func (_c *MockUserRepository_UpdateBannerURL_Call) Return(err error) *MockUserRe
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateBannerURL_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, bannerURL string, tx ...*sql.Tx) error) *MockUserRepository_UpdateBannerURL_Call {
+func (_c *MockUserRepository_UpdateBannerURL_Call) RunAndReturn(run func(ctx context.Context, s spec.UserBannerUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateBannerURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateGMScoreAdjustment provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateGMScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateGMScoreAdjustment(ctx context.Context, s spec.UserGMScoreUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, adjustment, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, adjustment)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3357,8 +3231,8 @@ func (_mock *MockUserRepository) UpdateGMScoreAdjustment(ctx context.Context, us
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, adjustment, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserGMScoreUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3372,39 +3246,33 @@ type MockUserRepository_UpdateGMScoreAdjustment_Call struct {
 
 // UpdateGMScoreAdjustment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - adjustment int
+//   - s spec.UserGMScoreUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateGMScoreAdjustment(ctx any, userID any, adjustment any, tx ...any) *MockUserRepository_UpdateGMScoreAdjustment_Call {
+func (_e *MockUserRepository_Expecter) UpdateGMScoreAdjustment(ctx any, s any, tx ...any) *MockUserRepository_UpdateGMScoreAdjustment_Call {
 	return &MockUserRepository_UpdateGMScoreAdjustment_Call{Call: _e.mock.On("UpdateGMScoreAdjustment",
-		append([]any{ctx, userID, adjustment}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx)) *MockUserRepository_UpdateGMScoreAdjustment_Call {
+func (_c *MockUserRepository_UpdateGMScoreAdjustment_Call) Run(run func(ctx context.Context, s spec.UserGMScoreUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateGMScoreAdjustment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserGMScoreUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserGMScoreUpdate)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3415,18 +3283,18 @@ func (_c *MockUserRepository_UpdateGMScoreAdjustment_Call) Return(err error) *Mo
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx) error) *MockUserRepository_UpdateGMScoreAdjustment_Call {
+func (_c *MockUserRepository_UpdateGMScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, s spec.UserGMScoreUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateGMScoreAdjustment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateGameBoardSort provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateGameBoardSort(ctx context.Context, userID uuid.UUID, sort string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateGameBoardSort(ctx context.Context, s spec.UserGameBoardSortUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, sort, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, sort)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3435,8 +3303,8 @@ func (_mock *MockUserRepository) UpdateGameBoardSort(ctx context.Context, userID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, sort, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserGameBoardSortUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3450,39 +3318,33 @@ type MockUserRepository_UpdateGameBoardSort_Call struct {
 
 // UpdateGameBoardSort is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - sort string
+//   - s spec.UserGameBoardSortUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateGameBoardSort(ctx any, userID any, sort any, tx ...any) *MockUserRepository_UpdateGameBoardSort_Call {
+func (_e *MockUserRepository_Expecter) UpdateGameBoardSort(ctx any, s any, tx ...any) *MockUserRepository_UpdateGameBoardSort_Call {
 	return &MockUserRepository_UpdateGameBoardSort_Call{Call: _e.mock.On("UpdateGameBoardSort",
-		append([]any{ctx, userID, sort}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateGameBoardSort_Call) Run(run func(ctx context.Context, userID uuid.UUID, sort string, tx ...*sql.Tx)) *MockUserRepository_UpdateGameBoardSort_Call {
+func (_c *MockUserRepository_UpdateGameBoardSort_Call) Run(run func(ctx context.Context, s spec.UserGameBoardSortUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateGameBoardSort_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserGameBoardSortUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserGameBoardSortUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3493,18 +3355,18 @@ func (_c *MockUserRepository_UpdateGameBoardSort_Call) Return(err error) *MockUs
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateGameBoardSort_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, sort string, tx ...*sql.Tx) error) *MockUserRepository_UpdateGameBoardSort_Call {
+func (_c *MockUserRepository_UpdateGameBoardSort_Call) RunAndReturn(run func(ctx context.Context, s spec.UserGameBoardSortUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateGameBoardSort_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateIP provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateIP(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, ip, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, ip)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3513,8 +3375,8 @@ func (_mock *MockUserRepository) UpdateIP(ctx context.Context, userID uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, ip, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserIPUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3528,39 +3390,33 @@ type MockUserRepository_UpdateIP_Call struct {
 
 // UpdateIP is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - ip string
+//   - s spec.UserIPUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateIP(ctx any, userID any, ip any, tx ...any) *MockUserRepository_UpdateIP_Call {
+func (_e *MockUserRepository_Expecter) UpdateIP(ctx any, s any, tx ...any) *MockUserRepository_UpdateIP_Call {
 	return &MockUserRepository_UpdateIP_Call{Call: _e.mock.On("UpdateIP",
-		append([]any{ctx, userID, ip}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateIP_Call) Run(run func(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx)) *MockUserRepository_UpdateIP_Call {
+func (_c *MockUserRepository_UpdateIP_Call) Run(run func(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateIP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserIPUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserIPUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3571,18 +3427,18 @@ func (_c *MockUserRepository_UpdateIP_Call) Return(err error) *MockUserRepositor
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error) *MockUserRepository_UpdateIP_Call {
+func (_c *MockUserRepository_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateIP_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateMysteryScoreAdjustment provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateMysteryScoreAdjustment(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateMysteryScoreAdjustment(ctx context.Context, s spec.UserMysteryScoreUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, adjustment, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, adjustment)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3591,8 +3447,8 @@ func (_mock *MockUserRepository) UpdateMysteryScoreAdjustment(ctx context.Contex
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, adjustment, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserMysteryScoreUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3606,39 +3462,33 @@ type MockUserRepository_UpdateMysteryScoreAdjustment_Call struct {
 
 // UpdateMysteryScoreAdjustment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - adjustment int
+//   - s spec.UserMysteryScoreUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateMysteryScoreAdjustment(ctx any, userID any, adjustment any, tx ...any) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
+func (_e *MockUserRepository_Expecter) UpdateMysteryScoreAdjustment(ctx any, s any, tx ...any) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
 	return &MockUserRepository_UpdateMysteryScoreAdjustment_Call{Call: _e.mock.On("UpdateMysteryScoreAdjustment",
-		append([]any{ctx, userID, adjustment}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx)) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
+func (_c *MockUserRepository_UpdateMysteryScoreAdjustment_Call) Run(run func(ctx context.Context, s spec.UserMysteryScoreUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserMysteryScoreUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserMysteryScoreUpdate)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3649,18 +3499,18 @@ func (_c *MockUserRepository_UpdateMysteryScoreAdjustment_Call) Return(err error
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, adjustment int, tx ...*sql.Tx) error) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
+func (_c *MockUserRepository_UpdateMysteryScoreAdjustment_Call) RunAndReturn(run func(ctx context.Context, s spec.UserMysteryScoreUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateMysteryScoreAdjustment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateProfile provides a mock function for the type MockUserRepository
-func (_mock *MockUserRepository) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest, tx ...*sql.Tx) error {
+func (_mock *MockUserRepository) UpdateProfile(ctx context.Context, s spec.UserProfileUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, req, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, req)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3669,8 +3519,8 @@ func (_mock *MockUserRepository) UpdateProfile(ctx context.Context, userID uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.UpdateProfileRequest, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, req, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserProfileUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3684,39 +3534,33 @@ type MockUserRepository_UpdateProfile_Call struct {
 
 // UpdateProfile is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - req dto.UpdateProfileRequest
+//   - s spec.UserProfileUpdate
 //   - tx ...*sql.Tx
-func (_e *MockUserRepository_Expecter) UpdateProfile(ctx any, userID any, req any, tx ...any) *MockUserRepository_UpdateProfile_Call {
+func (_e *MockUserRepository_Expecter) UpdateProfile(ctx any, s any, tx ...any) *MockUserRepository_UpdateProfile_Call {
 	return &MockUserRepository_UpdateProfile_Call{Call: _e.mock.On("UpdateProfile",
-		append([]any{ctx, userID, req}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockUserRepository_UpdateProfile_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest, tx ...*sql.Tx)) *MockUserRepository_UpdateProfile_Call {
+func (_c *MockUserRepository_UpdateProfile_Call) Run(run func(ctx context.Context, s spec.UserProfileUpdate, tx ...*sql.Tx)) *MockUserRepository_UpdateProfile_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserProfileUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserProfileUpdate)
 		}
-		var arg2 dto.UpdateProfileRequest
-		if args[2] != nil {
-			arg2 = args[2].(dto.UpdateProfileRequest)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3727,7 +3571,7 @@ func (_c *MockUserRepository_UpdateProfile_Call) Return(err error) *MockUserRepo
 	return _c
 }
 
-func (_c *MockUserRepository_UpdateProfile_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.UpdateProfileRequest, tx ...*sql.Tx) error) *MockUserRepository_UpdateProfile_Call {
+func (_c *MockUserRepository_UpdateProfile_Call) RunAndReturn(run func(ctx context.Context, s spec.UserProfileUpdate, tx ...*sql.Tx) error) *MockUserRepository_UpdateProfile_Call {
 	_c.Call.Return(run)
 	return _c
 }

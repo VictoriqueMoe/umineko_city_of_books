@@ -6,6 +6,8 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -101,14 +103,14 @@ func (s *service) Enabled() bool {
 }
 
 func (s *service) RegisterToken(ctx context.Context, userID uuid.UUID, token, platform string) error {
-	return s.repo.Upsert(ctx, userID, token, platform)
+	return s.repo.Upsert(ctx, spec.NewDeviceToken{UserID: userID, Token: token, Platform: platform})
 }
 
 func (s *service) UnregisterToken(ctx context.Context, userID uuid.UUID, token string) error {
-	return s.repo.Delete(ctx, userID, token)
+	return s.repo.Delete(ctx, spec.DeviceTokenDeletion{UserID: userID, Token: token})
 }
 
-func buildMessage(reg repository.DeviceRegistration, n Notification) *messaging.Message {
+func buildMessage(reg model.DeviceRegistration, n Notification) *messaging.Message {
 	notification := &messaging.Notification{Title: n.Title, Body: n.Body}
 
 	if reg.Platform == PlatformWeb {
@@ -169,7 +171,7 @@ func (s *service) SendToUser(ctx context.Context, userID uuid.UUID, n Notificati
 	}
 
 	if len(stale) > 0 {
-		if err := s.repo.DeleteMany(ctx, userID, stale); err != nil {
+		if err := s.repo.DeleteMany(ctx, spec.DeviceTokenBulkDeletion{UserID: userID, Tokens: stale}); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Msg("failed to prune stale device tokens")
 		}
 	}

@@ -12,8 +12,9 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -89,9 +90,9 @@ func seedUser(t *testing.T, m *testMocks, id uuid.UUID, name string) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, id).Return(&u, nil).Maybe()
 }
 
-func finishedRow(t *testing.T, id, creator uuid.UUID, finishedAt string) repository.GameRoomRow {
+func finishedRow(t *testing.T, id, creator uuid.UUID, finishedAt string) model.GameRoomRow {
 	t.Helper()
-	return repository.GameRoomRow{
+	return model.GameRoomRow{
 		ID:         id,
 		GameType:   string(dto.GameTypeChess),
 		Status:     string(dto.GameStatusFinished),
@@ -108,7 +109,7 @@ func TestListFinished_Empty(t *testing.T) {
 	// given
 	m := newTestService(t)
 	m.roomRepo.EXPECT().
-		ListFinished(mock.Anything, string(dto.GameTypeChess), 20, 0).
+		ListFinished(mock.Anything, spec.GameRoomListFilter{GameType: string(dto.GameTypeChess), Limit: 20, Offset: 0}).
 		Return(nil, 0, nil)
 
 	// when
@@ -141,7 +142,7 @@ func TestListFinished_ClampsPage(t *testing.T) {
 			// given
 			m := newTestService(t)
 			m.roomRepo.EXPECT().
-				ListFinished(mock.Anything, string(dto.GameTypeChess), tc.expectedLimit, tc.expectedOffset).
+				ListFinished(mock.Anything, spec.GameRoomListFilter{GameType: string(dto.GameTypeChess), Limit: tc.expectedLimit, Offset: tc.expectedOffset}).
 				Return(nil, 0, nil)
 
 			// when
@@ -158,7 +159,7 @@ func TestListFinished_PropagatesRepoError(t *testing.T) {
 	m := newTestService(t)
 	wantErr := errors.New("db down")
 	m.roomRepo.EXPECT().
-		ListFinished(mock.Anything, "", 20, 0).
+		ListFinished(mock.Anything, spec.GameRoomListFilter{GameType: "", Limit: 20, Offset: 0}).
 		Return(nil, 0, wantErr)
 
 	// when
@@ -178,9 +179,9 @@ func TestListFinished_HydratesRoomsWithComputedStats(t *testing.T) {
 	row := finishedRow(t, roomID, whiteID, finishedAt)
 
 	m.roomRepo.EXPECT().
-		ListFinished(mock.Anything, string(dto.GameTypeChess), 20, 0).
-		Return([]repository.GameRoomRow{row}, 1, nil)
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		ListFinished(mock.Anything, spec.GameRoomListFilter{GameType: string(dto.GameTypeChess), Limit: 20, Offset: 0}).
+		Return([]model.GameRoomRow{row}, 1, nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: whiteID, Slot: 0, Joined: true},
 		{UserID: blackID, Slot: 1, Joined: true},
 	}, nil)
@@ -226,9 +227,9 @@ func TestListFinished_SkipsStatsWhenHandlerFails(t *testing.T) {
 	row := finishedRow(t, roomID, creator, finishedAt)
 
 	m.roomRepo.EXPECT().
-		ListFinished(mock.Anything, "", 20, 0).
-		Return([]repository.GameRoomRow{row}, 1, nil)
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		ListFinished(mock.Anything, spec.GameRoomListFilter{GameType: "", Limit: 20, Offset: 0}).
+		Return([]model.GameRoomRow{row}, 1, nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: creator, Slot: 0, Joined: true},
 	}, nil)
 	seedUser(t, m, creator, "Alice")
@@ -250,7 +251,7 @@ func TestHydrate_ComputesStatsForActiveRoom(t *testing.T) {
 	m := newTestService(t)
 	roomID := uuid.New()
 	creator := uuid.New()
-	row := &repository.GameRoomRow{
+	row := &model.GameRoomRow{
 		ID:        roomID,
 		GameType:  string(dto.GameTypeChess),
 		Status:    string(dto.GameStatusActive),
@@ -259,7 +260,7 @@ func TestHydrate_ComputesStatsForActiveRoom(t *testing.T) {
 		CreatedAt: "2026-04-22T10:00:00Z",
 		UpdatedAt: "2026-04-22T10:05:00Z",
 	}
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: creator, Slot: 0, Joined: true},
 	}, nil)
 	seedUser(t, m, creator, "Alice")
@@ -280,7 +281,7 @@ func TestHydrate_ExposesDisconnectedAtForOfflinePlayer(t *testing.T) {
 	m := newTestService(t)
 	roomID := uuid.New()
 	playerID := uuid.New()
-	row := &repository.GameRoomRow{
+	row := &model.GameRoomRow{
 		ID:        roomID,
 		GameType:  string(dto.GameTypeChess),
 		Status:    string(dto.GameStatusActive),
@@ -289,7 +290,7 @@ func TestHydrate_ExposesDisconnectedAtForOfflinePlayer(t *testing.T) {
 		CreatedAt: "2026-04-22T10:00:00Z",
 		UpdatedAt: "2026-04-22T10:05:00Z",
 	}
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: playerID, Slot: 0, Joined: true},
 	}, nil)
 	seedUser(t, m, playerID, "Alice")
@@ -361,7 +362,7 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 		player1 := uuid.New()
 		player2 := uuid.New()
 
-		row := &repository.GameRoomRow{
+		row := &model.GameRoomRow{
 			ID:         roomID,
 			GameType:   string(dto.GameTypeChess),
 			Status:     string(dto.GameStatusActive),
@@ -376,17 +377,26 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 		updatedRow.TurnUserID = &player2
 
 		m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil).Once()
-		m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, player1).Return(0, nil)
+		m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player1}).Return(0, nil)
 		m.handler.EXPECT().
 			ValidateAction(row.StateJSON, 0, mock.Anything).
 			Return(ActionResult{NewStateJSON: updatedRow.StateJSON, NextTurnSlot: new(1)}, nil)
 		m.roomRepo.EXPECT().NextPly(mock.Anything, roomID).Return(1, nil)
-		m.roomRepo.EXPECT().AppendMove(mock.Anything, roomID, 1, player1, mock.Anything).Return(nil)
-		m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		m.roomRepo.EXPECT().AppendMove(mock.Anything, spec.NewGameRoomMove{
+			RoomID:     roomID,
+			Ply:        1,
+			UserID:     player1,
+			ActionJSON: `{"from":"e2","to":"e4"}`,
+		}).Return(nil)
+		m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 			{UserID: player1, Slot: 0, Joined: true},
 			{UserID: player2, Slot: 1, Joined: true},
 		}, nil).Maybe()
-		m.roomRepo.EXPECT().SetState(mock.Anything, roomID, updatedRow.StateJSON, mock.Anything).Return(nil)
+		m.roomRepo.EXPECT().SetState(mock.Anything, spec.GameRoomStateUpdate{
+			RoomID:     roomID,
+			StateJSON:  updatedRow.StateJSON,
+			TurnUserID: &player2,
+		}).Return(nil)
 		m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(&updatedRow, nil).Maybe()
 		seedUser(t, m, player1, "Alice")
 		seedUser(t, m, player2, "Bob")
@@ -427,8 +437,8 @@ func TestSubmitAction_ClearsDisconnectForfeitOnMove(t *testing.T) {
 	})
 }
 
-func activeRoomRow(roomID, creator uuid.UUID) *repository.GameRoomRow {
-	return &repository.GameRoomRow{
+func activeRoomRow(roomID, creator uuid.UUID) *model.GameRoomRow {
+	return &model.GameRoomRow{
 		ID:        roomID,
 		GameType:  string(dto.GameTypeChess),
 		Status:    string(dto.GameStatusActive),
@@ -441,7 +451,7 @@ func activeRoomRow(roomID, creator uuid.UUID) *repository.GameRoomRow {
 
 func expectHydrate(t *testing.T, m *testMocks, roomID, p1, p2 uuid.UUID) {
 	t.Helper()
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: p1, Slot: 0, Joined: true},
 		{UserID: p2, Slot: 1, Joined: true},
 	}, nil).Maybe()
@@ -453,8 +463,8 @@ func expectHydrate(t *testing.T, m *testMocks, roomID, p1, p2 uuid.UUID) {
 		Maybe()
 }
 
-func pendingRoomRow(roomID, inviter uuid.UUID) *repository.GameRoomRow {
-	return &repository.GameRoomRow{
+func pendingRoomRow(roomID, inviter uuid.UUID) *model.GameRoomRow {
+	return &model.GameRoomRow{
 		ID:        roomID,
 		GameType:  string(dto.GameTypeChess),
 		Status:    string(dto.GameStatusPending),
@@ -472,8 +482,8 @@ func TestAccept_RejectsWhenInviteeNotInRoom(t *testing.T) {
 	inviter := uuid.New()
 	invitee := uuid.New()
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRoomRow(roomID, inviter), nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, invitee).Return(1, nil)
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: invitee}).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: inviter, Slot: 0, Joined: true},
 		{UserID: invitee, Slot: 1, Joined: false},
 	}, nil)
@@ -494,8 +504,8 @@ func TestAccept_RejectsWhenInviterNotInRoom(t *testing.T) {
 	inviter := uuid.New()
 	invitee := uuid.New()
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRoomRow(roomID, inviter), nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, invitee).Return(1, nil)
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: invitee}).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: inviter, Slot: 0, Joined: true},
 		{UserID: invitee, Slot: 1, Joined: false},
 	}, nil)
@@ -522,7 +532,7 @@ func TestOfferDraw_StoresOfferAndReturnsHydratedRoom(t *testing.T) {
 	row := activeRoomRow(roomID, p1)
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p1}).Return(0, nil)
 	expectHydrate(t, m, roomID, p1, p2)
 
 	room, err := m.svc.OfferDraw(context.Background(), roomID, p1)
@@ -549,7 +559,7 @@ func TestOfferDraw_RejectsWhenOfferAlreadyPending(t *testing.T) {
 	m.svc.mu.Unlock()
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p1}).Return(0, nil)
 
 	_, err := m.svc.OfferDraw(context.Background(), roomID, p1)
 	assert.ErrorIs(t, err, ErrDrawOfferPending)
@@ -578,9 +588,15 @@ func TestAcceptDraw_FinishesRoomAsDrawAgreed(t *testing.T) {
 	m.svc.mu.Unlock()
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p2).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p2}).Return(1, nil)
 	m.roomRepo.EXPECT().
-		FinishRoom(mock.Anything, roomID, string(dto.GameStatusFinished), (*uuid.UUID)(nil), "draw_agreed", row.StateJSON).
+		FinishRoom(mock.Anything, spec.GameRoomFinish{
+			RoomID:    roomID,
+			Status:    string(dto.GameStatusFinished),
+			WinnerID:  nil,
+			Result:    "draw_agreed",
+			StateJSON: row.StateJSON,
+		}).
 		Return(nil)
 	m.roomRepo.EXPECT().CountLive(mock.Anything).Return(0, nil).Maybe()
 	expectHydrate(t, m, roomID, p1, p2)
@@ -608,7 +624,7 @@ func TestAcceptDraw_RejectsOwnOffer(t *testing.T) {
 	m.svc.mu.Unlock()
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p1}).Return(0, nil)
 
 	_, err := m.svc.AcceptDraw(context.Background(), roomID, p1)
 	assert.ErrorIs(t, err, ErrCannotAcceptOwnDraw)
@@ -620,7 +636,7 @@ func TestAcceptDraw_RejectsWhenNoOffer(t *testing.T) {
 	p2 := uuid.New()
 	row := activeRoomRow(roomID, uuid.New())
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p2).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p2}).Return(1, nil)
 
 	_, err := m.svc.AcceptDraw(context.Background(), roomID, p2)
 	assert.ErrorIs(t, err, ErrNoDrawOffer)
@@ -638,7 +654,7 @@ func TestDeclineDraw_ClearsOffer(t *testing.T) {
 	m.svc.mu.Unlock()
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p2).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p2}).Return(1, nil)
 	expectHydrate(t, m, roomID, p1, p2)
 
 	room, err := m.svc.DeclineDraw(context.Background(), roomID, p2)
@@ -661,18 +677,27 @@ func TestSubmitAction_ClearsPendingDrawOffer(t *testing.T) {
 	m.svc.mu.Unlock()
 
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil).Once()
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, p1).Return(0, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: p1}).Return(0, nil)
 	m.handler.EXPECT().ValidateAction(row.StateJSON, 0, mock.Anything).Return(ActionResult{
 		NewStateJSON: row.StateJSON,
 		NextTurnSlot: new(1),
 	}, nil)
 	m.roomRepo.EXPECT().NextPly(mock.Anything, roomID).Return(1, nil)
-	m.roomRepo.EXPECT().AppendMove(mock.Anything, roomID, 1, p1, mock.Anything).Return(nil)
-	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+	m.roomRepo.EXPECT().AppendMove(mock.Anything, spec.NewGameRoomMove{
+		RoomID:     roomID,
+		Ply:        1,
+		UserID:     p1,
+		ActionJSON: `{"from":"e2","to":"e4"}`,
+	}).Return(nil)
+	m.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 		{UserID: p1, Slot: 0, Joined: true},
 		{UserID: p2, Slot: 1, Joined: true},
 	}, nil).Maybe()
-	m.roomRepo.EXPECT().SetState(mock.Anything, roomID, row.StateJSON, mock.Anything).Return(nil)
+	m.roomRepo.EXPECT().SetState(mock.Anything, spec.GameRoomStateUpdate{
+		RoomID:     roomID,
+		StateJSON:  row.StateJSON,
+		TurnUserID: &p2,
+	}).Return(nil)
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(&updatedRow, nil).Maybe()
 	seedUser(t, m, p1, "Alice")
 	seedUser(t, m, p2, "Bob")

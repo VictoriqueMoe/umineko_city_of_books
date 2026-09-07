@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -15,19 +17,19 @@ import (
 
 type (
 	Result struct {
-		repository.SearchResult
+		model.SearchResult
 		URL string
 	}
 
 	ChatSearcher interface {
-		SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int, tx ...*sql.Tx) ([]repository.SearchResult, int, error)
+		SearchMessagesForViewer(ctx context.Context, s spec.ChatMessageSearch, tx ...*sql.Tx) ([]model.SearchResult, int, error)
 	}
 
 	Service interface {
-		Search(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID, roomID uuid.UUID) ([]Result, int, error)
+		Search(ctx context.Context, query string, types []model.SearchEntityType, page bounds.Page, viewerID, roomID uuid.UUID) ([]Result, int, error)
 		QuickSearch(ctx context.Context, query string, perTypeLimit int, viewerID uuid.UUID) ([]Result, error)
-		ChildEntityTypes() []repository.SearchEntityType
-		ParseTypes(raw string) []repository.SearchEntityType
+		ChildEntityTypes() []model.SearchEntityType
+		ParseTypes(raw string) []model.SearchEntityType
 	}
 
 	service struct {
@@ -40,7 +42,7 @@ func NewService(repo repository.SearchRepository, chat ChatSearcher) Service {
 	return &service{repo: repo, chat: chat}
 }
 
-func (s *service) Search(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID, roomID uuid.UUID) ([]Result, int, error) {
+func (s *service) Search(ctx context.Context, query string, types []model.SearchEntityType, page bounds.Page, viewerID, roomID uuid.UUID) ([]Result, int, error) {
 	q := strings.TrimSpace(query)
 	if q == "" {
 		return nil, 0, nil
@@ -49,12 +51,12 @@ func (s *service) Search(ctx context.Context, query string, types []repository.S
 	repoTypes, chatRequested, explicit := splitChatType(types)
 	includeChat := chatRequested && viewerID != uuid.Nil
 
-	var merged []repository.SearchResult
+	var merged []model.SearchResult
 	var total int
 
 	window := page.Window()
 	if !explicit || len(repoTypes) > 0 {
-		rows, repoTotal, err := s.repo.Search(ctx, q, repoTypes, window, 0)
+		rows, repoTotal, err := s.repo.Search(ctx, spec.SearchQuery{Query: q, Types: repoTypes, Limit: window, Offset: 0})
 		if err != nil {
 			return nil, 0, err
 		}
@@ -63,7 +65,7 @@ func (s *service) Search(ctx context.Context, query string, types []repository.S
 	}
 
 	if includeChat {
-		rows, chatTotal, err := s.chat.SearchMessagesForViewer(ctx, viewerID, roomID, q, window, 0)
+		rows, chatTotal, err := s.chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: viewerID, RoomID: roomID, Query: q, Limit: window, Offset: 0})
 		if err != nil {
 			return nil, 0, err
 		}
@@ -87,13 +89,13 @@ func (s *service) QuickSearch(ctx context.Context, query string, perTypeLimit in
 		perTypeLimit = 10
 	}
 
-	rows, err := s.repo.QuickSearch(ctx, q, perTypeLimit)
+	rows, err := s.repo.QuickSearch(ctx, spec.QuickSearchQuery{Query: q, PerTypeLimit: perTypeLimit})
 	if err != nil {
 		return nil, err
 	}
 
 	if viewerID != uuid.Nil {
-		chatRows, _, err := s.chat.SearchMessagesForViewer(ctx, viewerID, uuid.Nil, q, perTypeLimit, 0)
+		chatRows, _, err := s.chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: viewerID, RoomID: uuid.Nil, Query: q, Limit: perTypeLimit, Offset: 0})
 		if err != nil {
 			return nil, err
 		}
@@ -104,17 +106,17 @@ func (s *service) QuickSearch(ctx context.Context, query string, perTypeLimit in
 	return decorate(rows), nil
 }
 
-func (s *service) ChildEntityTypes() []repository.SearchEntityType {
+func (s *service) ChildEntityTypes() []model.SearchEntityType {
 	return ChildEntityTypes()
 }
 
-func (s *service) ParseTypes(raw string) []repository.SearchEntityType {
+func (s *service) ParseTypes(raw string) []model.SearchEntityType {
 	raw = strings.TrimSpace(raw)
 	if raw == "" || raw == "all" {
 		return nil
 	}
 	parts := strings.Split(raw, ",")
-	out := make([]repository.SearchEntityType, 0, len(parts))
+	out := make([]model.SearchEntityType, 0, len(parts))
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p == "" {
@@ -124,19 +126,19 @@ func (s *service) ParseTypes(raw string) []repository.SearchEntityType {
 			out = append(out, ChildEntityTypes()...)
 			continue
 		}
-		out = append(out, repository.SearchEntityType(p))
+		out = append(out, model.SearchEntityType(p))
 	}
 	return out
 }
 
-func splitChatType(types []repository.SearchEntityType) (repoTypes []repository.SearchEntityType, chatRequested, explicit bool) {
+func splitChatType(types []model.SearchEntityType) (repoTypes []model.SearchEntityType, chatRequested, explicit bool) {
 	explicit = len(types) > 0
 	if !explicit {
 		return nil, true, false
 	}
-	repoTypes = make([]repository.SearchEntityType, 0, len(types))
+	repoTypes = make([]model.SearchEntityType, 0, len(types))
 	for _, t := range types {
-		if t == repository.SearchEntityChatMessage {
+		if t == model.SearchEntityChatMessage {
 			chatRequested = true
 			continue
 		}
@@ -145,8 +147,8 @@ func splitChatType(types []repository.SearchEntityType) (repoTypes []repository.
 	return repoTypes, chatRequested, explicit
 }
 
-func sortByRank(rows []repository.SearchResult) {
-	slices.SortStableFunc(rows, func(a, b repository.SearchResult) int {
+func sortByRank(rows []model.SearchResult) {
+	slices.SortStableFunc(rows, func(a, b model.SearchResult) int {
 		if c := cmp.Compare(b.Rank, a.Rank); c != 0 {
 			return c
 		}
@@ -154,7 +156,7 @@ func sortByRank(rows []repository.SearchResult) {
 	})
 }
 
-func pageOf(rows []repository.SearchResult, offset, limit int) []repository.SearchResult {
+func pageOf(rows []model.SearchResult, offset, limit int) []model.SearchResult {
 	if offset >= len(rows) {
 		return nil
 	}
@@ -162,7 +164,7 @@ func pageOf(rows []repository.SearchResult, offset, limit int) []repository.Sear
 	return rows[offset:end]
 }
 
-func decorate(rows []repository.SearchResult) []Result {
+func decorate(rows []model.SearchResult) []Result {
 	out := make([]Result, len(rows))
 	for i, r := range rows {
 		out[i] = Result{SearchResult: r, URL: BuildURL(r)}

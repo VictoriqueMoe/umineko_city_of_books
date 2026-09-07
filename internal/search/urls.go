@@ -4,42 +4,42 @@ import (
 	"fmt"
 	"net/url"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 )
 
 func init() {
 	for _, t := range AllEntityTypes() {
 		if _, ok := urlBuilders[t]; !ok {
-			panic(fmt.Sprintf("search.urlBuilders: missing URL builder for entity type %q (registered in repository.searchSources but not in internal/search/urls.go)", t))
+			panic(fmt.Sprintf("search.urlBuilders: missing URL builder for entity type %q (registered in model.searchSources but not in internal/search/urls.go)", t))
 		}
 	}
 }
 
-var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) string{
-	repository.SearchEntityTheory:              selfURL("/theory/"),
-	repository.SearchEntityResponse:            parentURL("/theory/", "#response-"),
-	repository.SearchEntityPost:                selfURL("/game-board/"),
-	repository.SearchEntityPostComment:         parentURL("/game-board/", "#comment-"),
-	repository.SearchEntityArt:                 selfURL("/gallery/art/"),
-	repository.SearchEntityArtComment:          parentURL("/gallery/art/", "#comment-"),
-	repository.SearchEntityMystery:             selfURL("/mystery/"),
-	repository.SearchEntityMysteryAttempt:      parentURL("/mystery/", "#attempt-"),
-	repository.SearchEntityMysteryComment:      parentURL("/mystery/", "#comment-"),
-	repository.SearchEntityShip:                selfURL("/ships/"),
-	repository.SearchEntityShipComment:         parentURL("/ships/", "#comment-"),
-	repository.SearchEntityOC:                  selfURL("/oc/"),
-	repository.SearchEntityOCComment:           parentURL("/oc/", "#comment-"),
-	repository.SearchEntityAnnouncement:        selfURL("/announcements/"),
-	repository.SearchEntityAnnouncementComment: parentURL("/announcements/", "#comment-"),
-	repository.SearchEntityFanfic:              selfURL("/fanfiction/"),
-	repository.SearchEntityFanficComment:       parentURL("/fanfiction/", "#comment-"),
-	repository.SearchEntityJournal:             selfURL("/journals/"),
-	repository.SearchEntityJournalEntry:        parentURL("/journals/", "/entry/"),
-	repository.SearchEntityJournalComment:      parentURL("/journals/", "#comment-"),
-	repository.SearchEntityUser: func(r repository.SearchResult) string {
+var urlBuilders = map[model.SearchEntityType]func(model.SearchResult) string{
+	model.SearchEntityTheory:              selfURL("/theory/"),
+	model.SearchEntityResponse:            parentURL("/theory/", "#response-"),
+	model.SearchEntityPost:                selfURL("/game-board/"),
+	model.SearchEntityPostComment:         parentURL("/game-board/", "#comment-"),
+	model.SearchEntityArt:                 selfURL("/gallery/art/"),
+	model.SearchEntityArtComment:          parentURL("/gallery/art/", "#comment-"),
+	model.SearchEntityMystery:             selfURL("/mystery/"),
+	model.SearchEntityMysteryAttempt:      parentURL("/mystery/", "#attempt-"),
+	model.SearchEntityMysteryComment:      parentURL("/mystery/", "#comment-"),
+	model.SearchEntityShip:                selfURL("/ships/"),
+	model.SearchEntityShipComment:         parentURL("/ships/", "#comment-"),
+	model.SearchEntityOC:                  selfURL("/oc/"),
+	model.SearchEntityOCComment:           parentURL("/oc/", "#comment-"),
+	model.SearchEntityAnnouncement:        selfURL("/announcements/"),
+	model.SearchEntityAnnouncementComment: parentURL("/announcements/", "#comment-"),
+	model.SearchEntityFanfic:              selfURL("/fanfiction/"),
+	model.SearchEntityFanficComment:       parentURL("/fanfiction/", "#comment-"),
+	model.SearchEntityJournal:             selfURL("/journals/"),
+	model.SearchEntityJournalEntry:        parentURL("/journals/", "/entry/"),
+	model.SearchEntityJournalComment:      parentURL("/journals/", "#comment-"),
+	model.SearchEntityUser: func(r model.SearchResult) string {
 		return "/user/" + r.AuthorUsername
 	},
-	repository.SearchEntityChatMessage: func(r repository.SearchResult) string {
+	model.SearchEntityChatMessage: func(r model.SearchResult) string {
 		if r.ParentID == nil {
 			return ""
 		}
@@ -49,7 +49,7 @@ var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) 
 		}
 		return u + "#msg-" + r.ID
 	},
-	repository.SearchEntityLiveStream: func(r repository.SearchResult) string {
+	model.SearchEntityLiveStream: func(r model.SearchResult) string {
 		if r.AuthorUsername == "" {
 			return ""
 		}
@@ -57,14 +57,14 @@ var urlBuilders = map[repository.SearchEntityType]func(repository.SearchResult) 
 	},
 }
 
-func selfURL(prefix string) func(repository.SearchResult) string {
-	return func(r repository.SearchResult) string {
+func selfURL(prefix string) func(model.SearchResult) string {
+	return func(r model.SearchResult) string {
 		return prefix + r.ID
 	}
 }
 
-func parentURL(prefix, suffix string) func(repository.SearchResult) string {
-	return func(r repository.SearchResult) string {
+func parentURL(prefix, suffix string) func(model.SearchResult) string {
+	return func(r model.SearchResult) string {
 		if r.ParentID == nil {
 			return ""
 		}
@@ -72,7 +72,7 @@ func parentURL(prefix, suffix string) func(repository.SearchResult) string {
 	}
 }
 
-func BuildURL(r repository.SearchResult) string {
+func BuildURL(r model.SearchResult) string {
 	if fn, ok := urlBuilders[r.EntityType]; ok {
 		return fn(r)
 	}

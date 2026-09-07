@@ -160,3 +160,6 @@ packages:
   umineko_city_of_books/internal/repository:
     config:
       all: true
+  umineko_city_of_books/internal/dao:
+    config:
+      all: true

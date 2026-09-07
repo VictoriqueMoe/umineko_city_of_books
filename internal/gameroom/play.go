@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"time"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -42,7 +43,12 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.AppendMove(ctx, roomID, ply, userID, string(action)); err != nil {
+	if err := s.repo.AppendMove(ctx, spec.NewGameRoomMove{
+		RoomID:     roomID,
+		Ply:        ply,
+		UserID:     userID,
+		ActionJSON: string(action),
+	}); err != nil {
 		return nil, err
 	}
 
@@ -57,7 +63,11 @@ func (s *service) SubmitAction(ctx context.Context, roomID, userID uuid.UUID, ac
 	}
 
 	nextTurn := winnerUserID(result.NextTurnSlot, players)
-	if err := s.repo.SetState(ctx, roomID, result.NewStateJSON, nextTurn); err != nil {
+	if err := s.repo.SetState(ctx, spec.GameRoomStateUpdate{
+		RoomID:     roomID,
+		StateJSON:  result.NewStateJSON,
+		TurnUserID: nextTurn,
+	}); err != nil {
 		return nil, err
 	}
 

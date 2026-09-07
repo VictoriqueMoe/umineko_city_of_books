@@ -5,6 +5,8 @@ import (
 	"database/sql"
 
 	"umineko_city_of_books/internal/cache"
+	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -12,27 +14,23 @@ import (
 
 type (
 	RoleRepository interface {
-		GetRole(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (role.Role, error)
-		GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]role.Role, error)
-		HasRole(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) (bool, error)
-		SetRole(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) error
-		RemoveRole(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) error
-		GetUsersByRoles(ctx context.Context, roles []role.Role, tx ...*sql.Tx) ([]uuid.UUID, error)
+		dao.RoleDAO
 	}
 
 	roleRepository struct {
-		dao   RoleRepository
+		dao.RoleDAO
+
 		cache *cache.Manager
 	}
 )
 
-func NewRoleRepo(dao RoleRepository, c *cache.Manager) RoleRepository {
-	return &roleRepository{dao: dao, cache: c}
+func NewRoleRepo(d dao.RoleDAO, c *cache.Manager) RoleRepository {
+	return &roleRepository{RoleDAO: d, cache: c}
 }
 
 func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (role.Role, error) {
 	load := func(ctx context.Context) (string, error) {
-		rl, err := r.dao.GetRole(ctx, userID, tx...)
+		rl, err := r.RoleDAO.GetRole(ctx, userID, tx...)
 
 		return string(rl), err
 	}
@@ -45,30 +43,18 @@ func (r *roleRepository) GetRole(ctx context.Context, userID uuid.UUID, tx ...*s
 	return role.Role(cached), nil
 }
 
-func (r *roleRepository) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {
-	if err := r.dao.SetRole(ctx, userID, rl, tx...); err != nil {
+func (r *roleRepository) SetRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
+	if err := r.RoleDAO.SetRole(ctx, s, tx...); err != nil {
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.UserRole.Key(userID.String()))
+	return r.cache.Del(ctx, cache.UserRole.Key(s.UserID.String()))
 }
 
-func (r *roleRepository) RemoveRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {
-	if err := r.dao.RemoveRole(ctx, userID, rl, tx...); err != nil {
+func (r *roleRepository) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
+	if err := r.RoleDAO.RemoveRole(ctx, s, tx...); err != nil {
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.UserRole.Key(userID.String()))
-}
-
-func (r *roleRepository) GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]role.Role, error) {
-	return r.dao.GetRoles(ctx, userIDs, tx...)
-}
-
-func (r *roleRepository) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) (bool, error) {
-	return r.dao.HasRole(ctx, userID, rl, tx...)
-}
-
-func (r *roleRepository) GetUsersByRoles(ctx context.Context, roles []role.Role, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	return r.dao.GetUsersByRoles(ctx, roles, tx...)
+	return r.cache.Del(ctx, cache.UserRole.Key(s.UserID.String()))
 }

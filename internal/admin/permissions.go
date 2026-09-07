@@ -6,9 +6,10 @@ import (
 	"slices"
 	"strings"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
@@ -95,11 +96,11 @@ func (s *service) UpdateRolePermissions(ctx context.Context, actorID uuid.UUID, 
 		return err
 	}
 
-	if err := s.permissionRepo.SetRolePermissions(ctx, string(target), clean); err != nil {
+	if err := s.permissionRepo.SetRolePermissions(ctx, spec.RolePermissionsUpdate{RoleName: string(target), Permissions: clean}); err != nil {
 		return fmt.Errorf("set role permissions: %w", err)
 	}
 
-	s.auditDetails(ctx, actorID, repository.AuditActionUpdateRolePermissions, repository.AuditTargetRole, string(target), strings.Join(clean, ","))
+	s.auditDetails(ctx, actorID, audit.ActionUpdateRolePermissions, audit.TargetRole, string(target), strings.Join(clean, ","))
 	s.broadcastPermissionsChanged()
 
 	return nil
@@ -124,11 +125,11 @@ func (s *service) UpdateVanityRolePermissions(ctx context.Context, actorID uuid.
 		return err
 	}
 
-	if err := s.permissionRepo.SetVanityRolePermissions(ctx, vanityRoleID, clean); err != nil {
+	if err := s.permissionRepo.SetVanityRolePermissions(ctx, spec.VanityRolePermissionsUpdate{VanityRoleID: vanityRoleID, Permissions: clean}); err != nil {
 		return fmt.Errorf("set vanity role permissions: %w", err)
 	}
 
-	s.auditDetails(ctx, actorID, repository.AuditActionUpdateVanityRolePermissions, repository.AuditTargetVanityRole, vanityRoleID, strings.Join(clean, ","))
+	s.auditDetails(ctx, actorID, audit.ActionUpdateVanityRolePermissions, audit.TargetVanityRole, vanityRoleID, strings.Join(clean, ","))
 	s.broadcastPermissionsChanged()
 
 	return nil

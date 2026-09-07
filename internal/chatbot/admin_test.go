@@ -7,7 +7,11 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/user"
@@ -27,13 +31,25 @@ func anyReloader(t *testing.T) *MockService {
 	return m
 }
 
-func validRequest(model string) dto.ChatbotUpsertRequest {
+func validRequest(modelName string) dto.ChatbotUpsertRequest {
 	return dto.ChatbotUpsertRequest{
 		Username:     "beatrice",
 		DisplayName:  "Beatrice",
 		SystemPrompt: "you are the golden witch",
-		Model:        model,
+		Model:        modelName,
 		Enabled:      true,
+	}
+}
+
+func botAccount(displayName string) spec.NewUser {
+	return spec.NewUser{
+		Username:      "beatrice",
+		PasswordHash:  botPasswordHash,
+		DisplayName:   displayName,
+		HomePage:      botHomePage,
+		IsBot:         true,
+		DMsEnabled:    true,
+		EmailVerified: true,
 	}
 }
 
@@ -158,7 +174,7 @@ func TestCreate_RejectsUnknownModelBeforeTouchingTheDatabase(t *testing.T) {
 	require.ErrorIs(t, err, ErrBotUnknownModel)
 	assert.Nil(t, bot)
 	userSvc.AssertNotCalled(t, "CheckUsernameAvailable", mock.Anything, mock.Anything)
-	botRepo.AssertNotCalled(t, "CreateBotWithAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	botRepo.AssertNotCalled(t, "CreateBotWithAccount", mock.Anything, mock.Anything)
 }
 
 func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
@@ -171,7 +187,15 @@ func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	botUserID := uuid.New()
 
 	botRepo := repository.NewMockChatbotRepository(t)
-	botRepo.EXPECT().CreateBotWithAccount(mock.Anything, mock.Anything, mock.Anything, botVanityRoleID).Return(&repository.Chatbot{
+	botRepo.EXPECT().CreateBotWithAccount(mock.Anything, spec.NewChatbotWithAccount{
+		Account: botAccount("Beatrice"),
+		Bot: model.Chatbot{
+			SystemPrompt: "you are the golden witch",
+			Model:        "gpt-9-unreleased",
+			Enabled:      true,
+		},
+		VanityRoleID: botVanityRoleID,
+	}).Return(&model.Chatbot{
 		ID:       botID,
 		UserID:   botUserID,
 		Username: "beatrice",
@@ -185,10 +209,10 @@ func TestCreate_ProviderOutageDoesNotBlockTheSave(t *testing.T) {
 	openaiSvc.EXPECT().Models(mock.Anything).Return(nil, errors.New("provider unreachable")).Once()
 
 	auditRepo := repository.NewMockAuditLogRepository(t)
-	auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionChatbotCreate,
-		TargetType: repository.AuditTargetChatbot,
+		Action:     audit.ActionChatbotCreate,
+		TargetType: audit.TargetChatbot,
 		TargetID:   botID.String(),
 		Details:    "username=beatrice name= model=gpt-9-unreleased enabled=false",
 		SubjectID:  botUserID,
@@ -212,7 +236,7 @@ func TestDelete_MissingBotIsReportedAsNotFound(t *testing.T) {
 
 	botRepo := repository.NewMockChatbotRepository(t)
 	botRepo.EXPECT().ListBots(mock.Anything).Return(nil, nil).Once()
-	botRepo.EXPECT().DeleteBot(mock.Anything, mock.Anything).Return(repository.ErrBotNotFound).Once()
+	botRepo.EXPECT().DeleteBot(mock.Anything, mock.Anything).Return(dao.ErrBotNotFound).Once()
 
 	svc := NewAdminService(botRepo, repository.NewMockChatbotBasePromptRepository(t), repository.NewMockAuditLogRepository(t), user.NewMockService(t), openai.NewMockService(t), reloader)
 
@@ -234,16 +258,16 @@ func TestDelete_KeepsTheBotNameTheDeleteDestroys(t *testing.T) {
 	botUserID := uuid.New()
 
 	botRepo := repository.NewMockChatbotRepository(t)
-	botRepo.EXPECT().ListBots(mock.Anything).Return([]repository.Chatbot{
+	botRepo.EXPECT().ListBots(mock.Anything).Return([]model.Chatbot{
 		{ID: botID, UserID: botUserID, Username: "beatrice", DisplayName: "Beatrice"},
 	}, nil).Once()
 	botRepo.EXPECT().DeleteBot(mock.Anything, botID).Return(nil).Once()
 
 	auditRepo := repository.NewMockAuditLogRepository(t)
-	auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionChatbotDelete,
-		TargetType: repository.AuditTargetChatbot,
+		Action:     audit.ActionChatbotDelete,
+		TargetType: audit.TargetChatbot,
 		TargetID:   botID.String(),
 		Details:    "username=beatrice name=Beatrice",
 		SubjectID:  botUserID,
@@ -374,12 +398,18 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			auditRepo := repository.NewMockAuditLogRepository(t)
 
 			if tc.wantErr == nil {
-				botRepo.EXPECT().CreateBotWithAccount(mock.Anything, mock.MatchedBy(func(account repository.NewUser) bool {
-					return account.DisplayName == tc.want
-				}), mock.Anything, botVanityRoleID).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
+				botRepo.EXPECT().CreateBotWithAccount(mock.Anything, spec.NewChatbotWithAccount{
+					Account: botAccount(tc.want),
+					Bot: model.Chatbot{
+						SystemPrompt: "you are the golden witch",
+						Model:        "gpt-5.6-luna",
+						Enabled:      true,
+					},
+					VanityRoleID: botVanityRoleID,
+				}).Return(&model.Chatbot{DisplayName: tc.want}, nil).Once()
 				userSvc.EXPECT().CheckUsernameAvailable(mock.Anything, "beatrice").Return(nil).Once()
-				auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-					return entry.Action == repository.AuditActionChatbotCreate && strings.Contains(entry.Details, "name="+tc.want)
+				auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+					return entry.Action == audit.ActionChatbotCreate && strings.Contains(entry.Details, "name="+tc.want)
 				})).Return(nil).Once()
 			}
 
@@ -395,7 +425,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Nil(t, bot)
-				botRepo.AssertNotCalled(t, "CreateBotWithAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				botRepo.AssertNotCalled(t, "CreateBotWithAccount", mock.Anything, mock.Anything)
 
 				return
 			}
@@ -418,12 +448,19 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			auditRepo := repository.NewMockAuditLogRepository(t)
 
 			if tc.wantErr == nil {
-				botRepo.EXPECT().ListBots(mock.Anything).Return([]repository.Chatbot{{ID: botID, UserID: botUserID}}, nil).Once()
-				botRepo.EXPECT().UpdateBotWithAccount(mock.Anything, mock.MatchedBy(func(bot repository.Chatbot) bool {
-					return bot.UserID == botUserID
-				}), tc.want, mock.Anything).Return(&repository.Chatbot{DisplayName: tc.want}, nil).Once()
-				auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-					return entry.Action == repository.AuditActionChatbotUpdate &&
+				botRepo.EXPECT().ListBots(mock.Anything).Return([]model.Chatbot{{ID: botID, UserID: botUserID}}, nil).Once()
+				botRepo.EXPECT().UpdateBotWithAccount(mock.Anything, spec.ChatbotAccountUpdate{
+					Bot: model.Chatbot{
+						ID:           botID,
+						UserID:       botUserID,
+						SystemPrompt: "you are the golden witch",
+						Model:        "gpt-5.6-luna",
+						Enabled:      true,
+					},
+					DisplayName: tc.want,
+				}).Return(&model.Chatbot{DisplayName: tc.want}, nil).Once()
+				auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+					return entry.Action == audit.ActionChatbotUpdate &&
 						entry.TargetID == botID.String() &&
 						entry.SubjectID == botUserID &&
 						strings.Contains(entry.Details, "display_name="+tc.want) &&
@@ -443,7 +480,7 @@ func TestUpsert_ClampsDisplayName(t *testing.T) {
 			if tc.wantErr != nil {
 				require.ErrorIs(t, err, tc.wantErr)
 				assert.Nil(t, bot)
-				botRepo.AssertNotCalled(t, "UpdateBotWithAccount", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				botRepo.AssertNotCalled(t, "UpdateBotWithAccount", mock.Anything, mock.Anything)
 
 				return
 			}
@@ -463,14 +500,14 @@ func TestUpdateBasePrompt_AuditCarriesTheNameNotThePrompt(t *testing.T) {
 	promptID := uuid.New()
 
 	basePromptRepo := repository.NewMockChatbotBasePromptRepository(t)
-	basePromptRepo.EXPECT().Update(mock.Anything, promptID, "Witches", secret).
-		Return(&repository.ChatbotBasePrompt{ID: promptID, Name: "Witches", Prompt: secret, BotCount: 3}, nil).Once()
+	basePromptRepo.EXPECT().Update(mock.Anything, spec.ChatbotBasePromptUpdate{ID: promptID, Name: "Witches", Prompt: secret}).
+		Return(&model.ChatbotBasePrompt{ID: promptID, Name: "Witches", Prompt: secret, BotCount: 3}, nil).Once()
 
 	auditRepo := repository.NewMockAuditLogRepository(t)
-	auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionChatbotBasePromptUpdate,
-		TargetType: repository.AuditTargetChatbotBasePrompt,
+		Action:     audit.ActionChatbotBasePromptUpdate,
+		TargetType: audit.TargetChatbotBasePrompt,
 		TargetID:   promptID.String(),
 		Details:    "name=Witches bots=3",
 	}).Return(nil).Once()
@@ -492,14 +529,14 @@ func TestDeleteBasePrompt_KeepsTheNameTheDeleteDestroys(t *testing.T) {
 
 	basePromptRepo := repository.NewMockChatbotBasePromptRepository(t)
 	basePromptRepo.EXPECT().GetByID(mock.Anything, promptID).
-		Return(&repository.ChatbotBasePrompt{ID: promptID, Name: "Witches", Prompt: "you are the golden witch"}, nil).Once()
+		Return(&model.ChatbotBasePrompt{ID: promptID, Name: "Witches", Prompt: "you are the golden witch"}, nil).Once()
 	basePromptRepo.EXPECT().Delete(mock.Anything, promptID).Return(nil).Once()
 
 	auditRepo := repository.NewMockAuditLogRepository(t)
-	auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionChatbotBasePromptDelete,
-		TargetType: repository.AuditTargetChatbotBasePrompt,
+		Action:     audit.ActionChatbotBasePromptDelete,
+		TargetType: audit.TargetChatbotBasePrompt,
 		TargetID:   promptID.String(),
 		Details:    "name=Witches bots=0",
 	}).Return(nil).Once()
@@ -516,7 +553,7 @@ func TestDeleteBasePrompt_KeepsTheNameTheDeleteDestroys(t *testing.T) {
 func TestUsage_ReportsFailureCounts(t *testing.T) {
 	// given
 	botRepo := repository.NewMockChatbotRepository(t)
-	botRepo.EXPECT().StatsSince(mock.Anything, mock.Anything).Return(&repository.ChatbotStats{
+	botRepo.EXPECT().StatsSince(mock.Anything, mock.Anything).Return(&model.ChatbotStats{
 		Invocations: 10,
 		Failed:      3,
 		Quota:       2,

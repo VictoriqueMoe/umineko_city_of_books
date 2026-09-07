@@ -7,6 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -39,12 +41,12 @@ func (_m *MockJournalCommentWriter) EXPECT() *MockJournalCommentWriter_Expecter 
 }
 
 // CreateComment provides a mock function for the type MockJournalCommentWriter
-func (_mock *MockJournalCommentWriter) CreateComment(ctx context.Context, spec NewJournalComment, tx ...*sql.Tx) (*CommentRow, error) {
+func (_mock *MockJournalCommentWriter) CreateComment(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -52,20 +54,20 @@ func (_mock *MockJournalCommentWriter) CreateComment(ctx context.Context, spec N
 		panic("no return value specified for CreateComment")
 	}
 
-	var r0 *CommentRow
+	var r0 *model.CommentRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalComment, ...*sql.Tx) (*CommentRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalComment, ...*sql.Tx) (*model.CommentRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalComment, ...*sql.Tx) *CommentRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalComment, ...*sql.Tx) *model.CommentRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*CommentRow)
+			r0 = ret.Get(0).(*model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewJournalComment, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewJournalComment, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -79,22 +81,22 @@ type MockJournalCommentWriter_CreateComment_Call struct {
 
 // CreateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewJournalComment
+//   - s spec.NewJournalComment
 //   - tx ...*sql.Tx
-func (_e *MockJournalCommentWriter_Expecter) CreateComment(ctx any, spec any, tx ...any) *MockJournalCommentWriter_CreateComment_Call {
+func (_e *MockJournalCommentWriter_Expecter) CreateComment(ctx any, s any, tx ...any) *MockJournalCommentWriter_CreateComment_Call {
 	return &MockJournalCommentWriter_CreateComment_Call{Call: _e.mock.On("CreateComment",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalCommentWriter_CreateComment_Call) Run(run func(ctx context.Context, spec NewJournalComment, tx ...*sql.Tx)) *MockJournalCommentWriter_CreateComment_Call {
+func (_c *MockJournalCommentWriter_CreateComment_Call) Run(run func(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx)) *MockJournalCommentWriter_CreateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewJournalComment
+		var arg1 spec.NewJournalComment
 		if args[1] != nil {
-			arg1 = args[1].(NewJournalComment)
+			arg1 = args[1].(spec.NewJournalComment)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -111,12 +113,12 @@ func (_c *MockJournalCommentWriter_CreateComment_Call) Run(run func(ctx context.
 	return _c
 }
 
-func (_c *MockJournalCommentWriter_CreateComment_Call) Return(commentRow *CommentRow, err error) *MockJournalCommentWriter_CreateComment_Call {
+func (_c *MockJournalCommentWriter_CreateComment_Call) Return(commentRow *model.CommentRow, err error) *MockJournalCommentWriter_CreateComment_Call {
 	_c.Call.Return(commentRow, err)
 	return _c
 }
 
-func (_c *MockJournalCommentWriter_CreateComment_Call) RunAndReturn(run func(ctx context.Context, spec NewJournalComment, tx ...*sql.Tx) (*CommentRow, error)) *MockJournalCommentWriter_CreateComment_Call {
+func (_c *MockJournalCommentWriter_CreateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error)) *MockJournalCommentWriter_CreateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }

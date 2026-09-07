@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/openai"
-	"umineko_city_of_books/internal/repository"
 )
 
 type (
@@ -19,7 +19,7 @@ type (
 	outcome struct {
 		reason   Reason
 		stage    stage
-		status   repository.InvocationStatus
+		status   model.InvocationStatus
 		clearsAt time.Time
 		detail   string
 		err      error

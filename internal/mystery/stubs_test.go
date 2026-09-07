@@ -2,7 +2,7 @@ package mystery
 
 import (
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"

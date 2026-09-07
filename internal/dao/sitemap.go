@@ -6,25 +6,36 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 )
 
 type (
+	SitemapDAO interface {
+		ListTheories(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)
+		ListPosts(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)
+		ListArt(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)
+		ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string, error)
+		ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)
+		ListShips(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)
+		ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)
+		ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapJournalRow, error)
+	}
+
 	sitemapDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *sitemapDAO) listEntries(ctx context.Context, query, label string, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) listEntries(ctx context.Context, query, label string, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("list %s: %w", label, err)
 	}
 	defer rows.Close()
 
-	var entries []repository.SitemapEntry
+	var entries []model.SitemapEntry
 	for rows.Next() {
-		var e repository.SitemapEntry
+		var e model.SitemapEntry
 		if err := rows.Scan(&e.ID, &e.LastMod); err != nil {
 			return nil, fmt.Errorf("scan %s: %w", label, err)
 		}
@@ -33,27 +44,27 @@ func (r *sitemapDAO) listEntries(ctx context.Context, query, label string, tx ..
 	return entries, rows.Err()
 }
 
-func (r *sitemapDAO) ListTheories(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) ListTheories(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	return r.listEntries(ctx, `SELECT id, created_at FROM theories ORDER BY created_at DESC`, "theories", tx...)
 }
 
-func (r *sitemapDAO) ListPosts(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) ListPosts(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	return r.listEntries(ctx, `SELECT id, created_at FROM posts ORDER BY created_at DESC`, "posts", tx...)
 }
 
-func (r *sitemapDAO) ListArt(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) ListArt(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	return r.listEntries(ctx, `SELECT id, created_at FROM art ORDER BY created_at DESC`, "art", tx...)
 }
 
-func (r *sitemapDAO) ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	return r.listEntries(ctx, `SELECT id, created_at FROM mysteries ORDER BY created_at DESC`, "mysteries", tx...)
 }
 
-func (r *sitemapDAO) ListShips(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) ListShips(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	return r.listEntries(ctx, `SELECT id, created_at FROM ships ORDER BY created_at DESC`, "ships", tx...)
 }
 
-func (r *sitemapDAO) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapEntry, error) {
+func (r *sitemapDAO) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	return r.listEntries(ctx, `SELECT id, created_at FROM fanfics WHERE status != 'draft' ORDER BY created_at DESC`, "fanfics", tx...)
 }
 
@@ -66,7 +77,7 @@ func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string
 	return utils.ScanStrings(rows, "username")
 }
 
-func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]repository.SitemapJournalRow, error) {
+func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapJournalRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT j.id, COALESCE(j.updated_at, j.created_at), e.entry_number, e.updated_at
 		FROM journals j
@@ -78,9 +89,9 @@ func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]repo
 	}
 	defer rows.Close()
 
-	var result []repository.SitemapJournalRow
+	var result []model.SitemapJournalRow
 	for rows.Next() {
-		var row repository.SitemapJournalRow
+		var row model.SitemapJournalRow
 		if err := rows.Scan(&row.JournalID, &row.JournalUpdatedAt, &row.EntryNumber, &row.EntryUpdatedAt); err != nil {
 			return nil, fmt.Errorf("scan journal row: %w", err)
 		}

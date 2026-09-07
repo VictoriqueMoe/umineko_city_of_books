@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
 
@@ -148,8 +150,8 @@ func TestDMHistory_ReadsOnlyWhatTheMemberCanSee(t *testing.T) {
 	botID := uuid.New()
 
 	chatRepo := repository.NewMockChatRepository(t)
-	chatRepo.EXPECT().GetMessagesForMember(mock.Anything, roomID, senderID, 20).
-		Return([]repository.ChatMessageRow{
+	chatRepo.EXPECT().GetMessagesForMember(mock.Anything, spec.ChatMessagePage{RoomID: roomID, ViewerID: senderID, Limit: 20}).
+		Return([]model.ChatMessageRow{
 			{SenderID: senderID, SenderDisplayName: "Kujo", Body: "hello again"},
 		}, nil).Once()
 
@@ -162,5 +164,5 @@ func TestDMHistory_ReadsOnlyWhatTheMemberCanSee(t *testing.T) {
 	// then
 	require.Len(t, got, 1)
 	assert.Equal(t, "Kujo: hello again", got[0].Content)
-	chatRepo.AssertNotCalled(t, "GetMessages", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	chatRepo.AssertNotCalled(t, "GetMessages", mock.Anything, mock.Anything)
 }

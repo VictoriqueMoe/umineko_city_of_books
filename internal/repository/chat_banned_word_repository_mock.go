@@ -7,6 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -40,12 +42,12 @@ func (_m *MockChatBannedWordRepository) EXPECT() *MockChatBannedWordRepository_E
 }
 
 // Create provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) Create(ctx context.Context, spec ChatBannedWordSpec, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+func (_mock *MockChatBannedWordRepository) Create(ctx context.Context, s spec.ChatBannedWordSpec, tx ...*sql.Tx) (*model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -53,20 +55,20 @@ func (_mock *MockChatBannedWordRepository) Create(ctx context.Context, spec Chat
 		panic("no return value specified for Create")
 	}
 
-	var r0 *ChatBannedWordRow
+	var r0 *model.ChatBannedWordRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatBannedWordSpec, ...*sql.Tx) (*ChatBannedWordRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatBannedWordSpec, ...*sql.Tx) (*model.ChatBannedWordRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatBannedWordSpec, ...*sql.Tx) *ChatBannedWordRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatBannedWordSpec, ...*sql.Tx) *model.ChatBannedWordRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ChatBannedWordRow)
+			r0 = ret.Get(0).(*model.ChatBannedWordRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ChatBannedWordSpec, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ChatBannedWordSpec, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,22 +82,22 @@ type MockChatBannedWordRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ChatBannedWordSpec
+//   - s spec.ChatBannedWordSpec
 //   - tx ...*sql.Tx
-func (_e *MockChatBannedWordRepository_Expecter) Create(ctx any, spec any, tx ...any) *MockChatBannedWordRepository_Create_Call {
+func (_e *MockChatBannedWordRepository_Expecter) Create(ctx any, s any, tx ...any) *MockChatBannedWordRepository_Create_Call {
 	return &MockChatBannedWordRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockChatBannedWordRepository_Create_Call) Run(run func(ctx context.Context, spec ChatBannedWordSpec, tx ...*sql.Tx)) *MockChatBannedWordRepository_Create_Call {
+func (_c *MockChatBannedWordRepository_Create_Call) Run(run func(ctx context.Context, s spec.ChatBannedWordSpec, tx ...*sql.Tx)) *MockChatBannedWordRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ChatBannedWordSpec
+		var arg1 spec.ChatBannedWordSpec
 		if args[1] != nil {
-			arg1 = args[1].(ChatBannedWordSpec)
+			arg1 = args[1].(spec.ChatBannedWordSpec)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -112,23 +114,23 @@ func (_c *MockChatBannedWordRepository_Create_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_Create_Call) Return(chatBannedWordRow *ChatBannedWordRow, err error) *MockChatBannedWordRepository_Create_Call {
+func (_c *MockChatBannedWordRepository_Create_Call) Return(chatBannedWordRow *model.ChatBannedWordRow, err error) *MockChatBannedWordRepository_Create_Call {
 	_c.Call.Return(chatBannedWordRow, err)
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_Create_Call) RunAndReturn(run func(ctx context.Context, spec ChatBannedWordSpec, tx ...*sql.Tx) (*ChatBannedWordRow, error)) *MockChatBannedWordRepository_Create_Call {
+func (_c *MockChatBannedWordRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.ChatBannedWordSpec, tx ...*sql.Tx) (*model.ChatBannedWordRow, error)) *MockChatBannedWordRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateWithAudit provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) CreateWithAudit(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+func (_mock *MockChatBannedWordRepository) CreateWithAudit(ctx context.Context, s spec.ChatBannedWordCreation, tx ...*sql.Tx) (*model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, audit, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec, audit)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -136,20 +138,20 @@ func (_mock *MockChatBannedWordRepository) CreateWithAudit(ctx context.Context, 
 		panic("no return value specified for CreateWithAudit")
 	}
 
-	var r0 *ChatBannedWordRow
+	var r0 *model.ChatBannedWordRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatBannedWordSpec, NewAuditEntry, ...*sql.Tx) (*ChatBannedWordRow, error)); ok {
-		return returnFunc(ctx, spec, audit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatBannedWordCreation, ...*sql.Tx) (*model.ChatBannedWordRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChatBannedWordSpec, NewAuditEntry, ...*sql.Tx) *ChatBannedWordRow); ok {
-		r0 = returnFunc(ctx, spec, audit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatBannedWordCreation, ...*sql.Tx) *model.ChatBannedWordRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ChatBannedWordRow)
+			r0 = ret.Get(0).(*model.ChatBannedWordRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ChatBannedWordSpec, NewAuditEntry, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, audit, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ChatBannedWordCreation, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -163,50 +165,44 @@ type MockChatBannedWordRepository_CreateWithAudit_Call struct {
 
 // CreateWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ChatBannedWordSpec
-//   - audit NewAuditEntry
+//   - s spec.ChatBannedWordCreation
 //   - tx ...*sql.Tx
-func (_e *MockChatBannedWordRepository_Expecter) CreateWithAudit(ctx any, spec any, audit any, tx ...any) *MockChatBannedWordRepository_CreateWithAudit_Call {
+func (_e *MockChatBannedWordRepository_Expecter) CreateWithAudit(ctx any, s any, tx ...any) *MockChatBannedWordRepository_CreateWithAudit_Call {
 	return &MockChatBannedWordRepository_CreateWithAudit_Call{Call: _e.mock.On("CreateWithAudit",
-		append([]any{ctx, spec, audit}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockChatBannedWordRepository_CreateWithAudit_Call) Run(run func(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx)) *MockChatBannedWordRepository_CreateWithAudit_Call {
+func (_c *MockChatBannedWordRepository_CreateWithAudit_Call) Run(run func(ctx context.Context, s spec.ChatBannedWordCreation, tx ...*sql.Tx)) *MockChatBannedWordRepository_CreateWithAudit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ChatBannedWordSpec
+		var arg1 spec.ChatBannedWordCreation
 		if args[1] != nil {
-			arg1 = args[1].(ChatBannedWordSpec)
+			arg1 = args[1].(spec.ChatBannedWordCreation)
 		}
-		var arg2 NewAuditEntry
-		if args[2] != nil {
-			arg2 = args[2].(NewAuditEntry)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_CreateWithAudit_Call) Return(chatBannedWordRow *ChatBannedWordRow, err error) *MockChatBannedWordRepository_CreateWithAudit_Call {
+func (_c *MockChatBannedWordRepository_CreateWithAudit_Call) Return(chatBannedWordRow *model.ChatBannedWordRow, err error) *MockChatBannedWordRepository_CreateWithAudit_Call {
 	_c.Call.Return(chatBannedWordRow, err)
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_CreateWithAudit_Call) RunAndReturn(run func(ctx context.Context, spec ChatBannedWordSpec, audit NewAuditEntry, tx ...*sql.Tx) (*ChatBannedWordRow, error)) *MockChatBannedWordRepository_CreateWithAudit_Call {
+func (_c *MockChatBannedWordRepository_CreateWithAudit_Call) RunAndReturn(run func(ctx context.Context, s spec.ChatBannedWordCreation, tx ...*sql.Tx) (*model.ChatBannedWordRow, error)) *MockChatBannedWordRepository_CreateWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -284,12 +280,12 @@ func (_c *MockChatBannedWordRepository_Delete_Call) RunAndReturn(run func(ctx co
 }
 
 // DeleteWithAudit provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) DeleteWithAudit(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error {
+func (_mock *MockChatBannedWordRepository) DeleteWithAudit(ctx context.Context, s spec.ChatBannedWordDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, audit, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, audit)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -298,8 +294,8 @@ func (_mock *MockChatBannedWordRepository) DeleteWithAudit(ctx context.Context, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewAuditEntry, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, audit, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatBannedWordDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -313,39 +309,33 @@ type MockChatBannedWordRepository_DeleteWithAudit_Call struct {
 
 // DeleteWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - audit NewAuditEntry
+//   - s spec.ChatBannedWordDeletion
 //   - tx ...*sql.Tx
-func (_e *MockChatBannedWordRepository_Expecter) DeleteWithAudit(ctx any, id any, audit any, tx ...any) *MockChatBannedWordRepository_DeleteWithAudit_Call {
+func (_e *MockChatBannedWordRepository_Expecter) DeleteWithAudit(ctx any, s any, tx ...any) *MockChatBannedWordRepository_DeleteWithAudit_Call {
 	return &MockChatBannedWordRepository_DeleteWithAudit_Call{Call: _e.mock.On("DeleteWithAudit",
-		append([]any{ctx, id, audit}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockChatBannedWordRepository_DeleteWithAudit_Call) Run(run func(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx)) *MockChatBannedWordRepository_DeleteWithAudit_Call {
+func (_c *MockChatBannedWordRepository_DeleteWithAudit_Call) Run(run func(ctx context.Context, s spec.ChatBannedWordDeletion, tx ...*sql.Tx)) *MockChatBannedWordRepository_DeleteWithAudit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ChatBannedWordDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ChatBannedWordDeletion)
 		}
-		var arg2 NewAuditEntry
-		if args[2] != nil {
-			arg2 = args[2].(NewAuditEntry)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -356,13 +346,13 @@ func (_c *MockChatBannedWordRepository_DeleteWithAudit_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_DeleteWithAudit_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, audit NewAuditEntry, tx ...*sql.Tx) error) *MockChatBannedWordRepository_DeleteWithAudit_Call {
+func (_c *MockChatBannedWordRepository_DeleteWithAudit_Call) RunAndReturn(run func(ctx context.Context, s spec.ChatBannedWordDeletion, tx ...*sql.Tx) error) *MockChatBannedWordRepository_DeleteWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetByID provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatBannedWordRow, error) {
+func (_mock *MockChatBannedWordRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -375,16 +365,16 @@ func (_mock *MockChatBannedWordRepository) GetByID(ctx context.Context, id uuid.
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 *ChatBannedWordRow
+	var r0 *model.ChatBannedWordRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*ChatBannedWordRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*model.ChatBannedWordRow, error)); ok {
 		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *ChatBannedWordRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *model.ChatBannedWordRow); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*ChatBannedWordRow)
+			r0 = ret.Get(0).(*model.ChatBannedWordRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -434,18 +424,18 @@ func (_c *MockChatBannedWordRepository_GetByID_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_GetByID_Call) Return(chatBannedWordRow *ChatBannedWordRow, err error) *MockChatBannedWordRepository_GetByID_Call {
+func (_c *MockChatBannedWordRepository_GetByID_Call) Return(chatBannedWordRow *model.ChatBannedWordRow, err error) *MockChatBannedWordRepository_GetByID_Call {
 	_c.Call.Return(chatBannedWordRow, err)
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*ChatBannedWordRow, error)) *MockChatBannedWordRepository_GetByID_Call {
+func (_c *MockChatBannedWordRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.ChatBannedWordRow, error)) *MockChatBannedWordRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListApplicable provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) ListApplicable(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error) {
+func (_mock *MockChatBannedWordRepository) ListApplicable(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, roomID, tx)
@@ -458,16 +448,16 @@ func (_mock *MockChatBannedWordRepository) ListApplicable(ctx context.Context, r
 		panic("no return value specified for ListApplicable")
 	}
 
-	var r0 []ChatBannedWordRow
+	var r0 []model.ChatBannedWordRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatBannedWordRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.ChatBannedWordRow, error)); ok {
 		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatBannedWordRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.ChatBannedWordRow); ok {
 		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ChatBannedWordRow)
+			r0 = ret.Get(0).([]model.ChatBannedWordRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -517,18 +507,18 @@ func (_c *MockChatBannedWordRepository_ListApplicable_Call) Run(run func(ctx con
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_ListApplicable_Call) Return(chatBannedWordRows []ChatBannedWordRow, err error) *MockChatBannedWordRepository_ListApplicable_Call {
+func (_c *MockChatBannedWordRepository_ListApplicable_Call) Return(chatBannedWordRows []model.ChatBannedWordRow, err error) *MockChatBannedWordRepository_ListApplicable_Call {
 	_c.Call.Return(chatBannedWordRows, err)
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_ListApplicable_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error)) *MockChatBannedWordRepository_ListApplicable_Call {
+func (_c *MockChatBannedWordRepository_ListApplicable_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error)) *MockChatBannedWordRepository_ListApplicable_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListForRoom provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error) {
+func (_mock *MockChatBannedWordRepository) ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, roomID, tx)
@@ -541,16 +531,16 @@ func (_mock *MockChatBannedWordRepository) ListForRoom(ctx context.Context, room
 		panic("no return value specified for ListForRoom")
 	}
 
-	var r0 []ChatBannedWordRow
+	var r0 []model.ChatBannedWordRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]ChatBannedWordRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.ChatBannedWordRow, error)); ok {
 		return returnFunc(ctx, roomID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []ChatBannedWordRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.ChatBannedWordRow); ok {
 		r0 = returnFunc(ctx, roomID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ChatBannedWordRow)
+			r0 = ret.Get(0).([]model.ChatBannedWordRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -600,18 +590,18 @@ func (_c *MockChatBannedWordRepository_ListForRoom_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_ListForRoom_Call) Return(chatBannedWordRows []ChatBannedWordRow, err error) *MockChatBannedWordRepository_ListForRoom_Call {
+func (_c *MockChatBannedWordRepository_ListForRoom_Call) Return(chatBannedWordRows []model.ChatBannedWordRow, err error) *MockChatBannedWordRepository_ListForRoom_Call {
 	_c.Call.Return(chatBannedWordRows, err)
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_ListForRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]ChatBannedWordRow, error)) *MockChatBannedWordRepository_ListForRoom_Call {
+func (_c *MockChatBannedWordRepository_ListForRoom_Call) RunAndReturn(run func(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error)) *MockChatBannedWordRepository_ListForRoom_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListGlobal provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) ListGlobal(ctx context.Context, tx ...*sql.Tx) ([]ChatBannedWordRow, error) {
+func (_mock *MockChatBannedWordRepository) ListGlobal(ctx context.Context, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -624,16 +614,16 @@ func (_mock *MockChatBannedWordRepository) ListGlobal(ctx context.Context, tx ..
 		panic("no return value specified for ListGlobal")
 	}
 
-	var r0 []ChatBannedWordRow
+	var r0 []model.ChatBannedWordRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]ChatBannedWordRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.ChatBannedWordRow, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []ChatBannedWordRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.ChatBannedWordRow); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]ChatBannedWordRow)
+			r0 = ret.Get(0).([]model.ChatBannedWordRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -677,23 +667,23 @@ func (_c *MockChatBannedWordRepository_ListGlobal_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_ListGlobal_Call) Return(chatBannedWordRows []ChatBannedWordRow, err error) *MockChatBannedWordRepository_ListGlobal_Call {
+func (_c *MockChatBannedWordRepository_ListGlobal_Call) Return(chatBannedWordRows []model.ChatBannedWordRow, err error) *MockChatBannedWordRepository_ListGlobal_Call {
 	_c.Call.Return(chatBannedWordRows, err)
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_ListGlobal_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]ChatBannedWordRow, error)) *MockChatBannedWordRepository_ListGlobal_Call {
+func (_c *MockChatBannedWordRepository_ListGlobal_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.ChatBannedWordRow, error)) *MockChatBannedWordRepository_ListGlobal_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockChatBannedWordRepository
-func (_mock *MockChatBannedWordRepository) Update(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate, tx ...*sql.Tx) error {
+func (_mock *MockChatBannedWordRepository) Update(ctx context.Context, s spec.ChatBannedWordUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -702,8 +692,8 @@ func (_mock *MockChatBannedWordRepository) Update(ctx context.Context, id uuid.U
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ChatBannedWordUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChatBannedWordUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -717,39 +707,33 @@ type MockChatBannedWordRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - spec ChatBannedWordUpdate
+//   - s spec.ChatBannedWordUpdate
 //   - tx ...*sql.Tx
-func (_e *MockChatBannedWordRepository_Expecter) Update(ctx any, id any, spec any, tx ...any) *MockChatBannedWordRepository_Update_Call {
+func (_e *MockChatBannedWordRepository_Expecter) Update(ctx any, s any, tx ...any) *MockChatBannedWordRepository_Update_Call {
 	return &MockChatBannedWordRepository_Update_Call{Call: _e.mock.On("Update",
-		append([]any{ctx, id, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockChatBannedWordRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate, tx ...*sql.Tx)) *MockChatBannedWordRepository_Update_Call {
+func (_c *MockChatBannedWordRepository_Update_Call) Run(run func(ctx context.Context, s spec.ChatBannedWordUpdate, tx ...*sql.Tx)) *MockChatBannedWordRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ChatBannedWordUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ChatBannedWordUpdate)
 		}
-		var arg2 ChatBannedWordUpdate
-		if args[2] != nil {
-			arg2 = args[2].(ChatBannedWordUpdate)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -760,7 +744,7 @@ func (_c *MockChatBannedWordRepository_Update_Call) Return(err error) *MockChatB
 	return _c
 }
 
-func (_c *MockChatBannedWordRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, spec ChatBannedWordUpdate, tx ...*sql.Tx) error) *MockChatBannedWordRepository_Update_Call {
+func (_c *MockChatBannedWordRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s spec.ChatBannedWordUpdate, tx ...*sql.Tx) error) *MockChatBannedWordRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

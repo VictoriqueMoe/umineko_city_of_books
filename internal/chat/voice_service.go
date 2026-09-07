@@ -12,6 +12,7 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -64,7 +65,7 @@ func (s *voiceService) MintVoiceToken(ctx context.Context, roomID, userID uuid.U
 
 	displayName := s.displayNameFor(ctx, userID, roomID)
 
-	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, roomID, userID)
+	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return "", "", fmt.Errorf("check voice force mute: %w", err)
 	}
@@ -90,7 +91,7 @@ func (s *voiceService) ForceMuteVoice(ctx context.Context, roomID, actorID, targ
 		return ErrVoiceMuteForbidden
 	}
 
-	if err := s.chatRepo.SetVoiceForceMuted(ctx, roomID, targetID, actorID, muted); err != nil {
+	if err := s.chatRepo.SetVoiceForceMuted(ctx, spec.ChatVoiceForceMuteUpdate{RoomID: roomID, UserID: targetID, MutedBy: actorID, Muted: muted}); err != nil {
 		return fmt.Errorf("set voice force mute: %w", err)
 	}
 
@@ -98,7 +99,7 @@ func (s *voiceService) ForceMuteVoice(ctx context.Context, roomID, actorID, targ
 }
 
 func (s *voiceService) reapplyForceMute(ctx context.Context, roomID uuid.UUID, roomName string, userID uuid.UUID, allowScreenShare bool) {
-	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, roomID, userID)
+	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("livekit_room", roomName).Str("identity", userID.String()).Msg("check force mute on rejoin failed")
 		return

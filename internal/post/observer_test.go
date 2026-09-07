@@ -9,8 +9,8 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -148,9 +148,9 @@ func TestObserveForBot(t *testing.T) {
 			}
 
 			if tc.withParent && tc.author != nil && tc.authorErr == nil && !tc.author.IsBot {
-				var row *repository.CommentRow
+				var row *model.CommentRow
 				if tc.parentAuthorSet {
-					row = &repository.CommentRow{ID: *parentID, EntityID: postID.String(), UserID: parentAuthorID}
+					row = &model.CommentRow{ID: *parentID, EntityID: postID.String(), UserID: parentAuthorID}
 				}
 				m.postRepo.EXPECT().GetCommentByID(mock.Anything, *parentID).Return(row, nil).Once()
 			}
@@ -203,7 +203,7 @@ func TestObserveForBot_ParentOnAnotherPostIsIgnored(t *testing.T) {
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, authorID).Return(&model.User{ID: authorID}, nil).Once()
 	m.postRepo.EXPECT().GetCommentByID(mock.Anything, parentID).
-		Return(&repository.CommentRow{ID: parentID, EntityID: otherPostID.String(), UserID: uuid.New()}, nil).Once()
+		Return(&model.CommentRow{ID: parentID, EntityID: otherPostID.String(), UserID: uuid.New()}, nil).Once()
 
 	// when
 	svc.observeForBot(postID, new(commentID), authorID, "no mention here", new(parentID))
@@ -253,7 +253,7 @@ func TestCreateComment_EmitsBotTrigger(t *testing.T) {
 
 	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(authorID, nil).Maybe()
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
-	m.postComments.EXPECT().CreateComment(mock.Anything, postID, (*uuid.UUID)(nil), userID, "@beatrice hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.postComments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: postID, ParentID: nil, UserID: userID, Body: "@beatrice hello"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 	expectBackgroundSocial(m)
@@ -298,7 +298,7 @@ func TestCreatePost_EmitsBotTriggerOutsideSuggestions(t *testing.T) {
 			botID := uuid.New()
 
 			m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxPostsPerDay).Return(0)
-			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, repository.NewPost{UserID: userID, Corner: tc.corner, Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
+			m.postRepo.EXPECT().CreateWithDetails(mock.Anything, spec.NewPost{UserID: userID, Corner: tc.corner, Body: "@beatrice hello"}).Return(&model.PostRow{ID: uuid.New()}, nil)
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil).Maybe()
 			m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"beatrice"}).Return([]model.User{{ID: botID}}, nil).Maybe()
 			expectBackgroundSocial(m)

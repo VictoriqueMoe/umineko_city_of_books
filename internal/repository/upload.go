@@ -1,21 +1,19 @@
 package repository
 
 import (
-	"database/sql"
+	"umineko_city_of_books/internal/dao"
 )
 
-type UploadRepository interface {
-	GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error)
-}
+type (
+	UploadRepository interface {
+		dao.UploadDAO
+	}
 
-type uploadRepository struct {
-	dao UploadRepository
-}
+	uploadRepository struct {
+		dao.UploadDAO
+	}
+)
 
-func NewUploadRepo(dao UploadRepository) UploadRepository {
-	return &uploadRepository{dao: dao}
-}
-
-func (r *uploadRepository) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
-	return r.dao.GetAllReferencedFiles(tx...)
+func NewUploadRepo(d dao.UploadDAO) UploadRepository {
+	return &uploadRepository{UploadDAO: d}
 }

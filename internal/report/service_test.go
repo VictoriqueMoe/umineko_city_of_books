@@ -11,9 +11,10 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 
@@ -71,7 +72,7 @@ func TestCreate_RepoErrorBubbles(t *testing.T) {
 	svc, reportRepo, _, _, _, _ := newTestService(t)
 	reporterID := uuid.New()
 	req := CreateReportRequest{TargetType: "post", TargetID: uuid.NewString(), Reason: "spam"}
-	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+	reportRepo.EXPECT().Create(mock.Anything, spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
@@ -108,14 +109,14 @@ func testCreateOKNotifiesModerators(t *testing.T) {
 	modB := uuid.New()
 	reporter := &model.User{ID: reporterID, DisplayName: "Alice"}
 
-	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+	reportRepo.EXPECT().Create(mock.Anything, spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
 		ContextID:  req.ContextID,
 		Reason:     req.Reason,
 	}).
-		Return(&repository.ReportRow{ID: 42}, nil)
+		Return(&model.ReportRow{ID: 42}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -188,14 +189,14 @@ func testCreateOKInvalidTargetIDUsesNilUUID(t *testing.T) {
 	mod := uuid.New()
 	reporter := &model.User{ID: reporterID, DisplayName: "Alice"}
 
-	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+	reportRepo.EXPECT().Create(mock.Anything, spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
 		ContextID:  req.ContextID,
 		Reason:     req.Reason,
 	}).
-		Return(&repository.ReportRow{ID: 1}, nil)
+		Return(&model.ReportRow{ID: 1}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -231,14 +232,14 @@ func testCreateOKRoleRepoErrorAbortsNotifications(t *testing.T) {
 		TargetID:   uuid.NewString(),
 		Reason:     "spam",
 	}
-	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+	reportRepo.EXPECT().Create(mock.Anything, spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
 		ContextID:  req.ContextID,
 		Reason:     req.Reason,
 	}).
-		Return(&repository.ReportRow{ID: 1}, nil)
+		Return(&model.ReportRow{ID: 1}, nil)
 
 	done := make(chan struct{})
 	roleRepo.EXPECT().GetUsersByRoles(mock.Anything, mock.Anything).
@@ -274,14 +275,14 @@ func testCreateOKUserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	}
 	mod := uuid.New()
 
-	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+	reportRepo.EXPECT().Create(mock.Anything, spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
 		ContextID:  req.ContextID,
 		Reason:     req.Reason,
 	}).
-		Return(&repository.ReportRow{ID: 1}, nil)
+		Return(&model.ReportRow{ID: 1}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -314,14 +315,14 @@ func testCreateOKNoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 	}
 	reporter := &model.User{ID: reporterID, DisplayName: "Alice"}
 
-	reportRepo.EXPECT().Create(mock.Anything, repository.NewReport{
+	reportRepo.EXPECT().Create(mock.Anything, spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
 		ContextID:  req.ContextID,
 		Reason:     req.Reason,
 	}).
-		Return(&repository.ReportRow{ID: 1}, nil)
+		Return(&model.ReportRow{ID: 1}, nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -342,7 +343,7 @@ func testCreateOKNoModeratorsStillCallsNotifyManyWithEmptyList(t *testing.T) {
 func TestList_OK(t *testing.T) {
 	// given
 	svc, reportRepo, _, _, _, _ := newTestService(t)
-	rows := []repository.ReportRow{
+	rows := []model.ReportRow{
 		{
 			ID:             1,
 			ReporterID:     uuid.New(),
@@ -370,7 +371,7 @@ func TestList_OK(t *testing.T) {
 			CreatedAt:      "2026-01-02",
 		},
 	}
-	reportRepo.EXPECT().List(mock.Anything, "open", 10, 5).Return(rows, 42, nil)
+	reportRepo.EXPECT().List(mock.Anything, spec.ReportFilter{Status: "open", Limit: 10, Offset: 5}).Return(rows, 42, nil)
 
 	// when
 	got, err := svc.List(context.Background(), "open", bounds.NewPage(10, 5))
@@ -398,7 +399,7 @@ func TestList_OK(t *testing.T) {
 func TestList_EmptyResult(t *testing.T) {
 	// given
 	svc, reportRepo, _, _, _, _ := newTestService(t)
-	reportRepo.EXPECT().List(mock.Anything, "", 10, 0).Return(nil, 0, nil)
+	reportRepo.EXPECT().List(mock.Anything, spec.ReportFilter{Status: "", Limit: 10, Offset: 0}).Return(nil, 0, nil)
 
 	// when
 	got, err := svc.List(context.Background(), "", bounds.NewPage(10, 0))
@@ -413,7 +414,7 @@ func TestList_EmptyResult(t *testing.T) {
 func TestList_RepoError(t *testing.T) {
 	// given
 	svc, reportRepo, _, _, _, _ := newTestService(t)
-	reportRepo.EXPECT().List(mock.Anything, "", 10, 0).Return(nil, 0, errors.New("db down"))
+	reportRepo.EXPECT().List(mock.Anything, spec.ReportFilter{Status: "", Limit: 10, Offset: 0}).Return(nil, 0, errors.New("db down"))
 
 	// when
 	got, err := svc.List(context.Background(), "", bounds.NewPage(10, 0))
@@ -445,14 +446,14 @@ func TestResolve_RepoResolveErrorBubbles(t *testing.T) {
 	svc, reportRepo, _, _, _, _ := newTestService(t)
 	resolverID := uuid.New()
 	reporterID := uuid.New()
-	row := &repository.ReportRow{
+	row := &model.ReportRow{
 		ID:         7,
 		ReporterID: reporterID,
 		TargetType: "post",
 		TargetID:   uuid.NewString(),
 	}
 	reportRepo.EXPECT().GetByID(mock.Anything, 7).Return(row, nil)
-	reportRepo.EXPECT().Resolve(mock.Anything, 7, resolverID, "ok").Return(errors.New("db down"))
+	reportRepo.EXPECT().Resolve(mock.Anything, spec.ReportResolution{ID: 7, ResolvedBy: resolverID, Comment: "ok"}).Return(errors.New("db down"))
 
 	// when
 	err := svc.Resolve(context.Background(), 7, resolverID, "ok")
@@ -472,7 +473,7 @@ func testResolveOKSendsNotificationWithComment(t *testing.T) {
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	targetID := uuid.New()
-	row := &repository.ReportRow{
+	row := &model.ReportRow{
 		ID:         7,
 		ReporterID: reporterID,
 		TargetType: "post",
@@ -481,7 +482,7 @@ func testResolveOKSendsNotificationWithComment(t *testing.T) {
 	resolver := &model.User{ID: resolverID, DisplayName: "ModUser"}
 
 	reportRepo.EXPECT().GetByID(mock.Anything, 7).Return(row, nil)
-	reportRepo.EXPECT().Resolve(mock.Anything, 7, resolverID, "handled").Return(nil)
+	reportRepo.EXPECT().Resolve(mock.Anything, spec.ReportResolution{ID: 7, ResolvedBy: resolverID, Comment: "handled"}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -519,7 +520,7 @@ func testResolveOKEmptyCommentOmitsCommentFromMessage(t *testing.T) {
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	targetID := uuid.New()
-	row := &repository.ReportRow{
+	row := &model.ReportRow{
 		ID:         7,
 		ReporterID: reporterID,
 		TargetType: "comment",
@@ -528,7 +529,7 @@ func testResolveOKEmptyCommentOmitsCommentFromMessage(t *testing.T) {
 	resolver := &model.User{ID: resolverID, DisplayName: "ModUser"}
 
 	reportRepo.EXPECT().GetByID(mock.Anything, 7).Return(row, nil)
-	reportRepo.EXPECT().Resolve(mock.Anything, 7, resolverID, "").Return(nil)
+	reportRepo.EXPECT().Resolve(mock.Anything, spec.ReportResolution{ID: 7, ResolvedBy: resolverID, Comment: ""}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -556,7 +557,7 @@ func testResolveOKInvalidTargetIDUsesNilUUID(t *testing.T) {
 	svc, reportRepo, _, userRepo, notifSvc, _ := newTestService(t)
 	resolverID := uuid.New()
 	reporterID := uuid.New()
-	row := &repository.ReportRow{
+	row := &model.ReportRow{
 		ID:         7,
 		ReporterID: reporterID,
 		TargetType: "post",
@@ -565,7 +566,7 @@ func testResolveOKInvalidTargetIDUsesNilUUID(t *testing.T) {
 	resolver := &model.User{ID: resolverID, DisplayName: "ModUser"}
 
 	reportRepo.EXPECT().GetByID(mock.Anything, 7).Return(row, nil)
-	reportRepo.EXPECT().Resolve(mock.Anything, 7, resolverID, "ok").Return(nil)
+	reportRepo.EXPECT().Resolve(mock.Anything, spec.ReportResolution{ID: 7, ResolvedBy: resolverID, Comment: "ok"}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -594,7 +595,7 @@ func testResolveOKUserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	resolverID := uuid.New()
 	reporterID := uuid.New()
 	targetID := uuid.New()
-	row := &repository.ReportRow{
+	row := &model.ReportRow{
 		ID:         7,
 		ReporterID: reporterID,
 		TargetType: "post",
@@ -602,7 +603,7 @@ func testResolveOKUserLookupErrorFallsBackToDefaultName(t *testing.T) {
 	}
 
 	reportRepo.EXPECT().GetByID(mock.Anything, 7).Return(row, nil)
-	reportRepo.EXPECT().Resolve(mock.Anything, 7, resolverID, "ok").Return(nil)
+	reportRepo.EXPECT().Resolve(mock.Anything, spec.ReportResolution{ID: 7, ResolvedBy: resolverID, Comment: "ok"}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)

@@ -11,6 +11,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -23,7 +24,7 @@ const (
 )
 
 type (
-	UpdateURLFn func(ctx context.Context, id int64, url string, tx ...*sql.Tx) error
+	UpdateURLFn func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
 	AddFn       func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error)
 	uploadSvc   interface {
 		SaveImage(ctx context.Context, subDir string, id uuid.UUID, fileSize int64, maxSize int64, reader io.Reader) (string, error)
@@ -95,7 +96,7 @@ func (u *Uploader) SaveAndRecord(
 			InputPath: diskPath,
 			Callback: func(outputPath string) {
 				newURL := "/uploads/" + subDir + "/" + filepath.Base(outputPath)
-				if err := updateURL(context.Background(), rowID, newURL); err != nil {
+				if err := updateURL(context.Background(), spec.MediaURLUpdate{ID: rowID, URL: newURL}); err != nil {
 					logger.Ctx(ctx).Error().Err(err).Int64("media_id", rowID).Msg("failed to update video media url, keeping the source file")
 
 					return
@@ -113,7 +114,7 @@ func (u *Uploader) SaveAndRecord(
 					return
 				}
 				thumbURL := "/uploads/" + subDir + "/" + thumbName
-				if err := updateThumb(context.Background(), rowID, thumbURL); err != nil {
+				if err := updateThumb(context.Background(), spec.MediaURLUpdate{ID: rowID, URL: thumbURL}); err != nil {
 					logger.Ctx(ctx).Error().Err(err).Msg("failed to update video thumbnail url")
 				}
 			},

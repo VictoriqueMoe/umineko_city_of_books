@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -50,9 +51,9 @@ func TestCreate_HappyPath(t *testing.T) {
 	mgr, repo, settingsSvc := newTestManager(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingSessionDurationDays).Return(30)
-	repo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.MatchedBy(func(expiresAt time.Time) bool {
-		diff := time.Until(expiresAt)
-		return diff > 29*24*time.Hour && diff < 31*24*time.Hour
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s spec.NewSession) bool {
+		diff := time.Until(s.ExpiresAt)
+		return s.UserID == userID && diff > 29*24*time.Hour && diff < 31*24*time.Hour
 	})).Return(nil)
 
 	// when
@@ -68,9 +69,9 @@ func TestCreate_UsesDefaultDurationWhenSettingNonPositive(t *testing.T) {
 	mgr, repo, settingsSvc := newTestManager(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingSessionDurationDays).Return(0)
-	repo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.MatchedBy(func(expiresAt time.Time) bool {
-		diff := time.Until(expiresAt)
-		return diff > 29*24*time.Hour && diff < 31*24*time.Hour
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s spec.NewSession) bool {
+		diff := time.Until(s.ExpiresAt)
+		return s.UserID == userID && diff > 29*24*time.Hour && diff < 31*24*time.Hour
 	})).Return(nil)
 
 	// when
@@ -85,7 +86,9 @@ func TestCreate_RepoErrorBubbles(t *testing.T) {
 	mgr, repo, settingsSvc := newTestManager(t)
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingSessionDurationDays).Return(30)
-	repo.EXPECT().Create(mock.Anything, mock.Anything, userID, mock.Anything).Return(errors.New("db down"))
+	repo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(s spec.NewSession) bool {
+		return s.UserID == userID
+	})).Return(errors.New("db down"))
 
 	// when
 	token, err := mgr.Create(context.Background(), userID)
@@ -197,7 +200,7 @@ func TestDeleteAllForUserExcept_Delegates(t *testing.T) {
 	// given
 	mgr, repo, _ := newTestManager(t)
 	userID := uuid.New()
-	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "keep-me").Return(nil)
+	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, spec.SessionDeletionExcept{UserID: userID, KeepToken: "keep-me"}).Return(nil)
 
 	// when
 	err := mgr.DeleteAllForUserExcept(context.Background(), userID, "keep-me")
@@ -218,14 +221,14 @@ func TestDeleteAllForUserExcept_EmptyTokenRevokesEverything(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	repo.AssertNotCalled(t, "DeleteAllForUserExcept", mock.Anything, mock.Anything, mock.Anything)
+	repo.AssertNotCalled(t, "DeleteAllForUserExcept", mock.Anything, mock.Anything)
 }
 
 func TestDeleteAllForUserExcept_RepoError(t *testing.T) {
 	// given
 	mgr, repo, _ := newTestManager(t)
 	userID := uuid.New()
-	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "keep-me").Return(errors.New("boom"))
+	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, spec.SessionDeletionExcept{UserID: userID, KeepToken: "keep-me"}).Return(errors.New("boom"))
 
 	// when
 	err := mgr.DeleteAllForUserExcept(context.Background(), userID, "keep-me")
@@ -256,7 +259,7 @@ func TestDeleteAllForUserExcept_DisconnectsSockets(t *testing.T) {
 	d := NewMockDisconnector(t)
 	mgr.SetDisconnector(d)
 	userID := uuid.New()
-	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "keep-me").Return(nil)
+	repo.EXPECT().DeleteAllForUserExcept(mock.Anything, spec.SessionDeletionExcept{UserID: userID, KeepToken: "keep-me"}).Return(nil)
 	d.EXPECT().DisconnectUser(userID).Return(1).Once()
 
 	// when

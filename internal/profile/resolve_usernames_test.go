@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"

@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/homefeed"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
@@ -27,8 +28,8 @@ func TestService_ClearEchoCache(t *testing.T) {
 		repo.EXPECT().ListPublicRooms(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 		repo.EXPECT().ListCornerActivity24h(mock.Anything).Return(nil, nil).Maybe()
 
-		doomed := []repository.HomeEchoRow{{Kind: "theory", ID: uuid.New(), Title: "doomed", AuthorID: uuid.New()}}
-		repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(doomed, nil).Once()
+		doomed := []model.HomeEchoRow{{Kind: "theory", ID: uuid.New(), Title: "doomed", AuthorID: uuid.New()}}
+		repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(doomed, nil).Once()
 
 		first, err := svc.HomeActivity(ctx)
 		require.NoError(t, err)
@@ -41,7 +42,7 @@ func TestService_ClearEchoCache(t *testing.T) {
 
 		// when the theory is deleted and the cache is cleared
 		require.NoError(t, svc.ClearEchoCache(ctx))
-		repo.EXPECT().ListEchoes(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		repo.EXPECT().ListEchoes(mock.Anything, mock.Anything).Return(nil, nil)
 
 		// then the next read rebuilds from the database instead of serving the deleted title
 		third, err := svc.HomeActivity(ctx)

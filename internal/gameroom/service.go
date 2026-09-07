@@ -9,7 +9,10 @@ import (
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
@@ -137,7 +140,7 @@ func (s *service) stateFor(roomID uuid.UUID) *roomState {
 	return st
 }
 
-func (s *service) loadRoomForActor(ctx context.Context, roomID, userID uuid.UUID, requireStatus dto.GameStatus, statusErr error) (*repository.GameRoomRow, int, error) {
+func (s *service) loadRoomForActor(ctx context.Context, roomID, userID uuid.UUID, requireStatus dto.GameStatus, statusErr error) (*model.GameRoomRow, int, error) {
 	row, err := s.repo.GetRoom(ctx, roomID)
 	if err != nil {
 		return nil, 0, err
@@ -148,22 +151,22 @@ func (s *service) loadRoomForActor(ctx context.Context, roomID, userID uuid.UUID
 	if row.Status != string(requireStatus) {
 		return nil, 0, statusErr
 	}
-	slot, err := s.repo.GetPlayerSlot(ctx, roomID, userID)
+	slot, err := s.repo.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return nil, 0, ErrNotParticipant
 	}
 	return row, slot, nil
 }
 
-func (s *service) loadActiveRoomForActor(ctx context.Context, roomID, userID uuid.UUID) (*repository.GameRoomRow, int, error) {
+func (s *service) loadActiveRoomForActor(ctx context.Context, roomID, userID uuid.UUID) (*model.GameRoomRow, int, error) {
 	return s.loadRoomForActor(ctx, roomID, userID, dto.GameStatusActive, ErrRoomNotActive)
 }
 
-func (s *service) loadPendingRoomForActor(ctx context.Context, roomID, userID uuid.UUID) (*repository.GameRoomRow, int, error) {
+func (s *service) loadPendingRoomForActor(ctx context.Context, roomID, userID uuid.UUID) (*model.GameRoomRow, int, error) {
 	return s.loadRoomForActor(ctx, roomID, userID, dto.GameStatusPending, ErrRoomNotPending)
 }
 
-func (s *service) hydrateRoomList(ctx context.Context, rows []repository.GameRoomRow, total int) (*dto.GameRoomListResponse, error) {
+func (s *service) hydrateRoomList(ctx context.Context, rows []model.GameRoomRow, total int) (*dto.GameRoomListResponse, error) {
 	out := make([]dto.GameRoom, 0, len(rows))
 	for i := range rows {
 		r, err := s.hydrateRoom(ctx, &rows[i])
@@ -176,8 +179,14 @@ func (s *service) hydrateRoomList(ctx context.Context, rows []repository.GameRoo
 }
 
 func (s *service) finishAndBroadcast(ctx context.Context, roomID uuid.UUID, winner *uuid.UUID, result, stateJSON string, extras map[string]any, actorID uuid.UUID) (*dto.GameRoom, error) {
-	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusFinished), winner, result, stateJSON); err != nil {
-		if errors.Is(err, repository.ErrRoomNotActive) {
+	if err := s.repo.FinishRoom(ctx, spec.GameRoomFinish{
+		RoomID:    roomID,
+		Status:    string(dto.GameStatusFinished),
+		WinnerID:  winner,
+		Result:    result,
+		StateJSON: stateJSON,
+	}); err != nil {
+		if errors.Is(err, dao.ErrRoomNotActive) {
 			return nil, ErrRoomNotActive
 		}
 

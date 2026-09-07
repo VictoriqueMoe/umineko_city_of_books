@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,7 +28,7 @@ func TestUploadDAO_GetAllReferencedFiles_FindsAvatar(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	avatarURL := "/uploads/avatars/test-avatar.png"
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), user.ID, avatarURL))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: user.ID, AvatarURL: avatarURL}))
 
 	// when
 	files, err := repos.Upload.GetAllReferencedFiles()
@@ -41,7 +42,7 @@ func TestUploadDAO_GetAllReferencedFiles_IgnoresNonUploadURLs(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), user.ID, "https://external.example.com/image.png"))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: user.ID, AvatarURL: "https://external.example.com/image.png"}))
 
 	// when
 	files, err := repos.Upload.GetAllReferencedFiles()
@@ -59,8 +60,8 @@ func TestUploadDAO_GetAllReferencedFiles_FindsAcrossColumns(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	avatarURL := "/uploads/avatars/multi-a.png"
 	bannerURL := "/uploads/banners/multi-b.png"
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), user.ID, avatarURL))
-	require.NoError(t, repos.User.UpdateBannerURL(context.Background(), user.ID, bannerURL))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: user.ID, AvatarURL: avatarURL}))
+	require.NoError(t, repos.User.UpdateBannerURL(context.Background(), spec.UserBannerUpdate{UserID: user.ID, BannerURL: bannerURL}))
 
 	// when
 	files, err := repos.Upload.GetAllReferencedFiles()
@@ -77,8 +78,8 @@ func TestUploadDAO_GetAllReferencedFiles_DistinctPerColumn(t *testing.T) {
 	userA := daotest.CreateUser(t, repos)
 	userB := daotest.CreateUser(t, repos)
 	sharedURL := "/uploads/avatars/shared.png"
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), userA.ID, sharedURL))
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), userB.ID, sharedURL))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: userA.ID, AvatarURL: sharedURL}))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: userB.ID, AvatarURL: sharedURL}))
 
 	// when
 	files, err := repos.Upload.GetAllReferencedFiles()
@@ -101,8 +102,8 @@ func TestUploadDAO_GetAllReferencedFiles_MultipleUsersDistinctURLs(t *testing.T)
 	userB := daotest.CreateUser(t, repos)
 	urlA := "/uploads/avatars/user-a.png"
 	urlB := "/uploads/avatars/user-b.png"
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), userA.ID, urlA))
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), userB.ID, urlB))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: userA.ID, AvatarURL: urlA}))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: userB.ID, AvatarURL: urlB}))
 
 	// when
 	files, err := repos.Upload.GetAllReferencedFiles()

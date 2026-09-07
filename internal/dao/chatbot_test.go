@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -13,10 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createBotInvocation(t *testing.T, repos *repository.Repositories, botUserID, userID uuid.UUID, channel string, usage repository.InvocationUsage, status repository.InvocationStatus) {
+func createBotInvocation(t *testing.T, repos *repository.Repositories, botUserID, userID uuid.UUID, channel string, usage spec.InvocationUsage, status model.InvocationStatus) {
 	t.Helper()
 
-	created, err := repos.Chatbot.CreateInvocation(context.Background(), repository.NewInvocation{
+	created, err := repos.Chatbot.CreateInvocation(context.Background(), spec.NewInvocation{
 		BotUserID: botUserID,
 		UserID:    userID,
 		MessageID: uuid.New(),
@@ -25,7 +27,7 @@ func createBotInvocation(t *testing.T, repos *repository.Repositories, botUserID
 	})
 	require.NoError(t, err)
 	id := created.ID
-	require.NoError(t, repos.Chatbot.CompleteInvocation(context.Background(), id, usage, status))
+	require.NoError(t, repos.Chatbot.CompleteInvocation(context.Background(), spec.InvocationCompletion{ID: id, Usage: usage, Status: status}))
 }
 
 func TestChatbotDAO_StatsSince_SplitsUsageByChannel(t *testing.T) {
@@ -35,17 +37,17 @@ func TestChatbotDAO_StatsSince_SplitsUsageByChannel(t *testing.T) {
 	member := daotest.CreateUser(t, repos)
 
 	createBotInvocation(t, repos, bot.ID, member.ID, "group",
-		repository.InvocationUsage{PromptTokens: 100, CachedPromptTokens: 80, CacheWriteTokens: 10, CompletionTokens: 20, ReasoningTokens: 5},
-		repository.InvocationReplied)
+		spec.InvocationUsage{PromptTokens: 100, CachedPromptTokens: 80, CacheWriteTokens: 10, CompletionTokens: 20, ReasoningTokens: 5},
+		model.InvocationReplied)
 	createBotInvocation(t, repos, bot.ID, member.ID, "group",
-		repository.InvocationUsage{PromptTokens: 200, CachedPromptTokens: 160, CacheWriteTokens: 20, CompletionTokens: 40, ReasoningTokens: 10},
-		repository.InvocationReplied)
+		spec.InvocationUsage{PromptTokens: 200, CachedPromptTokens: 160, CacheWriteTokens: 20, CompletionTokens: 40, ReasoningTokens: 10},
+		model.InvocationReplied)
 	createBotInvocation(t, repos, bot.ID, member.ID, "dm",
-		repository.InvocationUsage{PromptTokens: 500, CachedPromptTokens: 400, CacheWriteTokens: 50, CompletionTokens: 60, ReasoningTokens: 15},
-		repository.InvocationReplied)
+		spec.InvocationUsage{PromptTokens: 500, CachedPromptTokens: 400, CacheWriteTokens: 50, CompletionTokens: 60, ReasoningTokens: 15},
+		model.InvocationReplied)
 	createBotInvocation(t, repos, bot.ID, member.ID, "post_comment",
-		repository.InvocationUsage{PromptTokens: 7},
-		repository.InvocationFailed)
+		spec.InvocationUsage{PromptTokens: 7},
+		model.InvocationFailed)
 
 	// when
 	stats, err := repos.Chatbot.StatsSince(context.Background(), time.Now().Add(-time.Hour))
@@ -60,7 +62,7 @@ func TestChatbotDAO_StatsSince_SplitsUsageByChannel(t *testing.T) {
 	assert.Equal(t, 30, stats.ReasoningTokens)
 	assert.Equal(t, 1, stats.Failed)
 	assert.Equal(t, 0, stats.Quota)
-	assert.Equal(t, []repository.ChatbotChannelStats{
+	assert.Equal(t, []model.ChatbotChannelStats{
 		{Channel: "group", Invocations: 2, PromptTokens: 300, CachedPromptTokens: 240, CacheWriteTokens: 30, CompletionTokens: 60, ReasoningTokens: 15},
 		{Channel: "dm", Invocations: 1, PromptTokens: 500, CachedPromptTokens: 400, CacheWriteTokens: 50, CompletionTokens: 60, ReasoningTokens: 15},
 		{Channel: "post_comment", Invocations: 1, PromptTokens: 7},
@@ -74,8 +76,8 @@ func TestChatbotDAO_StatsSince_IgnoresOlderInvocations(t *testing.T) {
 	member := daotest.CreateUser(t, repos)
 
 	createBotInvocation(t, repos, bot.ID, member.ID, "dm",
-		repository.InvocationUsage{PromptTokens: 42},
-		repository.InvocationReplied)
+		spec.InvocationUsage{PromptTokens: 42},
+		model.InvocationReplied)
 
 	// when
 	stats, err := repos.Chatbot.StatsSince(context.Background(), time.Now().Add(time.Hour))
@@ -93,7 +95,7 @@ func TestChatbotDAO_CreateBotWithAccount_RollsBackEveryTableWhenTheBotInsertFail
 	repos := daotest.NewRepos(t)
 	missingBasePrompt := uuid.New()
 
-	account := repository.NewUser{
+	account := spec.NewUser{
 		Username:      "orphanwitch",
 		PasswordHash:  "!",
 		DisplayName:   "Orphan Witch",
@@ -104,12 +106,16 @@ func TestChatbotDAO_CreateBotWithAccount_RollsBackEveryTableWhenTheBotInsertFail
 	}
 
 	// when the bot row is rejected after the user and the vanity role have already been written
-	created, err := repos.Chatbot.CreateBotWithAccount(context.Background(), account, repository.Chatbot{
-		SystemPrompt: "you are the golden witch",
-		BasePromptID: &missingBasePrompt,
-		Model:        "gpt-5.6-luna",
-		Enabled:      true,
-	}, "bot")
+	created, err := repos.Chatbot.CreateBotWithAccount(context.Background(), spec.NewChatbotWithAccount{
+		Account: account,
+		Bot: model.Chatbot{
+			SystemPrompt: "you are the golden witch",
+			BasePromptID: &missingBasePrompt,
+			Model:        "gpt-5.6-luna",
+			Enabled:      true,
+		},
+		VanityRoleID: "bot",
+	})
 
 	// then the whole unit of work is undone, leaving no orphan in any of the three tables
 	require.Error(t, err)

@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -123,12 +124,12 @@ func (_c *mockcommentDeleteDAO_CollectSingleCommentMediaPaths_Call) RunAndReturn
 }
 
 // DeleteComment provides a mock function for the type mockcommentDeleteDAO
-func (_mock *mockcommentDeleteDAO) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *mockcommentDeleteDAO) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -137,8 +138,8 @@ func (_mock *mockcommentDeleteDAO) DeleteComment(ctx context.Context, id uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -152,100 +153,22 @@ type mockcommentDeleteDAO_DeleteComment_Call struct {
 
 // DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *mockcommentDeleteDAO_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *mockcommentDeleteDAO_DeleteComment_Call {
+func (_e *mockcommentDeleteDAO_Expecter) DeleteComment(ctx any, s any, tx ...any) *mockcommentDeleteDAO_DeleteComment_Call {
 	return &mockcommentDeleteDAO_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *mockcommentDeleteDAO_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *mockcommentDeleteDAO_DeleteComment_Call {
+func (_c *mockcommentDeleteDAO_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *mockcommentDeleteDAO_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *mockcommentDeleteDAO_DeleteComment_Call) Return(err error) *mockcommentDeleteDAO_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *mockcommentDeleteDAO_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *mockcommentDeleteDAO_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentAsAdmin provides a mock function for the type mockcommentDeleteDAO
-func (_mock *mockcommentDeleteDAO) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// mockcommentDeleteDAO_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
-type mockcommentDeleteDAO_DeleteCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *mockcommentDeleteDAO_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call {
-	return &mockcommentDeleteDAO_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
-		append([]any{ctx, id}, tx...)...)}
-}
-
-func (_c *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -262,12 +185,12 @@ func (_c *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call) Run(run func(ctx conte
 	return _c
 }
 
-func (_c *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call) Return(err error) *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call {
+func (_c *mockcommentDeleteDAO_DeleteComment_Call) Return(err error) *mockcommentDeleteDAO_DeleteComment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *mockcommentDeleteDAO_DeleteCommentAsAdmin_Call {
+func (_c *mockcommentDeleteDAO_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *mockcommentDeleteDAO_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }

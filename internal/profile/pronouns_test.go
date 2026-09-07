@@ -6,7 +6,8 @@ import (
 	"unicode/utf8"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -65,7 +66,7 @@ func TestUpdateProfile_ClampsPronounsByRunesNotBytes(t *testing.T) {
 			expected.PronounPossessive = tc.wantPossessive
 
 			userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-			userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+			userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(nil)
 
 			// when
 			err := svc.UpdateProfile(context.Background(), userID, req)

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -15,13 +17,13 @@ import (
 func createFinishedRoom(t *testing.T, repos *repository.Repositories, gameType string, p1, p2 uuid.UUID, winner *uuid.UUID, status string) uuid.UUID {
 	t.Helper()
 	ctx := context.Background()
-	room, err := repos.GameRoom.CreateRoom(ctx, gameType, "{}", p1)
+	room, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: gameType, InitialStateJSON: "{}", CreatedBy: p1})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, p1, 0, true))
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, p2, 1, true))
-	require.NoError(t, repos.GameRoom.SetStatus(ctx, roomID, "active"))
-	require.NoError(t, repos.GameRoom.FinishRoom(ctx, roomID, status, winner, "checkmate", "{}"))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: roomID, UserID: p1, Slot: 0, Joined: true}))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: roomID, UserID: p2, Slot: 1, Joined: true}))
+	require.NoError(t, repos.GameRoom.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: roomID, Status: "active"}))
+	require.NoError(t, repos.GameRoom.FinishRoom(ctx, spec.GameRoomFinish{RoomID: roomID, Status: status, WinnerID: winner, Result: "checkmate", StateJSON: "{}"}))
 	return roomID
 }
 
@@ -44,12 +46,12 @@ func TestGameRoomDAO_SetState_OnlyWritesToAnActiveRoom(t *testing.T) {
 			alice := daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
 			ctx := context.Background()
 
-			room, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+			room, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: "chess", InitialStateJSON: "{}", CreatedBy: alice.ID})
 			require.NoError(t, err)
-			require.NoError(t, repos.GameRoom.SetStatus(ctx, room.ID, tc.status))
+			require.NoError(t, repos.GameRoom.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: room.ID, Status: tc.status}))
 
 			// when
-			require.NoError(t, repos.GameRoom.SetState(ctx, room.ID, `{"ticks":9}`, nil))
+			require.NoError(t, repos.GameRoom.SetState(ctx, spec.GameRoomStateUpdate{RoomID: room.ID, StateJSON: `{"ticks":9}`, TurnUserID: nil}))
 
 			// then
 			got, err := repos.GameRoom.GetRoom(ctx, room.ID)
@@ -66,7 +68,7 @@ func TestGameRoomRepository_StartWritesStateOntoTheNowActiveRoom(t *testing.T) {
 	bob := daotest.CreateUser(t, repos, daotest.WithDisplayName("Bob"))
 	ctx := context.Background()
 
-	room, err := repos.GameRoom.CreateInvite(ctx, repository.NewGameRoomInvite{
+	room, err := repos.GameRoom.CreateInvite(ctx, spec.NewGameRoomInvite{
 		GameType:         "chess",
 		InitialStateJSON: "{}",
 		InviterID:        alice.ID,
@@ -75,7 +77,7 @@ func TestGameRoomRepository_StartWritesStateOntoTheNowActiveRoom(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	require.NoError(t, repos.GameRoom.Start(ctx, repository.GameRoomStart{
+	require.NoError(t, repos.GameRoom.Start(ctx, spec.GameRoomStart{
 		RoomID:     room.ID,
 		UserID:     bob.ID,
 		StateJSON:  `{"phase":"countdown"}`,
@@ -122,7 +124,7 @@ func TestGameRoomDAO_Scoreboard_CountsWinsLossesDraws(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
 
-	byUser := map[uuid.UUID]repository.ScoreboardRow{}
+	byUser := map[uuid.UUID]model.ScoreboardRow{}
 	for i := range rows {
 		byUser[rows[i].UserID] = rows[i]
 	}
@@ -171,25 +173,25 @@ func TestGameRoomDAO_Scoreboard_OnlyFinishedAndAbandoned(t *testing.T) {
 	bob := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	pending, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	pending, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: "chess", InitialStateJSON: "{}", CreatedBy: alice.ID})
 	require.NoError(t, err)
 	pendingID := pending.ID
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, pendingID, alice.ID, 0, true))
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, pendingID, bob.ID, 1, true))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: pendingID, UserID: alice.ID, Slot: 0, Joined: true}))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: pendingID, UserID: bob.ID, Slot: 1, Joined: true}))
 
-	active, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	active, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: "chess", InitialStateJSON: "{}", CreatedBy: alice.ID})
 	require.NoError(t, err)
 	activeID := active.ID
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, activeID, alice.ID, 0, true))
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, activeID, bob.ID, 1, true))
-	require.NoError(t, repos.GameRoom.SetStatus(ctx, activeID, "active"))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: activeID, UserID: alice.ID, Slot: 0, Joined: true}))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: activeID, UserID: bob.ID, Slot: 1, Joined: true}))
+	require.NoError(t, repos.GameRoom.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: activeID, Status: "active"}))
 
-	declined, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	declined, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: "chess", InitialStateJSON: "{}", CreatedBy: alice.ID})
 	require.NoError(t, err)
 	declinedID := declined.ID
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, declinedID, alice.ID, 0, true))
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, declinedID, bob.ID, 1, false))
-	require.NoError(t, repos.GameRoom.SetStatus(ctx, declinedID, "declined"))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: declinedID, UserID: alice.ID, Slot: 0, Joined: true}))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: declinedID, UserID: bob.ID, Slot: 1, Joined: false}))
+	require.NoError(t, repos.GameRoom.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: declinedID, Status: "declined"}))
 
 	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &alice.ID, "finished")
 	createFinishedRoom(t, repos, "chess", alice.ID, bob.ID, &bob.ID, "abandoned")
@@ -200,7 +202,7 @@ func TestGameRoomDAO_Scoreboard_OnlyFinishedAndAbandoned(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
-	byUser := map[uuid.UUID]repository.ScoreboardRow{}
+	byUser := map[uuid.UUID]model.ScoreboardRow{}
 	for i := range rows {
 		byUser[rows[i].UserID] = rows[i]
 	}
@@ -228,7 +230,7 @@ func TestGameRoomDAO_Scoreboard_FiltersByGameType(t *testing.T) {
 	// then
 	require.Len(t, chessRows, 2)
 	require.Len(t, checkersRows, 2)
-	chessByUser := map[uuid.UUID]repository.ScoreboardRow{}
+	chessByUser := map[uuid.UUID]model.ScoreboardRow{}
 	for i := range chessRows {
 		chessByUser[chessRows[i].UserID] = chessRows[i]
 	}
@@ -243,13 +245,13 @@ func TestGameRoomDAO_Scoreboard_ExcludesUnjoinedPlayers(t *testing.T) {
 	bob := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	room, err := repos.GameRoom.CreateRoom(ctx, "chess", "{}", alice.ID)
+	room, err := repos.GameRoom.CreateRoom(ctx, spec.NewGameRoom{GameType: "chess", InitialStateJSON: "{}", CreatedBy: alice.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, alice.ID, 0, true))
-	require.NoError(t, repos.GameRoom.AddPlayer(ctx, roomID, bob.ID, 1, false))
-	require.NoError(t, repos.GameRoom.SetStatus(ctx, roomID, "active"))
-	require.NoError(t, repos.GameRoom.FinishRoom(ctx, roomID, "abandoned", nil, "abandoned", "{}"))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: roomID, UserID: alice.ID, Slot: 0, Joined: true}))
+	require.NoError(t, repos.GameRoom.AddPlayer(ctx, spec.NewGameRoomPlayer{RoomID: roomID, UserID: bob.ID, Slot: 1, Joined: false}))
+	require.NoError(t, repos.GameRoom.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: roomID, Status: "active"}))
+	require.NoError(t, repos.GameRoom.FinishRoom(ctx, spec.GameRoomFinish{RoomID: roomID, Status: "abandoned", WinnerID: nil, Result: "abandoned", StateJSON: "{}"}))
 
 	// when
 	rows, err := repos.GameRoom.Scoreboard(ctx, "chess")

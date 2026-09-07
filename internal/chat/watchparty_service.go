@@ -9,11 +9,13 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/hyperbeam"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
@@ -82,7 +84,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		return nil, err
 	}
 
-	room, err := s.chatRepo.GetRoomByID(ctx, roomID, actorID)
+	room, err := s.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: actorID})
 	if err != nil {
 		return nil, fmt.Errorf("load room for watch party: %w", err)
 	}
@@ -95,7 +97,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 
 	trimmedTitle := text.ClampRunes(strings.TrimSpace(title), maxWatchPartyTitleLen)
 
-	sessionRow := repository.ChatWatchPartySessionRow{
+	sessionRow := model.ChatWatchPartySessionRow{
 		RoomID:       roomID,
 		StartedBy:    actorID,
 		ControllerID: actorID,
@@ -148,7 +150,7 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 
 	details := mustJSON(map[string]any{"room_id": roomID, "start_url": startURL, "title": trimmedTitle, "type": partyType})
 
-	created, err := s.watchPartyRepo.StartSession(ctx, repository.NewWatchPartySession{
+	created, err := s.watchPartyRepo.StartSession(ctx, spec.NewWatchPartySession{
 		Session:        sessionRow,
 		RoomName:       roomName,
 		RoomSystemKind: SystemKindWatchParty,
@@ -221,13 +223,18 @@ func (s *watchPartyService) JoinWatchParty(ctx context.Context, roomID, sessionI
 	}
 
 	isController := session.ControllerID == actorID
-	existing, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+	existing, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: actorID})
 	if err != nil {
 		return nil, err
 	}
 	hasControl := isController || (existing != nil && existing.HasControl && !existing.LeftAt.Valid)
 
-	if err := s.watchPartyRepo.UpsertParticipant(ctx, session.ID, actorID, hasControl, ""); err != nil {
+	if err := s.watchPartyRepo.UpsertParticipant(ctx, spec.WatchPartyParticipantUpsert{
+		SessionID:  session.ID,
+		UserID:     actorID,
+		HasControl: hasControl,
+		Identifier: "",
+	}); err != nil {
 		return nil, err
 	}
 
@@ -266,7 +273,7 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 		return nil
 	}
 
-	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: actorID})
 	if err != nil {
 		return err
 	}
@@ -286,7 +293,7 @@ func (s *watchPartyService) LeaveWatchParty(ctx context.Context, roomID, session
 		}
 	}
 
-	if err := s.watchPartyRepo.RemoveParticipant(ctx, session.ID, actorID); err != nil {
+	if err := s.watchPartyRepo.RemoveParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: actorID}); err != nil {
 		return err
 	}
 
@@ -318,7 +325,7 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 		return err
 	}
 
-	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
+	target, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: targetID})
 	if err != nil {
 		return err
 	}
@@ -343,7 +350,7 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 	body := fmt.Sprintf("%s was kicked by %s.", s.displayNameFor(ctx, targetID, roomID), s.displayNameFor(ctx, callerID, roomID))
 	s.postRoomActionMessage(ctx, session.ID, callerID, body)
 
-	if err := s.watchPartyRepo.RemoveParticipant(ctx, session.ID, targetID); err != nil {
+	if err := s.watchPartyRepo.RemoveParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: targetID}); err != nil {
 		return err
 	}
 
@@ -368,10 +375,10 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 	})
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+	if err := s.auditRepo.Create(ctx, audit.NewEntry{
 		ActorID:    callerID,
-		Action:     repository.AuditActionWatchPartyKick,
-		TargetType: repository.AuditTargetChatWatchPartySession,
+		Action:     audit.ActionWatchPartyKick,
+		TargetType: audit.TargetChatWatchPartySession,
 		TargetID:   session.ID.String(),
 		Details:    details,
 		SubjectID:  targetID,
@@ -396,7 +403,7 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 		for i := range sessions {
 			sess := sessions[i]
 
-			participant, err := s.watchPartyRepo.GetParticipant(ctx, sess.ID, userID)
+			participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: sess.ID, UserID: userID})
 			if err != nil || participant == nil || participant.LeftAt.Valid {
 				continue
 			}
@@ -409,7 +416,7 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 				}
 			}
 
-			if err := s.watchPartyRepo.MarkParticipantLeft(ctx, sess.ID, userID); err != nil {
+			if err := s.watchPartyRepo.MarkParticipantLeft(ctx, spec.WatchPartyParticipantRef{SessionID: sess.ID, UserID: userID}); err != nil {
 				logger.Ctx(ctx).Warn().Err(err).Msg("disconnect: mark participant left failed")
 				continue
 			}
@@ -440,7 +447,7 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 		return err
 	}
 
-	caller, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, callerID)
+	caller, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: callerID})
 	if err != nil {
 		return err
 	}
@@ -454,7 +461,7 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 		}
 	}
 
-	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
+	target, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: targetID})
 	if err != nil {
 		return err
 	}
@@ -476,10 +483,10 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 	s.postControlChangeSystemMessage(ctx, roomID, session.ID, callerID, targetID, reason)
 
 	details := mustJSON(map[string]any{"room_id": roomID, "target_user_id": targetID})
-	if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+	if err := s.auditRepo.Create(ctx, audit.NewEntry{
 		ActorID:    callerID,
-		Action:     repository.AuditActionWatchPartyGrantControl,
-		TargetType: repository.AuditTargetChatWatchPartySession,
+		Action:     audit.ActionWatchPartyGrantControl,
+		TargetType: audit.TargetChatWatchPartySession,
 		TargetID:   session.ID.String(),
 		Details:    details,
 		SubjectID:  targetID,
@@ -490,7 +497,7 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 	return nil
 }
 
-func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.UUID, session *repository.ChatWatchPartySessionRow, targetID uuid.UUID) error {
+func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.UUID, session *model.ChatWatchPartySessionRow, targetID uuid.UUID) error {
 	if targetID == uuid.Nil {
 		return nil
 	}
@@ -518,7 +525,11 @@ func (s *watchPartyService) transferControlTo(ctx context.Context, roomID uuid.U
 		demotedIdentifiers = append(demotedIdentifiers, p.HyperbeamIdentifier)
 	}
 
-	if err := s.watchPartyRepo.TransferControl(ctx, session.ID, demotedIDs, targetID); err != nil {
+	if err := s.watchPartyRepo.TransferControl(ctx, spec.WatchPartyControlTransfer{
+		SessionID: session.ID,
+		DemoteIDs: demotedIDs,
+		TargetID:  targetID,
+	}); err != nil {
 		return err
 	}
 
@@ -576,7 +587,7 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 	}
 
 	if actorID != uuid.Nil {
-		caller, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+		caller, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: actorID})
 		if err != nil {
 			return err
 		}
@@ -598,10 +609,10 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 
 	if actorID != uuid.Nil {
 		details := mustJSON(map[string]any{"room_id": roomID, "reason": reason})
-		if err := s.auditRepo.Create(ctx, repository.NewAuditEntry{
+		if err := s.auditRepo.Create(ctx, audit.NewEntry{
 			ActorID:    actorID,
-			Action:     repository.AuditActionWatchPartyEnd,
-			TargetType: repository.AuditTargetChatWatchPartySession,
+			Action:     audit.ActionWatchPartyEnd,
+			TargetType: audit.TargetChatWatchPartySession,
 			TargetID:   session.ID.String(),
 			Details:    details,
 		}); err != nil {
@@ -634,14 +645,18 @@ func (s *watchPartyService) IdentifyWatchPartyParticipant(ctx context.Context, r
 	if err != nil {
 		return err
 	}
-	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, userID)
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: userID})
 	if err != nil {
 		return err
 	}
 	if participant == nil || participant.LeftAt.Valid {
 		return ErrWatchPartyNotParticipant
 	}
-	if err := s.watchPartyRepo.SetParticipantIdentifier(ctx, session.ID, userID, identifier); err != nil {
+	if err := s.watchPartyRepo.SetParticipantIdentifier(ctx, spec.WatchPartyIdentifierUpdate{
+		SessionID:  session.ID,
+		UserID:     userID,
+		Identifier: identifier,
+	}); err != nil {
 		return err
 	}
 	if s.hyperbeamSvc != nil && s.hyperbeamSvc.Enabled() && session.VMBaseURL != "" {
@@ -699,7 +714,7 @@ func (s *watchPartyService) MintSessionVoiceToken(ctx context.Context, roomID, s
 		return "", "", err
 	}
 
-	participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, userID)
+	participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: userID})
 	if err != nil {
 		return "", "", err
 	}
@@ -711,7 +726,7 @@ func (s *watchPartyService) MintSessionVoiceToken(ctx context.Context, roomID, s
 	roomName := voiceSessionRoomPrefix + session.ID.String()
 	displayName := s.displayNameFor(ctx, userID, roomID)
 
-	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, session.ID, userID)
+	forceMuted, err := s.chatRepo.IsVoiceForceMuted(ctx, spec.ChatMemberRef{RoomID: session.ID, UserID: userID})
 	if err != nil {
 		return "", "", fmt.Errorf("check voice force mute: %w", err)
 	}
@@ -738,7 +753,7 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 		return err
 	}
 
-	caller, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, actorID)
+	caller, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: actorID})
 	if err != nil {
 		return err
 	}
@@ -746,7 +761,7 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 		return ErrWatchPartyNotParticipant
 	}
 
-	target, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, targetID)
+	target, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: targetID})
 	if err != nil {
 		return err
 	}
@@ -763,7 +778,7 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 	roomName := voiceSessionRoomPrefix + session.ID.String()
 	allowScreenShare := session.Type == watchPartyTypeScreenShare && session.StartedBy == targetID
 
-	if err := s.chatRepo.SetVoiceForceMuted(ctx, session.ID, targetID, actorID, muted); err != nil {
+	if err := s.chatRepo.SetVoiceForceMuted(ctx, spec.ChatVoiceForceMuteUpdate{RoomID: session.ID, UserID: targetID, MutedBy: actorID, Muted: muted}); err != nil {
 		return fmt.Errorf("set voice force mute: %w", err)
 	}
 
@@ -827,20 +842,20 @@ func (s *watchPartyService) abandonSession(ctx context.Context, sessionID uuid.U
 		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party participants failed")
 	}
 
-	if err := s.watchPartyRepo.EndSession(ctx, sessionID, reason); err != nil {
+	if err := s.watchPartyRepo.EndSession(ctx, spec.WatchPartySessionEnd{SessionID: sessionID, Reason: reason}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("roll back watch party session failed")
 	}
 }
 
 func (s *watchPartyService) admitToWatchPartyRoom(ctx context.Context, sessionID, userID uuid.UUID) {
-	alreadyMember, err := s.chatRepo.IsMember(ctx, sessionID, userID)
+	alreadyMember, err := s.chatRepo.IsMember(ctx, spec.ChatMemberRef{RoomID: sessionID, UserID: userID})
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("check watch party chat membership failed")
 		return
 	}
 
 	if !alreadyMember {
-		if err := s.chatRepo.AddMemberWithRole(ctx, sessionID, userID, "member", false); err != nil {
+		if err := s.chatRepo.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: sessionID, UserID: userID, Role: "member", Ghost: false}); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Str("session_id", sessionID.String()).Msg("add participant to watch party chat room failed")
 			return
 		}
@@ -849,7 +864,7 @@ func (s *watchPartyService) admitToWatchPartyRoom(ctx context.Context, sessionID
 	s.hub.JoinRoom(sessionID, userID)
 }
 
-func (s *watchPartyService) loadActiveSession(ctx context.Context, roomID, sessionID uuid.UUID) (*repository.ChatWatchPartySessionRow, error) {
+func (s *watchPartyService) loadActiveSession(ctx context.Context, roomID, sessionID uuid.UUID) (*model.ChatWatchPartySessionRow, error) {
 	session, err := s.watchPartyRepo.GetByID(ctx, sessionID)
 	if err != nil {
 		return nil, err
@@ -922,7 +937,7 @@ func hyperbeamSessionGone(err error) bool {
 	return false
 }
 
-func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, session *repository.ChatWatchPartySessionRow, viewerID uuid.UUID, viewerEmbedURL string, viewerHasControl bool) (*dto.WatchPartySession, error) {
+func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, session *model.ChatWatchPartySessionRow, viewerID uuid.UUID, viewerEmbedURL string, viewerHasControl bool) (*dto.WatchPartySession, error) {
 	participants, err := s.buildParticipantsDTO(ctx, session.ID)
 	if err != nil {
 		return nil, err
@@ -942,7 +957,7 @@ func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, sessi
 		Participants: participants,
 	}
 	if viewerID != uuid.Nil {
-		participant, err := s.watchPartyRepo.GetParticipant(ctx, session.ID, viewerID)
+		participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: viewerID})
 		if err != nil {
 			return nil, err
 		}
@@ -963,7 +978,7 @@ func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, sessi
 	return &out, nil
 }
 
-func (s *watchPartyService) buildWatchPartySessionDTOForBroadcast(ctx context.Context, session *repository.ChatWatchPartySessionRow) dto.WatchPartySession {
+func (s *watchPartyService) buildWatchPartySessionDTOForBroadcast(ctx context.Context, session *model.ChatWatchPartySessionRow) dto.WatchPartySession {
 	participants, _ := s.buildParticipantsDTO(ctx, session.ID)
 	return dto.WatchPartySession{
 		ID:           session.ID,
@@ -1015,7 +1030,7 @@ func (s *watchPartyService) buildParticipantsDTO(ctx context.Context, sessionID 
 }
 
 func (s *watchPartyService) buildWatchPartyParticipantDTO(ctx context.Context, sessionID, userID uuid.UUID, hasControl bool) (*dto.WatchPartyParticipant, error) {
-	row, err := s.watchPartyRepo.GetParticipant(ctx, sessionID, userID)
+	row, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID})
 	if err != nil {
 		return nil, err
 	}

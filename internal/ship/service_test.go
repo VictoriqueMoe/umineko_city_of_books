@@ -8,18 +8,21 @@ import (
 	"sync"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/quotefinder"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 
@@ -31,7 +34,7 @@ import (
 
 type testMocks struct {
 	shipRepo     *repository.MockShipRepository
-	shipComments *repository.MockCommentDAO[uuid.UUID]
+	shipComments *dao.MockCommentDAO[uuid.UUID]
 	userRepo     *repository.MockUserRepository
 	auditRepo    *repository.MockAuditLogRepository
 	authz        *authz.MockService
@@ -55,9 +58,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := media.NewProcessor(1)
 	quoteClient := quotefinder.NewClient()
-	shipComments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindShipComment): shipComments},
+	shipComments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindShipComment): shipComments},
 	})
 
 	svc := NewService(shipRepo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, quoteClient, contentfilter.New(), nil).(*service)
@@ -139,7 +142,12 @@ func TestCreateShip_RepoErrorBubbles(t *testing.T) {
 	userID := uuid.New()
 	req := dto.CreateShipRequest{Title: "Ship", Description: "desc", Characters: validCharacters()}
 	m.shipRepo.EXPECT().
-		CreateWithCharacters(mock.Anything, userID, "Ship", "desc", req.Characters).
+		CreateWithCharacters(mock.Anything, spec.NewShipWithCharacters{
+			UserID:      userID,
+			Title:       "Ship",
+			Description: "desc",
+			Characters:  req.Characters,
+		}).
 		Return(nil, errors.New("db down"))
 
 	// when
@@ -155,7 +163,12 @@ func TestCreateShip_OK(t *testing.T) {
 	userID := uuid.New()
 	req := dto.CreateShipRequest{Title: "  Ship  ", Description: "  desc  ", Characters: validCharacters()}
 	m.shipRepo.EXPECT().
-		CreateWithCharacters(mock.Anything, userID, "Ship", "desc", req.Characters).
+		CreateWithCharacters(mock.Anything, spec.NewShipWithCharacters{
+			UserID:      userID,
+			Title:       "Ship",
+			Description: "desc",
+			Characters:  req.Characters,
+		}).
 		Return(&model.ShipRow{ID: uuid.New()}, nil)
 
 	// when
@@ -175,7 +188,12 @@ func TestCreateShip_MentionOnTheDescriptionNotifiesTheNamedUser(t *testing.T) {
 	req := dto.CreateShipRequest{Title: "Ship", Description: "sailed for @alice", Characters: validCharacters()}
 
 	m.shipRepo.EXPECT().
-		CreateWithCharacters(mock.Anything, userID, "Ship", "sailed for @alice", req.Characters).
+		CreateWithCharacters(mock.Anything, spec.NewShipWithCharacters{
+			UserID:      userID,
+			Title:       "Ship",
+			Description: "sailed for @alice",
+			Characters:  req.Characters,
+		}).
 		Return(&model.ShipRow{ID: shipID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
@@ -211,7 +229,7 @@ func TestGetShip_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	viewerID := uuid.New()
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, viewerID).Return(nil, errors.New("boom"))
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: viewerID}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.GetShip(context.Background(), shipID, viewerID)
@@ -225,7 +243,7 @@ func TestGetShip_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	viewerID := uuid.New()
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, viewerID).Return(nil, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: viewerID}).Return(nil, nil)
 
 	// when
 	_, err := svc.GetShip(context.Background(), shipID, viewerID)
@@ -241,11 +259,17 @@ func TestGetShip_OK_WithViewer(t *testing.T) {
 	viewerID := uuid.New()
 	authorID := uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: authorID, Title: "T"}
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, viewerID).Return(row, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: viewerID}).Return(row, nil)
 	m.shipRepo.EXPECT().GetCharacters(mock.Anything, shipID).Return(nil, nil)
 	blocked := []uuid.UUID{uuid.New()}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(blocked, nil)
-	m.shipRepo.EXPECT().GetComments(mock.Anything, shipID, viewerID, 500, 0, blocked).Return(nil, 0, nil)
+	m.shipRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
+		TargetID:       shipID,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blocked,
+	}).Return(nil, 0, nil)
 	m.shipRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, authorID).Return(true, nil)
 
@@ -264,10 +288,16 @@ func TestGetShip_OK_AnonymousViewerSkipsBlockCheck(t *testing.T) {
 	shipID := uuid.New()
 	authorID := uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: authorID, Title: "T"}
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, uuid.Nil).Return(row, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: uuid.Nil}).Return(row, nil)
 	m.shipRepo.EXPECT().GetCharacters(mock.Anything, shipID).Return(nil, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
-	m.shipRepo.EXPECT().GetComments(mock.Anything, shipID, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
+	m.shipRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
+		TargetID:       shipID,
+		ViewerID:       uuid.Nil,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: nil,
+	}).Return(nil, 0, nil)
 	m.shipRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, nil)
 
 	// when
@@ -311,7 +341,7 @@ func TestUpdateShip_AsAdmin(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
 	m.shipRepo.EXPECT().
-		UpdateWithCharacters(mock.Anything, repository.ShipUpdate{
+		UpdateWithCharacters(mock.Anything, spec.ShipUpdate{
 			ID:          shipID,
 			UserID:      userID,
 			Title:       "T",
@@ -320,10 +350,10 @@ func TestUpdateShip_AsAdmin(t *testing.T) {
 			Characters:  req.Characters,
 		}).
 		Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionShipUpdateAdmin,
-		TargetType: repository.AuditTargetShip,
+		Action:     audit.ActionShipUpdateAdmin,
+		TargetType: audit.TargetShip,
 		TargetID:   shipID.String(),
 		Details:    "title=T",
 		SubjectID:  authorID,
@@ -345,7 +375,7 @@ func TestUpdateShip_ModeratorEditingOwnShipWritesNoAdminRow(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(true)
 	m.shipRepo.EXPECT().
-		UpdateWithCharacters(mock.Anything, repository.ShipUpdate{
+		UpdateWithCharacters(mock.Anything, spec.ShipUpdate{
 			ID:         shipID,
 			UserID:     userID,
 			Title:      "T",
@@ -386,7 +416,7 @@ func TestUpdateShip_AsOwner(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(userID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
 	m.shipRepo.EXPECT().
-		UpdateWithCharacters(mock.Anything, repository.ShipUpdate{
+		UpdateWithCharacters(mock.Anything, spec.ShipUpdate{
 			ID:         shipID,
 			UserID:     userID,
 			Title:      "T",
@@ -408,16 +438,16 @@ func TestDeleteShip_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	authorID := uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: authorID, Title: "Doomed", VoteScore: 7, CommentCount: 3}
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
 	m.shipRepo.EXPECT().
-		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: true}).
+		DeleteShip(mock.Anything, spec.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: true}).
 		Return([]string{"/uploads/ships/x.png", "/uploads/ships/x-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/x.png", "/uploads/ships/x-thumb.png"}).Return()
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionShipDeleteAdmin,
-		TargetType: repository.AuditTargetShip,
+		Action:     audit.ActionShipDeleteAdmin,
+		TargetType: audit.TargetShip,
 		TargetID:   shipID.String(),
 		Details:    "title=Doomed vote_score=7 comments=3",
 		SubjectID:  authorID,
@@ -436,16 +466,16 @@ func TestDeleteShip_ModeratorDeletingOwnShipRecordsOwnerAction(t *testing.T) {
 	shipID := uuid.New()
 	userID := uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Mine", VoteScore: 1, CommentCount: 0}
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(true)
 	m.shipRepo.EXPECT().
-		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: true}).
+		DeleteShip(mock.Anything, spec.ShipDeletion{ID: shipID, UserID: userID, AsAdmin: true}).
 		Return([]string{"/uploads/ships/mine.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/mine.png"}).Return()
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionShipDelete,
-		TargetType: repository.AuditTargetShip,
+		Action:     audit.ActionShipDelete,
+		TargetType: audit.TargetShip,
 		TargetID:   shipID.String(),
 		Details:    "title=Mine vote_score=1 comments=0",
 		SubjectID:  userID,
@@ -464,16 +494,16 @@ func TestDeleteShip_AsOwner(t *testing.T) {
 	shipID := uuid.New()
 	userID := uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Owned"}
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
 	m.shipRepo.EXPECT().
-		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID}).
+		DeleteShip(mock.Anything, spec.ShipDeletion{ID: shipID, UserID: userID}).
 		Return([]string{"/uploads/ships/owned.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/owned.png"}).Return()
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionShipDelete,
-		TargetType: repository.AuditTargetShip,
+		Action:     audit.ActionShipDelete,
+		TargetType: audit.TargetShip,
 		TargetID:   shipID.String(),
 		Details:    "title=Owned vote_score=0 comments=0",
 		SubjectID:  userID,
@@ -491,7 +521,7 @@ func TestDeleteShip_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	shipID := uuid.New()
 	userID := uuid.New()
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(nil, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).Return(nil, nil)
 
 	// when
 	err := svc.DeleteShip(context.Background(), shipID, userID)
@@ -506,10 +536,10 @@ func TestDeleteShip_RepoError(t *testing.T) {
 	shipID := uuid.New()
 	userID := uuid.New()
 	row := &model.ShipRow{ID: shipID, UserID: userID, Title: "Owned"}
-	m.shipRepo.EXPECT().GetByID(mock.Anything, shipID, userID).Return(row, nil)
+	m.shipRepo.EXPECT().GetByID(mock.Anything, spec.ShipLookup{ID: shipID, ViewerID: userID}).Return(row, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyPost).Return(false)
 	m.shipRepo.EXPECT().
-		DeleteShip(mock.Anything, repository.ShipDeletion{ID: shipID, UserID: userID}).
+		DeleteShip(mock.Anything, spec.ShipDeletion{ID: shipID, UserID: userID}).
 		Return(nil, errors.New("boom"))
 
 	// when
@@ -526,7 +556,16 @@ func TestListShips_RepoError(t *testing.T) {
 	viewerID := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
 	m.shipRepo.EXPECT().
-		List(mock.Anything, viewerID, "new", false, "umineko", "battler", 20, 0, []uuid.UUID(nil)).
+		List(mock.Anything, spec.ShipListing{
+			ViewerID:       viewerID,
+			Sort:           "new",
+			CrackshipsOnly: false,
+			Series:         "umineko",
+			CharacterID:    "battler",
+			Limit:          20,
+			Offset:         0,
+			ExcludeUserIDs: nil,
+		}).
 		Return(nil, 0, errors.New("db down"))
 
 	// when
@@ -545,7 +584,16 @@ func TestListShips_OK(t *testing.T) {
 	blocked := []uuid.UUID{uuid.New()}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(blocked, nil)
 	m.shipRepo.EXPECT().
-		List(mock.Anything, viewerID, "top", true, "", "", 10, 5, blocked).
+		List(mock.Anything, spec.ShipListing{
+			ViewerID:       viewerID,
+			Sort:           "top",
+			CrackshipsOnly: true,
+			Series:         "",
+			CharacterID:    "",
+			Limit:          10,
+			Offset:         5,
+			ExcludeUserIDs: blocked,
+		}).
 		Return(rows, 1, nil)
 	m.shipRepo.EXPECT().GetCharactersBatch(mock.Anything, []uuid.UUID{shipID}).Return(nil, nil)
 
@@ -566,7 +614,12 @@ func TestListShipsByUser_RepoError(t *testing.T) {
 	userID := uuid.New()
 	viewerID := uuid.New()
 	m.shipRepo.EXPECT().
-		ListByUser(mock.Anything, userID, viewerID, 10, 0).
+		ListByUser(mock.Anything, spec.ShipUserListing{
+			UserID:   userID,
+			ViewerID: viewerID,
+			Limit:    10,
+			Offset:   0,
+		}).
 		Return(nil, 0, errors.New("boom"))
 
 	// when
@@ -583,7 +636,12 @@ func TestListShipsByUser_OK(t *testing.T) {
 	viewerID := uuid.New()
 	shipID := uuid.New()
 	rows := []model.ShipRow{{ID: shipID, UserID: userID, Title: "A"}}
-	m.shipRepo.EXPECT().ListByUser(mock.Anything, userID, viewerID, 10, 0).Return(rows, 1, nil)
+	m.shipRepo.EXPECT().ListByUser(mock.Anything, spec.ShipUserListing{
+		UserID:   userID,
+		ViewerID: viewerID,
+		Limit:    10,
+		Offset:   0,
+	}).Return(rows, 1, nil)
 	m.shipRepo.EXPECT().GetCharactersBatch(mock.Anything, []uuid.UUID{shipID}).Return(nil, nil)
 
 	// when
@@ -654,7 +712,11 @@ func TestUploadShipImage_UpdateImageError(t *testing.T) {
 	m.uploadSvc.EXPECT().
 		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
-	m.shipRepo.EXPECT().UpdateImage(mock.Anything, shipID, "/uploads/ships/x.png", "").Return(errors.New("db boom"))
+	m.shipRepo.EXPECT().UpdateImage(mock.Anything, spec.ShipImageUpdate{
+		ID:           shipID,
+		ImageURL:     "/uploads/ships/x.png",
+		ThumbnailURL: "",
+	}).Return(errors.New("db boom"))
 
 	// when
 	_, err := svc.UploadShipImage(context.Background(), shipID, userID, "image/png", 100, bytes.NewReader(nil))
@@ -675,7 +737,11 @@ func TestUploadShipImage_OK_CtxCancelledReturnsOriginalURL(t *testing.T) {
 	m.uploadSvc.EXPECT().
 		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
-	m.shipRepo.EXPECT().UpdateImage(mock.Anything, shipID, "/uploads/ships/x.png", "").Return(nil)
+	m.shipRepo.EXPECT().UpdateImage(mock.Anything, spec.ShipImageUpdate{
+		ID:           shipID,
+		ImageURL:     "/uploads/ships/x.png",
+		ThumbnailURL: "",
+	}).Return(nil)
 
 	// when
 	url, err := svc.UploadShipImage(ctx, shipID, userID, "image/png", 100, bytes.NewReader(nil))
@@ -723,7 +789,7 @@ func TestVote_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.shipRepo.EXPECT().Vote(mock.Anything, userID, shipID, 1).Return(nil)
+	m.shipRepo.EXPECT().Vote(mock.Anything, spec.Vote{UserID: userID, TargetID: shipID, Value: 1}).Return(nil)
 
 	// when
 	err := svc.Vote(context.Background(), userID, shipID, 1)
@@ -740,7 +806,7 @@ func TestVote_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.shipRepo.EXPECT().Vote(mock.Anything, userID, shipID, -1).Return(errors.New("boom"))
+	m.shipRepo.EXPECT().Vote(mock.Anything, spec.Vote{UserID: userID, TargetID: shipID, Value: -1}).Return(errors.New("boom"))
 
 	// when
 	err := svc.Vote(context.Background(), userID, shipID, -1)
@@ -799,7 +865,12 @@ func TestCreateComment_RepoError(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.shipComments.EXPECT().
-		CreateComment(mock.Anything, shipID, (*uuid.UUID)(nil), userID, "hi").
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{
+			TargetID: shipID,
+			ParentID: nil,
+			UserID:   userID,
+			Body:     "hi",
+		}).
 		Return(nil, errors.New("db down"))
 
 	// when
@@ -818,8 +889,13 @@ func TestCreateComment_OK(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.shipComments.EXPECT().
-		CreateComment(mock.Anything, shipID, (*uuid.UUID)(nil), userID, "hi").
-		Return(&repository.CommentRow{ID: uuid.New()}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{
+			TargetID: shipID,
+			ParentID: nil,
+			UserID:   userID,
+			Body:     "hi",
+		}).
+		Return(&model.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -842,8 +918,13 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	m.shipRepo.EXPECT().GetAuthorID(mock.Anything, shipID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.shipComments.EXPECT().
-		CreateComment(mock.Anything, shipID, (*uuid.UUID)(nil), userID, "look at this @alice").
-		Return(&repository.CommentRow{ID: commentID}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{
+			TargetID: shipID,
+			ParentID: nil,
+			UserID:   userID,
+			Body:     "look at this @alice",
+		}).
+		Return(&model.CommentRow{ID: commentID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -891,7 +972,7 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.shipRepo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.ShipCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: commentID,
 			UserID:    userID,
 			Body:      "hi",
@@ -913,7 +994,7 @@ func TestUpdateComment_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	m.shipRepo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.ShipCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: commentID,
 			UserID:    userID,
 			Body:      "hi",
@@ -934,7 +1015,7 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.shipRepo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.ShipCommentDeletion{CommentID: commentID, UserID: userID, AsAdmin: true}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: commentID, UserID: userID, AsAdmin: true}).
 		Return([]string{"/uploads/ships/c.png", "/uploads/ships/c-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/ships/c.png", "/uploads/ships/c-thumb.png"}).Return()
 
@@ -952,7 +1033,7 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	m.shipRepo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.ShipCommentDeletion{CommentID: commentID, UserID: userID}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: commentID, UserID: userID}).
 		Return(nil, errors.New("not owner"))
 
 	// when
@@ -1000,7 +1081,7 @@ func TestLikeComment_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.shipRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(errors.New("db"))
+	m.shipRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errors.New("db"))
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, commentID)
@@ -1016,7 +1097,7 @@ func TestLikeComment_OK_SelfLikeSkipsNotification(t *testing.T) {
 	userID := uuid.New()
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(userID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	m.shipRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.shipRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, commentID)
@@ -1033,7 +1114,7 @@ func TestLikeComment_OK_OtherAuthor(t *testing.T) {
 	authorID := uuid.New()
 	m.shipRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.shipRepo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.shipRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 	m.shipRepo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.Nil, errors.New("stop goroutine")).Maybe()
 
 	// when
@@ -1048,7 +1129,7 @@ func TestUnlikeComment_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	m.shipRepo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(nil)
+	m.shipRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, commentID)
@@ -1062,7 +1143,7 @@ func TestUnlikeComment_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	m.shipRepo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(errors.New("boom"))
+	m.shipRepo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, commentID)
@@ -1130,8 +1211,8 @@ func TestUploadCommentMedia_AddMediaError(t *testing.T) {
 		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewShipCommentMedia{
-			CommentID: commentID,
+		AddCommentMedia(mock.Anything, spec.NewMedia{
+			TargetID:  commentID,
 			MediaURL:  "/uploads/ships/x.png",
 			MediaType: "image",
 			Filename:  "photo.png",
@@ -1158,8 +1239,8 @@ func TestUploadCommentMedia_OK_CtxCancelled(t *testing.T) {
 		SaveImage(mock.Anything, "ships", mock.Anything, int64(100), int64(1000), mock.Anything).
 		Return("/uploads/ships/x.png", nil)
 	m.shipRepo.EXPECT().
-		AddCommentMedia(mock.Anything, repository.NewShipCommentMedia{
-			CommentID: commentID,
+		AddCommentMedia(mock.Anything, spec.NewMedia{
+			TargetID:  commentID,
 			MediaURL:  "/uploads/ships/x.png",
 			MediaType: "image",
 			Filename:  "photo.png",

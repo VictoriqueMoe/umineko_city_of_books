@@ -11,6 +11,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
@@ -98,7 +99,7 @@ func (s *service) ResetToken(ctx context.Context, userID uuid.UUID) (string, err
 	if err != nil {
 		return "", err
 	}
-	if err := s.repo.Upsert(ctx, userID, token); err != nil {
+	if err := s.repo.Upsert(ctx, spec.OverlayTokenUpsert{UserID: userID, Token: token}); err != nil {
 		return "", err
 	}
 	return token, nil

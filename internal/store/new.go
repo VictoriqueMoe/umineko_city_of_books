@@ -80,8 +80,8 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.ChatbotBasePrompt = basePrompts
 	repos.Chatbot = repository.NewChatbotRepo(db, dao.NewChatbot(db), repos.User, repos.VanityRole, basePrompts, c)
 
-	repos.Comments = repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{
+	repos.Comments = dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{
 			string(mention.KindPostComment):         postComments,
 			string(mention.KindArtComment):          artComments,
 			string(mention.KindAnnouncementComment): announcementComments,
@@ -90,7 +90,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 			string(mention.KindOCComment):           ocComments,
 			string(mention.KindFanficComment):       fanficComments,
 		},
-		BySlug: map[string]repository.CommentDAO[string]{
+		BySlug: map[string]dao.CommentDAO[string]{
 			string(mention.KindSecretComment): secretComments,
 		},
 		Journal: journalComments,

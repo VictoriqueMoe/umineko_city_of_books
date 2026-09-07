@@ -4,10 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -41,10 +42,17 @@ func (s *service) CreateVanityRole(ctx context.Context, actorID uuid.UUID, req d
 	req.SortOrder = max(req.SortOrder, 0)
 
 	id := uuid.New().String()
-	if err := s.vanityRoleRepo.Create(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
+	newRole := spec.NewVanityRole{
+		ID:        id,
+		Label:     strings.TrimSpace(req.Label),
+		Color:     req.Color,
+		SortOrder: req.SortOrder,
+	}
+
+	if err := s.vanityRoleRepo.Create(ctx, newRole); err != nil {
 		return nil, fmt.Errorf("create vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, repository.AuditActionCreateVanityRole, repository.AuditTargetVanityRole, id)
+	s.audit(ctx, actorID, audit.ActionCreateVanityRole, audit.TargetVanityRole, id)
 	s.broadcastVanityRolesChanged()
 	return &dto.VanityRoleResponse{
 		ID:        id,
@@ -74,10 +82,17 @@ func (s *service) UpdateVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	}
 	req.SortOrder = max(req.SortOrder, 0)
 
-	if err := s.vanityRoleRepo.Update(ctx, id, strings.TrimSpace(req.Label), req.Color, req.SortOrder); err != nil {
+	update := spec.VanityRoleUpdate{
+		ID:        id,
+		Label:     strings.TrimSpace(req.Label),
+		Color:     req.Color,
+		SortOrder: req.SortOrder,
+	}
+
+	if err := s.vanityRoleRepo.Update(ctx, update); err != nil {
 		return fmt.Errorf("update vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, repository.AuditActionUpdateVanityRole, repository.AuditTargetVanityRole, id)
+	s.audit(ctx, actorID, audit.ActionUpdateVanityRole, audit.TargetVanityRole, id)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -101,7 +116,7 @@ func (s *service) DeleteVanityRole(ctx context.Context, actorID uuid.UUID, id st
 	if err := s.vanityRoleRepo.Delete(ctx, id); err != nil {
 		return fmt.Errorf("delete vanity role: %w", err)
 	}
-	s.audit(ctx, actorID, repository.AuditActionDeleteVanityRole, repository.AuditTargetVanityRole, id)
+	s.audit(ctx, actorID, audit.ActionDeleteVanityRole, audit.TargetVanityRole, id)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -119,7 +134,12 @@ func (s *service) isChatbotOptInRole(ctx context.Context, id string) bool {
 }
 
 func (s *service) GetVanityRoleUsers(ctx context.Context, roleID string, search string, page bounds.Page) (*dto.VanityRoleUsersResponse, error) {
-	rows, total, err := s.vanityRoleRepo.GetUsersForRole(ctx, roleID, search, page.Limit(), page.Offset())
+	rows, total, err := s.vanityRoleRepo.GetUsersForRole(ctx, spec.VanityRoleUserQuery{
+		RoleID: roleID,
+		Search: search,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("get vanity role users: %w", err)
 	}
@@ -156,10 +176,10 @@ func (s *service) AssignVanityRole(ctx context.Context, actorID uuid.UUID, roleI
 		return err
 	}
 
-	if err := s.vanityRoleRepo.AssignToUser(ctx, userID, roleID); err != nil {
+	if err := s.vanityRoleRepo.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}); err != nil {
 		return fmt.Errorf("assign vanity role: %w", err)
 	}
-	s.auditSubject(ctx, actorID, repository.AuditActionAssignVanityRole, repository.AuditTargetVanityRole, roleID, userID)
+	s.auditSubject(ctx, actorID, audit.ActionAssignVanityRole, audit.TargetVanityRole, roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
 }
@@ -193,10 +213,10 @@ func (s *service) UnassignVanityRole(ctx context.Context, actorID uuid.UUID, rol
 		return err
 	}
 
-	if err := s.vanityRoleRepo.UnassignFromUser(ctx, userID, roleID); err != nil {
+	if err := s.vanityRoleRepo.UnassignFromUser(ctx, spec.VanityRoleAssignment{UserID: userID, RoleID: roleID}); err != nil {
 		return fmt.Errorf("unassign vanity role: %w", err)
 	}
-	s.auditSubject(ctx, actorID, repository.AuditActionUnassignVanityRole, repository.AuditTargetVanityRole, roleID, userID)
+	s.auditSubject(ctx, actorID, audit.ActionUnassignVanityRole, audit.TargetVanityRole, roleID, userID)
 	s.broadcastVanityRolesChanged()
 	return nil
 }

@@ -5,6 +5,8 @@ import (
 	"testing/synctest"
 	"time"
 
+	"umineko_city_of_books/internal/model/spec"
+
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
 )
@@ -14,7 +16,7 @@ func TestLastSeenIP_FirstCallWrites(t *testing.T) {
 		// given
 		repo := NewMockIPWriter(t)
 		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Once()
+		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
 
 		// when
 		NewLastSeenIP(repo, time.Hour).Record(uid, "10.0.0.1")
@@ -30,7 +32,7 @@ func TestLastSeenIP_SameIPWithinWindowIsSkipped(t *testing.T) {
 		// given
 		repo := NewMockIPWriter(t)
 		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Once()
+		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
 
 		r := NewLastSeenIP(repo, time.Hour)
 
@@ -50,8 +52,8 @@ func TestLastSeenIP_ChangedIPWritesImmediately(t *testing.T) {
 		// given
 		repo := NewMockIPWriter(t)
 		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Once()
-		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.2").Return(nil).Once()
+		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Once()
+		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.2"}).Return(nil).Once()
 
 		r := NewLastSeenIP(repo, time.Hour)
 
@@ -72,7 +74,7 @@ func TestLastSeenIP_WindowElapsedWritesAgain(t *testing.T) {
 		// given
 		repo := NewMockIPWriter(t)
 		uid := uuid.New()
-		repo.EXPECT().UpdateIP(mock.Anything, uid, "10.0.0.1").Return(nil).Twice()
+		repo.EXPECT().UpdateIP(mock.Anything, spec.UserIPUpdate{UserID: uid, IP: "10.0.0.1"}).Return(nil).Twice()
 
 		r := NewLastSeenIP(repo, time.Hour)
 

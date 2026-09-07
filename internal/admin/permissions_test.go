@@ -5,8 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -34,7 +36,7 @@ func TestUpdateRolePermissions_RejectsImmutableRoles(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, ErrImmutableRole)
-			m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything, mock.Anything)
+			m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -48,7 +50,7 @@ func TestUpdateRolePermissions_RejectsUnknownRole(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrUnknownRole)
-	m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything, mock.Anything)
+	m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything)
 }
 
 func TestUpdateRolePermissions_RejectsUnknownPermission(t *testing.T) {
@@ -71,7 +73,7 @@ func TestUpdateRolePermissions_RejectsUnknownPermission(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, ErrUnknownPermission)
-			m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything, mock.Anything)
+			m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -80,12 +82,14 @@ func TestUpdateRolePermissions_AllowsStaffPermissionsOnModerator(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, string(authz.RoleModerator),
-		[]string{string(authz.PermBanUser), string(authz.PermViewAdminPanel)}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, spec.RolePermissionsUpdate{
+		RoleName:    string(authz.RoleModerator),
+		Permissions: []string{string(authz.PermBanUser), string(authz.PermViewAdminPanel)},
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionUpdateRolePermissions,
-		TargetType: repository.AuditTargetRole,
+		Action:     audit.ActionUpdateRolePermissions,
+		TargetType: audit.TargetRole,
 		TargetID:   string(authz.RoleModerator),
 		Details:    "ban_user,view_admin_panel",
 	}).Return(nil)
@@ -119,7 +123,7 @@ func TestUpdateRolePermissions_RejectsRestrictedPermissions(t *testing.T) {
 
 			// then
 			require.ErrorIs(t, err, ErrRestrictedPermission)
-			m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything, mock.Anything)
+			m.permRepo.AssertNotCalled(t, "SetRolePermissions", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -151,11 +155,14 @@ func TestUpdateRolePermissions_UnticksEverything(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, string(authz.RoleModerator), []string{}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.permRepo.EXPECT().SetRolePermissions(mock.Anything, spec.RolePermissionsUpdate{
+		RoleName:    string(authz.RoleModerator),
+		Permissions: []string{},
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionUpdateRolePermissions,
-		TargetType: repository.AuditTargetRole,
+		Action:     audit.ActionUpdateRolePermissions,
+		TargetType: audit.TargetRole,
 		TargetID:   string(authz.RoleModerator),
 		Details:    "",
 	}).Return(nil)
@@ -181,14 +188,14 @@ func TestUpdateVanityRolePermissions_RejectsStaffPermissions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
-			m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+			m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 
 			// when
 			err := svc.UpdateVanityRolePermissions(context.Background(), uuid.New(), "r1", []string{string(tc.perm)})
 
 			// then
 			require.ErrorIs(t, err, ErrStaffPermission)
-			m.permRepo.AssertNotCalled(t, "SetVanityRolePermissions", mock.Anything, mock.Anything, mock.Anything)
+			m.permRepo.AssertNotCalled(t, "SetVanityRolePermissions", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -197,14 +204,14 @@ func TestUpdateVanityRolePermissions_RejectsSystemVanityRole(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	m.vanityRepo.EXPECT().GetByID(mock.Anything, "system_top_detective").
-		Return(&repository.VanityRoleRow{ID: "system_top_detective", IsSystem: true}, nil)
+		Return(&model.VanityRoleRow{ID: "system_top_detective", IsSystem: true}, nil)
 
 	// when
 	err := svc.UpdateVanityRolePermissions(context.Background(), uuid.New(), "system_top_detective", []string{string(authz.PermUseChatbot)})
 
 	// then
 	require.ErrorIs(t, err, ErrSystemRole)
-	m.permRepo.AssertNotCalled(t, "SetVanityRolePermissions", mock.Anything, mock.Anything, mock.Anything)
+	m.permRepo.AssertNotCalled(t, "SetVanityRolePermissions", mock.Anything, mock.Anything)
 }
 
 func TestUpdateVanityRolePermissions_RejectsMissingRole(t *testing.T) {
@@ -223,12 +230,15 @@ func TestUpdateVanityRolePermissions_AcceptsAssignableSubset(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
-	m.permRepo.EXPECT().SetVanityRolePermissions(mock.Anything, "r1", []string{string(authz.PermUseChatbot)}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
+	m.permRepo.EXPECT().SetVanityRolePermissions(mock.Anything, spec.VanityRolePermissionsUpdate{
+		VanityRoleID: "r1",
+		Permissions:  []string{string(authz.PermUseChatbot)},
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionUpdateVanityRolePermissions,
-		TargetType: repository.AuditTargetVanityRole,
+		Action:     audit.ActionUpdateVanityRolePermissions,
+		TargetType: audit.TargetVanityRole,
 		TargetID:   "r1",
 		Details:    "use_chatbot",
 	}).Return(nil)
@@ -247,7 +257,7 @@ func TestGetPermissionSettings_NeverExposesImmutableRoles(t *testing.T) {
 		Return(map[string][]string{string(authz.RoleModerator): {string(authz.PermViewAdminPanel)}}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).
 		Return(map[string][]string{"r1": {string(authz.PermUseChatbot)}}, nil)
-	m.vanityRepo.EXPECT().List(mock.Anything).Return([]repository.VanityRoleRow{
+	m.vanityRepo.EXPECT().List(mock.Anything).Return([]model.VanityRoleRow{
 		{ID: "r1", Label: "Chatbot User", Color: "#ff0000", SortOrder: 1},
 		{ID: "system_top_detective", Label: "Top Detective", IsSystem: true},
 	}, nil)
@@ -326,18 +336,18 @@ func TestAssignVanityRole_PermissionCarryingRoleObeysRankGate(t *testing.T) {
 			svc, m := newTestService(t)
 			actor := uuid.New()
 			target := uuid.New()
-			m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+			m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 			m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).
 				Return(map[string][]string{"r1": {string(authz.PermUseChatbot)}}, nil)
 			m.authz.EXPECT().GetRole(mock.Anything, actor).Return(role.Role(tc.actorRole), nil)
 			m.authz.EXPECT().GetRole(mock.Anything, target).Return(role.Role(tc.targetRole), nil)
 
 			if tc.wantErr == nil {
-				m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-				m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+				m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+				m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 					ActorID:    actor,
-					Action:     repository.AuditActionAssignVanityRole,
-					TargetType: repository.AuditTargetVanityRole,
+					Action:     audit.ActionAssignVanityRole,
+					TargetType: audit.TargetVanityRole,
 					TargetID:   "r1",
 					Details:    "",
 					SubjectID:  target,
@@ -354,7 +364,7 @@ func TestAssignVanityRole_PermissionCarryingRoleObeysRankGate(t *testing.T) {
 			}
 
 			require.ErrorIs(t, err, tc.wantErr)
-			m.vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything, mock.Anything)
+			m.vanityRepo.AssertNotCalled(t, "AssignToUser", mock.Anything, mock.Anything)
 		})
 	}
 }
@@ -364,13 +374,13 @@ func TestAssignVanityRole_DecorativeRoleSkipsRankGate(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(map[string][]string{}, nil)
-	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionAssignVanityRole,
-		TargetType: repository.AuditTargetVanityRole,
+		Action:     audit.ActionAssignVanityRole,
+		TargetType: audit.TargetVanityRole,
 		TargetID:   "r1",
 		Details:    "",
 		SubjectID:  target,

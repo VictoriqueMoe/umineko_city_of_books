@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,8 +18,8 @@ func TestBannedGiphyDAO_AddAndList(t *testing.T) {
 	uid := user.ID.String()
 
 	// when
-	require.NoError(t, repos.BannedGiphy.Add(context.Background(), "id", "abc123", "spam", &uid))
-	require.NoError(t, repos.BannedGiphy.Add(context.Background(), "term", "lewd", "", nil))
+	require.NoError(t, repos.BannedGiphy.Add(context.Background(), spec.NewBannedGiphy{Kind: "id", Value: "abc123", Reason: "spam", CreatedBy: &uid}))
+	require.NoError(t, repos.BannedGiphy.Add(context.Background(), spec.NewBannedGiphy{Kind: "term", Value: "lewd", Reason: "", CreatedBy: nil}))
 
 	// then
 	rows, err := repos.BannedGiphy.List(context.Background())
@@ -44,10 +45,10 @@ func TestBannedGiphyDAO_Add_DuplicateIsNoop(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
-	require.NoError(t, repos.BannedGiphy.Add(ctx, "id", "dup", "first", nil))
+	require.NoError(t, repos.BannedGiphy.Add(ctx, spec.NewBannedGiphy{Kind: "id", Value: "dup", Reason: "first", CreatedBy: nil}))
 
 	// when
-	err := repos.BannedGiphy.Add(ctx, "id", "dup", "second", nil)
+	err := repos.BannedGiphy.Add(ctx, spec.NewBannedGiphy{Kind: "id", Value: "dup", Reason: "second", CreatedBy: nil})
 
 	// then
 	require.NoError(t, err)
@@ -61,11 +62,11 @@ func TestBannedGiphyDAO_Remove(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
-	require.NoError(t, repos.BannedGiphy.Add(ctx, "id", "keep", "", nil))
-	require.NoError(t, repos.BannedGiphy.Add(ctx, "id", "drop", "", nil))
+	require.NoError(t, repos.BannedGiphy.Add(ctx, spec.NewBannedGiphy{Kind: "id", Value: "keep", Reason: "", CreatedBy: nil}))
+	require.NoError(t, repos.BannedGiphy.Add(ctx, spec.NewBannedGiphy{Kind: "id", Value: "drop", Reason: "", CreatedBy: nil}))
 
 	// when
-	require.NoError(t, repos.BannedGiphy.Remove(ctx, "id", "drop"))
+	require.NoError(t, repos.BannedGiphy.Remove(ctx, spec.BannedGiphyDeletion{Kind: "id", Value: "drop"}))
 
 	// then
 	rows, err := repos.BannedGiphy.List(ctx)
@@ -79,7 +80,7 @@ func TestBannedGiphyDAO_Remove_NonExistentIsNoop(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	err := repos.BannedGiphy.Remove(context.Background(), "id", "ghost")
+	err := repos.BannedGiphy.Remove(context.Background(), spec.BannedGiphyDeletion{Kind: "id", Value: "ghost"})
 
 	// then
 	require.NoError(t, err)

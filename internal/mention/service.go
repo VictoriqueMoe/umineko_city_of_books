@@ -7,11 +7,13 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
 )
@@ -38,7 +40,7 @@ type (
 	Service interface {
 		Notify(ctx context.Context, ref Reference, actorID uuid.UUID, body string) error
 		NotifyAsync(ctx context.Context, ref Reference, actorID uuid.UUID, body string)
-		CreateComment(ctx context.Context, spec CommentSpec) (uuid.UUID, error)
+		CreateComment(ctx context.Context, cs CommentSpec) (uuid.UUID, error)
 		Recipients(ctx context.Context, usernames []string, actorID uuid.UUID) ([]model.User, error)
 	}
 
@@ -46,13 +48,13 @@ type (
 		userRepo repository.UserRepository
 		blockSvc block.Service
 		notifSvc notification.Service
-		comments repository.CommentDAOs
+		comments dao.CommentDAOs
 	}
 )
 
 var ErrNoCommentDAO = errors.New("mention: kind has no comment dao")
 
-func NewService(userRepo repository.UserRepository, blockSvc block.Service, notifSvc notification.Service, comments repository.CommentDAOs) Service {
+func NewService(userRepo repository.UserRepository, blockSvc block.Service, notifSvc notification.Service, comments dao.CommentDAOs) Service {
 	return &service{
 		userRepo: userRepo,
 		blockSvc: blockSvc,
@@ -61,7 +63,7 @@ func NewService(userRepo repository.UserRepository, blockSvc block.Service, noti
 	}
 }
 
-func ValidateCommentDAOs(comments repository.CommentDAOs) error {
+func ValidateCommentDAOs(comments dao.CommentDAOs) error {
 	for _, kind := range CommentKinds() {
 		if !hasCommentDAO(kind, comments) {
 			return fmt.Errorf("%w: %q", ErrNoCommentDAO, kind)
@@ -71,7 +73,7 @@ func ValidateCommentDAOs(comments repository.CommentDAOs) error {
 	return nil
 }
 
-func hasCommentDAO(kind Kind, comments repository.CommentDAOs) bool {
+func hasCommentDAO(kind Kind, comments dao.CommentDAOs) bool {
 	if isJournalCommentKind(kind) {
 		return comments.Journal != nil
 	}
@@ -87,30 +89,30 @@ func isJournalCommentKind(kind Kind) bool {
 	return kind == KindJournalComment || kind == KindJournalEntryComment
 }
 
-func (s *service) CreateComment(ctx context.Context, spec CommentSpec) (uuid.UUID, error) {
-	commentID, err := s.writeComment(ctx, spec)
+func (s *service) CreateComment(ctx context.Context, cs CommentSpec) (uuid.UUID, error) {
+	commentID, err := s.writeComment(ctx, cs)
 	if err != nil {
 		return uuid.Nil, err
 	}
 
-	s.notifyChild(ctx, spec, commentID)
+	s.notifyChild(ctx, cs, commentID)
 
 	return commentID, nil
 }
 
-func (s *service) writeComment(ctx context.Context, spec CommentSpec) (uuid.UUID, error) {
-	if isJournalCommentKind(spec.Kind) {
+func (s *service) writeComment(ctx context.Context, cs CommentSpec) (uuid.UUID, error) {
+	if isJournalCommentKind(cs.Kind) {
 		if s.comments.Journal == nil {
-			return uuid.Nil, fmt.Errorf("%w: %q", ErrNoCommentDAO, spec.Kind)
+			return uuid.Nil, fmt.Errorf("%w: %q", ErrNoCommentDAO, cs.Kind)
 		}
 
-		created, err := s.comments.Journal.CreateComment(ctx, repository.NewJournalComment{
-			JournalID:            spec.EntityID,
-			EntryID:              spec.EntryID,
-			ParentID:             spec.ParentID,
-			UserID:               spec.AuthorID,
-			Body:                 spec.Body,
-			RecordAuthorActivity: spec.RecordAuthorActivity,
+		created, err := s.comments.Journal.CreateComment(ctx, spec.NewJournalComment{
+			JournalID:            cs.EntityID,
+			EntryID:              cs.EntryID,
+			ParentID:             cs.ParentID,
+			UserID:               cs.AuthorID,
+			Body:                 cs.Body,
+			RecordAuthorActivity: cs.RecordAuthorActivity,
 		})
 		if err != nil {
 			return uuid.Nil, err
@@ -119,8 +121,13 @@ func (s *service) writeComment(ctx context.Context, spec CommentSpec) (uuid.UUID
 		return created.ID, nil
 	}
 
-	if bySlug := s.comments.BySlug[string(spec.Kind)]; bySlug != nil {
-		created, err := bySlug.CreateComment(ctx, spec.EntityKey, spec.ParentID, spec.AuthorID, spec.Body)
+	if bySlug := s.comments.BySlug[string(cs.Kind)]; bySlug != nil {
+		created, err := bySlug.CreateComment(ctx, spec.NewComment[string]{
+			TargetID: cs.EntityKey,
+			ParentID: cs.ParentID,
+			UserID:   cs.AuthorID,
+			Body:     cs.Body,
+		})
 		if err != nil {
 			return uuid.Nil, err
 		}
@@ -128,12 +135,17 @@ func (s *service) writeComment(ctx context.Context, spec CommentSpec) (uuid.UUID
 		return created.ID, nil
 	}
 
-	byID := s.comments.ByID[string(spec.Kind)]
+	byID := s.comments.ByID[string(cs.Kind)]
 	if byID == nil {
-		return uuid.Nil, fmt.Errorf("%w: %q", ErrNoCommentDAO, spec.Kind)
+		return uuid.Nil, fmt.Errorf("%w: %q", ErrNoCommentDAO, cs.Kind)
 	}
 
-	created, err := byID.CreateComment(ctx, spec.EntityID, spec.ParentID, spec.AuthorID, spec.Body)
+	created, err := byID.CreateComment(ctx, spec.NewComment[uuid.UUID]{
+		TargetID: cs.EntityID,
+		ParentID: cs.ParentID,
+		UserID:   cs.AuthorID,
+		Body:     cs.Body,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -141,14 +153,14 @@ func (s *service) writeComment(ctx context.Context, spec CommentSpec) (uuid.UUID
 	return created.ID, nil
 }
 
-func (s *service) notifyChild(ctx context.Context, spec CommentSpec, childID uuid.UUID) {
+func (s *service) notifyChild(ctx context.Context, cs CommentSpec, childID uuid.UUID) {
 	s.NotifyAsync(ctx, Reference{
-		Kind:        spec.Kind,
-		EntityID:    spec.EntityID,
-		EntityKey:   spec.EntityKey,
-		EntryNumber: spec.EntryNumber,
+		Kind:        cs.Kind,
+		EntityID:    cs.EntityID,
+		EntityKey:   cs.EntityKey,
+		EntryNumber: cs.EntryNumber,
 		ChildID:     childID,
-	}, spec.AuthorID, spec.Body)
+	}, cs.AuthorID, cs.Body)
 }
 
 func (s *service) NotifyAsync(ctx context.Context, ref Reference, actorID uuid.UUID, body string) {

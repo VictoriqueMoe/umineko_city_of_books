@@ -7,7 +7,7 @@ import (
 
 	blocksvc "umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -274,7 +274,7 @@ func TestListBlockedUsers_OK(t *testing.T) {
 	userID := uuid.New()
 	blockedID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	users := []repository.BlockedUser{
+	users := []model.BlockedUser{
 		{
 			ID:          blockedID,
 			Username:    "kinzo",

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ func TestOverlayTokenDAO_UpsertAndGet(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.OverlayToken.Upsert(ctx, user.ID, "tok_abc")
+	err := repos.OverlayToken.Upsert(ctx, spec.OverlayTokenUpsert{UserID: user.ID, Token: "tok_abc"})
 
 	// then
 	require.NoError(t, err)
@@ -63,10 +64,10 @@ func TestOverlayTokenDAO_UpsertReplacesToken(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.OverlayToken.Upsert(ctx, user.ID, "tok_first"))
+	require.NoError(t, repos.OverlayToken.Upsert(ctx, spec.OverlayTokenUpsert{UserID: user.ID, Token: "tok_first"}))
 
 	// when
-	err := repos.OverlayToken.Upsert(ctx, user.ID, "tok_second")
+	err := repos.OverlayToken.Upsert(ctx, spec.OverlayTokenUpsert{UserID: user.ID, Token: "tok_second"})
 
 	// then
 	require.NoError(t, err)
@@ -84,7 +85,7 @@ func TestOverlayTokenDAO_Delete(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.OverlayToken.Upsert(ctx, user.ID, "tok_del"))
+	require.NoError(t, repos.OverlayToken.Upsert(ctx, spec.OverlayTokenUpsert{UserID: user.ID, Token: "tok_del"}))
 
 	// when
 	err := repos.OverlayToken.Delete(ctx, user.ID)

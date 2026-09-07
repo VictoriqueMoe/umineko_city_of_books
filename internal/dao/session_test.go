@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +23,7 @@ func TestSessionDAO_CreateAndGet(t *testing.T) {
 	expiresAt := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
 
 	// when
-	err := repos.Session.Create(context.Background(), token, user.ID, expiresAt)
+	err := repos.Session.Create(context.Background(), spec.NewSession{Token: token, UserID: user.ID, ExpiresAt: expiresAt})
 
 	// then
 	require.NoError(t, err)
@@ -40,7 +41,7 @@ func TestSessionDAO_StoresTokenHashedAtRest(t *testing.T) {
 	expected := sha256.Sum256([]byte(token))
 
 	// when
-	require.NoError(t, repos.Session.Create(context.Background(), token, user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: token, UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// then
 	var stored string
@@ -57,11 +58,11 @@ func TestSessionDAO_DeleteAllForUserExcept_KeepsPresentedToken(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	keep := uuid.NewString()
 	drop := uuid.NewString()
-	require.NoError(t, repos.Session.Create(context.Background(), keep, user.ID, time.Now().Add(time.Hour)))
-	require.NoError(t, repos.Session.Create(context.Background(), drop, user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: keep, UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: drop, UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
-	require.NoError(t, repos.Session.DeleteAllForUserExcept(context.Background(), user.ID, keep))
+	require.NoError(t, repos.Session.DeleteAllForUserExcept(context.Background(), spec.SessionDeletionExcept{UserID: user.ID, KeepToken: keep}))
 
 	// then
 	gotID, _, err := repos.Session.GetUserID(context.Background(), keep)
@@ -130,7 +131,7 @@ func TestSessionDAO_DeleteAllForUserExcept(t *testing.T) {
 	foreign := daotest.CreateSession(t, repos, other.ID)
 
 	// when
-	err := repos.Session.DeleteAllForUserExcept(context.Background(), user.ID, current)
+	err := repos.Session.DeleteAllForUserExcept(context.Background(), spec.SessionDeletionExcept{UserID: user.ID, KeepToken: current})
 
 	// then
 	require.NoError(t, err)
@@ -148,8 +149,8 @@ func TestSessionDAO_CleanExpired(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	freshToken := uuid.NewString()
 	staleToken := uuid.NewString()
-	require.NoError(t, repos.Session.Create(context.Background(), freshToken, user.ID, time.Now().Add(time.Hour)))
-	require.NoError(t, repos.Session.Create(context.Background(), staleToken, user.ID, time.Now().Add(-time.Hour)))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: freshToken, UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: staleToken, UserID: user.ID, ExpiresAt: time.Now().Add(-time.Hour)}))
 
 	// when
 	removed, err := repos.Session.CleanExpired(context.Background())
@@ -167,7 +168,7 @@ func TestSessionDAO_CleanExpired_NothingToRemove(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Session.Create(context.Background(), uuid.NewString(), user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: uuid.NewString(), UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
 	removed, err := repos.Session.CleanExpired(context.Background())

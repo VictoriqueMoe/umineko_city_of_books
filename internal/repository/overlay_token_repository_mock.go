@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -276,12 +277,12 @@ func (_c *MockOverlayTokenRepository_GetUserByToken_Call) RunAndReturn(run func(
 }
 
 // Upsert provides a mock function for the type MockOverlayTokenRepository
-func (_mock *MockOverlayTokenRepository) Upsert(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {
+func (_mock *MockOverlayTokenRepository) Upsert(ctx context.Context, s spec.OverlayTokenUpsert, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, token, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, token)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -290,8 +291,8 @@ func (_mock *MockOverlayTokenRepository) Upsert(ctx context.Context, userID uuid
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, token, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OverlayTokenUpsert, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -305,39 +306,33 @@ type MockOverlayTokenRepository_Upsert_Call struct {
 
 // Upsert is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - token string
+//   - s spec.OverlayTokenUpsert
 //   - tx ...*sql.Tx
-func (_e *MockOverlayTokenRepository_Expecter) Upsert(ctx any, userID any, token any, tx ...any) *MockOverlayTokenRepository_Upsert_Call {
+func (_e *MockOverlayTokenRepository_Expecter) Upsert(ctx any, s any, tx ...any) *MockOverlayTokenRepository_Upsert_Call {
 	return &MockOverlayTokenRepository_Upsert_Call{Call: _e.mock.On("Upsert",
-		append([]any{ctx, userID, token}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockOverlayTokenRepository_Upsert_Call) Run(run func(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx)) *MockOverlayTokenRepository_Upsert_Call {
+func (_c *MockOverlayTokenRepository_Upsert_Call) Run(run func(ctx context.Context, s spec.OverlayTokenUpsert, tx ...*sql.Tx)) *MockOverlayTokenRepository_Upsert_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.OverlayTokenUpsert
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.OverlayTokenUpsert)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -348,7 +343,7 @@ func (_c *MockOverlayTokenRepository_Upsert_Call) Return(err error) *MockOverlay
 	return _c
 }
 
-func (_c *MockOverlayTokenRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error) *MockOverlayTokenRepository_Upsert_Call {
+func (_c *MockOverlayTokenRepository_Upsert_Call) RunAndReturn(run func(ctx context.Context, s spec.OverlayTokenUpsert, tx ...*sql.Tx) error) *MockOverlayTokenRepository_Upsert_Call {
 	_c.Call.Return(run)
 	return _c
 }

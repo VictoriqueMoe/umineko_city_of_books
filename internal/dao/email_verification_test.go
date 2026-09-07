@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -20,7 +20,7 @@ func TestEmailVerification_CreateAndGet(t *testing.T) {
 	expiresAt := time.Now().Add(24 * time.Hour)
 
 	// when
-	err := repos.EmailVerification.Create(context.Background(), "vhash-abc", user.ID, expiresAt)
+	err := repos.EmailVerification.Create(context.Background(), spec.NewEmailVerification{TokenHash: "vhash-abc", UserID: user.ID, ExpiresAt: expiresAt})
 	require.NoError(t, err)
 	got, err := repos.EmailVerification.GetByTokenHash(context.Background(), "vhash-abc")
 
@@ -48,7 +48,7 @@ func TestEmailVerification_MarkUsed(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("verifyused"))
-	require.NoError(t, repos.EmailVerification.Create(context.Background(), "vhash-used", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.EmailVerification.Create(context.Background(), spec.NewEmailVerification{TokenHash: "vhash-used", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
 	err := repos.EmailVerification.MarkUsed(context.Background(), "vhash-used")
@@ -65,9 +65,9 @@ func TestEmailVerification_DeleteUnusedForUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("verifyclear"))
-	require.NoError(t, repos.EmailVerification.Create(context.Background(), "vhash-old", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.EmailVerification.Create(context.Background(), spec.NewEmailVerification{TokenHash: "vhash-old", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 	require.NoError(t, repos.EmailVerification.MarkUsed(context.Background(), "vhash-old"))
-	require.NoError(t, repos.EmailVerification.Create(context.Background(), "vhash-new", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.EmailVerification.Create(context.Background(), spec.NewEmailVerification{TokenHash: "vhash-new", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
 	err := repos.EmailVerification.DeleteUnusedForUser(context.Background(), user.ID)
@@ -89,7 +89,7 @@ func TestUserDAO_SetEmailAndVerify(t *testing.T) {
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("emailflow"))
 
 	// when
-	require.NoError(t, repos.User.SetEmail(context.Background(), user.ID, "flow@example.com"))
+	require.NoError(t, repos.User.SetEmail(context.Background(), spec.UserEmailUpdate{UserID: user.ID, Email: "flow@example.com"}))
 	afterSet, err := repos.User.GetByID(context.Background(), user.ID)
 	require.NoError(t, err)
 
@@ -109,15 +109,15 @@ func TestUserDAO_EmailInUse(t *testing.T) {
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("taken"), daotest.WithEmail("taken@example.com"))
 
 	// when / then
-	inUse, err := repos.User.EmailInUse(context.Background(), "Taken@example.com", uuid.Nil)
+	inUse, err := repos.User.EmailInUse(context.Background(), spec.UserEmailFilter{Email: "Taken@example.com", ExcludeUserID: uuid.Nil})
 	require.NoError(t, err)
 	assert.True(t, inUse)
 
-	excludedSelf, err := repos.User.EmailInUse(context.Background(), "taken@example.com", user.ID)
+	excludedSelf, err := repos.User.EmailInUse(context.Background(), spec.UserEmailFilter{Email: "taken@example.com", ExcludeUserID: user.ID})
 	require.NoError(t, err)
 	assert.False(t, excludedSelf)
 
-	other, err := repos.User.EmailInUse(context.Background(), "free@example.com", uuid.Nil)
+	other, err := repos.User.EmailInUse(context.Background(), spec.UserEmailFilter{Email: "free@example.com", ExcludeUserID: uuid.Nil})
 	require.NoError(t, err)
 	assert.False(t, other)
 }
@@ -144,10 +144,10 @@ func TestEmailVerification_IssueReplacesUnusedTokens(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("verifyissue"))
-	require.NoError(t, repos.EmailVerification.Create(context.Background(), "vhash-stale", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.EmailVerification.Create(context.Background(), spec.NewEmailVerification{TokenHash: "vhash-stale", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
-	err := repos.EmailVerification.Issue(context.Background(), repository.NewEmailVerification{
+	err := repos.EmailVerification.Issue(context.Background(), spec.NewEmailVerification{
 		TokenHash: "vhash-fresh",
 		UserID:    user.ID,
 		ExpiresAt: time.Now().Add(24 * time.Hour),

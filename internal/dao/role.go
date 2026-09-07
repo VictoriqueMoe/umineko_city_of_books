@@ -8,12 +8,22 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
 )
 
 type (
+	RoleDAO interface {
+		GetRole(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (role.Role, error)
+		GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID]role.Role, error)
+		HasRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) (bool, error)
+		SetRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error
+		RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error
+		GetUsersByRoles(ctx context.Context, roles []role.Role, tx ...*sql.Tx) ([]uuid.UUID, error)
+	}
+
 	roleDAO struct {
 		db *sql.DB
 	}
@@ -60,10 +70,10 @@ func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.
 	return out, rows.Err()
 }
 
-func (r *roleDAO) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) (bool, error) {
+func (r *roleDAO) HasRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) (bool, error) {
 	var count int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_roles WHERE user_id = $1 AND role = $2`, userID, string(rl),
+		`SELECT COUNT(*) FROM user_roles WHERE user_id = $1 AND role = $2`, s.UserID, string(s.Role),
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check role: %w", err)
@@ -71,16 +81,16 @@ func (r *roleDAO) HasRole(ctx context.Context, userID uuid.UUID, rl role.Role, t
 	return count > 0, nil
 }
 
-func (r *roleDAO) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {
+func (r *roleDAO) SetRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM user_roles WHERE user_id = $1`, userID,
+		`DELETE FROM user_roles WHERE user_id = $1`, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("clear existing role: %w", err)
 	}
 
 	_, err = txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO user_roles (user_id, role) VALUES ($1, $2)`, userID, string(rl),
+		`INSERT INTO user_roles (user_id, role) VALUES ($1, $2)`, s.UserID, string(s.Role),
 	)
 	if err != nil {
 		return fmt.Errorf("set role: %w", err)
@@ -88,9 +98,9 @@ func (r *roleDAO) SetRole(ctx context.Context, userID uuid.UUID, rl role.Role, t
 	return nil
 }
 
-func (r *roleDAO) RemoveRole(ctx context.Context, userID uuid.UUID, rl role.Role, tx ...*sql.Tx) error {
+func (r *roleDAO) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM user_roles WHERE user_id = $1 AND role = $2`, userID, string(rl),
+		`DELETE FROM user_roles WHERE user_id = $1 AND role = $2`, s.UserID, string(s.Role),
 	)
 	if err != nil {
 		return fmt.Errorf("remove role: %w", err)

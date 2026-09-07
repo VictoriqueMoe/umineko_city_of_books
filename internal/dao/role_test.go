@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -37,7 +38,7 @@ func TestRoleDAO_SetAndGetRole(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Role.SetRole(context.Background(), user.ID, roleAdmin)
+	err := repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin})
 
 	// then
 	require.NoError(t, err)
@@ -52,8 +53,8 @@ func TestRoleDAO_GetRoles(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 	c := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Role.SetRole(context.Background(), a.ID, roleAdmin))
-	require.NoError(t, repos.Role.SetRole(context.Background(), b.ID, roleModerator))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: a.ID, Role: roleAdmin}))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: b.ID, Role: roleModerator}))
 
 	// when
 	got, err := repos.Role.GetRoles(context.Background(), []uuid.UUID{a.ID, b.ID, c.ID})
@@ -83,17 +84,17 @@ func TestRoleDAO_SetRole_ReplacesExisting(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Role.SetRole(context.Background(), user.ID, roleAdmin))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin}))
 
 	// when
-	err := repos.Role.SetRole(context.Background(), user.ID, roleModerator)
+	err := repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleModerator})
 
 	// then
 	require.NoError(t, err)
 	got, err := repos.Role.GetRole(context.Background(), user.ID)
 	require.NoError(t, err)
 	assert.Equal(t, roleModerator, got)
-	hasOld, err := repos.Role.HasRole(context.Background(), user.ID, roleAdmin)
+	hasOld, err := repos.Role.HasRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin})
 	require.NoError(t, err)
 	assert.False(t, hasOld)
 }
@@ -102,11 +103,11 @@ func TestRoleDAO_HasRole(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Role.SetRole(context.Background(), user.ID, roleAdmin))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin}))
 
 	// when
-	hasAdmin, errA := repos.Role.HasRole(context.Background(), user.ID, roleAdmin)
-	hasModerator, errM := repos.Role.HasRole(context.Background(), user.ID, roleModerator)
+	hasAdmin, errA := repos.Role.HasRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin})
+	hasModerator, errM := repos.Role.HasRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleModerator})
 
 	// then
 	require.NoError(t, errA)
@@ -121,7 +122,7 @@ func TestRoleDAO_HasRole_NoRoleAssigned(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	has, err := repos.Role.HasRole(context.Background(), user.ID, roleAdmin)
+	has, err := repos.Role.HasRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin})
 
 	// then
 	require.NoError(t, err)
@@ -132,10 +133,10 @@ func TestRoleDAO_RemoveRole(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Role.SetRole(context.Background(), user.ID, roleAdmin))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin}))
 
 	// when
-	err := repos.Role.RemoveRole(context.Background(), user.ID, roleAdmin)
+	err := repos.Role.RemoveRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin})
 
 	// then
 	require.NoError(t, err)
@@ -150,7 +151,7 @@ func TestRoleDAO_RemoveRole_NotPresent(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Role.RemoveRole(context.Background(), user.ID, roleAdmin)
+	err := repos.Role.RemoveRole(context.Background(), spec.UserRoleSpec{UserID: user.ID, Role: roleAdmin})
 
 	// then
 	require.NoError(t, err)
@@ -174,8 +175,8 @@ func TestRoleDAO_GetUsersByRoles_SingleRole(t *testing.T) {
 	admin := daotest.CreateUser(t, repos)
 	mod := daotest.CreateUser(t, repos)
 	plain := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Role.SetRole(context.Background(), admin.ID, roleAdmin))
-	require.NoError(t, repos.Role.SetRole(context.Background(), mod.ID, roleModerator))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: admin.ID, Role: roleAdmin}))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: mod.ID, Role: roleModerator}))
 
 	// when
 	users, err := repos.Role.GetUsersByRoles(context.Background(), []role.Role{roleAdmin})
@@ -194,9 +195,9 @@ func TestRoleDAO_GetUsersByRoles_MultipleRoles(t *testing.T) {
 	mod := daotest.CreateUser(t, repos)
 	superAdmin := daotest.CreateUser(t, repos)
 	plain := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Role.SetRole(context.Background(), admin.ID, roleAdmin))
-	require.NoError(t, repos.Role.SetRole(context.Background(), mod.ID, roleModerator))
-	require.NoError(t, repos.Role.SetRole(context.Background(), superAdmin.ID, roleSuperAdmin))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: admin.ID, Role: roleAdmin}))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: mod.ID, Role: roleModerator}))
+	require.NoError(t, repos.Role.SetRole(context.Background(), spec.UserRoleSpec{UserID: superAdmin.ID, Role: roleSuperAdmin}))
 
 	// when
 	users, err := repos.Role.GetUsersByRoles(context.Background(), []role.Role{roleAdmin, roleModerator})

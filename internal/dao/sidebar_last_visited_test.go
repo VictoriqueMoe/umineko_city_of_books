@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ func TestSidebarLastVisitedDAO_Upsert_Insert(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), user.ID, "mysteries"))
+	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), spec.NewSidebarVisit{UserID: user.ID, Key: "mysteries"}))
 
 	got, err := repos.SidebarVisited.ListForUser(context.Background(), user.ID)
 	require.NoError(t, err)
@@ -27,7 +28,7 @@ func TestSidebarLastVisitedDAO_Upsert_Overwrites(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.SidebarVisited.Upsert(ctx, user.ID, "mysteries"))
+	require.NoError(t, repos.SidebarVisited.Upsert(ctx, spec.NewSidebarVisit{UserID: user.ID, Key: "mysteries"}))
 
 	_, err := repos.DB().ExecContext(ctx,
 		`UPDATE sidebar_last_visited SET visited_at = NOW() - INTERVAL '1 hour' WHERE user_id = $1 AND key = $2`,
@@ -40,7 +41,7 @@ func TestSidebarLastVisitedDAO_Upsert_Overwrites(t *testing.T) {
 	firstTs := first["mysteries"]
 	require.NotEmpty(t, firstTs)
 
-	require.NoError(t, repos.SidebarVisited.Upsert(ctx, user.ID, "mysteries"))
+	require.NoError(t, repos.SidebarVisited.Upsert(ctx, spec.NewSidebarVisit{UserID: user.ID, Key: "mysteries"}))
 
 	second, err := repos.SidebarVisited.ListForUser(ctx, user.ID)
 	require.NoError(t, err)
@@ -53,9 +54,9 @@ func TestSidebarLastVisitedDAO_ListForUser_IsolatesUsers(t *testing.T) {
 	userA := daotest.CreateUser(t, repos)
 	userB := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), userA.ID, "mysteries"))
-	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), userA.ID, "secrets"))
-	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), userB.ID, "ships"))
+	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), spec.NewSidebarVisit{UserID: userA.ID, Key: "mysteries"}))
+	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), spec.NewSidebarVisit{UserID: userA.ID, Key: "secrets"}))
+	require.NoError(t, repos.SidebarVisited.Upsert(context.Background(), spec.NewSidebarVisit{UserID: userB.ID, Key: "ships"}))
 
 	gotA, err := repos.SidebarVisited.ListForUser(context.Background(), userA.ID)
 	require.NoError(t, err)

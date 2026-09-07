@@ -9,8 +9,8 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 

@@ -6,6 +6,7 @@ import (
 	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
@@ -76,7 +77,7 @@ func (s *service) postChat(ctx context.Context, roomID, userID uuid.UUID, body s
 		return nil, ErrRoomNotActive
 	}
 
-	isParticipant, err := s.repo.IsParticipant(ctx, roomID, userID)
+	isParticipant, err := s.repo.IsParticipant(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +144,7 @@ func (s *service) PostSpectatorChat(ctx context.Context, roomID, userID uuid.UUI
 
 func (s *service) GetSpectatorChat(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.SpectatorChatResponse, error) {
 	if viewerID != uuid.Nil {
-		isParticipant, err := s.repo.IsParticipant(ctx, roomID, viewerID)
+		isParticipant, err := s.repo.IsParticipant(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: viewerID})
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +171,7 @@ func (s *service) GetPlayerChat(ctx context.Context, roomID, viewerID uuid.UUID)
 	if viewerID == uuid.Nil {
 		return nil, ErrNotParticipant
 	}
-	isParticipant, err := s.repo.IsParticipant(ctx, roomID, viewerID)
+	isParticipant, err := s.repo.IsParticipant(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: viewerID})
 	if err != nil {
 		return nil, err
 	}

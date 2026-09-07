@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -29,7 +31,7 @@ func TestDeviceTokenDAO_DeleteIsScopedToOwner(t *testing.T) {
 			ctx := context.Background()
 			owner := daotest.CreateUser(t, repos)
 			other := daotest.CreateUser(t, repos)
-			require.NoError(t, repos.DeviceToken.Upsert(ctx, owner.ID, "tok_owned", "android"))
+			require.NoError(t, repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: owner.ID, Token: "tok_owned", Platform: "android"}))
 
 			deleter := other.ID
 			if tc.deleteAsOwner {
@@ -37,7 +39,7 @@ func TestDeviceTokenDAO_DeleteIsScopedToOwner(t *testing.T) {
 			}
 
 			// when
-			err := repos.DeviceToken.Delete(ctx, deleter, "tok_owned")
+			err := repos.DeviceToken.Delete(ctx, spec.DeviceTokenDeletion{UserID: deleter, Token: "tok_owned"})
 
 			// then
 			require.NoError(t, err)
@@ -63,8 +65,8 @@ func TestDeviceTokenDAO_DeleteManyIsScopedToOwner(t *testing.T) {
 			ctx := context.Background()
 			owner := daotest.CreateUser(t, repos)
 			other := daotest.CreateUser(t, repos)
-			require.NoError(t, repos.DeviceToken.Upsert(ctx, owner.ID, "tok_one", "android"))
-			require.NoError(t, repos.DeviceToken.Upsert(ctx, owner.ID, "tok_two", "android"))
+			require.NoError(t, repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: owner.ID, Token: "tok_one", Platform: "android"}))
+			require.NoError(t, repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: owner.ID, Token: "tok_two", Platform: "android"}))
 
 			deleter := other.ID
 			if tc.deleteAsOwner {
@@ -72,7 +74,7 @@ func TestDeviceTokenDAO_DeleteManyIsScopedToOwner(t *testing.T) {
 			}
 
 			// when
-			err := repos.DeviceToken.DeleteMany(ctx, deleter, []string{"tok_one", "tok_two"})
+			err := repos.DeviceToken.DeleteMany(ctx, spec.DeviceTokenBulkDeletion{UserID: deleter, Tokens: []string{"tok_one", "tok_two"}})
 
 			// then
 			require.NoError(t, err)
@@ -87,10 +89,10 @@ func TestDeviceTokenDAO_UpsertRebindsTokenOnDeviceHandover(t *testing.T) {
 	ctx := context.Background()
 	previousOwner := daotest.CreateUser(t, repos)
 	newOwner := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.DeviceToken.Upsert(ctx, previousOwner.ID, "tok_handover", "android"))
+	require.NoError(t, repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: previousOwner.ID, Token: "tok_handover", Platform: "android"}))
 
 	// when
-	err := repos.DeviceToken.Upsert(ctx, newOwner.ID, "tok_handover", "android")
+	err := repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: newOwner.ID, Token: "tok_handover", Platform: "android"})
 
 	// then
 	require.NoError(t, err)
@@ -121,15 +123,15 @@ func TestDeviceTokenDAO_RegistrationsCarryPlatform(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.DeviceToken.Upsert(ctx, user.ID, "tok_native", "android"))
-	require.NoError(t, repos.DeviceToken.Upsert(ctx, user.ID, "fid_web", "web"))
+	require.NoError(t, repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: user.ID, Token: "tok_native", Platform: "android"}))
+	require.NoError(t, repos.DeviceToken.Upsert(ctx, spec.NewDeviceToken{UserID: user.ID, Token: "fid_web", Platform: "web"}))
 
 	// when
 	registrations, err := repos.DeviceToken.RegistrationsForUser(ctx, user.ID)
 
 	// then
 	require.NoError(t, err)
-	assert.ElementsMatch(t, []repository.DeviceRegistration{
+	assert.ElementsMatch(t, []model.DeviceRegistration{
 		{Token: "tok_native", Platform: "android"},
 		{Token: "fid_web", Platform: "web"},
 	}, registrations)

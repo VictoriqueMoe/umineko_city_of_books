@@ -8,9 +8,11 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
@@ -33,7 +35,7 @@ func newCacheTestService(t *testing.T, mgr *cache.Manager, echoes homefeed.Servi
 	uploadSvc := upload.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	comments := repository.NewMockJournalCommentWriter(t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{Journal: comments})
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{Journal: comments})
 
 	resolver := og.NewResolver(
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
@@ -75,7 +77,7 @@ func TestDeleteJournal_ClearsCachedPages(t *testing.T) {
 
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("doomed", nil)
-	m.repo.EXPECT().Delete(mock.Anything, id, authorID, false).Return(nil, nil)
+	m.repo.EXPECT().DeleteWithMedia(mock.Anything, spec.JournalDeletion{ID: id, UserID: authorID, AsAdmin: false}).Return(nil, nil)
 	m.authz.EXPECT().Can(mock.Anything, mock.Anything, mock.Anything).Return(false).Maybe()
 	m.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 	m.uploadSvc.EXPECT().Delete(mock.Anything).Return().Maybe()

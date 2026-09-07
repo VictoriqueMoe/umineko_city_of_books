@@ -4,6 +4,7 @@ import (
 	"context"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -68,7 +69,11 @@ func (s *service) GetTopGMIDs(ctx context.Context) ([]string, error) {
 }
 
 func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
-	rows, total, err := s.mysteryRepo.ListByUser(ctx, userID, page.Limit(), page.Offset())
+	rows, total, err := s.mysteryRepo.ListByUser(ctx, spec.MysteryUserListFilter{
+		UserID: userID,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -8,15 +8,18 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/announcement"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
@@ -29,7 +32,7 @@ import (
 
 type harness struct {
 	repo         *repository.MockAnnouncementRepository
-	comments     *repository.MockCommentDAO[uuid.UUID]
+	comments     *dao.MockCommentDAO[uuid.UUID]
 	userRepo     *repository.MockUserRepository
 	auditRepo    *repository.MockAuditLogRepository
 	blockSvc     *block.MockService
@@ -53,9 +56,9 @@ func newHarness(t *testing.T) *harness {
 	hub := ws.NewHub()
 
 	uploader := media.NewUploader(uploadSvc, settingsSvc, nil)
-	comments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
+	comments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
 	})
 
 	settingsSvc.EXPECT().Get(mock.Anything, mock.Anything).Return("http://test").Maybe()
@@ -81,7 +84,7 @@ func TestService_List_BuildsResponse(t *testing.T) {
 	h := newHarness(t)
 	annID := uuid.New()
 	authorID := uuid.New()
-	h.repo.EXPECT().List(mock.Anything, 20, 0).Return([]repository.AnnouncementRow{
+	h.repo.EXPECT().List(mock.Anything, spec.AnnouncementListQuery{Limit: 20, Offset: 0}).Return([]model.AnnouncementRow{
 		{ID: annID, Title: "Welcome", Body: "hi", AuthorID: authorID, AuthorUsername: "beato"},
 	}, 1, nil)
 
@@ -115,10 +118,15 @@ func TestService_GetDetail_BuildsTreeFromComments(t *testing.T) {
 	viewerID := uuid.New()
 	c1 := uuid.New()
 	c2 := uuid.New()
-	h.repo.EXPECT().GetByID(mock.Anything, annID).Return(&repository.AnnouncementRow{ID: annID, Title: "T"}, nil)
+	h.repo.EXPECT().GetByID(mock.Anything, annID).Return(&model.AnnouncementRow{ID: annID, Title: "T"}, nil)
 	h.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, nil)
-	h.repo.EXPECT().GetComments(mock.Anything, annID, viewerID, 500, 0, []uuid.UUID(nil)).
-		Return([]repository.CommentRow{
+	h.repo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
+		TargetID: annID,
+		ViewerID: viewerID,
+		Limit:    500,
+		Offset:   0,
+	}).
+		Return([]model.CommentRow{
 			{ID: c1, Body: "parent"},
 			{ID: c2, ParentID: &c1, Body: "reply"},
 		}, 2, nil)
@@ -153,7 +161,7 @@ func TestService_GetLatest_Returns(t *testing.T) {
 	// given
 	h := newHarness(t)
 	annID := uuid.New()
-	h.repo.EXPECT().GetLatest(mock.Anything).Return(&repository.AnnouncementRow{ID: annID, Title: "Latest"}, nil)
+	h.repo.EXPECT().GetLatest(mock.Anything).Return(&model.AnnouncementRow{ID: annID, Title: "Latest"}, nil)
 
 	// when
 	resp, err := h.svc.GetLatest(context.Background())
@@ -180,11 +188,11 @@ func TestService_Create_OK(t *testing.T) {
 	h := newHarness(t)
 	userID := uuid.New()
 	annID := uuid.New()
-	h.repo.EXPECT().Create(mock.Anything, userID, "t", "b").Return(&repository.AnnouncementRow{ID: annID}, nil)
-	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	h.repo.EXPECT().Create(mock.Anything, spec.NewAnnouncement{AuthorID: userID, Title: "t", Body: "b"}).Return(&model.AnnouncementRow{ID: annID}, nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionAnnouncementCreate,
-		TargetType: repository.AuditTargetAnnouncement,
+		Action:     audit.ActionAnnouncementCreate,
+		TargetType: audit.TargetAnnouncement,
 		TargetID:   annID.String(),
 		Details:    "title=t",
 		SubjectID:  userID,
@@ -208,9 +216,9 @@ func TestService_Create_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	settingsSvc := settings.NewMockService(t)
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
-	comments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
+	comments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
 	})
 	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc, nil)
 
@@ -218,8 +226,8 @@ func TestService_Create_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	annID := uuid.New()
 	mentionedID := uuid.New()
 
-	repo.EXPECT().Create(mock.Anything, userID, "Maintenance", "we are down, ask @alice").
-		Return(&repository.AnnouncementRow{ID: annID}, nil)
+	repo.EXPECT().Create(mock.Anything, spec.NewAnnouncement{AuthorID: userID, Title: "Maintenance", Body: "we are down, ask @alice"}).
+		Return(&model.AnnouncementRow{ID: annID}, nil)
 	auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil)
 	userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
@@ -267,12 +275,12 @@ func TestService_Update_Delegates(t *testing.T) {
 	id := uuid.New()
 	actor := uuid.New()
 	author := uuid.New()
-	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "old", AuthorID: author}, nil)
-	h.repo.EXPECT().Update(mock.Anything, id, "t", "b").Return(nil)
-	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.AnnouncementRow{ID: id, Title: "old", AuthorID: author}, nil)
+	h.repo.EXPECT().Update(mock.Anything, spec.AnnouncementUpdate{ID: id, Title: "t", Body: "b"}).Return(nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionAnnouncementUpdate,
-		TargetType: repository.AuditTargetAnnouncement,
+		Action:     audit.ActionAnnouncementUpdate,
+		TargetType: audit.TargetAnnouncement,
 		TargetID:   id.String(),
 		Details:    "title=old -> t",
 		SubjectID:  author,
@@ -304,13 +312,13 @@ func TestService_Delete_Delegates(t *testing.T) {
 	id := uuid.New()
 	actor := uuid.New()
 	author := uuid.New()
-	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Doomed", AuthorID: author}, nil)
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.AnnouncementRow{ID: id, Title: "Doomed", AuthorID: author}, nil)
 	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return(nil, nil)
 	h.uploadSvc.EXPECT().Delete().Return()
-	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	h.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionAnnouncementDelete,
-		TargetType: repository.AuditTargetAnnouncement,
+		Action:     audit.ActionAnnouncementDelete,
+		TargetType: audit.TargetAnnouncement,
 		TargetID:   id.String(),
 		Details:    "title=Doomed",
 		SubjectID:  author,
@@ -327,7 +335,7 @@ func TestService_Delete_UnlinksCommentMediaAfterCommit(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
-	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Doomed"}, nil)
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.AnnouncementRow{ID: id, Title: "Doomed"}, nil)
 	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return([]string{"/uploads/announcements/a.png", "/uploads/announcements/a-thumb.png"}, nil)
 	h.uploadSvc.EXPECT().Delete([]string{"/uploads/announcements/a.png", "/uploads/announcements/a-thumb.png"}).Return()
 	h.auditRepo.EXPECT().Create(mock.Anything, mock.Anything).Return(nil)
@@ -343,7 +351,7 @@ func TestService_Delete_KeepsFilesWhenTransactionFails(t *testing.T) {
 	// given
 	h := newHarness(t)
 	id := uuid.New()
-	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Doomed"}, nil)
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.AnnouncementRow{ID: id, Title: "Doomed"}, nil)
 	h.repo.EXPECT().DeleteWithMedia(mock.Anything, id).Return(nil, errors.New("rolled back"))
 
 	// when
@@ -359,12 +367,12 @@ func TestService_SetPinned_Delegates(t *testing.T) {
 	id := uuid.New()
 	actor := uuid.New()
 	author := uuid.New()
-	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.AnnouncementRow{ID: id, Title: "Welcome", AuthorID: author}, nil)
-	h.repo.EXPECT().SetPinned(mock.Anything, id, true).Return(nil)
-	h.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	h.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.AnnouncementRow{ID: id, Title: "Welcome", AuthorID: author}, nil)
+	h.repo.EXPECT().SetPinned(mock.Anything, spec.AnnouncementPinUpdate{ID: id, Pinned: true}).Return(nil)
+	h.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    actor,
-		Action:     repository.AuditActionAnnouncementPin,
-		TargetType: repository.AuditTargetAnnouncement,
+		Action:     audit.ActionAnnouncementPin,
+		TargetType: audit.TargetAnnouncement,
 		TargetID:   id.String(),
 		Details:    "title=Welcome pinned=true",
 		SubjectID:  author,
@@ -408,7 +416,7 @@ func TestService_CreateComment_BlockedAuthor(t *testing.T) {
 	authorID := uuid.New()
 	userID := uuid.New()
 	h.repo.EXPECT().GetByID(mock.Anything, annID).
-		Return(&repository.AnnouncementRow{ID: annID, AuthorID: authorID}, nil)
+		Return(&model.AnnouncementRow{ID: annID, AuthorID: authorID}, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
 
 	// when
@@ -425,9 +433,9 @@ func TestService_CreateComment_OK(t *testing.T) {
 	authorID := uuid.New()
 	userID := uuid.New()
 	h.repo.EXPECT().GetByID(mock.Anything, annID).
-		Return(&repository.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
+		Return(&model.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	h.comments.EXPECT().CreateComment(mock.Anything, annID, (*uuid.UUID)(nil), userID, "hello").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	h.comments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: annID, UserID: userID, Body: "hello"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	h.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil).Maybe()
 
 	// when
@@ -448,9 +456,9 @@ func TestService_CreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	settingsSvc := settings.NewMockService(t)
 	authzSvc := authz.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
-	comments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
+	comments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifService, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindAnnouncementComment): comments},
 	})
 	svc := announcement.NewService(repo, userRepo, auditRepo, blockSvc, notifService, mentionSvc, settingsSvc, authzSvc, ws.NewHub(), media.NewUploader(uploadSvc, settingsSvc, nil), uploadSvc, nil)
 
@@ -461,10 +469,10 @@ func TestService_CreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	mentionedID := uuid.New()
 
 	repo.EXPECT().GetByID(mock.Anything, annID).
-		Return(&repository.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
+		Return(&model.AnnouncementRow{ID: annID, AuthorID: authorID, Title: "Welcome"}, nil)
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	comments.EXPECT().CreateComment(mock.Anything, annID, (*uuid.UUID)(nil), userID, "look at this @alice").
-		Return(&repository.CommentRow{ID: commentID}, nil)
+	comments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: annID, UserID: userID, Body: "look at this @alice"}).
+		Return(&model.CommentRow{ID: commentID}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Beato"}, nil)
 	userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -501,7 +509,7 @@ func TestService_UpdateComment_AsAuthor(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	h.repo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.AnnouncementCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: id,
 			UserID:    userID,
 			Body:      "x",
@@ -522,7 +530,7 @@ func TestService_UpdateComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	h.repo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.AnnouncementCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: id,
 			UserID:    userID,
 			Body:      "x",
@@ -555,7 +563,7 @@ func TestService_UpdateComment_NonAuthorIsForbidden(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
 	h.repo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.AnnouncementCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: id,
 			UserID:    userID,
 			Body:      "x",
@@ -576,7 +584,7 @@ func TestService_DeleteComment_AsAuthor(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	h.repo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.AnnouncementCommentDeletion{CommentID: id, UserID: userID}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID}).
 		Return([]string{"/uploads/announcements/c.png"}, nil)
 	h.uploadSvc.EXPECT().Delete([]string{"/uploads/announcements/c.png"}).Return()
 
@@ -594,7 +602,7 @@ func TestService_DeleteComment_AsAdmin(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	h.repo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.AnnouncementCommentDeletion{CommentID: id, UserID: userID, AsAdmin: true}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID, AsAdmin: true}).
 		Return(nil, nil)
 	h.uploadSvc.EXPECT().Delete().Return()
 
@@ -612,7 +620,7 @@ func TestService_DeleteComment_NonAuthorIsForbidden(t *testing.T) {
 	userID := uuid.New()
 	h.authzSvc.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
 	h.repo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.AnnouncementCommentDeletion{CommentID: id, UserID: userID}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID}).
 		Return(nil, errors.New("not yours"))
 
 	// when
@@ -659,7 +667,7 @@ func TestService_LikeComment_RepoBlockedSentinelMaps(t *testing.T) {
 	userID := uuid.New()
 	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	h.repo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(block.ErrUserBlocked)
+	h.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(block.ErrUserBlocked)
 
 	// when
 	err := h.svc.LikeComment(context.Background(), userID, commentID)
@@ -676,7 +684,7 @@ func TestService_LikeComment_OK(t *testing.T) {
 	userID := uuid.New()
 	h.repo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	h.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	h.repo.EXPECT().LikeComment(mock.Anything, userID, commentID).Return(nil)
+	h.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 	h.repo.EXPECT().GetCommentEntityID(mock.Anything, commentID).Return(uuid.New(), nil).Maybe()
 	h.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "X"}, nil).Maybe()
 
@@ -692,7 +700,7 @@ func TestService_UnlikeComment_Delegates(t *testing.T) {
 	h := newHarness(t)
 	commentID := uuid.New()
 	userID := uuid.New()
-	h.repo.EXPECT().UnlikeComment(mock.Anything, userID, commentID).Return(nil)
+	h.repo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: commentID}).Return(nil)
 
 	// when
 	err := h.svc.UnlikeComment(context.Background(), userID, commentID)

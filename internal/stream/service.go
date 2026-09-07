@@ -12,9 +12,12 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
@@ -202,7 +205,7 @@ func (s *service) SaveThumbnail(ctx context.Context, userID, streamID uuid.UUID,
 		return fmt.Errorf("save thumbnail: %w", err)
 	}
 
-	if err := s.repo.SetThumbnail(ctx, streamID, url); err != nil {
+	if err := s.repo.SetThumbnail(ctx, spec.LiveStreamThumbnailUpdate{ID: streamID, URL: url}); err != nil {
 		s.uploadSvc.Delete(url)
 		return err
 	}
@@ -300,7 +303,7 @@ func (s *service) runEgress(streamID uuid.UUID, room, identity, ingressID string
 		return
 	}
 
-	if err := s.repo.SetEgress(ctx, streamID, egressID, hlsPlaylistURL(room)); err != nil {
+	if err := s.repo.SetEgress(ctx, spec.LiveStreamEgressUpdate{ID: streamID, EgressID: egressID, HLSURL: hlsPlaylistURL(room)}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", streamID.String()).Msg("save stream egress failed")
 		return
 	}
@@ -402,14 +405,14 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 		return nil, ErrAtCapacity
 	}
 
-	stream, err := s.repo.Create(ctx, userID, title, s.maxConcurrent())
+	stream, err := s.repo.Create(ctx, spec.NewLiveStream{UserID: userID, Title: title, MaxConcurrent: s.maxConcurrent()})
 	if err != nil {
 		switch {
-		case errors.Is(err, repository.ErrLiveStreamActiveExists):
+		case errors.Is(err, dao.ErrLiveStreamActiveExists):
 			{
 				return nil, ErrAlreadyLive
 			}
-		case errors.Is(err, repository.ErrLiveStreamCapacity):
+		case errors.Is(err, dao.ErrLiveStreamCapacity):
 			{
 				return nil, ErrAtCapacity
 			}
@@ -442,8 +445,8 @@ func (s *service) StartStream(ctx context.Context, userID uuid.UUID, title strin
 
 	mode := dto.NormalizeStreamDefaultMode(defaultMode)
 
-	activation := repository.LiveStreamActivation{
-		Ingress: repository.LiveStreamIngressUpdate{
+	activation := spec.LiveStreamActivation{
+		Ingress: spec.LiveStreamIngressUpdate{
 			ID:        streamID,
 			IngressID: creds.IngressID,
 			Room:      room,
@@ -481,7 +484,7 @@ func userRoom(userID uuid.UUID) string {
 	return roomPrefix + "u_" + userID.String()
 }
 
-func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*repository.StreamCredentialsRow, error) {
+func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*model.StreamCredentialsRow, error) {
 	existing, err := s.creds.Get(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -509,7 +512,7 @@ func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displ
 		return nil, fmt.Errorf("create ingress: %w", err)
 	}
 
-	spec := repository.NewStreamCredentials{
+	newCreds := spec.NewStreamCredentials{
 		UserID:    userID,
 		IngressID: ingressID,
 		WhipURL:   whipURL,
@@ -517,21 +520,21 @@ func (s *service) ensureCredentials(ctx context.Context, userID uuid.UUID, displ
 		Room:      room,
 	}
 
-	if err := s.creds.Upsert(ctx, spec); err != nil {
+	if err := s.creds.Upsert(ctx, newCreds); err != nil {
 		_ = s.livekitSvc.DeleteIngress(ctx, ingressID)
 		return nil, err
 	}
 
-	return &repository.StreamCredentialsRow{
-		UserID:    spec.UserID,
-		IngressID: spec.IngressID,
-		WhipURL:   spec.WhipURL,
-		StreamKey: spec.StreamKey,
-		Room:      spec.Room,
+	return &model.StreamCredentialsRow{
+		UserID:    newCreds.UserID,
+		IngressID: newCreds.IngressID,
+		WhipURL:   newCreds.WhipURL,
+		StreamKey: newCreds.StreamKey,
+		Room:      newCreds.Room,
 	}, nil
 }
 
-func (s *service) reprovisionCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*repository.StreamCredentialsRow, error) {
+func (s *service) reprovisionCredentials(ctx context.Context, userID uuid.UUID, displayName string) (*model.StreamCredentialsRow, error) {
 	existing, err := s.creds.Get(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -634,7 +637,7 @@ func (s *service) UpdateTitle(ctx context.Context, userID, streamID uuid.UUID, t
 		return nil, ErrNotOwner
 	}
 
-	if err := s.repo.SetTitle(ctx, streamID, title); err != nil {
+	if err := s.repo.SetTitle(ctx, spec.LiveStreamTitleUpdate{ID: streamID, Title: title}); err != nil {
 		return nil, err
 	}
 
@@ -806,7 +809,7 @@ func (s *service) HandleWebhook(ctx context.Context, authHeader string, body []b
 	return true, nil
 }
 
-func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow) bool {
+func (s *service) teardown(ctx context.Context, stream *model.LiveStreamRow) bool {
 	s.clearBitrate(stream.ID)
 
 	transitioned, err := s.repo.MarkOffline(ctx, stream.ID)
@@ -840,7 +843,7 @@ func (s *service) teardown(ctx context.Context, stream *repository.LiveStreamRow
 }
 
 func (s *service) adjustViewers(ctx context.Context, id uuid.UUID, delta int) {
-	count, ok, err := s.repo.AdjustViewerCount(ctx, id, delta)
+	count, ok, err := s.repo.AdjustViewerCount(ctx, spec.LiveStreamViewerAdjustment{ID: id, Delta: delta})
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("stream_id", id.String()).Msg("adjust viewer count failed")
 		return
@@ -907,7 +910,7 @@ func hasBroadcaster(identities []string) bool {
 	return false
 }
 
-func (s *service) notifyFollowersLive(ctx context.Context, stream *repository.LiveStreamRow) {
+func (s *service) notifyFollowersLive(ctx context.Context, stream *model.LiveStreamRow) {
 	if s.notifSvc == nil || s.followRepo == nil {
 		return
 	}
@@ -940,13 +943,13 @@ func (s *service) broadcastLive(ctx context.Context, id uuid.UUID) {
 	})
 }
 
-func (s *service) clearStreamMeta(ctx context.Context, stream *repository.LiveStreamRow) {
+func (s *service) clearStreamMeta(ctx context.Context, stream *model.LiveStreamRow) {
 	if err := s.ogCache.ClearMetaCache(ctx, og.KindLiveStream, stream.Username); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("username", stream.Username).Msg("clear og meta cache failed")
 	}
 }
 
-func toPublic(row *repository.LiveStreamRow) dto.LiveStreamResponse {
+func toPublic(row *model.LiveStreamRow) dto.LiveStreamResponse {
 	started := ""
 	if row.StartedAt.Valid {
 		started = row.StartedAt.String
@@ -968,7 +971,7 @@ func toPublic(row *repository.LiveStreamRow) dto.LiveStreamResponse {
 	}
 }
 
-func toOwner(row *repository.LiveStreamRow) *dto.StreamOwnerResponse {
+func toOwner(row *model.LiveStreamRow) *dto.StreamOwnerResponse {
 	return &dto.StreamOwnerResponse{
 		Stream:    toPublic(row),
 		WhipURL:   row.WhipURL,

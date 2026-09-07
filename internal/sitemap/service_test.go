@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/sitemap"
@@ -89,7 +90,7 @@ func TestService_Theories_BuildsURLs(t *testing.T) {
 	// given
 	svc, repo, _ := newTestService(t)
 	when := time.Date(2024, 1, 2, 10, 0, 0, 0, time.UTC)
-	repo.EXPECT().ListTheories(mock.Anything).Return([]repository.SitemapEntry{
+	repo.EXPECT().ListTheories(mock.Anything).Return([]model.SitemapEntry{
 		{ID: "theory-a", LastMod: when},
 	}, nil)
 
@@ -136,7 +137,7 @@ func TestService_Journals_DedupesJournalAddsEntries(t *testing.T) {
 	svc, repo, _ := newTestService(t)
 	jUpdated := time.Date(2024, 3, 4, 0, 0, 0, 0, time.UTC)
 	eUpdated := time.Date(2024, 3, 5, 0, 0, 0, 0, time.UTC)
-	repo.EXPECT().ListJournalRows(mock.Anything).Return([]repository.SitemapJournalRow{
+	repo.EXPECT().ListJournalRows(mock.Anything).Return([]model.SitemapJournalRow{
 		{
 			JournalID:        "journal-1",
 			JournalUpdatedAt: jUpdated,

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -17,7 +19,7 @@ type (
 		IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) (bool, error)
 		IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error)
 		GetBlockedIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
-		GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]repository.BlockedUser, error)
+		GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]model.BlockedUser, error)
 	}
 
 	service struct {
@@ -52,26 +54,26 @@ func (s *service) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid
 		return ErrCannotBlockStaff
 	}
 
-	if err := s.blockRepo.Block(ctx, blockerID, blockedID); err != nil {
+	if err := s.blockRepo.Block(ctx, spec.BlockSpec{BlockerID: blockerID, BlockedID: blockedID}); err != nil {
 		return err
 	}
 
-	_ = s.followRepo.Unfollow(ctx, blockerID, blockedID)
-	_ = s.followRepo.Unfollow(ctx, blockedID, blockerID)
+	_ = s.followRepo.Unfollow(ctx, spec.FollowSpec{FollowerID: blockerID, FollowingID: blockedID})
+	_ = s.followRepo.Unfollow(ctx, spec.FollowSpec{FollowerID: blockedID, FollowingID: blockerID})
 
 	return nil
 }
 
 func (s *service) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) error {
-	return s.blockRepo.Unblock(ctx, blockerID, blockedID)
+	return s.blockRepo.Unblock(ctx, spec.BlockSpec{BlockerID: blockerID, BlockedID: blockedID})
 }
 
 func (s *service) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID) (bool, error) {
-	return s.blockRepo.IsBlocked(ctx, blockerID, blockedID)
+	return s.blockRepo.IsBlocked(ctx, spec.BlockSpec{BlockerID: blockerID, BlockedID: blockedID})
 }
 
 func (s *service) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID) (bool, error) {
-	return s.blockRepo.IsBlockedEither(ctx, userA, userB)
+	return s.blockRepo.IsBlockedEither(ctx, spec.BlockPairSpec{UserA: userA, UserB: userB})
 }
 
 func (s *service) GetBlockedIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
@@ -81,6 +83,6 @@ func (s *service) GetBlockedIDs(ctx context.Context, userID uuid.UUID) ([]uuid.U
 	return s.blockRepo.GetBlockedIDs(ctx, userID)
 }
 
-func (s *service) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]repository.BlockedUser, error) {
+func (s *service) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]model.BlockedUser, error) {
 	return s.blockRepo.GetBlockedUsers(ctx, blockerID)
 }

@@ -6,7 +6,7 @@ package block
 
 import (
 	"context"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -171,23 +171,23 @@ func (_c *MockService_GetBlockedIDs_Call) RunAndReturn(run func(ctx context.Cont
 }
 
 // GetBlockedUsers provides a mock function for the type MockService
-func (_mock *MockService) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]repository.BlockedUser, error) {
+func (_mock *MockService) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID) ([]model.BlockedUser, error) {
 	ret := _mock.Called(ctx, blockerID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetBlockedUsers")
 	}
 
-	var r0 []repository.BlockedUser
+	var r0 []model.BlockedUser
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]repository.BlockedUser, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) ([]model.BlockedUser, error)); ok {
 		return returnFunc(ctx, blockerID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []repository.BlockedUser); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID) []model.BlockedUser); ok {
 		r0 = returnFunc(ctx, blockerID)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.BlockedUser)
+			r0 = ret.Get(0).([]model.BlockedUser)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID) error); ok {
@@ -228,12 +228,12 @@ func (_c *MockService_GetBlockedUsers_Call) Run(run func(ctx context.Context, bl
 	return _c
 }
 
-func (_c *MockService_GetBlockedUsers_Call) Return(blockedUsers []repository.BlockedUser, err error) *MockService_GetBlockedUsers_Call {
+func (_c *MockService_GetBlockedUsers_Call) Return(blockedUsers []model.BlockedUser, err error) *MockService_GetBlockedUsers_Call {
 	_c.Call.Return(blockedUsers, err)
 	return _c
 }
 
-func (_c *MockService_GetBlockedUsers_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID) ([]repository.BlockedUser, error)) *MockService_GetBlockedUsers_Call {
+func (_c *MockService_GetBlockedUsers_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID) ([]model.BlockedUser, error)) *MockService_GetBlockedUsers_Call {
 	_c.Call.Return(run)
 	return _c
 }

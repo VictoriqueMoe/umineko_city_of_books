@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sync"
 
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -106,7 +107,7 @@ func (r *ChatBannedWordsRule) CheckForRoom(ctx context.Context, roomID uuid.UUID
 	return nil, nil
 }
 
-func (r *ChatBannedWordsRule) compile(row repository.ChatBannedWordRow) (*compiledRule, error) {
+func (r *ChatBannedWordsRule) compile(row model.ChatBannedWordRow) (*compiledRule, error) {
 	key := cacheKey{
 		id:            row.ID,
 		pattern:       row.Pattern,

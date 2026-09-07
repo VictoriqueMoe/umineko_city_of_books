@@ -7,8 +7,8 @@ import (
 	artsvc "umineko_city_of_books/internal/art"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -443,7 +443,7 @@ func (s *Service) setGalleryCover(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.SetGalleryCover(ctx.Context(), galleryID, userID, body.CoverArtID); err != nil {
-		if errors.Is(err, repository.ErrArtNotOwned) {
+		if errors.Is(err, dao.ErrArtNotOwned) {
 			return utils.NotFound(ctx, "gallery or art not found")
 		}
 
@@ -518,7 +518,7 @@ func (s *Service) setArtGallery(ctx fiber.Ctx) error {
 	}
 
 	if err := s.ArtService.SetArtGallery(ctx.Context(), artID, userID, body.GalleryID); err != nil {
-		if errors.Is(err, repository.ErrArtNotOwned) {
+		if errors.Is(err, dao.ErrArtNotOwned) {
 			return utils.NotFound(ctx, "art or gallery not found")
 		}
 

@@ -6,7 +6,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -24,7 +24,7 @@ func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, g
 	if err != nil || opponent == nil {
 		return nil, ErrOpponentInactive
 	}
-	blocked, err := s.blockSvc.IsBlockedEither(ctx, inviterID, opponentID)
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, spec.BlockPairSpec{UserA: inviterID, UserB: opponentID})
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func (s *service) Invite(ctx context.Context, inviterID, opponentID uuid.UUID, g
 		return nil, fmt.Errorf("inviter not found")
 	}
 
-	created, err := s.repo.CreateInvite(ctx, repository.NewGameRoomInvite{
+	created, err := s.repo.CreateInvite(ctx, spec.NewGameRoomInvite{
 		GameType:         string(gameType),
 		InitialStateJSON: "{}",
 		InviterID:        inviterID,
@@ -111,7 +111,7 @@ func (s *service) Accept(ctx context.Context, roomID, userID uuid.UUID) (*dto.Ga
 
 	firstTurnUser := winnerUserID(&firstTurnSlot, players)
 
-	if err := s.repo.Start(ctx, repository.GameRoomStart{
+	if err := s.repo.Start(ctx, spec.GameRoomStart{
 		RoomID:     roomID,
 		UserID:     userID,
 		StateJSON:  stateJSON,
@@ -145,7 +145,7 @@ func (s *service) Cancel(ctx context.Context, roomID, userID uuid.UUID) error {
 	if slot != 0 {
 		return ErrNotInviter
 	}
-	if err := s.repo.SetStatus(ctx, roomID, string(dto.GameStatusDeclined)); err != nil {
+	if err := s.repo.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: roomID, Status: string(dto.GameStatusDeclined)}); err != nil {
 		return err
 	}
 	room, _ := s.loadRoom(ctx, roomID)
@@ -163,7 +163,7 @@ func (s *service) Decline(ctx context.Context, roomID, userID uuid.UUID) error {
 	if slot != 1 {
 		return ErrNotInvitee
 	}
-	if err := s.repo.SetStatus(ctx, roomID, string(dto.GameStatusDeclined)); err != nil {
+	if err := s.repo.SetStatus(ctx, spec.GameRoomStatusUpdate{RoomID: roomID, Status: string(dto.GameStatusDeclined)}); err != nil {
 		return err
 	}
 	room, _ := s.loadRoom(ctx, roomID)
@@ -185,7 +185,7 @@ func (s *service) Get(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.Gam
 		if viewerID == uuid.Nil {
 			return nil, ErrNotParticipant
 		}
-		isParticipant, err := s.repo.IsParticipant(ctx, roomID, viewerID)
+		isParticipant, err := s.repo.IsParticipant(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: viewerID})
 		if err != nil {
 			return nil, err
 		}
@@ -197,7 +197,13 @@ func (s *service) Get(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.Gam
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID, filter ListFilter) (*dto.GameRoomListResponse, error) {
-	rows, total, err := s.repo.ListForUser(ctx, userID, string(filter.GameType), filter.Statuses, filter.Page.Limit(), filter.Page.Offset())
+	rows, total, err := s.repo.ListForUser(ctx, spec.GameRoomUserFilter{
+		UserID:   userID,
+		GameType: string(filter.GameType),
+		Statuses: filter.Statuses,
+		Limit:    filter.Page.Limit(),
+		Offset:   filter.Page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -205,7 +211,11 @@ func (s *service) List(ctx context.Context, userID uuid.UUID, filter ListFilter)
 }
 
 func (s *service) ListLive(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error) {
-	rows, total, err := s.repo.ListLive(ctx, string(gameType), page.Limit(), page.Offset())
+	rows, total, err := s.repo.ListLive(ctx, spec.GameRoomListFilter{
+		GameType: string(gameType),
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +239,11 @@ func (s *service) broadcastLiveGamesCount(ctx context.Context) {
 }
 
 func (s *service) ListFinished(ctx context.Context, gameType dto.GameType, page bounds.Page) (*dto.GameRoomListResponse, error) {
-	rows, total, err := s.repo.ListFinished(ctx, string(gameType), page.Limit(), page.Offset())
+	rows, total, err := s.repo.ListFinished(ctx, spec.GameRoomListFilter{
+		GameType: string(gameType),
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}

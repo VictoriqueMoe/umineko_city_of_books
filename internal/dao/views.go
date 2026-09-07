@@ -5,37 +5,31 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/google/uuid"
+	"umineko_city_of_books/internal/model/spec"
 )
 
-type viewDAO struct {
-	db          *sql.DB
-	viewsTable  string
-	fk          string
-	entityTable string
+type (
+	viewDAO struct {
+		db         *sql.DB
+		viewsTable string
+		fk         string
+	}
+)
+
+func newViewDAO(db *sql.DB, viewsTable string, fk string) *viewDAO {
+	return &viewDAO{db: db, viewsTable: viewsTable, fk: fk}
 }
 
-func newViewDAO(db *sql.DB, viewsTable string, fk string, entityTable string) *viewDAO {
-	return &viewDAO{db: db, viewsTable: viewsTable, fk: fk, entityTable: entityTable}
-}
-
-func (v *viewDAO) RecordView(ctx context.Context, entityID uuid.UUID, viewerHash string, tx ...*sql.Tx) (bool, error) {
+func (v *viewDAO) RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error) {
 	res, err := txOrDB(v.db, tx).ExecContext(ctx,
 		`INSERT INTO `+v.viewsTable+` (`+v.fk+`, viewer_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		entityID, viewerHash,
+		s.TargetID, s.ViewerHash,
 	)
 	if err != nil {
 		return false, fmt.Errorf("record view in %s: %w", v.viewsTable, err)
 	}
 
 	n, _ := res.RowsAffected()
-	if n > 0 {
-		if _, err := txOrDB(v.db, tx).ExecContext(ctx,
-			`UPDATE `+v.entityTable+` SET view_count = view_count + 1 WHERE id = $1`, entityID,
-		); err != nil {
-			return false, fmt.Errorf("increment view count in %s: %w", v.entityTable, err)
-		}
-	}
 
 	return n > 0, nil
 }

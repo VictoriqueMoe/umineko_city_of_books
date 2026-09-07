@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -70,7 +71,7 @@ func (m *Manager) Create(ctx context.Context, userID uuid.UUID) (string, error) 
 		return "", err
 	}
 
-	if err := m.repo.Create(ctx, token, userID, expiresAt); err != nil {
+	if err := m.repo.Create(ctx, spec.NewSession{Token: token, UserID: userID, ExpiresAt: expiresAt}); err != nil {
 		return "", err
 	}
 
@@ -114,7 +115,7 @@ func (m *Manager) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, 
 		return m.DeleteAllForUser(ctx, userID)
 	}
 
-	if err := m.repo.DeleteAllForUserExcept(ctx, userID, keepToken); err != nil {
+	if err := m.repo.DeleteAllForUserExcept(ctx, spec.SessionDeletionExcept{UserID: userID, KeepToken: keepToken}); err != nil {
 		return err
 	}
 

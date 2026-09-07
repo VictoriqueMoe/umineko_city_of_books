@@ -6,7 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/ws"
 
@@ -64,9 +64,9 @@ func (s *systemService) EnsureSystemRooms(ctx context.Context) error {
 	}
 	creator := supers[0]
 
-	rooms := make([]repository.NewChatSystemRoom, 0, 2)
+	rooms := make([]spec.NewChatSystemRoom, 0, 2)
 	if modsID == uuid.Nil {
-		rooms = append(rooms, repository.NewChatSystemRoom{
+		rooms = append(rooms, spec.NewChatSystemRoom{
 			ID:          uuid.New(),
 			Name:        systemModsName,
 			Description: systemModsDesc,
@@ -75,7 +75,7 @@ func (s *systemService) EnsureSystemRooms(ctx context.Context) error {
 		})
 	}
 	if adminsID == uuid.Nil {
-		rooms = append(rooms, repository.NewChatSystemRoom{
+		rooms = append(rooms, spec.NewChatSystemRoom{
 			ID:          uuid.New(),
 			Name:        systemAdminsName,
 			Description: systemAdminsDesc,
@@ -117,7 +117,7 @@ func (s *systemService) SyncSystemRoomMembership(ctx context.Context, userID uui
 
 	desired := memberRoleForSystem(newRole)
 
-	changes, err := s.chatRepo.SyncSystemRoomMembership(ctx, []repository.SystemRoomMembership{
+	changes, err := s.chatRepo.SyncSystemRoomMembership(ctx, []spec.SystemRoomMembership{
 		{RoomID: modsID, UserID: userID, ShouldBeMember: eligibleForMods(newRole), DesiredRole: desired},
 		{RoomID: adminsID, UserID: userID, ShouldBeMember: eligibleForAdmins(newRole), DesiredRole: desired},
 	})

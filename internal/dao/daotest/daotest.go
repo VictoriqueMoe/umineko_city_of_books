@@ -10,8 +10,9 @@ import (
 
 	appdb "umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/db/dbtest"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/store"
 
 	"github.com/google/uuid"
@@ -147,7 +148,7 @@ func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *
 		hash, err := bcrypt.GenerateFromPassword([]byte(o.password), bcrypt.MinCost)
 		require.NoError(t, err)
 
-		u, err := repos.User.Create(context.Background(), repository.NewUser{
+		u, err := repos.User.Create(context.Background(), spec.NewUser{
 			Username:     o.username,
 			Email:        o.email,
 			PasswordHash: string(hash),
@@ -172,6 +173,6 @@ func CreateUser(t *testing.T, repos *repository.Repositories, opts ...UserOpt) *
 func CreateSession(t *testing.T, repos *repository.Repositories, userID uuid.UUID) string {
 	t.Helper()
 	token := uuid.NewString()
-	require.NoError(t, repos.Session.Create(context.Background(), token, userID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.Session.Create(context.Background(), spec.NewSession{Token: token, UserID: userID, ExpiresAt: time.Now().Add(time.Hour)}))
 	return token
 }

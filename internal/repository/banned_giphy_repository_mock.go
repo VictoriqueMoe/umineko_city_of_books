@@ -7,6 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -39,12 +41,12 @@ func (_m *MockBannedGiphyRepository) EXPECT() *MockBannedGiphyRepository_Expecte
 }
 
 // Add provides a mock function for the type MockBannedGiphyRepository
-func (_mock *MockBannedGiphyRepository) Add(ctx context.Context, kind string, value string, reason string, createdBy *string, tx ...*sql.Tx) error {
+func (_mock *MockBannedGiphyRepository) Add(ctx context.Context, s spec.NewBannedGiphy, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, kind, value, reason, createdBy, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, kind, value, reason, createdBy)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -53,8 +55,8 @@ func (_mock *MockBannedGiphyRepository) Add(ctx context.Context, kind string, va
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, *string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, kind, value, reason, createdBy, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewBannedGiphy, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -68,51 +70,33 @@ type MockBannedGiphyRepository_Add_Call struct {
 
 // Add is a helper method to define mock.On call
 //   - ctx context.Context
-//   - kind string
-//   - value string
-//   - reason string
-//   - createdBy *string
+//   - s spec.NewBannedGiphy
 //   - tx ...*sql.Tx
-func (_e *MockBannedGiphyRepository_Expecter) Add(ctx any, kind any, value any, reason any, createdBy any, tx ...any) *MockBannedGiphyRepository_Add_Call {
+func (_e *MockBannedGiphyRepository_Expecter) Add(ctx any, s any, tx ...any) *MockBannedGiphyRepository_Add_Call {
 	return &MockBannedGiphyRepository_Add_Call{Call: _e.mock.On("Add",
-		append([]any{ctx, kind, value, reason, createdBy}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockBannedGiphyRepository_Add_Call) Run(run func(ctx context.Context, kind string, value string, reason string, createdBy *string, tx ...*sql.Tx)) *MockBannedGiphyRepository_Add_Call {
+func (_c *MockBannedGiphyRepository_Add_Call) Run(run func(ctx context.Context, s spec.NewBannedGiphy, tx ...*sql.Tx)) *MockBannedGiphyRepository_Add_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.NewBannedGiphy
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.NewBannedGiphy)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 *string
-		if args[4] != nil {
-			arg4 = args[4].(*string)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -123,13 +107,13 @@ func (_c *MockBannedGiphyRepository_Add_Call) Return(err error) *MockBannedGiphy
 	return _c
 }
 
-func (_c *MockBannedGiphyRepository_Add_Call) RunAndReturn(run func(ctx context.Context, kind string, value string, reason string, createdBy *string, tx ...*sql.Tx) error) *MockBannedGiphyRepository_Add_Call {
+func (_c *MockBannedGiphyRepository_Add_Call) RunAndReturn(run func(ctx context.Context, s spec.NewBannedGiphy, tx ...*sql.Tx) error) *MockBannedGiphyRepository_Add_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockBannedGiphyRepository
-func (_mock *MockBannedGiphyRepository) List(ctx context.Context, tx ...*sql.Tx) ([]BannedGiphyRow, error) {
+func (_mock *MockBannedGiphyRepository) List(ctx context.Context, tx ...*sql.Tx) ([]model.BannedGiphyRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -142,16 +126,16 @@ func (_mock *MockBannedGiphyRepository) List(ctx context.Context, tx ...*sql.Tx)
 		panic("no return value specified for List")
 	}
 
-	var r0 []BannedGiphyRow
+	var r0 []model.BannedGiphyRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]BannedGiphyRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.BannedGiphyRow, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []BannedGiphyRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.BannedGiphyRow); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]BannedGiphyRow)
+			r0 = ret.Get(0).([]model.BannedGiphyRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -195,23 +179,23 @@ func (_c *MockBannedGiphyRepository_List_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *MockBannedGiphyRepository_List_Call) Return(bannedGiphyRows []BannedGiphyRow, err error) *MockBannedGiphyRepository_List_Call {
+func (_c *MockBannedGiphyRepository_List_Call) Return(bannedGiphyRows []model.BannedGiphyRow, err error) *MockBannedGiphyRepository_List_Call {
 	_c.Call.Return(bannedGiphyRows, err)
 	return _c
 }
 
-func (_c *MockBannedGiphyRepository_List_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]BannedGiphyRow, error)) *MockBannedGiphyRepository_List_Call {
+func (_c *MockBannedGiphyRepository_List_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.BannedGiphyRow, error)) *MockBannedGiphyRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Remove provides a mock function for the type MockBannedGiphyRepository
-func (_mock *MockBannedGiphyRepository) Remove(ctx context.Context, kind string, value string, tx ...*sql.Tx) error {
+func (_mock *MockBannedGiphyRepository) Remove(ctx context.Context, s spec.BannedGiphyDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, kind, value, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, kind, value)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -220,8 +204,8 @@ func (_mock *MockBannedGiphyRepository) Remove(ctx context.Context, kind string,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, kind, value, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BannedGiphyDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -235,39 +219,33 @@ type MockBannedGiphyRepository_Remove_Call struct {
 
 // Remove is a helper method to define mock.On call
 //   - ctx context.Context
-//   - kind string
-//   - value string
+//   - s spec.BannedGiphyDeletion
 //   - tx ...*sql.Tx
-func (_e *MockBannedGiphyRepository_Expecter) Remove(ctx any, kind any, value any, tx ...any) *MockBannedGiphyRepository_Remove_Call {
+func (_e *MockBannedGiphyRepository_Expecter) Remove(ctx any, s any, tx ...any) *MockBannedGiphyRepository_Remove_Call {
 	return &MockBannedGiphyRepository_Remove_Call{Call: _e.mock.On("Remove",
-		append([]any{ctx, kind, value}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockBannedGiphyRepository_Remove_Call) Run(run func(ctx context.Context, kind string, value string, tx ...*sql.Tx)) *MockBannedGiphyRepository_Remove_Call {
+func (_c *MockBannedGiphyRepository_Remove_Call) Run(run func(ctx context.Context, s spec.BannedGiphyDeletion, tx ...*sql.Tx)) *MockBannedGiphyRepository_Remove_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.BannedGiphyDeletion
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.BannedGiphyDeletion)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -278,7 +256,7 @@ func (_c *MockBannedGiphyRepository_Remove_Call) Return(err error) *MockBannedGi
 	return _c
 }
 
-func (_c *MockBannedGiphyRepository_Remove_Call) RunAndReturn(run func(ctx context.Context, kind string, value string, tx ...*sql.Tx) error) *MockBannedGiphyRepository_Remove_Call {
+func (_c *MockBannedGiphyRepository_Remove_Call) RunAndReturn(run func(ctx context.Context, s spec.BannedGiphyDeletion, tx ...*sql.Tx) error) *MockBannedGiphyRepository_Remove_Call {
 	_c.Call.Return(run)
 	return _c
 }

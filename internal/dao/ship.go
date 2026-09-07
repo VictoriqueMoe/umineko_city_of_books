@@ -10,13 +10,49 @@ import (
 
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
 
 type (
+	ShipDAO interface {
+		Create(ctx context.Context, s spec.NewShip, tx ...*sql.Tx) (*model.ShipRow, error)
+		UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, tx ...*sql.Tx) error
+		UpdateImage(ctx context.Context, s spec.ShipImageUpdate, tx ...*sql.Tx) error
+		Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error
+		DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		GetByID(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx) (*model.ShipRow, error)
+		GetAuthorID(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		List(ctx context.Context, q spec.ShipListing, tx ...*sql.Tx) ([]model.ShipRow, int, error)
+		ListByUser(ctx context.Context, q spec.ShipUserListing, tx ...*sql.Tx) ([]model.ShipRow, int, error)
+
+		InsertCharacters(ctx context.Context, s spec.NewShipCharacters, tx ...*sql.Tx) error
+		DeleteCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) error
+		GetCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) ([]model.ShipCharacterRow, error)
+		GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.ShipCharacterRow, error)
+
+		Vote(ctx context.Context, s spec.Vote, tx ...*sql.Tx) error
+
+		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
+		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
+		GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
+		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+
+		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
+		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
+	}
+
 	shipDAO struct {
 		db *sql.DB
 		*ownedDAO
@@ -44,12 +80,14 @@ func scanShipRow(row interface{ Scan(...any) error }, s *model.ShipRow) error {
 	); err != nil {
 		return err
 	}
+
 	s.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	s.UpdatedAt = new(updatedAt.UTC().Format(time.RFC3339))
+
 	return nil
 }
 
-func (r *shipDAO) Create(ctx context.Context, userID uuid.UUID, title string, description string, tx ...*sql.Tx) (*model.ShipRow, error) {
+func (r *shipDAO) Create(ctx context.Context, s spec.NewShip, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var created model.ShipRow
 
 	if err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx,
@@ -64,7 +102,7 @@ func (r *shipDAO) Create(ctx context.Context, userID uuid.UUID, title string, de
 		 FROM s
 		 JOIN users u ON u.id = s.user_id
 		 LEFT JOIN user_roles r ON r.user_id = s.user_id`,
-		userID, title, description,
+		s.UserID, s.Title, s.Description,
 	), &created); err != nil {
 		return nil, fmt.Errorf("create ship: %w", err)
 	}
@@ -72,21 +110,21 @@ func (r *shipDAO) Create(ctx context.Context, userID uuid.UUID, title string, de
 	return &created, nil
 }
 
-func (r *shipDAO) UpdateDetails(ctx context.Context, spec repository.ShipDetailsUpdate, tx ...*sql.Tx) error {
+func (r *shipDAO) UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, tx ...*sql.Tx) error {
 	var (
 		res sql.Result
 		err error
 	)
 
-	if spec.AsAdmin {
+	if s.AsAdmin {
 		res, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE ships SET title = $1, description = $2, updated_at = NOW() WHERE id = $3`,
-			spec.Title, spec.Description, spec.ID,
+			s.Title, s.Description, s.ID,
 		)
 	} else {
 		res, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE ships SET title = $1, description = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4`,
-			spec.Title, spec.Description, spec.ID, spec.UserID,
+			s.Title, s.Description, s.ID, s.UserID,
 		)
 	}
 	if err != nil {
@@ -101,28 +139,25 @@ func (r *shipDAO) UpdateDetails(ctx context.Context, spec repository.ShipDetails
 	return nil
 }
 
-func (r *shipDAO) AddCommentMedia(ctx context.Context, spec repository.NewShipCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.IsSpoiler, tx...)
-}
-
-func (r *shipDAO) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
+func (r *shipDAO) UpdateImage(ctx context.Context, s spec.ShipImageUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE ships SET image_url = $1, thumbnail_url = $2 WHERE id = $3`,
-		imageURL, thumbnailURL, id,
+		s.ImageURL, s.ThumbnailURL, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update ship image: %w", err)
 	}
+
 	return nil
 }
 
 func appendShipPaths(paths []string, values ...string) []string {
-	for i := range values {
-		if values[i] == "" {
+	for _, value := range values {
+		if value == "" {
 			continue
 		}
 
-		paths = append(paths, values[i])
+		paths = append(paths, value)
 	}
 
 	return paths
@@ -144,46 +179,55 @@ func (r *shipDAO) GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sq
 	return appendShipPaths(nil, imageURL, thumbnailURL), nil
 }
 
-func (r *shipDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ShipRow, error) {
+func (r *shipDAO) GetByID(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var s model.ShipRow
-	err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx, shipSelectBase+` WHERE s.id = $2`, viewerID, id), &s)
+
+	err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx, shipSelectBase+` WHERE s.id = $2`, q.ViewerID, q.ID), &s)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
 		return nil, fmt.Errorf("get ship: %w", err)
 	}
+
 	return &s, nil
 }
 
-func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
+func (r *shipDAO) List(ctx context.Context, q spec.ShipListing, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
 	buildWhere := func(startIdx int) (string, []any, int) {
 		idx := startIdx
 		next := func() string {
-			s := fmt.Sprintf("$%d", idx)
+			placeholder := fmt.Sprintf("$%d", idx)
 			idx++
-			return s
+			return placeholder
 		}
+
 		parts := []string{"1=1"}
 		var args []any
-		if series != "" {
+
+		if q.Series != "" {
 			parts = append(parts, "EXISTS(SELECT 1 FROM ship_characters WHERE ship_id = s.id AND series = "+next()+")")
-			args = append(args, series)
+			args = append(args, q.Series)
 		}
-		if characterID != "" {
+
+		if q.CharacterID != "" {
 			parts = append(parts, "EXISTS(SELECT 1 FROM ship_characters WHERE ship_id = s.id AND character_id = "+next()+")")
-			args = append(args, characterID)
+			args = append(args, q.CharacterID)
 		}
-		if crackshipsOnly {
+
+		if q.CrackshipsOnly {
 			parts = append(parts, fmt.Sprintf("COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0) <= %d", dto.CrackshipThreshold))
 		}
-		exclSQL, exclArgs := ExcludeClause("s.user_id", excludeUserIDs, idx)
+
+		exclSQL, exclArgs := ExcludeClause("s.user_id", q.ExcludeUserIDs, idx)
 		idx += len(exclArgs)
 		args = append(args, exclArgs...)
+
 		return " WHERE " + strings.Join(parts, " AND ") + exclSQL, args, idx
 	}
 
 	countWhere, countArgs, _ := buildWhere(1)
+
 	var total int
 	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ships s`+countWhere, countArgs...,
@@ -194,12 +238,12 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 	listWhere, listArgs, nextIdx := buildWhere(2)
 	limitPH := fmt.Sprintf("$%d", nextIdx)
 	offsetPH := fmt.Sprintf("$%d", nextIdx+1)
-	orderClause := shipOrderClause(sort)
+	orderClause := shipOrderClause(q.Sort)
 	query := shipSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
 
-	queryArgs := []any{viewerID}
+	queryArgs := []any{q.ViewerID}
 	queryArgs = append(queryArgs, listArgs...)
-	queryArgs = append(queryArgs, limit, offset)
+	queryArgs = append(queryArgs, q.Limit, q.Offset)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
 	if err != nil {
@@ -213,13 +257,16 @@ func (r *shipDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, cra
 		if err := scanShipRow(rows, &s); err != nil {
 			return nil, 0, fmt.Errorf("scan ship: %w", err)
 		}
+
 		ships = append(ships, s)
 	}
+
 	return ships, total, rows.Err()
 }
 
 func shipOrderClause(sort string) string {
 	voteScore := `COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0)`
+
 	switch sort {
 	case "top":
 		return ` ORDER BY ` + voteScore + ` DESC, s.created_at DESC`
@@ -239,14 +286,15 @@ func shipOrderClause(sort string) string {
 	}
 }
 
-func (r *shipDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
+func (r *shipDAO) ListByUser(ctx context.Context, q spec.ShipUserListing, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = $1`, q.UserID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user ships: %w", err)
 	}
 
 	query := shipSelectBase + ` WHERE s.user_id = $2 ORDER BY s.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, q.ViewerID, q.UserID, q.Limit, q.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user ships: %w", err)
 	}
@@ -258,16 +306,18 @@ func (r *shipDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uui
 		if err := scanShipRow(rows, &s); err != nil {
 			return nil, 0, fmt.Errorf("scan ship: %w", err)
 		}
+
 		ships = append(ships, s)
 	}
+
 	return ships, total, rows.Err()
 }
 
-func (r *shipDAO) InsertCharacters(ctx context.Context, shipID uuid.UUID, characters []dto.ShipCharacter, tx ...*sql.Tx) error {
-	for i, c := range characters {
+func (r *shipDAO) InsertCharacters(ctx context.Context, s spec.NewShipCharacters, tx ...*sql.Tx) error {
+	for i, c := range s.Characters {
 		if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`INSERT INTO ship_characters (ship_id, series, character_id, character_name, sort_order) VALUES ($1, $2, $3, $4, $5)`,
-			shipID, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i,
+			s.ShipID, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i,
 		); err != nil {
 			return fmt.Errorf("add ship character: %w", err)
 		}
@@ -300,8 +350,10 @@ func (r *shipDAO) GetCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sq
 		if err := rows.Scan(&c.ID, &c.ShipID, &c.Series, &c.CharacterID, &c.CharacterName, &c.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan ship character: %w", err)
 		}
+
 		chars = append(chars, c)
 	}
+
 	return chars, rows.Err()
 }
 
@@ -327,7 +379,9 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, t
 		if err := rows.Scan(&c.ID, &c.ShipID, &c.Series, &c.CharacterID, &c.CharacterName, &c.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan ship character: %w", err)
 		}
+
 		result[c.ShipID] = append(result[c.ShipID], c)
 	}
+
 	return result, rows.Err()
 }

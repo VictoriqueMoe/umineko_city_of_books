@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -14,8 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func pendingRow(id, creator uuid.UUID) *repository.GameRoomRow {
-	return &repository.GameRoomRow{
+func pendingRow(id, creator uuid.UUID) *model.GameRoomRow {
+	return &model.GameRoomRow{
 		ID:        id,
 		GameType:  string(dto.GameTypeChess),
 		Status:    string(dto.GameStatusPending),
@@ -69,7 +70,7 @@ func TestInvite_RejectsBlockedOpponent(t *testing.T) {
 	inviter := uuid.New()
 	opponent := uuid.New()
 	seedUser(t, m, opponent, "beato")
-	m.blockRepo.EXPECT().IsBlockedEither(mock.Anything, inviter, opponent).Return(true, nil)
+	m.blockRepo.EXPECT().IsBlockedEither(mock.Anything, spec.BlockPairSpec{UserA: inviter, UserB: opponent}).Return(true, nil)
 
 	// when
 	_, err := m.svc.Invite(context.Background(), inviter, opponent, dto.GameTypeChess)
@@ -84,7 +85,7 @@ func TestCancel_RejectsAnyoneButTheInviter(t *testing.T) {
 	roomID := uuid.New()
 	invitee := uuid.New()
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRow(roomID, uuid.New()), nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, invitee).Return(1, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: invitee}).Return(1, nil)
 
 	// when
 	err := m.svc.Cancel(context.Background(), roomID, invitee)
@@ -99,7 +100,7 @@ func TestDecline_RejectsAnyoneButTheInvitee(t *testing.T) {
 	roomID := uuid.New()
 	inviter := uuid.New()
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRow(roomID, inviter), nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, inviter).Return(0, nil)
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: inviter}).Return(0, nil)
 
 	// when
 	err := m.svc.Decline(context.Background(), roomID, inviter)
@@ -156,7 +157,7 @@ func TestGet_HidesAPendingRoomFromANonParticipant(t *testing.T) {
 	roomID := uuid.New()
 	viewer := uuid.New()
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(pendingRow(roomID, uuid.New()), nil)
-	m.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, viewer).Return(false, nil)
+	m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: viewer}).Return(false, nil)
 
 	// when
 	_, err := m.svc.Get(context.Background(), roomID, viewer)
@@ -200,7 +201,7 @@ func TestResign_RejectsANonParticipant(t *testing.T) {
 	row := pendingRow(roomID, uuid.New())
 	row.Status = string(dto.GameStatusActive)
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, roomID, outsider).Return(0, errors.New("not a player"))
+	m.roomRepo.EXPECT().GetPlayerSlot(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: outsider}).Return(0, errors.New("not a player"))
 
 	// when
 	_, err := m.svc.Resign(context.Background(), roomID, outsider)

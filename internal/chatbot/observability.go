@@ -3,7 +3,7 @@ package chatbot
 import (
 	"github.com/prometheus/client_golang/prometheus"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 )
 
 type (
@@ -79,11 +79,11 @@ var (
 var (
 	seedChannels = []Channel{ChannelDM, ChannelGroup, ChannelPost, ChannelPostComment}
 
-	seedStatuses = []repository.InvocationStatus{
-		repository.InvocationReplied,
-		repository.InvocationRefused,
-		repository.InvocationFailed,
-		repository.InvocationQuota,
+	seedStatuses = []model.InvocationStatus{
+		model.InvocationReplied,
+		model.InvocationRefused,
+		model.InvocationFailed,
+		model.InvocationQuota,
 	}
 
 	seedTokenKinds = []tokenKind{tokenPrompt, tokenCachedPrompt, tokenCacheWrite, tokenCompletion, tokenReasoning}

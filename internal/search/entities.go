@@ -1,19 +1,19 @@
 package search
 
-import "umineko_city_of_books/internal/repository"
+import "umineko_city_of_books/internal/model"
 
-func AllEntityTypes() []repository.SearchEntityType {
-	srcs := repository.SearchSources()
-	out := make([]repository.SearchEntityType, len(srcs))
+func AllEntityTypes() []model.SearchEntityType {
+	srcs := model.SearchSources()
+	out := make([]model.SearchEntityType, len(srcs))
 	for i, s := range srcs {
 		out[i] = s.Type
 	}
 	return out
 }
 
-func ChildEntityTypes() []repository.SearchEntityType {
-	srcs := repository.SearchSources()
-	out := make([]repository.SearchEntityType, 0, len(srcs))
+func ChildEntityTypes() []model.SearchEntityType {
+	srcs := model.SearchSources()
+	out := make([]model.SearchEntityType, 0, len(srcs))
 	for _, s := range srcs {
 		if s.ParentIDExpr != "" {
 			out = append(out, s.Type)

@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +19,7 @@ func TestSettingsDAO_SetAndGet(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Settings.Set(context.Background(), "site_name", "Umineko", user.ID)
+	err := repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "site_name", Value: "Umineko", UpdatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -32,7 +33,7 @@ func TestSettingsDAO_Set_WithNilUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	err := repos.Settings.Set(context.Background(), "anon_key", "anon_value", uuid.Nil)
+	err := repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "anon_key", Value: "anon_value", UpdatedBy: uuid.Nil})
 
 	// then
 	require.NoError(t, err)
@@ -45,10 +46,10 @@ func TestSettingsDAO_Set_Upsert(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Settings.Set(context.Background(), "theme", "light", user.ID))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "theme", Value: "light", UpdatedBy: user.ID}))
 
 	// when
-	err := repos.Settings.Set(context.Background(), "theme", "dark", user.ID)
+	err := repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "theme", Value: "dark", UpdatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -85,9 +86,9 @@ func TestSettingsDAO_GetAll(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Settings.Set(context.Background(), "alpha", "1", user.ID))
-	require.NoError(t, repos.Settings.Set(context.Background(), "beta", "2", user.ID))
-	require.NoError(t, repos.Settings.Set(context.Background(), "gamma", "3", uuid.Nil))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "alpha", Value: "1", UpdatedBy: user.ID}))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "beta", Value: "2", UpdatedBy: user.ID}))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "gamma", Value: "3", UpdatedBy: uuid.Nil}))
 
 	// when
 	got, err := repos.Settings.GetAll(context.Background())
@@ -112,7 +113,7 @@ func TestSettingsDAO_SetMultiple(t *testing.T) {
 	}
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), settings, user.ID)
+	err := repos.Settings.SetMultiple(context.Background(), spec.SettingsBulkUpdate{Values: settings, UpdatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -127,7 +128,7 @@ func TestSettingsDAO_SetMultiple_Empty(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), map[config.SiteSettingKey]string{}, user.ID)
+	err := repos.Settings.SetMultiple(context.Background(), spec.SettingsBulkUpdate{Values: map[config.SiteSettingKey]string{}, UpdatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -140,14 +141,17 @@ func TestSettingsDAO_SetMultiple_Upsert(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Settings.Set(context.Background(), "colour", "red", user.ID))
-	require.NoError(t, repos.Settings.Set(context.Background(), "extra", "keep", user.ID))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "colour", Value: "red", UpdatedBy: user.ID}))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "extra", Value: "keep", UpdatedBy: user.ID}))
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), map[config.SiteSettingKey]string{
-		"colour": "green",
-		"size":   "large",
-	}, user.ID)
+	err := repos.Settings.SetMultiple(context.Background(), spec.SettingsBulkUpdate{
+		Values: map[config.SiteSettingKey]string{
+			"colour": "green",
+			"size":   "large",
+		},
+		UpdatedBy: user.ID,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -165,10 +169,13 @@ func TestSettingsDAO_SetMultiple_NilUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	err := repos.Settings.SetMultiple(context.Background(), map[config.SiteSettingKey]string{
-		"a": "1",
-		"b": "2",
-	}, uuid.Nil)
+	err := repos.Settings.SetMultiple(context.Background(), spec.SettingsBulkUpdate{
+		Values: map[config.SiteSettingKey]string{
+			"a": "1",
+			"b": "2",
+		},
+		UpdatedBy: uuid.Nil,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -181,8 +188,8 @@ func TestSettingsDAO_Delete(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Settings.Set(context.Background(), "to_delete", "value", user.ID))
-	require.NoError(t, repos.Settings.Set(context.Background(), "to_keep", "value", user.ID))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "to_delete", Value: "value", UpdatedBy: user.ID}))
+	require.NoError(t, repos.Settings.Set(context.Background(), spec.SettingsUpdate{Key: "to_keep", Value: "value", UpdatedBy: user.ID}))
 
 	// when
 	err := repos.Settings.Delete(context.Background(), "to_delete")

@@ -10,14 +10,18 @@ import (
 	"testing/synctest"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
@@ -32,7 +36,7 @@ import (
 
 type testMocks struct {
 	repo         *repository.MockMysteryRepository
-	comments     *repository.MockCommentDAO[uuid.UUID]
+	comments     *dao.MockCommentDAO[uuid.UUID]
 	userRepo     *repository.MockUserRepository
 	auditRepo    *repository.MockAuditLogRepository
 	authz        *authz.MockService
@@ -56,9 +60,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	hub := ws.NewHub()
-	comments := repository.NewMockCommentDAO[uuid.UUID](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(mention.KindMysteryComment): comments},
+	comments := dao.NewMockCommentDAO[uuid.UUID](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(mention.KindMysteryComment): comments},
 	})
 	svc := NewService(repo, userRepo, followRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New(), nil).(*service)
 	notifSvc.EXPECT().NotifyMany(mock.Anything, mock.Anything).Return().Maybe()
@@ -94,7 +98,7 @@ func TestListMysteries_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	viewer := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 10, 0, []uuid.UUID(nil)).Return(nil, 0, errors.New("boom"))
+	m.repo.EXPECT().List(mock.Anything, spec.MysteryListFilter{Sort: "new", Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(10, 0))
@@ -111,9 +115,9 @@ func TestListMysteries_OK_TruncatesLongBody(t *testing.T) {
 	for range 250 {
 		longBody.WriteString("x")
 	}
-	rows := []repository.MysteryRow{{ID: uuid.New(), Title: "T", Body: longBody.String()}}
+	rows := []model.MysteryRow{{ID: uuid.New(), Title: "T", Body: longBody.String()}}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 5, 0, []uuid.UUID(nil)).Return(rows, 1, nil)
+	m.repo.EXPECT().List(mock.Anything, spec.MysteryListFilter{Sort: "new", Limit: 5, Offset: 0}).Return(rows, 1, nil)
 
 	// when
 	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(5, 0))
@@ -130,9 +134,9 @@ func TestListMysteries_OK_ShortBodyPreserved(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	viewer := uuid.New()
-	rows := []repository.MysteryRow{{ID: uuid.New(), Body: "short"}}
+	rows := []model.MysteryRow{{ID: uuid.New(), Body: "short"}}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().List(mock.Anything, "new", (*bool)(nil), 10, 0, []uuid.UUID(nil)).Return(rows, 1, nil)
+	m.repo.EXPECT().List(mock.Anything, spec.MysteryListFilter{Sort: "new", Limit: 10, Offset: 0}).Return(rows, 1, nil)
 
 	// when
 	got, err := svc.ListMysteries(context.Background(), "new", nil, viewer, bounds.NewPage(10, 0))
@@ -176,12 +180,12 @@ func TestGetMystery_AsGameMasterOwner_SeesAll(t *testing.T) {
 	id := uuid.New()
 	author := uuid.New()
 	other := uuid.New()
-	row := &repository.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
-	attempts := []repository.MysteryAttemptRow{{ID: uuid.New(), UserID: other, Body: "guess"}}
+	row := &model.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
+	attempts := []model.MysteryAttemptRow{{ID: uuid.New(), UserID: other, Body: "guess"}}
 	clues := []dto.MysteryClue{{ID: 1, Body: "c1"}, {ID: 2, Body: "c2", PlayerID: new(uuid.New())}}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(clues, nil)
-	m.repo.EXPECT().GetAttempts(mock.Anything, id, author).Return(attempts, nil)
+	m.repo.EXPECT().GetAttempts(mock.Anything, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: author}).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, author).Return("", nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil).Maybe()
@@ -204,12 +208,12 @@ func TestGetMystery_SuperAdmin_SeesAll(t *testing.T) {
 	author := uuid.New()
 	admin := uuid.New()
 	other := uuid.New()
-	row := &repository.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
-	attempts := []repository.MysteryAttemptRow{{ID: uuid.New(), UserID: other, Body: "x"}}
+	row := &model.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
+	attempts := []model.MysteryAttemptRow{{ID: uuid.New(), UserID: other, Body: "x"}}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, admin).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: id, UserID: admin}).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().GetAttempts(mock.Anything, id, admin).Return(attempts, nil)
+	m.repo.EXPECT().GetAttempts(mock.Anything, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: admin}).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, admin).Return(authz.RoleSuperAdmin, nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil).Maybe()
@@ -248,18 +252,20 @@ func TestCreateMystery_EmptyBody(t *testing.T) {
 	require.ErrorIs(t, err, ErrEmptyTitle)
 }
 
-func validCreateSpec(userID uuid.UUID, clues ...repository.NewClue) repository.NewMystery {
+func validCreateSpec(userID uuid.UUID, clues ...spec.NewClue) spec.NewMysteryWithClues {
 	if clues == nil {
-		clues = []repository.NewClue{}
+		clues = []spec.NewClue{}
 	}
 
-	return repository.NewMystery{
-		UserID:     userID,
-		Title:      "Title",
-		Body:       "Body",
-		Difficulty: "medium",
-		Knox:       dto.DefaultKnoxContract(),
-		Clues:      clues,
+	return spec.NewMysteryWithClues{
+		NewMystery: spec.NewMystery{
+			UserID:     userID,
+			Title:      "Title",
+			Body:       "Body",
+			Difficulty: "medium",
+			Knox:       dto.DefaultKnoxContract(),
+		},
+		Clues: clues,
 	}
 }
 
@@ -280,7 +286,7 @@ func TestCreateMystery_NotifiesFollowers(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&repository.MysteryRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil)
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, validCreateReq())
@@ -315,7 +321,7 @@ func TestCreateMystery_DefaultDifficulty(t *testing.T) {
 	userID := uuid.New()
 	req := validCreateReq()
 	req.Difficulty = ""
-	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&repository.MysteryRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, validCreateSpec(userID)).Return(&model.MysteryRow{ID: uuid.New()}, nil)
 
 	// when
 	_, err := svc.CreateMystery(context.Background(), userID, req)
@@ -334,11 +340,11 @@ func TestCreateMystery_WithClues(t *testing.T) {
 		{Body: "  "},
 		{Body: "clue2", TruthType: "blue"},
 	}
-	spec := validCreateSpec(userID,
-		repository.NewClue{Body: "clue1", TruthType: "red", SortOrder: 0},
-		repository.NewClue{Body: "clue2", TruthType: "blue", SortOrder: 2},
+	createSpec := validCreateSpec(userID,
+		spec.NewClue{Body: "clue1", TruthType: "red", SortOrder: 0},
+		spec.NewClue{Body: "clue2", TruthType: "blue", SortOrder: 2},
 	)
-	m.repo.EXPECT().CreateWithClues(mock.Anything, spec).Return(&repository.MysteryRow{ID: uuid.New()}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: uuid.New()}, nil)
 
 	// when
 	id, err := svc.CreateMystery(context.Background(), userID, req)
@@ -358,10 +364,10 @@ func TestCreateMystery_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 	req := validCreateReq()
 	req.Body = "solve this with @alice"
 
-	spec := validCreateSpec(userID)
-	spec.Body = req.Body
+	createSpec := validCreateSpec(userID)
+	createSpec.Body = req.Body
 
-	m.repo.EXPECT().CreateWithClues(mock.Anything, spec).Return(&repository.MysteryRow{ID: mysteryID}, nil)
+	m.repo.EXPECT().CreateWithClues(mock.Anything, createSpec).Return(&model.MysteryRow{ID: mysteryID}, nil)
 	stubActor(m, userID, "Battler")
 	stubMentionOf(m, userID, mentionedID, "alice")
 
@@ -419,18 +425,20 @@ func TestUpdateMystery_NotFound(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotFound)
 }
 
-func validUpdateSpec(id uuid.UUID, knox dto.KnoxContract, clues ...repository.NewClue) repository.MysteryUpdate {
+func validUpdateSpec(id uuid.UUID, knox dto.KnoxContract, clues ...spec.NewClue) spec.MysteryUpdateWithClues {
 	if clues == nil {
-		clues = []repository.NewClue{}
+		clues = []spec.NewClue{}
 	}
 
-	return repository.MysteryUpdate{
-		ID:         id,
-		Title:      "Title",
-		Body:       "Body",
-		Difficulty: "medium",
-		Knox:       knox,
-		Clues:      clues,
+	return spec.MysteryUpdateWithClues{
+		MysteryUpdate: spec.MysteryUpdate{
+			ID:         id,
+			Title:      "Title",
+			Body:       "Body",
+			Difficulty: "medium",
+			Knox:       knox,
+		},
+		Clues: clues,
 	}
 }
 
@@ -498,7 +506,7 @@ func TestUpdateMystery_KnoxContract(t *testing.T) {
 			req := validCreateReq()
 			req.KnoxContract = tt.requested
 			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
-			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&repository.MysteryRow{
+			m.repo.EXPECT().GetByID(mock.Anything, id).Return(&model.MysteryRow{
 				ID: id, UserID: userID, Knox: tt.stored, KnoxPublished: tt.published, AttemptCount: tt.attemptCount,
 			}, nil)
 
@@ -507,8 +515,8 @@ func TestUpdateMystery_KnoxContract(t *testing.T) {
 			var written dto.KnoxContract
 			if tt.wantErr == nil {
 				m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, tt.wantWritten)).
-					Run(func(_ context.Context, spec repository.MysteryUpdate, _ ...*sql.Tx) {
-						written = spec.Knox
+					Run(func(_ context.Context, updateSpec spec.MysteryUpdateWithClues, _ ...*sql.Tx) {
+						written = updateSpec.Knox
 					}).Return(nil)
 			}
 
@@ -546,7 +554,7 @@ func TestUpdateMystery_UpdateWithCluesError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	old := &repository.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
+	old := &model.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
@@ -564,7 +572,7 @@ func TestUpdateMystery_OwnerNoChanges_NoNotification(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	old := &repository.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
+	old := &model.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
@@ -587,15 +595,15 @@ func testUpdateMysteryAdminChangeSendsNotification(t *testing.T) {
 	id := uuid.New()
 	admin := uuid.New()
 	author := uuid.New()
-	old := &repository.MysteryRow{ID: id, UserID: author, Title: "Old Title", Body: "Body", Difficulty: "medium"}
+	old := &model.MysteryRow{ID: id, UserID: author, Title: "Old Title", Body: "Body", Difficulty: "medium"}
 	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, old.Knox)).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    admin,
-		Action:     repository.AuditActionMysteryUpdateAdmin,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysteryUpdateAdmin,
+		TargetType: audit.TargetMystery,
 		TargetID:   id.String(),
 		Details:    `title="Old Title" changed="title" clues=rewritten`,
 		SubjectID:  author,
@@ -621,15 +629,15 @@ func TestUpdateMystery_WithClues_Replaces(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	old := &repository.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
+	old := &model.MysteryRow{ID: id, UserID: userID, Title: "Title", Body: "Body", Difficulty: "medium"}
 	req := validCreateReq()
 	req.Clues = []dto.CreateClueRequest{{Body: "new1"}, {Body: "  "}, {Body: "new2", TruthType: "blue"}}
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(old, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().UpdateWithClues(mock.Anything, validUpdateSpec(id, old.Knox,
-		repository.NewClue{Body: "new1", TruthType: "red", SortOrder: 0},
-		repository.NewClue{Body: "new2", TruthType: "blue", SortOrder: 2},
+		spec.NewClue{Body: "new1", TruthType: "red", SortOrder: 0},
+		spec.NewClue{Body: "new2", TruthType: "blue", SortOrder: 2},
 	)).Return(nil)
 
 	// when
@@ -645,7 +653,7 @@ func TestDeleteMystery_Admin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(true)
-	m.repo.EXPECT().DeleteWithFiles(mock.Anything, repository.MysteryDelete{ID: id, UserID: userID, AsAdmin: true}).Return([]string{"/uploads/mystery/a.png"}, nil)
+	m.repo.EXPECT().DeleteWithFiles(mock.Anything, spec.MysteryDelete{ID: id, UserID: userID, AsAdmin: true}).Return([]string{"/uploads/mystery/a.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery/a.png"})
 
 	// when
@@ -661,7 +669,7 @@ func TestDeleteMystery_NonAdmin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(false)
-	m.repo.EXPECT().DeleteWithFiles(mock.Anything, repository.MysteryDelete{ID: id, UserID: userID}).Return([]string{"/uploads/mystery/a.png", "/uploads/mystery/a_thumb.png"}, nil)
+	m.repo.EXPECT().DeleteWithFiles(mock.Anything, spec.MysteryDelete{ID: id, UserID: userID}).Return([]string{"/uploads/mystery/a.png", "/uploads/mystery/a_thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery/a.png", "/uploads/mystery/a_thumb.png"})
 
 	// when
@@ -677,7 +685,7 @@ func TestDeleteMystery_NonAdmin_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyTheory).Return(false)
-	m.repo.EXPECT().DeleteWithFiles(mock.Anything, repository.MysteryDelete{ID: id, UserID: userID}).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().DeleteWithFiles(mock.Anything, spec.MysteryDelete{ID: id, UserID: userID}).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteMystery(context.Background(), id, userID)

@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"umineko_city_of_books/internal/repository/model"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -19,6 +19,8 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
@@ -130,7 +132,7 @@ func (s *service) clearPageCache(ctx context.Context, kind og.Kind, id string) {
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -179,8 +181,8 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 		tags = tags[:10]
 	}
 
-	spec := repository.NewArtWithTags{
-		NewArt: repository.NewArt{
+	newArt := spec.NewArtWithTags{
+		NewArt: spec.NewArt{
 			UserID:      userID,
 			Corner:      corner,
 			ArtType:     artType,
@@ -192,7 +194,7 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 		Tags: tags,
 	}
 
-	created, err := s.artRepo.CreateWithTags(ctx, spec)
+	created, err := s.artRepo.CreateWithTags(ctx, newArt)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -210,7 +212,7 @@ func (s *service) generateThumbnailURL(imageURL string) string {
 }
 
 func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.ArtDetailResponse, error) {
-	row, err := s.artRepo.GetByID(ctx, id, viewerID)
+	row, err := s.artRepo.GetByID(ctx, spec.ArtLookup{ID: id, ViewerID: viewerID})
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +221,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	}
 
 	if viewerHash != "" {
-		isNew, _ := s.artRepo.RecordView(ctx, id, viewerHash)
+		isNew, _ := s.artRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
 		if isNew {
 			row.ViewCount++
 		}
@@ -228,7 +230,12 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
 	tags, _ := s.artRepo.GetTags(ctx, id)
-	comments, _, _ := s.artRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	comments, _, _ := s.artRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		ExcludeUserIDs: blockedIDs,
+	})
 
 	var commentIDs []uuid.UUID
 	for _, c := range comments {
@@ -246,7 +253,7 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 		func(c *dto.ArtCommentResponse, replies []dto.ArtCommentResponse) { c.Replies = replies },
 	)
 
-	likeUsers, _ := s.artRepo.GetLikedBy(ctx, id, blockedIDs)
+	likeUsers, _ := s.artRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
 	likedBy := make([]dto.UserResponse, len(likeUsers))
 	for i, u := range likeUsers {
 		likedBy[i] = dto.UserResponse{
@@ -290,8 +297,8 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
 
-	spec := repository.ArtUpdateWithTags{
-		ArtUpdate: repository.ArtUpdate{
+	update := spec.ArtUpdateWithTags{
+		ArtUpdate: spec.ArtUpdate{
 			ID:          id,
 			UserID:      userID,
 			Title:       title,
@@ -302,7 +309,7 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 		Tags: tags,
 	}
 
-	if err := s.artRepo.UpdateWithTags(ctx, spec); err != nil {
+	if err := s.artRepo.UpdateWithTags(ctx, update); err != nil {
 		return err
 	}
 
@@ -319,21 +326,21 @@ func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID)
 		return err
 	}
 
-	action := repository.AuditActionArtDelete
+	action := audit.ActionArtDelete
 	if authorID != userID {
-		action = repository.AuditActionArtDeleteAdmin
+		action = audit.ActionArtDeleteAdmin
 	}
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
 
-	paths, err := s.artRepo.DeleteWithImage(ctx, repository.ArtDelete{
+	paths, err := s.artRepo.DeleteWithImage(ctx, spec.ArtDelete{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: asAdmin,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetArt,
+			TargetType: audit.TargetArt,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		},
@@ -355,7 +362,17 @@ func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	rows, total, err := s.artRepo.ListAll(ctx, viewerID, corner, artType, search, tag, sort, page.Limit(), page.Offset(), blockedIDs)
+	rows, total, err := s.artRepo.ListAll(ctx, spec.ArtFilter{
+		ViewerID:       viewerID,
+		Corner:         corner,
+		ArtType:        artType,
+		Search:         search,
+		Tag:            tag,
+		Sort:           sort,
+		Limit:          page.Limit(),
+		Offset:         page.Offset(),
+		ExcludeUserIDs: blockedIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -364,7 +381,12 @@ func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string
 }
 
 func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ArtListResponse, error) {
-	rows, total, err := s.artRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.artRepo.ListByUser(ctx, spec.ArtUserFilter{
+		UserID:   userID,
+		ViewerID: viewerID,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +424,7 @@ func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID
 		return block.ErrUserBlocked
 	}
 
-	if err := s.artRepo.Like(ctx, userID, artID); err != nil {
+	if err := s.artRepo.Like(ctx, spec.Like{UserID: userID, TargetID: artID}); err != nil {
 		return err
 	}
 
@@ -427,7 +449,7 @@ func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID
 }
 
 func (s *service) UnlikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error {
-	return s.artRepo.Unlike(ctx, userID, artID)
+	return s.artRepo.Unlike(ctx, spec.Like{UserID: userID, TargetID: artID})
 }
 
 func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
@@ -435,7 +457,7 @@ func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
 }
 
 func (s *service) GetPopularTags(ctx context.Context, corner string) ([]dto.TagCountResponse, error) {
-	tags, err := s.artRepo.GetPopularTags(ctx, corner, 30)
+	tags, err := s.artRepo.GetPopularTags(ctx, spec.PopularTagFilter{Corner: corner, Limit: 30})
 	if err != nil {
 		return nil, err
 	}
@@ -543,22 +565,22 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
-	spec := repository.ArtCommentUpdate{
-		ID:      id,
-		UserID:  userID,
-		Body:    body,
-		AsAdmin: asAdmin,
+	update := spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
 	}
 
-	if err := s.artRepo.UpdateCommentWithDetails(ctx, spec); err != nil {
+	if err := s.artRepo.UpdateCommentWithDetails(ctx, update); err != nil {
 		return err
 	}
 
 	if authorID != userID {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionArtCommentUpdateAdmin,
-			TargetType: repository.AuditTargetArtComment,
+			Action:     audit.ActionArtCommentUpdateAdmin,
+			TargetType: audit.TargetArtComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		})
@@ -577,19 +599,21 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
-	action := repository.AuditActionArtCommentDelete
+	action := audit.ActionArtCommentDelete
 	if authorID != userID {
-		action = repository.AuditActionArtCommentDeleteAdmin
+		action = audit.ActionArtCommentDeleteAdmin
 	}
 
-	paths, err := s.artRepo.DeleteCommentWithAudit(ctx, repository.ArtCommentDelete{
-		ID:      id,
-		UserID:  userID,
-		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
-		Audit: repository.NewAuditEntry{
+	paths, err := s.artRepo.DeleteCommentWithAudit(ctx, spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: id,
+			UserID:    userID,
+			AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
+		},
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetArtComment,
+			TargetType: audit.TargetArtComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		},
@@ -612,7 +636,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		return block.ErrUserBlocked
 	}
 
-	if err := s.artRepo.LikeComment(ctx, userID, commentID); err != nil {
+	if err := s.artRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
 
@@ -641,7 +665,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.artRepo.UnlikeComment(ctx, userID, commentID)
+	return s.artRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
@@ -655,8 +679,8 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 
 	return s.uploader.SaveAndRecord(ctx, "art", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.artRepo.AddCommentMedia(ctx, repository.NewArtCommentMedia{
-				CommentID:    commentID,
+			return s.artRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:     commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -678,7 +702,11 @@ func (s *service) CreateGallery(ctx context.Context, userID uuid.UUID, req dto.C
 	if err := s.contentFilter.Check(ctx, name, req.Description); err != nil {
 		return uuid.Nil, err
 	}
-	created, err := s.artRepo.CreateGallery(ctx, userID, name, strings.TrimSpace(req.Description))
+	created, err := s.artRepo.CreateGallery(ctx, spec.NewGallery{
+		UserID:      userID,
+		Name:        name,
+		Description: strings.TrimSpace(req.Description),
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -694,11 +722,20 @@ func (s *service) UpdateGallery(ctx context.Context, id uuid.UUID, userID uuid.U
 	if err := s.contentFilter.Check(ctx, name, req.Description); err != nil {
 		return err
 	}
-	return s.artRepo.UpdateGallery(ctx, id, userID, name, strings.TrimSpace(req.Description))
+	return s.artRepo.UpdateGallery(ctx, spec.GalleryUpdate{
+		ID:          id,
+		UserID:      userID,
+		Name:        name,
+		Description: strings.TrimSpace(req.Description),
+	})
 }
 
 func (s *service) SetGalleryCover(ctx context.Context, galleryID uuid.UUID, userID uuid.UUID, coverArtID *uuid.UUID) error {
-	return s.artRepo.SetGalleryCover(ctx, galleryID, userID, coverArtID)
+	return s.artRepo.SetGalleryCover(ctx, spec.GalleryCoverUpdate{
+		GalleryID:  galleryID,
+		UserID:     userID,
+		CoverArtID: coverArtID,
+	})
 }
 
 func (s *service) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
@@ -710,17 +747,17 @@ func (s *service) DeleteGallery(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrNotFound
 	}
 
-	paths, err := s.artRepo.DeleteGallery(ctx, id, userID)
+	paths, err := s.artRepo.DeleteGallery(ctx, spec.GalleryRef{GalleryID: id, UserID: userID})
 	if err != nil {
 		return err
 	}
 
 	s.uploadSvc.Delete(paths...)
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionGalleryDelete,
-		TargetType: repository.AuditTargetGallery,
+		Action:     audit.ActionGalleryDelete,
+		TargetType: audit.TargetGallery,
 		TargetID:   id.String(),
 		Details:    fmt.Sprintf("name=%q art=%d files=%d", gallery.Name, gallery.ArtCount, len(paths)),
 		SubjectID:  gallery.UserID,
@@ -740,7 +777,12 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		return nil, nil, 0, ErrNotFound
 	}
 
-	rows, total, err := s.artRepo.ListArtInGallery(ctx, id, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.artRepo.ListArtInGallery(ctx, spec.GalleryArtFilter{
+		GalleryID: id,
+		ViewerID:  viewerID,
+		Limit:     page.Limit(),
+		Offset:    page.Offset(),
+	})
 	if err != nil {
 		return nil, nil, 0, err
 	}
@@ -772,7 +814,7 @@ func (s *service) galleriesWithPreviews(ctx context.Context, rows []model.Galler
 			result[i].CoverThumbnailURL = s.generateThumbnailURL(g.CoverImageURL)
 		}
 		if g.CoverArtID == nil && g.ArtCount > 0 {
-			imgs, _ := s.artRepo.GetGalleryPreviewImages(ctx, g.ID, 3)
+			imgs, _ := s.artRepo.GetGalleryPreviewImages(ctx, spec.GalleryPreviewFilter{GalleryID: g.ID, Limit: 3})
 			previews := make([]dto.PreviewImageDTO, len(imgs))
 			for j, img := range imgs {
 				previews[j] = dto.PreviewImageDTO{
@@ -803,7 +845,11 @@ func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.Ga
 }
 
 func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error {
-	return s.artRepo.SetGallery(ctx, artID, userID, galleryID)
+	return s.artRepo.SetGallery(ctx, spec.ArtGalleryAssignment{
+		ArtID:     artID,
+		UserID:    userID,
+		GalleryID: galleryID,
+	})
 }
 
 func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID uuid.UUID) {
@@ -840,7 +886,7 @@ func (s *service) notifyArtCommentEdited(ctx context.Context, commentID uuid.UUI
 	})
 }
 
-func artCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.ArtCommentResponse {
+func artCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.ArtCommentResponse {
 	return dto.ArtCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,

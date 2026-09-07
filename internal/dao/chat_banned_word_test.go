@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +17,7 @@ func TestChatBannedWordDAO_CreateUpdateDelete(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	created, err := repos.ChatBannedWord.Create(ctx, repository.ChatBannedWordSpec{
+	created, err := repos.ChatBannedWord.Create(ctx, spec.ChatBannedWordSpec{
 		Scope:         "global",
 		Pattern:       "old",
 		MatchMode:     "substring",
@@ -35,7 +35,8 @@ func TestChatBannedWordDAO_CreateUpdateDelete(t *testing.T) {
 	assert.Equal(t, "delete", got.Action)
 	assert.False(t, got.CaseSensitive)
 
-	err = repos.ChatBannedWord.Update(ctx, id, repository.ChatBannedWordUpdate{
+	err = repos.ChatBannedWord.Update(ctx, spec.ChatBannedWordUpdate{
+		ID:            id,
 		Pattern:       "new",
 		MatchMode:     "whole_word",
 		CaseSensitive: true,
@@ -60,8 +61,8 @@ func TestChatBannedWordDAO_CreateUpdateDelete(t *testing.T) {
 func TestChatBannedWordDAO_Update_MissingRow(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
-	err := repos.ChatBannedWord.Update(ctx, uuid.New(), repository.ChatBannedWordUpdate{
-		Pattern: "x", MatchMode: "substring", Action: "delete",
+	err := repos.ChatBannedWord.Update(ctx, spec.ChatBannedWordUpdate{
+		ID: uuid.New(), Pattern: "x", MatchMode: "substring", Action: "delete",
 	})
 	require.Error(t, err)
 }

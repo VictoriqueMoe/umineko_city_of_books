@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/authz"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 )
@@ -63,7 +63,7 @@ func useChain(ev botEvent, threaded bool) bool {
 	return threaded
 }
 
-func selectBot(ev botEvent, bots map[uuid.UUID]repository.Chatbot) (repository.Chatbot, bool, bool) {
+func selectBot(ev botEvent, bots map[uuid.UUID]model.Chatbot) (model.Chatbot, bool, bool) {
 	if ev.IsDM {
 		for _, memberID := range ev.Audience {
 			if bot, ok := bots[memberID]; ok && memberID != ev.SenderID {
@@ -71,7 +71,7 @@ func selectBot(ev botEvent, bots map[uuid.UUID]repository.Chatbot) (repository.C
 			}
 		}
 
-		return repository.Chatbot{}, false, false
+		return model.Chatbot{}, false, false
 	}
 
 	if ev.ParentAuthor != uuid.Nil {
@@ -86,7 +86,7 @@ func selectBot(ev botEvent, bots map[uuid.UUID]repository.Chatbot) (repository.C
 		}
 	}
 
-	return repository.Chatbot{}, false, false
+	return model.Chatbot{}, false, false
 }
 
 func (s *service) allowedToSummon(userID uuid.UUID, tune tuning) bool {
@@ -121,7 +121,7 @@ func takeSlot(seen *sync.Map, key any, window time.Duration) bool {
 	return true
 }
 
-func (s *service) notify(ev botEvent, bot repository.Chatbot, out outcome) {
+func (s *service) notify(ev botEvent, bot model.Chatbot, out outcome) {
 	ctx, cancel := context.WithTimeout(context.Background(), noticeTimeout)
 	defer cancel()
 

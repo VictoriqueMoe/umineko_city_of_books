@@ -6,7 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/search"
 
 	"github.com/google/uuid"
@@ -55,13 +55,13 @@ func TestSearchController_FullSearch_PassesParamsAndShapesResponse(t *testing.T)
 	// given
 	h, deps := newSearchHarness(t)
 	deps.svc.EXPECT().ParseTypes("theory").
-		Return([]repository.SearchEntityType{repository.SearchEntityTheory})
+		Return([]model.SearchEntityType{model.SearchEntityTheory})
 	deps.svc.EXPECT().
-		Search(mock.Anything, "beatrice", []repository.SearchEntityType{repository.SearchEntityTheory}, bounds.NewPage(10, 5), uuid.Nil, uuid.Nil).
+		Search(mock.Anything, "beatrice", []model.SearchEntityType{model.SearchEntityTheory}, bounds.NewPage(10, 5), uuid.Nil, uuid.Nil).
 		Return([]search.Result{
 			{
-				SearchResult: repository.SearchResult{
-					EntityType:        repository.SearchEntityPostComment,
+				SearchResult: model.SearchResult{
+					EntityType:        model.SearchEntityPostComment,
 					ID:                "comment-id",
 					ParentID:          new("parent-uuid"),
 					Title:             "On a post",
@@ -96,7 +96,7 @@ func TestSearchController_QuickSearch_DelegatesToService(t *testing.T) {
 	deps.svc.EXPECT().QuickSearch(mock.Anything, "kinzo", 5, uuid.Nil).
 		Return([]search.Result{
 			{
-				SearchResult: repository.SearchResult{EntityType: repository.SearchEntityTheory, ID: "theory-id", Title: "Kinzo"},
+				SearchResult: model.SearchResult{EntityType: model.SearchEntityTheory, ID: "theory-id", Title: "Kinzo"},
 				URL:          "/theory/theory-id",
 			},
 		}, nil)

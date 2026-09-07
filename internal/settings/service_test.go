@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -213,12 +214,12 @@ func TestRefresh_SeedsMissingDefaults(t *testing.T) {
 	delete(existing, config.SettingBaseURL.Key)
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
-	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(spec repository.SettingsReconcile) bool {
-		if len(spec.Missing) != 2 || len(spec.Stale) != 0 || spec.UpdatedBy != uuid.Nil {
+	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(s spec.SettingsReconcile) bool {
+		if len(s.Missing) != 2 || len(s.Stale) != 0 || s.UpdatedBy != uuid.Nil {
 			return false
 		}
-		_, okName := spec.Missing[config.SettingSiteName.Key]
-		_, okURL := spec.Missing[config.SettingBaseURL.Key]
+		_, okName := s.Missing[config.SettingSiteName.Key]
+		_, okURL := s.Missing[config.SettingBaseURL.Key]
 		return okName && okURL
 	})).Return(nil)
 
@@ -251,11 +252,11 @@ func TestRefresh_DeletesStaleKeys(t *testing.T) {
 	existing["stale_key_2"] = "older"
 
 	repo.EXPECT().GetAll(mock.Anything).Return(existing, nil)
-	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(spec repository.SettingsReconcile) bool {
-		return len(spec.Missing) == 0 &&
-			slices.Contains(spec.Stale, "stale_key_1") &&
-			slices.Contains(spec.Stale, "stale_key_2") &&
-			len(spec.Stale) == 2
+	repo.EXPECT().Reconcile(mock.Anything, mock.MatchedBy(func(s spec.SettingsReconcile) bool {
+		return len(s.Missing) == 0 &&
+			slices.Contains(s.Stale, "stale_key_1") &&
+			slices.Contains(s.Stale, "stale_key_2") &&
+			len(s.Stale) == 2
 	})).Return(nil)
 
 	// when
@@ -309,7 +310,7 @@ func TestSet_HappyPathUpdatesCacheAndNotifies(t *testing.T) {
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
 
-	repo.EXPECT().Set(mock.Anything, config.SettingSiteName.Key, "New Name", updatedBy).Return(nil)
+	repo.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: config.SettingSiteName.Key, Value: "New Name", UpdatedBy: updatedBy}).Return(nil)
 
 	// when
 	err := svc.Set(context.Background(), config.SettingSiteName, "New Name", updatedBy)
@@ -341,7 +342,7 @@ func TestSet_RepoErrorBubblesAndSkipsCache(t *testing.T) {
 	svc.Subscribe(listener)
 	updatedBy := uuid.New()
 
-	repo.EXPECT().Set(mock.Anything, config.SettingSiteName.Key, "Attempt", updatedBy).Return(errors.New("db down"))
+	repo.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: config.SettingSiteName.Key, Value: "Attempt", UpdatedBy: updatedBy}).Return(errors.New("db down"))
 
 	// when
 	err := svc.Set(context.Background(), config.SettingSiteName, "Attempt", updatedBy)
@@ -372,11 +373,7 @@ func TestSetMultiple_HappyPathNotifiesEachAndBatch(t *testing.T) {
 		config.SettingMaintenanceMode.Key: "true",
 	}
 
-	repo.EXPECT().SetMultiple(mock.Anything, mock.MatchedBy(func(m map[config.SiteSettingKey]string) bool {
-		return m[config.SettingSiteName.Key] == "Multi Name" &&
-			m[config.SettingMaintenanceMode.Key] == "true" &&
-			len(m) == 2
-	}), updatedBy).Return(nil)
+	repo.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}).Return(nil)
 
 	// when
 	err := svc.SetMultiple(context.Background(), values, updatedBy)
@@ -435,7 +432,7 @@ func TestSetMultiple_RepoErrorBubbles(t *testing.T) {
 		config.SettingSiteName.Key: "X",
 	}
 
-	repo.EXPECT().SetMultiple(mock.Anything, mock.Anything, updatedBy).Return(errors.New("boom"))
+	repo.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}).Return(errors.New("boom"))
 
 	// when
 	err := svc.SetMultiple(context.Background(), values, updatedBy)
@@ -459,7 +456,7 @@ func TestSubscribe_MultipleListenersAllNotified(t *testing.T) {
 	svc.Subscribe(l2)
 	updatedBy := uuid.New()
 
-	repo.EXPECT().Set(mock.Anything, config.SettingSiteName.Key, "Hello", updatedBy).Return(nil)
+	repo.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: config.SettingSiteName.Key, Value: "Hello", UpdatedBy: updatedBy}).Return(nil)
 
 	// when
 	err := svc.Set(context.Background(), config.SettingSiteName, "Hello", updatedBy)
@@ -488,7 +485,7 @@ func TestSubscribe_NonBatchListenerDoesNotReceiveBatch(t *testing.T) {
 		config.SettingSiteName.Key: "Batched",
 	}
 
-	repo.EXPECT().SetMultiple(mock.Anything, mock.Anything, updatedBy).Return(nil)
+	repo.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}).Return(nil)
 
 	// when
 	err := svc.SetMultiple(context.Background(), values, updatedBy)
@@ -575,7 +572,7 @@ func TestSet_ValidatorSkippedWhenValueUnchanged(t *testing.T) {
 		return errors.New("should not run")
 	})
 
-	repo.EXPECT().Set(mock.Anything, config.SettingValkeyURL.Key, config.SettingValkeyURL.Default, updatedBy).Return(nil)
+	repo.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: config.SettingValkeyURL.Key, Value: config.SettingValkeyURL.Default, UpdatedBy: updatedBy}).Return(nil)
 
 	// when
 	err := svc.Set(context.Background(), config.SettingValkeyURL, config.SettingValkeyURL.Default, updatedBy)

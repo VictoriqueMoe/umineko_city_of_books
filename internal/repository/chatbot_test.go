@@ -7,6 +7,8 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -16,15 +18,15 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *MockChatbotDAO, *valkeymock.Client) {
+func newCachedChatbotRepo(t *testing.T) (ChatbotRepository, *dao.MockChatbotDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockChatbotDAO(t)
+	chatbotDAO := dao.NewMockChatbotDAO(t)
 	basePrompts := NewMockBasePromptInvalidator(t)
 	basePrompts.EXPECT().InvalidateList(mock.Anything).Return().Maybe()
 
-	return NewChatbotRepo(nil, dao, nil, nil, basePrompts, cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
+	return NewChatbotRepo(nil, chatbotDAO, nil, nil, basePrompts, cache.NewManager(engines.NewValkeyWithClient(client))), chatbotDAO, client
 }
 
 func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
@@ -32,13 +34,13 @@ func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		bots     []Chatbot
+		bots     []model.Chatbot
 		listErr  error
 		expected []string
 	}{
 		{
 			name:    "bot user resolved",
-			bots:    []Chatbot{{ID: otherID, UserID: uuid.New()}, {ID: botID, UserID: botUserID}},
+			bots:    []model.Chatbot{{ID: otherID, UserID: uuid.New()}, {ID: botID, UserID: botUserID}},
 			listErr: nil,
 			expected: []string{
 				"DEL",
@@ -55,7 +57,7 @@ func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
 		},
 		{
 			name:     "bot missing from listing so only the site wide key is busted",
-			bots:     []Chatbot{{ID: otherID, UserID: uuid.New()}},
+			bots:     []model.Chatbot{{ID: otherID, UserID: uuid.New()}},
 			listErr:  nil,
 			expected: []string{"DEL", cache.VanityAssignments.Key()},
 		},
@@ -64,9 +66,9 @@ func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, dao, client := newCachedChatbotRepo(t)
-			dao.EXPECT().ListBots(mock.Anything).Return(tc.bots, tc.listErr)
-			dao.EXPECT().DeleteBot(mock.Anything, botID).Return(nil)
+			repo, chatbotDAO, client := newCachedChatbotRepo(t)
+			chatbotDAO.EXPECT().ListBots(mock.Anything).Return(tc.bots, tc.listErr)
+			chatbotDAO.EXPECT().DeleteBot(mock.Anything, botID).Return(nil)
 
 			var commands []string
 			captureDel(client, &commands)
@@ -83,15 +85,15 @@ func TestDeleteBot_InvalidatesBotUserKeys(t *testing.T) {
 
 func TestDeleteBot_DaoErrorSkipsInvalidation(t *testing.T) {
 	// given
-	repo, dao, client := newCachedChatbotRepo(t)
+	repo, chatbotDAO, client := newCachedChatbotRepo(t)
 	botID := uuid.New()
-	dao.EXPECT().ListBots(mock.Anything).Return(nil, nil)
-	dao.EXPECT().DeleteBot(mock.Anything, botID).Return(ErrBotNotFound)
+	chatbotDAO.EXPECT().ListBots(mock.Anything).Return(nil, nil)
+	chatbotDAO.EXPECT().DeleteBot(mock.Anything, botID).Return(dao.ErrBotNotFound)
 	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 	// when
 	err := repo.DeleteBot(context.Background(), botID)
 
 	// then
-	require.ErrorIs(t, err, ErrBotNotFound)
+	require.ErrorIs(t, err, dao.ErrBotNotFound)
 }

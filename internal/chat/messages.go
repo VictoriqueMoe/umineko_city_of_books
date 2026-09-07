@@ -6,13 +6,15 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/upload"
@@ -96,7 +98,7 @@ func (m *messagesService) GetMessages(ctx context.Context, userID, roomID uuid.U
 
 	page := bounds.NewPage(limit, offset)
 
-	rows, total, err := m.chatRepo.GetMessagesForViewer(ctx, roomID, userID, page.Limit(), page.Offset())
+	rows, total, err := m.chatRepo.GetMessagesForViewer(ctx, spec.ChatMessagePage{RoomID: roomID, ViewerID: userID, Limit: page.Limit(), Offset: page.Offset()})
 	if err != nil {
 		return nil, fmt.Errorf("get messages: %w", err)
 	}
@@ -116,7 +118,7 @@ func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID 
 
 	limit = bounds.NewPage(limit, 0).Limit()
 
-	rows, err := m.chatRepo.GetMessagesBefore(ctx, roomID, userID, before, limit)
+	rows, err := m.chatRepo.GetMessagesBefore(ctx, spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: userID, Before: before, Limit: limit})
 	if err != nil {
 		return nil, fmt.Errorf("get messages before: %w", err)
 	}
@@ -128,14 +130,17 @@ func (m *messagesService) GetMessagesBefore(ctx context.Context, userID, roomID 
 	}, nil
 }
 
-func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error) {
+func (m *messagesService) ListRoomAttachments(ctx context.Context, userID, roomID uuid.UUID, kind model.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error) {
 	if err := m.assertRoomMember(ctx, roomID, userID); err != nil {
 		return nil, err
 	}
 
 	limit = bounds.NewPage(limit, 0).Limit()
 
-	rows, err := m.chatRepo.ListRoomAttachments(ctx, roomID, userID, kind, before, limit)
+	rows, err := m.chatRepo.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{
+		ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: userID, Before: before, Limit: limit},
+		Kind:                  kind,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list room attachments: %w", err)
 	}
@@ -229,7 +234,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 		}
 	}
 
-	created, err := m.chatRepo.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{
+	created, err := m.chatRepo.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{
 		RoomID:    roomID,
 		SenderID:  senderID,
 		Body:      req.Body,
@@ -354,7 +359,7 @@ func (m *messagesService) SendMessage(ctx context.Context, senderID, roomID uuid
 	return resp, nil
 }
 
-func (m *messagesService) assertRecipientsAcceptNewThread(ctx context.Context, roomRow *repository.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
+func (m *messagesService) assertRecipientsAcceptNewThread(ctx context.Context, roomRow *model.ChatRoomSendContext, senderID uuid.UUID, members []uuid.UUID) error {
 	if !sendContextCapabilities(roomRow).requiresRecipientOptIn || roomRow.LastMessageAt.Valid {
 		return nil
 	}
@@ -385,7 +390,7 @@ func (m *messagesService) assertRecipientsAcceptNewThread(ctx context.Context, r
 	return nil
 }
 
-func isEphemeralSystemRoom(roomRow *repository.ChatRoomSendContext) bool {
+func isEphemeralSystemRoom(roomRow *model.ChatRoomSendContext) bool {
 	if roomRow == nil || !roomRow.IsSystem {
 		return false
 	}
@@ -396,7 +401,7 @@ func isEphemeralSystemRoom(roomRow *repository.ChatRoomSendContext) bool {
 func (m *messagesService) dispatchPostSendSideEffects(
 	roomID, senderID, msgID uuid.UUID,
 	recipients []uuid.UUID,
-	roomRow *repository.ChatRoomSendContext,
+	roomRow *model.ChatRoomSendContext,
 	mentionedIDs map[uuid.UUID]struct{},
 	replyToAuthor uuid.UUID,
 ) {
@@ -417,7 +422,7 @@ func (m *messagesService) dispatchPostSendSideEffects(
 
 		_, isMentioned := mentionedIDs[memberID]
 		isReplyTarget := replyToAuthor != uuid.Nil && memberID == replyToAuthor
-		muted, _ := m.chatRepo.IsMuted(ctx, roomID, memberID)
+		muted, _ := m.chatRepo.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: memberID})
 
 		switch {
 		case isMentioned:
@@ -528,7 +533,7 @@ func (m *messagesService) MarkRead(ctx context.Context, roomID, userID uuid.UUID
 		return err
 	}
 
-	if err := m.chatRepo.MarkRoomRead(ctx, roomID, userID); err != nil {
+	if err := m.chatRepo.MarkRoomRead(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID}); err != nil {
 		return fmt.Errorf("mark room read: %w", err)
 	}
 
@@ -601,7 +606,7 @@ func (m *messagesService) GetRoomsByUser(ctx context.Context, userID uuid.UUID) 
 }
 
 func (m *messagesService) IsRoomMember(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
-	isMember, err := m.chatRepo.IsMember(ctx, roomID, userID)
+	isMember, err := m.chatRepo.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return false, fmt.Errorf("check membership: %w", err)
 	}
@@ -678,16 +683,18 @@ func (m *messagesService) saveMessageMedia(ctx context.Context, messageID uuid.U
 		}
 		saved, saveErr := m.uploader.SaveAndRecord(ctx, "chat", f.ContentType, f.Filename, f.Size, r, f.IsSpoiler,
 			func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-				return m.chatRepo.AddMessageMedia(ctx, repository.NewChatMessageMedia{
-					MessageID:    messageID,
-					MediaURL:     mediaURL,
-					MediaType:    mediaType,
-					ThumbnailURL: thumbURL,
-					Filename:     filename,
-					SortOrder:    sortOrder,
-					Width:        width,
-					Height:       height,
-					IsSpoiler:    f.IsSpoiler,
+				return m.chatRepo.AddMessageMedia(ctx, spec.NewChatMessageMedia{
+					NewMedia: spec.NewMedia{
+						TargetID:     messageID,
+						MediaURL:     mediaURL,
+						MediaType:    mediaType,
+						ThumbnailURL: thumbURL,
+						Filename:     filename,
+						SortOrder:    sortOrder,
+						IsSpoiler:    f.IsSpoiler,
+					},
+					Width:  width,
+					Height: height,
 				})
 			},
 			m.chatRepo.UpdateMessageMediaURL,
@@ -741,7 +748,7 @@ func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uu
 		return nil, err
 	}
 
-	if err := m.chatRepo.EditMessage(ctx, messageID, body); err != nil {
+	if err := m.chatRepo.EditMessage(ctx, spec.ChatMessageUpdate{MessageID: messageID, Body: body}); err != nil {
 		return nil, fmt.Errorf("edit message: %w", err)
 	}
 
@@ -751,7 +758,7 @@ func (m *messagesService) EditMessage(ctx context.Context, messageID, actorID uu
 	}
 
 	mediaBatch, _ := m.chatRepo.GetMessageMediaBatch(ctx, []uuid.UUID{messageID})
-	reactionBatch, _ := m.chatRepo.GetReactionsBatch(ctx, []uuid.UUID{messageID}, actorID)
+	reactionBatch, _ := m.chatRepo.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{messageID}, ViewerID: actorID})
 	vanityRows, _ := m.vanityRoleRepo.GetRolesForUser(ctx, updated.SenderID)
 	resp := m.messageRowToResponse(*updated, mediaBatch[messageID], reactionBatch[messageID], m.toVanityRoleResponses(vanityRows))
 
@@ -809,7 +816,7 @@ func (m *messagesService) DeleteMessage(ctx context.Context, messageID, actorID 
 	return nil
 }
 
-func (m *messagesService) auditMessageDelete(ctx context.Context, msg repository.ChatMessageRow, actorID uuid.UUID, modKind string) {
+func (m *messagesService) auditMessageDelete(ctx context.Context, msg model.ChatMessageRow, actorID uuid.UUID, modKind string) {
 	room, err := m.chatRepo.GetRoomSendContext(ctx, msg.RoomID)
 	if err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("room_id", msg.RoomID.String()).Msg("audit chat message delete: get room send context failed")
@@ -819,17 +826,17 @@ func (m *messagesService) auditMessageDelete(ctx context.Context, msg repository
 		return
 	}
 
-	action := repository.AuditActionChatMessageDelete
+	action := audit.ActionChatMessageDelete
 	details := fmt.Sprintf("message=%s", msg.ID)
 	if modKind != "" {
-		action = repository.AuditActionChatMessageDeleteMod
+		action = audit.ActionChatMessageDeleteMod
 		details = fmt.Sprintf("message=%s by=%s", msg.ID, modKind)
 	}
 
-	m.writeAudit(ctx, repository.NewAuditEntry{
+	m.writeAudit(ctx, audit.NewEntry{
 		ActorID:    actorID,
 		Action:     action,
-		TargetType: repository.AuditTargetChatRoom,
+		TargetType: audit.TargetChatRoom,
 		TargetID:   msg.RoomID.String(),
 		Details:    details,
 		SubjectID:  msg.SenderID,

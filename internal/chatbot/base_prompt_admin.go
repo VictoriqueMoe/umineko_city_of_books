@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"strings"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
 
-func toBasePromptResponse(prompt repository.ChatbotBasePrompt) dto.ChatbotBasePromptResponse {
+func toBasePromptResponse(prompt model.ChatbotBasePrompt) dto.ChatbotBasePromptResponse {
 	return dto.ChatbotBasePromptResponse{
 		ID:        prompt.ID,
 		Name:      prompt.Name,
@@ -55,15 +58,15 @@ func (a *adminService) CreateBasePrompt(ctx context.Context, actorID uuid.UUID, 
 		return nil, err
 	}
 
-	created, err := a.basePromptRepo.Create(ctx, name, prompt)
+	created, err := a.basePromptRepo.Create(ctx, spec.NewChatbotBasePrompt{Name: name, Prompt: prompt})
 	if err != nil {
 		return nil, err
 	}
 
-	a.audit(ctx, repository.NewAuditEntry{
+	a.audit(ctx, audit.NewEntry{
 		ActorID:    actorID,
-		Action:     repository.AuditActionChatbotBasePromptCreate,
-		TargetType: repository.AuditTargetChatbotBasePrompt,
+		Action:     audit.ActionChatbotBasePromptCreate,
+		TargetType: audit.TargetChatbotBasePrompt,
 		TargetID:   created.ID.String(),
 		Details:    fmt.Sprintf("name=%s", created.Name),
 	})
@@ -79,17 +82,17 @@ func (a *adminService) UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, 
 		return nil, err
 	}
 
-	updated, err := a.basePromptRepo.Update(ctx, id, name, prompt)
+	updated, err := a.basePromptRepo.Update(ctx, spec.ChatbotBasePromptUpdate{ID: id, Name: name, Prompt: prompt})
 	if err != nil {
 		return nil, err
 	}
 
 	a.reloader.Reload()
 
-	a.audit(ctx, repository.NewAuditEntry{
+	a.audit(ctx, audit.NewEntry{
 		ActorID:    actorID,
-		Action:     repository.AuditActionChatbotBasePromptUpdate,
-		TargetType: repository.AuditTargetChatbotBasePrompt,
+		Action:     audit.ActionChatbotBasePromptUpdate,
+		TargetType: audit.TargetChatbotBasePrompt,
 		TargetID:   id.String(),
 		Details:    fmt.Sprintf("name=%s bots=%d", updated.Name, updated.BotCount),
 	})
@@ -101,7 +104,7 @@ func (a *adminService) UpdateBasePrompt(ctx context.Context, actorID uuid.UUID, 
 
 func (a *adminService) DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, id uuid.UUID) error {
 	doomed, lookupErr := a.basePromptRepo.GetByID(ctx, id)
-	if lookupErr != nil && !errors.Is(lookupErr, repository.ErrBasePromptNotFound) {
+	if lookupErr != nil && !errors.Is(lookupErr, dao.ErrBasePromptNotFound) {
 		logger.Ctx(ctx).Error().Err(lookupErr).Str("base_prompt_id", id.String()).Msg("failed to read the base prompt before deleting it")
 	}
 
@@ -111,10 +114,10 @@ func (a *adminService) DeleteBasePrompt(ctx context.Context, actorID uuid.UUID, 
 
 	a.reloader.Reload()
 
-	entry := repository.NewAuditEntry{
+	entry := audit.NewEntry{
 		ActorID:    actorID,
-		Action:     repository.AuditActionChatbotBasePromptDelete,
-		TargetType: repository.AuditTargetChatbotBasePrompt,
+		Action:     audit.ActionChatbotBasePromptDelete,
+		TargetType: audit.TargetChatbotBasePrompt,
 		TargetID:   id.String(),
 	}
 

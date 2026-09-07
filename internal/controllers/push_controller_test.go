@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification/push"
 	"umineko_city_of_books/internal/repository"
 
@@ -56,9 +57,9 @@ func TestUnregisterDeviceToken_ScopesDeleteToSessionUser(t *testing.T) {
 			h.ExpectValidSession("valid-cookie", caller)
 
 			var gotUserID uuid.UUID
-			repo.EXPECT().Delete(mock.Anything, mock.Anything, "victim-token").
-				RunAndReturn(func(_ context.Context, userID uuid.UUID, _ string, _ ...*sql.Tx) error {
-					gotUserID = userID
+			repo.EXPECT().Delete(mock.Anything, spec.DeviceTokenDeletion{UserID: caller, Token: "victim-token"}).
+				RunAndReturn(func(_ context.Context, s spec.DeviceTokenDeletion, _ ...*sql.Tx) error {
+					gotUserID = s.UserID
 					return nil
 				})
 
@@ -92,9 +93,9 @@ func TestRegisterDeviceToken_BindsSessionUserNotRequestBody(t *testing.T) {
 			h.ExpectValidSession("valid-cookie", caller)
 
 			var gotUserID uuid.UUID
-			repo.EXPECT().Upsert(mock.Anything, mock.Anything, "tok-handover", "android").
-				RunAndReturn(func(_ context.Context, userID uuid.UUID, _ string, _ string, _ ...*sql.Tx) error {
-					gotUserID = userID
+			repo.EXPECT().Upsert(mock.Anything, spec.NewDeviceToken{UserID: caller, Token: "tok-handover", Platform: "android"}).
+				RunAndReturn(func(_ context.Context, s spec.NewDeviceToken, _ ...*sql.Tx) error {
+					gotUserID = s.UserID
 					return nil
 				})
 

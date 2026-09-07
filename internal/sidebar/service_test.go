@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/sidebar"
 
@@ -80,7 +81,7 @@ func TestService_MarkVisited_AcceptsBoundaryLength(t *testing.T) {
 	svc := sidebar.NewService(repo)
 	userID := uuid.New()
 	key := strings.Repeat("a", 100)
-	repo.EXPECT().Upsert(mock.Anything, userID, key).Return(nil)
+	repo.EXPECT().Upsert(mock.Anything, spec.NewSidebarVisit{UserID: userID, Key: key}).Return(nil)
 
 	// when
 	err := svc.MarkVisited(context.Background(), userID, key)
@@ -94,7 +95,7 @@ func TestService_MarkVisited_DelegatesToRepo(t *testing.T) {
 	repo := repository.NewMockSidebarLastVisitedRepository(t)
 	svc := sidebar.NewService(repo)
 	userID := uuid.New()
-	repo.EXPECT().Upsert(mock.Anything, userID, "rooms").Return(nil)
+	repo.EXPECT().Upsert(mock.Anything, spec.NewSidebarVisit{UserID: userID, Key: "rooms"}).Return(nil)
 
 	// when
 	err := svc.MarkVisited(context.Background(), userID, "rooms")

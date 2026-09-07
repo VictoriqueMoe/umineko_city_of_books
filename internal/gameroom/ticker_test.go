@@ -9,7 +9,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -87,8 +88,8 @@ func (tm *tickerMocks) tickReturns(results ...TickResult) {
 	}).Maybe()
 }
 
-func activeRow(roomID, creator uuid.UUID) *repository.GameRoomRow {
-	return &repository.GameRoomRow{
+func activeRow(roomID, creator uuid.UUID) *model.GameRoomRow {
+	return &model.GameRoomRow{
 		ID:        roomID,
 		GameType:  string(dto.GameTypeChess),
 		Status:    string(dto.GameStatusActive),
@@ -139,9 +140,9 @@ func TestRunTicker_ScoredWritesStateOnce(t *testing.T) {
 		seedUser(t, tm.testMocks, player1, "Bob")
 
 		tm.sim.EXPECT().StateJSON().Return(`{"scores":[0,1]}`, nil).Once()
-		tm.roomRepo.EXPECT().SetState(mock.Anything, roomID, `{"scores":[0,1]}`, (*uuid.UUID)(nil)).Return(nil).Once()
+		tm.roomRepo.EXPECT().SetState(mock.Anything, spec.GameRoomStateUpdate{RoomID: roomID, StateJSON: `{"scores":[0,1]}`, TurnUserID: nil}).Return(nil).Once()
 		tm.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRow(roomID, player0), nil).Once()
-		tm.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		tm.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 			{UserID: player0, Slot: 0, Joined: true},
 			{UserID: player1, Slot: 1, Joined: true},
 		}, nil).Once()
@@ -172,11 +173,17 @@ func TestRunTicker_FinishedFinishesRoomAndExits(t *testing.T) {
 
 		tm.sim.EXPECT().StateJSON().Return(`{"phase":"finished"}`, nil).Once()
 		tm.roomRepo.EXPECT().
-			FinishRoom(mock.Anything, roomID, string(dto.GameStatusFinished), &player0, "win", `{"phase":"finished"}`).
+			FinishRoom(mock.Anything, spec.GameRoomFinish{
+				RoomID:    roomID,
+				Status:    string(dto.GameStatusFinished),
+				WinnerID:  &player0,
+				Result:    "win",
+				StateJSON: `{"phase":"finished"}`,
+			}).
 			Return(nil).
 			Once()
 		tm.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRow(roomID, player0), nil).Once()
-		tm.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		tm.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 			{UserID: player0, Slot: 0, Joined: true},
 			{UserID: player1, Slot: 1, Joined: true},
 		}, nil).Once()
@@ -231,7 +238,7 @@ func TestRunTicker_HeartbeatReconcilesAfterPersistInterval(t *testing.T) {
 
 		tm.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRow(roomID, creator), nil).Once()
 		tm.sim.EXPECT().StateJSON().Return(`{"ticks":60}`, nil).Once()
-		tm.roomRepo.EXPECT().SetState(mock.Anything, roomID, `{"ticks":60}`, (*uuid.UUID)(nil)).Return(nil).Once()
+		tm.roomRepo.EXPECT().SetState(mock.Anything, spec.GameRoomStateUpdate{RoomID: roomID, StateJSON: `{"ticks":60}`, TurnUserID: nil}).Return(nil).Once()
 
 		// when
 		tm.start(roomID, twoPlayers(uuid.New(), uuid.New()))
@@ -307,7 +314,7 @@ func TestHandleClientJoin_SpectatorNeverStartsATicker(t *testing.T) {
 			MockTickingHandler: tm.ticking,
 		}
 		tm.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRow(roomID, uuid.New()), nil).Once()
-		tm.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, spectator).Return(false, nil).Once()
+		tm.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: spectator}).Return(false, nil).Once()
 
 		// when
 		tm.svc.HandleClientJoin(t.Context(), spectator, roomID)
@@ -441,9 +448,11 @@ func TestHandleClientJoin_ResumesTickerOnceForConcurrentJoins(t *testing.T) {
 			MockTickingHandler: tm.ticking,
 		}
 		tm.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRow(roomID, player0), nil)
-		tm.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, mock.Anything).Return(true, nil)
-		tm.roomRepo.EXPECT().TouchPlayerSeen(mock.Anything, roomID, mock.Anything).Return(nil)
-		tm.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]repository.GameRoomPlayerRow{
+		tm.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player0}).Return(true, nil)
+		tm.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player1}).Return(true, nil)
+		tm.roomRepo.EXPECT().TouchPlayerSeen(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player0}).Return(nil)
+		tm.roomRepo.EXPECT().TouchPlayerSeen(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player1}).Return(nil)
+		tm.roomRepo.EXPECT().GetPlayers(mock.Anything, roomID).Return([]model.GameRoomPlayerRow{
 			{UserID: player0, Slot: 0, Joined: true},
 			{UserID: player1, Slot: 1, Joined: true},
 		}, nil)
@@ -476,7 +485,7 @@ func TestShutdown_FlushesEveryActiveRoomAndReturns(t *testing.T) {
 
 		tm.sim.EXPECT().StateJSON().Return(`{"ticks":5}`, nil).Once()
 		tm.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRow(roomID, creator), nil).Once()
-		tm.roomRepo.EXPECT().SetState(mock.Anything, roomID, `{"ticks":5}`, (*uuid.UUID)(nil)).Return(nil).Once()
+		tm.roomRepo.EXPECT().SetState(mock.Anything, spec.GameRoomStateUpdate{RoomID: roomID, StateJSON: `{"ticks":5}`, TurnUserID: nil}).Return(nil).Once()
 
 		tm.start(roomID, twoPlayers(uuid.New(), uuid.New()))
 		synctest.Sleep(step*5 + step/2)

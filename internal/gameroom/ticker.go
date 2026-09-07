@@ -10,6 +10,7 @@ import (
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -210,7 +211,7 @@ func (s *service) persistPoint(roomID uuid.UUID, h *tickHandle, res TickResult) 
 	ctx, cancel := context.WithTimeout(context.Background(), tickerWriteTimeout)
 	defer cancel()
 
-	if err := s.repo.SetState(ctx, roomID, stateJSON, nil); err != nil {
+	if err := s.repo.SetState(ctx, spec.GameRoomStateUpdate{RoomID: roomID, StateJSON: stateJSON}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("ticker point write")
 		return
 	}
@@ -250,7 +251,7 @@ func (s *service) reconcileTicker(roomID uuid.UUID, h *tickHandle) bool {
 		return true
 	}
 
-	if err := s.repo.SetState(ctx, roomID, stateJSON, nil); err != nil {
+	if err := s.repo.SetState(ctx, spec.GameRoomStateUpdate{RoomID: roomID, StateJSON: stateJSON}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("ticker reconcile write")
 	}
 
@@ -306,7 +307,7 @@ func (s *service) flushTicker(roomID uuid.UUID, h *tickHandle) {
 		return
 	}
 
-	if err := s.repo.SetState(ctx, roomID, stateJSON, nil); err != nil {
+	if err := s.repo.SetState(ctx, spec.GameRoomStateUpdate{RoomID: roomID, StateJSON: stateJSON}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("room_id", roomID.String()).Msg("ticker flush write")
 	}
 }

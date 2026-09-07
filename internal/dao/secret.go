@@ -9,19 +9,46 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
 
-type secretDAO struct {
-	db *sql.DB
-	*commentDAO[string]
-}
+type (
+	SecretDAO interface {
+		GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*model.SecretSolver, error)
+		GetProgressLeaderboard(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]model.SecretLeaderboardRow, error)
+		GetPieceCountForUser(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (int, error)
+		GetUserProgressSummary(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (*model.SecretLeaderboardRow, error)
+		GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]model.SecretSolverRow, error)
 
-func (r *secretDAO) AddCommentMedia(ctx context.Context, spec repository.NewSecretCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.IsSpoiler, tx...)
-}
+		GetComments(ctx context.Context, q spec.CommentQuery[string], tx ...*sql.Tx) ([]model.CommentRow, int, error)
+		GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error)
+		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (string, error)
+		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
+		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
+		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+
+		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
+		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
+		CollectCommentMediaPaths(ctx context.Context, entityID string, tx ...*sql.Tx) ([]string, error)
+		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+
+		CountCommentsBySecret(ctx context.Context, secretIDs []string, tx ...*sql.Tx) (map[string]int, error)
+		GetCommenterIDs(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error)
+	}
+
+	secretDAO struct {
+		db *sql.DB
+		*commentDAO[string]
+	}
+)
 
 func secretIDPlaceholders(ids []string, startIndex int) (string, []any) {
 	if len(ids) == 0 {
@@ -33,9 +60,12 @@ func secretIDPlaceholders(ids []string, startIndex int) (string, []any) {
 	return strings.Join(placeholders, ","), args
 }
 
-func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*repository.SecretSolver, error) {
-	var s repository.SecretSolver
-	var unlockedAt time.Time
+func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*model.SecretSolver, error) {
+	var (
+		s          model.SecretSolver
+		unlockedAt time.Time
+	)
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), us.unlocked_at
 		 FROM user_secrets us
@@ -52,14 +82,17 @@ func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*
 	if err != nil {
 		return nil, fmt.Errorf("get first solver: %w", err)
 	}
+
 	s.UnlockedAt = unlockedAt.UTC().Format(time.RFC3339)
+
 	return &s, nil
 }
 
-func (r *secretDAO) GetProgressLeaderboard(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]repository.SecretLeaderboardRow, error) {
+func (r *secretDAO) GetProgressLeaderboard(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]model.SecretLeaderboardRow, error) {
 	if len(pieceIDs) == 0 {
 		return nil, nil
 	}
+
 	placeholders, args := secretIDPlaceholders(pieceIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
@@ -77,23 +110,27 @@ func (r *secretDAO) GetProgressLeaderboard(ctx context.Context, pieceIDs []strin
 	}
 	defer rows.Close()
 
-	var result []repository.SecretLeaderboardRow
+	var result []model.SecretLeaderboardRow
 	for rows.Next() {
-		var row repository.SecretLeaderboardRow
+		var row model.SecretLeaderboardRow
 		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.Pieces); err != nil {
 			return nil, fmt.Errorf("scan leaderboard row: %w", err)
 		}
+
 		result = append(result, row)
 	}
+
 	return result, rows.Err()
 }
 
-func (r *secretDAO) GetPieceCountForUser(ctx context.Context, userID uuid.UUID, pieceIDs []string, tx ...*sql.Tx) (int, error) {
-	if len(pieceIDs) == 0 {
+func (r *secretDAO) GetPieceCountForUser(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (int, error) {
+	if len(s.PieceIDs) == 0 {
 		return 0, nil
 	}
-	placeholders, args := secretIDPlaceholders(pieceIDs, 2)
-	args = append([]any{userID}, args...)
+
+	placeholders, args := secretIDPlaceholders(s.PieceIDs, 2)
+	args = append([]any{s.UserID}, args...)
+
 	var count int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM user_secrets WHERE user_id = $1 AND secret_id IN (`+placeholders+`)`,
@@ -102,13 +139,15 @@ func (r *secretDAO) GetPieceCountForUser(ctx context.Context, userID uuid.UUID, 
 	if err != nil {
 		return 0, fmt.Errorf("count user pieces: %w", err)
 	}
+
 	return count, nil
 }
 
-func (r *secretDAO) GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]repository.SecretSolverRow, error) {
+func (r *secretDAO) GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]model.SecretSolverRow, error) {
 	if len(parentSecretIDs) == 0 {
 		return nil, nil
 	}
+
 	placeholders, args := secretIDPlaceholders(parentSecretIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
@@ -128,28 +167,33 @@ func (r *secretDAO) GetSolversLeaderboard(ctx context.Context, parentSecretIDs [
 	}
 	defer rows.Close()
 
-	var result []repository.SecretSolverRow
+	var result []model.SecretSolverRow
 	for rows.Next() {
-		var row repository.SecretSolverRow
-		var lastSolvedAt time.Time
+		var (
+			row          model.SecretSolverRow
+			lastSolvedAt time.Time
+		)
 		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.SolvedCount, &lastSolvedAt); err != nil {
 			return nil, fmt.Errorf("scan solver row: %w", err)
 		}
+
 		row.LastSolvedAt = lastSolvedAt.UTC().Format(time.RFC3339)
 		result = append(result, row)
 	}
+
 	return result, rows.Err()
 }
 
-func (r *secretDAO) GetUserProgressSummary(ctx context.Context, userID uuid.UUID, pieceIDs []string, tx ...*sql.Tx) (*repository.SecretLeaderboardRow, error) {
-	if len(pieceIDs) == 0 {
+func (r *secretDAO) GetUserProgressSummary(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (*model.SecretLeaderboardRow, error) {
+	if len(s.PieceIDs) == 0 {
 		return nil, nil
 	}
-	placeholders, args := secretIDPlaceholders(pieceIDs, 1)
-	userIDPH := fmt.Sprintf("$%d", len(pieceIDs)+1)
-	queryArgs := append(args, userID)
 
-	var row repository.SecretLeaderboardRow
+	placeholders, args := secretIDPlaceholders(s.PieceIDs, 1)
+	userIDPH := fmt.Sprintf("$%d", len(s.PieceIDs)+1)
+	queryArgs := append(args, s.UserID)
+
+	var row model.SecretLeaderboardRow
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
 			(SELECT COUNT(*) FROM user_secrets us WHERE us.user_id = u.id AND us.secret_id IN (`+placeholders+`))
@@ -164,13 +208,17 @@ func (r *secretDAO) GetUserProgressSummary(ctx context.Context, userID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("user progress summary: %w", err)
 	}
+
 	return &row, nil
 }
 
-func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.CommentRow, error) {
-	var c repository.CommentRow
-	var createdAt time.Time
-	var updatedAt *time.Time
+func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error) {
+	var (
+		c         model.CommentRow
+		createdAt time.Time
+		updatedAt *time.Time
+	)
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT c.id, c.secret_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
@@ -192,8 +240,10 @@ func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql
 	if err != nil {
 		return nil, fmt.Errorf("get secret comment by id: %w", err)
 	}
+
 	c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	c.UpdatedAt = timePtrToString(updatedAt)
+
 	return &c, nil
 }
 
@@ -205,6 +255,7 @@ func (r *secretDAO) GetCommenterIDs(ctx context.Context, secretID string, tx ...
 	if err != nil {
 		return nil, fmt.Errorf("list commenter ids: %w", err)
 	}
+
 	return utils.ScanIDs(rows, "commenter id")
 }
 

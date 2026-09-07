@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -47,5 +48,5 @@ func (s *service) MarkVisited(ctx context.Context, userID uuid.UUID, key string)
 	if len(key) > visitedKeyMaxLen {
 		return ErrKeyTooLong
 	}
-	return s.repo.Upsert(ctx, userID, key)
+	return s.repo.Upsert(ctx, spec.NewSidebarVisit{UserID: userID, Key: key})
 }

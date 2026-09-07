@@ -9,8 +9,8 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -1190,7 +1190,7 @@ func TestSetGalleryCover_ForeignArt_NotFound(t *testing.T) {
 	userID := uuid.New()
 	galleryID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
-	as.EXPECT().SetGalleryCover(mock.Anything, galleryID, userID, (*uuid.UUID)(nil)).Return(repository.ErrArtNotOwned)
+	as.EXPECT().SetGalleryCover(mock.Anything, galleryID, userID, (*uuid.UUID)(nil)).Return(dao.ErrArtNotOwned)
 
 	// when
 	status, body := h.NewRequest("PUT", "/galleries/"+galleryID.String()+"/cover").
@@ -1456,7 +1456,7 @@ func TestSetArtGallery_ForeignGallery_NotFound(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	as.EXPECT().SetArtGallery(mock.Anything, artID, userID, mock.MatchedBy(func(p *uuid.UUID) bool {
 		return p != nil && *p == galleryID
-	})).Return(repository.ErrArtNotOwned)
+	})).Return(dao.ErrArtNotOwned)
 
 	// when
 	status, body := h.NewRequest("PUT", "/art/"+artID.String()+"/gallery").

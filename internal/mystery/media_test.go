@@ -7,6 +7,7 @@ import (
 	"testing"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -100,7 +101,7 @@ func TestUploadAttachment_AddAttachmentError(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
 	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(10), int64(1024*1024), mock.Anything).Return("/uploads/x", nil)
-	m.repo.EXPECT().AddAttachment(mock.Anything, mid, "/uploads/x", "f.txt", 10).Return(int64(0), errors.New("boom"))
+	m.repo.EXPECT().AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mid, FileURL: "/uploads/x", FileName: "f.txt", FileSize: 10}).Return(int64(0), errors.New("boom"))
 
 	// when
 	_, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
@@ -118,7 +119,7 @@ func TestUploadAttachment_OK(t *testing.T) {
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxGeneralSize).Return(1024 * 1024)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
 	m.uploadSvc.EXPECT().SaveAttachment(mock.Anything, mock.Anything, int64(10), int64(1024*1024), mock.Anything).Return("/uploads/x", nil)
-	m.repo.EXPECT().AddAttachment(mock.Anything, mid, "/uploads/x", "f.txt", 10).Return(int64(42), nil)
+	m.repo.EXPECT().AddAttachment(mock.Anything, spec.NewMysteryAttachment{MysteryID: mid, FileURL: "/uploads/x", FileName: "f.txt", FileSize: 10}).Return(int64(42), nil)
 
 	// when
 	got, err := svc.UploadAttachment(context.Background(), mid, userID, "f.txt", 10, bytes.NewReader(nil))
@@ -164,7 +165,7 @@ func TestDeleteAttachment_RepoError(t *testing.T) {
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(nil, nil)
-	m.repo.EXPECT().DeleteAttachment(mock.Anything, int64(1), mid).Return(errors.New("boom"))
+	m.repo.EXPECT().DeleteAttachment(mock.Anything, spec.MysteryAttachmentDeletion{ID: 1, MysteryID: mid}).Return(errors.New("boom"))
 
 	// when
 	err := svc.DeleteAttachment(context.Background(), 1, mid, userID)
@@ -181,7 +182,7 @@ func TestDeleteAttachment_OK_DeletesFile(t *testing.T) {
 	attachments := []dto.MysteryAttachment{{ID: 1, FileURL: "/uploads/mystery-attachments/abc/f.txt"}}
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().GetAttachments(mock.Anything, mid).Return(attachments, nil)
-	m.repo.EXPECT().DeleteAttachment(mock.Anything, int64(1), mid).Return(nil)
+	m.repo.EXPECT().DeleteAttachment(mock.Anything, spec.MysteryAttachmentDeletion{ID: 1, MysteryID: mid}).Return(nil)
 	m.uploadSvc.EXPECT().GetUploadDir().Return("/tmp/nonexistent-dir")
 
 	// when
@@ -253,7 +254,7 @@ func TestDeleteMedia_RepoError(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().DeleteMedia(mock.Anything, int64(1), mid).Return("", errors.New("boom"))
+	m.repo.EXPECT().DeleteMedia(mock.Anything, spec.MediaDeletion{ID: 1, TargetID: mid}).Return("", errors.New("boom"))
 
 	// when
 	err := svc.DeleteMedia(context.Background(), 1, mid, userID)
@@ -268,7 +269,7 @@ func TestDeleteMedia_OK_DeletesFile(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().DeleteMedia(mock.Anything, int64(1), mid).Return("/uploads/mysteries/x.png", nil)
+	m.repo.EXPECT().DeleteMedia(mock.Anything, spec.MediaDeletion{ID: 1, TargetID: mid}).Return("/uploads/mysteries/x.png", nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mysteries/x.png"}).Return()
 
 	// when

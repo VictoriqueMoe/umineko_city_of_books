@@ -12,8 +12,9 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
@@ -172,7 +173,7 @@ func (s *service) blockedBetween(ctx context.Context, params dto.NotifyParams) b
 		return false
 	}
 
-	blocked, err := s.blockRepo.IsBlockedEither(ctx, params.RecipientID, params.ActorID)
+	blocked, err := s.blockRepo.IsBlockedEither(ctx, spec.BlockPairSpec{UserA: params.RecipientID, UserB: params.ActorID})
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("type", string(params.Type)).Msg("block check failed, delivering notification")
 		return false
@@ -193,10 +194,22 @@ func (s *service) Notify(ctx context.Context, params dto.NotifyParams) error {
 	willConsiderEmail := !isChatRoomNotif(params.Type) && params.EmailAction != ""
 	var emailDupe bool
 	if willConsiderEmail {
-		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ActorID)
+		emailDupe, _ = s.repo.HasRecentDuplicate(ctx, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		})
 	}
 
-	created, err := s.repo.Create(ctx, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message)
+	created, err := s.repo.Create(ctx, spec.NewNotification{
+		UserID:        params.RecipientID,
+		Type:          params.Type,
+		ReferenceID:   params.ReferenceID,
+		ReferenceType: params.ReferenceType,
+		ActorID:       params.ActorID,
+		Message:       params.Message,
+	})
 	if err != nil {
 		return err
 	}
@@ -219,7 +232,7 @@ func (s *service) NotifyMany(ctx context.Context, params []dto.NotifyParams) {
 }
 
 func (s *service) HasRecentFromActor(ctx context.Context, notifType dto.NotificationType, actorID uuid.UUID, within time.Duration) bool {
-	recent, err := s.repo.HasRecentFromActor(ctx, notifType, actorID, within)
+	recent, err := s.repo.HasRecentFromActor(ctx, spec.NotificationActorRecency{Type: notifType, ActorID: actorID, Within: within})
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Str("type", string(notifType)).Str("actor", actorID.String()).Msg("recent notification lookup failed")
 		return false
@@ -319,7 +332,7 @@ func pushPayload(resp dto.NotificationResponse, siteName string) push.Notificati
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID, page bounds.Page) (*dto.NotificationListResponse, error) {
-	rows, total, err := s.repo.ListByUser(ctx, userID, page.Limit(), page.Offset())
+	rows, total, err := s.repo.ListByUser(ctx, spec.NotificationListing{UserID: userID, Limit: page.Limit(), Offset: page.Offset()})
 	if err != nil {
 		return nil, err
 	}
@@ -338,7 +351,7 @@ func (s *service) List(ctx context.Context, userID uuid.UUID, page bounds.Page) 
 }
 
 func (s *service) MarkRead(ctx context.Context, id int, userID uuid.UUID) error {
-	return s.repo.MarkRead(ctx, id, userID)
+	return s.repo.MarkRead(ctx, spec.NotificationLookup{ID: id, UserID: userID})
 }
 
 func (s *service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
@@ -346,7 +359,7 @@ func (s *service) MarkAllRead(ctx context.Context, userID uuid.UUID) error {
 }
 
 func (s *service) MarkChatRoomRead(ctx context.Context, userID, roomID uuid.UUID) error {
-	return s.repo.MarkReadByReference(ctx, userID, roomID, chatThreadNotifTypes)
+	return s.repo.MarkReadByReference(ctx, spec.NotificationReferenceRead{UserID: userID, ReferenceID: roomID, Types: chatThreadNotifTypes})
 }
 
 func (s *service) UnreadCount(ctx context.Context, userID uuid.UUID) (int, error) {
@@ -358,7 +371,7 @@ func (s *service) PruneOld(ctx context.Context) (int, error) {
 
 	total := 0
 	for {
-		deleted, err := s.repo.DeleteOlderThanBatch(ctx, cutoff, pruneBatchSize)
+		deleted, err := s.repo.DeleteOlderThanBatch(ctx, spec.NotificationPruneBatch{Cutoff: cutoff, Limit: pruneBatchSize})
 		if err != nil {
 			return total, err
 		}

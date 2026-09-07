@@ -7,8 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -42,12 +42,12 @@ func (_m *MockShipRepository) EXPECT() *MockShipRepository_Expecter {
 }
 
 // AddCommentMedia provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) AddCommentMedia(ctx context.Context, spec NewShipCommentMedia, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockShipRepository) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -57,16 +57,16 @@ func (_mock *MockShipRepository) AddCommentMedia(ctx context.Context, spec NewSh
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewShipCommentMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewShipCommentMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewShipCommentMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -80,22 +80,22 @@ type MockShipRepository_AddCommentMedia_Call struct {
 
 // AddCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewShipCommentMedia
+//   - s spec.NewMedia
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) AddCommentMedia(ctx any, spec any, tx ...any) *MockShipRepository_AddCommentMedia_Call {
+func (_e *MockShipRepository_Expecter) AddCommentMedia(ctx any, s any, tx ...any) *MockShipRepository_AddCommentMedia_Call {
 	return &MockShipRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, spec NewShipCommentMedia, tx ...*sql.Tx)) *MockShipRepository_AddCommentMedia_Call {
+func (_c *MockShipRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockShipRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewShipCommentMedia
+		var arg1 spec.NewMedia
 		if args[1] != nil {
-			arg1 = args[1].(NewShipCommentMedia)
+			arg1 = args[1].(spec.NewMedia)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -117,7 +117,7 @@ func (_c *MockShipRepository_AddCommentMedia_Call) Return(n int64, err error) *M
 	return _c
 }
 
-func (_c *MockShipRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewShipCommentMedia, tx ...*sql.Tx) (int64, error)) *MockShipRepository_AddCommentMedia_Call {
+func (_c *MockShipRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockShipRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -289,12 +289,12 @@ func (_c *MockShipRepository_CollectSingleCommentMediaPaths_Call) RunAndReturn(r
 }
 
 // Create provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) Create(ctx context.Context, userID uuid.UUID, title string, description string, tx ...*sql.Tx) (*model.ShipRow, error) {
+func (_mock *MockShipRepository) Create(ctx context.Context, s spec.NewShip, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, title, description, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, title, description)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -304,18 +304,18 @@ func (_mock *MockShipRepository) Create(ctx context.Context, userID uuid.UUID, t
 
 	var r0 *model.ShipRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) (*model.ShipRow, error)); ok {
-		return returnFunc(ctx, userID, title, description, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewShip, ...*sql.Tx) (*model.ShipRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) *model.ShipRow); ok {
-		r0 = returnFunc(ctx, userID, title, description, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewShip, ...*sql.Tx) *model.ShipRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ShipRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, title, description, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewShip, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -329,45 +329,33 @@ type MockShipRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - title string
-//   - description string
+//   - s spec.NewShip
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) Create(ctx any, userID any, title any, description any, tx ...any) *MockShipRepository_Create_Call {
+func (_e *MockShipRepository_Expecter) Create(ctx any, s any, tx ...any) *MockShipRepository_Create_Call {
 	return &MockShipRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, userID, title, description}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, description string, tx ...*sql.Tx)) *MockShipRepository_Create_Call {
+func (_c *MockShipRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewShip, tx ...*sql.Tx)) *MockShipRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewShip
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewShip)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -378,18 +366,18 @@ func (_c *MockShipRepository_Create_Call) Return(shipRow *model.ShipRow, err err
 	return _c
 }
 
-func (_c *MockShipRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, description string, tx ...*sql.Tx) (*model.ShipRow, error)) *MockShipRepository_Create_Call {
+func (_c *MockShipRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewShip, tx ...*sql.Tx) (*model.ShipRow, error)) *MockShipRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateWithCharacters provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) CreateWithCharacters(ctx context.Context, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter, tx ...*sql.Tx) (*model.ShipRow, error) {
+func (_mock *MockShipRepository) CreateWithCharacters(ctx context.Context, s spec.NewShipWithCharacters, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, title, description, characters, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, title, description, characters)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -399,18 +387,18 @@ func (_mock *MockShipRepository) CreateWithCharacters(ctx context.Context, userI
 
 	var r0 *model.ShipRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, []dto.ShipCharacter, ...*sql.Tx) (*model.ShipRow, error)); ok {
-		return returnFunc(ctx, userID, title, description, characters, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewShipWithCharacters, ...*sql.Tx) (*model.ShipRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, []dto.ShipCharacter, ...*sql.Tx) *model.ShipRow); ok {
-		r0 = returnFunc(ctx, userID, title, description, characters, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewShipWithCharacters, ...*sql.Tx) *model.ShipRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ShipRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, []dto.ShipCharacter, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, title, description, characters, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewShipWithCharacters, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -424,51 +412,33 @@ type MockShipRepository_CreateWithCharacters_Call struct {
 
 // CreateWithCharacters is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - title string
-//   - description string
-//   - characters []dto.ShipCharacter
+//   - s spec.NewShipWithCharacters
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) CreateWithCharacters(ctx any, userID any, title any, description any, characters any, tx ...any) *MockShipRepository_CreateWithCharacters_Call {
+func (_e *MockShipRepository_Expecter) CreateWithCharacters(ctx any, s any, tx ...any) *MockShipRepository_CreateWithCharacters_Call {
 	return &MockShipRepository_CreateWithCharacters_Call{Call: _e.mock.On("CreateWithCharacters",
-		append([]any{ctx, userID, title, description, characters}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_CreateWithCharacters_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter, tx ...*sql.Tx)) *MockShipRepository_CreateWithCharacters_Call {
+func (_c *MockShipRepository_CreateWithCharacters_Call) Run(run func(ctx context.Context, s spec.NewShipWithCharacters, tx ...*sql.Tx)) *MockShipRepository_CreateWithCharacters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewShipWithCharacters
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewShipWithCharacters)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []dto.ShipCharacter
-		if args[4] != nil {
-			arg4 = args[4].([]dto.ShipCharacter)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -479,18 +449,18 @@ func (_c *MockShipRepository_CreateWithCharacters_Call) Return(shipRow *model.Sh
 	return _c
 }
 
-func (_c *MockShipRepository_CreateWithCharacters_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, description string, characters []dto.ShipCharacter, tx ...*sql.Tx) (*model.ShipRow, error)) *MockShipRepository_CreateWithCharacters_Call {
+func (_c *MockShipRepository_CreateWithCharacters_Call) RunAndReturn(run func(ctx context.Context, s spec.NewShipWithCharacters, tx ...*sql.Tx) (*model.ShipRow, error)) *MockShipRepository_CreateWithCharacters_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -499,8 +469,8 @@ func (_mock *MockShipRepository) Delete(ctx context.Context, id uuid.UUID, userI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -514,39 +484,33 @@ type MockShipRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.OwnedDeletion
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) Delete(ctx any, id any, userID any, tx ...any) *MockShipRepository_Delete_Call {
+func (_e *MockShipRepository_Expecter) Delete(ctx any, s any, tx ...any) *MockShipRepository_Delete_Call {
 	return &MockShipRepository_Delete_Call{Call: _e.mock.On("Delete",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_Delete_Call {
+func (_c *MockShipRepository_Delete_Call) Run(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx)) *MockShipRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.OwnedDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.OwnedDeletion)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -557,7 +521,7 @@ func (_c *MockShipRepository_Delete_Call) Return(err error) *MockShipRepository_
 	return _c
 }
 
-func (_c *MockShipRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockShipRepository_Delete_Call {
+func (_c *MockShipRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error) *MockShipRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -707,12 +671,12 @@ func (_c *MockShipRepository_DeleteCharacters_Call) RunAndReturn(run func(ctx co
 }
 
 // DeleteComment provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -721,8 +685,8 @@ func (_mock *MockShipRepository) DeleteComment(ctx context.Context, id uuid.UUID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -736,100 +700,22 @@ type MockShipRepository_DeleteComment_Call struct {
 
 // DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *MockShipRepository_DeleteComment_Call {
+func (_e *MockShipRepository_Expecter) DeleteComment(ctx any, s any, tx ...any) *MockShipRepository_DeleteComment_Call {
 	return &MockShipRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_DeleteComment_Call {
+func (_c *MockShipRepository_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockShipRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockShipRepository_DeleteComment_Call) Return(err error) *MockShipRepository_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockShipRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockShipRepository_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentAsAdmin provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockShipRepository_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
-type MockShipRepository_DeleteCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *MockShipRepository_DeleteCommentAsAdmin_Call {
-	return &MockShipRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
-		append([]any{ctx, id}, tx...)...)}
-}
-
-func (_c *MockShipRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -846,23 +732,23 @@ func (_c *MockShipRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context
 	return _c
 }
 
-func (_c *MockShipRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockShipRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockShipRepository_DeleteComment_Call) Return(err error) *MockShipRepository_DeleteComment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockShipRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockShipRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockShipRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *MockShipRepository_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteCommentWithAudit provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) DeleteCommentWithAudit(ctx context.Context, spec ShipCommentDeletion, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockShipRepository) DeleteCommentWithAudit(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, deletion, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, deletion)
 	}
 	ret := tmpRet
 
@@ -872,18 +758,18 @@ func (_mock *MockShipRepository) DeleteCommentWithAudit(ctx context.Context, spe
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipCommentDeletion, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, deletion, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipCommentDeletion, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, deletion, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ShipCommentDeletion, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, deletion, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -897,22 +783,22 @@ type MockShipRepository_DeleteCommentWithAudit_Call struct {
 
 // DeleteCommentWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ShipCommentDeletion
+//   - deletion spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) DeleteCommentWithAudit(ctx any, spec any, tx ...any) *MockShipRepository_DeleteCommentWithAudit_Call {
+func (_e *MockShipRepository_Expecter) DeleteCommentWithAudit(ctx any, deletion any, tx ...any) *MockShipRepository_DeleteCommentWithAudit_Call {
 	return &MockShipRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, deletion}, tx...)...)}
 }
 
-func (_c *MockShipRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, spec ShipCommentDeletion, tx ...*sql.Tx)) *MockShipRepository_DeleteCommentWithAudit_Call {
+func (_c *MockShipRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx)) *MockShipRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ShipCommentDeletion
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(ShipCommentDeletion)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -934,18 +820,18 @@ func (_c *MockShipRepository_DeleteCommentWithAudit_Call) Return(strings []strin
 	return _c
 }
 
-func (_c *MockShipRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, spec ShipCommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockShipRepository_DeleteCommentWithAudit_Call {
+func (_c *MockShipRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockShipRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteShip provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) DeleteShip(ctx context.Context, spec ShipDeletion, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockShipRepository) DeleteShip(ctx context.Context, deletion spec.ShipDeletion, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, deletion, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, deletion)
 	}
 	ret := tmpRet
 
@@ -955,18 +841,18 @@ func (_mock *MockShipRepository) DeleteShip(ctx context.Context, spec ShipDeleti
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipDeletion, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, deletion, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipDeletion, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, deletion, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, ShipDeletion, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ShipDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, deletion, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -980,22 +866,22 @@ type MockShipRepository_DeleteShip_Call struct {
 
 // DeleteShip is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ShipDeletion
+//   - deletion spec.ShipDeletion
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) DeleteShip(ctx any, spec any, tx ...any) *MockShipRepository_DeleteShip_Call {
+func (_e *MockShipRepository_Expecter) DeleteShip(ctx any, deletion any, tx ...any) *MockShipRepository_DeleteShip_Call {
 	return &MockShipRepository_DeleteShip_Call{Call: _e.mock.On("DeleteShip",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, deletion}, tx...)...)}
 }
 
-func (_c *MockShipRepository_DeleteShip_Call) Run(run func(ctx context.Context, spec ShipDeletion, tx ...*sql.Tx)) *MockShipRepository_DeleteShip_Call {
+func (_c *MockShipRepository_DeleteShip_Call) Run(run func(ctx context.Context, deletion spec.ShipDeletion, tx ...*sql.Tx)) *MockShipRepository_DeleteShip_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ShipDeletion
+		var arg1 spec.ShipDeletion
 		if args[1] != nil {
-			arg1 = args[1].(ShipDeletion)
+			arg1 = args[1].(spec.ShipDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1017,7 +903,7 @@ func (_c *MockShipRepository_DeleteShip_Call) Return(strings []string, err error
 	return _c
 }
 
-func (_c *MockShipRepository_DeleteShip_Call) RunAndReturn(run func(ctx context.Context, spec ShipDeletion, tx ...*sql.Tx) ([]string, error)) *MockShipRepository_DeleteShip_Call {
+func (_c *MockShipRepository_DeleteShip_Call) RunAndReturn(run func(ctx context.Context, deletion spec.ShipDeletion, tx ...*sql.Tx) ([]string, error)) *MockShipRepository_DeleteShip_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1106,12 +992,12 @@ func (_c *MockShipRepository_GetAuthorID_Call) RunAndReturn(run func(ctx context
 }
 
 // GetByID provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ShipRow, error) {
+func (_mock *MockShipRepository) GetByID(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx) (*model.ShipRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, viewerID, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, viewerID)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -1121,18 +1007,18 @@ func (_mock *MockShipRepository) GetByID(ctx context.Context, id uuid.UUID, view
 
 	var r0 *model.ShipRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*model.ShipRow, error)); ok {
-		return returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipLookup, ...*sql.Tx) (*model.ShipRow, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *model.ShipRow); ok {
-		r0 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipLookup, ...*sql.Tx) *model.ShipRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.ShipRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ShipLookup, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1146,39 +1032,33 @@ type MockShipRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - viewerID uuid.UUID
+//   - q spec.ShipLookup
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) GetByID(ctx any, id any, viewerID any, tx ...any) *MockShipRepository_GetByID_Call {
+func (_e *MockShipRepository_Expecter) GetByID(ctx any, q any, tx ...any) *MockShipRepository_GetByID_Call {
 	return &MockShipRepository_GetByID_Call{Call: _e.mock.On("GetByID",
-		append([]any{ctx, id, viewerID}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockShipRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_GetByID_Call {
+func (_c *MockShipRepository_GetByID_Call) Run(run func(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx)) *MockShipRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ShipLookup
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ShipLookup)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1189,7 +1069,7 @@ func (_c *MockShipRepository_GetByID_Call) Return(shipRow *model.ShipRow, err er
 	return _c
 }
 
-func (_c *MockShipRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.ShipRow, error)) *MockShipRepository_GetByID_Call {
+func (_c *MockShipRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx) (*model.ShipRow, error)) *MockShipRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1693,12 +1573,12 @@ func (_c *MockShipRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(ct
 }
 
 // GetComments provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) GetComments(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+func (_mock *MockShipRepository) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, shipID, viewerID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, shipID, viewerID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -1706,26 +1586,26 @@ func (_mock *MockShipRepository) GetComments(ctx context.Context, shipID uuid.UU
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []CommentRow
+	var r0 []model.CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, shipID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
-		r0 = returnFunc(ctx, shipID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
+			r0 = ret.Get(0).([]model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, shipID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, shipID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1739,68 +1619,44 @@ type MockShipRepository_GetComments_Call struct {
 
 // GetComments is a helper method to define mock.On call
 //   - ctx context.Context
-//   - shipID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.CommentQuery[uuid.UUID]
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) GetComments(ctx any, shipID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockShipRepository_GetComments_Call {
+func (_e *MockShipRepository_Expecter) GetComments(ctx any, q any, tx ...any) *MockShipRepository_GetComments_Call {
 	return &MockShipRepository_GetComments_Call{Call: _e.mock.On("GetComments",
-		append([]any{ctx, shipID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockShipRepository_GetComments_Call) Run(run func(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_GetComments_Call {
+func (_c *MockShipRepository_GetComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockShipRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentQuery[uuid.UUID]
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		var arg6 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 6 {
-			variadicArgs = args[6].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg6 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockShipRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockShipRepository_GetComments_Call {
+func (_c *MockShipRepository_GetComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockShipRepository_GetComments_Call {
 	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockShipRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, shipID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockShipRepository_GetComments_Call {
+func (_c *MockShipRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockShipRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1889,12 +1745,12 @@ func (_c *MockShipRepository_GetImagePaths_Call) RunAndReturn(run func(ctx conte
 }
 
 // InsertCharacters provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) InsertCharacters(ctx context.Context, shipID uuid.UUID, characters []dto.ShipCharacter, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) InsertCharacters(ctx context.Context, s spec.NewShipCharacters, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, shipID, characters, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, shipID, characters)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1903,8 +1759,8 @@ func (_mock *MockShipRepository) InsertCharacters(ctx context.Context, shipID uu
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []dto.ShipCharacter, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, shipID, characters, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewShipCharacters, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1918,39 +1774,33 @@ type MockShipRepository_InsertCharacters_Call struct {
 
 // InsertCharacters is a helper method to define mock.On call
 //   - ctx context.Context
-//   - shipID uuid.UUID
-//   - characters []dto.ShipCharacter
+//   - s spec.NewShipCharacters
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) InsertCharacters(ctx any, shipID any, characters any, tx ...any) *MockShipRepository_InsertCharacters_Call {
+func (_e *MockShipRepository_Expecter) InsertCharacters(ctx any, s any, tx ...any) *MockShipRepository_InsertCharacters_Call {
 	return &MockShipRepository_InsertCharacters_Call{Call: _e.mock.On("InsertCharacters",
-		append([]any{ctx, shipID, characters}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_InsertCharacters_Call) Run(run func(ctx context.Context, shipID uuid.UUID, characters []dto.ShipCharacter, tx ...*sql.Tx)) *MockShipRepository_InsertCharacters_Call {
+func (_c *MockShipRepository_InsertCharacters_Call) Run(run func(ctx context.Context, s spec.NewShipCharacters, tx ...*sql.Tx)) *MockShipRepository_InsertCharacters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewShipCharacters
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewShipCharacters)
 		}
-		var arg2 []dto.ShipCharacter
-		if args[2] != nil {
-			arg2 = args[2].([]dto.ShipCharacter)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1961,18 +1811,18 @@ func (_c *MockShipRepository_InsertCharacters_Call) Return(err error) *MockShipR
 	return _c
 }
 
-func (_c *MockShipRepository_InsertCharacters_Call) RunAndReturn(run func(ctx context.Context, shipID uuid.UUID, characters []dto.ShipCharacter, tx ...*sql.Tx) error) *MockShipRepository_InsertCharacters_Call {
+func (_c *MockShipRepository_InsertCharacters_Call) RunAndReturn(run func(ctx context.Context, s spec.NewShipCharacters, tx ...*sql.Tx) error) *MockShipRepository_InsertCharacters_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LikeComment provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1981,8 +1831,8 @@ func (_mock *MockShipRepository) LikeComment(ctx context.Context, userID uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1996,39 +1846,33 @@ type MockShipRepository_LikeComment_Call struct {
 
 // LikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockShipRepository_LikeComment_Call {
+func (_e *MockShipRepository_Expecter) LikeComment(ctx any, s any, tx ...any) *MockShipRepository_LikeComment_Call {
 	return &MockShipRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_LikeComment_Call {
+func (_c *MockShipRepository_LikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockShipRepository_LikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2039,18 +1883,18 @@ func (_c *MockShipRepository_LikeComment_Call) Return(err error) *MockShipReposi
 	return _c
 }
 
-func (_c *MockShipRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockShipRepository_LikeComment_Call {
+func (_c *MockShipRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockShipRepository_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) List(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
+func (_mock *MockShipRepository) List(ctx context.Context, q spec.ShipListing, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2061,23 +1905,23 @@ func (_mock *MockShipRepository) List(ctx context.Context, viewerID uuid.UUID, s
 	var r0 []model.ShipRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, int, int, []uuid.UUID, ...*sql.Tx) ([]model.ShipRow, int, error)); ok {
-		return returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipListing, ...*sql.Tx) ([]model.ShipRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, bool, string, string, int, int, []uuid.UUID, ...*sql.Tx) []model.ShipRow); ok {
-		r0 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipListing, ...*sql.Tx) []model.ShipRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.ShipRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, bool, string, string, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ShipListing, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, string, bool, string, string, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.ShipListing, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2091,75 +1935,33 @@ type MockShipRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - viewerID uuid.UUID
-//   - sort string
-//   - crackshipsOnly bool
-//   - series string
-//   - characterID string
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.ShipListing
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) List(ctx any, viewerID any, sort any, crackshipsOnly any, series any, characterID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockShipRepository_List_Call {
+func (_e *MockShipRepository_Expecter) List(ctx any, q any, tx ...any) *MockShipRepository_List_Call {
 	return &MockShipRepository_List_Call{Call: _e.mock.On("List",
-		append([]any{ctx, viewerID, sort, crackshipsOnly, series, characterID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockShipRepository_List_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_List_Call {
+func (_c *MockShipRepository_List_Call) Run(run func(ctx context.Context, q spec.ShipListing, tx ...*sql.Tx)) *MockShipRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ShipListing
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ShipListing)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 bool
-		if args[3] != nil {
-			arg3 = args[3].(bool)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 int
-		if args[6] != nil {
-			arg6 = args[6].(int)
-		}
-		var arg7 int
-		if args[7] != nil {
-			arg7 = args[7].(int)
-		}
-		var arg8 []uuid.UUID
-		if args[8] != nil {
-			arg8 = args[8].([]uuid.UUID)
-		}
-		var arg9 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 9 {
-			variadicArgs = args[9].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg9 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-			arg8,
-			arg9...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2170,18 +1972,18 @@ func (_c *MockShipRepository_List_Call) Return(shipRows []model.ShipRow, n int, 
 	return _c
 }
 
-func (_c *MockShipRepository_List_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, sort string, crackshipsOnly bool, series string, characterID string, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.ShipRow, int, error)) *MockShipRepository_List_Call {
+func (_c *MockShipRepository_List_Call) RunAndReturn(run func(ctx context.Context, q spec.ShipListing, tx ...*sql.Tx) ([]model.ShipRow, int, error)) *MockShipRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListByUser provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
+func (_mock *MockShipRepository) ListByUser(ctx context.Context, q spec.ShipUserListing, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2192,23 +1994,23 @@ func (_mock *MockShipRepository) ListByUser(ctx context.Context, userID uuid.UUI
 	var r0 []model.ShipRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]model.ShipRow, int, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipUserListing, ...*sql.Tx) ([]model.ShipRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []model.ShipRow); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipUserListing, ...*sql.Tx) []model.ShipRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.ShipRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ShipUserListing, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.ShipUserListing, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2222,51 +2024,33 @@ type MockShipRepository_ListByUser_Call struct {
 
 // ListByUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
+//   - q spec.ShipUserListing
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any, tx ...any) *MockShipRepository_ListByUser_Call {
+func (_e *MockShipRepository_Expecter) ListByUser(ctx any, q any, tx ...any) *MockShipRepository_ListByUser_Call {
 	return &MockShipRepository_ListByUser_Call{Call: _e.mock.On("ListByUser",
-		append([]any{ctx, userID, viewerID, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockShipRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockShipRepository_ListByUser_Call {
+func (_c *MockShipRepository_ListByUser_Call) Run(run func(ctx context.Context, q spec.ShipUserListing, tx ...*sql.Tx)) *MockShipRepository_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ShipUserListing
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ShipUserListing)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2277,18 +2061,18 @@ func (_c *MockShipRepository_ListByUser_Call) Return(shipRows []model.ShipRow, n
 	return _c
 }
 
-func (_c *MockShipRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.ShipRow, int, error)) *MockShipRepository_ListByUser_Call {
+func (_c *MockShipRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, q spec.ShipUserListing, tx ...*sql.Tx) ([]model.ShipRow, int, error)) *MockShipRepository_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnlikeComment provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2297,8 +2081,8 @@ func (_mock *MockShipRepository) UnlikeComment(ctx context.Context, userID uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2312,39 +2096,33 @@ type MockShipRepository_UnlikeComment_Call struct {
 
 // UnlikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockShipRepository_UnlikeComment_Call {
+func (_e *MockShipRepository_Expecter) UnlikeComment(ctx any, s any, tx ...any) *MockShipRepository_UnlikeComment_Call {
 	return &MockShipRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockShipRepository_UnlikeComment_Call {
+func (_c *MockShipRepository_UnlikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockShipRepository_UnlikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2355,18 +2133,18 @@ func (_c *MockShipRepository_UnlikeComment_Call) Return(err error) *MockShipRepo
 	return _c
 }
 
-func (_c *MockShipRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockShipRepository_UnlikeComment_Call {
+func (_c *MockShipRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockShipRepository_UnlikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateComment provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, body, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, body)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2375,8 +2153,8 @@ func (_mock *MockShipRepository) UpdateComment(ctx context.Context, id uuid.UUID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2390,45 +2168,33 @@ type MockShipRepository_UpdateComment_Call struct {
 
 // UpdateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - body string
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any, tx ...any) *MockShipRepository_UpdateComment_Call {
+func (_e *MockShipRepository_Expecter) UpdateComment(ctx any, s any, tx ...any) *MockShipRepository_UpdateComment_Call {
 	return &MockShipRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
-		append([]any{ctx, id, userID, body}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockShipRepository_UpdateComment_Call {
+func (_c *MockShipRepository_UpdateComment_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2439,96 +2205,18 @@ func (_c *MockShipRepository_UpdateComment_Call) Return(err error) *MockShipRepo
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error) *MockShipRepository_UpdateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentAsAdmin provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, body, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id, body)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, body, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockShipRepository_UpdateCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentAsAdmin'
-type MockShipRepository_UpdateCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - body string
-//   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any, tx ...any) *MockShipRepository_UpdateCommentAsAdmin_Call {
-	return &MockShipRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin",
-		append([]any{ctx, id, body}, tx...)...)}
-}
-
-func (_c *MockShipRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockShipRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockShipRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockShipRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockShipRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentBody provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateCommentBody(ctx context.Context, spec ShipCommentUpdate, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateCommentBody(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, update, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, update)
 	}
 	ret := tmpRet
 
@@ -2537,8 +2225,8 @@ func (_mock *MockShipRepository) UpdateCommentBody(ctx context.Context, spec Shi
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipCommentUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, update, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2552,22 +2240,22 @@ type MockShipRepository_UpdateCommentBody_Call struct {
 
 // UpdateCommentBody is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ShipCommentUpdate
+//   - update spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateCommentBody(ctx any, spec any, tx ...any) *MockShipRepository_UpdateCommentBody_Call {
+func (_e *MockShipRepository_Expecter) UpdateCommentBody(ctx any, update any, tx ...any) *MockShipRepository_UpdateCommentBody_Call {
 	return &MockShipRepository_UpdateCommentBody_Call{Call: _e.mock.On("UpdateCommentBody",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, update}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateCommentBody_Call) Run(run func(ctx context.Context, spec ShipCommentUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentBody_Call {
+func (_c *MockShipRepository_UpdateCommentBody_Call) Run(run func(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentBody_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ShipCommentUpdate
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(ShipCommentUpdate)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -2589,18 +2277,18 @@ func (_c *MockShipRepository_UpdateCommentBody_Call) Return(err error) *MockShip
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateCommentBody_Call) RunAndReturn(run func(ctx context.Context, spec ShipCommentUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentBody_Call {
+func (_c *MockShipRepository_UpdateCommentBody_Call) RunAndReturn(run func(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentBody_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaThumbnail provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2609,8 +2297,8 @@ func (_mock *MockShipRepository) UpdateCommentMediaThumbnail(ctx context.Context
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2624,39 +2312,33 @@ type MockShipRepository_UpdateCommentMediaThumbnail_Call struct {
 
 // UpdateCommentMediaThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockShipRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, s any, tx ...any) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockShipRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
-		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockShipRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2667,18 +2349,18 @@ func (_c *MockShipRepository_UpdateCommentMediaThumbnail_Call) Return(err error)
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockShipRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaURL provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, mediaURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2687,8 +2369,8 @@ func (_mock *MockShipRepository) UpdateCommentMediaURL(ctx context.Context, id i
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2702,39 +2384,33 @@ type MockShipRepository_UpdateCommentMediaURL_Call struct {
 
 // UpdateCommentMediaURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - mediaURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockShipRepository_UpdateCommentMediaURL_Call {
+func (_e *MockShipRepository_Expecter) UpdateCommentMediaURL(ctx any, s any, tx ...any) *MockShipRepository_UpdateCommentMediaURL_Call {
 	return &MockShipRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
-		append([]any{ctx, id, mediaURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentMediaURL_Call {
+func (_c *MockShipRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2745,18 +2421,18 @@ func (_c *MockShipRepository_UpdateCommentMediaURL_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentMediaURL_Call {
+func (_c *MockShipRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateDetails provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateDetails(ctx context.Context, spec ShipDetailsUpdate, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2765,8 +2441,8 @@ func (_mock *MockShipRepository) UpdateDetails(ctx context.Context, spec ShipDet
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipDetailsUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipDetailsUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2780,22 +2456,22 @@ type MockShipRepository_UpdateDetails_Call struct {
 
 // UpdateDetails is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ShipDetailsUpdate
+//   - s spec.ShipDetailsUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateDetails(ctx any, spec any, tx ...any) *MockShipRepository_UpdateDetails_Call {
+func (_e *MockShipRepository_Expecter) UpdateDetails(ctx any, s any, tx ...any) *MockShipRepository_UpdateDetails_Call {
 	return &MockShipRepository_UpdateDetails_Call{Call: _e.mock.On("UpdateDetails",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateDetails_Call) Run(run func(ctx context.Context, spec ShipDetailsUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateDetails_Call {
+func (_c *MockShipRepository_UpdateDetails_Call) Run(run func(ctx context.Context, s spec.ShipDetailsUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ShipDetailsUpdate
+		var arg1 spec.ShipDetailsUpdate
 		if args[1] != nil {
-			arg1 = args[1].(ShipDetailsUpdate)
+			arg1 = args[1].(spec.ShipDetailsUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -2817,18 +2493,18 @@ func (_c *MockShipRepository_UpdateDetails_Call) Return(err error) *MockShipRepo
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateDetails_Call) RunAndReturn(run func(ctx context.Context, spec ShipDetailsUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateDetails_Call {
+func (_c *MockShipRepository_UpdateDetails_Call) RunAndReturn(run func(ctx context.Context, s spec.ShipDetailsUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateImage provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateImage(ctx context.Context, s spec.ShipImageUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, imageURL, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, imageURL, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2837,8 +2513,8 @@ func (_mock *MockShipRepository) UpdateImage(ctx context.Context, id uuid.UUID, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, imageURL, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipImageUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2852,45 +2528,33 @@ type MockShipRepository_UpdateImage_Call struct {
 
 // UpdateImage is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - imageURL string
-//   - thumbnailURL string
+//   - s spec.ShipImageUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateImage(ctx any, id any, imageURL any, thumbnailURL any, tx ...any) *MockShipRepository_UpdateImage_Call {
+func (_e *MockShipRepository_Expecter) UpdateImage(ctx any, s any, tx ...any) *MockShipRepository_UpdateImage_Call {
 	return &MockShipRepository_UpdateImage_Call{Call: _e.mock.On("UpdateImage",
-		append([]any{ctx, id, imageURL, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateImage_Call) Run(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx)) *MockShipRepository_UpdateImage_Call {
+func (_c *MockShipRepository_UpdateImage_Call) Run(run func(ctx context.Context, s spec.ShipImageUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ShipImageUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ShipImageUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2901,18 +2565,18 @@ func (_c *MockShipRepository_UpdateImage_Call) Return(err error) *MockShipReposi
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateImage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error) *MockShipRepository_UpdateImage_Call {
+func (_c *MockShipRepository_UpdateImage_Call) RunAndReturn(run func(ctx context.Context, s spec.ShipImageUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateWithCharacters provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) UpdateWithCharacters(ctx context.Context, spec ShipUpdate, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) UpdateWithCharacters(ctx context.Context, update spec.ShipUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, update, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, update)
 	}
 	ret := tmpRet
 
@@ -2921,8 +2585,8 @@ func (_mock *MockShipRepository) UpdateWithCharacters(ctx context.Context, spec 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ShipUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ShipUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, update, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2936,22 +2600,22 @@ type MockShipRepository_UpdateWithCharacters_Call struct {
 
 // UpdateWithCharacters is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ShipUpdate
+//   - update spec.ShipUpdate
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) UpdateWithCharacters(ctx any, spec any, tx ...any) *MockShipRepository_UpdateWithCharacters_Call {
+func (_e *MockShipRepository_Expecter) UpdateWithCharacters(ctx any, update any, tx ...any) *MockShipRepository_UpdateWithCharacters_Call {
 	return &MockShipRepository_UpdateWithCharacters_Call{Call: _e.mock.On("UpdateWithCharacters",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, update}, tx...)...)}
 }
 
-func (_c *MockShipRepository_UpdateWithCharacters_Call) Run(run func(ctx context.Context, spec ShipUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateWithCharacters_Call {
+func (_c *MockShipRepository_UpdateWithCharacters_Call) Run(run func(ctx context.Context, update spec.ShipUpdate, tx ...*sql.Tx)) *MockShipRepository_UpdateWithCharacters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ShipUpdate
+		var arg1 spec.ShipUpdate
 		if args[1] != nil {
-			arg1 = args[1].(ShipUpdate)
+			arg1 = args[1].(spec.ShipUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -2973,18 +2637,18 @@ func (_c *MockShipRepository_UpdateWithCharacters_Call) Return(err error) *MockS
 	return _c
 }
 
-func (_c *MockShipRepository_UpdateWithCharacters_Call) RunAndReturn(run func(ctx context.Context, spec ShipUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateWithCharacters_Call {
+func (_c *MockShipRepository_UpdateWithCharacters_Call) RunAndReturn(run func(ctx context.Context, update spec.ShipUpdate, tx ...*sql.Tx) error) *MockShipRepository_UpdateWithCharacters_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Vote provides a mock function for the type MockShipRepository
-func (_mock *MockShipRepository) Vote(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx) error {
+func (_mock *MockShipRepository) Vote(ctx context.Context, s spec.Vote, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, shipID, value, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, shipID, value)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2993,8 +2657,8 @@ func (_mock *MockShipRepository) Vote(ctx context.Context, userID uuid.UUID, shi
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, shipID, value, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.Vote, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3008,45 +2672,33 @@ type MockShipRepository_Vote_Call struct {
 
 // Vote is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - shipID uuid.UUID
-//   - value int
+//   - s spec.Vote
 //   - tx ...*sql.Tx
-func (_e *MockShipRepository_Expecter) Vote(ctx any, userID any, shipID any, value any, tx ...any) *MockShipRepository_Vote_Call {
+func (_e *MockShipRepository_Expecter) Vote(ctx any, s any, tx ...any) *MockShipRepository_Vote_Call {
 	return &MockShipRepository_Vote_Call{Call: _e.mock.On("Vote",
-		append([]any{ctx, userID, shipID, value}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockShipRepository_Vote_Call) Run(run func(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx)) *MockShipRepository_Vote_Call {
+func (_c *MockShipRepository_Vote_Call) Run(run func(ctx context.Context, s spec.Vote, tx ...*sql.Tx)) *MockShipRepository_Vote_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.Vote
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.Vote)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3057,7 +2709,7 @@ func (_c *MockShipRepository_Vote_Call) Return(err error) *MockShipRepository_Vo
 	return _c
 }
 
-func (_c *MockShipRepository_Vote_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, shipID uuid.UUID, value int, tx ...*sql.Tx) error) *MockShipRepository_Vote_Call {
+func (_c *MockShipRepository_Vote_Call) RunAndReturn(run func(ctx context.Context, s spec.Vote, tx ...*sql.Tx) error) *MockShipRepository_Vote_Call {
 	_c.Call.Return(run)
 	return _c
 }

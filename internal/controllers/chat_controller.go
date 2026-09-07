@@ -11,7 +11,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/upload"
 
 	"github.com/gofiber/fiber/v3"
@@ -970,8 +970,8 @@ func (s *Service) listRoomAttachments(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	kind := repository.AttachmentKind(ctx.Query("kind"))
-	if kind != repository.AttachmentKindMedia && kind != repository.AttachmentKindLinks {
+	kind := model.AttachmentKind(ctx.Query("kind"))
+	if kind != model.AttachmentKindMedia && kind != model.AttachmentKindLinks {
 		return utils.BadRequest(ctx, "unknown attachment kind")
 	}
 

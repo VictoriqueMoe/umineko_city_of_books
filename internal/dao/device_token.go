@@ -4,24 +4,31 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
-
-	"umineko_city_of_books/internal/repository"
 )
 
 type (
+	DeviceTokenDAO interface {
+		Upsert(ctx context.Context, s spec.NewDeviceToken, tx ...*sql.Tx) error
+		RegistrationsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.DeviceRegistration, error)
+		Delete(ctx context.Context, s spec.DeviceTokenDeletion, tx ...*sql.Tx) error
+		DeleteMany(ctx context.Context, s spec.DeviceTokenBulkDeletion, tx ...*sql.Tx) error
+	}
+
 	deviceTokenDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *deviceTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token, platform string, tx ...*sql.Tx) error {
+func (r *deviceTokenDAO) Upsert(ctx context.Context, s spec.NewDeviceToken, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO device_tokens (token, user_id, platform, last_seen)
 		 VALUES ($1, $2, $3, NOW())
 		 ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, last_seen = NOW()`,
-		token, userID, platform,
+		s.Token, s.UserID, s.Platform,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert device token: %w", err)
@@ -29,7 +36,7 @@ func (r *deviceTokenDAO) Upsert(ctx context.Context, userID uuid.UUID, token, pl
 	return nil
 }
 
-func (r *deviceTokenDAO) RegistrationsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.DeviceRegistration, error) {
+func (r *deviceTokenDAO) RegistrationsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.DeviceRegistration, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT token, platform FROM device_tokens WHERE user_id = $1`, userID,
 	)
@@ -38,9 +45,9 @@ func (r *deviceTokenDAO) RegistrationsForUser(ctx context.Context, userID uuid.U
 	}
 	defer func() { _ = rows.Close() }()
 
-	var registrations []repository.DeviceRegistration
+	var registrations []model.DeviceRegistration
 	for rows.Next() {
-		var reg repository.DeviceRegistration
+		var reg model.DeviceRegistration
 		if err := rows.Scan(&reg.Token, &reg.Platform); err != nil {
 			return nil, fmt.Errorf("scan device token: %w", err)
 		}
@@ -53,17 +60,17 @@ func (r *deviceTokenDAO) RegistrationsForUser(ctx context.Context, userID uuid.U
 	return registrations, nil
 }
 
-func (r *deviceTokenDAO) Delete(ctx context.Context, userID uuid.UUID, token string, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, token, userID)
+func (r *deviceTokenDAO) Delete(ctx context.Context, s spec.DeviceTokenDeletion, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, s.Token, s.UserID)
 	if err != nil {
 		return fmt.Errorf("delete device token: %w", err)
 	}
 	return nil
 }
 
-func (r *deviceTokenDAO) DeleteMany(ctx context.Context, userID uuid.UUID, tokens []string, tx ...*sql.Tx) error {
-	for _, token := range tokens {
-		if err := r.Delete(ctx, userID, token, tx...); err != nil {
+func (r *deviceTokenDAO) DeleteMany(ctx context.Context, s spec.DeviceTokenBulkDeletion, tx ...*sql.Tx) error {
+	for _, token := range s.Tokens {
+		if err := r.Delete(ctx, spec.DeviceTokenDeletion{UserID: s.UserID, Token: token}, tx...); err != nil {
 			return err
 		}
 	}

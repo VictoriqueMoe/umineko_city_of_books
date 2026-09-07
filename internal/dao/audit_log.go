@@ -7,47 +7,57 @@ import (
 
 	"github.com/google/uuid"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	AuditLogDAO interface {
+		Create(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error
+		CreateSystem(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error
+		List(ctx context.Context, s spec.AuditLogListing, tx ...*sql.Tx) ([]audit.Entry, int, error)
+		ListForUser(ctx context.Context, s spec.AuditLogUserListing, tx ...*sql.Tx) ([]audit.Entry, int, error)
+	}
+
 	auditLogDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *auditLogDAO) Create(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) error {
-	if err := r.insert(ctx, spec.ActorID, spec, tx); err != nil {
+func (r *auditLogDAO) Create(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error {
+	if err := r.insert(ctx, entry.ActorID, entry, tx); err != nil {
 		return fmt.Errorf("create audit log: %w", err)
 	}
+
 	return nil
 }
 
-func (r *auditLogDAO) CreateSystem(ctx context.Context, spec repository.NewAuditEntry, tx ...*sql.Tx) error {
-	if err := r.insert(ctx, nil, spec, tx); err != nil {
+func (r *auditLogDAO) CreateSystem(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error {
+	if err := r.insert(ctx, nil, entry, tx); err != nil {
 		return fmt.Errorf("create system audit log: %w", err)
 	}
+
 	return nil
 }
 
-func (r *auditLogDAO) insert(ctx context.Context, actorID any, spec repository.NewAuditEntry, tx []*sql.Tx) error {
+func (r *auditLogDAO) insert(ctx context.Context, actorID any, entry audit.NewEntry, tx []*sql.Tx) error {
 	var subjectID any
-	if spec.SubjectID != uuid.Nil {
-		subjectID = spec.SubjectID
+	if entry.SubjectID != uuid.Nil {
+		subjectID = entry.SubjectID
 	}
 
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO audit_log (actor_id, action, target_type, target_id, details, subject_id) VALUES ($1, $2, $3, $4, $5, $6)`,
-		actorID, spec.Action, spec.TargetType, spec.TargetID, spec.Details, subjectID,
+		actorID, entry.Action, entry.TargetType, entry.TargetID, entry.Details, subjectID,
 	)
 
 	return err
 }
 
-func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
-	const scope = `((a.target_type = '` + string(repository.AuditTargetUser) + `' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
+func (r *auditLogDAO) ListForUser(ctx context.Context, s spec.AuditLogUserListing, tx ...*sql.Tx) ([]audit.Entry, int, error) {
+	const scope = `((a.target_type = '` + string(audit.TargetUser) + `' AND a.target_id = $1) OR a.subject_id = $1::uuid)`
 
-	id := userID.String()
+	id := s.UserID.String()
 
 	var total int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
@@ -65,7 +75,7 @@ func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, 
 		 WHERE `+scope+`
 		 ORDER BY a.created_at DESC
 		 LIMIT $2 OFFSET $3`,
-		id, limit, offset,
+		id, s.Page.Limit(), s.Page.Offset(),
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list audit log for user: %w", err)
@@ -76,13 +86,14 @@ func (r *auditLogDAO) ListForUser(ctx context.Context, userID uuid.UUID, limit, 
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return entries, total, rows.Err()
 }
 
-func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
-	var entries []repository.AuditLogEntry
+func scanAuditLogRows(rows *sql.Rows) ([]audit.Entry, error) {
+	var entries []audit.Entry
 	for rows.Next() {
-		var e repository.AuditLogEntry
+		var e audit.Entry
 		var actorID *uuid.UUID
 		if err := rows.Scan(&e.ID, &actorID, &e.ActorName, &e.Action, &e.TargetType, &e.TargetID, &e.Details, &e.CreatedAt, &e.SubjectID, &e.SubjectName, &e.SubjectUsername); err != nil {
 			return nil, fmt.Errorf("scan audit log: %w", err)
@@ -92,15 +103,16 @@ func scanAuditLogRows(rows *sql.Rows) ([]repository.AuditLogEntry, error) {
 		}
 		entries = append(entries, e)
 	}
+
 	return entries, nil
 }
 
-func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, limit, offset int, tx ...*sql.Tx) ([]repository.AuditLogEntry, int, error) {
+func (r *auditLogDAO) List(ctx context.Context, s spec.AuditLogListing, tx ...*sql.Tx) ([]audit.Entry, int, error) {
 	where := ""
 	var args []any
-	if action != "" {
+	if s.Action != "" {
 		where = " WHERE a.action = $1"
-		args = append(args, action)
+		args = append(args, s.Action)
 	}
 
 	var total int
@@ -115,7 +127,8 @@ func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, l
 
 	limitPlaceholder := fmt.Sprintf("$%d", len(args)+1)
 	offsetPlaceholder := fmt.Sprintf("$%d", len(args)+2)
-	args = append(args, limit, offset)
+	args = append(args, s.Page.Limit(), s.Page.Offset())
+
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.actor_id, COALESCE(u.display_name, ''), a.action, a.target_type, a.target_id, a.details, a.created_at, a.subject_id, COALESCE(s.display_name, ''), COALESCE(s.username, '')
 		 FROM audit_log a
@@ -133,5 +146,6 @@ func (r *auditLogDAO) List(ctx context.Context, action repository.AuditAction, l
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return entries, total, rows.Err()
 }

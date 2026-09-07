@@ -7,6 +7,8 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
@@ -60,7 +62,7 @@ func (s *service) Follow(ctx context.Context, followerID uuid.UUID, followingID 
 		return block.ErrUserBlocked
 	}
 
-	if err := s.followRepo.Follow(ctx, followerID, followingID); err != nil {
+	if err := s.followRepo.Follow(ctx, spec.FollowSpec{FollowerID: followerID, FollowingID: followingID}); err != nil {
 		return fmt.Errorf("follow: %w", err)
 	}
 
@@ -85,11 +87,11 @@ func (s *service) Follow(ctx context.Context, followerID uuid.UUID, followingID 
 }
 
 func (s *service) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) error {
-	return s.followRepo.Unfollow(ctx, followerID, followingID)
+	return s.followRepo.Unfollow(ctx, spec.FollowSpec{FollowerID: followerID, FollowingID: followingID})
 }
 
 func (s *service) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID) (bool, error) {
-	return s.followRepo.IsFollowing(ctx, followerID, followingID)
+	return s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: followerID, FollowingID: followingID})
 }
 
 func (s *service) GetFollowStats(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID) (*dto.FollowStatsResponse, error) {
@@ -106,8 +108,8 @@ func (s *service) GetFollowStats(ctx context.Context, userID uuid.UUID, viewerID
 	isFollowing := false
 	followsYou := false
 	if viewerID != uuid.Nil && viewerID != userID {
-		isFollowing, _ = s.followRepo.IsFollowing(ctx, viewerID, userID)
-		followsYou, _ = s.followRepo.IsFollowing(ctx, userID, viewerID)
+		isFollowing, _ = s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: viewerID, FollowingID: userID})
+		followsYou, _ = s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: userID, FollowingID: viewerID})
 	}
 
 	return &dto.FollowStatsResponse{
@@ -118,7 +120,7 @@ func (s *service) GetFollowStats(ctx context.Context, userID uuid.UUID, viewerID
 	}, nil
 }
 
-func followUsersToDTO(users []repository.FollowUser) []dto.UserResponse {
+func followUsersToDTO(users []model.FollowUser) []dto.UserResponse {
 	result := make([]dto.UserResponse, len(users))
 	for i, u := range users {
 		result[i] = dto.UserResponse{
@@ -133,7 +135,7 @@ func followUsersToDTO(users []repository.FollowUser) []dto.UserResponse {
 }
 
 func (s *service) GetFollowers(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error) {
-	users, total, err := s.followRepo.GetFollowers(ctx, userID, page.Limit(), page.Offset())
+	users, total, err := s.followRepo.GetFollowers(ctx, spec.FollowListSpec{UserID: userID, Limit: page.Limit(), Offset: page.Offset()})
 	if err != nil {
 		return nil, 0, err
 	}
@@ -141,7 +143,7 @@ func (s *service) GetFollowers(ctx context.Context, userID uuid.UUID, page bound
 }
 
 func (s *service) GetFollowing(ctx context.Context, userID uuid.UUID, page bounds.Page) ([]dto.UserResponse, int, error) {
-	users, total, err := s.followRepo.GetFollowing(ctx, userID, page.Limit(), page.Offset())
+	users, total, err := s.followRepo.GetFollowing(ctx, spec.FollowListSpec{UserID: userID, Limit: page.Limit(), Offset: page.Offset()})
 	if err != nil {
 		return nil, 0, err
 	}

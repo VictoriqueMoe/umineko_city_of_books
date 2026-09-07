@@ -4,8 +4,9 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func TestInviteDAO_CreateAndGetByCode(t *testing.T) {
 	code := "invite-" + uuid.NewString()[:8]
 
 	// when
-	err := repos.Invite.Create(context.Background(), code, user.ID)
+	err := repos.Invite.Create(context.Background(), spec.NewInvite{Code: code, CreatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -50,10 +51,10 @@ func TestInviteDAO_Create_DuplicateCodeFails(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	code := "dup-" + uuid.NewString()[:8]
-	require.NoError(t, repos.Invite.Create(context.Background(), code, user.ID))
+	require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: code, CreatedBy: user.ID}))
 
 	// when
-	err := repos.Invite.Create(context.Background(), code, user.ID)
+	err := repos.Invite.Create(context.Background(), spec.NewInvite{Code: code, CreatedBy: user.ID})
 
 	// then
 	require.Error(t, err)
@@ -65,10 +66,10 @@ func TestInviteDAO_MarkUsed(t *testing.T) {
 	creator := daotest.CreateUser(t, repos)
 	consumer := daotest.CreateUser(t, repos)
 	code := "use-" + uuid.NewString()[:8]
-	require.NoError(t, repos.Invite.Create(context.Background(), code, creator.ID))
+	require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: code, CreatedBy: creator.ID}))
 
 	// when
-	err := repos.Invite.MarkUsed(context.Background(), code, consumer.ID)
+	err := repos.Invite.MarkUsed(context.Background(), spec.InviteRedemption{Code: code, UsedBy: consumer.ID})
 
 	// then
 	require.NoError(t, err)
@@ -87,10 +88,10 @@ func TestInviteDAO_MarkUsed_UnknownCodeIsRejected(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Invite.MarkUsed(context.Background(), "no-such-code", user.ID)
+	err := repos.Invite.MarkUsed(context.Background(), spec.InviteRedemption{Code: "no-such-code", UsedBy: user.ID})
 
 	// then a code that cannot be claimed must never look like a success
-	require.ErrorIs(t, err, repository.ErrInviteUnavailable)
+	require.ErrorIs(t, err, dao.ErrInviteUnavailable)
 }
 
 func TestInviteDAO_MarkUsed_SecondClaimOfTheSameCodeIsRejected(t *testing.T) {
@@ -101,14 +102,14 @@ func TestInviteDAO_MarkUsed_SecondClaimOfTheSameCodeIsRejected(t *testing.T) {
 	second := daotest.CreateUser(t, repos)
 
 	code := "single-use-code"
-	require.NoError(t, repos.Invite.Create(context.Background(), code, owner.ID))
-	require.NoError(t, repos.Invite.MarkUsed(context.Background(), code, first.ID))
+	require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: code, CreatedBy: owner.ID}))
+	require.NoError(t, repos.Invite.MarkUsed(context.Background(), spec.InviteRedemption{Code: code, UsedBy: first.ID}))
 
 	// when a second member races for the same code
-	err := repos.Invite.MarkUsed(context.Background(), code, second.ID)
+	err := repos.Invite.MarkUsed(context.Background(), spec.InviteRedemption{Code: code, UsedBy: second.ID})
 
 	// then the claim is refused and the original redeemer is preserved
-	require.ErrorIs(t, err, repository.ErrInviteUnavailable)
+	require.ErrorIs(t, err, dao.ErrInviteUnavailable)
 
 	invite, getErr := repos.Invite.GetByCode(context.Background(), code)
 	require.NoError(t, getErr)
@@ -122,11 +123,11 @@ func TestInviteDAO_List(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	codes := []string{"a-" + uuid.NewString()[:6], "b-" + uuid.NewString()[:6], "c-" + uuid.NewString()[:6]}
 	for _, c := range codes {
-		require.NoError(t, repos.Invite.Create(context.Background(), c, user.ID))
+		require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: c, CreatedBy: user.ID}))
 	}
 
 	// when
-	invites, total, err := repos.Invite.List(context.Background(), 10, 0)
+	invites, total, err := repos.Invite.List(context.Background(), spec.InviteListQuery{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -139,13 +140,13 @@ func TestInviteDAO_List_Pagination(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	for range 5 {
-		require.NoError(t, repos.Invite.Create(context.Background(), uuid.NewString(), user.ID))
+		require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: uuid.NewString(), CreatedBy: user.ID}))
 	}
 
 	// when
-	page1, total, err := repos.Invite.List(context.Background(), 2, 0)
+	page1, total, err := repos.Invite.List(context.Background(), spec.InviteListQuery{Limit: 2, Offset: 0})
 	require.NoError(t, err)
-	page2, _, err := repos.Invite.List(context.Background(), 2, 2)
+	page2, _, err := repos.Invite.List(context.Background(), spec.InviteListQuery{Limit: 2, Offset: 2})
 	require.NoError(t, err)
 
 	// then
@@ -160,7 +161,7 @@ func TestInviteDAO_List_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	invites, total, err := repos.Invite.List(context.Background(), 10, 0)
+	invites, total, err := repos.Invite.List(context.Background(), spec.InviteListQuery{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -173,7 +174,7 @@ func TestInviteDAO_Delete(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	code := "del-" + uuid.NewString()[:8]
-	require.NoError(t, repos.Invite.Create(context.Background(), code, user.ID))
+	require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: code, CreatedBy: user.ID}))
 
 	// when
 	err := repos.Invite.Delete(context.Background(), code)

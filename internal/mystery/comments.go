@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/mention"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -101,7 +103,7 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 	if !s.authz.Can(ctx, userID, authz.PermEditAnyComment) {
-		return s.mysteryRepo.UpdateComment(ctx, id, userID, body)
+		return s.mysteryRepo.UpdateComment(ctx, spec.CommentUpdate{CommentID: id, UserID: userID, Body: body})
 	}
 
 	authorID, err := s.mysteryRepo.GetCommentAuthorID(ctx, id)
@@ -109,15 +111,15 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrNotFound
 	}
 
-	if err := s.mysteryRepo.UpdateCommentAsAdmin(ctx, id, body); err != nil {
+	if err := s.mysteryRepo.UpdateComment(ctx, spec.CommentUpdate{CommentID: id, UserID: userID, Body: body, AsAdmin: true}); err != nil {
 		return err
 	}
 
 	if authorID != userID {
-		s.audit(ctx, repository.NewAuditEntry{
+		s.audit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionMysteryCommentUpdateAdmin,
-			TargetType: repository.AuditTargetMysteryComment,
+			Action:     audit.ActionMysteryCommentUpdateAdmin,
+			TargetType: audit.TargetMysteryComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		})
@@ -129,10 +131,10 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	isAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
 
-	paths, err := s.mysteryRepo.DeleteCommentWithAudit(ctx, repository.MysteryCommentDelete{
-		ID:      id,
-		UserID:  userID,
-		AsAdmin: isAdmin,
+	paths, err := s.mysteryRepo.DeleteCommentWithAudit(ctx, spec.CommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   isAdmin,
 	})
 	if err != nil {
 		return err
@@ -151,11 +153,11 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return block.ErrUserBlocked
 	}
-	return s.mysteryRepo.LikeComment(ctx, userID, commentID)
+	return s.mysteryRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.mysteryRepo.UnlikeComment(ctx, userID, commentID)
+	return s.mysteryRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UploadCommentMedia(
@@ -181,8 +183,8 @@ func (s *service) UploadCommentMedia(
 
 	resp, err := s.uploader.SaveAndRecord(ctx, "mysteries", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, _, filename string, _ int) (int64, error) {
-			return s.mysteryRepo.AddCommentMedia(ctx, repository.NewMysteryCommentMedia{
-				CommentID: commentID,
+			return s.mysteryRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:  commentID,
 				MediaURL:  mediaURL,
 				MediaType: mediaType,
 				Filename:  filename,
@@ -200,7 +202,7 @@ func (s *service) UploadCommentMedia(
 	return resp, nil
 }
 
-func mysteryCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.MysteryCommentResponse {
+func mysteryCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.MysteryCommentResponse {
 	mediaList := model.MediaRowsToResponse(media)
 	return dto.MysteryCommentResponse{
 		ID:       c.ID,

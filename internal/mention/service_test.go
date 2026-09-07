@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -27,7 +29,7 @@ type serviceMocks struct {
 	userRepo     *repository.MockUserRepository
 	blockSvc     *block.MockService
 	notifSvc     *notification.MockService
-	shipComments *repository.MockCommentDAO[uuid.UUID]
+	shipComments *dao.MockCommentDAO[uuid.UUID]
 }
 
 var (
@@ -46,11 +48,11 @@ func newTestService(t *testing.T) (Service, serviceMocks) {
 		userRepo:     repository.NewMockUserRepository(t),
 		blockSvc:     block.NewMockService(t),
 		notifSvc:     notification.NewMockService(t),
-		shipComments: repository.NewMockCommentDAO[uuid.UUID](t),
+		shipComments: dao.NewMockCommentDAO[uuid.UUID](t),
 	}
 
-	comments := repository.CommentDAOs{
-		ByID: map[string]repository.CommentDAO[uuid.UUID]{string(KindShipComment): m.shipComments},
+	comments := dao.CommentDAOs{
+		ByID: map[string]dao.CommentDAO[uuid.UUID]{string(KindShipComment): m.shipComments},
 	}
 
 	return NewService(m.userRepo, m.blockSvc, m.notifSvc, comments), m
@@ -284,25 +286,30 @@ func TestServiceCreateComment(t *testing.T) {
 					})
 			}
 
-			spec := CommentSpec{
+			cs := CommentSpec{
 				Kind:     KindShipComment,
 				EntityID: testEntityID,
 				AuthorID: testActorID,
 				Body:     "nice one @alice",
 			}
 
-			var row *repository.CommentRow
+			var row *model.CommentRow
 			if tt.createErr == nil {
-				row = &repository.CommentRow{ID: tt.createID}
+				row = &model.CommentRow{ID: tt.createID}
 			}
 
 			m.shipComments.EXPECT().
-				CreateComment(mock.Anything, testEntityID, (*uuid.UUID)(nil), testActorID, "nice one @alice").
+				CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{
+					TargetID: testEntityID,
+					ParentID: nil,
+					UserID:   testActorID,
+					Body:     "nice one @alice",
+				}).
 				Return(row, tt.createErr).
 				Once()
 
 			// when
-			got, err := svc.CreateComment(t.Context(), spec)
+			got, err := svc.CreateComment(t.Context(), cs)
 
 			// then
 			assert.Equal(t, tt.wantID, got)
@@ -397,24 +404,24 @@ func TestFanOutBudgetScalesWithRecipientCount(t *testing.T) {
 }
 
 func TestValidateCommentDAOs(t *testing.T) {
-	complete := func(t *testing.T) repository.CommentDAOs {
+	complete := func(t *testing.T) dao.CommentDAOs {
 		t.Helper()
 
-		byID := make(map[string]repository.CommentDAO[uuid.UUID])
+		byID := make(map[string]dao.CommentDAO[uuid.UUID])
 		for _, kind := range []Kind{KindPostComment, KindArtComment, KindShipComment, KindOCComment, KindMysteryComment, KindFanficComment, KindAnnouncementComment} {
-			byID[string(kind)] = repository.NewMockCommentDAO[uuid.UUID](t)
+			byID[string(kind)] = dao.NewMockCommentDAO[uuid.UUID](t)
 		}
 
-		return repository.CommentDAOs{
+		return dao.CommentDAOs{
 			ByID:    byID,
-			BySlug:  map[string]repository.CommentDAO[string]{string(KindSecretComment): repository.NewMockCommentDAO[string](t)},
-			Journal: repository.NewMockJournalCommentWriter(t),
+			BySlug:  map[string]dao.CommentDAO[string]{string(KindSecretComment): dao.NewMockCommentDAO[string](t)},
+			Journal: dao.NewMockJournalCommentWriter(t),
 		}
 	}
 
 	tests := []struct {
 		name    string
-		drop    func(c *repository.CommentDAOs)
+		drop    func(c *dao.CommentDAOs)
 		wantErr bool
 	}{
 		{
@@ -422,17 +429,17 @@ func TestValidateCommentDAOs(t *testing.T) {
 		},
 		{
 			name:    "a missing entity dao is reported",
-			drop:    func(c *repository.CommentDAOs) { delete(c.ByID, string(KindOCComment)) },
+			drop:    func(c *dao.CommentDAOs) { delete(c.ByID, string(KindOCComment)) },
 			wantErr: true,
 		},
 		{
 			name:    "a missing journal dao is reported",
-			drop:    func(c *repository.CommentDAOs) { c.Journal = nil },
+			drop:    func(c *dao.CommentDAOs) { c.Journal = nil },
 			wantErr: true,
 		},
 		{
 			name:    "a missing secret dao is reported",
-			drop:    func(c *repository.CommentDAOs) { delete(c.BySlug, string(KindSecretComment)) },
+			drop:    func(c *dao.CommentDAOs) { delete(c.BySlug, string(KindSecretComment)) },
 			wantErr: true,
 		},
 	}

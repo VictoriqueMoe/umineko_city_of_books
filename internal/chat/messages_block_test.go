@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/livekit/protocol/auth"
@@ -20,14 +21,14 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		room    *repository.ChatRoomSendContext
+		room    *model.ChatRoomSendContext
 		members []uuid.UUID
 		setup   func(m *testMocks)
 		wantErr error
 	}{
 		{
 			name:    "dm rejects when either side has blocked",
-			room:    &repository.ChatRoomSendContext{Type: "dm"},
+			room:    &model.ChatRoomSendContext{Type: "dm"},
 			members: []uuid.UUID{senderID, viewerID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, viewerID).Return(true, nil)
@@ -36,7 +37,7 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 		},
 		{
 			name:    "dm allows when neither side has blocked",
-			room:    &repository.ChatRoomSendContext{Type: "dm"},
+			room:    &model.ChatRoomSendContext{Type: "dm"},
 			members: []uuid.UUID{senderID, viewerID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, viewerID).Return(false, nil)
@@ -44,7 +45,7 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 		},
 		{
 			name: "live stream rejects when the streamer has blocked the sender",
-			room: &repository.ChatRoomSendContext{
+			room: &model.ChatRoomSendContext{
 				Type: "group", IsSystem: true, SystemKind: SystemKindLiveStream, CreatedBy: hostID,
 			},
 			members: []uuid.UUID{senderID, hostID, viewerID},
@@ -55,7 +56,7 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 		},
 		{
 			name: "live stream allows when the sender has blocked another viewer",
-			room: &repository.ChatRoomSendContext{
+			room: &model.ChatRoomSendContext{
 				Type: "group", IsSystem: true, SystemKind: SystemKindLiveStream, CreatedBy: hostID,
 			},
 			members: []uuid.UUID{senderID, hostID, viewerID},
@@ -65,12 +66,12 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 		},
 		{
 			name:    "live stream allows the streamer to post in their own room",
-			room:    &repository.ChatRoomSendContext{Type: "group", IsSystem: true, SystemKind: SystemKindLiveStream, CreatedBy: senderID},
+			room:    &model.ChatRoomSendContext{Type: "group", IsSystem: true, SystemKind: SystemKindLiveStream, CreatedBy: senderID},
 			members: []uuid.UUID{senderID, viewerID},
 		},
 		{
 			name:    "group room rejects when the host has blocked the sender",
-			room:    &repository.ChatRoomSendContext{Type: "group", CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: "group", CreatedBy: hostID},
 			members: []uuid.UUID{senderID, hostID, viewerID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlocked(mock.Anything, hostID, senderID).Return(true, nil)
@@ -79,7 +80,7 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 		},
 		{
 			name:    "group room allows when the host has not blocked the sender",
-			room:    &repository.ChatRoomSendContext{Type: "group", CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: "group", CreatedBy: hostID},
 			members: []uuid.UUID{senderID, hostID, viewerID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlocked(mock.Anything, hostID, senderID).Return(false, nil)
@@ -87,12 +88,12 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 		},
 		{
 			name:    "mods room ignores the seed creator's block list",
-			room:    &repository.ChatRoomSendContext{Type: "group", IsSystem: true, SystemKind: SystemKindMods, CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: "group", IsSystem: true, SystemKind: SystemKindMods, CreatedBy: hostID},
 			members: []uuid.UUID{senderID, hostID},
 		},
 		{
 			name:    "admins room ignores the seed creator's block list",
-			room:    &repository.ChatRoomSendContext{Type: "group", IsSystem: true, SystemKind: SystemKindAdmins, CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: "group", IsSystem: true, SystemKind: SystemKindAdmins, CreatedBy: hostID},
 			members: []uuid.UUID{senderID, hostID},
 		},
 	}
@@ -125,14 +126,14 @@ func TestMintVoiceToken_AppliesTheSameBlockGateAsSending(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		room    *repository.ChatRoomSendContext
+		room    *model.ChatRoomSendContext
 		members []uuid.UUID
 		setup   func(m *testMocks)
 		wantErr error
 	}{
 		{
 			name:    "a dm rejects the joiner when either side has blocked",
-			room:    &repository.ChatRoomSendContext{Type: dto.RoomTypeDM},
+			room:    &model.ChatRoomSendContext{Type: dto.RoomTypeDM},
 			members: []uuid.UUID{joinerID, otherID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, joinerID, otherID).Return(true, nil)
@@ -141,7 +142,7 @@ func TestMintVoiceToken_AppliesTheSameBlockGateAsSending(t *testing.T) {
 		},
 		{
 			name:    "a group room rejects a joiner the host has blocked",
-			room:    &repository.ChatRoomSendContext{Type: dto.RoomTypeGroup, CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, CreatedBy: hostID},
 			members: []uuid.UUID{joinerID, hostID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlocked(mock.Anything, hostID, joinerID).Return(true, nil)
@@ -150,7 +151,7 @@ func TestMintVoiceToken_AppliesTheSameBlockGateAsSending(t *testing.T) {
 		},
 		{
 			name:    "a live stream rejects a viewer the streamer has blocked",
-			room:    &repository.ChatRoomSendContext{Type: dto.RoomTypeGroup, IsSystem: true, SystemKind: SystemKindLiveStream, CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, IsSystem: true, SystemKind: SystemKindLiveStream, CreatedBy: hostID},
 			members: []uuid.UUID{joinerID, hostID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlocked(mock.Anything, hostID, joinerID).Return(true, nil)
@@ -159,7 +160,7 @@ func TestMintVoiceToken_AppliesTheSameBlockGateAsSending(t *testing.T) {
 		},
 		{
 			name:    "a group room admits a joiner the host has not blocked",
-			room:    &repository.ChatRoomSendContext{Type: dto.RoomTypeGroup, CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, CreatedBy: hostID},
 			members: []uuid.UUID{joinerID, hostID},
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlocked(mock.Anything, hostID, joinerID).Return(false, nil)
@@ -167,7 +168,7 @@ func TestMintVoiceToken_AppliesTheSameBlockGateAsSending(t *testing.T) {
 		},
 		{
 			name:    "the mods room ignores the seed creator's block list",
-			room:    &repository.ChatRoomSendContext{Type: dto.RoomTypeGroup, IsSystem: true, SystemKind: SystemKindMods, CreatedBy: hostID},
+			room:    &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, IsSystem: true, SystemKind: SystemKindMods, CreatedBy: hostID},
 			members: []uuid.UUID{joinerID, hostID},
 		},
 	}
@@ -181,13 +182,13 @@ func TestMintVoiceToken_AppliesTheSameBlockGateAsSending(t *testing.T) {
 			tt.room.ID = roomID
 
 			m.chatRepo.EXPECT().GetRoomSendContext(mock.Anything, roomID).Return(tt.room, nil)
-			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, joinerID).Return(true, nil)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: joinerID}).Return(true, nil)
 			m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(tt.members, nil)
 			if tt.setup != nil {
 				tt.setup(m)
 			}
 			if tt.wantErr == nil {
-				m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, roomID, joinerID).Return(false, nil)
+				m.chatRepo.EXPECT().IsVoiceForceMuted(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: joinerID}).Return(false, nil)
 				m.userRepo.EXPECT().GetByID(mock.Anything, joinerID).Return(sampleUser(joinerID), nil)
 			}
 

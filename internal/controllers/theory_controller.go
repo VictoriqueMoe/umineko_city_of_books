@@ -6,8 +6,8 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/theory"
 	"umineko_city_of_books/internal/theory/params"
 
@@ -297,7 +297,7 @@ func (s *Service) refuteTheory(ctx fiber.Ctx) error {
 		}
 		if errors.Is(err, theory.ErrAlreadyRefuted) || errors.Is(err, theory.ErrResponseNotOnTheory) ||
 			errors.Is(err, theory.ErrRefutationMustOppose) || errors.Is(err, theory.ErrRefutationMustBeTopLevel) ||
-			errors.Is(err, theory.ErrCannotRefuteWithOwn) || errors.Is(err, repository.ErrRefutationRejected) {
+			errors.Is(err, theory.ErrCannotRefuteWithOwn) || errors.Is(err, dao.ErrRefutationRejected) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		return utils.InternalError(ctx, "failed to refute theory")

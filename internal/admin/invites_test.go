@@ -2,10 +2,13 @@ package admin
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -17,9 +20,12 @@ func TestCreateInvite_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.inviteRepo.EXPECT().Create(mock.Anything, mock.AnythingOfType("string"), actor).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == actor && entry.Action == repository.AuditActionCreateInvite && entry.TargetType == repository.AuditTargetInvite && entry.Details == ""
+	m.inviteRepo.EXPECT().Create(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.NewInvite, _ ...*sql.Tx) {
+		assert.Len(t, s.Code, 8)
+		assert.Equal(t, actor, s.CreatedBy)
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == actor && entry.Action == audit.ActionCreateInvite && entry.TargetType == audit.TargetInvite && entry.Details == ""
 	})).Return(nil)
 
 	// when
@@ -35,7 +41,10 @@ func TestCreateInvite_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.inviteRepo.EXPECT().Create(mock.Anything, mock.AnythingOfType("string"), actor).Return(errors.New("boom"))
+	m.inviteRepo.EXPECT().Create(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.NewInvite, _ ...*sql.Tx) {
+		assert.Len(t, s.Code, 8)
+		assert.Equal(t, actor, s.CreatedBy)
+	}).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.CreateInvite(context.Background(), actor)
@@ -48,7 +57,7 @@ func TestListInvites_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	creator := uuid.New()
-	m.inviteRepo.EXPECT().List(mock.Anything, 10, 0).Return([]repository.Invite{
+	m.inviteRepo.EXPECT().List(mock.Anything, spec.InviteListQuery{Limit: 10, Offset: 0}).Return([]model.Invite{
 		{Code: "abc", CreatedBy: creator, CreatedAt: "t"},
 	}, 1, nil)
 
@@ -65,7 +74,7 @@ func TestListInvites_OK(t *testing.T) {
 func TestListInvites_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.inviteRepo.EXPECT().List(mock.Anything, 10, 0).Return(nil, 0, errors.New("boom"))
+	m.inviteRepo.EXPECT().List(mock.Anything, spec.InviteListQuery{Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListInvites(context.Background(), bounds.NewPage(10, 0))
@@ -79,7 +88,7 @@ func TestDeleteInvite_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	m.inviteRepo.EXPECT().Delete(mock.Anything, "abc").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionDeleteInvite, TargetType: repository.AuditTargetInvite, TargetID: "abc", Details: ""}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionDeleteInvite, TargetType: audit.TargetInvite, TargetID: "abc", Details: ""}).Return(nil)
 
 	// when
 	err := svc.DeleteInvite(context.Background(), actor, "abc")

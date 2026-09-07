@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/secrets"
 
@@ -19,13 +20,13 @@ import (
 	"go.uber.org/mock/gomock"
 )
 
-func newCachedUserRepo(t *testing.T) (UserRepository, *MockUserDAO, *valkeymock.Client) {
+func newCachedUserRepo(t *testing.T) (UserRepository, *dao.MockUserDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockUserDAO(t)
+	userDAO := dao.NewMockUserDAO(t)
 
-	return NewUserRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client)), nil, nil, nil, nil, nil, nil), dao, client
+	return NewUserRepo(nil, userDAO, cache.NewManager(engines.NewValkeyWithClient(client)), nil, nil, nil, nil, nil, nil), userDAO, client
 }
 
 func captureDel(client *valkeymock.Client, commands *[]string) {
@@ -44,13 +45,13 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		expect func(dao *MockUserDAO)
+		expect func(userDAO *dao.MockUserDAO)
 		call   func(repo UserRepository) error
 	}{
 		{
 			name: "self service delete",
-			expect: func(dao *MockUserDAO) {
-				dao.EXPECT().DeleteAccount(mock.Anything, userID).Return(nil)
+			expect: func(userDAO *dao.MockUserDAO) {
+				userDAO.EXPECT().DeleteAccount(mock.Anything, userID).Return(nil)
 			},
 			call: func(repo UserRepository) error {
 				return repo.DeleteAccount(context.Background(), userID)
@@ -58,8 +59,8 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 		},
 		{
 			name: "admin delete",
-			expect: func(dao *MockUserDAO) {
-				dao.EXPECT().AdminDeleteAccount(mock.Anything, userID).Return(nil)
+			expect: func(userDAO *dao.MockUserDAO) {
+				userDAO.EXPECT().AdminDeleteAccount(mock.Anything, userID).Return(nil)
 			},
 			call: func(repo UserRepository) error {
 				return repo.AdminDeleteAccount(context.Background(), userID)
@@ -70,8 +71,8 @@ func TestUserRepository_DeletePathsInvalidateCascadedCaches(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, dao, client := newCachedUserRepo(t)
-			tc.expect(dao)
+			repo, userDAO, client := newCachedUserRepo(t)
+			tc.expect(userDAO)
 
 			var commands []string
 			captureDel(client, &commands)
@@ -113,13 +114,13 @@ func TestUserRepository_DeletePathsSkipInvalidationOnDaoError(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		expect func(dao *MockUserDAO)
+		expect func(userDAO *dao.MockUserDAO)
 		call   func(repo UserRepository) error
 	}{
 		{
 			name: "self service delete fails",
-			expect: func(dao *MockUserDAO) {
-				dao.EXPECT().DeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
+			expect: func(userDAO *dao.MockUserDAO) {
+				userDAO.EXPECT().DeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
 			},
 			call: func(repo UserRepository) error {
 				return repo.DeleteAccount(context.Background(), userID)
@@ -127,8 +128,8 @@ func TestUserRepository_DeletePathsSkipInvalidationOnDaoError(t *testing.T) {
 		},
 		{
 			name: "admin delete fails",
-			expect: func(dao *MockUserDAO) {
-				dao.EXPECT().AdminDeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
+			expect: func(userDAO *dao.MockUserDAO) {
+				userDAO.EXPECT().AdminDeleteAccount(mock.Anything, userID).Return(errors.New("db down"))
 			},
 			call: func(repo UserRepository) error {
 				return repo.AdminDeleteAccount(context.Background(), userID)
@@ -139,8 +140,8 @@ func TestUserRepository_DeletePathsSkipInvalidationOnDaoError(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			repo, dao, client := newCachedUserRepo(t)
-			tc.expect(dao)
+			repo, userDAO, client := newCachedUserRepo(t)
+			tc.expect(userDAO)
 			client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 			// when

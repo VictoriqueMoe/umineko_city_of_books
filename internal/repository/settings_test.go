@@ -9,6 +9,8 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/cache/engines"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -26,13 +28,13 @@ const (
 	settingDeadKey  config.SiteSettingKey = "dead_key"
 )
 
-func newCachedSettingsRepo(t *testing.T) (SettingsRepository, *MockSettingsDAO, *valkeymock.Client) {
+func newCachedSettingsRepo(t *testing.T) (SettingsRepository, *dao.MockSettingsDAO, *valkeymock.Client) {
 	t.Helper()
 
 	client := valkeymock.NewClient(gomock.NewController(t))
-	dao := NewMockSettingsDAO(t)
+	settingsDAO := dao.NewMockSettingsDAO(t)
 
-	return NewSettingsRepo(nil, dao, cache.NewManager(engines.NewValkeyWithClient(client))), dao, client
+	return NewSettingsRepo(nil, settingsDAO, cache.NewManager(engines.NewValkeyWithClient(client))), settingsDAO, client
 }
 
 func settingCacheKey(key config.SiteSettingKey) string {
@@ -64,8 +66,8 @@ func settingsMissThenStore(cmd valkey.Completed) valkey.ValkeyResult {
 
 func TestSettingsGet_CachesTheDaoResult(t *testing.T) {
 	// given a cold cache
-	repo, dao, client := newCachedSettingsRepo(t)
-	dao.EXPECT().Get(mock.Anything, settingSiteName).Return("When They Cry", nil)
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
+	settingsDAO.EXPECT().Get(mock.Anything, settingSiteName).Return("When They Cry", nil)
 	commands := captureSettingsCommands(client, 2, settingsMissThenStore)
 
 	// when
@@ -97,8 +99,8 @@ func TestSettingsGet_ServesTheCacheWithoutTouchingTheDao(t *testing.T) {
 
 func TestSettingsGet_DaoErrorSkipsTheCacheWrite(t *testing.T) {
 	// given
-	repo, dao, client := newCachedSettingsRepo(t)
-	dao.EXPECT().Get(mock.Anything, settingSiteName).Return("", errors.New("db down"))
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
+	settingsDAO.EXPECT().Get(mock.Anything, settingSiteName).Return("", errors.New("db down"))
 	commands := captureSettingsCommands(client, 1, settingsMissThenStore)
 
 	// when
@@ -112,15 +114,15 @@ func TestSettingsGet_DaoErrorSkipsTheCacheWrite(t *testing.T) {
 
 func TestSettingsSet_InvalidatesTheKey(t *testing.T) {
 	// given
-	repo, dao, client := newCachedSettingsRepo(t)
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
 	updatedBy := uuid.New()
-	dao.EXPECT().Set(mock.Anything, settingSiteName, "Rokkenjima", updatedBy).Return(nil)
+	settingsDAO.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: settingSiteName, Value: "Rokkenjima", UpdatedBy: updatedBy}).Return(nil)
 	commands := captureSettingsCommands(client, 1, func(_ valkey.Completed) valkey.ValkeyResult {
 		return valkeymock.Result(valkeymock.ValkeyInt64(1))
 	})
 
 	// when
-	err := repo.Set(context.Background(), settingSiteName, "Rokkenjima", updatedBy)
+	err := repo.Set(context.Background(), spec.SettingsUpdate{Key: settingSiteName, Value: "Rokkenjima", UpdatedBy: updatedBy})
 
 	// then
 	require.NoError(t, err)
@@ -129,12 +131,12 @@ func TestSettingsSet_InvalidatesTheKey(t *testing.T) {
 
 func TestSettingsSet_DaoErrorSkipsInvalidation(t *testing.T) {
 	// given
-	repo, dao, client := newCachedSettingsRepo(t)
-	dao.EXPECT().Set(mock.Anything, settingSiteName, "Rokkenjima", uuid.Nil).Return(errors.New("db down"))
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
+	settingsDAO.EXPECT().Set(mock.Anything, spec.SettingsUpdate{Key: settingSiteName, Value: "Rokkenjima", UpdatedBy: uuid.Nil}).Return(errors.New("db down"))
 	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 	// when
-	err := repo.Set(context.Background(), settingSiteName, "Rokkenjima", uuid.Nil)
+	err := repo.Set(context.Background(), spec.SettingsUpdate{Key: settingSiteName, Value: "Rokkenjima", UpdatedBy: uuid.Nil})
 
 	// then a failed write must leave the cached value alone
 	require.Error(t, err)
@@ -142,15 +144,15 @@ func TestSettingsSet_DaoErrorSkipsInvalidation(t *testing.T) {
 
 func TestSettingsSetMultiple_InvalidatesEveryKey(t *testing.T) {
 	// given
-	repo, dao, client := newCachedSettingsRepo(t)
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
 	values := map[config.SiteSettingKey]string{settingSiteName: "Rokkenjima", settingLogLevel: "debug"}
-	dao.EXPECT().SetMultiple(mock.Anything, values, uuid.Nil).Return(nil)
+	settingsDAO.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: values, UpdatedBy: uuid.Nil}).Return(nil)
 	commands := captureSettingsCommands(client, 1, func(_ valkey.Completed) valkey.ValkeyResult {
 		return valkeymock.Result(valkeymock.ValkeyInt64(2))
 	})
 
 	// when
-	err := repo.SetMultiple(context.Background(), values, uuid.Nil)
+	err := repo.SetMultiple(context.Background(), spec.SettingsBulkUpdate{Values: values, UpdatedBy: uuid.Nil})
 
 	// then every written key is dropped in one call, in whatever order the map yielded
 	require.NoError(t, err)
@@ -161,8 +163,8 @@ func TestSettingsSetMultiple_InvalidatesEveryKey(t *testing.T) {
 
 func TestSettingsDelete_InvalidatesTheKey(t *testing.T) {
 	// given
-	repo, dao, client := newCachedSettingsRepo(t)
-	dao.EXPECT().Delete(mock.Anything, settingStaleKey).Return(nil)
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
+	settingsDAO.EXPECT().Delete(mock.Anything, settingStaleKey).Return(nil)
 	commands := captureSettingsCommands(client, 1, func(_ valkey.Completed) valkey.ValkeyResult {
 		return valkeymock.Result(valkeymock.ValkeyInt64(1))
 	})
@@ -177,17 +179,17 @@ func TestSettingsDelete_InvalidatesTheKey(t *testing.T) {
 
 func TestSettingsReconcile_InvalidatesSeededAndStaleKeys(t *testing.T) {
 	// given a caller-supplied transaction, so the repo joins it instead of opening one
-	repo, dao, client := newCachedSettingsRepo(t)
+	repo, settingsDAO, client := newCachedSettingsRepo(t)
 	tx := new(sql.Tx)
 	missing := map[config.SiteSettingKey]string{settingSiteName: "When They Cry"}
-	dao.EXPECT().SetMultiple(mock.Anything, missing, uuid.Nil, []*sql.Tx{tx}).Return(nil)
-	dao.EXPECT().Delete(mock.Anything, settingDeadKey, []*sql.Tx{tx}).Return(nil)
+	settingsDAO.EXPECT().SetMultiple(mock.Anything, spec.SettingsBulkUpdate{Values: missing, UpdatedBy: uuid.Nil}, []*sql.Tx{tx}).Return(nil)
+	settingsDAO.EXPECT().Delete(mock.Anything, settingDeadKey, []*sql.Tx{tx}).Return(nil)
 	commands := captureSettingsCommands(client, 1, func(_ valkey.Completed) valkey.ValkeyResult {
 		return valkeymock.Result(valkeymock.ValkeyInt64(2))
 	})
 
 	// when
-	err := repo.Reconcile(context.Background(), SettingsReconcile{Missing: missing, Stale: []config.SiteSettingKey{settingDeadKey}}, tx)
+	err := repo.Reconcile(context.Background(), spec.SettingsReconcile{Missing: missing, Stale: []config.SiteSettingKey{settingDeadKey}}, tx)
 
 	// then both the seeded default and the removed key are dropped from the cache
 	require.NoError(t, err)
@@ -202,7 +204,7 @@ func TestSettingsReconcile_NothingToDoSkipsInvalidation(t *testing.T) {
 	client.EXPECT().Do(gomock.Any(), gomock.Any()).Times(0)
 
 	// when
-	err := repo.Reconcile(context.Background(), SettingsReconcile{}, new(sql.Tx))
+	err := repo.Reconcile(context.Background(), spec.SettingsReconcile{}, new(sql.Tx))
 
 	// then
 	require.NoError(t, err)

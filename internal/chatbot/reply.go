@@ -9,8 +9,9 @@ import (
 
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/openai"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -24,9 +25,9 @@ func (s *service) run(id int, j job) {
 
 	tune, _ := s.snapshot()
 
-	model := firstNonBlank(j.bot.Model, tune.model)
+	modelName := firstNonBlank(j.bot.Model, tune.model)
 
-	out := s.reply(ctx, j, tune, model)
+	out := s.reply(ctx, j, tune, modelName)
 
 	invocationsTotal.WithLabelValues(string(out.status), string(j.ev.channel())).Inc()
 
@@ -84,10 +85,10 @@ func (s *service) settle(ctx context.Context, j job, out outcome) {
 	noticesTotal.WithLabelValues(string(out.reason), noticeDelivered).Inc()
 }
 
-func (s *service) reply(ctx context.Context, j job, tune tuning, model string) outcome {
+func (s *service) reply(ctx context.Context, j job, tune tuning, modelName string) outcome {
 	quota, err := s.overQuota(ctx, j.ev.SenderID, tune)
 	if err != nil {
-		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
+		return outcome{reason: reasonInternal, stage: stagePreModel, status: model.InvocationFailed, err: err}
 	}
 	if quota.over {
 		reason := reasonQuotaUser
@@ -95,7 +96,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 			reason = reasonQuotaSite
 		}
 
-		return outcome{reason: reason, stage: stagePreModel, status: repository.InvocationQuota, clearsAt: quota.clearsAt}
+		return outcome{reason: reason, stage: stagePreModel, status: model.InvocationQuota, clearsAt: quota.clearsAt}
 	}
 
 	var roomID *uuid.UUID
@@ -103,23 +104,23 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 		roomID = new(j.ev.ScopeID)
 	}
 
-	inv, err := s.botRepo.CreateInvocation(ctx, repository.NewInvocation{
+	inv, err := s.botRepo.CreateInvocation(ctx, spec.NewInvocation{
 		BotUserID: j.bot.UserID,
 		UserID:    j.ev.SenderID,
 		RoomID:    roomID,
 		MessageID: j.ev.ItemID,
 		Channel:   string(j.ev.channel()),
-		Model:     model,
+		Model:     modelName,
 	})
 	if err != nil {
-		return outcome{reason: reasonInternal, stage: stagePreModel, status: repository.InvocationFailed, err: err}
+		return outcome{reason: reasonInternal, stage: stagePreModel, status: model.InvocationFailed, err: err}
 	}
 
 	stopTyping := s.startTyping(j.ev, j.bot.UserID)
 	defer stopTyping()
 
 	req := openai.CompletionRequest{
-		Model:           model,
+		Model:           modelName,
 		SystemPrompt:    systemPrompt(j.bot.BasePrompt, j.bot.SystemPrompt),
 		Messages:        s.buildMessages(ctx, j, tune),
 		ReasoningEffort: firstNonBlank(j.bot.ReasoningEffort, tune.reasoningEffort),
@@ -131,7 +132,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 
 	result, err := s.openaiSvc.Complete(ctx, req)
 	if err != nil {
-		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, repository.InvocationUsage{}, repository.InvocationFailed); closeErr != nil {
+		if closeErr := s.botRepo.CompleteInvocation(ctx, spec.InvocationCompletion{ID: inv.ID, Status: model.InvocationFailed}); closeErr != nil {
 			logger.Ctx(ctx).Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the failed invocation")
 		}
 
@@ -144,7 +145,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 
 	body := stripSelfLabel(result.Text, j.bot)
 	if body == "" {
-		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
+		if closeErr := s.botRepo.CompleteInvocation(ctx, spec.InvocationCompletion{ID: inv.ID, Usage: usageOf(result), Status: model.InvocationRefused}); closeErr != nil {
 			logger.Ctx(ctx).Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the refused invocation")
 		}
 
@@ -153,7 +154,7 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 		return outcome{
 			reason: reasonEmptyReply,
 			stage:  stagePostModel,
-			status: repository.InvocationRefused,
+			status: model.InvocationRefused,
 			detail: result.IncompleteReason,
 		}
 	}
@@ -170,18 +171,18 @@ func (s *service) reply(ctx context.Context, j job, tune tuning, model string) o
 	stopTyping()
 
 	if sendErr := s.deliver(ctx, j, body); sendErr != nil {
-		if closeErr := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationRefused); closeErr != nil {
+		if closeErr := s.botRepo.CompleteInvocation(ctx, spec.InvocationCompletion{ID: inv.ID, Usage: usageOf(result), Status: model.InvocationRefused}); closeErr != nil {
 			logger.Ctx(ctx).Error().Err(closeErr).Str("bot", j.bot.Username).Msg("chatbot could not record the undelivered invocation")
 		}
 
 		return classifyDelivery(sendErr)
 	}
 
-	if err := s.botRepo.CompleteInvocation(ctx, inv.ID, usageOf(result), repository.InvocationReplied); err != nil {
+	if err := s.botRepo.CompleteInvocation(ctx, spec.InvocationCompletion{ID: inv.ID, Usage: usageOf(result), Status: model.InvocationReplied}); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("bot", j.bot.Username).Msg("chatbot answered but the invocation could not be closed")
 	}
 
-	return outcome{status: repository.InvocationReplied}
+	return outcome{status: model.InvocationReplied}
 }
 
 func (s *service) deliver(ctx context.Context, j job, body string) error {
@@ -309,8 +310,8 @@ func firstPositive(values ...int) int {
 	return 0
 }
 
-func usageOf(result *openai.CompletionResult) repository.InvocationUsage {
-	return repository.InvocationUsage{
+func usageOf(result *openai.CompletionResult) spec.InvocationUsage {
+	return spec.InvocationUsage{
 		PromptTokens:       result.PromptTokens,
 		CachedPromptTokens: result.CachedPromptTokens,
 		CacheWriteTokens:   result.CacheWriteTokens,

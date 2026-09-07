@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 )
 
 const (
@@ -17,13 +17,18 @@ const (
 )
 
 type (
+	StatsDAO interface {
+		GetOverview(ctx context.Context, tx ...*sql.Tx) (*model.SiteStats, error)
+		GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.ActiveUser, error)
+	}
+
 	statsDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.SiteStats, error) {
-	var s repository.SiteStats
+func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*model.SiteStats, error) {
+	var s model.SiteStats
 
 	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE NOT is_bot`).Scan(&s.TotalUsers)
 	if err != nil {
@@ -62,8 +67,7 @@ func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.
 		{"posts", &s.NewPosts24h, &s.NewPosts7d, &s.NewPosts30d},
 	}
 
-	for i := range recent {
-		c := recent[i]
+	for _, c := range recent {
 		_ = txOrDB(r.db, tx).QueryRowContext(ctx, fmt.Sprintf(recentCountsQuery, c.from)).
 			Scan(c.day, c.week, c.month)
 	}
@@ -84,7 +88,7 @@ func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*repository.
 	return &s, nil
 }
 
-func (r *statsDAO) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.ActiveUser, error) {
+func (r *statsDAO) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.ActiveUser, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COUNT(*) as action_count
 		 FROM (
@@ -106,9 +110,9 @@ func (r *statsDAO) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql
 	}
 	defer rows.Close()
 
-	var users []repository.ActiveUser
+	var users []model.ActiveUser
 	for rows.Next() {
-		var u repository.ActiveUser
+		var u model.ActiveUser
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.ActionCount); err != nil {
 			return nil, fmt.Errorf("scan active user: %w", err)
 		}

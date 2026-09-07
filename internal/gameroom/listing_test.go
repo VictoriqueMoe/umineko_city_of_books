@@ -2,12 +2,14 @@ package gameroom
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +23,13 @@ func TestList_ClampsThePageAndPassesTheFilterThrough(t *testing.T) {
 	userID := uuid.New()
 	statuses := []dto.GameStatus{dto.GameStatusActive}
 	m.roomRepo.EXPECT().
-		ListForUser(mock.Anything, userID, string(dto.GameTypeChess), statuses, bounds.MaxLimit, 0).
+		ListForUser(mock.Anything, spec.GameRoomUserFilter{
+			UserID:   userID,
+			GameType: string(dto.GameTypeChess),
+			Statuses: statuses,
+			Limit:    bounds.MaxLimit,
+			Offset:   0,
+		}).
 		Return(nil, 0, nil)
 
 	// when
@@ -41,7 +49,13 @@ func TestList_PropagatesARepositoryFailure(t *testing.T) {
 	m := newTestService(t)
 	userID := uuid.New()
 	m.roomRepo.EXPECT().
-		ListForUser(mock.Anything, userID, "", []dto.GameStatus(nil), bounds.DefaultLimit, 0).
+		ListForUser(mock.Anything, spec.GameRoomUserFilter{
+			UserID:   userID,
+			GameType: "",
+			Statuses: nil,
+			Limit:    bounds.DefaultLimit,
+			Offset:   0,
+		}).
 		Return(nil, 0, errors.New("boom"))
 
 	// when
@@ -55,7 +69,7 @@ func TestListLive_PropagatesARepositoryFailure(t *testing.T) {
 	// given
 	m := newTestService(t)
 	m.roomRepo.EXPECT().
-		ListLive(mock.Anything, string(dto.GameTypeChess), 20, 0).
+		ListLive(mock.Anything, spec.GameRoomListFilter{GameType: string(dto.GameTypeChess), Limit: 20, Offset: 0}).
 		Return(nil, 0, errors.New("boom"))
 
 	// when
@@ -82,7 +96,7 @@ func TestScoreboard_ComputesTheWinRateAndSkipsMissingUsers(t *testing.T) {
 	known := uuid.New()
 	missing := uuid.New()
 	seedUser(t, m, known, "battler")
-	m.roomRepo.EXPECT().Scoreboard(mock.Anything, string(dto.GameTypeChess)).Return([]repository.ScoreboardRow{
+	m.roomRepo.EXPECT().Scoreboard(mock.Anything, string(dto.GameTypeChess)).Return([]model.ScoreboardRow{
 		{UserID: known, Wins: 3, Losses: 1, Draws: 0},
 		{UserID: missing, Wins: 1, Losses: 0, Draws: 0},
 	}, nil)
@@ -103,7 +117,7 @@ func TestScoreboard_LeavesTheWinRateAtZeroWhenNothingWasPlayed(t *testing.T) {
 	m := newTestService(t)
 	userID := uuid.New()
 	seedUser(t, m, userID, "beato")
-	m.roomRepo.EXPECT().Scoreboard(mock.Anything, string(dto.GameTypeChess)).Return([]repository.ScoreboardRow{
+	m.roomRepo.EXPECT().Scoreboard(mock.Anything, string(dto.GameTypeChess)).Return([]model.ScoreboardRow{
 		{UserID: userID},
 	}, nil)
 
@@ -160,8 +174,12 @@ func TestCancelIdleGames_SkipsARoomAnotherWorkerAlreadyClaimed(t *testing.T) {
 	m := newTestService(t)
 	roomID := uuid.New()
 	m.roomRepo.EXPECT().ListIdleActive(mock.Anything, mock.Anything).
-		Return([]repository.GameRoomRow{{ID: roomID}}, nil)
-	m.roomRepo.EXPECT().CancelIdleRoom(mock.Anything, roomID, mock.Anything).Return(false, nil)
+		Return([]model.GameRoomRow{{ID: roomID}}, nil)
+	m.roomRepo.EXPECT().CancelIdleRoom(mock.Anything, mock.Anything).
+		Run(func(_ context.Context, s spec.GameRoomIdleCancel, _ ...*sql.Tx) {
+			assert.Equal(t, roomID, s.RoomID)
+		}).
+		Return(false, nil)
 
 	// when
 	got, err := m.svc.CancelIdleGames(context.Background())

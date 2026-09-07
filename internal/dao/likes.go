@@ -5,9 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"umineko_city_of_books/internal/repository/model"
-
-	"github.com/google/uuid"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type likeDAO struct {
@@ -20,10 +19,10 @@ func newLikeDAO(db *sql.DB, table string, fk string) *likeDAO {
 	return &likeDAO{db: db, table: table, fk: fk}
 }
 
-func (l *likeDAO) Like(ctx context.Context, userID uuid.UUID, entityID uuid.UUID, tx ...*sql.Tx) error {
+func (l *likeDAO) Like(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	_, err := txOrDB(l.db, tx).ExecContext(ctx,
 		`INSERT INTO `+l.table+` (user_id, `+l.fk+`) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, entityID,
+		s.UserID, s.TargetID,
 	)
 	if err != nil {
 		return fmt.Errorf("like in %s: %w", l.table, err)
@@ -32,10 +31,10 @@ func (l *likeDAO) Like(ctx context.Context, userID uuid.UUID, entityID uuid.UUID
 	return nil
 }
 
-func (l *likeDAO) Unlike(ctx context.Context, userID uuid.UUID, entityID uuid.UUID, tx ...*sql.Tx) error {
+func (l *likeDAO) Unlike(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	_, err := txOrDB(l.db, tx).ExecContext(ctx,
 		`DELETE FROM `+l.table+` WHERE user_id = $1 AND `+l.fk+` = $2`,
-		userID, entityID,
+		s.UserID, s.TargetID,
 	)
 	if err != nil {
 		return fmt.Errorf("unlike in %s: %w", l.table, err)
@@ -44,10 +43,10 @@ func (l *likeDAO) Unlike(ctx context.Context, userID uuid.UUID, entityID uuid.UU
 	return nil
 }
 
-func (l *likeDAO) GetLikedBy(ctx context.Context, entityID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.PostLikeUser, error) {
-	exclSQL, exclArgs := ExcludeClause("lk.user_id", excludeUserIDs, 2)
+func (l *likeDAO) GetLikedBy(ctx context.Context, q spec.LikedByQuery, tx ...*sql.Tx) ([]model.PostLikeUser, error) {
+	exclSQL, exclArgs := ExcludeClause("lk.user_id", q.ExcludeUserIDs, 2)
 
-	queryArgs := []any{entityID}
+	queryArgs := []any{q.TargetID}
 	queryArgs = append(queryArgs, exclArgs...)
 
 	rows, err := txOrDB(l.db, tx).QueryContext(ctx,

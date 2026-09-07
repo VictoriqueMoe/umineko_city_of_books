@@ -5,23 +5,30 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	PasswordResetDAO interface {
+		Create(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx) error
+		GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*model.PasswordResetToken, error)
+		MarkUsed(ctx context.Context, tokenHash string, tx ...*sql.Tx) error
+		DeleteUnusedForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
+	}
+
 	passwordResetDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *passwordResetDAO) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
+func (r *passwordResetDAO) Create(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES ($1, $2, $3)`,
-		tokenHash, userID, expiresAt,
+		s.TokenHash, s.UserID, s.ExpiresAt,
 	)
 	if err != nil {
 		return fmt.Errorf("create password reset token: %w", err)
@@ -29,8 +36,8 @@ func (r *passwordResetDAO) Create(ctx context.Context, tokenHash string, userID 
 	return nil
 }
 
-func (r *passwordResetDAO) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*repository.PasswordResetToken, error) {
-	var t repository.PasswordResetToken
+func (r *passwordResetDAO) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*model.PasswordResetToken, error) {
+	var t model.PasswordResetToken
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT token_hash, user_id, expires_at, used_at, created_at FROM password_reset_tokens WHERE token_hash = $1`,
 		tokenHash,

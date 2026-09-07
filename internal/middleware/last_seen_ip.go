@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 )
 
 type IPWriter interface {
-	UpdateIP(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error
+	UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error
 }
 
 type lastSeenEntry struct {
@@ -44,7 +45,7 @@ func (l *LastSeenIP) Record(userID uuid.UUID, ip string) {
 	}
 	l.cache.Store(userID, lastSeenEntry{ip: ip, lastWrote: now})
 	go func() {
-		if err := l.repo.UpdateIP(context.Background(), userID, ip); err != nil {
+		if err := l.repo.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: userID, IP: ip}); err != nil {
 			logger.Log.Warn().Err(err).Str("user_id", userID.String()).Msg("update last seen ip failed")
 		}
 	}()

@@ -11,8 +11,8 @@ import (
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/gameroom"
 	"umineko_city_of_books/internal/middleware"
+	"umineko_city_of_books/internal/model"
 	mysterysvc "umineko_city_of_books/internal/mystery"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/siteinfo"
 	usersvc "umineko_city_of_books/internal/user"
@@ -662,7 +662,7 @@ func TestSiteInfo_OK(t *testing.T) {
 	h, deps := newAuthHarness(t)
 	deps.mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return([]string{"det-1"}, nil)
 	deps.mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return([]string{"gm-1"}, nil)
-	deps.vanityRoleSvc.EXPECT().List(mock.Anything).Return([]repository.VanityRoleRow{
+	deps.vanityRoleSvc.EXPECT().List(mock.Anything).Return([]model.VanityRoleRow{
 		{ID: "role-1", Label: "VIP", Color: "#fff", IsSystem: false, SortOrder: 1},
 	}, nil)
 	deps.vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(map[string][]string{

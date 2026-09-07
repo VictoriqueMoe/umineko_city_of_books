@@ -4,10 +4,13 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -24,14 +27,16 @@ func makeFanficChars() []dto.FanficCharacter {
 
 func createFanfic(t *testing.T, repos *repository.Repositories, userID uuid.UUID, title string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     userID,
-		Title:      title,
-		Summary:    "summary",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	created, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   userID,
+			Title:    title,
+			Summary:  "summary",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 		Genres:     []string{"Drama", "Mystery"},
 		Tags:       []string{"angst", "fluff"},
 		Characters: makeFanficChars(),
@@ -42,14 +47,20 @@ func createFanfic(t *testing.T, repos *repository.Repositories, userID uuid.UUID
 
 func createFanficComment(t *testing.T, repos *repository.Repositories, fanficID uuid.UUID, parentID *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Comments.ByID[string(mention.KindFanficComment)].CreateComment(context.Background(), fanficID, parentID, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindFanficComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{
+		TargetID: fanficID,
+		ParentID: parentID,
+		UserID:   userID,
+		Body:     body,
+	})
 	require.NoError(t, err)
 	return created.ID
 }
 
 func createFanficChapter(t *testing.T, repos *repository.Repositories, fanficID uuid.UUID, chapterNumber int, title string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Fanfic.CreateChapter(context.Background(), fanficID, repository.NewChapter{
+	created, err := repos.Fanfic.CreateChapter(context.Background(), spec.NewChapter{
+		FanficID:  fanficID,
 		Number:    chapterNumber,
 		Title:     title,
 		Body:      "body text",
@@ -65,24 +76,26 @@ func TestFanficDAO_CreateWithDetails(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	created, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     user.ID,
-		Title:      "Title",
-		Summary:    "Summary",
-		Series:     "Umineko",
-		Rating:     "T",
-		Language:   "English",
-		Status:     "in_progress",
-		IsOneshot:  true,
+	created, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:    user.ID,
+			Title:     "Title",
+			Summary:   "Summary",
+			Series:    "Umineko",
+			Rating:    "T",
+			Language:  "English",
+			Status:    "in_progress",
+			IsOneshot: true,
+			IsPairing: true,
+		},
 		Genres:     []string{"Drama"},
 		Tags:       []string{"sadtag"},
 		Characters: makeFanficChars(),
-		IsPairing:  true,
 	})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), created.ID, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: created.ID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, "Title", row.Title)
@@ -99,13 +112,15 @@ func TestFanficDAO_CreateWithDetails_TrimsCharacterName(t *testing.T) {
 	chars := []dto.FanficCharacter{{Series: "Umineko", CharacterID: "x", CharacterName: "  Padded  "}}
 
 	// when
-	created, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     user.ID,
-		Title:      "T",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	created, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "T",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 		Characters: chars,
 	})
 
@@ -123,14 +138,16 @@ func TestFanficDAO_CreateWithDetails_SkipsEmptyTags(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	created, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "T",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
-		Tags:     []string{"  ", "", "keep"},
+	created, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "T",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
+		Tags: []string{"  ", "", "keep"},
 	})
 
 	// then
@@ -147,25 +164,27 @@ func TestFanficDAO_UpdateWithDetails_AsOwner(t *testing.T) {
 	id := createFanfic(t, repos, user.ID, "Old")
 
 	// when
-	err := repos.Fanfic.UpdateWithDetails(context.Background(), repository.FanficUpdate{
-		ID:             id,
-		UserID:         user.ID,
-		Title:          "New",
-		Summary:        "newsum",
-		Series:         "Higurashi",
-		Rating:         "M",
-		Language:       "Spanish",
-		Status:         "completed",
-		IsOneshot:      true,
-		ContainsLemons: true,
-		Genres:         []string{"Angst"},
-		Tags:           []string{"newtag"},
-		Characters:     []dto.FanficCharacter{{Series: "Higurashi", CharacterID: "rena", CharacterName: "Rena"}},
+	err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+		FanficUpdate: spec.FanficUpdate{
+			ID:             id,
+			UserID:         user.ID,
+			Title:          "New",
+			Summary:        "newsum",
+			Series:         "Higurashi",
+			Rating:         "M",
+			Language:       "Spanish",
+			Status:         "completed",
+			IsOneshot:      true,
+			ContainsLemons: true,
+		},
+		Genres:     []string{"Angst"},
+		Tags:       []string{"newtag"},
+		Characters: []dto.FanficCharacter{{Series: "Higurashi", CharacterID: "rena", CharacterName: "Rena"}},
 	})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, "New", row.Title)
@@ -182,14 +201,16 @@ func TestFanficDAO_UpdateWithDetails_NonOwnerFails(t *testing.T) {
 	id := createFanfic(t, repos, owner.ID, "Title")
 
 	// when
-	err := repos.Fanfic.UpdateWithDetails(context.Background(), repository.FanficUpdate{
-		ID:       id,
-		UserID:   other.ID,
-		Title:    "New",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
+	err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+		FanficUpdate: spec.FanficUpdate{
+			ID:       id,
+			UserID:   other.ID,
+			Title:    "New",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 	})
 
 	// then
@@ -204,20 +225,22 @@ func TestFanficDAO_UpdateWithDetails_AsAdmin(t *testing.T) {
 	id := createFanfic(t, repos, owner.ID, "Title")
 
 	// when
-	err := repos.Fanfic.UpdateWithDetails(context.Background(), repository.FanficUpdate{
-		ID:       id,
-		UserID:   admin.ID,
-		Title:    "AdminEdit",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
-		AsAdmin:  true,
+	err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+		FanficUpdate: spec.FanficUpdate{
+			ID:       id,
+			UserID:   admin.ID,
+			Title:    "AdminEdit",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+			AsAdmin:  true,
+		},
 	})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, "AdminEdit", row.Title)
@@ -230,14 +253,16 @@ func TestFanficDAO_UpdateWithDetails_ReplacesGenresTagsCharacters(t *testing.T) 
 	id := createFanfic(t, repos, user.ID, "Title")
 
 	// when
-	err := repos.Fanfic.UpdateWithDetails(context.Background(), repository.FanficUpdate{
-		ID:         id,
-		UserID:     user.ID,
-		Title:      "Title",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	err := repos.Fanfic.UpdateWithDetails(context.Background(), spec.FanficUpdateWithDetails{
+		FanficUpdate: spec.FanficUpdate{
+			ID:       id,
+			UserID:   user.ID,
+			Title:    "Title",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 		Genres:     []string{"Horror"},
 		Tags:       []string{"replaced"},
 		Characters: []dto.FanficCharacter{{Series: "Umineko", CharacterID: "ange", CharacterName: "Ange"}},
@@ -264,11 +289,11 @@ func TestFanficDAO_UpdateCoverImage(t *testing.T) {
 	id := createFanfic(t, repos, user.ID, "Title")
 
 	// when
-	err := repos.Fanfic.UpdateCoverImage(context.Background(), id, "https://img/x.png", "https://img/x_t.png")
+	err := repos.Fanfic.UpdateCoverImage(context.Background(), spec.FanficCoverUpdate{ID: id, ImageURL: "https://img/x.png", ThumbnailURL: "https://img/x_t.png"})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "https://img/x.png", row.CoverImageURL)
 	assert.Equal(t, "https://img/x_t.png", row.CoverThumbnailURL)
@@ -279,14 +304,16 @@ func TestFanficDAO_UpdateWordCount(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createFanfic(t, repos, user.ID, "Title")
-	_, err := repos.Fanfic.CreateChapter(context.Background(), id, repository.NewChapter{
+	_, err := repos.Fanfic.CreateChapter(context.Background(), spec.NewChapter{
+		FanficID:  id,
 		Number:    1,
 		Title:     "c1",
 		Body:      "body",
 		WordCount: 500,
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateChapter(context.Background(), id, repository.NewChapter{
+	_, err = repos.Fanfic.CreateChapter(context.Background(), spec.NewChapter{
+		FanficID:  id,
 		Number:    2,
 		Title:     "c2",
 		Body:      "body",
@@ -299,7 +326,7 @@ func TestFanficDAO_UpdateWordCount(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1250, row.WordCount)
 }
@@ -315,7 +342,7 @@ func TestFanficDAO_UpdateWordCount_NoChapters(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.WordCount)
 }
@@ -327,11 +354,11 @@ func TestFanficDAO_Delete_AsOwner(t *testing.T) {
 	id := createFanfic(t, repos, user.ID, "Title")
 
 	// when
-	err := repos.Fanfic.Delete(context.Background(), id, user.ID)
+	err := repos.Fanfic.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -344,7 +371,7 @@ func TestFanficDAO_Delete_NonOwnerFails(t *testing.T) {
 	id := createFanfic(t, repos, owner.ID, "Title")
 
 	// when
-	err := repos.Fanfic.Delete(context.Background(), id, other.ID)
+	err := repos.Fanfic.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -361,7 +388,7 @@ func TestFanficDAO_DeleteAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -371,24 +398,24 @@ func TestFanficDAO_DeleteFanfic_ReturnsCoverAndCommentMediaPaths(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	id := createFanfic(t, repos, user.ID, "Title")
-	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), id, "/uploads/images/cover.png", "/uploads/images/cover_thumb.png"))
+	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), spec.FanficCoverUpdate{ID: id, ImageURL: "/uploads/images/cover.png", ThumbnailURL: "/uploads/images/cover_thumb.png"}))
 	commentID := createFanficComment(t, repos, id, nil, user.ID, "body")
-	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    commentID,
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     commentID,
 		MediaURL:     "/uploads/images/comment.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/images/comment_thumb.png",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: commentID,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  commentID,
 		MediaURL:  "/uploads/images/comment_no_thumb.gif",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.Fanfic.DeleteFanfic(context.Background(), repository.FanficDelete{ID: id, UserID: user.ID})
+	paths, err := repos.Fanfic.DeleteFanfic(context.Background(), spec.FanficDelete{ID: id, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -400,7 +427,7 @@ func TestFanficDAO_DeleteFanfic_ReturnsCoverAndCommentMediaPaths(t *testing.T) {
 		"/uploads/images/comment_no_thumb.gif",
 	}, paths)
 	assert.NotContains(t, paths, "")
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -412,17 +439,17 @@ func TestFanficDAO_DeleteFanfic_AsAdmin_CollectsEveryCommentMedia(t *testing.T) 
 	admin := daotest.CreateUser(t, repos)
 	commenter := daotest.CreateUser(t, repos)
 	id := createFanfic(t, repos, owner.ID, "Title")
-	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), id, "/uploads/images/cover.png", ""))
+	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), spec.FanficCoverUpdate{ID: id, ImageURL: "/uploads/images/cover.png"}))
 	first := createFanficComment(t, repos, id, nil, owner.ID, "one")
 	second := createFanficComment(t, repos, id, nil, commenter.ID, "two")
-	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: first,
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  first,
 		MediaURL:  "/uploads/images/one.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    second,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     second,
 		MediaURL:     "/uploads/images/two.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/images/two_thumb.png",
@@ -430,7 +457,7 @@ func TestFanficDAO_DeleteFanfic_AsAdmin_CollectsEveryCommentMedia(t *testing.T) 
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.Fanfic.DeleteFanfic(context.Background(), repository.FanficDelete{ID: id, UserID: admin.ID, AsAdmin: true})
+	paths, err := repos.Fanfic.DeleteFanfic(context.Background(), spec.FanficDelete{ID: id, UserID: admin.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -441,7 +468,7 @@ func TestFanficDAO_DeleteFanfic_AsAdmin_CollectsEveryCommentMedia(t *testing.T) 
 		"/uploads/images/two_thumb.png",
 	}, paths)
 	assert.NotContains(t, paths, "")
-	row, err := repos.Fanfic.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -452,15 +479,15 @@ func TestFanficDAO_DeleteFanfic_NonOwnerReturnsNoPaths(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
 	id := createFanfic(t, repos, owner.ID, "Title")
-	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), id, "/uploads/images/cover.png", "/uploads/images/cover_thumb.png"))
+	require.NoError(t, repos.Fanfic.UpdateCoverImage(context.Background(), spec.FanficCoverUpdate{ID: id, ImageURL: "/uploads/images/cover.png", ThumbnailURL: "/uploads/images/cover_thumb.png"}))
 
 	// when
-	paths, err := repos.Fanfic.DeleteFanfic(context.Background(), repository.FanficDelete{ID: id, UserID: other.ID})
+	paths, err := repos.Fanfic.DeleteFanfic(context.Background(), spec.FanficDelete{ID: id, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
 	assert.Empty(t, paths)
-	row, err := repos.Fanfic.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 }
@@ -471,7 +498,7 @@ func TestFanficDAO_GetByID_NotFound(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	row, err := repos.Fanfic.GetByID(context.Background(), uuid.New(), user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: uuid.New(), ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -485,7 +512,7 @@ func TestFanficDAO_GetByID_IncludesAuthorDetails(t *testing.T) {
 	id := createFanfic(t, repos, user.ID, "Title")
 
 	// when
-	row, err := repos.Fanfic.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: id, ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -527,7 +554,7 @@ func TestFanficDAO_List_Defaults(t *testing.T) {
 	createFanfic(t, repos, user.ID, "B")
 
 	// when
-	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10}, nil)
+	rows, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -540,20 +567,22 @@ func TestFanficDAO_List_HidesDraftsFromOthers(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   owner.ID,
-		Title:    "Draft",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "draft",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   owner.ID,
+			Title:    "Draft",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "draft",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, totalOther, err := repos.Fanfic.List(context.Background(), other.ID, fanficparams.ListParams{Limit: 10}, nil)
+	_, totalOther, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: other.ID, Params: fanficparams.ListParams{Limit: 10}})
 	require.NoError(t, err)
-	_, totalOwner, err := repos.Fanfic.List(context.Background(), owner.ID, fanficparams.ListParams{Limit: 10}, nil)
+	_, totalOwner, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: owner.ID, Params: fanficparams.ListParams{Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -566,21 +595,23 @@ func TestFanficDAO_List_FiltersLemons(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, user.ID, "Clean")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:         user.ID,
-		Title:          "Spicy",
-		Series:         "Umineko",
-		Rating:         "M",
-		Language:       "English",
-		Status:         "in_progress",
-		ContainsLemons: true,
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:         user.ID,
+			Title:          "Spicy",
+			Series:         "Umineko",
+			Rating:         "M",
+			Language:       "English",
+			Status:         "in_progress",
+			ContainsLemons: true,
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, totalNoLemons, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10}, nil)
+	_, totalNoLemons, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Limit: 10}})
 	require.NoError(t, err)
-	_, totalWithLemons, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10, ShowLemons: true}, nil)
+	_, totalWithLemons, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Limit: 10, ShowLemons: true}})
 
 	// then
 	require.NoError(t, err)
@@ -593,18 +624,20 @@ func TestFanficDAO_List_FilterSeries(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, user.ID, "Umi")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "Higu",
-		Series:   "Higurashi",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Higu",
+			Series:   "Higurashi",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Series: "Higurashi", Limit: 10}, nil)
+	rows, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Series: "Higurashi", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -618,18 +651,20 @@ func TestFanficDAO_List_FilterRating(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, user.ID, "K one")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "M one",
-		Series:   "Umineko",
-		Rating:   "M",
-		Language: "English",
-		Status:   "in_progress",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "M one",
+			Series:   "Umineko",
+			Rating:   "M",
+			Language: "English",
+			Status:   "in_progress",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Rating: "M", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Rating: "M", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -641,18 +676,20 @@ func TestFanficDAO_List_FilterLanguage(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, user.ID, "English")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "Jap",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "Japanese",
-		Status:   "in_progress",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Jap",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "Japanese",
+			Status:   "in_progress",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Language: "Japanese", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Language: "Japanese", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -664,18 +701,20 @@ func TestFanficDAO_List_FilterStatus(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, user.ID, "WIP")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "Done",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "completed",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Done",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "completed",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Status: "completed", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Status: "completed", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -686,29 +725,33 @@ func TestFanficDAO_List_FilterGenres(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "A",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
-		Genres:   []string{"Drama", "Mystery"},
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "A",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
+		Genres: []string{"Drama", "Mystery"},
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "B",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
-		Genres:   []string{"Drama"},
+	_, err = repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "B",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
+		Genres: []string{"Drama"},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{GenreA: "Drama", GenreB: "Mystery", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{GenreA: "Drama", GenreB: "Mystery", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -719,29 +762,33 @@ func TestFanficDAO_List_FilterTag(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "A",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
-		Tags:     []string{"fluff"},
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "A",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
+		Tags: []string{"fluff"},
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "B",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
-		Tags:     []string{"angst"},
+	_, err = repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "B",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
+		Tags: []string{"angst"},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Tag: "angst", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Tag: "angst", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -752,29 +799,33 @@ func TestFanficDAO_List_FilterCharacter(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     user.ID,
-		Title:      "A",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "A",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 		Characters: []dto.FanficCharacter{{Series: "Umineko", CharacterID: "battler", CharacterName: "Battler"}},
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     user.ID,
-		Title:      "B",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	_, err = repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "B",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 		Characters: []dto.FanficCharacter{{Series: "Umineko", CharacterID: "rena", CharacterName: "Rena"}},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{CharacterA: "Battler", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{CharacterA: "Battler", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -785,30 +836,34 @@ func TestFanficDAO_List_FilterPairing(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     user.ID,
-		Title:      "Single",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Single",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 		Characters: []dto.FanficCharacter{{Series: "Umineko", CharacterID: "battler", CharacterName: "Battler"}},
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:     user.ID,
-		Title:      "Pair",
-		Series:     "Umineko",
-		Rating:     "K",
-		Language:   "English",
-		Status:     "in_progress",
+	_, err = repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:    user.ID,
+			Title:     "Pair",
+			Series:    "Umineko",
+			Rating:    "K",
+			Language:  "English",
+			Status:    "in_progress",
+			IsPairing: true,
+		},
 		Characters: []dto.FanficCharacter{{Series: "Umineko", CharacterID: "battler", CharacterName: "Battler"}, {Series: "Umineko", CharacterID: "beatrice", CharacterName: "Beatrice"}},
-		IsPairing:  true,
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{CharacterA: "Battler", IsPairing: true, Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{CharacterA: "Battler", IsPairing: true, Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -819,29 +874,33 @@ func TestFanficDAO_List_Search(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "Golden Witch",
-		Summary:  "summary",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Golden Witch",
+			Summary:  "summary",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "Other",
-		Summary:  "golden text here",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "in_progress",
+	_, err = repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Other",
+			Summary:  "golden text here",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "in_progress",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Search: "golden", Limit: 10}, nil)
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Search: "golden", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -855,10 +914,10 @@ func TestFanficDAO_List_SortFavourites(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	a := createFanfic(t, repos, user.ID, "A")
 	b := createFanfic(t, repos, user.ID, "B")
-	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, b))
+	require.NoError(t, repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: b}))
 
 	// when
-	rows, _, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Sort: "favourites", Limit: 10}, nil)
+	rows, _, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Sort: "favourites", Limit: 10}})
 
 	// then
 	require.NoError(t, err)
@@ -876,7 +935,7 @@ func TestFanficDAO_List_Pagination(t *testing.T) {
 	}
 
 	// when
-	rows, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 2, Offset: 1}, nil)
+	rows, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Limit: 2, Offset: 1}})
 
 	// then
 	require.NoError(t, err)
@@ -893,7 +952,7 @@ func TestFanficDAO_List_ExcludeUsers(t *testing.T) {
 	createFanfic(t, repos, blocked.ID, "Blocked")
 
 	// when
-	_, total, err := repos.Fanfic.List(context.Background(), user.ID, fanficparams.ListParams{Limit: 10}, []uuid.UUID{blocked.ID})
+	_, total, err := repos.Fanfic.List(context.Background(), spec.FanficListFilter{ViewerID: user.ID, Params: fanficparams.ListParams{Limit: 10}, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
 
 	// then
 	require.NoError(t, err)
@@ -910,7 +969,7 @@ func TestFanficDAO_ListByUser(t *testing.T) {
 	createFanfic(t, repos, other.ID, "C")
 
 	// when
-	rows, total, err := repos.Fanfic.ListByUser(context.Background(), owner.ID, owner.ID, 10, 0)
+	rows, total, err := repos.Fanfic.ListByUser(context.Background(), spec.FanficUserListFilter{UserID: owner.ID, ViewerID: owner.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -927,7 +986,7 @@ func TestFanficDAO_ListByUser_Pagination(t *testing.T) {
 	}
 
 	// when
-	rows, total, err := repos.Fanfic.ListByUser(context.Background(), user.ID, user.ID, 1, 1)
+	rows, total, err := repos.Fanfic.ListByUser(context.Background(), spec.FanficUserListFilter{UserID: user.ID, ViewerID: user.ID, Limit: 1, Offset: 1})
 
 	// then
 	require.NoError(t, err)
@@ -942,7 +1001,8 @@ func TestFanficDAO_CreateChapter_AndGet(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	cidRow, err := repos.Fanfic.CreateChapter(context.Background(), fid, repository.NewChapter{
+	cidRow, err := repos.Fanfic.CreateChapter(context.Background(), spec.NewChapter{
+		FanficID:  fid,
 		Number:    1,
 		Title:     "Ch 1",
 		Body:      "body",
@@ -951,7 +1011,7 @@ func TestFanficDAO_CreateChapter_AndGet(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	ch, err := repos.Fanfic.GetChapter(context.Background(), fid, 1)
+	ch, err := repos.Fanfic.GetChapter(context.Background(), spec.FanficChapterLookup{FanficID: fid, ChapterNumber: 1})
 	require.NoError(t, err)
 	require.NotNil(t, ch)
 	assert.Equal(t, cidRow.ID, ch.ID)
@@ -966,7 +1026,7 @@ func TestFanficDAO_GetChapter_NotFound(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	ch, err := repos.Fanfic.GetChapter(context.Background(), fid, 99)
+	ch, err := repos.Fanfic.GetChapter(context.Background(), spec.FanficChapterLookup{FanficID: fid, ChapterNumber: 99})
 
 	// then
 	require.NoError(t, err)
@@ -981,11 +1041,11 @@ func TestFanficDAO_UpdateChapter(t *testing.T) {
 	cid := createFanficChapter(t, repos, fid, 1, "Old")
 
 	// when
-	err := repos.Fanfic.UpdateChapter(context.Background(), cid, "New", "new body", 50)
+	err := repos.Fanfic.UpdateChapter(context.Background(), spec.ChapterUpdate{ID: cid, Title: "New", Body: "new body", WordCount: 50})
 
 	// then
 	require.NoError(t, err)
-	ch, err := repos.Fanfic.GetChapter(context.Background(), fid, 1)
+	ch, err := repos.Fanfic.GetChapter(context.Background(), spec.FanficChapterLookup{FanficID: fid, ChapterNumber: 1})
 	require.NoError(t, err)
 	require.NotNil(t, ch)
 	assert.Equal(t, "New", ch.Title)
@@ -1005,7 +1065,7 @@ func TestFanficDAO_DeleteChapter(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	ch, err := repos.Fanfic.GetChapter(context.Background(), fid, 1)
+	ch, err := repos.Fanfic.GetChapter(context.Background(), spec.FanficChapterLookup{FanficID: fid, ChapterNumber: 1})
 	require.NoError(t, err)
 	assert.Nil(t, ch)
 }
@@ -1017,7 +1077,8 @@ func TestFanficDAO_CreateChapterWithCount(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	created, err := repos.Fanfic.CreateChapterWithCount(context.Background(), fid, repository.NewChapter{
+	created, err := repos.Fanfic.CreateChapterWithCount(context.Background(), spec.NewChapter{
+		FanficID:  fid,
 		Number:    1,
 		Title:     "Ch 1",
 		Body:      "body",
@@ -1027,7 +1088,7 @@ func TestFanficDAO_CreateChapterWithCount(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.NotEqual(t, uuid.Nil, created.ID)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 320, row.WordCount)
 }
@@ -1040,7 +1101,7 @@ func TestFanficDAO_UpdateChapterWithCount(t *testing.T) {
 	cid := createFanficChapter(t, repos, fid, 1, "Ch")
 
 	// when
-	err := repos.Fanfic.UpdateChapterWithCount(context.Background(), repository.ChapterUpdate{
+	err := repos.Fanfic.UpdateChapterWithCount(context.Background(), spec.ChapterUpdate{
 		ID:        cid,
 		Title:     "New",
 		Body:      "new body",
@@ -1049,7 +1110,7 @@ func TestFanficDAO_UpdateChapterWithCount(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 40, row.WordCount)
 }
@@ -1067,10 +1128,10 @@ func TestFanficDAO_DeleteChapterWithCount(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	ch, err := repos.Fanfic.GetChapter(context.Background(), fid, 1)
+	ch, err := repos.Fanfic.GetChapter(context.Background(), spec.FanficChapterLookup{FanficID: fid, ChapterNumber: 1})
 	require.NoError(t, err)
 	assert.Nil(t, ch)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.WordCount)
 }
@@ -1294,7 +1355,7 @@ func TestFanficDAO_RegisterOCCharacter(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Fanfic.RegisterOCCharacter(context.Background(), "My OC", user.ID)
+	err := repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "My OC", CreatorID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1307,10 +1368,10 @@ func TestFanficDAO_RegisterOCCharacter_Duplicate(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "Dup", user.ID))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "Dup", CreatorID: user.ID}))
 
 	// when
-	err := repos.Fanfic.RegisterOCCharacter(context.Background(), "Dup", user.ID)
+	err := repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "Dup", CreatorID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1323,9 +1384,9 @@ func TestFanficDAO_SearchOCCharacters(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "Alice", user.ID))
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "Bob", user.ID))
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "Alicia", user.ID))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "Alice", CreatorID: user.ID}))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "Bob", CreatorID: user.ID}))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "Alicia", CreatorID: user.ID}))
 
 	// when
 	got, err := repos.Fanfic.SearchOCCharacters(context.Background(), "Ali")
@@ -1339,9 +1400,9 @@ func TestFanficDAO_SearchOCCharacters_EmptyQueryReturnsAll(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "A1", user.ID))
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "A2", user.ID))
-	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), "A3", user.ID))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "A1", CreatorID: user.ID}))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "A2", CreatorID: user.ID}))
+	require.NoError(t, repos.Fanfic.RegisterOCCharacter(context.Background(), spec.NewFanficOCCharacter{Name: "A3", CreatorID: user.ID}))
 
 	// when
 	got, err := repos.Fanfic.SearchOCCharacters(context.Background(), "")
@@ -1425,11 +1486,11 @@ func TestFanficDAO_Favourite(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	err := repos.Fanfic.Favourite(context.Background(), voter.ID, fid)
+	err := repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: fid})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, voter.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: voter.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, 1, row.FavouriteCount)
@@ -1442,14 +1503,14 @@ func TestFanficDAO_Favourite_Idempotent(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	voter := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, fid))
+	require.NoError(t, repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: fid}))
 
 	// when
-	err := repos.Fanfic.Favourite(context.Background(), voter.ID, fid)
+	err := repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: fid})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, voter.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: voter.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.FavouriteCount)
 }
@@ -1460,14 +1521,14 @@ func TestFanficDAO_Unfavourite(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	voter := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, fid))
+	require.NoError(t, repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: fid}))
 
 	// when
-	err := repos.Fanfic.Unfavourite(context.Background(), voter.ID, fid)
+	err := repos.Fanfic.Unfavourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: fid})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, voter.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: voter.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.FavouriteCount)
 	assert.False(t, row.UserFavourited)
@@ -1480,12 +1541,12 @@ func TestFanficDAO_RecordView_New(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	inserted, err := repos.Fanfic.RecordView(context.Background(), fid, "hash1")
+	inserted, err := repos.Fanfic.RecordView(context.Background(), spec.ViewRecord{TargetID: fid, ViewerHash: "hash1"})
 
 	// then
 	require.NoError(t, err)
 	assert.True(t, inserted)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.ViewCount)
 }
@@ -1495,16 +1556,16 @@ func TestFanficDAO_RecordView_Duplicate(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	_, err := repos.Fanfic.RecordView(context.Background(), fid, "hash1")
+	_, err := repos.Fanfic.RecordView(context.Background(), spec.ViewRecord{TargetID: fid, ViewerHash: "hash1"})
 	require.NoError(t, err)
 
 	// when
-	inserted, err := repos.Fanfic.RecordView(context.Background(), fid, "hash1")
+	inserted, err := repos.Fanfic.RecordView(context.Background(), spec.ViewRecord{TargetID: fid, ViewerHash: "hash1"})
 
 	// then
 	require.NoError(t, err)
 	assert.False(t, inserted)
-	row, err := repos.Fanfic.GetByID(context.Background(), fid, user.ID)
+	row, err := repos.Fanfic.GetByID(context.Background(), spec.FanficLookup{ID: fid, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.ViewCount)
 }
@@ -1516,7 +1577,7 @@ func TestFanficDAO_ReadingProgress_DefaultZero(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	got, err := repos.Fanfic.GetReadingProgress(context.Background(), user.ID, fid)
+	got, err := repos.Fanfic.GetReadingProgress(context.Background(), spec.FanficUserRef{UserID: user.ID, FanficID: fid})
 
 	// then
 	require.NoError(t, err)
@@ -1530,11 +1591,11 @@ func TestFanficDAO_SetAndGetReadingProgress(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 
 	// when
-	err := repos.Fanfic.SetReadingProgress(context.Background(), user.ID, fid, 3)
+	err := repos.Fanfic.SetReadingProgress(context.Background(), spec.FanficReadingProgress{UserID: user.ID, FanficID: fid, ChapterNumber: 3})
 
 	// then
 	require.NoError(t, err)
-	got, err := repos.Fanfic.GetReadingProgress(context.Background(), user.ID, fid)
+	got, err := repos.Fanfic.GetReadingProgress(context.Background(), spec.FanficUserRef{UserID: user.ID, FanficID: fid})
 	require.NoError(t, err)
 	assert.Equal(t, 3, got)
 }
@@ -1544,14 +1605,14 @@ func TestFanficDAO_SetReadingProgress_Upsert(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
-	require.NoError(t, repos.Fanfic.SetReadingProgress(context.Background(), user.ID, fid, 2))
+	require.NoError(t, repos.Fanfic.SetReadingProgress(context.Background(), spec.FanficReadingProgress{UserID: user.ID, FanficID: fid, ChapterNumber: 2}))
 
 	// when
-	err := repos.Fanfic.SetReadingProgress(context.Background(), user.ID, fid, 5)
+	err := repos.Fanfic.SetReadingProgress(context.Background(), spec.FanficReadingProgress{UserID: user.ID, FanficID: fid, ChapterNumber: 5})
 
 	// then
 	require.NoError(t, err)
-	got, err := repos.Fanfic.GetReadingProgress(context.Background(), user.ID, fid)
+	got, err := repos.Fanfic.GetReadingProgress(context.Background(), spec.FanficUserRef{UserID: user.ID, FanficID: fid})
 	require.NoError(t, err)
 	assert.Equal(t, 5, got)
 }
@@ -1563,11 +1624,11 @@ func TestFanficDAO_ListFavourites(t *testing.T) {
 	voter := daotest.CreateUser(t, repos)
 	a := createFanfic(t, repos, owner.ID, "A")
 	b := createFanfic(t, repos, owner.ID, "B")
-	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, a))
-	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, b))
+	require.NoError(t, repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: a}))
+	require.NoError(t, repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: b}))
 
 	// when
-	rows, total, err := repos.Fanfic.ListFavourites(context.Background(), voter.ID, voter.ID, 10, 0)
+	rows, total, err := repos.Fanfic.ListFavourites(context.Background(), spec.FanficUserListFilter{UserID: voter.ID, ViewerID: voter.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1580,20 +1641,22 @@ func TestFanficDAO_ListFavourites_HidesDrafts(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	owner := daotest.CreateUser(t, repos)
 	voter := daotest.CreateUser(t, repos)
-	draft, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   owner.ID,
-		Title:    "Draft",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "draft",
+	draft, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   owner.ID,
+			Title:    "Draft",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "draft",
+		},
 	})
 	require.NoError(t, err)
 	draftID := draft.ID
-	require.NoError(t, repos.Fanfic.Favourite(context.Background(), voter.ID, draftID))
+	require.NoError(t, repos.Fanfic.Favourite(context.Background(), spec.FanficUserRef{UserID: voter.ID, FanficID: draftID}))
 
 	// when
-	rows, _, err := repos.Fanfic.ListFavourites(context.Background(), voter.ID, voter.ID, 10, 0)
+	rows, _, err := repos.Fanfic.ListFavourites(context.Background(), spec.FanficUserListFilter{UserID: voter.ID, ViewerID: voter.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1610,7 +1673,7 @@ func TestFanficDAO_CreateComment(t *testing.T) {
 	createFanficComment(t, repos, fid, nil, user.ID, "Nice!")
 
 	// then
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: user.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, "Nice!", cs[0].Body)
@@ -1627,7 +1690,7 @@ func TestFanficDAO_CreateComment_Threaded(t *testing.T) {
 	childID := createFanficComment(t, repos, fid, &parentID, user.ID, "child")
 
 	// then
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: user.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 2)
 	var foundChild bool
@@ -1649,11 +1712,11 @@ func TestFanficDAO_UpdateComment_AsOwner(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "old")
 
 	// when
-	err := repos.Fanfic.UpdateComment(context.Background(), cid, user.ID, "new")
+	err := repos.Fanfic.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: cid, UserID: user.ID, Body: "new"})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: user.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, "new", cs[0].Body)
@@ -1668,7 +1731,7 @@ func TestFanficDAO_UpdateComment_NonOwnerFails(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "old")
 
 	// when
-	err := repos.Fanfic.UpdateComment(context.Background(), cid, other.ID, "hack")
+	err := repos.Fanfic.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: cid, UserID: other.ID, Body: "hack"})
 
 	// then
 	require.Error(t, err)
@@ -1682,11 +1745,11 @@ func TestFanficDAO_UpdateCommentAsAdmin(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "old")
 
 	// when
-	err := repos.Fanfic.UpdateCommentAsAdmin(context.Background(), cid, "admin edit")
+	err := repos.Fanfic.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: cid, Body: "admin edit", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: owner.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, "admin edit", cs[0].Body)
@@ -1700,11 +1763,11 @@ func TestFanficDAO_DeleteComment_AsOwner(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
-	err := repos.Fanfic.DeleteComment(context.Background(), cid, user.ID)
+	err := repos.Fanfic.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: cid, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: user.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
 }
@@ -1718,7 +1781,7 @@ func TestFanficDAO_DeleteComment_NonOwnerFails(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	err := repos.Fanfic.DeleteComment(context.Background(), cid, other.ID)
+	err := repos.Fanfic.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: cid, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -1732,11 +1795,11 @@ func TestFanficDAO_DeleteCommentAsAdmin(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	err := repos.Fanfic.DeleteCommentAsAdmin(context.Background(), cid)
+	err := repos.Fanfic.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: cid, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: owner.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
 }
@@ -1749,23 +1812,25 @@ func TestFanficDAO_DeleteCommentWithAudit_AsOwner(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
-	_, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
-		ID:     cid,
-		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+	_, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), spec.FanficCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: cid,
+			UserID:    user.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionFanficCommentDelete,
-			TargetType: repository.AuditTargetFanficComment,
+			Action:     audit.ActionFanficCommentDelete,
+			TargetType: audit.TargetFanficComment,
 			TargetID:   cid.String(),
 		},
 	})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, user.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: user.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionFanficCommentDelete, 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionFanficCommentDelete, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1781,24 +1846,26 @@ func TestFanficDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	_, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
-		ID:      cid,
-		UserID:  admin.ID,
-		AsAdmin: true,
-		Audit: repository.NewAuditEntry{
+	_, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), spec.FanficCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: cid,
+			UserID:    admin.ID,
+			AsAdmin:   true,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    admin.ID,
-			Action:     repository.AuditActionFanficCommentDeleteAdmin,
-			TargetType: repository.AuditTargetFanficComment,
+			Action:     audit.ActionFanficCommentDeleteAdmin,
+			TargetType: audit.TargetFanficComment,
 			TargetID:   cid.String(),
 		},
 	})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: owner.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	assert.Len(t, cs, 0)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionFanficCommentDeleteAdmin, 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionFanficCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1814,13 +1881,15 @@ func TestFanficDAO_DeleteCommentWithAudit_NonOwnerWritesNoAudit(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	paths, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
-		ID:     cid,
-		UserID: other.ID,
-		Audit: repository.NewAuditEntry{
+	paths, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), spec.FanficCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: cid,
+			UserID:    other.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    other.ID,
-			Action:     repository.AuditActionFanficCommentDelete,
-			TargetType: repository.AuditTargetFanficComment,
+			Action:     audit.ActionFanficCommentDelete,
+			TargetType: audit.TargetFanficComment,
 			TargetID:   cid.String(),
 		},
 	})
@@ -1828,10 +1897,10 @@ func TestFanficDAO_DeleteCommentWithAudit_NonOwnerWritesNoAudit(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.Empty(t, paths)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: owner.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	assert.Len(t, cs, 1)
-	_, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionFanficCommentDelete, 10, 0)
+	_, auditTotal, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionFanficCommentDelete, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Equal(t, 0, auditTotal)
 }
@@ -1843,34 +1912,36 @@ func TestFanficDAO_DeleteCommentWithAudit_ReturnsOnlyThatCommentsMediaPaths(t *t
 	fid := createFanfic(t, repos, user.ID, "T")
 	target := createFanficComment(t, repos, fid, nil, user.ID, "target")
 	sibling := createFanficComment(t, repos, fid, nil, user.ID, "sibling")
-	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    target,
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     target,
 		MediaURL:     "/uploads/images/target.png",
 		MediaType:    "image",
 		ThumbnailURL: "/uploads/images/target_thumb.png",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: target,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  target,
 		MediaURL:  "/uploads/images/target_no_thumb.gif",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: sibling,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  sibling,
 		MediaURL:  "/uploads/images/sibling.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 
 	// when
-	paths, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), repository.FanficCommentDelete{
-		ID:     target,
-		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+	paths, err := repos.Fanfic.DeleteCommentWithAudit(context.Background(), spec.FanficCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: target,
+			UserID:    user.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionFanficCommentDelete,
-			TargetType: repository.AuditTargetFanficComment,
+			Action:     audit.ActionFanficCommentDelete,
+			TargetType: audit.TargetFanficComment,
 			TargetID:   target.String(),
 		},
 	})
@@ -1899,7 +1970,7 @@ func TestFanficDAO_GetComments_ExcludesUsers(t *testing.T) {
 	createFanficComment(t, repos, fid, nil, blocked.ID, "blocked")
 
 	// when
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, owner.ID, 500, 0, []uuid.UUID{blocked.ID})
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: owner.ID, Limit: 500, Offset: 0, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
 
 	// then
 	require.NoError(t, err)
@@ -1946,11 +2017,11 @@ func TestFanficDAO_LikeComment(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
 
 	// when
-	err := repos.Fanfic.LikeComment(context.Background(), liker.ID, cid)
+	err := repos.Fanfic.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: cid})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: liker.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, 1, cs[0].LikeCount)
@@ -1964,14 +2035,14 @@ func TestFanficDAO_LikeComment_Idempotent(t *testing.T) {
 	liker := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
-	require.NoError(t, repos.Fanfic.LikeComment(context.Background(), liker.ID, cid))
+	require.NoError(t, repos.Fanfic.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: cid}))
 
 	// when
-	err := repos.Fanfic.LikeComment(context.Background(), liker.ID, cid)
+	err := repos.Fanfic.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: cid})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: liker.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, 1, cs[0].LikeCount)
@@ -1984,14 +2055,14 @@ func TestFanficDAO_UnlikeComment(t *testing.T) {
 	liker := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, owner.ID, "T")
 	cid := createFanficComment(t, repos, fid, nil, owner.ID, "body")
-	require.NoError(t, repos.Fanfic.LikeComment(context.Background(), liker.ID, cid))
+	require.NoError(t, repos.Fanfic.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: cid}))
 
 	// when
-	err := repos.Fanfic.UnlikeComment(context.Background(), liker.ID, cid)
+	err := repos.Fanfic.UnlikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: cid})
 
 	// then
 	require.NoError(t, err)
-	cs, _, err := repos.Fanfic.GetComments(context.Background(), fid, liker.ID, 500, 0, nil)
+	cs, _, err := repos.Fanfic.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: fid, ViewerID: liker.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, cs, 1)
 	assert.Equal(t, 0, cs[0].LikeCount)
@@ -2006,8 +2077,8 @@ func TestFanficDAO_AddCommentMedia(t *testing.T) {
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
 
 	// when
-	id, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID:    cid,
+	id, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     cid,
 		MediaURL:     "http://x/img.png",
 		MediaType:    "image",
 		ThumbnailURL: "http://x/t.png",
@@ -2029,15 +2100,15 @@ func TestFanficDAO_UpdateCommentMediaURL(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
-	id, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: cid,
+	id, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  cid,
 		MediaURL:  "http://old/img.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Fanfic.UpdateCommentMediaURL(context.Background(), id, "http://new/img.png")
+	err = repos.Fanfic.UpdateCommentMediaURL(context.Background(), spec.MediaURLUpdate{ID: id, URL: "http://new/img.png"})
 
 	// then
 	require.NoError(t, err)
@@ -2053,15 +2124,15 @@ func TestFanficDAO_UpdateCommentMediaThumbnail(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
-	id, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: cid,
+	id, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  cid,
 		MediaURL:  "http://x/img.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Fanfic.UpdateCommentMediaThumbnail(context.Background(), id, "http://x/thumb.png")
+	err = repos.Fanfic.UpdateCommentMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: id, URL: "http://x/thumb.png"})
 
 	// then
 	require.NoError(t, err)
@@ -2077,20 +2148,20 @@ func TestFanficDAO_GetCommentMedia_OrderedBySort(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	fid := createFanfic(t, repos, user.ID, "T")
 	cid := createFanficComment(t, repos, fid, nil, user.ID, "body")
-	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: cid,
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  cid,
 		MediaURL:  "http://x/0.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: cid,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  cid,
 		MediaURL:  "http://x/1.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: cid,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  cid,
 		MediaURL:  "http://x/2.png",
 		MediaType: "image",
 	})
@@ -2114,14 +2185,14 @@ func TestFanficDAO_GetCommentMediaBatch(t *testing.T) {
 	fid := createFanfic(t, repos, user.ID, "T")
 	c1 := createFanficComment(t, repos, fid, nil, user.ID, "a")
 	c2 := createFanficComment(t, repos, fid, nil, user.ID, "b")
-	_, err := repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: c1,
+	_, err := repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  c1,
 		MediaURL:  "http://x/1.png",
 		MediaType: "image",
 	})
 	require.NoError(t, err)
-	_, err = repos.Fanfic.AddCommentMedia(context.Background(), repository.NewFanficCommentMedia{
-		CommentID: c2,
+	_, err = repos.Fanfic.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:  c2,
 		MediaURL:  "http://x/2.png",
 		MediaType: "image",
 	})
@@ -2154,20 +2225,22 @@ func TestFanficDAO_ListByUser_HidesDraftsFromOthers(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
 	createFanfic(t, repos, owner.ID, "Published")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   owner.ID,
-		Title:    "Draft",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "draft",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   owner.ID,
+			Title:    "Draft",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "draft",
+		},
 	})
 	require.NoError(t, err)
 
 	// when
-	otherRows, totalOther, otherErr := repos.Fanfic.ListByUser(context.Background(), owner.ID, other.ID, 10, 0)
-	anonRows, totalAnon, anonErr := repos.Fanfic.ListByUser(context.Background(), owner.ID, uuid.Nil, 10, 0)
-	_, totalOwner, ownerErr := repos.Fanfic.ListByUser(context.Background(), owner.ID, owner.ID, 10, 0)
+	otherRows, totalOther, otherErr := repos.Fanfic.ListByUser(context.Background(), spec.FanficUserListFilter{UserID: owner.ID, ViewerID: other.ID, Limit: 10, Offset: 0})
+	anonRows, totalAnon, anonErr := repos.Fanfic.ListByUser(context.Background(), spec.FanficUserListFilter{UserID: owner.ID, ViewerID: uuid.Nil, Limit: 10, Offset: 0})
+	_, totalOwner, ownerErr := repos.Fanfic.ListByUser(context.Background(), spec.FanficUserListFilter{UserID: owner.ID, ViewerID: owner.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, otherErr)

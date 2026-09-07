@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -23,7 +24,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 	first := uuid.New()
 	second := uuid.New()
 
-	firstRow := &repository.CommentRow{
+	firstRow := &model.CommentRow{
 		ID:                first,
 		EntityID:          postID.String(),
 		UserID:            humanID,
@@ -31,7 +32,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 		AuthorDisplayName: "Kujo",
 		AuthorUsername:    "kujo",
 	}
-	secondRow := &repository.CommentRow{
+	secondRow := &model.CommentRow{
 		ID:       second,
 		EntityID: postID.String(),
 		UserID:   botID,
@@ -42,13 +43,13 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 	cases := []struct {
 		name  string
 		depth int
-		rows  map[uuid.UUID]*repository.CommentRow
+		rows  map[uuid.UUID]*model.CommentRow
 		want  []openai.Message
 	}{
 		{
 			name:  "chain is ordered oldest first with the trigger last",
 			depth: 25,
-			rows:  map[uuid.UUID]*repository.CommentRow{first: firstRow, second: secondRow},
+			rows:  map[uuid.UUID]*model.CommentRow{first: firstRow, second: secondRow},
 			want: []openai.Message{
 				{Role: "user", Content: "@kujo: who did it"},
 				{Role: "assistant", Content: "the culprit is not human"},
@@ -58,7 +59,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 		{
 			name:  "depth caps how far the walk climbs",
 			depth: 1,
-			rows:  map[uuid.UUID]*repository.CommentRow{first: firstRow, second: secondRow},
+			rows:  map[uuid.UUID]*model.CommentRow{first: firstRow, second: secondRow},
 			want: []openai.Message{
 				{Role: "assistant", Content: "the culprit is not human"},
 				{Role: "user", Content: "explain"},
@@ -67,7 +68,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 		{
 			name:  "a parent on another post ends the walk",
 			depth: 25,
-			rows: map[uuid.UUID]*repository.CommentRow{
+			rows: map[uuid.UUID]*model.CommentRow{
 				second: {ID: second, EntityID: otherPostID.String(), UserID: botID, Body: "stray"},
 			},
 			want: []openai.Message{{Role: "user", Content: "explain"}},
@@ -75,7 +76,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 		{
 			name:  "a missing parent ends the walk",
 			depth: 25,
-			rows:  map[uuid.UUID]*repository.CommentRow{second: nil},
+			rows:  map[uuid.UUID]*model.CommentRow{second: nil},
 			want:  []openai.Message{{Role: "user", Content: "explain"}},
 		},
 	}
@@ -87,7 +88,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 			for id, row := range tc.rows {
 				postRepo.EXPECT().GetCommentByID(mock.Anything, id).Return(row, nil).Maybe()
 			}
-			postRepo.EXPECT().GetByID(mock.Anything, postID, botID).Return(nil, nil).Maybe()
+			postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: botID}).Return(nil, nil).Maybe()
 
 			svc := &service{postRepo: postRepo}
 			j := job{
@@ -98,7 +99,7 @@ func TestBuildMessages_GameBoardChain(t *testing.T) {
 					Body:     "explain",
 					ParentID: &second,
 				},
-				bot:      repository.Chatbot{UserID: botID},
+				bot:      model.Chatbot{UserID: botID},
 				useChain: true,
 			}
 
@@ -128,7 +129,7 @@ func TestBuildMessages_MentionOnlySendsOneMessage(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			postRepo := repository.NewMockPostRepository(t)
-			postRepo.EXPECT().GetByID(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+			postRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
 			svc := &service{postRepo: postRepo}
 			j := job{
 				ev: botEvent{
@@ -137,7 +138,7 @@ func TestBuildMessages_MentionOnlySendsOneMessage(t *testing.T) {
 					Body:     "@beatrice hello",
 					ParentID: tc.parent,
 				},
-				bot:      repository.Chatbot{UserID: uuid.New()},
+				bot:      model.Chatbot{UserID: uuid.New()},
 				useChain: false,
 			}
 
@@ -174,7 +175,7 @@ func TestBuildMessages_NamesWhoeverTriggeredTheBot(t *testing.T) {
 					SenderName: tc.senderName,
 					Body:       "@beatrice who am i?",
 				},
-				bot:      repository.Chatbot{UserID: uuid.New()},
+				bot:      model.Chatbot{UserID: uuid.New()},
 				useChain: false,
 			}
 
@@ -194,7 +195,7 @@ func TestBuildMessages_ReplyChainStillNamesTheTrigger(t *testing.T) {
 	parentID := uuid.New()
 
 	chatRepo := repository.NewMockChatRepository(t)
-	chatRepo.EXPECT().GetMessageByID(mock.Anything, parentID).Return(&repository.ChatMessageRow{
+	chatRepo.EXPECT().GetMessageByID(mock.Anything, parentID).Return(&model.ChatMessageRow{
 		ID:       parentID,
 		RoomID:   roomID,
 		SenderID: botID,
@@ -210,7 +211,7 @@ func TestBuildMessages_ReplyChainStillNamesTheTrigger(t *testing.T) {
 			Body:       "explain",
 			ParentID:   &parentID,
 		},
-		bot:      repository.Chatbot{UserID: botID},
+		bot:      model.Chatbot{UserID: botID},
 		useChain: true,
 	}
 
@@ -282,8 +283,8 @@ func TestBuildMessages_AlwaysCarriesThePostBeingCommentedOn(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			postRepo := repository.NewMockPostRepository(t)
-			postRepo.EXPECT().GetByID(mock.Anything, postID, botID).Return(post, nil).Once()
-			postRepo.EXPECT().GetCommentByID(mock.Anything, deepest).Return(&repository.CommentRow{
+			postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: botID}).Return(post, nil).Once()
+			postRepo.EXPECT().GetCommentByID(mock.Anything, deepest).Return(&model.CommentRow{
 				ID:                deepest,
 				EntityID:          postID.String(),
 				UserID:            uuid.New(),
@@ -303,7 +304,7 @@ func TestBuildMessages_AlwaysCarriesThePostBeingCommentedOn(t *testing.T) {
 					Body:         "@Beatrice_bot what do you think about him nuking the future?",
 					ParentID:     tc.parent,
 				},
-				bot:      repository.Chatbot{UserID: botID},
+				bot:      model.Chatbot{UserID: botID},
 				useChain: tc.useChain,
 			}
 
@@ -332,7 +333,7 @@ func TestBuildMessages_PostSurfaceDoesNotRepeatItself(t *testing.T) {
 			SenderHandle: "SimonDiamond",
 			Body:         "@Beatrice_bot thoughts?",
 		},
-		bot:      repository.Chatbot{UserID: uuid.New()},
+		bot:      model.Chatbot{UserID: uuid.New()},
 		useChain: false,
 	}
 
@@ -341,7 +342,7 @@ func TestBuildMessages_PostSurfaceDoesNotRepeatItself(t *testing.T) {
 
 	// then
 	assert.Equal(t, []openai.Message{{Role: "user", Content: "@SimonDiamond: @Beatrice_bot thoughts?"}}, got)
-	postRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything, mock.Anything)
+	postRepo.AssertNotCalled(t, "GetByID", mock.Anything, mock.Anything)
 }
 
 func TestAuthored_AForgedLabelCannotSitFlushLeft(t *testing.T) {
@@ -391,7 +392,7 @@ func TestAuthored_AForgedLabelCannotSitFlushLeft(t *testing.T) {
 }
 
 func TestStripSelfLabel_TheBotNeverAnnouncesItsOwnHandle(t *testing.T) {
-	bot := repository.Chatbot{Username: "Erika_Furudo_bot", DisplayName: "Erika Furudo"}
+	bot := model.Chatbot{Username: "Erika_Furudo_bot", DisplayName: "Erika Furudo"}
 
 	cases := []struct {
 		name string
@@ -510,7 +511,7 @@ func TestChatPromptRow_PrefersTheRoomNickname(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
-			row := repository.ChatMessageRow{
+			row := model.ChatMessageRow{
 				SenderNickname:    tc.nickname,
 				SenderDisplayName: tc.display,
 				SenderUsername:    tc.username,

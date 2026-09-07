@@ -6,54 +6,42 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/logger"
-
-	"github.com/google/uuid"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
-	SettingsDAO interface {
-		Get(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error)
-		GetAll(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error)
-		Set(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error
-		SetMultiple(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx) error
-		Delete(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) error
-	}
-
 	SettingsRepository interface {
-		SettingsDAO
+		dao.SettingsDAO
 
-		Reconcile(ctx context.Context, spec SettingsReconcile, tx ...*sql.Tx) error
-	}
-
-	SettingsReconcile struct {
-		Missing   map[config.SiteSettingKey]string
-		Stale     []config.SiteSettingKey
-		UpdatedBy uuid.UUID
+		Reconcile(ctx context.Context, s spec.SettingsReconcile, tx ...*sql.Tx) error
 	}
 )
 
 type settingsRepository struct {
-	db    *sql.DB
-	dao   SettingsDAO
+	db *sql.DB
+	dao.SettingsDAO
 	cache *cache.Manager
 }
 
-func NewSettingsRepo(database *sql.DB, dao SettingsDAO, c *cache.Manager) SettingsRepository {
-	return &settingsRepository{db: database, dao: dao, cache: c}
+func NewSettingsRepo(database *sql.DB, settingsDAO dao.SettingsDAO, c *cache.Manager) SettingsRepository {
+	return &settingsRepository{db: database, SettingsDAO: settingsDAO, cache: c}
 }
 
-func (r *settingsRepository) Reconcile(ctx context.Context, spec SettingsReconcile, tx ...*sql.Tx) error {
+func (r *settingsRepository) Reconcile(ctx context.Context, s spec.SettingsReconcile, tx ...*sql.Tx) error {
 	err := db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		if len(spec.Missing) > 0 {
-			if err := r.dao.SetMultiple(ctx, spec.Missing, spec.UpdatedBy, tx); err != nil {
+		if len(s.Missing) > 0 {
+			update := spec.SettingsBulkUpdate{Values: s.Missing, UpdatedBy: s.UpdatedBy}
+
+			if err := r.SettingsDAO.SetMultiple(ctx, update, tx); err != nil {
 				return err
 			}
 		}
 
-		for _, key := range spec.Stale {
-			if err := r.dao.Delete(ctx, key, tx); err != nil {
+		for _, key := range s.Stale {
+			if err := r.SettingsDAO.Delete(ctx, key, tx); err != nil {
 				return err
 			}
 		}
@@ -64,11 +52,11 @@ func (r *settingsRepository) Reconcile(ctx context.Context, spec SettingsReconci
 		return err
 	}
 
-	touched := make([]config.SiteSettingKey, 0, len(spec.Missing)+len(spec.Stale))
-	for key := range spec.Missing {
+	touched := make([]config.SiteSettingKey, 0, len(s.Missing)+len(s.Stale))
+	for key := range s.Missing {
 		touched = append(touched, key)
 	}
-	touched = append(touched, spec.Stale...)
+	touched = append(touched, s.Stale...)
 
 	r.invalidate(ctx, touched...)
 
@@ -77,33 +65,29 @@ func (r *settingsRepository) Reconcile(ctx context.Context, spec SettingsReconci
 
 func (r *settingsRepository) Get(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) (string, error) {
 	load := func(ctx context.Context) (string, error) {
-		return r.dao.Get(ctx, key, tx...)
+		return r.SettingsDAO.Get(ctx, key, tx...)
 	}
 
 	return r.cache.Load(ctx, cache.Setting, load, string(key))
 }
 
-func (r *settingsRepository) GetAll(ctx context.Context, tx ...*sql.Tx) (map[config.SiteSettingKey]string, error) {
-	return r.dao.GetAll(ctx, tx...)
-}
-
-func (r *settingsRepository) Set(ctx context.Context, key config.SiteSettingKey, value string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
-	if err := r.dao.Set(ctx, key, value, updatedBy, tx...); err != nil {
+func (r *settingsRepository) Set(ctx context.Context, s spec.SettingsUpdate, tx ...*sql.Tx) error {
+	if err := r.SettingsDAO.Set(ctx, s, tx...); err != nil {
 		return err
 	}
 
-	r.invalidate(ctx, key)
+	r.invalidate(ctx, s.Key)
 
 	return nil
 }
 
-func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[config.SiteSettingKey]string, updatedBy uuid.UUID, tx ...*sql.Tx) error {
-	if err := r.dao.SetMultiple(ctx, settings, updatedBy, tx...); err != nil {
+func (r *settingsRepository) SetMultiple(ctx context.Context, s spec.SettingsBulkUpdate, tx ...*sql.Tx) error {
+	if err := r.SettingsDAO.SetMultiple(ctx, s, tx...); err != nil {
 		return err
 	}
 
-	touched := make([]config.SiteSettingKey, 0, len(settings))
-	for key := range settings {
+	touched := make([]config.SiteSettingKey, 0, len(s.Values))
+	for key := range s.Values {
 		touched = append(touched, key)
 	}
 
@@ -113,7 +97,7 @@ func (r *settingsRepository) SetMultiple(ctx context.Context, settings map[confi
 }
 
 func (r *settingsRepository) Delete(ctx context.Context, key config.SiteSettingKey, tx ...*sql.Tx) error {
-	if err := r.dao.Delete(ctx, key, tx...); err != nil {
+	if err := r.SettingsDAO.Delete(ctx, key, tx...); err != nil {
 		return err
 	}
 

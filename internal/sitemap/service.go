@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 )
@@ -112,7 +113,7 @@ func (s *service) StaticEntries(ctx context.Context) []Entry {
 	return entries
 }
 
-func (s *service) entries(rows []repository.SitemapEntry, pathPrefix string) []Entry {
+func (s *service) entries(rows []model.SitemapEntry, pathPrefix string) []Entry {
 	entries := make([]Entry, 0, len(rows))
 	for _, r := range rows {
 		entries = append(entries, Entry{

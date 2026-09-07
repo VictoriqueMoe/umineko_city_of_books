@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -68,7 +69,7 @@ func (s *service) UpdateSettings(ctx context.Context, actorID uuid.UUID, setting
 	}
 
 	details := fmt.Sprintf("changed %d of %d submitted settings", len(changedKeys), len(settings))
-	s.auditDetails(ctx, actorID, repository.AuditActionUpdateSettings, repository.AuditTargetSettings, strings.Join(changedKeys, ","), details)
+	s.auditDetails(ctx, actorID, audit.ActionUpdateSettings, audit.TargetSettings, strings.Join(changedKeys, ","), details)
 
 	return nil
 }
@@ -93,12 +94,12 @@ func (s *service) SendTestEmail(ctx context.Context, actorID uuid.UUID) error {
 		return fmt.Errorf("send test email: %w", err)
 	}
 
-	s.audit(ctx, actorID, repository.AuditActionSendTestEmail, repository.AuditTargetSettings, "")
+	s.audit(ctx, actorID, audit.ActionSendTestEmail, audit.TargetSettings, "")
 	return nil
 }
 
-func (s *service) GetAuditLog(ctx context.Context, action repository.AuditAction, page bounds.Page) (*dto.AuditLogListResponse, error) {
-	entries, total, err := s.auditRepo.List(ctx, action, page.Limit(), page.Offset())
+func (s *service) GetAuditLog(ctx context.Context, action audit.Action, page bounds.Page) (*dto.AuditLogListResponse, error) {
+	entries, total, err := s.auditRepo.List(ctx, spec.AuditLogListing{Action: action, Page: page})
 	if err != nil {
 		return nil, fmt.Errorf("get audit log: %w", err)
 	}
@@ -111,7 +112,7 @@ func (s *service) GetAuditLog(ctx context.Context, action repository.AuditAction
 	}, nil
 }
 
-func toAuditLogEntries(entries []repository.AuditLogEntry) []dto.AuditLogEntryResponse {
+func toAuditLogEntries(entries []audit.Entry) []dto.AuditLogEntryResponse {
 	items := make([]dto.AuditLogEntryResponse, len(entries))
 	for i, e := range entries {
 		items[i] = dto.AuditLogEntryResponse{

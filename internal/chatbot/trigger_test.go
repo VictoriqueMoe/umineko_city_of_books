@@ -9,7 +9,7 @@ import (
 	"umineko_city_of_books/internal/chat"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -18,10 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func botsByID(ids ...uuid.UUID) map[uuid.UUID]repository.Chatbot {
-	out := make(map[uuid.UUID]repository.Chatbot, len(ids))
+func botsByID(ids ...uuid.UUID) map[uuid.UUID]model.Chatbot {
+	out := make(map[uuid.UUID]model.Chatbot, len(ids))
 	for _, id := range ids {
-		out[id] = repository.Chatbot{UserID: id, Username: id.String()}
+		out[id] = model.Chatbot{UserID: id, Username: id.String()}
 	}
 
 	return out

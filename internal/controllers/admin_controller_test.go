@@ -6,12 +6,12 @@ import (
 	"testing"
 
 	adminsvc "umineko_city_of_books/internal/admin"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	usersvc "umineko_city_of_books/internal/user"
 
@@ -1098,7 +1098,7 @@ func TestAdminGetAuditLog_OK(t *testing.T) {
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
 	expected := &dto.AuditLogListResponse{Total: 3, Limit: 50, Offset: 0}
-	ms.EXPECT().GetAuditLog(mock.Anything, repository.AuditAction(""), bounds.NewPage(50, 0)).Return(expected, nil)
+	ms.EXPECT().GetAuditLog(mock.Anything, audit.Action(""), bounds.NewPage(50, 0)).Return(expected, nil)
 
 	// when
 	status, body := h.NewRequest("GET", "/admin/audit-log").WithCookie("valid-cookie").Do()
@@ -1115,7 +1115,7 @@ func TestAdminGetAuditLog_CustomQuery(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
-	ms.EXPECT().GetAuditLog(mock.Anything, repository.AuditActionBanUser, bounds.NewPage(10, 20)).Return(&dto.AuditLogListResponse{}, nil)
+	ms.EXPECT().GetAuditLog(mock.Anything, audit.ActionBanUser, bounds.NewPage(10, 20)).Return(&dto.AuditLogListResponse{}, nil)
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/audit-log?action=ban_user&limit=10&offset=20").
@@ -1131,7 +1131,7 @@ func TestAdminGetAuditLog_InternalError(t *testing.T) {
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
 	h.ExpectHasPermission(userID, authz.PermViewAuditLog, true)
-	ms.EXPECT().GetAuditLog(mock.Anything, repository.AuditAction(""), bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
+	ms.EXPECT().GetAuditLog(mock.Anything, audit.Action(""), bounds.NewPage(50, 0)).Return(nil, errors.New("boom"))
 
 	// when
 	status, _ := h.NewRequest("GET", "/admin/audit-log").WithCookie("valid-cookie").Do()

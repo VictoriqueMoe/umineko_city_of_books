@@ -9,8 +9,8 @@ import (
 	"database/sql"
 	"time"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/journal/params"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -44,12 +44,12 @@ func (_m *MockJournalRepository) EXPECT() *MockJournalRepository_Expecter {
 }
 
 // AddCommentMedia provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) AddCommentMedia(ctx context.Context, spec NewJournalCommentMedia, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockJournalRepository) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -59,16 +59,16 @@ func (_mock *MockJournalRepository) AddCommentMedia(ctx context.Context, spec Ne
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalCommentMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalCommentMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewJournalCommentMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -82,22 +82,22 @@ type MockJournalRepository_AddCommentMedia_Call struct {
 
 // AddCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewJournalCommentMedia
+//   - s spec.NewMedia
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) AddCommentMedia(ctx any, spec any, tx ...any) *MockJournalRepository_AddCommentMedia_Call {
+func (_e *MockJournalRepository_Expecter) AddCommentMedia(ctx any, s any, tx ...any) *MockJournalRepository_AddCommentMedia_Call {
 	return &MockJournalRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, spec NewJournalCommentMedia, tx ...*sql.Tx)) *MockJournalRepository_AddCommentMedia_Call {
+func (_c *MockJournalRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockJournalRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewJournalCommentMedia
+		var arg1 spec.NewMedia
 		if args[1] != nil {
-			arg1 = args[1].(NewJournalCommentMedia)
+			arg1 = args[1].(spec.NewMedia)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -119,18 +119,18 @@ func (_c *MockJournalRepository_AddCommentMedia_Call) Return(n int64, err error)
 	return _c
 }
 
-func (_c *MockJournalRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewJournalCommentMedia, tx ...*sql.Tx) (int64, error)) *MockJournalRepository_AddCommentMedia_Call {
+func (_c *MockJournalRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockJournalRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddMedia provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) AddMedia(ctx context.Context, spec NewJournalEntryMedia, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockJournalRepository) AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -140,16 +140,16 @@ func (_mock *MockJournalRepository) AddMedia(ctx context.Context, spec NewJourna
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalEntryMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalEntryMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewJournalEntryMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -163,22 +163,22 @@ type MockJournalRepository_AddMedia_Call struct {
 
 // AddMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewJournalEntryMedia
+//   - s spec.NewMedia
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) AddMedia(ctx any, spec any, tx ...any) *MockJournalRepository_AddMedia_Call {
+func (_e *MockJournalRepository_Expecter) AddMedia(ctx any, s any, tx ...any) *MockJournalRepository_AddMedia_Call {
 	return &MockJournalRepository_AddMedia_Call{Call: _e.mock.On("AddMedia",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_AddMedia_Call) Run(run func(ctx context.Context, spec NewJournalEntryMedia, tx ...*sql.Tx)) *MockJournalRepository_AddMedia_Call {
+func (_c *MockJournalRepository_AddMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockJournalRepository_AddMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewJournalEntryMedia
+		var arg1 spec.NewMedia
 		if args[1] != nil {
-			arg1 = args[1].(NewJournalEntryMedia)
+			arg1 = args[1].(spec.NewMedia)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -200,7 +200,7 @@ func (_c *MockJournalRepository_AddMedia_Call) Return(n int64, err error) *MockJ
 	return _c
 }
 
-func (_c *MockJournalRepository_AddMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewJournalEntryMedia, tx ...*sql.Tx) (int64, error)) *MockJournalRepository_AddMedia_Call {
+func (_c *MockJournalRepository_AddMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockJournalRepository_AddMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -619,12 +619,12 @@ func (_c *MockJournalRepository_CountUserJournalsToday_Call) RunAndReturn(run fu
 }
 
 // Create provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) Create(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest, tx ...*sql.Tx) (*dto.JournalResponse, error) {
+func (_mock *MockJournalRepository) Create(ctx context.Context, s spec.NewJournal, tx ...*sql.Tx) (*dto.JournalResponse, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, req, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, req)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -634,18 +634,18 @@ func (_mock *MockJournalRepository) Create(ctx context.Context, userID uuid.UUID
 
 	var r0 *dto.JournalResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateJournalRequest, ...*sql.Tx) (*dto.JournalResponse, error)); ok {
-		return returnFunc(ctx, userID, req, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournal, ...*sql.Tx) (*dto.JournalResponse, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, dto.CreateJournalRequest, ...*sql.Tx) *dto.JournalResponse); ok {
-		r0 = returnFunc(ctx, userID, req, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournal, ...*sql.Tx) *dto.JournalResponse); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.JournalResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, dto.CreateJournalRequest, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, req, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewJournal, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -659,111 +659,22 @@ type MockJournalRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - req dto.CreateJournalRequest
+//   - s spec.NewJournal
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) Create(ctx any, userID any, req any, tx ...any) *MockJournalRepository_Create_Call {
+func (_e *MockJournalRepository_Expecter) Create(ctx any, s any, tx ...any) *MockJournalRepository_Create_Call {
 	return &MockJournalRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, userID, req}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest, tx ...*sql.Tx)) *MockJournalRepository_Create_Call {
+func (_c *MockJournalRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewJournal, tx ...*sql.Tx)) *MockJournalRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewJournal
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 dto.CreateJournalRequest
-		if args[2] != nil {
-			arg2 = args[2].(dto.CreateJournalRequest)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockJournalRepository_Create_Call) Return(journalResponse *dto.JournalResponse, err error) *MockJournalRepository_Create_Call {
-	_c.Call.Return(journalResponse, err)
-	return _c
-}
-
-func (_c *MockJournalRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, req dto.CreateJournalRequest, tx ...*sql.Tx) (*dto.JournalResponse, error)) *MockJournalRepository_Create_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// CreateEntry provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) CreateEntry(ctx context.Context, spec NewJournalEntry, tx ...*sql.Tx) (*JournalEntryRow, error) {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, spec)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for CreateEntry")
-	}
-
-	var r0 *JournalEntryRow
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalEntry, ...*sql.Tx) (*JournalEntryRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewJournalEntry, ...*sql.Tx) *JournalEntryRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*JournalEntryRow)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewJournalEntry, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockJournalRepository_CreateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEntry'
-type MockJournalRepository_CreateEntry_Call struct {
-	*mock.Call
-}
-
-// CreateEntry is a helper method to define mock.On call
-//   - ctx context.Context
-//   - spec NewJournalEntry
-//   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) CreateEntry(ctx any, spec any, tx ...any) *MockJournalRepository_CreateEntry_Call {
-	return &MockJournalRepository_CreateEntry_Call{Call: _e.mock.On("CreateEntry",
-		append([]any{ctx, spec}, tx...)...)}
-}
-
-func (_c *MockJournalRepository_CreateEntry_Call) Run(run func(ctx context.Context, spec NewJournalEntry, tx ...*sql.Tx)) *MockJournalRepository_CreateEntry_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 NewJournalEntry
-		if args[1] != nil {
-			arg1 = args[1].(NewJournalEntry)
+			arg1 = args[1].(spec.NewJournal)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -780,23 +691,189 @@ func (_c *MockJournalRepository_CreateEntry_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockJournalRepository_CreateEntry_Call) Return(journalEntryRow *JournalEntryRow, err error) *MockJournalRepository_CreateEntry_Call {
+func (_c *MockJournalRepository_Create_Call) Return(journalResponse *dto.JournalResponse, err error) *MockJournalRepository_Create_Call {
+	_c.Call.Return(journalResponse, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournal, tx ...*sql.Tx) (*dto.JournalResponse, error)) *MockJournalRepository_Create_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateComment provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) CreateComment(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateComment")
+	}
+
+	var r0 *model.CommentRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalComment, ...*sql.Tx) (*model.CommentRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalComment, ...*sql.Tx) *model.CommentRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.CommentRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewJournalComment, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_CreateComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateComment'
+type MockJournalRepository_CreateComment_Call struct {
+	*mock.Call
+}
+
+// CreateComment is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.NewJournalComment
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) CreateComment(ctx any, s any, tx ...any) *MockJournalRepository_CreateComment_Call {
+	return &MockJournalRepository_CreateComment_Call{Call: _e.mock.On("CreateComment",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_CreateComment_Call) Run(run func(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx)) *MockJournalRepository_CreateComment_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.NewJournalComment
+		if args[1] != nil {
+			arg1 = args[1].(spec.NewJournalComment)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateComment_Call) Return(commentRow *model.CommentRow, err error) *MockJournalRepository_CreateComment_Call {
+	_c.Call.Return(commentRow, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error)) *MockJournalRepository_CreateComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CreateEntry provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) CreateEntry(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for CreateEntry")
+	}
+
+	var r0 *model.JournalEntryRow
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) (*model.JournalEntryRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) *model.JournalEntryRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*model.JournalEntryRow)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewJournalEntry, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_CreateEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CreateEntry'
+type MockJournalRepository_CreateEntry_Call struct {
+	*mock.Call
+}
+
+// CreateEntry is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.NewJournalEntry
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) CreateEntry(ctx any, s any, tx ...any) *MockJournalRepository_CreateEntry_Call {
+	return &MockJournalRepository_CreateEntry_Call{Call: _e.mock.On("CreateEntry",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_CreateEntry_Call) Run(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx)) *MockJournalRepository_CreateEntry_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.NewJournalEntry
+		if args[1] != nil {
+			arg1 = args[1].(spec.NewJournalEntry)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_CreateEntry_Call) Return(journalEntryRow *model.JournalEntryRow, err error) *MockJournalRepository_CreateEntry_Call {
 	_c.Call.Return(journalEntryRow, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_CreateEntry_Call) RunAndReturn(run func(ctx context.Context, spec NewJournalEntry, tx ...*sql.Tx) (*JournalEntryRow, error)) *MockJournalRepository_CreateEntry_Call {
+func (_c *MockJournalRepository_CreateEntry_Call) RunAndReturn(run func(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error)) *MockJournalRepository_CreateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockJournalRepository) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, asAdmin, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, asAdmin)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -804,24 +881,13 @@ func (_mock *MockJournalRepository) Delete(ctx context.Context, id uuid.UUID, us
 		panic("no return value specified for Delete")
 	}
 
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, id, userID, asAdmin, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, id, userID, asAdmin, tx...)
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
+		r0 = ret.Error(0)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, userID, asAdmin, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
+	return r0
 }
 
 // MockJournalRepository_Delete_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Delete'
@@ -831,16 +897,86 @@ type MockJournalRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - asAdmin bool
+//   - s spec.OwnedDeletion
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) Delete(ctx any, id any, userID any, asAdmin any, tx ...any) *MockJournalRepository_Delete_Call {
+func (_e *MockJournalRepository_Expecter) Delete(ctx any, s any, tx ...any) *MockJournalRepository_Delete_Call {
 	return &MockJournalRepository_Delete_Call{Call: _e.mock.On("Delete",
-		append([]any{ctx, id, userID, asAdmin}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx)) *MockJournalRepository_Delete_Call {
+func (_c *MockJournalRepository_Delete_Call) Run(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx)) *MockJournalRepository_Delete_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.OwnedDeletion
+		if args[1] != nil {
+			arg1 = args[1].(spec.OwnedDeletion)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_Delete_Call) Return(err error) *MockJournalRepository_Delete_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error) *MockJournalRepository_Delete_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteAsAdmin provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteAsAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_DeleteAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteAsAdmin'
+type MockJournalRepository_DeleteAsAdmin_Call struct {
+	*mock.Call
+}
+
+// DeleteAsAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) DeleteAsAdmin(ctx any, id any, tx ...any) *MockJournalRepository_DeleteAsAdmin_Call {
+	return &MockJournalRepository_DeleteAsAdmin_Call{Call: _e.mock.On("DeleteAsAdmin",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_DeleteAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_DeleteAsAdmin_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -850,48 +986,38 @@ func (_c *MockJournalRepository_Delete_Call) Run(run func(ctx context.Context, i
 		if args[1] != nil {
 			arg1 = args[1].(uuid.UUID)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 bool
-		if args[3] != nil {
-			arg3 = args[3].(bool)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockJournalRepository_Delete_Call) Return(strings []string, err error) *MockJournalRepository_Delete_Call {
-	_c.Call.Return(strings, err)
+func (_c *MockJournalRepository_DeleteAsAdmin_Call) Return(err error) *MockJournalRepository_DeleteAsAdmin_Call {
+	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockJournalRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error)) *MockJournalRepository_Delete_Call {
+func (_c *MockJournalRepository_DeleteAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_DeleteAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteComment provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockJournalRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, asAdmin, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, asAdmin)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -899,24 +1025,13 @@ func (_mock *MockJournalRepository) DeleteComment(ctx context.Context, id uuid.U
 		panic("no return value specified for DeleteComment")
 	}
 
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, id, userID, asAdmin, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, id, userID, asAdmin, tx...)
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
+		r0 = ret.Error(0)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, userID, asAdmin, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
+	return r0
 }
 
 // MockJournalRepository_DeleteComment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteComment'
@@ -926,62 +1041,133 @@ type MockJournalRepository_DeleteComment_Call struct {
 
 // DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - asAdmin bool
+//   - s spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) DeleteComment(ctx any, id any, userID any, asAdmin any, tx ...any) *MockJournalRepository_DeleteComment_Call {
+func (_e *MockJournalRepository_Expecter) DeleteComment(ctx any, s any, tx ...any) *MockJournalRepository_DeleteComment_Call {
 	return &MockJournalRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, id, userID, asAdmin}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx)) *MockJournalRepository_DeleteComment_Call {
+func (_c *MockJournalRepository_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockJournalRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 bool
-		if args[3] != nil {
-			arg3 = args[3].(bool)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteComment_Call) Return(strings []string, err error) *MockJournalRepository_DeleteComment_Call {
+func (_c *MockJournalRepository_DeleteComment_Call) Return(err error) *MockJournalRepository_DeleteComment_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *MockJournalRepository_DeleteComment_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteCommentWithAudit provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteCommentWithAudit(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteCommentWithAudit")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_DeleteCommentWithAudit_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentWithAudit'
+type MockJournalRepository_DeleteCommentWithAudit_Call struct {
+	*mock.Call
+}
+
+// DeleteCommentWithAudit is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.CommentDeletion
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) DeleteCommentWithAudit(ctx any, s any, tx ...any) *MockJournalRepository_DeleteCommentWithAudit_Call {
+	return &MockJournalRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockJournalRepository_DeleteCommentWithAudit_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.CommentDeletion
+		if args[1] != nil {
+			arg1 = args[1].(spec.CommentDeletion)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteCommentWithAudit_Call) Return(strings []string, err error) *MockJournalRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Return(strings, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, asAdmin bool, tx ...*sql.Tx) ([]string, error)) *MockJournalRepository_DeleteComment_Call {
+func (_c *MockJournalRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockJournalRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteEntry provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) DeleteEntry(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockJournalRepository) DeleteEntry(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -994,24 +1180,13 @@ func (_mock *MockJournalRepository) DeleteEntry(ctx context.Context, id uuid.UUI
 		panic("no return value specified for DeleteEntry")
 	}
 
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, id, tx...)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
+		r0 = ret.Error(0)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, tx...)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
+	return r0
 }
 
 // MockJournalRepository_DeleteEntry_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntry'
@@ -1053,23 +1228,106 @@ func (_c *MockJournalRepository_DeleteEntry_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteEntry_Call) Return(strings []string, err error) *MockJournalRepository_DeleteEntry_Call {
+func (_c *MockJournalRepository_DeleteEntry_Call) Return(err error) *MockJournalRepository_DeleteEntry_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteEntry_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_DeleteEntry_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteEntryWithMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteEntryWithMedia(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, id, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteEntryWithMedia")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, id, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, id, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_DeleteEntryWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteEntryWithMedia'
+type MockJournalRepository_DeleteEntryWithMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteEntryWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) DeleteEntryWithMedia(ctx any, id any, tx ...any) *MockJournalRepository_DeleteEntryWithMedia_Call {
+	return &MockJournalRepository_DeleteEntryWithMedia_Call{Call: _e.mock.On("DeleteEntryWithMedia",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_DeleteEntryWithMedia_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_DeleteEntryWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteEntryWithMedia_Call) Return(strings []string, err error) *MockJournalRepository_DeleteEntryWithMedia_Call {
 	_c.Call.Return(strings, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteEntry_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockJournalRepository_DeleteEntry_Call {
+func (_c *MockJournalRepository_DeleteEntryWithMedia_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) ([]string, error)) *MockJournalRepository_DeleteEntryWithMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteMedia provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) DeleteMedia(ctx context.Context, id int64, entityID uuid.UUID, tx ...*sql.Tx) (string, error) {
+func (_mock *MockJournalRepository) DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, entityID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, entityID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1079,16 +1337,16 @@ func (_mock *MockJournalRepository) DeleteMedia(ctx context.Context, id int64, e
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) (string, error)); ok {
-		return returnFunc(ctx, id, entityID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaDeletion, ...*sql.Tx) (string, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) string); ok {
-		r0 = returnFunc(ctx, id, entityID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaDeletion, ...*sql.Tx) string); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int64, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, entityID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.MediaDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1102,61 +1360,138 @@ type MockJournalRepository_DeleteMedia_Call struct {
 
 // DeleteMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - entityID uuid.UUID
+//   - s spec.MediaDeletion
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) DeleteMedia(ctx any, id any, entityID any, tx ...any) *MockJournalRepository_DeleteMedia_Call {
+func (_e *MockJournalRepository_Expecter) DeleteMedia(ctx any, s any, tx ...any) *MockJournalRepository_DeleteMedia_Call {
 	return &MockJournalRepository_DeleteMedia_Call{Call: _e.mock.On("DeleteMedia",
-		append([]any{ctx, id, entityID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_DeleteMedia_Call) Run(run func(ctx context.Context, id int64, entityID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_DeleteMedia_Call {
+func (_c *MockJournalRepository_DeleteMedia_Call) Run(run func(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx)) *MockJournalRepository_DeleteMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaDeletion
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaDeletion)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteMedia_Call) Return(s string, err error) *MockJournalRepository_DeleteMedia_Call {
-	_c.Call.Return(s, err)
+func (_c *MockJournalRepository_DeleteMedia_Call) Return(s1 string, err error) *MockJournalRepository_DeleteMedia_Call {
+	_c.Call.Return(s1, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_DeleteMedia_Call) RunAndReturn(run func(ctx context.Context, id int64, entityID uuid.UUID, tx ...*sql.Tx) (string, error)) *MockJournalRepository_DeleteMedia_Call {
+func (_c *MockJournalRepository_DeleteMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error)) *MockJournalRepository_DeleteMedia_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DeleteWithMedia provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) DeleteWithMedia(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx) ([]string, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for DeleteWithMedia")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_DeleteWithMedia_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteWithMedia'
+type MockJournalRepository_DeleteWithMedia_Call struct {
+	*mock.Call
+}
+
+// DeleteWithMedia is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.JournalDeletion
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) DeleteWithMedia(ctx any, s any, tx ...any) *MockJournalRepository_DeleteWithMedia_Call {
+	return &MockJournalRepository_DeleteWithMedia_Call{Call: _e.mock.On("DeleteWithMedia",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_DeleteWithMedia_Call) Run(run func(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx)) *MockJournalRepository_DeleteWithMedia_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.JournalDeletion
+		if args[1] != nil {
+			arg1 = args[1].(spec.JournalDeletion)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteWithMedia_Call) Return(strings []string, err error) *MockJournalRepository_DeleteWithMedia_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_DeleteWithMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalDeletion, tx ...*sql.Tx) ([]string, error)) *MockJournalRepository_DeleteWithMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Follow provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) Follow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) Follow(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, journalID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, journalID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1165,8 +1500,8 @@ func (_mock *MockJournalRepository) Follow(ctx context.Context, userID uuid.UUID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, journalID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalFollow, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1180,39 +1515,33 @@ type MockJournalRepository_Follow_Call struct {
 
 // Follow is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - journalID uuid.UUID
+//   - s spec.JournalFollow
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) Follow(ctx any, userID any, journalID any, tx ...any) *MockJournalRepository_Follow_Call {
+func (_e *MockJournalRepository_Expecter) Follow(ctx any, s any, tx ...any) *MockJournalRepository_Follow_Call {
 	return &MockJournalRepository_Follow_Call{Call: _e.mock.On("Follow",
-		append([]any{ctx, userID, journalID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_Follow_Call) Run(run func(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_Follow_Call {
+func (_c *MockJournalRepository_Follow_Call) Run(run func(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx)) *MockJournalRepository_Follow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalFollow
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalFollow)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1223,7 +1552,7 @@ func (_c *MockJournalRepository_Follow_Call) Return(err error) *MockJournalRepos
 	return _c
 }
 
-func (_c *MockJournalRepository_Follow_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_Follow_Call {
+func (_c *MockJournalRepository_Follow_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) error) *MockJournalRepository_Follow_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1312,12 +1641,12 @@ func (_c *MockJournalRepository_GetAuthorID_Call) RunAndReturn(run func(ctx cont
 }
 
 // GetByID provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*dto.JournalResponse, error) {
+func (_mock *MockJournalRepository) GetByID(ctx context.Context, s spec.JournalLookup, tx ...*sql.Tx) (*dto.JournalResponse, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, viewerID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, viewerID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1327,18 +1656,18 @@ func (_mock *MockJournalRepository) GetByID(ctx context.Context, id uuid.UUID, v
 
 	var r0 *dto.JournalResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*dto.JournalResponse, error)); ok {
-		return returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalLookup, ...*sql.Tx) (*dto.JournalResponse, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *dto.JournalResponse); ok {
-		r0 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalLookup, ...*sql.Tx) *dto.JournalResponse); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.JournalResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalLookup, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1352,39 +1681,33 @@ type MockJournalRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - viewerID uuid.UUID
+//   - s spec.JournalLookup
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) GetByID(ctx any, id any, viewerID any, tx ...any) *MockJournalRepository_GetByID_Call {
+func (_e *MockJournalRepository_Expecter) GetByID(ctx any, s any, tx ...any) *MockJournalRepository_GetByID_Call {
 	return &MockJournalRepository_GetByID_Call{Call: _e.mock.On("GetByID",
-		append([]any{ctx, id, viewerID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_GetByID_Call {
+func (_c *MockJournalRepository_GetByID_Call) Run(run func(ctx context.Context, s spec.JournalLookup, tx ...*sql.Tx)) *MockJournalRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalLookup
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalLookup)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1395,7 +1718,7 @@ func (_c *MockJournalRepository_GetByID_Call) Return(journalResponse *dto.Journa
 	return _c
 }
 
-func (_c *MockJournalRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*dto.JournalResponse, error)) *MockJournalRepository_GetByID_Call {
+func (_c *MockJournalRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalLookup, tx ...*sql.Tx) (*dto.JournalResponse, error)) *MockJournalRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1733,12 +2056,12 @@ func (_c *MockJournalRepository_GetCommentMediaBatch_Call) RunAndReturn(run func
 }
 
 // GetComments provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetComments(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+func (_mock *MockJournalRepository) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, journalID, viewerID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, journalID, viewerID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -1746,26 +2069,26 @@ func (_mock *MockJournalRepository) GetComments(ctx context.Context, journalID u
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []CommentRow
+	var r0 []model.CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, journalID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
-		r0 = returnFunc(ctx, journalID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
+			r0 = ret.Get(0).([]model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, journalID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, journalID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1779,79 +2102,55 @@ type MockJournalRepository_GetComments_Call struct {
 
 // GetComments is a helper method to define mock.On call
 //   - ctx context.Context
-//   - journalID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.CommentQuery[uuid.UUID]
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) GetComments(ctx any, journalID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockJournalRepository_GetComments_Call {
+func (_e *MockJournalRepository_Expecter) GetComments(ctx any, q any, tx ...any) *MockJournalRepository_GetComments_Call {
 	return &MockJournalRepository_GetComments_Call{Call: _e.mock.On("GetComments",
-		append([]any{ctx, journalID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_GetComments_Call) Run(run func(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_GetComments_Call {
+func (_c *MockJournalRepository_GetComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockJournalRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentQuery[uuid.UUID]
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		var arg6 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 6 {
-			variadicArgs = args[6].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg6 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockJournalRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockJournalRepository_GetComments_Call {
+func (_c *MockJournalRepository_GetComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockJournalRepository_GetComments_Call {
 	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockJournalRepository_GetComments_Call {
+func (_c *MockJournalRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockJournalRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetEntry provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetEntry(ctx context.Context, journalID uuid.UUID, entryNumber int, tx ...*sql.Tx) (*JournalEntryRow, error) {
+func (_mock *MockJournalRepository) GetEntry(ctx context.Context, s spec.JournalEntryLookup, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, journalID, entryNumber, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, journalID, entryNumber)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1859,20 +2158,20 @@ func (_mock *MockJournalRepository) GetEntry(ctx context.Context, journalID uuid
 		panic("no return value specified for GetEntry")
 	}
 
-	var r0 *JournalEntryRow
+	var r0 *model.JournalEntryRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) (*JournalEntryRow, error)); ok {
-		return returnFunc(ctx, journalID, entryNumber, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalEntryLookup, ...*sql.Tx) (*model.JournalEntryRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) *JournalEntryRow); ok {
-		r0 = returnFunc(ctx, journalID, entryNumber, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalEntryLookup, ...*sql.Tx) *model.JournalEntryRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*JournalEntryRow)
+			r0 = ret.Get(0).(*model.JournalEntryRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, journalID, entryNumber, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalEntryLookup, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1886,50 +2185,44 @@ type MockJournalRepository_GetEntry_Call struct {
 
 // GetEntry is a helper method to define mock.On call
 //   - ctx context.Context
-//   - journalID uuid.UUID
-//   - entryNumber int
+//   - s spec.JournalEntryLookup
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) GetEntry(ctx any, journalID any, entryNumber any, tx ...any) *MockJournalRepository_GetEntry_Call {
+func (_e *MockJournalRepository_Expecter) GetEntry(ctx any, s any, tx ...any) *MockJournalRepository_GetEntry_Call {
 	return &MockJournalRepository_GetEntry_Call{Call: _e.mock.On("GetEntry",
-		append([]any{ctx, journalID, entryNumber}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_GetEntry_Call) Run(run func(ctx context.Context, journalID uuid.UUID, entryNumber int, tx ...*sql.Tx)) *MockJournalRepository_GetEntry_Call {
+func (_c *MockJournalRepository_GetEntry_Call) Run(run func(ctx context.Context, s spec.JournalEntryLookup, tx ...*sql.Tx)) *MockJournalRepository_GetEntry_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalEntryLookup
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalEntryLookup)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntry_Call) Return(journalEntryRow *JournalEntryRow, err error) *MockJournalRepository_GetEntry_Call {
+func (_c *MockJournalRepository_GetEntry_Call) Return(journalEntryRow *model.JournalEntryRow, err error) *MockJournalRepository_GetEntry_Call {
 	_c.Call.Return(journalEntryRow, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntry_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, entryNumber int, tx ...*sql.Tx) (*JournalEntryRow, error)) *MockJournalRepository_GetEntry_Call {
+func (_c *MockJournalRepository_GetEntry_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalEntryLookup, tx ...*sql.Tx) (*model.JournalEntryRow, error)) *MockJournalRepository_GetEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2018,7 +2311,7 @@ func (_c *MockJournalRepository_GetEntryAuthorID_Call) RunAndReturn(run func(ctx
 }
 
 // GetEntryByID provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetEntryByID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*JournalEntryRow, error) {
+func (_mock *MockJournalRepository) GetEntryByID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, entryID, tx)
@@ -2031,16 +2324,16 @@ func (_mock *MockJournalRepository) GetEntryByID(ctx context.Context, entryID uu
 		panic("no return value specified for GetEntryByID")
 	}
 
-	var r0 *JournalEntryRow
+	var r0 *model.JournalEntryRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*JournalEntryRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*model.JournalEntryRow, error)); ok {
 		return returnFunc(ctx, entryID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *JournalEntryRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *model.JournalEntryRow); ok {
 		r0 = returnFunc(ctx, entryID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*JournalEntryRow)
+			r0 = ret.Get(0).(*model.JournalEntryRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -2090,23 +2383,23 @@ func (_c *MockJournalRepository_GetEntryByID_Call) Run(run func(ctx context.Cont
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntryByID_Call) Return(journalEntryRow *JournalEntryRow, err error) *MockJournalRepository_GetEntryByID_Call {
+func (_c *MockJournalRepository_GetEntryByID_Call) Return(journalEntryRow *model.JournalEntryRow, err error) *MockJournalRepository_GetEntryByID_Call {
 	_c.Call.Return(journalEntryRow, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntryByID_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*JournalEntryRow, error)) *MockJournalRepository_GetEntryByID_Call {
+func (_c *MockJournalRepository_GetEntryByID_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*model.JournalEntryRow, error)) *MockJournalRepository_GetEntryByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetEntryComments provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) GetEntryComments(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+func (_mock *MockJournalRepository) GetEntryComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, entryID, viewerID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, entryID, viewerID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2114,26 +2407,26 @@ func (_mock *MockJournalRepository) GetEntryComments(ctx context.Context, entryI
 		panic("no return value specified for GetEntryComments")
 	}
 
-	var r0 []CommentRow
+	var r0 []model.CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
-		r0 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
+			r0 = ret.Get(0).([]model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, entryID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2147,68 +2440,44 @@ type MockJournalRepository_GetEntryComments_Call struct {
 
 // GetEntryComments is a helper method to define mock.On call
 //   - ctx context.Context
-//   - entryID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.CommentQuery[uuid.UUID]
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) GetEntryComments(ctx any, entryID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockJournalRepository_GetEntryComments_Call {
+func (_e *MockJournalRepository_Expecter) GetEntryComments(ctx any, q any, tx ...any) *MockJournalRepository_GetEntryComments_Call {
 	return &MockJournalRepository_GetEntryComments_Call{Call: _e.mock.On("GetEntryComments",
-		append([]any{ctx, entryID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_GetEntryComments_Call) Run(run func(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_GetEntryComments_Call {
+func (_c *MockJournalRepository_GetEntryComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockJournalRepository_GetEntryComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentQuery[uuid.UUID]
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		var arg6 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 6 {
-			variadicArgs = args[6].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg6 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntryComments_Call) Return(commentRows []CommentRow, n int, err error) *MockJournalRepository_GetEntryComments_Call {
+func (_c *MockJournalRepository_GetEntryComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockJournalRepository_GetEntryComments_Call {
 	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_GetEntryComments_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockJournalRepository_GetEntryComments_Call {
+func (_c *MockJournalRepository_GetEntryComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockJournalRepository_GetEntryComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2787,12 +3056,12 @@ func (_c *MockJournalRepository_IsArchived_Call) RunAndReturn(run func(ctx conte
 }
 
 // IsFollower provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) IsFollower(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockJournalRepository) IsFollower(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, journalID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, journalID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2802,16 +3071,16 @@ func (_mock *MockJournalRepository) IsFollower(ctx context.Context, userID uuid.
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, userID, journalID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalFollow, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, userID, journalID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalFollow, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, journalID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalFollow, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2825,39 +3094,33 @@ type MockJournalRepository_IsFollower_Call struct {
 
 // IsFollower is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - journalID uuid.UUID
+//   - s spec.JournalFollow
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) IsFollower(ctx any, userID any, journalID any, tx ...any) *MockJournalRepository_IsFollower_Call {
+func (_e *MockJournalRepository_Expecter) IsFollower(ctx any, s any, tx ...any) *MockJournalRepository_IsFollower_Call {
 	return &MockJournalRepository_IsFollower_Call{Call: _e.mock.On("IsFollower",
-		append([]any{ctx, userID, journalID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_IsFollower_Call) Run(run func(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_IsFollower_Call {
+func (_c *MockJournalRepository_IsFollower_Call) Run(run func(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx)) *MockJournalRepository_IsFollower_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalFollow
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalFollow)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2868,18 +3131,18 @@ func (_c *MockJournalRepository_IsFollower_Call) Return(b bool, err error) *Mock
 	return _c
 }
 
-func (_c *MockJournalRepository_IsFollower_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockJournalRepository_IsFollower_Call {
+func (_c *MockJournalRepository_IsFollower_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) (bool, error)) *MockJournalRepository_IsFollower_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LikeComment provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2888,8 +3151,8 @@ func (_mock *MockJournalRepository) LikeComment(ctx context.Context, userID uuid
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2903,39 +3166,33 @@ type MockJournalRepository_LikeComment_Call struct {
 
 // LikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockJournalRepository_LikeComment_Call {
+func (_e *MockJournalRepository_Expecter) LikeComment(ctx any, s any, tx ...any) *MockJournalRepository_LikeComment_Call {
 	return &MockJournalRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_LikeComment_Call {
+func (_c *MockJournalRepository_LikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockJournalRepository_LikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2946,18 +3203,18 @@ func (_c *MockJournalRepository_LikeComment_Call) Return(err error) *MockJournal
 	return _c
 }
 
-func (_c *MockJournalRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_LikeComment_Call {
+func (_c *MockJournalRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockJournalRepository_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) List(ctx context.Context, p params.ListParams, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]dto.JournalResponse, int, error) {
+func (_mock *MockJournalRepository) List(ctx context.Context, q spec.JournalQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, p, viewerID, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, p, viewerID, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2968,23 +3225,23 @@ func (_mock *MockJournalRepository) List(ctx context.Context, p params.ListParam
 	var r0 []dto.JournalResponse
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) ([]dto.JournalResponse, int, error)); ok {
-		return returnFunc(ctx, p, viewerID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalQuery, ...*sql.Tx) ([]dto.JournalResponse, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) []dto.JournalResponse); ok {
-		r0 = returnFunc(ctx, p, viewerID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalQuery, ...*sql.Tx) []dto.JournalResponse); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.JournalResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, p, viewerID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalQuery, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, params.ListParams, uuid.UUID, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, p, viewerID, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.JournalQuery, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2998,45 +3255,33 @@ type MockJournalRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - p params.ListParams
-//   - viewerID uuid.UUID
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.JournalQuery
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) List(ctx any, p any, viewerID any, excludeUserIDs any, tx ...any) *MockJournalRepository_List_Call {
+func (_e *MockJournalRepository_Expecter) List(ctx any, q any, tx ...any) *MockJournalRepository_List_Call {
 	return &MockJournalRepository_List_Call{Call: _e.mock.On("List",
-		append([]any{ctx, p, viewerID, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_List_Call) Run(run func(ctx context.Context, p params.ListParams, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_List_Call {
+func (_c *MockJournalRepository_List_Call) Run(run func(ctx context.Context, q spec.JournalQuery, tx ...*sql.Tx)) *MockJournalRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 params.ListParams
+		var arg1 spec.JournalQuery
 		if args[1] != nil {
-			arg1 = args[1].(params.ListParams)
+			arg1 = args[1].(spec.JournalQuery)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].([]uuid.UUID)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3047,13 +3292,13 @@ func (_c *MockJournalRepository_List_Call) Return(journalResponses []dto.Journal
 	return _c
 }
 
-func (_c *MockJournalRepository_List_Call) RunAndReturn(run func(ctx context.Context, p params.ListParams, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]dto.JournalResponse, int, error)) *MockJournalRepository_List_Call {
+func (_c *MockJournalRepository_List_Call) RunAndReturn(run func(ctx context.Context, q spec.JournalQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error)) *MockJournalRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListEntries provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) ListEntries(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]JournalEntrySummaryRow, error) {
+func (_mock *MockJournalRepository) ListEntries(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]model.JournalEntrySummaryRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, journalID, tx)
@@ -3066,16 +3311,16 @@ func (_mock *MockJournalRepository) ListEntries(ctx context.Context, journalID u
 		panic("no return value specified for ListEntries")
 	}
 
-	var r0 []JournalEntrySummaryRow
+	var r0 []model.JournalEntrySummaryRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]JournalEntrySummaryRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.JournalEntrySummaryRow, error)); ok {
 		return returnFunc(ctx, journalID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []JournalEntrySummaryRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.JournalEntrySummaryRow); ok {
 		r0 = returnFunc(ctx, journalID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]JournalEntrySummaryRow)
+			r0 = ret.Get(0).([]model.JournalEntrySummaryRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -3125,23 +3370,189 @@ func (_c *MockJournalRepository_ListEntries_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockJournalRepository_ListEntries_Call) Return(journalEntrySummaryRows []JournalEntrySummaryRow, err error) *MockJournalRepository_ListEntries_Call {
+func (_c *MockJournalRepository_ListEntries_Call) Return(journalEntrySummaryRows []model.JournalEntrySummaryRow, err error) *MockJournalRepository_ListEntries_Call {
 	_c.Call.Return(journalEntrySummaryRows, err)
 	return _c
 }
 
-func (_c *MockJournalRepository_ListEntries_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]JournalEntrySummaryRow, error)) *MockJournalRepository_ListEntries_Call {
+func (_c *MockJournalRepository_ListEntries_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]model.JournalEntrySummaryRow, error)) *MockJournalRepository_ListEntries_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListEntryCommentIDs provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, entryID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, entryID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEntryCommentIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, entryID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, entryID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, entryID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_ListEntryCommentIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListEntryCommentIDs'
+type MockJournalRepository_ListEntryCommentIDs_Call struct {
+	*mock.Call
+}
+
+// ListEntryCommentIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - entryID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) ListEntryCommentIDs(ctx any, entryID any, tx ...any) *MockJournalRepository_ListEntryCommentIDs_Call {
+	return &MockJournalRepository_ListEntryCommentIDs_Call{Call: _e.mock.On("ListEntryCommentIDs",
+		append([]any{ctx, entryID}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_ListEntryCommentIDs_Call) Run(run func(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_ListEntryCommentIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_ListEntryCommentIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockJournalRepository_ListEntryCommentIDs_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_ListEntryCommentIDs_Call) RunAndReturn(run func(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockJournalRepository_ListEntryCommentIDs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListEntryIDs provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, journalID, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, journalID)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListEntryIDs")
+	}
+
+	var r0 []uuid.UUID
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]uuid.UUID, error)); ok {
+		return returnFunc(ctx, journalID, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []uuid.UUID); ok {
+		r0 = returnFunc(ctx, journalID, tx...)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]uuid.UUID)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, journalID, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockJournalRepository_ListEntryIDs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListEntryIDs'
+type MockJournalRepository_ListEntryIDs_Call struct {
+	*mock.Call
+}
+
+// ListEntryIDs is a helper method to define mock.On call
+//   - ctx context.Context
+//   - journalID uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) ListEntryIDs(ctx any, journalID any, tx ...any) *MockJournalRepository_ListEntryIDs_Call {
+	return &MockJournalRepository_ListEntryIDs_Call{Call: _e.mock.On("ListEntryIDs",
+		append([]any{ctx, journalID}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_ListEntryIDs_Call) Run(run func(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_ListEntryIDs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_ListEntryIDs_Call) Return(uUIDs []uuid.UUID, err error) *MockJournalRepository_ListEntryIDs_Call {
+	_c.Call.Return(uUIDs, err)
+	return _c
+}
+
+func (_c *MockJournalRepository_ListEntryIDs_Call) RunAndReturn(run func(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)) *MockJournalRepository_ListEntryIDs_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListFollowedByUser provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) ListFollowedByUser(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]dto.JournalResponse, int, error) {
+func (_mock *MockJournalRepository) ListFollowedByUser(ctx context.Context, q spec.JournalFollowedQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, followerID, viewerID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, followerID, viewerID, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -3152,23 +3563,23 @@ func (_mock *MockJournalRepository) ListFollowedByUser(ctx context.Context, foll
 	var r0 []dto.JournalResponse
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]dto.JournalResponse, int, error)); ok {
-		return returnFunc(ctx, followerID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalFollowedQuery, ...*sql.Tx) ([]dto.JournalResponse, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []dto.JournalResponse); ok {
-		r0 = returnFunc(ctx, followerID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalFollowedQuery, ...*sql.Tx) []dto.JournalResponse); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]dto.JournalResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, followerID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.JournalFollowedQuery, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, followerID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.JournalFollowedQuery, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3182,51 +3593,33 @@ type MockJournalRepository_ListFollowedByUser_Call struct {
 
 // ListFollowedByUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - followerID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
+//   - q spec.JournalFollowedQuery
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) ListFollowedByUser(ctx any, followerID any, viewerID any, limit any, offset any, tx ...any) *MockJournalRepository_ListFollowedByUser_Call {
+func (_e *MockJournalRepository_Expecter) ListFollowedByUser(ctx any, q any, tx ...any) *MockJournalRepository_ListFollowedByUser_Call {
 	return &MockJournalRepository_ListFollowedByUser_Call{Call: _e.mock.On("ListFollowedByUser",
-		append([]any{ctx, followerID, viewerID, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_ListFollowedByUser_Call) Run(run func(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockJournalRepository_ListFollowedByUser_Call {
+func (_c *MockJournalRepository_ListFollowedByUser_Call) Run(run func(ctx context.Context, q spec.JournalFollowedQuery, tx ...*sql.Tx)) *MockJournalRepository_ListFollowedByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalFollowedQuery
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalFollowedQuery)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3237,18 +3630,18 @@ func (_c *MockJournalRepository_ListFollowedByUser_Call) Return(journalResponses
 	return _c
 }
 
-func (_c *MockJournalRepository_ListFollowedByUser_Call) RunAndReturn(run func(ctx context.Context, followerID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]dto.JournalResponse, int, error)) *MockJournalRepository_ListFollowedByUser_Call {
+func (_c *MockJournalRepository_ListFollowedByUser_Call) RunAndReturn(run func(ctx context.Context, q spec.JournalFollowedQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error)) *MockJournalRepository_ListFollowedByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetPaused provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) SetPaused(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) SetPaused(ctx context.Context, s spec.JournalPause, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, paused, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, paused)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3257,8 +3650,8 @@ func (_mock *MockJournalRepository) SetPaused(ctx context.Context, id uuid.UUID,
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, paused, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalPause, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3272,45 +3665,33 @@ type MockJournalRepository_SetPaused_Call struct {
 
 // SetPaused is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - paused bool
+//   - s spec.JournalPause
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) SetPaused(ctx any, id any, userID any, paused any, tx ...any) *MockJournalRepository_SetPaused_Call {
+func (_e *MockJournalRepository_Expecter) SetPaused(ctx any, s any, tx ...any) *MockJournalRepository_SetPaused_Call {
 	return &MockJournalRepository_SetPaused_Call{Call: _e.mock.On("SetPaused",
-		append([]any{ctx, id, userID, paused}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_SetPaused_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool, tx ...*sql.Tx)) *MockJournalRepository_SetPaused_Call {
+func (_c *MockJournalRepository_SetPaused_Call) Run(run func(ctx context.Context, s spec.JournalPause, tx ...*sql.Tx)) *MockJournalRepository_SetPaused_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalPause
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalPause)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 bool
-		if args[3] != nil {
-			arg3 = args[3].(bool)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3321,18 +3702,18 @@ func (_c *MockJournalRepository_SetPaused_Call) Return(err error) *MockJournalRe
 	return _c
 }
 
-func (_c *MockJournalRepository_SetPaused_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, paused bool, tx ...*sql.Tx) error) *MockJournalRepository_SetPaused_Call {
+func (_c *MockJournalRepository_SetPaused_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalPause, tx ...*sql.Tx) error) *MockJournalRepository_SetPaused_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unfollow provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) Unfollow(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) Unfollow(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, journalID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, journalID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3341,8 +3722,8 @@ func (_mock *MockJournalRepository) Unfollow(ctx context.Context, userID uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, journalID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalFollow, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3356,39 +3737,33 @@ type MockJournalRepository_Unfollow_Call struct {
 
 // Unfollow is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - journalID uuid.UUID
+//   - s spec.JournalFollow
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) Unfollow(ctx any, userID any, journalID any, tx ...any) *MockJournalRepository_Unfollow_Call {
+func (_e *MockJournalRepository_Expecter) Unfollow(ctx any, s any, tx ...any) *MockJournalRepository_Unfollow_Call {
 	return &MockJournalRepository_Unfollow_Call{Call: _e.mock.On("Unfollow",
-		append([]any{ctx, userID, journalID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_Unfollow_Call) Run(run func(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_Unfollow_Call {
+func (_c *MockJournalRepository_Unfollow_Call) Run(run func(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx)) *MockJournalRepository_Unfollow_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.JournalFollow
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.JournalFollow)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3399,18 +3774,18 @@ func (_c *MockJournalRepository_Unfollow_Call) Return(err error) *MockJournalRep
 	return _c
 }
 
-func (_c *MockJournalRepository_Unfollow_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, journalID uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_Unfollow_Call {
+func (_c *MockJournalRepository_Unfollow_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) error) *MockJournalRepository_Unfollow_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnlikeComment provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3419,8 +3794,8 @@ func (_mock *MockJournalRepository) UnlikeComment(ctx context.Context, userID uu
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3434,39 +3809,33 @@ type MockJournalRepository_UnlikeComment_Call struct {
 
 // UnlikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockJournalRepository_UnlikeComment_Call {
+func (_e *MockJournalRepository_Expecter) UnlikeComment(ctx any, s any, tx ...any) *MockJournalRepository_UnlikeComment_Call {
 	return &MockJournalRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockJournalRepository_UnlikeComment_Call {
+func (_c *MockJournalRepository_UnlikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockJournalRepository_UnlikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3477,18 +3846,18 @@ func (_c *MockJournalRepository_UnlikeComment_Call) Return(err error) *MockJourn
 	return _c
 }
 
-func (_c *MockJournalRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockJournalRepository_UnlikeComment_Call {
+func (_c *MockJournalRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockJournalRepository_UnlikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) Update(ctx context.Context, spec JournalUpdate, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) Update(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3497,8 +3866,8 @@ func (_mock *MockJournalRepository) Update(ctx context.Context, spec JournalUpda
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, JournalUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3512,22 +3881,22 @@ type MockJournalRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec JournalUpdate
+//   - s spec.JournalUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) Update(ctx any, spec any, tx ...any) *MockJournalRepository_Update_Call {
+func (_e *MockJournalRepository_Expecter) Update(ctx any, s any, tx ...any) *MockJournalRepository_Update_Call {
 	return &MockJournalRepository_Update_Call{Call: _e.mock.On("Update",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_Update_Call) Run(run func(ctx context.Context, spec JournalUpdate, tx ...*sql.Tx)) *MockJournalRepository_Update_Call {
+func (_c *MockJournalRepository_Update_Call) Run(run func(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx)) *MockJournalRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 JournalUpdate
+		var arg1 spec.JournalUpdate
 		if args[1] != nil {
-			arg1 = args[1].(JournalUpdate)
+			arg1 = args[1].(spec.JournalUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -3549,18 +3918,90 @@ func (_c *MockJournalRepository_Update_Call) Return(err error) *MockJournalRepos
 	return _c
 }
 
-func (_c *MockJournalRepository_Update_Call) RunAndReturn(run func(ctx context.Context, spec JournalUpdate, tx ...*sql.Tx) error) *MockJournalRepository_Update_Call {
+func (_c *MockJournalRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error) *MockJournalRepository_Update_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// UpdateAsAdmin provides a mock function for the type MockJournalRepository
+func (_mock *MockJournalRepository) UpdateAsAdmin(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for UpdateAsAdmin")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockJournalRepository_UpdateAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateAsAdmin'
+type MockJournalRepository_UpdateAsAdmin_Call struct {
+	*mock.Call
+}
+
+// UpdateAsAdmin is a helper method to define mock.On call
+//   - ctx context.Context
+//   - s spec.JournalUpdate
+//   - tx ...*sql.Tx
+func (_e *MockJournalRepository_Expecter) UpdateAsAdmin(ctx any, s any, tx ...any) *MockJournalRepository_UpdateAsAdmin_Call {
+	return &MockJournalRepository_UpdateAsAdmin_Call{Call: _e.mock.On("UpdateAsAdmin",
+		append([]any{ctx, s}, tx...)...)}
+}
+
+func (_c *MockJournalRepository_UpdateAsAdmin_Call) Run(run func(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateAsAdmin_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 spec.JournalUpdate
+		if args[1] != nil {
+			arg1 = args[1].(spec.JournalUpdate)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateAsAdmin_Call) Return(err error) *MockJournalRepository_UpdateAsAdmin_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockJournalRepository_UpdateAsAdmin_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateAsAdmin_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateComment provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateComment(ctx context.Context, spec JournalCommentUpdate, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3569,8 +4010,8 @@ func (_mock *MockJournalRepository) UpdateComment(ctx context.Context, spec Jour
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, JournalCommentUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3584,22 +4025,22 @@ type MockJournalRepository_UpdateComment_Call struct {
 
 // UpdateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec JournalCommentUpdate
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateComment(ctx any, spec any, tx ...any) *MockJournalRepository_UpdateComment_Call {
+func (_e *MockJournalRepository_Expecter) UpdateComment(ctx any, s any, tx ...any) *MockJournalRepository_UpdateComment_Call {
 	return &MockJournalRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UpdateComment_Call) Run(run func(ctx context.Context, spec JournalCommentUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateComment_Call {
+func (_c *MockJournalRepository_UpdateComment_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 JournalCommentUpdate
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(JournalCommentUpdate)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -3621,18 +4062,18 @@ func (_c *MockJournalRepository_UpdateComment_Call) Return(err error) *MockJourn
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, spec JournalCommentUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateComment_Call {
+func (_c *MockJournalRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaThumbnail provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3641,8 +4082,8 @@ func (_mock *MockJournalRepository) UpdateCommentMediaThumbnail(ctx context.Cont
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3656,39 +4097,33 @@ type MockJournalRepository_UpdateCommentMediaThumbnail_Call struct {
 
 // UpdateCommentMediaThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockJournalRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, s any, tx ...any) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockJournalRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
-		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockJournalRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3699,18 +4134,18 @@ func (_c *MockJournalRepository_UpdateCommentMediaThumbnail_Call) Return(err err
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockJournalRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaURL provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, mediaURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3719,8 +4154,8 @@ func (_mock *MockJournalRepository) UpdateCommentMediaURL(ctx context.Context, i
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3734,39 +4169,33 @@ type MockJournalRepository_UpdateCommentMediaURL_Call struct {
 
 // UpdateCommentMediaURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - mediaURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockJournalRepository_UpdateCommentMediaURL_Call {
+func (_e *MockJournalRepository_Expecter) UpdateCommentMediaURL(ctx any, s any, tx ...any) *MockJournalRepository_UpdateCommentMediaURL_Call {
 	return &MockJournalRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
-		append([]any{ctx, id, mediaURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockJournalRepository_UpdateCommentMediaURL_Call {
+func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3777,18 +4206,18 @@ func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) Return(err error) *M
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockJournalRepository_UpdateCommentMediaURL_Call {
+func (_c *MockJournalRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateEntry provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, spec JournalEntryUpdate, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3797,8 +4226,8 @@ func (_mock *MockJournalRepository) UpdateEntry(ctx context.Context, spec Journa
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, JournalEntryUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.JournalEntryUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3812,22 +4241,22 @@ type MockJournalRepository_UpdateEntry_Call struct {
 
 // UpdateEntry is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec JournalEntryUpdate
+//   - s spec.JournalEntryUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateEntry(ctx any, spec any, tx ...any) *MockJournalRepository_UpdateEntry_Call {
+func (_e *MockJournalRepository_Expecter) UpdateEntry(ctx any, s any, tx ...any) *MockJournalRepository_UpdateEntry_Call {
 	return &MockJournalRepository_UpdateEntry_Call{Call: _e.mock.On("UpdateEntry",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UpdateEntry_Call) Run(run func(ctx context.Context, spec JournalEntryUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateEntry_Call {
+func (_c *MockJournalRepository_UpdateEntry_Call) Run(run func(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateEntry_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 JournalEntryUpdate
+		var arg1 spec.JournalEntryUpdate
 		if args[1] != nil {
-			arg1 = args[1].(JournalEntryUpdate)
+			arg1 = args[1].(spec.JournalEntryUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -3849,7 +4278,7 @@ func (_c *MockJournalRepository_UpdateEntry_Call) Return(err error) *MockJournal
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateEntry_Call) RunAndReturn(run func(ctx context.Context, spec JournalEntryUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateEntry_Call {
+func (_c *MockJournalRepository_UpdateEntry_Call) RunAndReturn(run func(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateEntry_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3927,12 +4356,12 @@ func (_c *MockJournalRepository_UpdateLastAuthorActivity_Call) RunAndReturn(run 
 }
 
 // UpdateMediaThumbnail provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3941,8 +4370,8 @@ func (_mock *MockJournalRepository) UpdateMediaThumbnail(ctx context.Context, id
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3956,39 +4385,33 @@ type MockJournalRepository_UpdateMediaThumbnail_Call struct {
 
 // UpdateMediaThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockJournalRepository_UpdateMediaThumbnail_Call {
+func (_e *MockJournalRepository_Expecter) UpdateMediaThumbnail(ctx any, s any, tx ...any) *MockJournalRepository_UpdateMediaThumbnail_Call {
 	return &MockJournalRepository_UpdateMediaThumbnail_Call{Call: _e.mock.On("UpdateMediaThumbnail",
-		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockJournalRepository_UpdateMediaThumbnail_Call {
+func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3999,18 +4422,18 @@ func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) Return(err error) *Mo
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockJournalRepository_UpdateMediaThumbnail_Call {
+func (_c *MockJournalRepository_UpdateMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateMediaURL provides a mock function for the type MockJournalRepository
-func (_mock *MockJournalRepository) UpdateMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (_mock *MockJournalRepository) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, mediaURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4019,8 +4442,8 @@ func (_mock *MockJournalRepository) UpdateMediaURL(ctx context.Context, id int64
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4034,39 +4457,33 @@ type MockJournalRepository_UpdateMediaURL_Call struct {
 
 // UpdateMediaURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - mediaURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockJournalRepository_Expecter) UpdateMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockJournalRepository_UpdateMediaURL_Call {
+func (_e *MockJournalRepository_Expecter) UpdateMediaURL(ctx any, s any, tx ...any) *MockJournalRepository_UpdateMediaURL_Call {
 	return &MockJournalRepository_UpdateMediaURL_Call{Call: _e.mock.On("UpdateMediaURL",
-		append([]any{ctx, id, mediaURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockJournalRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockJournalRepository_UpdateMediaURL_Call {
+func (_c *MockJournalRepository_UpdateMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockJournalRepository_UpdateMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4077,7 +4494,7 @@ func (_c *MockJournalRepository_UpdateMediaURL_Call) Return(err error) *MockJour
 	return _c
 }
 
-func (_c *MockJournalRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockJournalRepository_UpdateMediaURL_Call {
+func (_c *MockJournalRepository_UpdateMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockJournalRepository_UpdateMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

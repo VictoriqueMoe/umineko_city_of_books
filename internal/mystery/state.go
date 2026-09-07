@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
-	if err := s.mysteryRepo.SetPaused(ctx, mysteryID, paused); err != nil {
+	if err := s.mysteryRepo.SetPaused(ctx, spec.MysteryPauseUpdate{MysteryID: mysteryID, Paused: paused}); err != nil {
 		return err
 	}
 	s.hub.Broadcast(ws.Message{
@@ -71,7 +72,7 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
 	}
-	if err := s.mysteryRepo.SetGmAway(ctx, mysteryID, away); err != nil {
+	if err := s.mysteryRepo.SetGmAway(ctx, spec.MysteryGmAwayUpdate{MysteryID: mysteryID, Away: away}); err != nil {
 		return err
 	}
 	s.hub.Broadcast(ws.Message{
@@ -119,10 +120,10 @@ func (s *service) DeleteClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 		return err
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryClueDelete,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysteryClueDelete,
+		TargetType: audit.TargetMystery,
 		TargetID:   mysteryID.String(),
 		Details:    fmt.Sprintf("clue=%d", clueID),
 	})
@@ -141,14 +142,14 @@ func (s *service) UpdateClue(ctx context.Context, mysteryID uuid.UUID, clueID in
 	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
-	if err := s.mysteryRepo.UpdateClue(ctx, clueID, strings.TrimSpace(body)); err != nil {
+	if err := s.mysteryRepo.UpdateClue(ctx, spec.MysteryClueUpdate{ClueID: clueID, Body: strings.TrimSpace(body)}); err != nil {
 		return err
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryClueUpdate,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysteryClueUpdate,
+		TargetType: audit.TargetMystery,
 		TargetID:   mysteryID.String(),
 		Details:    fmt.Sprintf("clue=%d", clueID),
 	})

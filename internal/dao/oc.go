@@ -10,13 +10,57 @@ import (
 
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
 
 type (
+	OCDAO interface {
+		Create(ctx context.Context, s spec.NewOC, tx ...*sql.Tx) (*model.OCRow, error)
+		Update(ctx context.Context, s spec.OCUpdate, tx ...*sql.Tx) error
+		UpdateImage(ctx context.Context, s spec.OCImageUpdate, tx ...*sql.Tx) error
+		Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error
+		DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		GetByID(ctx context.Context, s spec.OCByID, tx ...*sql.Tx) (*model.OCRow, error)
+		GetAuthorID(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		List(ctx context.Context, s spec.OCListFilter, tx ...*sql.Tx) ([]model.OCRow, int, error)
+		ListByUser(ctx context.Context, s spec.OCUserListFilter, tx ...*sql.Tx) ([]model.OCRow, int, error)
+		ListSummariesByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.OCSummaryRow, error)
+		HasOC(ctx context.Context, s spec.OCNameLookup, tx ...*sql.Tx) (bool, error)
+
+		AddGalleryImage(ctx context.Context, s spec.NewOCGalleryImage, tx ...*sql.Tx) (int64, error)
+		UpdateGalleryImageURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateGalleryImageThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpdate, tx ...*sql.Tx) error
+		DeleteGalleryImage(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) error
+		GetGallery(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]model.OCImageRow, error)
+		GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.OCImageRow, error)
+
+		Vote(ctx context.Context, s spec.Vote, tx ...*sql.Tx) error
+		Favourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error
+		Unfavourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error
+
+		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
+		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
+		GetComments(ctx context.Context, s spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
+		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+
+		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
+		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
+	}
+
 	ocDAO struct {
 		db *sql.DB
 		*ownedDAO
@@ -48,13 +92,16 @@ func scanOCRow(row interface{ Scan(...any) error }, o *model.OCRow) error {
 	); err != nil {
 		return err
 	}
+
 	o.CreatedAt = createdAt.UTC().Format(time.RFC3339)
 	o.UpdatedAt = new(updatedAt.UTC().Format(time.RFC3339))
+
 	return nil
 }
 
-func (r *ocDAO) Create(ctx context.Context, spec repository.NewOC, tx ...*sql.Tx) (*model.OCRow, error) {
+func (r *ocDAO) Create(ctx context.Context, s spec.NewOC, tx ...*sql.Tx) (*model.OCRow, error) {
 	var created model.OCRow
+
 	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH o AS (
 		     INSERT INTO ocs (user_id, name, description, series, custom_series_name)
@@ -68,7 +115,7 @@ func (r *ocDAO) Create(ctx context.Context, spec repository.NewOC, tx ...*sql.Tx
 		 FROM o
 		 JOIN users u ON o.user_id = u.id
 		 LEFT JOIN user_roles r ON r.user_id = o.user_id`,
-		spec.UserID, spec.Name, spec.Description, spec.Series, spec.CustomSeriesName,
+		s.UserID, s.Name, s.Description, s.Series, s.CustomSeriesName,
 	), &created)
 	if err != nil {
 		return nil, fmt.Errorf("create oc: %w", err)
@@ -77,50 +124,56 @@ func (r *ocDAO) Create(ctx context.Context, spec repository.NewOC, tx ...*sql.Tx
 	return &created, nil
 }
 
-func (r *ocDAO) Update(ctx context.Context, spec repository.OCUpdate, tx ...*sql.Tx) error {
+func (r *ocDAO) Update(ctx context.Context, s spec.OCUpdate, tx ...*sql.Tx) error {
 	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		var res sql.Result
-		var err error
-		if spec.AsAdmin {
+		var (
+			res sql.Result
+			err error
+		)
+
+		if s.AsAdmin {
 			res, err = tx.ExecContext(ctx,
 				`UPDATE ocs SET name = $1, description = $2, series = $3, custom_series_name = $4, updated_at = NOW() WHERE id = $5`,
-				spec.Name, spec.Description, spec.Series, spec.CustomSeriesName, spec.ID,
+				s.Name, s.Description, s.Series, s.CustomSeriesName, s.ID,
 			)
 		} else {
 			res, err = tx.ExecContext(ctx,
 				`UPDATE ocs SET name = $1, description = $2, series = $3, custom_series_name = $4, updated_at = NOW() WHERE id = $5 AND user_id = $6`,
-				spec.Name, spec.Description, spec.Series, spec.CustomSeriesName, spec.ID, spec.UserID,
+				s.Name, s.Description, s.Series, s.CustomSeriesName, s.ID, s.UserID,
 			)
 		}
 		if err != nil {
 			return fmt.Errorf("update oc: %w", err)
 		}
+
 		n, _ := res.RowsAffected()
 		if n == 0 {
 			return fmt.Errorf("oc not found or not owned")
 		}
+
 		return nil
 	})
 }
 
-func (r *ocDAO) UpdateImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
+func (r *ocDAO) UpdateImage(ctx context.Context, s spec.OCImageUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE ocs SET image_url = $1, thumbnail_url = $2 WHERE id = $3`,
-		imageURL, thumbnailURL, id,
+		s.ImageURL, s.ThumbnailURL, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update oc image: %w", err)
 	}
+
 	return nil
 }
 
 func appendOCPaths(paths []string, values ...string) []string {
-	for i := range values {
-		if values[i] == "" {
+	for _, value := range values {
+		if value == "" {
 			continue
 		}
 
-		paths = append(paths, values[i])
+		paths = append(paths, value)
 	}
 
 	return paths
@@ -165,62 +218,76 @@ func (r *ocDAO) GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.
 	return paths, rows.Err()
 }
 
-func (r *ocDAO) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.OCRow, error) {
+func (r *ocDAO) GetByID(ctx context.Context, s spec.OCByID, tx ...*sql.Tx) (*model.OCRow, error) {
 	var o model.OCRow
-	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx, ocSelectBase+` WHERE o.id = $2`, viewerID, id), &o)
+
+	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx, ocSelectBase+` WHERE o.id = $2`, s.ViewerID, s.ID), &o)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
+
 		return nil, fmt.Errorf("get oc: %w", err)
 	}
+
 	return &o, nil
 }
 
-func (r *ocDAO) HasOC(ctx context.Context, userID uuid.UUID, name string, tx ...*sql.Tx) (bool, error) {
+func (r *ocDAO) HasOC(ctx context.Context, s spec.OCNameLookup, tx ...*sql.Tx) (bool, error) {
 	var exists bool
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM ocs WHERE user_id = $1 AND lower(name) = lower($2))`,
-		userID, name,
+		s.UserID, s.Name,
 	).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("check oc exists: %w", err)
 	}
+
 	return exists, nil
 }
 
-func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crackOCsOnly bool, series string, customSeriesName string, ownerID uuid.UUID, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.OCRow, int, error) {
+func (r *ocDAO) List(ctx context.Context, s spec.OCListFilter, tx ...*sql.Tx) ([]model.OCRow, int, error) {
 	buildWhere := func(startIdx int) (string, []any, int) {
 		idx := startIdx
 		next := func() string {
-			s := fmt.Sprintf("$%d", idx)
+			ph := fmt.Sprintf("$%d", idx)
 			idx++
-			return s
+
+			return ph
 		}
+
 		parts := []string{"1=1"}
 		var args []any
-		if series != "" {
+
+		if s.Series != "" {
 			parts = append(parts, "o.series = "+next())
-			args = append(args, series)
+			args = append(args, s.Series)
 		}
-		if customSeriesName != "" {
+
+		if s.CustomSeriesName != "" {
 			parts = append(parts, "lower(o.custom_series_name) = lower("+next()+")")
-			args = append(args, customSeriesName)
+			args = append(args, s.CustomSeriesName)
 		}
-		if ownerID != uuid.Nil {
+
+		if s.OwnerID != uuid.Nil {
 			parts = append(parts, "o.user_id = "+next())
-			args = append(args, ownerID)
+			args = append(args, s.OwnerID)
 		}
-		if crackOCsOnly {
+
+		if s.CrackOCsOnly {
 			parts = append(parts, fmt.Sprintf("COALESCE((SELECT SUM(value) FROM oc_votes WHERE oc_id = o.id), 0) <= %d", -3))
 		}
-		exclSQL, exclArgs := ExcludeClause("o.user_id", excludeUserIDs, idx)
+
+		exclSQL, exclArgs := ExcludeClause("o.user_id", s.ExcludeUserIDs, idx)
 		idx += len(exclArgs)
 		args = append(args, exclArgs...)
+
 		return " WHERE " + strings.Join(parts, " AND ") + exclSQL, args, idx
 	}
 
 	countWhere, countArgs, _ := buildWhere(1)
+
 	var total int
 	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM ocs o`+countWhere, countArgs...,
@@ -231,12 +298,12 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 	listWhere, listArgs, nextIdx := buildWhere(2)
 	limitPH := fmt.Sprintf("$%d", nextIdx)
 	offsetPH := fmt.Sprintf("$%d", nextIdx+1)
-	orderClause := ocOrderClause(sort)
+	orderClause := ocOrderClause(s.Sort)
 	query := ocSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
 
-	queryArgs := []any{viewerID}
+	queryArgs := []any{s.ViewerID}
 	queryArgs = append(queryArgs, listArgs...)
-	queryArgs = append(queryArgs, limit, offset)
+	queryArgs = append(queryArgs, s.Limit, s.Offset)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
 	if err != nil {
@@ -250,14 +317,17 @@ func (r *ocDAO) List(ctx context.Context, viewerID uuid.UUID, sort string, crack
 		if err := scanOCRow(rows, &o); err != nil {
 			return nil, 0, fmt.Errorf("scan oc: %w", err)
 		}
+
 		ocs = append(ocs, o)
 	}
+
 	return ocs, total, rows.Err()
 }
 
 func ocOrderClause(sort string) string {
 	voteScore := `COALESCE((SELECT SUM(value) FROM oc_votes WHERE oc_id = o.id), 0)`
 	favouriteCount := `(SELECT COUNT(*) FROM oc_favourites WHERE oc_id = o.id)`
+
 	switch sort {
 	case "top":
 		return ` ORDER BY ` + voteScore + ` DESC, o.created_at DESC`
@@ -276,14 +346,15 @@ func ocOrderClause(sort string) string {
 	}
 }
 
-func (r *ocDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]model.OCRow, int, error) {
+func (r *ocDAO) ListByUser(ctx context.Context, s spec.OCUserListFilter, tx ...*sql.Tx) ([]model.OCRow, int, error) {
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ocs WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ocs WHERE user_id = $1`, s.UserID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user ocs: %w", err)
 	}
 
 	query := ocSelectBase + ` WHERE o.user_id = $2 ORDER BY o.created_at DESC LIMIT $3 OFFSET $4`
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, viewerID, userID, limit, offset)
+
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, s.ViewerID, s.UserID, s.Limit, s.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user ocs: %w", err)
 	}
@@ -295,8 +366,10 @@ func (r *ocDAO) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.
 		if err := scanOCRow(rows, &o); err != nil {
 			return nil, 0, fmt.Errorf("scan oc: %w", err)
 		}
+
 		ocs = append(ocs, o)
 	}
+
 	return ocs, total, rows.Err()
 }
 
@@ -316,78 +389,93 @@ func (r *ocDAO) ListSummariesByUser(ctx context.Context, userID uuid.UUID, tx ..
 		if err := rows.Scan(&s.ID, &s.Name, &s.Series, &s.CustomSeriesName, &s.ThumbnailURL); err != nil {
 			return nil, fmt.Errorf("scan oc summary: %w", err)
 		}
+
 		summaries = append(summaries, s)
 	}
+
 	return summaries, rows.Err()
 }
 
-func (r *ocDAO) AddGalleryImage(ctx context.Context, ocID uuid.UUID, imageURL string, thumbnailURL string, caption string, sortOrder int, tx ...*sql.Tx) (int64, error) {
+func (r *ocDAO) AddGalleryImage(ctx context.Context, s spec.NewOCGalleryImage, tx ...*sql.Tx) (int64, error) {
 	var id int64
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO oc_images (oc_id, image_url, thumbnail_url, caption, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		ocID, imageURL, thumbnailURL, caption, sortOrder,
+		s.OCID, s.ImageURL, s.ThumbnailURL, s.Caption, s.SortOrder,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add oc gallery image: %w", err)
 	}
+
 	return id, nil
 }
 
-func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, id int64, imageURL string, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET image_url = $1 WHERE id = $2`, imageURL, id)
+func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET image_url = $1 WHERE id = $2`, s.URL, s.ID)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image url: %w", err)
 	}
+
 	return nil
 }
 
-func (r *ocDAO) UpdateGalleryImageThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
+func (r *ocDAO) UpdateGalleryImageThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2`, s.URL, s.ID)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image thumbnail: %w", err)
 	}
+
 	return nil
 }
 
-func (r *ocDAO) UpdateGalleryImage(ctx context.Context, id int64, ocID uuid.UUID, caption *string, sortOrder *int, tx ...*sql.Tx) error {
-	if caption == nil && sortOrder == nil {
+func (r *ocDAO) UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpdate, tx ...*sql.Tx) error {
+	if s.Caption == nil && s.SortOrder == nil {
 		return nil
 	}
+
 	parts := make([]string, 0, 2)
 	args := make([]any, 0, 4)
 	idx := 1
-	if caption != nil {
+
+	if s.Caption != nil {
 		parts = append(parts, fmt.Sprintf("caption = $%d", idx))
-		args = append(args, *caption)
+		args = append(args, *s.Caption)
 		idx++
 	}
-	if sortOrder != nil {
+
+	if s.SortOrder != nil {
 		parts = append(parts, fmt.Sprintf("sort_order = $%d", idx))
-		args = append(args, *sortOrder)
+		args = append(args, *s.SortOrder)
 		idx++
 	}
-	args = append(args, id, ocID)
+
+	args = append(args, s.ID, s.OCID)
 	query := fmt.Sprintf(`UPDATE oc_images SET %s WHERE id = $%d AND oc_id = $%d`, strings.Join(parts, ", "), idx, idx+1)
+
 	res, err := txOrDB(r.db, tx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image: %w", err)
 	}
+
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("gallery image not found or not in oc")
 	}
+
 	return nil
 }
 
-func (r *ocDAO) DeleteGalleryImage(ctx context.Context, id int64, ocID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM oc_images WHERE id = $1 AND oc_id = $2`, id, ocID)
+func (r *ocDAO) DeleteGalleryImage(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) error {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM oc_images WHERE id = $1 AND oc_id = $2`, s.ID, s.TargetID)
 	if err != nil {
 		return fmt.Errorf("delete oc gallery image: %w", err)
 	}
+
 	n, _ := res.RowsAffected()
 	if n == 0 {
 		return fmt.Errorf("gallery image not found or not in oc")
 	}
+
 	return nil
 }
 
@@ -407,8 +495,10 @@ func (r *ocDAO) GetGallery(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) (
 		if err := rows.Scan(&m.ID, &m.OCID, &m.ImageURL, &m.ThumbnailURL, &m.Caption, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan oc gallery image: %w", err)
 		}
+
 		images = append(images, m)
 	}
+
 	return images, rows.Err()
 }
 
@@ -416,6 +506,7 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 	if len(ocIDs) == 0 {
 		return nil, nil
 	}
+
 	placeholders, args := utils.PlaceholderArgs(ocIDs, 1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
@@ -433,29 +524,33 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 		if err := rows.Scan(&m.ID, &m.OCID, &m.ImageURL, &m.ThumbnailURL, &m.Caption, &m.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan oc gallery image: %w", err)
 		}
+
 		result[m.OCID] = append(result[m.OCID], m)
 	}
+
 	return result, rows.Err()
 }
 
-func (r *ocDAO) Favourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {
+func (r *ocDAO) Favourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO oc_favourites (user_id, oc_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, ocID,
+		s.UserID, s.TargetID,
 	)
 	if err != nil {
 		return fmt.Errorf("favourite oc: %w", err)
 	}
+
 	return nil
 }
 
-func (r *ocDAO) Unfavourite(ctx context.Context, userID uuid.UUID, ocID uuid.UUID, tx ...*sql.Tx) error {
+func (r *ocDAO) Unfavourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM oc_favourites WHERE user_id = $1 AND oc_id = $2`,
-		userID, ocID,
+		s.UserID, s.TargetID,
 	)
 	if err != nil {
 		return fmt.Errorf("unfavourite oc: %w", err)
 	}
+
 	return nil
 }

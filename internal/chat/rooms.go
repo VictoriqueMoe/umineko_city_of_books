@@ -8,12 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/og"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
@@ -46,7 +48,7 @@ func (r *roomsService) CreateGroupRoom(ctx context.Context, creatorID uuid.UUID,
 		return nil, err
 	}
 
-	created, err := r.chatRepo.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+	created, err := r.chatRepo.CreateGroupRoom(ctx, spec.NewChatGroupRoom{
 		Name:        name,
 		Description: description,
 		IsPublic:    req.IsPublic,
@@ -95,7 +97,7 @@ func (r *roomsService) UpdateGroupRoom(ctx context.Context, roomID, actorID uuid
 		return nil, &ErrBotsWillBeKicked{Bots: bots}
 	}
 
-	if err := r.chatRepo.UpdateGroupRoom(ctx, repository.UpdateChatRoom{
+	if err := r.chatRepo.UpdateGroupRoom(ctx, spec.UpdateChatRoom{
 		RoomID:      roomID,
 		Name:        name,
 		Description: description,
@@ -108,10 +110,10 @@ func (r *roomsService) UpdateGroupRoom(ctx context.Context, roomID, actorID uuid
 
 	r.removeBotsAfterRPChange(ctx, roomID, actorID, bots)
 
-	r.writeAudit(ctx, repository.NewAuditEntry{
+	r.writeAudit(ctx, audit.NewEntry{
 		ActorID:    actorID,
-		Action:     repository.AuditActionChatRoomUpdate,
-		TargetType: repository.AuditTargetChatRoom,
+		Action:     audit.ActionChatRoomUpdate,
+		TargetType: audit.TargetChatRoom,
 		TargetID:   roomID.String(),
 		Details:    roomUpdateAuditDetails(row, name, description, tags, req.IsPublic, req.IsRP, len(bots)),
 	})
@@ -201,7 +203,7 @@ func (r *roomsService) botsLosingRPAccess(ctx context.Context, roomID uuid.UUID,
 	return bots, nil
 }
 
-func roomUpdateAuditDetails(row *repository.ChatRoomRow, name, description string, tags []string, isPublic, isRP bool, botsRemoved int) string {
+func roomUpdateAuditDetails(row *model.ChatRoomRow, name, description string, tags []string, isPublic, isRP bool, botsRemoved int) string {
 	changes := make([]string, 0, 6)
 
 	if row.Name != name {
@@ -237,7 +239,18 @@ func (r *roomsService) ListPublicRooms(ctx context.Context, search string, isRPO
 
 	blockedIDs, _ := r.blockSvc.GetBlockedIDs(ctx, viewerID)
 	tag = strings.ToLower(strings.TrimSpace(tag))
-	rows, total, err := r.chatRepo.ListPublicRooms(ctx, search, isRPOnly, tag, viewerID, blockedIDs, includeArchived, limit, offset)
+	rows, total, err := r.chatRepo.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{
+		ChatRoomFilter: spec.ChatRoomFilter{
+			Search:          search,
+			IsRPOnly:        isRPOnly,
+			Tag:             tag,
+			IncludeArchived: includeArchived,
+			Limit:           limit,
+			Offset:          offset,
+		},
+		ViewerID:       viewerID,
+		ExcludeUserIDs: blockedIDs,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list public rooms: %w", err)
 	}
@@ -271,7 +284,18 @@ func (r *roomsService) ListUserGroupRooms(ctx context.Context, userID uuid.UUID,
 	}
 
 	tag = strings.ToLower(strings.TrimSpace(tag))
-	rows, total, err := r.chatRepo.ListUserGroupRooms(ctx, userID, search, isRPOnly, tag, roleFilter, includeArchived, limit, offset)
+	rows, total, err := r.chatRepo.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{
+		ChatRoomFilter: spec.ChatRoomFilter{
+			Search:          search,
+			IsRPOnly:        isRPOnly,
+			Tag:             tag,
+			IncludeArchived: includeArchived,
+			Limit:           limit,
+			Offset:          offset,
+		},
+		UserID: userID,
+		Role:   roleFilter,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list user group rooms: %w", err)
 	}
@@ -288,18 +312,18 @@ func (r *roomsService) SetRoomMuted(ctx context.Context, roomID, userID uuid.UUI
 		return err
 	}
 
-	if err := r.chatRepo.SetMuted(ctx, roomID, userID, muted); err != nil {
+	if err := r.chatRepo.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: userID, Muted: muted}); err != nil {
 		return fmt.Errorf("set muted: %w", err)
 	}
 	return nil
 }
 
 func (r *roomsService) IsRoomMuted(ctx context.Context, roomID, userID uuid.UUID) (bool, error) {
-	return r.chatRepo.IsMuted(ctx, roomID, userID)
+	return r.chatRepo.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 }
 
 func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, ghost bool) (*dto.ChatRoomResponse, error) {
-	row, err := r.chatRepo.GetRoomByID(ctx, roomID, userID)
+	row, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID})
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
 	}
@@ -316,7 +340,7 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		return nil, ErrNotPublic
 	}
 
-	banned, err := r.banRepo.IsBanned(ctx, roomID, userID)
+	banned, err := r.banRepo.IsBanned(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return nil, fmt.Errorf("check ban: %w", err)
 	}
@@ -355,10 +379,10 @@ func (r *roomsService) JoinRoom(ctx context.Context, roomID, userID uuid.UUID, g
 		actionBody = r.roomActionMessageBody(ctx, roomID, userID, fmt.Sprintf("%s joined the room.", joiner.DisplayName))
 	}
 
-	actionRow, err := r.chatRepo.AddMemberWithSystemMessage(ctx,
-		repository.NewChatRoomMember{RoomID: roomID, UserID: userID, Role: "member", Ghost: ghost},
-		repository.NewChatMessage{RoomID: roomID, SenderID: userID, Body: actionBody, IsSystem: true},
-	)
+	actionRow, err := r.chatRepo.AddMemberWithSystemMessage(ctx, spec.ChatMemberJoinAnnouncement{
+		Member:  spec.NewChatRoomMember{RoomID: roomID, UserID: userID, Role: "member", Ghost: ghost},
+		Message: spec.NewChatMessage{RoomID: roomID, SenderID: userID, Body: actionBody, IsSystem: true},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("add member: %w", err)
 	}
@@ -403,7 +427,7 @@ func (r *roomsService) broadcastToStaff(ctx context.Context, memberIDs []uuid.UU
 }
 
 func (r *roomsService) LeaveRoom(ctx context.Context, roomID, userID uuid.UUID) error {
-	row, err := r.chatRepo.GetRoomByID(ctx, roomID, userID)
+	row, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID})
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
 	}
@@ -428,11 +452,11 @@ func (r *roomsService) departRoom(ctx context.Context, roomID uuid.UUID, roomTyp
 	if caps.announcesDepartures {
 		audience, _ = r.chatRepo.GetRoomMembers(ctx, roomID)
 		if hasGhost, _ := r.chatRepo.HasGhostMembers(ctx, roomID); hasGhost {
-			wasGhost, _ = r.chatRepo.IsGhostMember(ctx, roomID, userID)
+			wasGhost, _ = r.chatRepo.IsGhostMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 		}
 	}
 
-	if err := r.chatRepo.RemoveMember(ctx, roomID, userID); err != nil {
+	if err := r.chatRepo.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID}); err != nil {
 		return fmt.Errorf("remove member: %w", err)
 	}
 
@@ -532,7 +556,7 @@ func (r *roomsService) ArchiveStale(ctx context.Context) (int, error) {
 }
 
 func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID) error {
-	row, err := r.chatRepo.GetRoomByID(ctx, roomID, userID)
+	row, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID})
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
 	}
@@ -562,7 +586,7 @@ func (r *roomsService) DeleteChat(ctx context.Context, roomID, userID uuid.UUID)
 	return r.departRoom(ctx, roomID, row.Type, userID)
 }
 
-func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *repository.ChatRoomRow, actorID uuid.UUID) error {
+func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *model.ChatRoomRow, actorID uuid.UUID) error {
 	r.endWatchPartiesForRoom(ctx, roomID, "room_deleted")
 
 	members, _ := r.chatRepo.GetRoomMembers(ctx, roomID)
@@ -582,10 +606,10 @@ func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *r
 	})
 
 	if isAuditableRoom(row) {
-		r.writeAudit(ctx, repository.NewAuditEntry{
+		r.writeAudit(ctx, audit.NewEntry{
 			ActorID:    actorID,
-			Action:     repository.AuditActionChatRoomDelete,
-			TargetType: repository.AuditTargetChatRoom,
+			Action:     audit.ActionChatRoomDelete,
+			TargetType: audit.TargetChatRoom,
 			TargetID:   roomID.String(),
 			Details:    fmt.Sprintf("name=%s members=%d", row.Name, len(members)),
 		})
@@ -599,7 +623,7 @@ func (r *roomsService) destroyRoom(ctx context.Context, roomID uuid.UUID, row *r
 }
 
 func (r *roomsService) buildRoomResponse(ctx context.Context, roomID, viewerID uuid.UUID) (*dto.ChatRoomResponse, error) {
-	row, err := r.chatRepo.GetRoomByID(ctx, roomID, viewerID)
+	row, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: viewerID})
 	if err != nil {
 		return nil, fmt.Errorf("get room: %w", err)
 	}
@@ -637,7 +661,7 @@ func (r *roomsService) SetRoomNickname(ctx context.Context, roomID, userID uuid.
 
 	nickname = text.ClampRunes(strings.TrimSpace(nickname), 32)
 
-	if err := r.chatRepo.SetMemberNickname(ctx, roomID, userID, nickname); err != nil {
+	if err := r.chatRepo.SetMemberNickname(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: userID, Nickname: nickname}); err != nil {
 		return nil, fmt.Errorf("set member nickname: %w", err)
 	}
 
@@ -673,7 +697,7 @@ func (r *roomsService) SetRoomAvatar(ctx context.Context, roomID, userID uuid.UU
 		return nil, err
 	}
 
-	if err := r.chatRepo.SetMemberAvatar(ctx, roomID, userID, avatarURL); err != nil {
+	if err := r.chatRepo.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: userID, AvatarURL: avatarURL}); err != nil {
 		return nil, fmt.Errorf("set member avatar: %w", err)
 	}
 
@@ -703,7 +727,7 @@ func (r *roomsService) ClearRoomAvatar(ctx context.Context, roomID, userID uuid.
 		}
 	}
 
-	if err := r.chatRepo.SetMemberAvatar(ctx, roomID, userID, ""); err != nil {
+	if err := r.chatRepo.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: userID, AvatarURL: ""}); err != nil {
 		return nil, fmt.Errorf("clear member avatar: %w", err)
 	}
 

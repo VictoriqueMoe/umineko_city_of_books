@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func (r *reactionsService) PinMessage(ctx context.Context, messageID, userID uui
 		return ErrNotHost
 	}
 
-	if err := r.chatRepo.PinMessage(ctx, messageID, userID); err != nil {
+	if err := r.chatRepo.PinMessage(ctx, spec.ChatMessagePin{MessageID: messageID, PinnedBy: userID}); err != nil {
 		return fmt.Errorf("pin message: %w", err)
 	}
 
@@ -92,7 +93,7 @@ func (r *reactionsService) canPinInRoom(ctx context.Context, roomID, userID uuid
 	}
 
 	if capabilitiesFor(room.Type).participantsMayPin {
-		isMember, err := r.chatRepo.IsMember(ctx, roomID, userID)
+		isMember, err := r.chatRepo.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 		if err != nil {
 			return false, fmt.Errorf("check membership: %w", err)
 		}
@@ -109,7 +110,7 @@ func (r *reactionsService) ListPinnedMessages(ctx context.Context, roomID, viewe
 		return nil, err
 	}
 
-	rows, err := r.chatRepo.ListPinnedMessages(ctx, roomID, viewerID)
+	rows, err := r.chatRepo.ListPinnedMessages(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: viewerID})
 	if err != nil {
 		return nil, fmt.Errorf("list pinned messages: %w", err)
 	}
@@ -131,7 +132,7 @@ func (r *reactionsService) resolveMemberDisplayName(ctx context.Context, roomID,
 		name = user.Username
 	}
 
-	nickname, _ := r.chatRepo.GetMemberNickname(ctx, roomID, userID)
+	nickname, _ := r.chatRepo.GetMemberNickname(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userID})
 	if nickname != "" {
 		name = nickname
 	}
@@ -159,7 +160,7 @@ func (r *reactionsService) AddReaction(ctx context.Context, messageID, userID uu
 		return err
 	}
 
-	inserted, err := r.chatRepo.AddReaction(ctx, messageID, userID, emoji)
+	inserted, err := r.chatRepo.AddReaction(ctx, spec.ChatMessageReaction{MessageID: messageID, UserID: userID, Emoji: emoji})
 	if err != nil {
 		return fmt.Errorf("add reaction: %w", err)
 	}
@@ -168,7 +169,7 @@ func (r *reactionsService) AddReaction(ctx context.Context, messageID, userID uu
 	}
 
 	displayName := r.resolveMemberDisplayName(ctx, msg.RoomID, userID)
-	count, _ := r.chatRepo.CountReactions(ctx, messageID, emoji)
+	count, _ := r.chatRepo.CountReactions(ctx, spec.ChatReactionCount{MessageID: messageID, Emoji: emoji})
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_reaction_added",
@@ -201,7 +202,7 @@ func (r *reactionsService) RemoveReaction(ctx context.Context, messageID, userID
 		return err
 	}
 
-	deleted, err := r.chatRepo.RemoveReaction(ctx, messageID, userID, emoji)
+	deleted, err := r.chatRepo.RemoveReaction(ctx, spec.ChatMessageReaction{MessageID: messageID, UserID: userID, Emoji: emoji})
 	if err != nil {
 		return fmt.Errorf("remove reaction: %w", err)
 	}
@@ -210,7 +211,7 @@ func (r *reactionsService) RemoveReaction(ctx context.Context, messageID, userID
 	}
 
 	displayName := r.resolveMemberDisplayName(ctx, msg.RoomID, userID)
-	count, _ := r.chatRepo.CountReactions(ctx, messageID, emoji)
+	count, _ := r.chatRepo.CountReactions(ctx, spec.ChatReactionCount{MessageID: messageID, Emoji: emoji})
 
 	r.broadcastToRoomMembers(ctx, msg.RoomID, ws.Message{
 		Type: "chat_reaction_removed",

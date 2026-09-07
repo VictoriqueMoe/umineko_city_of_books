@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 
@@ -74,7 +77,7 @@ func TestUserDAO_Create(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	u, err := repos.User.Create(context.Background(), repository.NewUser{
+	u, err := repos.User.Create(context.Background(), spec.NewUser{
 		Username:     "alice",
 		Email:        "alice@example.com",
 		PasswordHash: "hashed-secret123",
@@ -92,11 +95,11 @@ func TestUserDAO_Create(t *testing.T) {
 func TestUserDAO_Create_DuplicateUsername(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	_, err := repos.User.Create(context.Background(), repository.NewUser{Username: "dup", PasswordHash: "pw1", DisplayName: "First"})
+	_, err := repos.User.Create(context.Background(), spec.NewUser{Username: "dup", PasswordHash: "pw1", DisplayName: "First"})
 	require.NoError(t, err)
 
 	// when
-	_, err = repos.User.Create(context.Background(), repository.NewUser{Username: "dup", PasswordHash: "pw2", DisplayName: "Second"})
+	_, err = repos.User.Create(context.Background(), spec.NewUser{Username: "dup", PasswordHash: "pw2", DisplayName: "Second"})
 
 	// then
 	require.Error(t, err)
@@ -309,7 +312,7 @@ func TestUserDAO_Count_Empty(t *testing.T) {
 func TestUserDAO_GetPasswordHash_ReturnsStoredHashVerbatim(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
-	created, err := repos.User.Create(context.Background(), repository.NewUser{Username: "vpwd", PasswordHash: "opaque-hash", DisplayName: "V"})
+	created, err := repos.User.Create(context.Background(), spec.NewUser{Username: "vpwd", PasswordHash: "opaque-hash", DisplayName: "V"})
 	require.NoError(t, err)
 
 	// when
@@ -339,7 +342,7 @@ func TestUserDAO_UpdateProfile(t *testing.T) {
 	req := sampleProfileRequest()
 
 	// when
-	err := repos.User.UpdateProfile(context.Background(), user.ID, req)
+	err := repos.User.UpdateProfile(context.Background(), spec.UserProfileUpdate{UserID: user.ID, Profile: req})
 
 	// then
 	require.NoError(t, err)
@@ -378,7 +381,7 @@ func TestUserDAO_UpdateProfile_NonExistentUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	err := repos.User.UpdateProfile(context.Background(), uuid.New(), sampleProfileRequest())
+	err := repos.User.UpdateProfile(context.Background(), spec.UserProfileUpdate{UserID: uuid.New(), Profile: sampleProfileRequest()})
 
 	// then
 	require.NoError(t, err)
@@ -388,15 +391,15 @@ func TestUserDAO_UpdateProfile_DoesNotClobberAvatarOrBanner(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), user.ID, "/uploads/avatars/keep.webp"))
-	require.NoError(t, repos.User.UpdateBannerURL(context.Background(), user.ID, "/uploads/banners/keep.webp"))
+	require.NoError(t, repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: user.ID, AvatarURL: "/uploads/avatars/keep.webp"}))
+	require.NoError(t, repos.User.UpdateBannerURL(context.Background(), spec.UserBannerUpdate{UserID: user.ID, BannerURL: "/uploads/banners/keep.webp"}))
 
 	req := sampleProfileRequest()
 	req.AvatarURL = ""
 	req.BannerURL = ""
 
 	// when
-	err := repos.User.UpdateProfile(context.Background(), user.ID, req)
+	err := repos.User.UpdateProfile(context.Background(), spec.UserProfileUpdate{UserID: user.ID, Profile: req})
 
 	// then
 	require.NoError(t, err)
@@ -412,7 +415,7 @@ func TestUserDAO_UpdateAvatarURL(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateAvatarURL(context.Background(), user.ID, "/new-avatar.png")
+	err := repos.User.UpdateAvatarURL(context.Background(), spec.UserAvatarUpdate{UserID: user.ID, AvatarURL: "/new-avatar.png"})
 
 	// then
 	require.NoError(t, err)
@@ -427,7 +430,7 @@ func TestUserDAO_UpdateBannerURL(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateBannerURL(context.Background(), user.ID, "/new-banner.png")
+	err := repos.User.UpdateBannerURL(context.Background(), spec.UserBannerUpdate{UserID: user.ID, BannerURL: "/new-banner.png"})
 
 	// then
 	require.NoError(t, err)
@@ -442,7 +445,7 @@ func TestUserDAO_UpdateIP(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateIP(context.Background(), user.ID, "10.0.0.1")
+	err := repos.User.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: user.ID, IP: "10.0.0.1"})
 
 	// then
 	require.NoError(t, err)
@@ -474,7 +477,7 @@ func TestUserDAO_SetDisplayName(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.SetDisplayName(context.Background(), user.ID, "Renamed By Staff")
+	err := repos.User.SetDisplayName(context.Background(), spec.UserDisplayNameUpdate{UserID: user.ID, DisplayName: "Renamed By Staff"})
 
 	// then
 	require.NoError(t, err)
@@ -489,7 +492,7 @@ func TestUserDAO_SetDisplayNameLocked(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.SetDisplayNameLocked(context.Background(), user.ID, true)
+	err := repos.User.SetDisplayNameLocked(context.Background(), spec.UserDisplayNameLockUpdate{UserID: user.ID, Locked: true})
 
 	// then
 	require.NoError(t, err)
@@ -498,7 +501,7 @@ func TestUserDAO_SetDisplayNameLocked(t *testing.T) {
 	assert.True(t, got.DisplayNameLocked)
 
 	// when
-	err = repos.User.SetDisplayNameLocked(context.Background(), user.ID, false)
+	err = repos.User.SetDisplayNameLocked(context.Background(), spec.UserDisplayNameLockUpdate{UserID: user.ID, Locked: false})
 
 	// then
 	require.NoError(t, err)
@@ -514,12 +517,12 @@ func TestUserDAO_ListByIP(t *testing.T) {
 	target := daotest.CreateUser(t, repos, daotest.WithUsername("target"))
 	alt := daotest.CreateUser(t, repos, daotest.WithUsername("alt"))
 	elsewhere := daotest.CreateUser(t, repos, daotest.WithUsername("elsewhere"))
-	require.NoError(t, repos.User.UpdateIP(context.Background(), target.ID, ip))
-	require.NoError(t, repos.User.UpdateIP(context.Background(), alt.ID, ip))
-	require.NoError(t, repos.User.UpdateIP(context.Background(), elsewhere.ID, "10.0.0.1"))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: target.ID, IP: ip}))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: alt.ID, IP: ip}))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: elsewhere.ID, IP: "10.0.0.1"}))
 
 	// when
-	got, err := repos.User.ListByIP(context.Background(), ip, target.ID)
+	got, err := repos.User.ListByIP(context.Background(), spec.UserIPFilter{IP: ip, ExcludeUserID: target.ID})
 
 	// then
 	require.NoError(t, err)
@@ -531,10 +534,10 @@ func TestUserDAO_ListByIP_NoMatches(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	target := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.UpdateIP(context.Background(), target.ID, "10.0.0.1"))
+	require.NoError(t, repos.User.UpdateIP(context.Background(), spec.UserIPUpdate{UserID: target.ID, IP: "10.0.0.1"}))
 
 	// when
-	got, err := repos.User.ListByIP(context.Background(), "10.0.0.1", target.ID)
+	got, err := repos.User.ListByIP(context.Background(), spec.UserIPFilter{IP: "10.0.0.1", ExcludeUserID: target.ID})
 
 	// then
 	require.NoError(t, err)
@@ -547,7 +550,7 @@ func TestUserDAO_UpdateGameBoardSort(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateGameBoardSort(context.Background(), user.ID, "popular")
+	err := repos.User.UpdateGameBoardSort(context.Background(), spec.UserGameBoardSortUpdate{UserID: user.ID, Sort: "popular"})
 
 	// then
 	require.NoError(t, err)
@@ -562,7 +565,7 @@ func TestUserDAO_UpdateAppearance(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateAppearance(context.Background(), user.ID, "dark", "serif", true)
+	err := repos.User.UpdateAppearance(context.Background(), spec.UserAppearanceUpdate{UserID: user.ID, Theme: "dark", Font: "serif", WideLayout: true})
 
 	// then
 	require.NoError(t, err)
@@ -579,7 +582,7 @@ func TestUserDAO_UpdateMysteryScoreAdjustment(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateMysteryScoreAdjustment(context.Background(), user.ID, 50)
+	err := repos.User.UpdateMysteryScoreAdjustment(context.Background(), spec.UserMysteryScoreUpdate{UserID: user.ID, Adjustment: 50})
 
 	// then
 	require.NoError(t, err)
@@ -594,7 +597,7 @@ func TestUserDAO_UpdateGMScoreAdjustment(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.UpdateGMScoreAdjustment(context.Background(), user.ID, -25)
+	err := repos.User.UpdateGMScoreAdjustment(context.Background(), spec.UserGMScoreUpdate{UserID: user.ID, Adjustment: -25})
 
 	// then
 	require.NoError(t, err)
@@ -671,7 +674,7 @@ func TestUserDAO_SetPasswordHash(t *testing.T) {
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("cp"))
 
 	// when
-	err := repos.User.SetPasswordHash(context.Background(), user.ID, "brand-new-hash")
+	err := repos.User.SetPasswordHash(context.Background(), spec.UserPasswordHashUpdate{UserID: user.ID, PasswordHash: "brand-new-hash"})
 
 	// then
 	require.NoError(t, err)
@@ -799,7 +802,7 @@ func TestUserDAO_ListAll_NoSearch(t *testing.T) {
 	daotest.CreateUser(t, repos, daotest.WithUsername("user3"))
 
 	// when
-	users, total, err := repos.User.ListAll(context.Background(), "", 10, 0)
+	users, total, err := repos.User.ListAll(context.Background(), spec.UserListFilter{Search: "", Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -815,9 +818,9 @@ func TestUserDAO_ListAll_Pagination(t *testing.T) {
 	}
 
 	// when
-	page1, total1, err1 := repos.User.ListAll(context.Background(), "", 2, 0)
-	page2, total2, err2 := repos.User.ListAll(context.Background(), "", 2, 2)
-	page3, total3, err3 := repos.User.ListAll(context.Background(), "", 2, 4)
+	page1, total1, err1 := repos.User.ListAll(context.Background(), spec.UserListFilter{Search: "", Limit: 2, Offset: 0})
+	page2, total2, err2 := repos.User.ListAll(context.Background(), spec.UserListFilter{Search: "", Limit: 2, Offset: 2})
+	page3, total3, err3 := repos.User.ListAll(context.Background(), spec.UserListFilter{Search: "", Limit: 2, Offset: 4})
 
 	// then
 	require.NoError(t, err1)
@@ -839,7 +842,7 @@ func TestUserDAO_ListAll_Search(t *testing.T) {
 	daotest.CreateUser(t, repos, daotest.WithUsername("charlie"), daotest.WithDisplayName("Alicia"))
 
 	// when
-	users, total, err := repos.User.ListAll(context.Background(), "alic", 10, 0)
+	users, total, err := repos.User.ListAll(context.Background(), spec.UserListFilter{Search: "alic", Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -857,7 +860,7 @@ func TestUserDAO_ListAll_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	users, total, err := repos.User.ListAll(context.Background(), "", 10, 0)
+	users, total, err := repos.User.ListAll(context.Background(), spec.UserListFilter{Search: "", Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -871,7 +874,7 @@ func TestUserDAO_ListPublic_ExcludesBanned(t *testing.T) {
 	good := daotest.CreateUser(t, repos, daotest.WithDisplayName("Good"))
 	bad := daotest.CreateUser(t, repos, daotest.WithDisplayName("Bad"))
 	mod := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.BanUser(context.Background(), bad.ID, mod.ID, "bad behaviour"))
+	require.NoError(t, repos.User.BanUser(context.Background(), spec.UserBan{UserID: bad.ID, BannedBy: mod.ID, Reason: "bad behaviour"}))
 
 	// when
 	users, err := repos.User.ListPublic(context.Background())
@@ -907,7 +910,7 @@ func TestUserDAO_SearchByName_MatchesUsernameAndDisplay(t *testing.T) {
 	daotest.CreateUser(t, repos, daotest.WithUsername("beato"), daotest.WithDisplayName("Beatrice"))
 
 	// when
-	users, err := repos.User.SearchByName(context.Background(), "battler", 10)
+	users, err := repos.User.SearchByName(context.Background(), spec.UserSearchFilter{Query: "battler", Limit: 10})
 
 	// then
 	require.NoError(t, err)
@@ -920,10 +923,10 @@ func TestUserDAO_SearchByName_ExcludesBanned(t *testing.T) {
 	visible := daotest.CreateUser(t, repos, daotest.WithUsername("visible_one"))
 	hidden := daotest.CreateUser(t, repos, daotest.WithUsername("visible_two"))
 	mod := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.BanUser(context.Background(), hidden.ID, mod.ID, "x"))
+	require.NoError(t, repos.User.BanUser(context.Background(), spec.UserBan{UserID: hidden.ID, BannedBy: mod.ID, Reason: "x"}))
 
 	// when
-	users, err := repos.User.SearchByName(context.Background(), "visible", 10)
+	users, err := repos.User.SearchByName(context.Background(), spec.UserSearchFilter{Query: "visible", Limit: 10})
 
 	// then
 	require.NoError(t, err)
@@ -939,7 +942,7 @@ func TestUserDAO_SearchByName_RespectsLimit(t *testing.T) {
 	}
 
 	// when
-	users, err := repos.User.SearchByName(context.Background(), "matcher", 3)
+	users, err := repos.User.SearchByName(context.Background(), spec.UserSearchFilter{Query: "matcher", Limit: 3})
 
 	// then
 	require.NoError(t, err)
@@ -952,7 +955,7 @@ func TestUserDAO_SearchByName_NoMatch(t *testing.T) {
 	daotest.CreateUser(t, repos, daotest.WithDisplayName("Alice"))
 
 	// when
-	users, err := repos.User.SearchByName(context.Background(), "zzz", 10)
+	users, err := repos.User.SearchByName(context.Background(), spec.UserSearchFilter{Query: "zzz", Limit: 10})
 
 	// then
 	require.NoError(t, err)
@@ -966,7 +969,7 @@ func TestUserDAO_BanUser(t *testing.T) {
 	mod := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.User.BanUser(context.Background(), user.ID, mod.ID, "spamming")
+	err := repos.User.BanUser(context.Background(), spec.UserBan{UserID: user.ID, BannedBy: mod.ID, Reason: "spamming"})
 
 	// then
 	require.NoError(t, err)
@@ -983,7 +986,7 @@ func TestUserDAO_UnbanUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	mod := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.BanUser(context.Background(), user.ID, mod.ID, "x"))
+	require.NoError(t, repos.User.BanUser(context.Background(), spec.UserBan{UserID: user.ID, BannedBy: mod.ID, Reason: "x"}))
 
 	// when
 	err := repos.User.UnbanUser(context.Background(), user.ID)
@@ -1015,7 +1018,7 @@ func TestUserDAO_IsBanned_Banned(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	mod := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.User.BanUser(context.Background(), user.ID, mod.ID, "x"))
+	require.NoError(t, repos.User.BanUser(context.Background(), spec.UserBan{UserID: user.ID, BannedBy: mod.ID, Reason: "x"}))
 
 	// when
 	banned, err := repos.User.IsBanned(context.Background(), user.ID)
@@ -1067,11 +1070,11 @@ func TestUserRepository_RegisterAccountWritesEveryRow(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	inviter := daotest.CreateUser(t, repos, daotest.WithUsername("inviter"))
-	require.NoError(t, repos.Invite.Create(context.Background(), "invite-code-1", inviter.ID))
+	require.NoError(t, repos.Invite.Create(context.Background(), spec.NewInvite{Code: "invite-code-1", CreatedBy: inviter.ID}))
 
-	spec := repository.NewRegistration{
-		Account: repository.NewAccount{
-			User: repository.NewUser{
+	registration := spec.NewRegistration{
+		Account: spec.NewAccount{
+			User: spec.NewUser{
 				Username:     "newcomer",
 				Email:        "newcomer@example.com",
 				PasswordHash: "hashed-secret",
@@ -1089,7 +1092,7 @@ func TestUserRepository_RegisterAccountWritesEveryRow(t *testing.T) {
 	}
 
 	// when
-	created, err := repos.User.RegisterAccount(context.Background(), spec)
+	created, err := repos.User.RegisterAccount(context.Background(), registration)
 
 	// then
 	require.NoError(t, err)
@@ -1114,11 +1117,11 @@ func TestUserRepository_RegisterAccountWritesEveryRow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, created.ID, sessionUserID)
 
-	entries, total, err := repos.AuditLog.ListForUser(context.Background(), created.ID, 10, 0)
+	entries, total, err := repos.AuditLog.ListForUser(context.Background(), spec.AuditLogUserListing{UserID: created.ID, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	require.Len(t, entries, 1)
-	assert.Equal(t, repository.AuditActionUserCreated, entries[0].Action)
+	assert.Equal(t, audit.ActionUserCreated, entries[0].Action)
 	assert.Equal(t, "username=newcomer", entries[0].Details)
 }
 
@@ -1128,9 +1131,9 @@ func TestUserRepository_RegisterAccountRollsBackWhenSessionCreationFails(t *test
 	holder := daotest.CreateUser(t, repos, daotest.WithUsername("tokenholder"))
 	takenToken := daotest.CreateSession(t, repos, holder.ID)
 
-	spec := repository.NewRegistration{
-		Account: repository.NewAccount{
-			User: repository.NewUser{
+	registration := spec.NewRegistration{
+		Account: spec.NewAccount{
+			User: spec.NewUser{
 				Username:     "rolledback",
 				Email:        "rolledback@example.com",
 				PasswordHash: "hashed-secret",
@@ -1147,7 +1150,7 @@ func TestUserRepository_RegisterAccountRollsBackWhenSessionCreationFails(t *test
 	}
 
 	// when
-	created, err := repos.User.RegisterAccount(context.Background(), spec)
+	created, err := repos.User.RegisterAccount(context.Background(), registration)
 
 	// then
 	require.Error(t, err)

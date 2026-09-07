@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 
@@ -90,9 +92,9 @@ func TestBlock_OK_UnfollowsBothDirections(t *testing.T) {
 	blocker := uuid.New()
 	target := uuid.New()
 	authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
-	blockRepo.EXPECT().Block(mock.Anything, blocker, target).Return(nil)
-	followRepo.EXPECT().Unfollow(mock.Anything, blocker, target).Return(nil)
-	followRepo.EXPECT().Unfollow(mock.Anything, target, blocker).Return(nil)
+	blockRepo.EXPECT().Block(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(nil)
+	followRepo.EXPECT().Unfollow(mock.Anything, spec.FollowSpec{FollowerID: blocker, FollowingID: target}).Return(nil)
+	followRepo.EXPECT().Unfollow(mock.Anything, spec.FollowSpec{FollowerID: target, FollowingID: blocker}).Return(nil)
 
 	// when
 	err := svc.Block(context.Background(), blocker, target)
@@ -107,9 +109,9 @@ func TestBlock_UnfollowErrorsSwallowed(t *testing.T) {
 	blocker := uuid.New()
 	target := uuid.New()
 	authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
-	blockRepo.EXPECT().Block(mock.Anything, blocker, target).Return(nil)
-	followRepo.EXPECT().Unfollow(mock.Anything, blocker, target).Return(errors.New("boom"))
-	followRepo.EXPECT().Unfollow(mock.Anything, target, blocker).Return(errors.New("boom"))
+	blockRepo.EXPECT().Block(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(nil)
+	followRepo.EXPECT().Unfollow(mock.Anything, spec.FollowSpec{FollowerID: blocker, FollowingID: target}).Return(errors.New("boom"))
+	followRepo.EXPECT().Unfollow(mock.Anything, spec.FollowSpec{FollowerID: target, FollowingID: blocker}).Return(errors.New("boom"))
 
 	// when
 	err := svc.Block(context.Background(), blocker, target)
@@ -124,7 +126,7 @@ func TestBlock_RepoErrorBubbles(t *testing.T) {
 	blocker := uuid.New()
 	target := uuid.New()
 	authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
-	blockRepo.EXPECT().Block(mock.Anything, blocker, target).Return(errors.New("db down"))
+	blockRepo.EXPECT().Block(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(errors.New("db down"))
 
 	// when
 	err := svc.Block(context.Background(), blocker, target)
@@ -139,7 +141,7 @@ func TestUnblock_OK(t *testing.T) {
 	svc, blockRepo, _, _ := newTestService(t)
 	blocker := uuid.New()
 	target := uuid.New()
-	blockRepo.EXPECT().Unblock(mock.Anything, blocker, target).Return(nil)
+	blockRepo.EXPECT().Unblock(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(nil)
 
 	// when
 	err := svc.Unblock(context.Background(), blocker, target)
@@ -153,7 +155,7 @@ func TestUnblock_RepoError(t *testing.T) {
 	svc, blockRepo, _, _ := newTestService(t)
 	blocker := uuid.New()
 	target := uuid.New()
-	blockRepo.EXPECT().Unblock(mock.Anything, blocker, target).Return(errors.New("boom"))
+	blockRepo.EXPECT().Unblock(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(errors.New("boom"))
 
 	// when
 	err := svc.Unblock(context.Background(), blocker, target)
@@ -167,7 +169,7 @@ func TestIsBlocked_Delegates(t *testing.T) {
 	svc, blockRepo, _, _ := newTestService(t)
 	blocker := uuid.New()
 	target := uuid.New()
-	blockRepo.EXPECT().IsBlocked(mock.Anything, blocker, target).Return(true, nil)
+	blockRepo.EXPECT().IsBlocked(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(true, nil)
 
 	// when
 	got, err := svc.IsBlocked(context.Background(), blocker, target)
@@ -182,7 +184,7 @@ func TestIsBlocked_RepoError(t *testing.T) {
 	svc, blockRepo, _, _ := newTestService(t)
 	blocker := uuid.New()
 	target := uuid.New()
-	blockRepo.EXPECT().IsBlocked(mock.Anything, blocker, target).Return(false, errors.New("boom"))
+	blockRepo.EXPECT().IsBlocked(mock.Anything, spec.BlockSpec{BlockerID: blocker, BlockedID: target}).Return(false, errors.New("boom"))
 
 	// when
 	_, err := svc.IsBlocked(context.Background(), blocker, target)
@@ -196,7 +198,7 @@ func TestIsBlockedEither_Delegates(t *testing.T) {
 	svc, blockRepo, _, _ := newTestService(t)
 	a := uuid.New()
 	b := uuid.New()
-	blockRepo.EXPECT().IsBlockedEither(mock.Anything, a, b).Return(true, nil)
+	blockRepo.EXPECT().IsBlockedEither(mock.Anything, spec.BlockPairSpec{UserA: a, UserB: b}).Return(true, nil)
 
 	// when
 	got, err := svc.IsBlockedEither(context.Background(), a, b)
@@ -250,7 +252,7 @@ func TestGetBlockedUsers_Delegates(t *testing.T) {
 	// given
 	svc, blockRepo, _, _ := newTestService(t)
 	blocker := uuid.New()
-	want := []repository.BlockedUser{
+	want := []model.BlockedUser{
 		{ID: uuid.New(), Username: "alice"},
 		{ID: uuid.New(), Username: "bob"},
 	}

@@ -7,8 +7,8 @@ package middleware
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model/spec"
 
-	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -40,12 +40,12 @@ func (_m *MockIPWriter) EXPECT() *MockIPWriter_Expecter {
 }
 
 // UpdateIP provides a mock function for the type MockIPWriter
-func (_mock *MockIPWriter) UpdateIP(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error {
+func (_mock *MockIPWriter) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, ip, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, ip)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -54,8 +54,8 @@ func (_mock *MockIPWriter) UpdateIP(ctx context.Context, userID uuid.UUID, ip st
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, ip, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserIPUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -69,39 +69,33 @@ type MockIPWriter_UpdateIP_Call struct {
 
 // UpdateIP is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - ip string
+//   - s spec.UserIPUpdate
 //   - tx ...*sql.Tx
-func (_e *MockIPWriter_Expecter) UpdateIP(ctx any, userID any, ip any, tx ...any) *MockIPWriter_UpdateIP_Call {
+func (_e *MockIPWriter_Expecter) UpdateIP(ctx any, s any, tx ...any) *MockIPWriter_UpdateIP_Call {
 	return &MockIPWriter_UpdateIP_Call{Call: _e.mock.On("UpdateIP",
-		append([]any{ctx, userID, ip}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockIPWriter_UpdateIP_Call) Run(run func(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx)) *MockIPWriter_UpdateIP_Call {
+func (_c *MockIPWriter_UpdateIP_Call) Run(run func(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx)) *MockIPWriter_UpdateIP_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserIPUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserIPUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -112,7 +106,7 @@ func (_c *MockIPWriter_UpdateIP_Call) Return(err error) *MockIPWriter_UpdateIP_C
 	return _c
 }
 
-func (_c *MockIPWriter_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, ip string, tx ...*sql.Tx) error) *MockIPWriter_UpdateIP_Call {
+func (_c *MockIPWriter_UpdateIP_Call) RunAndReturn(run func(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error) *MockIPWriter_UpdateIP_Call {
 	_c.Call.Return(run)
 	return _c
 }

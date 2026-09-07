@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/model/spec"
+
 	"github.com/google/uuid"
 )
 
@@ -20,8 +22,8 @@ func newOwnedDAO(db *sql.DB, table, entity string) *ownedDAO {
 	return &ownedDAO{db: db, table: table, entity: entity}
 }
 
-func (o *ownedDAO) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(o.db, tx).ExecContext(ctx, `DELETE FROM `+o.table+` WHERE id = $1 AND user_id = $2`, id, userID)
+func (o *ownedDAO) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error {
+	res, err := txOrDB(o.db, tx).ExecContext(ctx, `DELETE FROM `+o.table+` WHERE id = $1 AND user_id = $2`, s.ID, s.UserID)
 	if err != nil {
 		return fmt.Errorf("delete %s: %w", o.entity, err)
 	}
@@ -52,4 +54,13 @@ func (o *ownedDAO) GetAuthorID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)
 	}
 
 	return userID, nil
+}
+
+func (o *ownedDAO) IncrementViewCount(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
+	_, err := txOrDB(o.db, tx).ExecContext(ctx, `UPDATE `+o.table+` SET view_count = view_count + 1 WHERE id = $1`, id)
+	if err != nil {
+		return fmt.Errorf("increment %s view count: %w", o.entity, err)
+	}
+
+	return nil
 }

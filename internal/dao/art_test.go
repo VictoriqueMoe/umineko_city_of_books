@@ -4,8 +4,12 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -15,16 +19,18 @@ import (
 
 func createArt(t *testing.T, repos *repository.Repositories, userID uuid.UUID, corner, artType, title string, tags []string, spoiler bool) uuid.UUID {
 	t.Helper()
-	created, err := repos.Art.CreateWithTags(context.Background(), repository.NewArtWithTags{
-		UserID:       userID,
-		Corner:       corner,
-		ArtType:      artType,
-		Title:        title,
-		Description:  "desc",
-		ImageURL:     "https://example.com/img.png",
-		ThumbnailURL: "https://example.com/thumb.png",
-		IsSpoiler:    spoiler,
-		Tags:         tags,
+	created, err := repos.Art.CreateWithTags(context.Background(), spec.NewArtWithTags{
+		NewArt: spec.NewArt{
+			UserID:       userID,
+			Corner:       corner,
+			ArtType:      artType,
+			Title:        title,
+			Description:  "desc",
+			ImageURL:     "https://example.com/img.png",
+			ThumbnailURL: "https://example.com/thumb.png",
+			IsSpoiler:    spoiler,
+		},
+		Tags: tags,
 	})
 	require.NoError(t, err)
 	return created.ID
@@ -32,22 +38,31 @@ func createArt(t *testing.T, repos *repository.Repositories, userID uuid.UUID, c
 
 func createGallery(t *testing.T, repos *repository.Repositories, userID uuid.UUID, name string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Art.CreateGallery(context.Background(), userID, name, "desc")
+	created, err := repos.Art.CreateGallery(context.Background(), spec.NewGallery{
+		UserID:      userID,
+		Name:        name,
+		Description: "desc",
+	})
 	require.NoError(t, err)
 	return created.ID
 }
 
 func createArtComment(t *testing.T, repos *repository.Repositories, artID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Comments.ByID[string(mention.KindArtComment)].CreateComment(context.Background(), artID, parentID, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindArtComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{
+		TargetID: artID,
+		ParentID: parentID,
+		UserID:   userID,
+		Body:     body,
+	})
 	require.NoError(t, err)
 	return created.ID
 }
 
 func addArtCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) {
 	t.Helper()
-	_, err := repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{
-		CommentID:    commentID,
+	_, err := repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     commentID,
 		MediaURL:     mediaURL,
 		MediaType:    "image",
 		ThumbnailURL: thumbnailURL,
@@ -64,7 +79,7 @@ func TestArtDAO_CreateWithTags_GetByID(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "My Art", []string{"tagA", "TagB", "  "}, false)
 
 	// then
-	row, err := repos.Art.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, id, row.ID)
@@ -87,7 +102,7 @@ func TestArtDAO_CreateWithTags_SpoilerTrue(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "S", nil, true)
 
 	// then
-	row, err := repos.Art.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.True(t, row.IsSpoiler)
@@ -98,7 +113,7 @@ func TestArtDAO_GetByID_NotFound(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	row, err := repos.Art.GetByID(context.Background(), uuid.New(), uuid.New())
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: uuid.New(), ViewerID: uuid.New()})
 
 	// then
 	require.NoError(t, err)
@@ -126,14 +141,16 @@ func TestArtDAO_UpdateWithTags_Owner(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "Old", []string{"a"}, false)
 
 	// when
-	err := repos.Art.UpdateWithTags(context.Background(), repository.ArtUpdateWithTags{
-		ID: id, UserID: user.ID, Title: "New Title", Description: "New Desc", IsSpoiler: true,
+	err := repos.Art.UpdateWithTags(context.Background(), spec.ArtUpdateWithTags{
+		ArtUpdate: spec.ArtUpdate{
+			ID: id, UserID: user.ID, Title: "New Title", Description: "New Desc", IsSpoiler: true,
+		},
 		Tags: []string{"b", "c"},
 	})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Art.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "New Title", row.Title)
 	assert.Equal(t, "New Desc", row.Description)
@@ -151,8 +168,10 @@ func TestArtDAO_UpdateWithTags_NotOwner_Fails(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	err := repos.Art.UpdateWithTags(context.Background(), repository.ArtUpdateWithTags{
-		ID: id, UserID: other.ID, Title: "Hack", Description: "Hack",
+	err := repos.Art.UpdateWithTags(context.Background(), spec.ArtUpdateWithTags{
+		ArtUpdate: spec.ArtUpdate{
+			ID: id, UserID: other.ID, Title: "Hack", Description: "Hack",
+		},
 	})
 
 	// then
@@ -167,14 +186,16 @@ func TestArtDAO_UpdateWithTags_AsAdmin(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	err := repos.Art.UpdateWithTags(context.Background(), repository.ArtUpdateWithTags{
-		ID: id, UserID: admin.ID, Title: "Admin Title", Description: "d", AsAdmin: true,
+	err := repos.Art.UpdateWithTags(context.Background(), spec.ArtUpdateWithTags{
+		ArtUpdate: spec.ArtUpdate{
+			ID: id, UserID: admin.ID, Title: "Admin Title", Description: "d", AsAdmin: true,
+		},
 		Tags: []string{"x"},
 	})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Art.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "Admin Title", row.Title)
 }
@@ -186,11 +207,11 @@ func TestArtDAO_Delete_Owner(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	err := repos.Art.Delete(context.Background(), id, user.ID)
+	err := repos.Art.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Art.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -203,7 +224,7 @@ func TestArtDAO_Delete_NotOwner_Fails(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	err := repos.Art.Delete(context.Background(), id, other.ID)
+	err := repos.Art.Delete(context.Background(), spec.OwnedDeletion{ID: id, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -220,7 +241,7 @@ func TestArtDAO_DeleteAsAdmin(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Art.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -232,13 +253,13 @@ func TestArtDAO_DeleteWithImage_Owner(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+	paths, err := repos.Art.DeleteWithImage(context.Background(), spec.ArtDelete{
 		ID:     id,
 		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionArtDelete,
-			TargetType: repository.AuditTargetArt,
+			Action:     audit.ActionArtDelete,
+			TargetType: audit.TargetArt,
 			TargetID:   id.String(),
 			SubjectID:  user.ID,
 		},
@@ -247,7 +268,7 @@ func TestArtDAO_DeleteWithImage_Owner(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, []string{"https://example.com/img.png", "https://example.com/thumb.png"}, paths)
-	row, err := repos.Art.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -263,13 +284,13 @@ func TestArtDAO_DeleteWithImage_ReturnsArtAndCommentMediaPaths(t *testing.T) {
 	addArtCommentMedia(t, repos, replyID, "https://example.com/c2.png", "")
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+	paths, err := repos.Art.DeleteWithImage(context.Background(), spec.ArtDelete{
 		ID:     id,
 		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionArtDelete,
-			TargetType: repository.AuditTargetArt,
+			Action:     audit.ActionArtDelete,
+			TargetType: audit.TargetArt,
 			TargetID:   id.String(),
 			SubjectID:  user.ID,
 		},
@@ -294,13 +315,13 @@ func TestArtDAO_DeleteWithImage_NotOwner_Fails(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+	paths, err := repos.Art.DeleteWithImage(context.Background(), spec.ArtDelete{
 		ID:     id,
 		UserID: other.ID,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    other.ID,
-			Action:     repository.AuditActionArtDeleteAdmin,
-			TargetType: repository.AuditTargetArt,
+			Action:     audit.ActionArtDeleteAdmin,
+			TargetType: audit.TargetArt,
 			TargetID:   id.String(),
 			SubjectID:  owner.ID,
 		},
@@ -309,7 +330,7 @@ func TestArtDAO_DeleteWithImage_NotOwner_Fails(t *testing.T) {
 	// then
 	require.Error(t, err)
 	assert.Empty(t, paths)
-	row, err := repos.Art.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 }
@@ -322,14 +343,14 @@ func TestArtDAO_DeleteWithImage_AsAdmin(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	paths, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+	paths, err := repos.Art.DeleteWithImage(context.Background(), spec.ArtDelete{
 		ID:      id,
 		UserID:  admin.ID,
 		AsAdmin: true,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    admin.ID,
-			Action:     repository.AuditActionArtDeleteAdmin,
-			TargetType: repository.AuditTargetArt,
+			Action:     audit.ActionArtDeleteAdmin,
+			TargetType: audit.TargetArt,
 			TargetID:   id.String(),
 			SubjectID:  owner.ID,
 		},
@@ -338,7 +359,7 @@ func TestArtDAO_DeleteWithImage_AsAdmin(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, []string{"https://example.com/img.png", "https://example.com/thumb.png"}, paths)
-	row, err := repos.Art.GetByID(context.Background(), id, owner.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -350,13 +371,13 @@ func TestArtDAO_DeleteWithImage_UnknownArt_Fails(t *testing.T) {
 	unknownID := uuid.New()
 
 	// when
-	_, err := repos.Art.DeleteWithImage(context.Background(), repository.ArtDelete{
+	_, err := repos.Art.DeleteWithImage(context.Background(), spec.ArtDelete{
 		ID:     unknownID,
 		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionArtDelete,
-			TargetType: repository.AuditTargetArt,
+			Action:     audit.ActionArtDelete,
+			TargetType: audit.TargetArt,
 			TargetID:   unknownID.String(),
 			SubjectID:  user.ID,
 		},
@@ -424,17 +445,17 @@ func TestArtDAO_LikeAndUnlike(t *testing.T) {
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	require.NoError(t, repos.Art.Like(context.Background(), liker.ID, id))
-	require.NoError(t, repos.Art.Like(context.Background(), liker.ID, id))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: id}))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: id}))
 
 	// then
-	row, err := repos.Art.GetByID(context.Background(), id, liker.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: liker.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 1, row.LikeCount)
 	assert.True(t, row.UserLiked)
 
-	require.NoError(t, repos.Art.Unlike(context.Background(), liker.ID, id))
-	row, err = repos.Art.GetByID(context.Background(), id, liker.ID)
+	require.NoError(t, repos.Art.Unlike(context.Background(), spec.Like{UserID: liker.ID, TargetID: id}))
+	row, err = repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: liker.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 0, row.LikeCount)
 	assert.False(t, row.UserLiked)
@@ -447,11 +468,11 @@ func TestArtDAO_GetLikedBy(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
-	require.NoError(t, repos.Art.Like(context.Background(), a.ID, id))
-	require.NoError(t, repos.Art.Like(context.Background(), b.ID, id))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: a.ID, TargetID: id}))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: b.ID, TargetID: id}))
 
 	// when
-	users, err := repos.Art.GetLikedBy(context.Background(), id, nil)
+	users, err := repos.Art.GetLikedBy(context.Background(), spec.LikedByQuery{TargetID: id, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -465,11 +486,11 @@ func TestArtDAO_GetLikedBy_ExcludesUsers(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 	id := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
-	require.NoError(t, repos.Art.Like(context.Background(), a.ID, id))
-	require.NoError(t, repos.Art.Like(context.Background(), b.ID, id))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: a.ID, TargetID: id}))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: b.ID, TargetID: id}))
 
 	// when
-	users, err := repos.Art.GetLikedBy(context.Background(), id, []uuid.UUID{a.ID})
+	users, err := repos.Art.GetLikedBy(context.Background(), spec.LikedByQuery{TargetID: id, ExcludeUserIDs: []uuid.UUID{a.ID}})
 
 	// then
 	require.NoError(t, err)
@@ -484,18 +505,18 @@ func TestArtDAO_RecordView(t *testing.T) {
 	id := createArt(t, repos, user.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	firstNew, err := repos.Art.RecordView(context.Background(), id, "hash1")
+	firstNew, err := repos.Art.RecordView(context.Background(), spec.ViewRecord{TargetID: id, ViewerHash: "hash1"})
 	require.NoError(t, err)
-	dupNew, err := repos.Art.RecordView(context.Background(), id, "hash1")
+	dupNew, err := repos.Art.RecordView(context.Background(), spec.ViewRecord{TargetID: id, ViewerHash: "hash1"})
 	require.NoError(t, err)
-	secondNew, err := repos.Art.RecordView(context.Background(), id, "hash2")
+	secondNew, err := repos.Art.RecordView(context.Background(), spec.ViewRecord{TargetID: id, ViewerHash: "hash2"})
 	require.NoError(t, err)
 
 	// then
 	assert.True(t, firstNew)
 	assert.False(t, dupNew)
 	assert.True(t, secondNew)
-	row, err := repos.Art.GetByID(context.Background(), id, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: id, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, 2, row.ViewCount)
 }
@@ -539,7 +560,7 @@ func TestArtDAO_GetPopularTags(t *testing.T) {
 	createArt(t, repos, user.ID, "general", "drawing", "C", []string{"common"}, false)
 
 	// when
-	tags, err := repos.Art.GetPopularTags(context.Background(), "general", 10)
+	tags, err := repos.Art.GetPopularTags(context.Background(), spec.PopularTagFilter{Corner: "general", Limit: 10})
 
 	// then
 	require.NoError(t, err)
@@ -556,7 +577,7 @@ func TestArtDAO_GetPopularTags_NoCornerFilter(t *testing.T) {
 	createArt(t, repos, user.ID, "other", "drawing", "B", []string{"foo"}, false)
 
 	// when
-	tags, err := repos.Art.GetPopularTags(context.Background(), "", 10)
+	tags, err := repos.Art.GetPopularTags(context.Background(), spec.PopularTagFilter{Corner: "", Limit: 10})
 
 	// then
 	require.NoError(t, err)
@@ -607,7 +628,9 @@ func TestArtDAO_ListAll_Basic(t *testing.T) {
 	createArt(t, repos, user.ID, "alt", "drawing", "C", nil, false)
 
 	// when
-	arts, total, err := repos.Art.ListAll(context.Background(), user.ID, "general", "", "", "", "", 10, 0, nil)
+	arts, total, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -623,7 +646,9 @@ func TestArtDAO_ListAll_FilterByArtType(t *testing.T) {
 	createArt(t, repos, user.ID, "general", "photo", "B", nil, false)
 
 	// when
-	arts, total, err := repos.Art.ListAll(context.Background(), user.ID, "general", "photo", "", "", "", 10, 0, nil)
+	arts, total, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", ArtType: "photo", Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -640,7 +665,9 @@ func TestArtDAO_ListAll_Search(t *testing.T) {
 	createArt(t, repos, user.ID, "general", "drawing", "Banana", nil, false)
 
 	// when
-	arts, total, err := repos.Art.ListAll(context.Background(), user.ID, "general", "", "Apple", "", "", 10, 0, nil)
+	arts, total, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Search: "Apple", Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -657,7 +684,9 @@ func TestArtDAO_ListAll_FilterByTag(t *testing.T) {
 	createArt(t, repos, user.ID, "general", "drawing", "B", []string{"blue"}, false)
 
 	// when
-	arts, total, err := repos.Art.ListAll(context.Background(), user.ID, "general", "", "", "red", "", 10, 0, nil)
+	arts, total, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Tag: "red", Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -673,10 +702,12 @@ func TestArtDAO_ListAll_SortPopular(t *testing.T) {
 	liker := daotest.CreateUser(t, repos)
 	idA := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	idB := createArt(t, repos, user.ID, "general", "drawing", "B", nil, false)
-	require.NoError(t, repos.Art.Like(context.Background(), liker.ID, idB))
+	require.NoError(t, repos.Art.Like(context.Background(), spec.Like{UserID: liker.ID, TargetID: idB}))
 
 	// when
-	arts, _, err := repos.Art.ListAll(context.Background(), user.ID, "general", "", "", "", "popular", 10, 0, nil)
+	arts, _, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Sort: "popular", Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -691,15 +722,17 @@ func TestArtDAO_ListAll_SortViews(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	idA := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	idB := createArt(t, repos, user.ID, "general", "drawing", "B", nil, false)
-	_, err := repos.Art.RecordView(context.Background(), idB, "h1")
+	_, err := repos.Art.RecordView(context.Background(), spec.ViewRecord{TargetID: idB, ViewerHash: "h1"})
 	require.NoError(t, err)
-	_, err = repos.Art.RecordView(context.Background(), idB, "h2")
+	_, err = repos.Art.RecordView(context.Background(), spec.ViewRecord{TargetID: idB, ViewerHash: "h2"})
 	require.NoError(t, err)
-	_, err = repos.Art.RecordView(context.Background(), idA, "h3")
+	_, err = repos.Art.RecordView(context.Background(), spec.ViewRecord{TargetID: idA, ViewerHash: "h3"})
 	require.NoError(t, err)
 
 	// when
-	arts, _, err := repos.Art.ListAll(context.Background(), user.ID, "general", "", "", "", "views", 10, 0, nil)
+	arts, _, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Sort: "views", Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -717,8 +750,12 @@ func TestArtDAO_ListAll_Pagination(t *testing.T) {
 	}
 
 	// when
-	page1, total, err := repos.Art.ListAll(context.Background(), user.ID, "general", "", "", "", "", 2, 0, nil)
-	page2, _, err2 := repos.Art.ListAll(context.Background(), user.ID, "general", "", "", "", "", 2, 2, nil)
+	page1, total, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Limit: 2, Offset: 0,
+	})
+	page2, _, err2 := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: user.ID, Corner: "general", Limit: 2, Offset: 2,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -737,7 +774,9 @@ func TestArtDAO_ListAll_ExcludeUsers(t *testing.T) {
 	createArt(t, repos, userB.ID, "general", "drawing", "B", nil, false)
 
 	// when
-	arts, total, err := repos.Art.ListAll(context.Background(), userA.ID, "general", "", "", "", "", 10, 0, []uuid.UUID{userB.ID})
+	arts, total, err := repos.Art.ListAll(context.Background(), spec.ArtFilter{
+		ViewerID: userA.ID, Corner: "general", Limit: 10, Offset: 0, ExcludeUserIDs: []uuid.UUID{userB.ID},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -756,7 +795,9 @@ func TestArtDAO_ListByUser(t *testing.T) {
 	createArt(t, repos, userB.ID, "general", "drawing", "C", nil, false)
 
 	// when
-	arts, total, err := repos.Art.ListByUser(context.Background(), userA.ID, userA.ID, 10, 0)
+	arts, total, err := repos.Art.ListByUser(context.Background(), spec.ArtUserFilter{
+		UserID: userA.ID, ViewerID: userA.ID, Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -773,7 +814,9 @@ func TestArtDAO_ListByUser_Pagination(t *testing.T) {
 	}
 
 	// when
-	arts, total, err := repos.Art.ListByUser(context.Background(), user.ID, user.ID, 2, 0)
+	arts, total, err := repos.Art.ListByUser(context.Background(), spec.ArtUserFilter{
+		UserID: user.ID, ViewerID: user.ID, Limit: 2, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -791,7 +834,9 @@ func TestArtDAO_CreateComment_AndGet(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hello")
 
 	// then
-	comments, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	comments, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	require.Len(t, comments, 1)
@@ -811,7 +856,9 @@ func TestArtDAO_CreateComment_Threaded(t *testing.T) {
 	child := createArtComment(t, repos, artID, user.ID, &parent, "child")
 
 	// then
-	comments, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	comments, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 2, total)
 	var childRow *struct{ parentID *uuid.UUID }
@@ -835,7 +882,9 @@ func TestArtDAO_GetComments_ExcludeUsers(t *testing.T) {
 	createArtComment(t, repos, artID, other.ID, nil, "hide")
 
 	// when
-	comments, total, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, []uuid.UUID{other.ID})
+	comments, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: owner.ID, Limit: 10, Offset: 0, ExcludeUserIDs: []uuid.UUID{other.ID},
+	})
 
 	// then
 	require.NoError(t, err)
@@ -852,11 +901,15 @@ func TestArtDAO_UpdateComment_Owner(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "old")
 
 	// when
-	err := repos.Art.UpdateComment(context.Background(), commentID, user.ID, "new body")
+	err := repos.Art.UpdateComment(context.Background(), spec.CommentUpdate{
+		CommentID: commentID, UserID: user.ID, Body: "new body",
+	})
 
 	// then
 	require.NoError(t, err)
-	comments, _, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	comments, _, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "new body", comments[0].Body)
@@ -871,7 +924,9 @@ func TestArtDAO_UpdateComment_NotOwner_Fails(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, owner.ID, nil, "old")
 
 	// when
-	err := repos.Art.UpdateComment(context.Background(), commentID, other.ID, "hack")
+	err := repos.Art.UpdateComment(context.Background(), spec.CommentUpdate{
+		CommentID: commentID, UserID: other.ID, Body: "hack",
+	})
 
 	// then
 	require.Error(t, err)
@@ -885,11 +940,15 @@ func TestArtDAO_UpdateCommentAsAdmin(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, owner.ID, nil, "old")
 
 	// when
-	err := repos.Art.UpdateCommentAsAdmin(context.Background(), commentID, "admin body")
+	err := repos.Art.UpdateComment(context.Background(), spec.CommentUpdate{
+		CommentID: commentID, Body: "admin body", AsAdmin: true,
+	})
 
 	// then
 	require.NoError(t, err)
-	comments, _, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, nil)
+	comments, _, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: owner.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "admin body", comments[0].Body)
@@ -900,7 +959,9 @@ func TestArtDAO_UpdateCommentAsAdmin_NotFound(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	err := repos.Art.UpdateCommentAsAdmin(context.Background(), uuid.New(), "body")
+	err := repos.Art.UpdateComment(context.Background(), spec.CommentUpdate{
+		CommentID: uuid.New(), Body: "body", AsAdmin: true,
+	})
 
 	// then
 	require.Error(t, err)
@@ -914,11 +975,13 @@ func TestArtDAO_DeleteComment_Owner(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	err := repos.Art.DeleteComment(context.Background(), commentID, user.ID)
+	err := repos.Art.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	_, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	_, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -932,7 +995,7 @@ func TestArtDAO_DeleteComment_NotOwner_Fails(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, owner.ID, nil, "hi")
 
 	// when
-	err := repos.Art.DeleteComment(context.Background(), commentID, other.ID)
+	err := repos.Art.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -946,11 +1009,13 @@ func TestArtDAO_DeleteCommentAsAdmin(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	err := repos.Art.DeleteCommentAsAdmin(context.Background(), commentID)
+	err := repos.Art.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	_, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	_, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -964,11 +1029,15 @@ func TestArtDAO_UpdateCommentWithDetails_AsAdmin(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, owner.ID, nil, "old")
 
 	// when
-	err := repos.Art.UpdateCommentWithDetails(context.Background(), repository.ArtCommentUpdate{ID: commentID, UserID: admin.ID, Body: "admin body", AsAdmin: true})
+	err := repos.Art.UpdateCommentWithDetails(context.Background(), spec.CommentUpdate{
+		CommentID: commentID, UserID: admin.ID, Body: "admin body", AsAdmin: true,
+	})
 
 	// then
 	require.NoError(t, err)
-	comments, _, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, nil)
+	comments, _, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: owner.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "admin body", comments[0].Body)
@@ -982,23 +1051,30 @@ func TestArtDAO_DeleteCommentWithAudit_Owner(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), repository.ArtCommentDelete{
-		ID:     commentID,
-		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: commentID,
+			UserID:    user.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionArtCommentDelete,
-			TargetType: repository.AuditTargetArtComment,
+			Action:     audit.ActionArtCommentDelete,
+			TargetType: audit.TargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
 
 	// then
 	require.NoError(t, err)
-	_, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	_, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionArtCommentDelete, 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{
+		Action: audit.ActionArtCommentDelete,
+		Page:   bounds.NewPage(10, 0),
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1018,13 +1094,15 @@ func TestArtDAO_DeleteCommentWithAudit_ReturnsThreadMediaPaths(t *testing.T) {
 	addArtCommentMedia(t, repos, otherID, "https://example.com/other.png", "")
 
 	// when
-	paths, err := repos.Art.DeleteCommentWithAudit(context.Background(), repository.ArtCommentDelete{
-		ID:     commentID,
-		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+	paths, err := repos.Art.DeleteCommentWithAudit(context.Background(), spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: commentID,
+			UserID:    user.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    user.ID,
-			Action:     repository.AuditActionArtCommentDelete,
-			TargetType: repository.AuditTargetArtComment,
+			Action:     audit.ActionArtCommentDelete,
+			TargetType: audit.TargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
@@ -1047,24 +1125,31 @@ func TestArtDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, owner.ID, nil, "hi")
 
 	// when
-	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), repository.ArtCommentDelete{
-		ID:      commentID,
-		UserID:  admin.ID,
-		AsAdmin: true,
-		Audit: repository.NewAuditEntry{
+	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: commentID,
+			UserID:    admin.ID,
+			AsAdmin:   true,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    admin.ID,
-			Action:     repository.AuditActionArtCommentDeleteAdmin,
-			TargetType: repository.AuditTargetArtComment,
+			Action:     audit.ActionArtCommentDeleteAdmin,
+			TargetType: audit.TargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
 
 	// then
 	require.NoError(t, err)
-	_, total, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, nil)
+	_, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: owner.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionArtCommentDeleteAdmin, 10, 0)
+	entries, auditTotal, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{
+		Action: audit.ActionArtCommentDeleteAdmin,
+		Page:   bounds.NewPage(10, 0),
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, auditTotal)
 	require.Len(t, entries, 1)
@@ -1080,23 +1165,30 @@ func TestArtDAO_DeleteCommentWithAudit_NotOwner_WritesNoAudit(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, owner.ID, nil, "hi")
 
 	// when
-	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), repository.ArtCommentDelete{
-		ID:     commentID,
-		UserID: other.ID,
-		Audit: repository.NewAuditEntry{
+	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: commentID,
+			UserID:    other.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    other.ID,
-			Action:     repository.AuditActionArtCommentDelete,
-			TargetType: repository.AuditTargetArtComment,
+			Action:     audit.ActionArtCommentDelete,
+			TargetType: audit.TargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
 
 	// then
 	require.Error(t, err)
-	_, total, err := repos.Art.GetComments(context.Background(), artID, owner.ID, 10, 0, nil)
+	_, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: owner.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	_, auditTotal, err := repos.AuditLog.List(context.Background(), repository.AuditActionArtCommentDelete, 10, 0)
+	_, auditTotal, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{
+		Action: audit.ActionArtCommentDelete,
+		Page:   bounds.NewPage(10, 0),
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 0, auditTotal)
 }
@@ -1109,20 +1201,24 @@ func TestArtDAO_DeleteCommentWithAudit_BadActor_RollsBackDelete(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), repository.ArtCommentDelete{
-		ID:     commentID,
-		UserID: user.ID,
-		Audit: repository.NewAuditEntry{
+	_, err := repos.Art.DeleteCommentWithAudit(context.Background(), spec.ArtCommentDeletion{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: commentID,
+			UserID:    user.ID,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    uuid.New(),
-			Action:     repository.AuditActionArtCommentDelete,
-			TargetType: repository.AuditTargetArtComment,
+			Action:     audit.ActionArtCommentDelete,
+			TargetType: audit.TargetArtComment,
 			TargetID:   commentID.String(),
 		},
 	})
 
 	// then
 	require.Error(t, err)
-	_, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 10, 0, nil)
+	_, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 }
@@ -1188,18 +1284,22 @@ func TestArtDAO_LikeAndUnlikeComment(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	require.NoError(t, repos.Art.LikeComment(context.Background(), liker.ID, commentID))
-	require.NoError(t, repos.Art.LikeComment(context.Background(), liker.ID, commentID))
+	require.NoError(t, repos.Art.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	require.NoError(t, repos.Art.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
 
 	// then
-	comments, _, err := repos.Art.GetComments(context.Background(), artID, liker.ID, 10, 0, nil)
+	comments, _, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: liker.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 1, comments[0].LikeCount)
 	assert.True(t, comments[0].UserLiked)
 
-	require.NoError(t, repos.Art.UnlikeComment(context.Background(), liker.ID, commentID))
-	comments, _, err = repos.Art.GetComments(context.Background(), artID, liker.ID, 10, 0, nil)
+	require.NoError(t, repos.Art.UnlikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	comments, _, err = repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: liker.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 0, comments[0].LikeCount)
@@ -1214,8 +1314,8 @@ func TestArtDAO_AddCommentMedia_AndGet(t *testing.T) {
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 
 	// when
-	mediaID, err := repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{
-		CommentID:    commentID,
+	mediaID, err := repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     commentID,
 		MediaURL:     "https://example.com/m.png",
 		MediaType:    "image",
 		ThumbnailURL: "https://example.com/m-thumb.png",
@@ -1250,11 +1350,11 @@ func TestArtDAO_GetCommentMediaBatch(t *testing.T) {
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	c1 := createArtComment(t, repos, artID, user.ID, nil, "one")
 	c2 := createArtComment(t, repos, artID, user.ID, nil, "two")
-	_, err := repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{CommentID: c1, MediaURL: "u1", MediaType: "image", ThumbnailURL: "t1"})
+	_, err := repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c1, MediaURL: "u1", MediaType: "image", ThumbnailURL: "t1"})
 	require.NoError(t, err)
-	_, err = repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{CommentID: c1, MediaURL: "u2", MediaType: "image", ThumbnailURL: "t2", SortOrder: 1})
+	_, err = repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c1, MediaURL: "u2", MediaType: "image", ThumbnailURL: "t2", SortOrder: 1})
 	require.NoError(t, err)
-	_, err = repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{CommentID: c2, MediaURL: "u3", MediaType: "video", ThumbnailURL: "t3"})
+	_, err = repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: c2, MediaURL: "u3", MediaType: "video", ThumbnailURL: "t3"})
 	require.NoError(t, err)
 
 	// when
@@ -1284,11 +1384,11 @@ func TestArtDAO_UpdateCommentMediaURL(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
-	mediaID, err := repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "old", MediaType: "image", ThumbnailURL: "t"})
+	mediaID, err := repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "old", MediaType: "image", ThumbnailURL: "t"})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Art.UpdateCommentMediaURL(context.Background(), mediaID, "new")
+	err = repos.Art.UpdateCommentMediaURL(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "new"})
 
 	// then
 	require.NoError(t, err)
@@ -1304,11 +1404,11 @@ func TestArtDAO_UpdateCommentMediaThumbnail(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
-	mediaID, err := repos.Art.AddCommentMedia(context.Background(), repository.NewArtCommentMedia{CommentID: commentID, MediaURL: "u", MediaType: "image", ThumbnailURL: "old"})
+	mediaID, err := repos.Art.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "u", MediaType: "image", ThumbnailURL: "old"})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Art.UpdateCommentMediaThumbnail(context.Background(), mediaID, "new")
+	err = repos.Art.UpdateCommentMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "new"})
 
 	// then
 	require.NoError(t, err)
@@ -1355,7 +1455,9 @@ func TestArtDAO_UpdateGallery_Owner(t *testing.T) {
 	id := createGallery(t, repos, user.ID, "Old")
 
 	// when
-	err := repos.Art.UpdateGallery(context.Background(), id, user.ID, "New Name", "New Desc")
+	err := repos.Art.UpdateGallery(context.Background(), spec.GalleryUpdate{
+		ID: id, UserID: user.ID, Name: "New Name", Description: "New Desc",
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1374,7 +1476,9 @@ func TestArtDAO_UpdateGallery_NotOwner_Fails(t *testing.T) {
 	id := createGallery(t, repos, owner.ID, "Old")
 
 	// when
-	err := repos.Art.UpdateGallery(context.Background(), id, other.ID, "Hack", "")
+	err := repos.Art.UpdateGallery(context.Background(), spec.GalleryUpdate{
+		ID: id, UserID: other.ID, Name: "Hack", Description: "",
+	})
 
 	// then
 	require.Error(t, err)
@@ -1386,10 +1490,10 @@ func TestArtDAO_SetGalleryCover(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 
 	// when
-	err := repos.Art.SetGalleryCover(context.Background(), galleryID, user.ID, &artID)
+	err := repos.Art.SetGalleryCover(context.Background(), spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: user.ID, CoverArtID: &artID})
 
 	// then
 	require.NoError(t, err)
@@ -1407,11 +1511,11 @@ func TestArtDAO_SetGalleryCover_Clear(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
-	require.NoError(t, repos.Art.SetGalleryCover(context.Background(), galleryID, user.ID, &artID))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
+	require.NoError(t, repos.Art.SetGalleryCover(context.Background(), spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: user.ID, CoverArtID: &artID}))
 
 	// when
-	err := repos.Art.SetGalleryCover(context.Background(), galleryID, user.ID, nil)
+	err := repos.Art.SetGalleryCover(context.Background(), spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: user.ID, CoverArtID: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1429,7 +1533,7 @@ func TestArtDAO_SetGalleryCover_NotOwner_Fails(t *testing.T) {
 	galleryID := createGallery(t, repos, owner.ID, "G")
 
 	// when
-	err := repos.Art.SetGalleryCover(context.Background(), galleryID, other.ID, nil)
+	err := repos.Art.SetGalleryCover(context.Background(), spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: other.ID, CoverArtID: nil})
 
 	// then
 	require.Error(t, err)
@@ -1443,16 +1547,16 @@ func TestArtDAO_SetGallery_AndClear(t *testing.T) {
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 
 	// when
-	require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 
 	// then
-	row, err := repos.Art.GetByID(context.Background(), artID, user.ID)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: artID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row.GalleryID)
 	assert.Equal(t, galleryID, *row.GalleryID)
 
-	require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, nil))
-	row, err = repos.Art.GetByID(context.Background(), artID, user.ID)
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: nil}))
+	row, err = repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: artID, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row.GalleryID)
 }
@@ -1462,10 +1566,14 @@ func TestArtDAO_SetGallery_NotOwner_Fails(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	artID := createArt(t, repos, owner.ID, "general", "drawing", "A", nil, false)
+	artID := createArt(t, repos, owner.ID, "general", "drawing", "T", nil, false)
 
 	// when
-	err := repos.Art.SetGallery(context.Background(), artID, other.ID, new(createGallery(t, repos, owner.ID, "G")))
+	err := repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{
+		ArtID:     artID,
+		UserID:    other.ID,
+		GalleryID: new(createGallery(t, repos, owner.ID, "G")),
+	})
 
 	// then
 	require.Error(t, err)
@@ -1477,10 +1585,10 @@ func TestArtDAO_DeleteGallery_Owner(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 
 	// when
-	paths, err := repos.Art.DeleteGallery(context.Background(), galleryID, user.ID)
+	paths, err := repos.Art.DeleteGallery(context.Background(), spec.GalleryRef{GalleryID: galleryID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1488,7 +1596,7 @@ func TestArtDAO_DeleteGallery_Owner(t *testing.T) {
 	row, err := repos.Art.GetGalleryByID(context.Background(), galleryID)
 	require.NoError(t, err)
 	assert.Nil(t, row)
-	art, err := repos.Art.GetByID(context.Background(), artID, user.ID)
+	art, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: artID, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, art)
 }
@@ -1499,7 +1607,7 @@ func TestArtDAO_DeleteGallery_ReturnsArtAndCommentMediaPaths(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	galleryID := createGallery(t, repos, user.ID, "G")
 	artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 	commentID := createArtComment(t, repos, artID, user.ID, nil, "hi")
 	addArtCommentMedia(t, repos, commentID, "https://example.com/c1.png", "https://example.com/c1-thumb.png")
 
@@ -1508,7 +1616,7 @@ func TestArtDAO_DeleteGallery_ReturnsArtAndCommentMediaPaths(t *testing.T) {
 	addArtCommentMedia(t, repos, outsideComment, "https://example.com/outside.png", "")
 
 	// when
-	paths, err := repos.Art.DeleteGallery(context.Background(), galleryID, user.ID)
+	paths, err := repos.Art.DeleteGallery(context.Background(), spec.GalleryRef{GalleryID: galleryID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -1528,7 +1636,7 @@ func TestArtDAO_DeleteGallery_NotOwner_Fails(t *testing.T) {
 	galleryID := createGallery(t, repos, owner.ID, "G")
 
 	// when
-	_, err := repos.Art.DeleteGallery(context.Background(), galleryID, other.ID)
+	_, err := repos.Art.DeleteGallery(context.Background(), spec.GalleryRef{GalleryID: galleryID, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
@@ -1573,8 +1681,12 @@ func TestArtDAO_ListAllGalleries_FilterByCorner(t *testing.T) {
 	g1 := createGallery(t, repos, user.ID, "G1")
 	a1 := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
 	a2 := createArt(t, repos, user.ID, "alt", "drawing", "B", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), a1, user.ID, &g1))
-	require.NoError(t, repos.Art.SetGallery(context.Background(), a2, user.ID, new(createGallery(t, repos, user.ID, "G2"))))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: a1, UserID: user.ID, GalleryID: &g1}))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{
+		ArtID:     a2,
+		UserID:    user.ID,
+		GalleryID: new(createGallery(t, repos, user.ID, "G2")),
+	}))
 
 	// when
 	galleries, err := repos.Art.ListAllGalleries(context.Background(), "general")
@@ -1592,11 +1704,11 @@ func TestArtDAO_GetGalleryPreviewImages(t *testing.T) {
 	galleryID := createGallery(t, repos, user.ID, "G")
 	for range 3 {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+		require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 	}
 
 	// when
-	imgs, err := repos.Art.GetGalleryPreviewImages(context.Background(), galleryID, 2)
+	imgs, err := repos.Art.GetGalleryPreviewImages(context.Background(), spec.GalleryPreviewFilter{GalleryID: galleryID, Limit: 2})
 
 	// then
 	require.NoError(t, err)
@@ -1610,7 +1722,7 @@ func TestArtDAO_GetGalleryPreviewImages_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	imgs, err := repos.Art.GetGalleryPreviewImages(context.Background(), uuid.New(), 5)
+	imgs, err := repos.Art.GetGalleryPreviewImages(context.Background(), spec.GalleryPreviewFilter{GalleryID: uuid.New(), Limit: 5})
 
 	// then
 	require.NoError(t, err)
@@ -1624,13 +1736,19 @@ func TestArtDAO_ListArtInGallery(t *testing.T) {
 	galleryID := createGallery(t, repos, user.ID, "G")
 	for range 3 {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+		require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 	}
 	otherArt := createArt(t, repos, user.ID, "general", "drawing", "X", nil, false)
-	require.NoError(t, repos.Art.SetGallery(context.Background(), otherArt, user.ID, new(createGallery(t, repos, user.ID, "H"))))
+	require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{
+		ArtID:     otherArt,
+		UserID:    user.ID,
+		GalleryID: new(createGallery(t, repos, user.ID, "H")),
+	}))
 
 	// when
-	arts, total, err := repos.Art.ListArtInGallery(context.Background(), galleryID, user.ID, 10, 0)
+	arts, total, err := repos.Art.ListArtInGallery(context.Background(), spec.GalleryArtFilter{
+		GalleryID: galleryID, ViewerID: user.ID, Limit: 10, Offset: 0,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1645,11 +1763,13 @@ func TestArtDAO_ListArtInGallery_Pagination(t *testing.T) {
 	galleryID := createGallery(t, repos, user.ID, "G")
 	for range 4 {
 		artID := createArt(t, repos, user.ID, "general", "drawing", "A", nil, false)
-		require.NoError(t, repos.Art.SetGallery(context.Background(), artID, user.ID, &galleryID))
+		require.NoError(t, repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: user.ID, GalleryID: &galleryID}))
 	}
 
 	// when
-	arts, total, err := repos.Art.ListArtInGallery(context.Background(), galleryID, user.ID, 2, 1)
+	arts, total, err := repos.Art.ListArtInGallery(context.Background(), spec.GalleryArtFilter{
+		GalleryID: galleryID, ViewerID: user.ID, Limit: 2, Offset: 1,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1667,7 +1787,9 @@ func TestArtDAO_GetComments_Pagination(t *testing.T) {
 	}
 
 	// when
-	comments, total, err := repos.Art.GetComments(context.Background(), artID, user.ID, 2, 2, nil)
+	comments, total, err := repos.Art.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{
+		TargetID: artID, ViewerID: user.ID, Limit: 2, Offset: 2,
+	})
 
 	// then
 	require.NoError(t, err)
@@ -1681,7 +1803,12 @@ func TestArtDAO_CreateComment_UnknownArt_Fails(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	_, err := repos.Comments.ByID[string(mention.KindArtComment)].CreateComment(context.Background(), uuid.New(), nil, user.ID, "body")
+	_, err := repos.Comments.ByID[string(mention.KindArtComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{
+		TargetID: uuid.New(),
+		ParentID: nil,
+		UserID:   user.ID,
+		Body:     "body",
+	})
 
 	// then
 	require.Error(t, err)
@@ -1693,7 +1820,7 @@ func TestArtDAO_DeleteComment_NotFound(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Art.DeleteComment(context.Background(), uuid.New(), user.ID)
+	err := repos.Art.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: uuid.New(), UserID: user.ID})
 
 	// then
 	require.Error(t, err)
@@ -1708,14 +1835,16 @@ func TestArtDAO_SetGallery_ForeignGallery_Fails(t *testing.T) {
 	artID := createArt(t, repos, attacker.ID, "general", "drawing", "Intruder", nil, false)
 
 	// when
-	err := repos.Art.SetGallery(context.Background(), artID, attacker.ID, &victimGalleryID)
+	err := repos.Art.SetGallery(context.Background(), spec.ArtGalleryAssignment{ArtID: artID, UserID: attacker.ID, GalleryID: &victimGalleryID})
 
 	// then
-	require.ErrorIs(t, err, repository.ErrArtNotOwned)
-	row, err := repos.Art.GetByID(context.Background(), artID, attacker.ID)
+	require.ErrorIs(t, err, dao.ErrArtNotOwned)
+	row, err := repos.Art.GetByID(context.Background(), spec.ArtLookup{ID: artID, ViewerID: attacker.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row.GalleryID)
-	listed, total, err := repos.Art.ListArtInGallery(context.Background(), victimGalleryID, attacker.ID, 10, 0)
+	listed, total, err := repos.Art.ListArtInGallery(context.Background(), spec.GalleryArtFilter{
+		GalleryID: victimGalleryID, ViewerID: attacker.ID, Limit: 10, Offset: 0,
+	})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 	assert.Empty(t, listed)
@@ -1730,10 +1859,10 @@ func TestArtDAO_SetGalleryCover_ForeignArt_Fails(t *testing.T) {
 	foreignArtID := createArt(t, repos, other.ID, "general", "drawing", "Not Mine", nil, false)
 
 	// when
-	err := repos.Art.SetGalleryCover(context.Background(), galleryID, owner.ID, &foreignArtID)
+	err := repos.Art.SetGalleryCover(context.Background(), spec.GalleryCoverUpdate{GalleryID: galleryID, UserID: owner.ID, CoverArtID: &foreignArtID})
 
 	// then
-	require.ErrorIs(t, err, repository.ErrArtNotOwned)
+	require.ErrorIs(t, err, dao.ErrArtNotOwned)
 	row, err := repos.Art.GetGalleryByID(context.Background(), galleryID)
 	require.NoError(t, err)
 	require.NotNil(t, row)

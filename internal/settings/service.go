@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -143,7 +144,7 @@ func (s *service) Refresh(ctx context.Context) error {
 	}
 
 	if len(missing) > 0 || len(stale) > 0 {
-		if err := s.repo.Reconcile(ctx, repository.SettingsReconcile{Missing: missing, Stale: stale, UpdatedBy: uuid.Nil}); err != nil {
+		if err := s.repo.Reconcile(ctx, spec.SettingsReconcile{Missing: missing, Stale: stale, UpdatedBy: uuid.Nil}); err != nil {
 			return err
 		}
 	}
@@ -210,7 +211,7 @@ func (s *service) Set(ctx context.Context, setting *config.SiteSettingDef, value
 		}
 	}
 
-	if err := s.repo.Set(ctx, setting.Key, value, updatedBy); err != nil {
+	if err := s.repo.Set(ctx, spec.SettingsUpdate{Key: setting.Key, Value: value, UpdatedBy: updatedBy}); err != nil {
 		return err
 	}
 
@@ -247,7 +248,7 @@ func (s *service) SetMultiple(ctx context.Context, values map[config.SiteSetting
 		return err
 	}
 
-	if err := s.repo.SetMultiple(ctx, values, updatedBy); err != nil {
+	if err := s.repo.SetMultiple(ctx, spec.SettingsBulkUpdate{Values: values, UpdatedBy: updatedBy}); err != nil {
 		return err
 	}
 

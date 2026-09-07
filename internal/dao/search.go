@@ -7,24 +7,32 @@ import (
 	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	SearchDAO interface {
+		Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.Tx) ([]model.SearchResult, int, error)
+		QuickSearch(ctx context.Context, s spec.QuickSearchQuery, tx ...*sql.Tx) ([]model.SearchResult, error)
+	}
+
 	searchDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *searchDAO) Search(ctx context.Context, query string, types []repository.SearchEntityType, limit, offset int, tx ...*sql.Tx) ([]repository.SearchResult, int, error) {
-	srcs := repository.ResolveSearchTypes(types)
+const SearchHeadlineOptions = `'MaxFragments=1, MaxWords=18, MinWords=5, ShortWord=3, HighlightAll=false, StartSel=<mark>, StopSel=</mark>'`
+
+func (r *searchDAO) Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.Tx) ([]model.SearchResult, int, error) {
+	srcs := model.ResolveSearchTypes(s.Types)
 	if len(srcs) == 0 {
 		return nil, 0, nil
 	}
 
 	subqueries := make([]string, len(srcs))
 	for i, src := range srcs {
-		subqueries[i] = src.BuildSubquery()
+		subqueries[i] = buildSearchSubquery(src)
 	}
 	union := strings.Join(subqueries, "\nUNION ALL\n")
 
@@ -32,7 +40,7 @@ func (r *searchDAO) Search(ctx context.Context, query string, types []repository
         SELECT COUNT(*) FROM (%s) results`, union)
 
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, countSQL, query).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, countSQL, s.Query).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("search count: %w", err)
 	}
 
@@ -43,25 +51,26 @@ func (r *searchDAO) Search(ctx context.Context, query string, types []repository
         ORDER BY rank DESC, created_at DESC
         LIMIT $2 OFFSET $3`, union)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, dataSQL, query, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, dataSQL, s.Query, s.Limit, s.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("search query: %w", err)
 	}
 	defer rows.Close()
 
-	results, err := scanSearchRows(rows, limit)
+	results, err := scanSearchRows(rows, s.Limit)
 	if err != nil {
 		return nil, 0, err
 	}
+
 	return results, total, nil
 }
 
-func (r *searchDAO) QuickSearch(ctx context.Context, query string, perTypeLimit int, tx ...*sql.Tx) ([]repository.SearchResult, error) {
-	sources := repository.SearchSources()
+func (r *searchDAO) QuickSearch(ctx context.Context, s spec.QuickSearchQuery, tx ...*sql.Tx) ([]model.SearchResult, error) {
+	sources := model.SearchSources()
 
 	subqueries := make([]string, len(sources))
 	for i, src := range sources {
-		subqueries[i] = fmt.Sprintf(`(SELECT * FROM (%s) sub ORDER BY rank DESC, created_at DESC LIMIT %d)`, src.BuildSubquery(), perTypeLimit)
+		subqueries[i] = fmt.Sprintf(`(SELECT * FROM (%s) sub ORDER BY rank DESC, created_at DESC LIMIT %d)`, buildSearchSubquery(src), s.PerTypeLimit)
 	}
 	union := strings.Join(subqueries, "\nUNION ALL\n")
 
@@ -71,22 +80,85 @@ func (r *searchDAO) QuickSearch(ctx context.Context, query string, perTypeLimit 
         FROM (%s) results
         ORDER BY rank DESC, created_at DESC`, union)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sqlStr, query)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sqlStr, s.Query)
 	if err != nil {
 		return nil, fmt.Errorf("quick search: %w", err)
 	}
 	defer rows.Close()
 
-	return scanSearchRows(rows, perTypeLimit*len(sources))
+	return scanSearchRows(rows, s.PerTypeLimit*len(sources))
 }
 
-func scanSearchRowsWithTotal(rows *sql.Rows, capacity int) ([]repository.SearchResult, int, error) {
-	results := make([]repository.SearchResult, 0, capacity)
+func buildSearchSubquery(s model.SearchSource) string {
+	parentIDExpr := s.ParentIDExpr
+	if parentIDExpr == "" {
+		parentIDExpr = "NULL::text"
+	}
+
+	parentTitleExpr := s.ParentTitleExpr
+	if parentTitleExpr == "" {
+		parentTitleExpr = "NULL::text"
+	}
+
+	var rankExpr strings.Builder
+	rankExpr.WriteString("ts_rank_cd(" + s.SearchVector + ", q.tsq)")
+	matchExpr := s.SearchVector + " @@ q.tsq"
+
+	trigramExprs := append([]string(nil), s.TrigramExprs...)
+	if s.TrigramOnTitle {
+		trigramExprs = append([]string{s.TitleExpr}, trigramExprs...)
+	}
+
+	for _, expr := range trigramExprs {
+		rankExpr.WriteString(" + COALESCE(similarity(" + expr + ", q.qstr), 0)")
+		matchExpr += " OR " + expr + " % q.qstr"
+	}
+
+	if len(trigramExprs) > 0 {
+		matchExpr = "(" + matchExpr + ")"
+	}
+
+	var parts []string
+	parts = append(parts, "FROM "+s.From)
+	if s.ParentJoin != "" {
+		parts = append(parts, s.ParentJoin)
+	}
+	if s.AuthorJoin != "" {
+		parts = append(parts, s.AuthorJoin)
+	}
+	parts = append(parts, "CROSS JOIN q")
+
+	whereParts := []string{"u.banned_at IS NULL", "u.locked_at IS NULL"}
+	if s.ExtraWhere != "" {
+		whereParts = append(whereParts, s.ExtraWhere)
+	}
+	whereParts = append(whereParts, matchExpr)
+
+	return fmt.Sprintf(`SELECT '%s' AS entity_type, %s AS id, %s AS parent_id, %s AS parent_title,
+            %s AS title,
+            ts_headline('english', %s, q.tsq, %s) AS snippet,
+            COALESCE(u.id::text, '') AS author_id, COALESCE(u.username, '') AS author_username, COALESCE(u.display_name, '') AS author_display_name, COALESCE(u.avatar_url, '') AS author_avatar_url,
+            %s AS created_at,
+            (%s)::float8 AS rank
+        %s
+        WHERE %s`,
+		s.Type, s.IDExpr, parentIDExpr, parentTitleExpr,
+		s.TitleExpr,
+		s.BodyExpr, SearchHeadlineOptions,
+		s.CreatedAt,
+		rankExpr.String(),
+		strings.Join(parts, "\n        "),
+		strings.Join(whereParts, "\n          AND "),
+	)
+}
+
+func scanSearchRowsWithTotal(rows *sql.Rows, capacity int) ([]model.SearchResult, int, error) {
+	results := make([]model.SearchResult, 0, capacity)
 	total := 0
 
 	for rows.Next() {
 		var (
-			r         repository.SearchResult
+			r         model.SearchResult
 			createdAt time.Time
 			entityT   string
 			rowTotal  int
@@ -99,7 +171,7 @@ func scanSearchRowsWithTotal(rows *sql.Rows, capacity int) ([]repository.SearchR
 			return nil, 0, fmt.Errorf("search scan: %w", err)
 		}
 
-		r.EntityType = repository.SearchEntityType(entityT)
+		r.EntityType = model.SearchEntityType(entityT)
 		r.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 		results = append(results, r)
 		total = rowTotal
@@ -112,11 +184,12 @@ func scanSearchRowsWithTotal(rows *sql.Rows, capacity int) ([]repository.SearchR
 	return results, total, nil
 }
 
-func scanSearchRows(rows *sql.Rows, capacity int) ([]repository.SearchResult, error) {
-	results := make([]repository.SearchResult, 0, capacity)
+func scanSearchRows(rows *sql.Rows, capacity int) ([]model.SearchResult, error) {
+	results := make([]model.SearchResult, 0, capacity)
+
 	for rows.Next() {
 		var (
-			r         repository.SearchResult
+			r         model.SearchResult
 			createdAt time.Time
 			entityT   string
 		)
@@ -127,12 +200,15 @@ func scanSearchRows(rows *sql.Rows, capacity int) ([]repository.SearchResult, er
 		); err != nil {
 			return nil, fmt.Errorf("search scan: %w", err)
 		}
-		r.EntityType = repository.SearchEntityType(entityT)
+
+		r.EntityType = model.SearchEntityType(entityT)
 		r.CreatedAt = createdAt.UTC().Format(time.RFC3339Nano)
 		results = append(results, r)
 	}
+
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("search rows: %w", err)
 	}
+
 	return results, nil
 }

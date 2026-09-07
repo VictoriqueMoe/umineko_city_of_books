@@ -8,74 +8,96 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	FollowDAO interface {
+		Follow(ctx context.Context, s spec.FollowSpec, tx ...*sql.Tx) error
+		Unfollow(ctx context.Context, s spec.FollowSpec, tx ...*sql.Tx) error
+		IsFollowing(ctx context.Context, s spec.FollowSpec, tx ...*sql.Tx) (bool, error)
+		GetFollowerCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
+		GetFollowingCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
+		GetFollowers(ctx context.Context, s spec.FollowListSpec, tx ...*sql.Tx) ([]model.FollowUser, int, error)
+		GetFollowing(ctx context.Context, s spec.FollowListSpec, tx ...*sql.Tx) ([]model.FollowUser, int, error)
+		GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.FollowUser, error)
+		GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
+	}
+
 	followDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *followDAO) Follow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
+func (r *followDAO) Follow(ctx context.Context, s spec.FollowSpec, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO follows (follower_id, following_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		followerID, followingID,
+		s.FollowerID, s.FollowingID,
 	)
 	if err != nil {
 		return fmt.Errorf("follow: %w", err)
 	}
+
 	return nil
 }
 
-func (r *followDAO) Unfollow(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) error {
+func (r *followDAO) Unfollow(ctx context.Context, s spec.FollowSpec, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM follows WHERE follower_id = $1 AND following_id = $2`,
-		followerID, followingID,
+		s.FollowerID, s.FollowingID,
 	)
 	if err != nil {
 		return fmt.Errorf("unfollow: %w", err)
 	}
+
 	return nil
 }
 
-func (r *followDAO) IsFollowing(ctx context.Context, followerID uuid.UUID, followingID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *followDAO) IsFollowing(ctx context.Context, s spec.FollowSpec, tx ...*sql.Tx) (bool, error) {
 	var count int
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE follower_id = $1 AND following_id = $2`,
-		followerID, followingID,
+		s.FollowerID, s.FollowingID,
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check following: %w", err)
 	}
+
 	return count > 0, nil
 }
 
 func (r *followDAO) GetFollowerCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("follower count: %w", err)
 	}
+
 	return count, nil
 }
 
 func (r *followDAO) GetFollowingCount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
 	var count int
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID,
 	).Scan(&count)
 	if err != nil {
 		return 0, fmt.Errorf("following count: %w", err)
 	}
+
 	return count, nil
 }
 
-func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.FollowUser, int, error) {
+func (r *followDAO) GetFollowers(ctx context.Context, s spec.FollowListSpec, tx ...*sql.Tx) ([]model.FollowUser, int, error) {
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, userID).Scan(&total); err != nil {
+
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE following_id = $1`, s.UserID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count followers: %w", err)
 	}
 
@@ -87,27 +109,32 @@ func (r *followDAO) GetFollowers(ctx context.Context, userID uuid.UUID, limit, o
 		WHERE f.following_id = $1
 		ORDER BY f.created_at DESC, f.follower_id DESC
 		LIMIT $2 OFFSET $3`,
-		userID, limit, offset,
+		s.UserID, s.Limit, s.Offset,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get followers: %w", err)
 	}
 	defer rows.Close()
 
-	var users []repository.FollowUser
+	var users []model.FollowUser
+
 	for rows.Next() {
-		var u repository.FollowUser
+		var u model.FollowUser
+
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Role); err != nil {
 			return nil, 0, fmt.Errorf("scan follower: %w", err)
 		}
+
 		users = append(users, u)
 	}
+
 	return users, total, rows.Err()
 }
 
-func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.FollowUser, int, error) {
+func (r *followDAO) GetFollowing(ctx context.Context, s spec.FollowListSpec, tx ...*sql.Tx) ([]model.FollowUser, int, error) {
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, userID).Scan(&total); err != nil {
+
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM follows WHERE follower_id = $1`, s.UserID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count following: %w", err)
 	}
 
@@ -119,21 +146,25 @@ func (r *followDAO) GetFollowing(ctx context.Context, userID uuid.UUID, limit, o
 		WHERE f.follower_id = $1
 		ORDER BY f.created_at DESC, f.following_id DESC
 		LIMIT $2 OFFSET $3`,
-		userID, limit, offset,
+		s.UserID, s.Limit, s.Offset,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get following: %w", err)
 	}
 	defer rows.Close()
 
-	var users []repository.FollowUser
+	var users []model.FollowUser
+
 	for rows.Next() {
-		var u repository.FollowUser
+		var u model.FollowUser
+
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Role); err != nil {
 			return nil, 0, fmt.Errorf("scan following: %w", err)
 		}
+
 		users = append(users, u)
 	}
+
 	return users, total, rows.Err()
 }
 
@@ -148,10 +179,11 @@ func (r *followDAO) GetFollowerIDsToNotify(ctx context.Context, userID uuid.UUID
 	if err != nil {
 		return nil, fmt.Errorf("get follower ids to notify: %w", err)
 	}
+
 	return utils.ScanIDs(rows, "follower id")
 }
 
-func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.FollowUser, error) {
+func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.FollowUser, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, '')
 		FROM follows f1
@@ -167,13 +199,17 @@ func (r *followDAO) GetMutualFollowers(ctx context.Context, userID uuid.UUID, tx
 	}
 	defer rows.Close()
 
-	var users []repository.FollowUser
+	var users []model.FollowUser
+
 	for rows.Next() {
-		var u repository.FollowUser
+		var u model.FollowUser
+
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.Role); err != nil {
 			return nil, fmt.Errorf("scan mutual: %w", err)
 		}
+
 		users = append(users, u)
 	}
+
 	return users, rows.Err()
 }

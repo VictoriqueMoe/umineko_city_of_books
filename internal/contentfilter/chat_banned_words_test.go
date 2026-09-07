@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -54,7 +55,7 @@ func TestCompileBannedWordPattern_UnknownModeFails(t *testing.T) {
 
 func TestCheckForRoom_NoMatch(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
-	repo.EXPECT().ListApplicable(mock.Anything, mock.Anything).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, mock.Anything).Return([]model.ChatBannedWordRow{
 		{ID: uuid.New(), Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
 	}, nil)
 	rule := NewChatBannedWordsRule(repo)
@@ -68,7 +69,7 @@ func TestCheckForRoom_FirstMatchWins(t *testing.T) {
 	roomID := uuid.New()
 	first := uuid.New()
 	second := uuid.New()
-	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{
 		{ID: first, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
 		{ID: second, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionKick, Scope: "room"},
 	}, nil)
@@ -84,7 +85,7 @@ func TestCheckForRoom_FirstMatchWins(t *testing.T) {
 func TestCheckForRoom_KickAction(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()
-	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{
 		{ID: uuid.New(), Pattern: `\bbombs?\b`, MatchMode: MatchModeRegex, Action: BannedWordActionKick, Scope: "global"},
 	}, nil)
 	rule := NewChatBannedWordsRule(repo)
@@ -99,7 +100,7 @@ func TestCheckForRoom_InvisibleCharBypassFails_Substring(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()
 	ruleID := uuid.New()
-	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{
 		{ID: ruleID, Pattern: "badword", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
 	}, nil)
 	rule := NewChatBannedWordsRule(repo)
@@ -127,7 +128,7 @@ func TestCheckForRoom_InvisibleCharBypassFails_WholeWord(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()
 	ruleID := uuid.New()
-	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{
 		{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeWholeWord, Action: BannedWordActionKick, Scope: "global"},
 	}, nil)
 	rule := NewChatBannedWordsRule(repo)
@@ -164,8 +165,8 @@ func TestCheckForRoom_EditedRuleIsRecompiledWithoutInvalidate(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		first            repository.ChatBannedWordRow
-		second           repository.ChatBannedWordRow
+		first            model.ChatBannedWordRow
+		second           model.ChatBannedWordRow
 		text             string
 		wantFirstMatch   bool
 		wantSecondMatch  bool
@@ -173,32 +174,32 @@ func TestCheckForRoom_EditedRuleIsRecompiledWithoutInvalidate(t *testing.T) {
 	}{
 		{
 			name:            "pattern edited",
-			first:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
-			second:          repository.ChatBannedWordRow{ID: ruleID, Pattern: "cats", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			first:           model.ChatBannedWordRow{ID: ruleID, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			second:          model.ChatBannedWordRow{ID: ruleID, Pattern: "cats", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
 			text:            "I love cats",
 			wantFirstMatch:  false,
 			wantSecondMatch: true,
 		},
 		{
 			name:            "match mode tightened",
-			first:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "class", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
-			second:          repository.ChatBannedWordRow{ID: ruleID, Pattern: "class", MatchMode: MatchModeWholeWord, Action: BannedWordActionDelete, Scope: "global"},
+			first:           model.ChatBannedWordRow{ID: ruleID, Pattern: "class", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			second:          model.ChatBannedWordRow{ID: ruleID, Pattern: "class", MatchMode: MatchModeWholeWord, Action: BannedWordActionDelete, Scope: "global"},
 			text:            "classic dish",
 			wantFirstMatch:  true,
 			wantSecondMatch: false,
 		},
 		{
 			name:            "case sensitivity tightened",
-			first:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "Dog", MatchMode: MatchModeSubstring, CaseSensitive: false, Action: BannedWordActionDelete, Scope: "global"},
-			second:          repository.ChatBannedWordRow{ID: ruleID, Pattern: "Dog", MatchMode: MatchModeSubstring, CaseSensitive: true, Action: BannedWordActionDelete, Scope: "global"},
+			first:           model.ChatBannedWordRow{ID: ruleID, Pattern: "Dog", MatchMode: MatchModeSubstring, CaseSensitive: false, Action: BannedWordActionDelete, Scope: "global"},
+			second:          model.ChatBannedWordRow{ID: ruleID, Pattern: "Dog", MatchMode: MatchModeSubstring, CaseSensitive: true, Action: BannedWordActionDelete, Scope: "global"},
 			text:            "my dog",
 			wantFirstMatch:  true,
 			wantSecondMatch: false,
 		},
 		{
 			name:             "action escalated",
-			first:            repository.ChatBannedWordRow{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
-			second:           repository.ChatBannedWordRow{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeSubstring, Action: BannedWordActionKick, Scope: "global"},
+			first:            model.ChatBannedWordRow{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
+			second:           model.ChatBannedWordRow{ID: ruleID, Pattern: "bomb", MatchMode: MatchModeSubstring, Action: BannedWordActionKick, Scope: "global"},
 			text:             "bomb",
 			wantFirstMatch:   true,
 			wantSecondMatch:  true,
@@ -211,8 +212,8 @@ func TestCheckForRoom_EditedRuleIsRecompiledWithoutInvalidate(t *testing.T) {
 			// given
 			repo := repository.NewMockChatBannedWordRepository(t)
 			roomID := uuid.New()
-			repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{tc.first}, nil).Once()
-			repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{tc.second}, nil).Once()
+			repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{tc.first}, nil).Once()
+			repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{tc.second}, nil).Once()
 			rule := NewChatBannedWordsRule(repo)
 
 			// when
@@ -239,7 +240,7 @@ func TestInvalidate_DropsEntriesForRule(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()
 	ruleID := uuid.New()
-	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{
 		{ID: ruleID, Pattern: "dogs", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
 	}, nil)
 	rule := NewChatBannedWordsRule(repo)
@@ -263,7 +264,7 @@ func TestCheckForRoom_InvalidRulesSkipped(t *testing.T) {
 	repo := repository.NewMockChatBannedWordRepository(t)
 	roomID := uuid.New()
 	valid := uuid.New()
-	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]repository.ChatBannedWordRow{
+	repo.EXPECT().ListApplicable(mock.Anything, roomID).Return([]model.ChatBannedWordRow{
 		{ID: uuid.New(), Pattern: `\b(foo`, MatchMode: MatchModeRegex, Action: BannedWordActionDelete, Scope: "global"},
 		{ID: valid, Pattern: "cat", MatchMode: MatchModeSubstring, Action: BannedWordActionDelete, Scope: "global"},
 	}, nil)

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -20,7 +20,7 @@ func watchPartyEffectiveRank(siteRole role.Role, isOwner bool) int {
 	return rank
 }
 
-func (s *watchPartyService) watchPartyRankOf(ctx context.Context, session *repository.ChatWatchPartySessionRow, userID uuid.UUID) int {
+func (s *watchPartyService) watchPartyRankOf(ctx context.Context, session *model.ChatWatchPartySessionRow, userID uuid.UUID) int {
 	siteRole, _ := s.roleRepo.GetRole(ctx, userID)
 	return watchPartyEffectiveRank(siteRole, session.StartedBy == userID)
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/stretchr/testify/assert"
@@ -46,7 +47,7 @@ func TestVanityRoleDAO_Create_AndGetByID(t *testing.T) {
 	ctx := context.Background()
 
 	// when
-	err := repos.VanityRole.Create(ctx, "vip", "VIP", "#ff00ff", 5)
+	err := repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "vip", Label: "VIP", Color: "#ff00ff", SortOrder: 5})
 
 	// then
 	require.NoError(t, err)
@@ -76,10 +77,10 @@ func TestVanityRoleDAO_Update(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
-	require.NoError(t, repos.VanityRole.Create(ctx, "mod", "Mod", "#111111", 1))
+	require.NoError(t, repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "mod", Label: "Mod", Color: "#111111", SortOrder: 1}))
 
 	// when
-	err := repos.VanityRole.Update(ctx, "mod", "Moderator", "#222222", 9)
+	err := repos.VanityRole.Update(ctx, spec.VanityRoleUpdate{ID: "mod", Label: "Moderator", Color: "#222222", SortOrder: 9})
 
 	// then
 	require.NoError(t, err)
@@ -95,7 +96,7 @@ func TestVanityRoleDAO_Delete_NonSystem(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
-	require.NoError(t, repos.VanityRole.Create(ctx, "temp", "Temp", "#000000", 0))
+	require.NoError(t, repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "temp", Label: "Temp", Color: "#000000", SortOrder: 0}))
 
 	// when
 	err := repos.VanityRole.Delete(ctx, "temp")
@@ -127,9 +128,9 @@ func TestVanityRoleDAO_List_OrdersBySortOrderThenLabel(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
-	require.NoError(t, repos.VanityRole.Create(ctx, "b", "Beta", "#000000", 10))
-	require.NoError(t, repos.VanityRole.Create(ctx, "a", "Alpha", "#000000", 10))
-	require.NoError(t, repos.VanityRole.Create(ctx, "c", "Charlie", "#000000", 5))
+	require.NoError(t, repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "b", Label: "Beta", Color: "#000000", SortOrder: 10}))
+	require.NoError(t, repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "a", Label: "Alpha", Color: "#000000", SortOrder: 10}))
+	require.NoError(t, repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "c", Label: "Charlie", Color: "#000000", SortOrder: 5}))
 
 	// when
 	roles, err := repos.VanityRole.List(ctx)
@@ -162,11 +163,11 @@ func TestVanityRoleDAO_AssignToUser_AndGetRolesForUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.VanityRole.Create(ctx, "vip", "VIP", "#fff", 3))
+	require.NoError(t, repos.VanityRole.Create(ctx, spec.NewVanityRole{ID: "vip", Label: "VIP", Color: "#fff", SortOrder: 3}))
 
 	// when
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, user.ID, "vip"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, user.ID, "system_top_gm"))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "vip"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "system_top_gm"}))
 
 	// then
 	roles, err := repos.VanityRole.GetRolesForUser(ctx, user.ID)
@@ -183,8 +184,8 @@ func TestVanityRoleDAO_AssignToUser_DuplicateIgnored(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, user.ID, "system_top_detective"))
-	err := repos.VanityRole.AssignToUser(ctx, user.ID, "system_top_detective")
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "system_top_detective"}))
+	err := repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "system_top_detective"})
 
 	// then
 	require.NoError(t, err)
@@ -198,11 +199,11 @@ func TestVanityRoleDAO_UnassignFromUser(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, user.ID, "system_top_detective"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, user.ID, "system_top_gm"))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "system_top_detective"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "system_top_gm"}))
 
 	// when
-	err := repos.VanityRole.UnassignFromUser(ctx, user.ID, "system_top_detective")
+	err := repos.VanityRole.UnassignFromUser(ctx, spec.VanityRoleAssignment{UserID: user.ID, RoleID: "system_top_detective"})
 
 	// then
 	require.NoError(t, err)
@@ -232,12 +233,12 @@ func TestVanityRoleDAO_GetUsersForRole_PaginatesAndOrders(t *testing.T) {
 	alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice"), daotest.WithDisplayName("Alice"))
 	bob := daotest.CreateUser(t, repos, daotest.WithUsername("bob"), daotest.WithDisplayName("Bob"))
 	carol := daotest.CreateUser(t, repos, daotest.WithUsername("carol"), daotest.WithDisplayName("Carol"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, alice.ID, "system_top_detective"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, bob.ID, "system_top_detective"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, carol.ID, "system_top_detective"))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: alice.ID, RoleID: "system_top_detective"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: bob.ID, RoleID: "system_top_detective"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: carol.ID, RoleID: "system_top_detective"}))
 
 	// when
-	page1, total, err := repos.VanityRole.GetUsersForRole(ctx, "system_top_detective", "", 2, 0)
+	page1, total, err := repos.VanityRole.GetUsersForRole(ctx, spec.VanityRoleUserQuery{RoleID: "system_top_detective", Limit: 2, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -246,7 +247,7 @@ func TestVanityRoleDAO_GetUsersForRole_PaginatesAndOrders(t *testing.T) {
 	assert.Equal(t, "Alice", page1[0].DisplayName)
 	assert.Equal(t, "Bob", page1[1].DisplayName)
 
-	page2, _, err := repos.VanityRole.GetUsersForRole(ctx, "system_top_detective", "", 2, 2)
+	page2, _, err := repos.VanityRole.GetUsersForRole(ctx, spec.VanityRoleUserQuery{RoleID: "system_top_detective", Limit: 2, Offset: 2})
 	require.NoError(t, err)
 	require.Len(t, page2, 1)
 	assert.Equal(t, "Carol", page2[0].DisplayName)
@@ -258,11 +259,11 @@ func TestVanityRoleDAO_GetUsersForRole_SearchFilter(t *testing.T) {
 	ctx := context.Background()
 	alice := daotest.CreateUser(t, repos, daotest.WithUsername("alice123"), daotest.WithDisplayName("Alice"))
 	bob := daotest.CreateUser(t, repos, daotest.WithUsername("bob"), daotest.WithDisplayName("Bobson"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, alice.ID, "system_top_gm"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, bob.ID, "system_top_gm"))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: alice.ID, RoleID: "system_top_gm"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: bob.ID, RoleID: "system_top_gm"}))
 
 	// when
-	users, total, err := repos.VanityRole.GetUsersForRole(ctx, "system_top_gm", "ali", 10, 0)
+	users, total, err := repos.VanityRole.GetUsersForRole(ctx, spec.VanityRoleUserQuery{RoleID: "system_top_gm", Search: "ali", Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -277,7 +278,7 @@ func TestVanityRoleDAO_GetUsersForRole_NoResults(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	users, total, err := repos.VanityRole.GetUsersForRole(context.Background(), "system_top_gm", "", 10, 0)
+	users, total, err := repos.VanityRole.GetUsersForRole(context.Background(), spec.VanityRoleUserQuery{RoleID: "system_top_gm", Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -291,9 +292,9 @@ func TestVanityRoleDAO_GetAllAssignments(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, a.ID, "system_top_detective"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, a.ID, "system_top_gm"))
-	require.NoError(t, repos.VanityRole.AssignToUser(ctx, b.ID, "system_top_gm"))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: a.ID, RoleID: "system_top_detective"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: a.ID, RoleID: "system_top_gm"}))
+	require.NoError(t, repos.VanityRole.AssignToUser(ctx, spec.VanityRoleAssignment{UserID: b.ID, RoleID: "system_top_gm"}))
 
 	// when
 	assignments, err := repos.VanityRole.GetAllAssignments(ctx)

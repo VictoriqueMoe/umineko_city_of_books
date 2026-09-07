@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -125,9 +127,9 @@ func TestMarkSolved_RepoError(t *testing.T) {
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
-	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&repository.MysteryRow{ID: mid, UserID: userID}, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, attemptAuthor).Return(false, nil)
-	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid, true).Return(errors.New("boom"))
+	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&model.MysteryRow{ID: mid, UserID: userID}, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: attemptAuthor}).Return(false, nil)
+	m.repo.EXPECT().MarkSolved(mock.Anything, spec.MysterySolve{MysteryID: mid, AttemptID: aid, LockMystery: true}).Return(errors.New("boom"))
 
 	// when
 	err := svc.MarkSolved(context.Background(), mid, userID, aid)
@@ -146,13 +148,13 @@ func TestMarkSolved_OK_Broadcasts(t *testing.T) {
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
-	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&repository.MysteryRow{ID: mid, UserID: userID}, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, attemptAuthor).Return(false, nil)
-	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid, true).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&model.MysteryRow{ID: mid, UserID: userID}, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: attemptAuthor}).Return(false, nil)
+	m.repo.EXPECT().MarkSolved(mock.Anything, spec.MysterySolve{MysteryID: mid, AttemptID: aid, LockMystery: true}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysterySolved,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysterySolved,
+		TargetType: audit.TargetMystery,
 		TargetID:   mid.String(),
 		Details:    "attempt=" + aid.String(),
 		SubjectID:  attemptAuthor,
@@ -182,13 +184,13 @@ func TestMarkSolved_Admin_CanSolve(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, admin, authz.PermEditAnyTheory).Return(true)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(attemptAuthor, nil)
 	m.repo.EXPECT().GetAttemptMysteryID(mock.Anything, aid).Return(mid, nil)
-	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&repository.MysteryRow{ID: mid, UserID: author}, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, attemptAuthor).Return(false, nil)
-	m.repo.EXPECT().MarkSolved(mock.Anything, mid, aid, true).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().GetByID(mock.Anything, mid).Return(&model.MysteryRow{ID: mid, UserID: author}, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: attemptAuthor}).Return(false, nil)
+	m.repo.EXPECT().MarkSolved(mock.Anything, spec.MysterySolve{MysteryID: mid, AttemptID: aid, LockMystery: true}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    admin,
-		Action:     repository.AuditActionMysterySolved,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysterySolved,
+		TargetType: audit.TargetMystery,
 		TargetID:   mid.String(),
 		Details:    "attempt=" + aid.String(),
 		SubjectID:  attemptAuthor,
@@ -229,10 +231,10 @@ func TestMarkPermanentlySolved_AuditsTheClose(t *testing.T) {
 			}
 			stubAuthor(m, mid, authorID)
 			m.repo.EXPECT().MarkPermanentlySolved(mock.Anything, mid).Return(nil)
-			m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+			m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 				ActorID:    actorID,
-				Action:     repository.AuditActionMysteryClosed,
-				TargetType: repository.AuditTargetMystery,
+				Action:     audit.ActionMysteryClosed,
+				TargetType: audit.TargetMystery,
 				TargetID:   mid.String(),
 				Details:    tt.wantDetails,
 				SubjectID:  authorID,
@@ -296,7 +298,7 @@ func TestAddClue_RepoError(t *testing.T) {
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(0, nil)
-	m.repo.EXPECT().AddClue(mock.Anything, mid, repository.NewClue{Body: "c", TruthType: "red", SortOrder: 0}).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, NewClue: spec.NewClue{Body: "c", TruthType: "red", SortOrder: 0}}).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.AddClue(context.Background(), mid, userID, dto.CreateClueRequest{Body: "c"})
@@ -312,7 +314,7 @@ func TestAddClue_OK_DefaultTruthType(t *testing.T) {
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(3, nil)
-	m.repo.EXPECT().AddClue(mock.Anything, mid, repository.NewClue{Body: "c", TruthType: "red", SortOrder: 3}).Return(&dto.MysteryClue{ID: 1}, nil)
+	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, NewClue: spec.NewClue{Body: "c", TruthType: "red", SortOrder: 3}}).Return(&dto.MysteryClue{ID: 1}, nil)
 
 	// when
 	err := svc.AddClue(context.Background(), mid, userID, dto.CreateClueRequest{Body: "c"})
@@ -329,7 +331,7 @@ func TestAddClue_Private_NotifiesPlayer(t *testing.T) {
 	playerID := uuid.New()
 	stubAuthor(m, mid, userID)
 	m.repo.EXPECT().CountClues(mock.Anything, mid).Return(0, nil)
-	m.repo.EXPECT().AddClue(mock.Anything, mid, repository.NewClue{Body: "c", TruthType: "blue", SortOrder: 0, PlayerID: &playerID}).Return(&dto.MysteryClue{ID: 1}, nil)
+	m.repo.EXPECT().AddClue(mock.Anything, spec.NewMysteryClue{MysteryID: mid, NewClue: spec.NewClue{Body: "c", TruthType: "blue", SortOrder: 0, PlayerID: &playerID}}).Return(&dto.MysteryClue{ID: 1}, nil)
 
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
 	m.notifService.EXPECT().Notify(mock.Anything, mock.MatchedBy(func(p dto.NotifyParams) bool {
@@ -363,10 +365,10 @@ func TestDeleteClue_OK(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().DeleteClue(mock.Anything, 7).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryClueDelete,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysteryClueDelete,
+		TargetType: audit.TargetMystery,
 		TargetID:   mid.String(),
 		Details:    "clue=7",
 	}).Return(nil)
@@ -392,7 +394,7 @@ func TestUpdateClue_EmptyBody(t *testing.T) {
 func TestUpdateClue_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.repo.EXPECT().UpdateClue(mock.Anything, 3, "new").Return(errors.New("boom"))
+	m.repo.EXPECT().UpdateClue(mock.Anything, spec.MysteryClueUpdate{ClueID: 3, Body: "new"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateClue(context.Background(), uuid.New(), 3, uuid.New(), "new")
@@ -406,11 +408,11 @@ func TestUpdateClue_OK_Trims(t *testing.T) {
 	svc, m := newTestService(t)
 	mid := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().UpdateClue(mock.Anything, 3, "new").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().UpdateClue(mock.Anything, spec.MysteryClueUpdate{ClueID: 3, Body: "new"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryClueUpdate,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysteryClueUpdate,
+		TargetType: audit.TargetMystery,
 		TargetID:   mid.String(),
 		Details:    "clue=3",
 	}).Return(nil)

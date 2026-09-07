@@ -6,8 +6,8 @@ import (
 	"io"
 	"strings"
 	"time"
-	"umineko_city_of_books/internal/repository/model"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -18,6 +18,8 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
@@ -119,7 +121,7 @@ func NewService(
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -171,19 +173,19 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 
 	body := strings.TrimSpace(req.Body)
 
-	spec := repository.NewPost{
+	newPost := spec.NewPost{
 		UserID: userID,
 		Corner: corner,
 		Body:   body,
 	}
 	if isShare {
-		spec.SharedContent = &repository.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
+		newPost.SharedContent = &model.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
 	}
 	if req.Poll != nil {
-		spec.Poll = newPollSpec(req.Poll)
+		newPost.Poll = newPollSpec(req.Poll)
 	}
 
-	created, err := s.postRepo.CreateWithDetails(ctx, spec)
+	created, err := s.postRepo.CreateWithDetails(ctx, newPost)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -191,7 +193,9 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 	id := created.ID
 
 	if isShare {
-		go s.postRepo.IncrementShareCount(context.Background(), req.SharedContentID, req.SharedContentType)
+		shared := model.SharedContentRef{ID: req.SharedContentID, Type: req.SharedContentType}
+
+		go s.postRepo.IncrementShareCount(context.Background(), shared)
 		go s.notifyContentShared(userID, id, req.SharedContentID, req.SharedContentType)
 	}
 
@@ -206,7 +210,7 @@ func (s *service) CreatePost(ctx context.Context, userID uuid.UUID, req dto.Crea
 }
 
 func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, viewerHash string) (*dto.PostDetailResponse, error) {
-	row, err := s.postRepo.GetByID(ctx, id, viewerID)
+	row, err := s.postRepo.GetByID(ctx, spec.PostLookup{ID: id, ViewerID: viewerID})
 	if err != nil {
 		return nil, err
 	}
@@ -215,7 +219,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 	}
 
 	if viewerHash != "" {
-		isNew, _ := s.postRepo.RecordView(ctx, id, viewerHash)
+		isNew, _ := s.postRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
 		if isNew {
 			row.ViewCount++
 		}
@@ -224,7 +228,13 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
 	postMedia, _ := s.postRepo.GetMedia(ctx, id)
-	comments, _, _ := s.postRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	comments, _, _ := s.postRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 
 	var commentIDs []uuid.UUID
 	for _, c := range comments {
@@ -242,7 +252,7 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		func(c *dto.PostCommentResponse, replies []dto.PostCommentResponse) { c.Replies = replies },
 	)
 
-	likeUsers, _ := s.postRepo.GetLikedBy(ctx, id, blockedIDs)
+	likeUsers, _ := s.postRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
 	likedBy := make([]dto.UserResponse, len(likeUsers))
 	for i, u := range likeUsers {
 		likedBy[i] = dto.UserResponse{
@@ -260,19 +270,19 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 	}
 
 	postResp := row.ToResponse(postMedia)
-	pollRow, pollOptions, votedOption, _ := s.postRepo.GetPollByPostID(ctx, id, viewerID)
+	pollRow, pollOptions, votedOption, _ := s.postRepo.GetPollByPostID(ctx, spec.PostPollQuery{PostID: id, ViewerID: viewerID})
 	if pollRow != nil {
 		postResp.Poll = pollRow.ToResponse(pollOptions, votedOption)
 	}
 
 	if row.SharedContentID != nil && row.SharedContentType != nil {
-		refs := []repository.SharedContentRef{{ID: *row.SharedContentID, Type: *row.SharedContentType}}
+		refs := []model.SharedContentRef{{ID: *row.SharedContentID, Type: *row.SharedContentType}}
 		previews := s.postRepo.GetSharedContentPreviews(refs)
 		key := *row.SharedContentType + ":" + *row.SharedContentID
 		postResp.SharedContent = previews[key]
 	}
 
-	shareCount, _ := s.postRepo.GetShareCount(ctx, id.String(), "post")
+	shareCount, _ := s.postRepo.GetShareCount(ctx, model.SharedContentRef{ID: id.String(), Type: "post"})
 	postResp.ShareCount = shareCount
 
 	return &dto.PostDetailResponse{
@@ -295,13 +305,13 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
 
-	spec := repository.PostUpdate{
+	update := spec.PostUpdate{
 		ID:      id,
 		UserID:  userID,
 		Body:    body,
 		AsAdmin: asAdmin,
 	}
-	if err := s.postRepo.UpdateWithDetails(ctx, spec); err != nil {
+	if err := s.postRepo.UpdateWithDetails(ctx, update); err != nil {
 		return err
 	}
 
@@ -323,26 +333,26 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 		return err
 	}
 
-	action := repository.AuditActionPostDelete
+	action := audit.ActionPostDelete
 	if authorID != userID {
-		action = repository.AuditActionPostDeleteAdmin
+		action = audit.ActionPostDeleteAdmin
 	}
 
-	spec := repository.PostDelete{
+	deletion := spec.PostDelete{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyPost),
-		Audit: repository.NewAuditEntry{
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetPost,
+			TargetType: audit.TargetPost,
 			TargetID:   id.String(),
 			Details:    fmt.Sprintf("media=%d", len(postMedia)),
 			SubjectID:  authorID,
 		},
 	}
 
-	shared, paths, err := s.postRepo.DeleteWithSharedContent(ctx, spec)
+	shared, paths, err := s.postRepo.DeleteWithSharedContent(ctx, deletion)
 	if err != nil {
 		return err
 	}
@@ -350,7 +360,7 @@ func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 	s.uploadSvc.Delete(paths...)
 
 	if shared != nil {
-		go s.postRepo.DecrementShareCount(context.Background(), shared.ID, shared.Type)
+		go s.postRepo.DecrementShareCount(context.Background(), *shared)
 	}
 
 	s.clearPageCache(ctx, id.String())
@@ -386,9 +396,27 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 	var err error
 
 	if tab == "following" && viewerID != uuid.Nil {
-		rows, total, err = s.postRepo.ListByFollowing(ctx, viewerID, corner, sort, seed, page.Limit(), page.Offset(), blockedIDs)
+		rows, total, err = s.postRepo.ListByFollowing(ctx, spec.PostFollowingFeedQuery{
+			UserID:         viewerID,
+			Corner:         corner,
+			Sort:           sort,
+			Seed:           seed,
+			Limit:          page.Limit(),
+			Offset:         page.Offset(),
+			ExcludeUserIDs: blockedIDs,
+		})
 	} else {
-		rows, total, err = s.postRepo.ListAll(ctx, viewerID, corner, search, sort, seed, page.Limit(), page.Offset(), blockedIDs, resolvedFilter)
+		rows, total, err = s.postRepo.ListAll(ctx, spec.PostFeedQuery{
+			ViewerID:       viewerID,
+			Corner:         corner,
+			Search:         search,
+			Sort:           sort,
+			Seed:           seed,
+			Limit:          page.Limit(),
+			Offset:         page.Offset(),
+			ExcludeUserIDs: blockedIDs,
+			ResolvedFilter: resolvedFilter,
+		})
 	}
 	if err != nil {
 		return nil, err
@@ -398,7 +426,12 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 }
 
 func (s *service) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error) {
-	rows, total, err := s.postRepo.ListByUser(ctx, targetUserID, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.postRepo.ListByUser(ctx, spec.PostUserPage{
+		UserID:   targetUserID,
+		ViewerID: viewerID,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -414,12 +447,12 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}
 
 	mediaMap, _ := s.postRepo.GetMediaBatch(ctx, postIDs)
-	pollMap, pollOptionMap, pollVoteMap, _ := s.postRepo.GetPollsByPostIDs(ctx, postIDs, viewerID)
+	pollMap, pollOptionMap, pollVoteMap, _ := s.postRepo.GetPollsByPostIDs(ctx, spec.PostPollBatchQuery{PostIDs: postIDs, ViewerID: viewerID})
 
-	var sharedRefs []repository.SharedContentRef
+	var sharedRefs []model.SharedContentRef
 	for _, r := range rows {
 		if r.SharedContentID != nil && r.SharedContentType != nil {
-			sharedRefs = append(sharedRefs, repository.SharedContentRef{
+			sharedRefs = append(sharedRefs, model.SharedContentRef{
 				ID:   *r.SharedContentID,
 				Type: *r.SharedContentType,
 			})
@@ -427,7 +460,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 	}
 	sharedPreviews := s.postRepo.GetSharedContentPreviews(sharedRefs)
 
-	postShareCounts, _ := s.postRepo.GetShareCountsBatch(ctx, postIDStrs, "post")
+	postShareCounts, _ := s.postRepo.GetShareCountsBatch(ctx, spec.SharedContentBatchRef{ContentIDs: postIDStrs, ContentType: "post"})
 
 	posts := make([]dto.PostResponse, len(rows))
 	for i, r := range rows {
@@ -463,8 +496,8 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 
 	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.postRepo.AddMedia(ctx, repository.NewPostMedia{
-				PostID:       postID,
+			return s.postRepo.AddMedia(ctx, spec.NewMedia{
+				TargetID:     postID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -487,7 +520,7 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 		return fmt.Errorf("not the post author")
 	}
 
-	mediaURL, err := s.postRepo.DeleteMedia(ctx, mediaID, postID)
+	mediaURL, err := s.postRepo.DeleteMedia(ctx, spec.MediaDeletion{ID: mediaID, TargetID: postID})
 	if err != nil {
 		return err
 	}
@@ -507,8 +540,8 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 
 	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.postRepo.AddCommentMedia(ctx, repository.NewPostCommentMedia{
-				CommentID:    commentID,
+			return s.postRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:     commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -551,7 +584,7 @@ func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UU
 		return block.ErrUserBlocked
 	}
 
-	if err := s.postRepo.Like(ctx, userID, postID); err != nil {
+	if err := s.postRepo.Like(ctx, spec.Like{UserID: userID, TargetID: postID}); err != nil {
 		return err
 	}
 
@@ -578,7 +611,7 @@ func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UU
 }
 
 func (s *service) UnlikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error {
-	if err := s.postRepo.Unlike(ctx, userID, postID); err != nil {
+	if err := s.postRepo.Unlike(ctx, spec.Like{UserID: userID, TargetID: postID}); err != nil {
 		return err
 	}
 	s.broadcastLikeUpdate(postID, -1)
@@ -687,21 +720,21 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
-	spec := repository.PostCommentUpdate{
-		ID:      id,
-		UserID:  userID,
-		Body:    body,
-		AsAdmin: asAdmin,
+	update := spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
 	}
-	if err := s.postRepo.UpdateCommentWithDetails(ctx, spec); err != nil {
+	if err := s.postRepo.UpdateCommentWithDetails(ctx, update); err != nil {
 		return err
 	}
 
 	if authorID != userID {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionPostCommentUpdateAdmin,
-			TargetType: repository.AuditTargetPostComment,
+			Action:     audit.ActionPostCommentUpdateAdmin,
+			TargetType: audit.TargetPostComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		})
@@ -720,19 +753,21 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 		return err
 	}
 
-	action := repository.AuditActionPostCommentDelete
+	action := audit.ActionPostCommentDelete
 	if authorID != userID {
-		action = repository.AuditActionPostCommentDeleteAdmin
+		action = audit.ActionPostCommentDeleteAdmin
 	}
 
-	paths, err := s.postRepo.DeleteCommentWithAudit(ctx, repository.PostCommentDelete{
-		ID:      id,
-		UserID:  userID,
-		AsAdmin: s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
-		Audit: repository.NewAuditEntry{
+	paths, err := s.postRepo.DeleteCommentWithAudit(ctx, spec.PostCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: id,
+			UserID:    userID,
+			AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
+		},
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetPostComment,
+			TargetType: audit.TargetPostComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		},
@@ -755,7 +790,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 		return block.ErrUserBlocked
 	}
 
-	if err := s.postRepo.LikeComment(ctx, userID, commentID); err != nil {
+	if err := s.postRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
 
@@ -784,7 +819,7 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
-	return s.postRepo.UnlikeComment(ctx, userID, commentID)
+	return s.postRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) GetCornerCounts(ctx context.Context) (map[string]int, error) {
@@ -849,7 +884,7 @@ func (s *service) notifyCommentEdited(ctx context.Context, commentID uuid.UUID, 
 }
 
 func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UUID, optionID int) (*dto.PollResponse, error) {
-	pollRow, options, votedOption, err := s.postRepo.GetPollByPostID(ctx, postID, userID)
+	pollRow, options, votedOption, err := s.postRepo.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID, ViewerID: userID})
 	if err != nil {
 		return nil, err
 	}
@@ -883,27 +918,27 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 	}
 
 	pollID, _ := uuid.Parse(pollRow.ID)
-	if err := s.postRepo.VotePoll(ctx, pollID, userID, optionID); err != nil {
+	if err := s.postRepo.VotePoll(ctx, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: optionID}); err != nil {
 		if strings.Contains(err.Error(), "already voted") {
 			return nil, ErrAlreadyVoted
 		}
 		return nil, err
 	}
 
-	pollRow, options, votedOption, err = s.postRepo.GetPollByPostID(ctx, postID, userID)
+	pollRow, options, votedOption, err = s.postRepo.GetPollByPostID(ctx, spec.PostPollQuery{PostID: postID, ViewerID: userID})
 	if err != nil {
 		return nil, err
 	}
 	return pollRow.ToResponse(options, votedOption), nil
 }
 
-func newPollSpec(poll *dto.CreatePollInput) *repository.NewPoll {
+func newPollSpec(poll *dto.CreatePollInput) *spec.NewPoll {
 	labels := make([]string, len(poll.Options))
-	for i := range poll.Options {
-		labels[i] = strings.TrimSpace(poll.Options[i].Label)
+	for i, o := range poll.Options {
+		labels[i] = strings.TrimSpace(o.Label)
 	}
 
-	return &repository.NewPoll{
+	return &spec.NewPoll{
 		DurationSeconds: poll.DurationSeconds,
 		ExpiresAt:       time.Now().UTC().Add(time.Duration(poll.DurationSeconds) * time.Second).Format(time.RFC3339),
 		Options:         labels,
@@ -943,7 +978,7 @@ func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userI
 	if status != "done" && status != "archived" {
 		status = "done"
 	}
-	if err := s.postRepo.ResolveSuggestion(ctx, postID, userID, status); err != nil {
+	if err := s.postRepo.ResolveSuggestion(ctx, spec.SuggestionResolution{PostID: postID, ResolvedBy: userID, Status: status}); err != nil {
 		return err
 	}
 
@@ -978,13 +1013,13 @@ func (s *service) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, use
 }
 
 func (s *service) GetShareCount(ctx context.Context, contentID string, contentType string) (int, error) {
-	return s.postRepo.GetShareCount(ctx, contentID, contentType)
+	return s.postRepo.GetShareCount(ctx, model.SharedContentRef{ID: contentID, Type: contentType})
 }
 
 func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, contentID string, contentType string) {
 	bgCtx := context.Background()
 
-	authorID, err := s.postRepo.GetSharedContentAuthor(bgCtx, contentID, contentType)
+	authorID, err := s.postRepo.GetSharedContentAuthor(bgCtx, model.SharedContentRef{ID: contentID, Type: contentType})
 	if err != nil {
 		logger.Ctx(bgCtx).
 			Err(err).
@@ -1009,7 +1044,7 @@ func (s *service) notifyContentShared(sharerID uuid.UUID, postID uuid.UUID, cont
 	})
 }
 
-func postCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.PostCommentResponse {
+func postCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.PostCommentResponse {
 	return dto.PostCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,

@@ -10,6 +10,8 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/reserved"
 	"umineko_city_of_books/internal/secrets"
@@ -595,7 +597,7 @@ func (r *Resolver) postMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	post, err := r.postRepo.GetByID(ctx, id, uuid.Nil)
+	post, err := r.postRepo.GetByID(ctx, spec.PostLookup{ID: id, ViewerID: uuid.Nil})
 	if err != nil || post == nil {
 		return nil
 	}
@@ -634,7 +636,7 @@ func (r *Resolver) artMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	art, err := r.artRepo.GetByID(ctx, id, uuid.Nil)
+	art, err := r.artRepo.GetByID(ctx, spec.ArtLookup{ID: id, ViewerID: uuid.Nil})
 	if err != nil || art == nil {
 		return nil
 	}
@@ -681,7 +683,7 @@ func (r *Resolver) galleryMeta(ctx context.Context, idStr string) *Meta {
 	if gallery.CoverImageURL != "" {
 		meta.Image = gallery.CoverImageURL
 	} else {
-		previews, _ := r.artRepo.GetGalleryPreviewImages(ctx, id, 1)
+		previews, _ := r.artRepo.GetGalleryPreviewImages(ctx, spec.GalleryPreviewFilter{GalleryID: id, Limit: 1})
 		if len(previews) > 0 {
 			meta.Image = previews[0].ImageURL
 		}
@@ -747,7 +749,7 @@ func (r *Resolver) shipMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	ship, err := r.shipRepo.GetByID(ctx, id, uuid.Nil)
+	ship, err := r.shipRepo.GetByID(ctx, spec.ShipLookup{ID: id, ViewerID: uuid.Nil})
 	if err != nil || ship == nil {
 		return nil
 	}
@@ -786,7 +788,7 @@ func (r *Resolver) ocMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	row, err := r.ocRepo.GetByID(ctx, id, uuid.Nil)
+	row, err := r.ocRepo.GetByID(ctx, spec.OCByID{ID: id, ViewerID: uuid.Nil})
 	if err != nil || row == nil {
 		return nil
 	}
@@ -820,7 +822,7 @@ func (r *Resolver) fanficMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	fanfic, err := r.fanficRepo.GetByID(ctx, id, uuid.Nil)
+	fanfic, err := r.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: uuid.Nil})
 	if err != nil || fanfic == nil || fanfic.Status == "draft" {
 		return nil
 	}
@@ -848,7 +850,7 @@ func (r *Resolver) journalMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	journal, err := r.journalRepo.GetByID(ctx, id, uuid.Nil)
+	journal, err := r.journalRepo.GetByID(ctx, spec.JournalLookup{ID: id, ViewerID: uuid.Nil})
 	if err != nil || journal == nil {
 		return nil
 	}
@@ -878,12 +880,12 @@ func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr
 		return nil
 	}
 
-	journal, err := r.journalRepo.GetByID(ctx, journalID, uuid.Nil)
+	journal, err := r.journalRepo.GetByID(ctx, spec.JournalLookup{ID: journalID, ViewerID: uuid.Nil})
 	if err != nil || journal == nil {
 		return nil
 	}
 
-	entry, err := r.journalRepo.GetEntry(ctx, journalID, number)
+	entry, err := r.journalRepo.GetEntry(ctx, spec.JournalEntryLookup{JournalID: journalID, EntryNumber: number})
 	if err != nil || entry == nil || entry.IsDraft {
 		return nil
 	}
@@ -909,19 +911,19 @@ func (r *Resolver) journalEntryMeta(ctx context.Context, journalIDStr, numberStr
 }
 
 func (r *Resolver) secretMeta(ctx context.Context, id string) *Meta {
-	spec, ok := secrets.Lookup(id)
-	if !ok || spec.Title == "" {
+	secret, ok := secrets.Lookup(id)
+	if !ok || secret.Title == "" {
 		return nil
 	}
 
 	siteName, _ := r.getSiteMeta(ctx)
-	desc := spec.Description
+	desc := secret.Description
 	if desc == "" {
 		desc = fmt.Sprintf("A hidden hunt on %s.", siteName)
 	}
 	desc = truncateDesc(desc)
 	return &Meta{
-		Title:       fmt.Sprintf("%s - %s", spec.Title, siteName),
+		Title:       fmt.Sprintf("%s - %s", secret.Title, siteName),
 		Description: desc,
 		URL:         fmt.Sprintf("%s/secrets/%s", r.baseURL, id),
 	}
@@ -933,7 +935,7 @@ func (r *Resolver) roomMeta(ctx context.Context, idStr string) *Meta {
 		return nil
 	}
 
-	room, err := r.chatRepo.GetRoomByID(ctx, id, uuid.Nil)
+	room, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: id, ViewerID: uuid.Nil})
 	if err != nil || !room.PubliclyVisible() {
 		return nil
 	}
@@ -968,7 +970,7 @@ func (r *Resolver) watchPartyMeta(ctx context.Context, roomIDStr, partyIDStr str
 		return nil
 	}
 
-	room, err := r.chatRepo.GetRoomByID(ctx, roomID, uuid.Nil)
+	room, err := r.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil})
 	if err != nil || !room.PubliclyVisible() {
 		return nil
 	}
@@ -1028,7 +1030,7 @@ func (r *Resolver) offlineStreamMeta(ctx context.Context, username string) *Meta
 	return meta
 }
 
-func (r *Resolver) liveStreamMeta(ctx context.Context, stream *repository.LiveStreamRow) *Meta {
+func (r *Resolver) liveStreamMeta(ctx context.Context, stream *model.LiveStreamRow) *Meta {
 	if stream == nil || stream.Status != statusLive {
 		return nil
 	}

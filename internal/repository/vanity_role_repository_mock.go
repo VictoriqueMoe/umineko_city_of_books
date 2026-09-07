@@ -7,6 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -40,12 +42,12 @@ func (_m *MockVanityRoleRepository) EXPECT() *MockVanityRoleRepository_Expecter 
 }
 
 // AssignToUser provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) AssignToUser(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx) error {
+func (_mock *MockVanityRoleRepository) AssignToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, roleID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, roleID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -54,8 +56,8 @@ func (_mock *MockVanityRoleRepository) AssignToUser(ctx context.Context, userID 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, roleID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -69,39 +71,33 @@ type MockVanityRoleRepository_AssignToUser_Call struct {
 
 // AssignToUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - roleID string
+//   - s spec.VanityRoleAssignment
 //   - tx ...*sql.Tx
-func (_e *MockVanityRoleRepository_Expecter) AssignToUser(ctx any, userID any, roleID any, tx ...any) *MockVanityRoleRepository_AssignToUser_Call {
+func (_e *MockVanityRoleRepository_Expecter) AssignToUser(ctx any, s any, tx ...any) *MockVanityRoleRepository_AssignToUser_Call {
 	return &MockVanityRoleRepository_AssignToUser_Call{Call: _e.mock.On("AssignToUser",
-		append([]any{ctx, userID, roleID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockVanityRoleRepository_AssignToUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx)) *MockVanityRoleRepository_AssignToUser_Call {
+func (_c *MockVanityRoleRepository_AssignToUser_Call) Run(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx)) *MockVanityRoleRepository_AssignToUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.VanityRoleAssignment
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.VanityRoleAssignment)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -112,18 +108,18 @@ func (_c *MockVanityRoleRepository_AssignToUser_Call) Return(err error) *MockVan
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_AssignToUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx) error) *MockVanityRoleRepository_AssignToUser_Call {
+func (_c *MockVanityRoleRepository_AssignToUser_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error) *MockVanityRoleRepository_AssignToUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Create provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) Create(ctx context.Context, id string, label string, color string, sortOrder int, tx ...*sql.Tx) error {
+func (_mock *MockVanityRoleRepository) Create(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, label, color, sortOrder, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, label, color, sortOrder)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -132,8 +128,8 @@ func (_mock *MockVanityRoleRepository) Create(ctx context.Context, id string, la
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, label, color, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewVanityRole, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -147,51 +143,33 @@ type MockVanityRoleRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
-//   - label string
-//   - color string
-//   - sortOrder int
+//   - s spec.NewVanityRole
 //   - tx ...*sql.Tx
-func (_e *MockVanityRoleRepository_Expecter) Create(ctx any, id any, label any, color any, sortOrder any, tx ...any) *MockVanityRoleRepository_Create_Call {
+func (_e *MockVanityRoleRepository_Expecter) Create(ctx any, s any, tx ...any) *MockVanityRoleRepository_Create_Call {
 	return &MockVanityRoleRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, id, label, color, sortOrder}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockVanityRoleRepository_Create_Call) Run(run func(ctx context.Context, id string, label string, color string, sortOrder int, tx ...*sql.Tx)) *MockVanityRoleRepository_Create_Call {
+func (_c *MockVanityRoleRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx)) *MockVanityRoleRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.NewVanityRole
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.NewVanityRole)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -202,7 +180,7 @@ func (_c *MockVanityRoleRepository_Create_Call) Return(err error) *MockVanityRol
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_Create_Call) RunAndReturn(run func(ctx context.Context, id string, label string, color string, sortOrder int, tx ...*sql.Tx) error) *MockVanityRoleRepository_Create_Call {
+func (_c *MockVanityRoleRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx) error) *MockVanityRoleRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -357,7 +335,7 @@ func (_c *MockVanityRoleRepository_GetAllAssignments_Call) RunAndReturn(run func
 }
 
 // GetByID provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) GetByID(ctx context.Context, id string, tx ...*sql.Tx) (*VanityRoleRow, error) {
+func (_mock *MockVanityRoleRepository) GetByID(ctx context.Context, id string, tx ...*sql.Tx) (*model.VanityRoleRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -370,16 +348,16 @@ func (_mock *MockVanityRoleRepository) GetByID(ctx context.Context, id string, t
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 *VanityRoleRow
+	var r0 *model.VanityRoleRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*VanityRoleRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*model.VanityRoleRow, error)); ok {
 		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *VanityRoleRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *model.VanityRoleRow); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*VanityRoleRow)
+			r0 = ret.Get(0).(*model.VanityRoleRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
@@ -429,18 +407,18 @@ func (_c *MockVanityRoleRepository_GetByID_Call) Run(run func(ctx context.Contex
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetByID_Call) Return(vanityRoleRow *VanityRoleRow, err error) *MockVanityRoleRepository_GetByID_Call {
+func (_c *MockVanityRoleRepository_GetByID_Call) Return(vanityRoleRow *model.VanityRoleRow, err error) *MockVanityRoleRepository_GetByID_Call {
 	_c.Call.Return(vanityRoleRow, err)
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string, tx ...*sql.Tx) (*VanityRoleRow, error)) *MockVanityRoleRepository_GetByID_Call {
+func (_c *MockVanityRoleRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id string, tx ...*sql.Tx) (*model.VanityRoleRow, error)) *MockVanityRoleRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRolesForUser provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) GetRolesForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]VanityRoleRow, error) {
+func (_mock *MockVanityRoleRepository) GetRolesForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.VanityRoleRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, userID, tx)
@@ -453,16 +431,16 @@ func (_mock *MockVanityRoleRepository) GetRolesForUser(ctx context.Context, user
 		panic("no return value specified for GetRolesForUser")
 	}
 
-	var r0 []VanityRoleRow
+	var r0 []model.VanityRoleRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]VanityRoleRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.VanityRoleRow, error)); ok {
 		return returnFunc(ctx, userID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []VanityRoleRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.VanityRoleRow); ok {
 		r0 = returnFunc(ctx, userID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]VanityRoleRow)
+			r0 = ret.Get(0).([]model.VanityRoleRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -512,18 +490,18 @@ func (_c *MockVanityRoleRepository_GetRolesForUser_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetRolesForUser_Call) Return(vanityRoleRows []VanityRoleRow, err error) *MockVanityRoleRepository_GetRolesForUser_Call {
+func (_c *MockVanityRoleRepository_GetRolesForUser_Call) Return(vanityRoleRows []model.VanityRoleRow, err error) *MockVanityRoleRepository_GetRolesForUser_Call {
 	_c.Call.Return(vanityRoleRows, err)
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetRolesForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]VanityRoleRow, error)) *MockVanityRoleRepository_GetRolesForUser_Call {
+func (_c *MockVanityRoleRepository_GetRolesForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.VanityRoleRow, error)) *MockVanityRoleRepository_GetRolesForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetRolesForUsersBatch provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]VanityRoleRow, error) {
+func (_mock *MockVanityRoleRepository) GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.VanityRoleRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, userIDs, tx)
@@ -536,16 +514,16 @@ func (_mock *MockVanityRoleRepository) GetRolesForUsersBatch(ctx context.Context
 		panic("no return value specified for GetRolesForUsersBatch")
 	}
 
-	var r0 map[uuid.UUID][]VanityRoleRow
+	var r0 map[uuid.UUID][]model.VanityRoleRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]VanityRoleRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) (map[uuid.UUID][]model.VanityRoleRow, error)); ok {
 		return returnFunc(ctx, userIDs, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]VanityRoleRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []uuid.UUID, ...*sql.Tx) map[uuid.UUID][]model.VanityRoleRow); ok {
 		r0 = returnFunc(ctx, userIDs, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(map[uuid.UUID][]VanityRoleRow)
+			r0 = ret.Get(0).(map[uuid.UUID][]model.VanityRoleRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, []uuid.UUID, ...*sql.Tx) error); ok {
@@ -595,23 +573,23 @@ func (_c *MockVanityRoleRepository_GetRolesForUsersBatch_Call) Run(run func(ctx 
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetRolesForUsersBatch_Call) Return(uUIDToVanityRoleRows map[uuid.UUID][]VanityRoleRow, err error) *MockVanityRoleRepository_GetRolesForUsersBatch_Call {
+func (_c *MockVanityRoleRepository_GetRolesForUsersBatch_Call) Return(uUIDToVanityRoleRows map[uuid.UUID][]model.VanityRoleRow, err error) *MockVanityRoleRepository_GetRolesForUsersBatch_Call {
 	_c.Call.Return(uUIDToVanityRoleRows, err)
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetRolesForUsersBatch_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]VanityRoleRow, error)) *MockVanityRoleRepository_GetRolesForUsersBatch_Call {
+func (_c *MockVanityRoleRepository_GetRolesForUsersBatch_Call) RunAndReturn(run func(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.VanityRoleRow, error)) *MockVanityRoleRepository_GetRolesForUsersBatch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetUsersForRole provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) GetUsersForRole(ctx context.Context, roleID string, search string, limit int, offset int, tx ...*sql.Tx) ([]VanityRoleUserRow, int, error) {
+func (_mock *MockVanityRoleRepository) GetUsersForRole(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx) ([]model.VanityRoleUserRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, roleID, search, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, roleID, search, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -619,26 +597,26 @@ func (_mock *MockVanityRoleRepository) GetUsersForRole(ctx context.Context, role
 		panic("no return value specified for GetUsersForRole")
 	}
 
-	var r0 []VanityRoleUserRow
+	var r0 []model.VanityRoleUserRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int, int, ...*sql.Tx) ([]VanityRoleUserRow, int, error)); ok {
-		return returnFunc(ctx, roleID, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleUserQuery, ...*sql.Tx) ([]model.VanityRoleUserRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, int, int, ...*sql.Tx) []VanityRoleUserRow); ok {
-		r0 = returnFunc(ctx, roleID, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleUserQuery, ...*sql.Tx) []model.VanityRoleUserRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]VanityRoleUserRow)
+			r0 = ret.Get(0).([]model.VanityRoleUserRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, roleID, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.VanityRoleUserQuery, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, string, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, roleID, search, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.VanityRoleUserQuery, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -652,68 +630,50 @@ type MockVanityRoleRepository_GetUsersForRole_Call struct {
 
 // GetUsersForRole is a helper method to define mock.On call
 //   - ctx context.Context
-//   - roleID string
-//   - search string
-//   - limit int
-//   - offset int
+//   - q spec.VanityRoleUserQuery
 //   - tx ...*sql.Tx
-func (_e *MockVanityRoleRepository_Expecter) GetUsersForRole(ctx any, roleID any, search any, limit any, offset any, tx ...any) *MockVanityRoleRepository_GetUsersForRole_Call {
+func (_e *MockVanityRoleRepository_Expecter) GetUsersForRole(ctx any, q any, tx ...any) *MockVanityRoleRepository_GetUsersForRole_Call {
 	return &MockVanityRoleRepository_GetUsersForRole_Call{Call: _e.mock.On("GetUsersForRole",
-		append([]any{ctx, roleID, search, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockVanityRoleRepository_GetUsersForRole_Call) Run(run func(ctx context.Context, roleID string, search string, limit int, offset int, tx ...*sql.Tx)) *MockVanityRoleRepository_GetUsersForRole_Call {
+func (_c *MockVanityRoleRepository_GetUsersForRole_Call) Run(run func(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx)) *MockVanityRoleRepository_GetUsersForRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.VanityRoleUserQuery
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.VanityRoleUserQuery)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetUsersForRole_Call) Return(vanityRoleUserRows []VanityRoleUserRow, n int, err error) *MockVanityRoleRepository_GetUsersForRole_Call {
+func (_c *MockVanityRoleRepository_GetUsersForRole_Call) Return(vanityRoleUserRows []model.VanityRoleUserRow, n int, err error) *MockVanityRoleRepository_GetUsersForRole_Call {
 	_c.Call.Return(vanityRoleUserRows, n, err)
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_GetUsersForRole_Call) RunAndReturn(run func(ctx context.Context, roleID string, search string, limit int, offset int, tx ...*sql.Tx) ([]VanityRoleUserRow, int, error)) *MockVanityRoleRepository_GetUsersForRole_Call {
+func (_c *MockVanityRoleRepository_GetUsersForRole_Call) RunAndReturn(run func(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx) ([]model.VanityRoleUserRow, int, error)) *MockVanityRoleRepository_GetUsersForRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) List(ctx context.Context, tx ...*sql.Tx) ([]VanityRoleRow, error) {
+func (_mock *MockVanityRoleRepository) List(ctx context.Context, tx ...*sql.Tx) ([]model.VanityRoleRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -726,16 +686,16 @@ func (_mock *MockVanityRoleRepository) List(ctx context.Context, tx ...*sql.Tx) 
 		panic("no return value specified for List")
 	}
 
-	var r0 []VanityRoleRow
+	var r0 []model.VanityRoleRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]VanityRoleRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.VanityRoleRow, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []VanityRoleRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.VanityRoleRow); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]VanityRoleRow)
+			r0 = ret.Get(0).([]model.VanityRoleRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -779,23 +739,23 @@ func (_c *MockVanityRoleRepository_List_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_List_Call) Return(vanityRoleRows []VanityRoleRow, err error) *MockVanityRoleRepository_List_Call {
+func (_c *MockVanityRoleRepository_List_Call) Return(vanityRoleRows []model.VanityRoleRow, err error) *MockVanityRoleRepository_List_Call {
 	_c.Call.Return(vanityRoleRows, err)
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_List_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]VanityRoleRow, error)) *MockVanityRoleRepository_List_Call {
+func (_c *MockVanityRoleRepository_List_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.VanityRoleRow, error)) *MockVanityRoleRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MoveUserRole provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) MoveUserRole(ctx context.Context, spec VanityRoleMove, tx ...*sql.Tx) error {
+func (_mock *MockVanityRoleRepository) MoveUserRole(ctx context.Context, move spec.VanityRoleMove, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, move, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, move)
 	}
 	ret := tmpRet
 
@@ -804,8 +764,8 @@ func (_mock *MockVanityRoleRepository) MoveUserRole(ctx context.Context, spec Va
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, VanityRoleMove, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleMove, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, move, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -819,22 +779,22 @@ type MockVanityRoleRepository_MoveUserRole_Call struct {
 
 // MoveUserRole is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec VanityRoleMove
+//   - move spec.VanityRoleMove
 //   - tx ...*sql.Tx
-func (_e *MockVanityRoleRepository_Expecter) MoveUserRole(ctx any, spec any, tx ...any) *MockVanityRoleRepository_MoveUserRole_Call {
+func (_e *MockVanityRoleRepository_Expecter) MoveUserRole(ctx any, move any, tx ...any) *MockVanityRoleRepository_MoveUserRole_Call {
 	return &MockVanityRoleRepository_MoveUserRole_Call{Call: _e.mock.On("MoveUserRole",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, move}, tx...)...)}
 }
 
-func (_c *MockVanityRoleRepository_MoveUserRole_Call) Run(run func(ctx context.Context, spec VanityRoleMove, tx ...*sql.Tx)) *MockVanityRoleRepository_MoveUserRole_Call {
+func (_c *MockVanityRoleRepository_MoveUserRole_Call) Run(run func(ctx context.Context, move spec.VanityRoleMove, tx ...*sql.Tx)) *MockVanityRoleRepository_MoveUserRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 VanityRoleMove
+		var arg1 spec.VanityRoleMove
 		if args[1] != nil {
-			arg1 = args[1].(VanityRoleMove)
+			arg1 = args[1].(spec.VanityRoleMove)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -856,18 +816,18 @@ func (_c *MockVanityRoleRepository_MoveUserRole_Call) Return(err error) *MockVan
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_MoveUserRole_Call) RunAndReturn(run func(ctx context.Context, spec VanityRoleMove, tx ...*sql.Tx) error) *MockVanityRoleRepository_MoveUserRole_Call {
+func (_c *MockVanityRoleRepository_MoveUserRole_Call) RunAndReturn(run func(ctx context.Context, move spec.VanityRoleMove, tx ...*sql.Tx) error) *MockVanityRoleRepository_MoveUserRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnassignFromUser provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) UnassignFromUser(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx) error {
+func (_mock *MockVanityRoleRepository) UnassignFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, roleID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, roleID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -876,8 +836,8 @@ func (_mock *MockVanityRoleRepository) UnassignFromUser(ctx context.Context, use
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, roleID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleAssignment, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -891,39 +851,33 @@ type MockVanityRoleRepository_UnassignFromUser_Call struct {
 
 // UnassignFromUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - roleID string
+//   - s spec.VanityRoleAssignment
 //   - tx ...*sql.Tx
-func (_e *MockVanityRoleRepository_Expecter) UnassignFromUser(ctx any, userID any, roleID any, tx ...any) *MockVanityRoleRepository_UnassignFromUser_Call {
+func (_e *MockVanityRoleRepository_Expecter) UnassignFromUser(ctx any, s any, tx ...any) *MockVanityRoleRepository_UnassignFromUser_Call {
 	return &MockVanityRoleRepository_UnassignFromUser_Call{Call: _e.mock.On("UnassignFromUser",
-		append([]any{ctx, userID, roleID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockVanityRoleRepository_UnassignFromUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx)) *MockVanityRoleRepository_UnassignFromUser_Call {
+func (_c *MockVanityRoleRepository_UnassignFromUser_Call) Run(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx)) *MockVanityRoleRepository_UnassignFromUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.VanityRoleAssignment
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.VanityRoleAssignment)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -934,18 +888,18 @@ func (_c *MockVanityRoleRepository_UnassignFromUser_Call) Return(err error) *Moc
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_UnassignFromUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx) error) *MockVanityRoleRepository_UnassignFromUser_Call {
+func (_c *MockVanityRoleRepository_UnassignFromUser_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error) *MockVanityRoleRepository_UnassignFromUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockVanityRoleRepository
-func (_mock *MockVanityRoleRepository) Update(ctx context.Context, id string, label string, color string, sortOrder int, tx ...*sql.Tx) error {
+func (_mock *MockVanityRoleRepository) Update(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, label, color, sortOrder, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, label, color, sortOrder)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -954,8 +908,8 @@ func (_mock *MockVanityRoleRepository) Update(ctx context.Context, id string, la
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, string, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, label, color, sortOrder, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.VanityRoleUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -969,51 +923,33 @@ type MockVanityRoleRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id string
-//   - label string
-//   - color string
-//   - sortOrder int
+//   - s spec.VanityRoleUpdate
 //   - tx ...*sql.Tx
-func (_e *MockVanityRoleRepository_Expecter) Update(ctx any, id any, label any, color any, sortOrder any, tx ...any) *MockVanityRoleRepository_Update_Call {
+func (_e *MockVanityRoleRepository_Expecter) Update(ctx any, s any, tx ...any) *MockVanityRoleRepository_Update_Call {
 	return &MockVanityRoleRepository_Update_Call{Call: _e.mock.On("Update",
-		append([]any{ctx, id, label, color, sortOrder}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockVanityRoleRepository_Update_Call) Run(run func(ctx context.Context, id string, label string, color string, sortOrder int, tx ...*sql.Tx)) *MockVanityRoleRepository_Update_Call {
+func (_c *MockVanityRoleRepository_Update_Call) Run(run func(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx)) *MockVanityRoleRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.VanityRoleUpdate
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.VanityRoleUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1024,7 +960,7 @@ func (_c *MockVanityRoleRepository_Update_Call) Return(err error) *MockVanityRol
 	return _c
 }
 
-func (_c *MockVanityRoleRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id string, label string, color string, sortOrder int, tx ...*sql.Tx) error) *MockVanityRoleRepository_Update_Call {
+func (_c *MockVanityRoleRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx) error) *MockVanityRoleRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }

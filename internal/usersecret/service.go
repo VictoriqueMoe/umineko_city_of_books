@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
 
@@ -54,16 +55,16 @@ func (s *service) GetUserIDsWithSecret(ctx context.Context, secretID string) ([]
 }
 
 func (s *service) Unlock(ctx context.Context, userID uuid.UUID, secretRef, phrase string) (*UnlockResult, error) {
-	spec, ok := secrets.Lookup(secretRef)
+	secret, ok := secrets.Lookup(secretRef)
 	if !ok {
 		return nil, ErrInvalidRequest
 	}
 	sum := sha256.Sum256([]byte(phrase))
-	if hex.EncodeToString(sum[:]) != spec.ExpectedHash {
+	if hex.EncodeToString(sum[:]) != secret.ExpectedHash {
 		return nil, ErrInvalidRequest
 	}
 
-	parent, hasParent := secrets.ParentOf(spec.ID)
+	parent, hasParent := secrets.ParentOf(secret.ID)
 	if hasParent && parent.Title != "" {
 		alreadySolved, err := s.repo.IsSolvedByAnyone(ctx, string(parent.ID))
 		if err != nil {
@@ -74,7 +75,7 @@ func (s *service) Unlock(ctx context.Context, userID uuid.UUID, secretRef, phras
 		}
 	}
 
-	if len(spec.Pieces) > 0 {
+	if len(secret.Pieces) > 0 {
 		owned, err := s.repo.ListForUser(ctx, userID)
 		if err != nil {
 			return nil, err
@@ -83,24 +84,24 @@ func (s *service) Unlock(ctx context.Context, userID uuid.UUID, secretRef, phras
 		for _, id := range owned {
 			ownedSet[id] = struct{}{}
 		}
-		for _, piece := range spec.Pieces {
+		for _, piece := range secret.Pieces {
 			if _, ok := ownedSet[string(piece.ID)]; !ok {
 				return nil, ErrInvalidRequest
 			}
 		}
 	}
 
-	if err := s.repo.Unlock(ctx, userID, string(spec.ID)); err != nil {
+	if err := s.repo.Unlock(ctx, spec.SecretUnlock{UserID: userID, SecretID: string(secret.ID)}); err != nil {
 		return nil, err
 	}
 
 	result := &UnlockResult{
-		Spec:      &spec,
+		Spec:      new(secret),
 		HasParent: hasParent && parent.Title != "",
 	}
 	if result.HasParent {
 		result.Parent = new(parent)
-		result.IsParent = spec.ID == parent.ID
+		result.IsParent = secret.ID == parent.ID
 	}
 	return result, nil
 }

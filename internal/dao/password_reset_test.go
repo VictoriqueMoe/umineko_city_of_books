@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +19,7 @@ func TestPasswordReset_CreateAndGet(t *testing.T) {
 	expiresAt := time.Now().Add(time.Hour)
 
 	// when
-	err := repos.PasswordReset.Create(context.Background(), "hash-abc", user.ID, expiresAt)
+	err := repos.PasswordReset.Create(context.Background(), spec.NewPasswordReset{TokenHash: "hash-abc", UserID: user.ID, ExpiresAt: expiresAt})
 	require.NoError(t, err)
 	got, err := repos.PasswordReset.GetByTokenHash(context.Background(), "hash-abc")
 
@@ -48,7 +48,7 @@ func TestPasswordReset_MarkUsed(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("usedtoken"))
-	require.NoError(t, repos.PasswordReset.Create(context.Background(), "hash-used", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.PasswordReset.Create(context.Background(), spec.NewPasswordReset{TokenHash: "hash-used", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
 	err := repos.PasswordReset.MarkUsed(context.Background(), "hash-used")
@@ -65,9 +65,9 @@ func TestPasswordReset_DeleteUnusedForUser(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("cleartokens"))
-	require.NoError(t, repos.PasswordReset.Create(context.Background(), "hash-old", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.PasswordReset.Create(context.Background(), spec.NewPasswordReset{TokenHash: "hash-old", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 	require.NoError(t, repos.PasswordReset.MarkUsed(context.Background(), "hash-old"))
-	require.NoError(t, repos.PasswordReset.Create(context.Background(), "hash-new", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.PasswordReset.Create(context.Background(), spec.NewPasswordReset{TokenHash: "hash-new", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
 	err := repos.PasswordReset.DeleteUnusedForUser(context.Background(), user.ID)
@@ -87,10 +87,10 @@ func TestPasswordReset_IssueReplacesUnusedTokens(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("resetissue"))
-	require.NoError(t, repos.PasswordReset.Create(context.Background(), "hash-stale", user.ID, time.Now().Add(time.Hour)))
+	require.NoError(t, repos.PasswordReset.Create(context.Background(), spec.NewPasswordReset{TokenHash: "hash-stale", UserID: user.ID, ExpiresAt: time.Now().Add(time.Hour)}))
 
 	// when
-	err := repos.PasswordReset.Issue(context.Background(), repository.NewPasswordReset{
+	err := repos.PasswordReset.Issue(context.Background(), spec.NewPasswordReset{
 		TokenHash: "hash-fresh",
 		UserID:    user.ID,
 		ExpiresAt: time.Now().Add(time.Hour),

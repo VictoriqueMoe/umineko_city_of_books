@@ -6,12 +6,13 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ func TestGetMystery_Solved_LoadsCommentsAndWinner(t *testing.T) {
 	author := uuid.New()
 	viewer := uuid.New()
 	winnerID := uuid.New()
-	row := &repository.MysteryRow{
+	row := &model.MysteryRow{
 		ID:                id,
 		UserID:            author,
 		Solved:            true,
@@ -37,14 +38,14 @@ func TestGetMystery_Solved_LoadsCommentsAndWinner(t *testing.T) {
 		WinnerRole:        new("user"),
 	}
 	commentID := uuid.New()
-	comments := []repository.CommentRow{{ID: commentID, UserID: author, Body: "post"}}
+	comments := []model.CommentRow{{ID: commentID, UserID: author, Body: "post"}}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: id, UserID: viewer}).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(nil, nil)
+	m.repo.EXPECT().GetAttempts(mock.Anything, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: viewer}).Return(nil, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, []uuid.UUID(nil)).Return(comments, 1, nil)
+	m.repo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{TargetID: id, ViewerID: viewer, Limit: 500, Offset: 0}).Return(comments, 1, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil).Maybe()
@@ -139,7 +140,7 @@ func TestCreateComment_RepoError(t *testing.T) {
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
 	stubAuthor(m, mid, authorID)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "hi").Return(nil, errors.New("boom"))
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: mid, UserID: userID, Body: "hi"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateComment(context.Background(), mid, userID, dto.CreateCommentRequest{Body: "hi"})
@@ -157,7 +158,7 @@ func TestCreateComment_OK(t *testing.T) {
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
 	stubAuthor(m, mid, authorID)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: mid, UserID: userID, Body: "hi"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "D"}, nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
@@ -184,8 +185,8 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	stubAuthor(m, mid, authorID)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.comments.EXPECT().
-		CreateComment(mock.Anything, mid, (*uuid.UUID)(nil), userID, "look at this @alice").
-		Return(&repository.CommentRow{ID: commentID}, nil)
+		CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: mid, UserID: userID, Body: "look at this @alice"}).
+		Return(&model.CommentRow{ID: commentID}, nil)
 	stubActor(m, userID, "Battler")
 	stubMentionOf(m, userID, mentionedID, "alice")
 
@@ -225,7 +226,7 @@ func TestCreateComment_Reply_NotifiesParentAuthor(t *testing.T) {
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
 	stubAuthor(m, mid, authorID)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, mid, &parentID, userID, "hi").Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewComment[uuid.UUID]{TargetID: mid, ParentID: &parentID, UserID: userID, Body: "hi"}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "D"}, nil).Maybe()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, parentID).Return(parentAuthor, nil).Maybe()
@@ -258,11 +259,11 @@ func TestUpdateComment_Admin(t *testing.T) {
 	commentAuthor := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(commentAuthor, nil)
-	m.repo.EXPECT().UpdateCommentAsAdmin(mock.Anything, id, "new").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "new", AsAdmin: true}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryCommentUpdateAdmin,
-		TargetType: repository.AuditTargetMysteryComment,
+		Action:     audit.ActionMysteryCommentUpdateAdmin,
+		TargetType: audit.TargetMysteryComment,
 		TargetID:   id.String(),
 		SubjectID:  commentAuthor,
 	}).Return(nil)
@@ -281,7 +282,7 @@ func TestUpdateComment_ModeratorEditingOwnComment_WritesNoAuditRow(t *testing.T)
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().UpdateCommentAsAdmin(mock.Anything, id, "new").Return(nil)
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "new", AsAdmin: true}).Return(nil)
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "new"})
@@ -297,7 +298,7 @@ func TestUpdateComment_Owner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(false)
-	m.repo.EXPECT().UpdateComment(mock.Anything, id, userID, "new").Return(nil)
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{CommentID: id, UserID: userID, Body: "new"}).Return(nil)
 
 	// when
 	err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "new"})
@@ -312,7 +313,7 @@ func TestDeleteComment_Admin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, repository.MysteryCommentDelete{ID: id, UserID: userID, AsAdmin: true}).Return([]string{"/uploads/mystery/c.png", "/uploads/mystery/c_thumb.png"}, nil)
+	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID, AsAdmin: true}).Return([]string{"/uploads/mystery/c.png", "/uploads/mystery/c_thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery/c.png", "/uploads/mystery/c_thumb.png"})
 
 	// when
@@ -328,7 +329,7 @@ func TestDeleteComment_Owner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, repository.MysteryCommentDelete{ID: id, UserID: userID}).Return([]string{"/uploads/mystery/c.png"}, nil)
+	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID}).Return([]string{"/uploads/mystery/c.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/mystery/c.png"})
 
 	// when
@@ -344,7 +345,7 @@ func TestDeleteComment_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, repository.MysteryCommentDelete{ID: id, UserID: userID}).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: id, UserID: userID}).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -391,7 +392,7 @@ func TestLikeComment_OK(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().LikeComment(mock.Anything, userID, cid).Return(nil)
+	m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: cid}).Return(nil)
 
 	// when
 	err := svc.LikeComment(context.Background(), userID, cid)
@@ -405,7 +406,7 @@ func TestUnlikeComment_Delegates(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	cid := uuid.New()
-	m.repo.EXPECT().UnlikeComment(mock.Anything, userID, cid).Return(nil)
+	m.repo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: cid}).Return(nil)
 
 	// when
 	err := svc.UnlikeComment(context.Background(), userID, cid)

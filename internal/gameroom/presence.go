@@ -5,6 +5,7 @@ import (
 	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -18,7 +19,7 @@ func (s *service) HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID
 	if err != nil || row == nil {
 		return
 	}
-	isParticipant, err := s.repo.IsParticipant(ctx, roomID, userID)
+	isParticipant, err := s.repo.IsParticipant(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return
 	}
@@ -38,7 +39,7 @@ func (s *service) HandleClientJoin(ctx context.Context, userID, roomID uuid.UUID
 		delete(st.disconnectedAt, userID)
 		st.players[userID]++
 		s.mu.Unlock()
-		_ = s.repo.TouchPlayerSeen(ctx, roomID, userID)
+		_ = s.repo.TouchPlayerSeen(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
 		if timerCleared {
 			s.hub.SendToUser(userID, ws.Message{
 				Type: "game_forfeit_cleared",
@@ -152,7 +153,7 @@ func (s *service) CancelIdleGames(ctx context.Context) (int, error) {
 
 	count := 0
 	for _, row := range rows {
-		cancelled, err := s.repo.CancelIdleRoom(ctx, row.ID, idleSince)
+		cancelled, err := s.repo.CancelIdleRoom(ctx, spec.GameRoomIdleCancel{RoomID: row.ID, IdleSince: idleSince})
 		if err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Str("room_id", row.ID.String()).Msg("cancel idle game")
 			continue
@@ -222,7 +223,7 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	if !ok {
 		return
 	}
-	slot, err := s.repo.GetPlayerSlot(ctx, roomID, userID)
+	slot, err := s.repo.GetPlayerSlot(ctx, spec.GameRoomPlayerRef{RoomID: roomID, UserID: userID})
 	if err != nil {
 		return
 	}
@@ -241,7 +242,13 @@ func (s *service) graceExpired(userID, roomID uuid.UUID) {
 	}
 	winner := winnerUserID(res.WinnerSlot, players)
 
-	if err := s.repo.FinishRoom(ctx, roomID, string(dto.GameStatusAbandoned), winner, res.Result, row.StateJSON); err != nil {
+	if err := s.repo.FinishRoom(ctx, spec.GameRoomFinish{
+		RoomID:    roomID,
+		Status:    string(dto.GameStatusAbandoned),
+		WinnerID:  winner,
+		Result:    res.Result,
+		StateJSON: row.StateJSON,
+	}); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("finish room after grace expired")
 		return
 	}

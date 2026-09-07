@@ -5,10 +5,20 @@ import (
 	"database/sql"
 	"fmt"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	HomeFeedDAO interface {
+		ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeActivityRow, error)
+		ListEchoes(ctx context.Context, q spec.HomeEchoQuery, tx ...*sql.Tx) ([]model.HomeEchoRow, error)
+		ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeMemberRow, error)
+		ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomePublicRoomRow, error)
+		ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]model.HomeCornerActivityRow, error)
+		ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]model.SidebarActivityEntry, error)
+	}
+
 	homeFeedDAO struct {
 		db *sql.DB
 	}
@@ -43,16 +53,16 @@ ORDER BY f.created_at DESC
 LIMIT $1
 `
 
-func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomeActivityRow, error) {
+func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeActivityRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeActivitySQL, limit)
 	if err != nil {
 		return nil, fmt.Errorf("home feed activity: %w", err)
 	}
 	defer rows.Close()
 
-	var out []repository.HomeActivityRow
+	var out []model.HomeActivityRow
 	for rows.Next() {
-		var row repository.HomeActivityRow
+		var row model.HomeActivityRow
 		if err := rows.Scan(&row.Kind, &row.ID, &row.Title, &row.Body, &row.Corner, &row.CreatedAt,
 			&row.AuthorID, &row.Username, &row.DisplayName, &row.AvatarURL); err != nil {
 			return nil, fmt.Errorf("scan home activity: %w", err)
@@ -62,7 +72,7 @@ func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*
 	return out, rows.Err()
 }
 
-func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomeMemberRow, error) {
+func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeMemberRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, username, display_name, avatar_url, created_at
 		 FROM users
@@ -75,9 +85,9 @@ func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*s
 	}
 	defer rows.Close()
 
-	var out []repository.HomeMemberRow
+	var out []model.HomeMemberRow
 	for rows.Next() {
-		var m repository.HomeMemberRow
+		var m model.HomeMemberRow
 		if err := rows.Scan(&m.ID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan home member: %w", err)
 		}
@@ -86,7 +96,7 @@ func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*s
 	return out, rows.Err()
 }
 
-func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]repository.HomeCornerActivityRow, error) {
+func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]model.HomeCornerActivityRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT p.corner,
 		        COUNT(*) AS post_count,
@@ -102,9 +112,9 @@ func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) 
 	}
 	defer rows.Close()
 
-	var out []repository.HomeCornerActivityRow
+	var out []model.HomeCornerActivityRow
 	for rows.Next() {
-		var c repository.HomeCornerActivityRow
+		var c model.HomeCornerActivityRow
 		if err := rows.Scan(&c.Corner, &c.PostCount, &c.UniquePosters, &c.LastPostAt); err != nil {
 			return nil, fmt.Errorf("scan corner activity: %w", err)
 		}
@@ -133,14 +143,14 @@ UNION ALL
 SELECT 'rooms' AS key, MAX(created_at) AS latest_at FROM chat_rooms WHERE type = 'group' AND is_public = TRUE AND is_system = FALSE
 `
 
-func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]repository.SidebarActivityEntry, error) {
+func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]model.SidebarActivityEntry, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sidebarActivitySQL)
 	if err != nil {
 		return nil, fmt.Errorf("sidebar activity: %w", err)
 	}
 	defer rows.Close()
 
-	var out []repository.SidebarActivityEntry
+	var out []model.SidebarActivityEntry
 	for rows.Next() {
 		var key string
 		var latest sql.NullString
@@ -150,12 +160,12 @@ func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([
 		if !latest.Valid {
 			continue
 		}
-		out = append(out, repository.SidebarActivityEntry{Key: key, LatestAt: latest.String})
+		out = append(out, model.SidebarActivityEntry{Key: key, LatestAt: latest.String})
 	}
 	return out, rows.Err()
 }
 
-func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.HomePublicRoomRow, error) {
+func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomePublicRoomRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description,
 		        (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count,
@@ -170,9 +180,9 @@ func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql
 	}
 	defer rows.Close()
 
-	var out []repository.HomePublicRoomRow
+	var out []model.HomePublicRoomRow
 	for rows.Next() {
-		var rr repository.HomePublicRoomRow
+		var rr model.HomePublicRoomRow
 		if err := rows.Scan(&rr.ID, &rr.Name, &rr.Description, &rr.MemberCount, &rr.LastMessageAt); err != nil {
 			return nil, fmt.Errorf("scan public room: %w", err)
 		}
@@ -212,16 +222,16 @@ ORDER BY f.created_at DESC
 LIMIT $2
 `
 
-func (r *homeFeedDAO) ListEchoes(ctx context.Context, ago string, limit int, tx ...*sql.Tx) ([]repository.HomeEchoRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeEchoSQL, ago, limit)
+func (r *homeFeedDAO) ListEchoes(ctx context.Context, q spec.HomeEchoQuery, tx ...*sql.Tx) ([]model.HomeEchoRow, error) {
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeEchoSQL, q.Ago, q.Limit)
 	if err != nil {
 		return nil, fmt.Errorf("home feed echoes: %w", err)
 	}
 	defer rows.Close()
 
-	var out []repository.HomeEchoRow
+	var out []model.HomeEchoRow
 	for rows.Next() {
-		var row repository.HomeEchoRow
+		var row model.HomeEchoRow
 		if err := rows.Scan(&row.Kind, &row.ID, &row.Title, &row.Body, &row.Corner, &row.Episode, &row.IsSpoiler, &row.CreatedAt,
 			&row.AuthorID, &row.Username, &row.DisplayName, &row.AvatarURL); err != nil {
 			return nil, fmt.Errorf("scan home echo: %w", err)

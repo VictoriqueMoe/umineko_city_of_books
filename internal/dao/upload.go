@@ -8,12 +8,18 @@ import (
 	"strings"
 )
 
-var safeIdentifier = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
-
 type (
+	UploadDAO interface {
+		GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error)
+	}
+
 	uploadDAO struct {
 		db *sql.DB
 	}
+)
+
+var (
+	safeIdentifier = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 )
 
 func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
@@ -21,6 +27,7 @@ func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	if query == "" {
 		return nil, nil
 	}
@@ -37,11 +44,13 @@ func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 		if err := rows.Scan(&url); err != nil {
 			continue
 		}
+
 		url = strings.TrimSpace(url)
 		if url != "" {
 			results = append(results, url)
 		}
 	}
+
 	return results, rows.Err()
 }
 
@@ -64,14 +73,18 @@ func (r *uploadDAO) buildUnionQuery(tx ...*sql.Tx) (string, error) {
 		if err := rows.Scan(&table, &column); err != nil {
 			continue
 		}
+
 		if !safeIdentifier.MatchString(table) {
 			continue
 		}
+
 		if !safeIdentifier.MatchString(column) {
 			continue
 		}
+
 		parts = append(parts, fmt.Sprintf(`SELECT DISTINCT "%s" FROM "%s" WHERE "%s" LIKE '/uploads/%%'`, column, table, column))
 	}
+
 	if err := rows.Err(); err != nil {
 		return "", fmt.Errorf("iterate text columns: %w", err)
 	}

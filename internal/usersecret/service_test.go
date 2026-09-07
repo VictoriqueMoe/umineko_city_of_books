@@ -7,6 +7,7 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/usersecret"
@@ -108,7 +109,7 @@ func TestService_Unlock_PieceSucceeds(t *testing.T) {
 	svc := usersecret.NewService(repo)
 	userID := uuid.New()
 	repo.EXPECT().IsSolvedByAnyone(mock.Anything, string(testParentID)).Return(false, nil)
-	repo.EXPECT().Unlock(mock.Anything, userID, string(testChildID)).Return(nil)
+	repo.EXPECT().Unlock(mock.Anything, spec.SecretUnlock{UserID: userID, SecretID: string(testChildID)}).Return(nil)
 
 	// when
 	result, err := svc.Unlock(context.Background(), userID, string(testChildID), childPhrase)
@@ -130,7 +131,7 @@ func TestService_Unlock_ParentSucceedsWithAllPieces(t *testing.T) {
 	userID := uuid.New()
 	repo.EXPECT().IsSolvedByAnyone(mock.Anything, string(testParentID)).Return(false, nil)
 	repo.EXPECT().ListForUser(mock.Anything, userID).Return([]string{string(testChildID)}, nil)
-	repo.EXPECT().Unlock(mock.Anything, userID, string(testParentID)).Return(nil)
+	repo.EXPECT().Unlock(mock.Anything, spec.SecretUnlock{UserID: userID, SecretID: string(testParentID)}).Return(nil)
 
 	// when
 	result, err := svc.Unlock(context.Background(), userID, string(testParentID), parentPhrase)
@@ -148,7 +149,7 @@ func TestService_Unlock_DBError(t *testing.T) {
 	svc := usersecret.NewService(repo)
 	userID := uuid.New()
 	repo.EXPECT().IsSolvedByAnyone(mock.Anything, string(testParentID)).Return(false, nil)
-	repo.EXPECT().Unlock(mock.Anything, userID, string(testChildID)).Return(errors.New("db down"))
+	repo.EXPECT().Unlock(mock.Anything, spec.SecretUnlock{UserID: userID, SecretID: string(testChildID)}).Return(errors.New("db down"))
 
 	// when
 	_, err := svc.Unlock(context.Background(), userID, string(testChildID), childPhrase)

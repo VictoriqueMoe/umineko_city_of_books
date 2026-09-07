@@ -12,12 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/reserved"
@@ -108,7 +111,7 @@ func NewService(
 	}
 }
 
-func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -163,7 +166,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", ErrInvalidEmail
 	}
 
-	inUse, err := s.userRepo.EmailInUse(ctx, email, uuid.Nil)
+	inUse, err := s.userRepo.EmailInUse(ctx, spec.UserEmailFilter{Email: email, ExcludeUserID: uuid.Nil})
 	if err != nil {
 		return nil, "", fmt.Errorf("check email: %w", err)
 	}
@@ -199,7 +202,7 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 		return nil, "", fmt.Errorf("create session: %w", err)
 	}
 
-	spec := repository.NewRegistration{
+	registration := spec.NewRegistration{
 		Account:               account,
 		VerificationHash:      verificationHash,
 		VerificationExpiresAt: time.Now().Add(verifyTokenTTL),
@@ -208,12 +211,12 @@ func (s *service) Register(ctx context.Context, req dto.RegisterRequest) (*dto.U
 	}
 
 	if regType == "invite" {
-		spec.InviteCode = req.InviteCode
+		registration.InviteCode = req.InviteCode
 	}
 
-	created, err := s.userRepo.RegisterAccount(ctx, spec)
+	created, err := s.userRepo.RegisterAccount(ctx, registration)
 	if err != nil {
-		if errors.Is(err, repository.ErrInviteUnavailable) {
+		if errors.Is(err, dao.ErrInviteUnavailable) {
 			return nil, "", ErrInvalidInvite
 		}
 
@@ -240,10 +243,10 @@ func (s *service) Login(ctx context.Context, req dto.LoginRequest) (*dto.UserRes
 	}
 
 	if banned {
-		s.audit(ctx, repository.NewAuditEntry{
+		s.audit(ctx, audit.NewEntry{
 			ActorID:    userResp.ID,
-			Action:     repository.AuditActionLoginBanned,
-			TargetType: repository.AuditTargetUser,
+			Action:     audit.ActionLoginBanned,
+			TargetType: audit.TargetUser,
 			TargetID:   userResp.ID.String(),
 			Details:    "username=" + userResp.Username,
 			SubjectID:  userResp.ID,
@@ -292,13 +295,13 @@ func (s *service) ForgotPassword(ctx context.Context, username string) error {
 		return fmt.Errorf("generate reset token: %w", err)
 	}
 
-	spec := repository.NewPasswordReset{
+	reset := spec.NewPasswordReset{
 		TokenHash: hash,
 		UserID:    usr.ID,
 		ExpiresAt: time.Now().Add(resetTokenTTL),
 	}
 
-	if err := s.resetRepo.Issue(ctx, spec); err != nil {
+	if err := s.resetRepo.Issue(ctx, reset); err != nil {
 		return fmt.Errorf("store reset token: %w", err)
 	}
 
@@ -339,13 +342,13 @@ func (s *service) ResetPassword(ctx context.Context, token, newPassword string) 
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	spec := repository.PasswordUpdate{
+	update := spec.PasswordUpdate{
 		UserID:       rec.UserID,
 		PasswordHash: string(passwordHash),
 		TokenHash:    hash,
 	}
 
-	if err := s.userRepo.ResetPassword(ctx, spec); err != nil {
+	if err := s.userRepo.ResetPassword(ctx, update); err != nil {
 		return err
 	}
 
@@ -384,7 +387,7 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, 
 		return ErrIncorrectPassword
 	}
 
-	inUse, err := s.userRepo.EmailInUse(ctx, email, userID)
+	inUse, err := s.userRepo.EmailInUse(ctx, spec.UserEmailFilter{Email: email, ExcludeUserID: userID})
 	if err != nil {
 		return fmt.Errorf("check email: %w", err)
 	}
@@ -397,7 +400,7 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, 
 		return fmt.Errorf("get user: %w", err)
 	}
 
-	if err := s.userRepo.SetEmail(ctx, userID, email); err != nil {
+	if err := s.userRepo.SetEmail(ctx, spec.UserEmailUpdate{UserID: userID, Email: email}); err != nil {
 		return fmt.Errorf("set email: %w", err)
 	}
 
@@ -406,10 +409,10 @@ func (s *service) SetEmail(ctx context.Context, userID uuid.UUID, email string, 
 		previousEmail = previous.Email
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangeEmail,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangeEmail,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    changeDetails(previousEmail, email),
 		SubjectID:  userID,
@@ -430,7 +433,7 @@ func (s *service) SetEmailForUser(ctx context.Context, userID uuid.UUID, email s
 		return ErrInvalidEmail
 	}
 
-	inUse, err := s.userRepo.EmailInUse(ctx, email, userID)
+	inUse, err := s.userRepo.EmailInUse(ctx, spec.UserEmailFilter{Email: email, ExcludeUserID: userID})
 	if err != nil {
 		return fmt.Errorf("check email: %w", err)
 	}
@@ -446,7 +449,7 @@ func (s *service) SetEmailForUser(ctx context.Context, userID uuid.UUID, email s
 		return ErrUserNotFound
 	}
 
-	if err := s.userRepo.SetEmail(ctx, userID, email); err != nil {
+	if err := s.userRepo.SetEmail(ctx, spec.UserEmailUpdate{UserID: userID, Email: email}); err != nil {
 		return fmt.Errorf("set email: %w", err)
 	}
 
@@ -474,7 +477,7 @@ func (s *service) MarkEmailVerified(ctx context.Context, userID uuid.UUID) error
 		return ErrEmailAlreadyVerified
 	}
 
-	return s.userRepo.SetEmailVerified(ctx, userID, true)
+	return s.userRepo.SetEmailVerified(ctx, spec.UserEmailVerification{UserID: userID, Verified: true})
 }
 
 func (s *service) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) error {
@@ -492,7 +495,7 @@ func (s *service) MarkEmailUnverified(ctx context.Context, userID uuid.UUID) err
 		return ErrEmailNotVerified
 	}
 
-	return s.userRepo.SetEmailVerified(ctx, userID, false)
+	return s.userRepo.SetEmailVerified(ctx, spec.UserEmailVerification{UserID: userID, Verified: false})
 }
 
 func (s *service) notifyEmailChanged(ctx context.Context, previousEmail, newEmail string) {
@@ -523,7 +526,7 @@ func (s *service) VerifyEmail(ctx context.Context, token string) error {
 		return ErrInvalidVerificationToken
 	}
 
-	return s.userRepo.ConfirmEmailVerification(ctx, rec.UserID, hash)
+	return s.userRepo.ConfirmEmailVerification(ctx, spec.UserEmailConfirmation{UserID: rec.UserID, TokenHash: hash})
 }
 
 func (s *service) ResendVerification(ctx context.Context, userID uuid.UUID) error {
@@ -552,13 +555,13 @@ func (s *service) sendVerification(ctx context.Context, userID uuid.UUID, email 
 		return
 	}
 
-	spec := repository.NewEmailVerification{
+	verification := spec.NewEmailVerification{
 		TokenHash: hash,
 		UserID:    userID,
 		ExpiresAt: time.Now().Add(verifyTokenTTL),
 	}
 
-	if err := s.verifyRepo.Issue(ctx, spec); err != nil {
+	if err := s.verifyRepo.Issue(ctx, verification); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("user_id", userID.String()).Msg("failed to store verification token")
 		return
 	}

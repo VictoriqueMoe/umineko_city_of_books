@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/livekit"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
@@ -20,20 +22,20 @@ const (
 	participantMissing = "missing"
 )
 
-func participantRow(sessionID, userID uuid.UUID, state string) *repository.ChatWatchPartyParticipantRow {
+func participantRow(sessionID, userID uuid.UUID, state string) *model.ChatWatchPartyParticipantRow {
 	switch state {
 	case participantMissing:
 		return nil
 
 	case participantLeft:
-		return &repository.ChatWatchPartyParticipantRow{
+		return &model.ChatWatchPartyParticipantRow{
 			SessionID: sessionID,
 			UserID:    userID,
 			LeftAt:    sql.NullString{Valid: true, String: "2026-07-29T10:00:00Z"},
 		}
 
 	default:
-		return &repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID}
+		return &model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID}
 	}
 }
 
@@ -87,7 +89,7 @@ func TestWatchPartyMutations_RequireActiveRoomMembership(t *testing.T) {
 			targetID := uuid.New()
 
 			tc.setup(m)
-			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, callerID).Return(false, nil)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: callerID}).Return(false, nil)
 
 			// when they invoke the mutating watch party method
 			err := tc.call(svc, roomID, sessionID, callerID, targetID)
@@ -106,11 +108,11 @@ func TestLeaveWatchParty_NonMemberStillLeaves(t *testing.T) {
 	ownerID := uuid.New()
 	memberID := uuid.New()
 
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(participantRow(sessionID, memberID, participantActive), nil)
-	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(participantRow(sessionID, memberID, participantActive), nil)
+	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(nil)
 
 	// when they leave the party
 	err := svc.LeaveWatchParty(context.Background(), roomID, sessionID, memberID)
@@ -141,13 +143,13 @@ func TestForceMuteSessionVoice_RequiresActiveParticipants(t *testing.T) {
 			targetID := uuid.New()
 
 			expectVoiceConfigured(m, true)
-			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, callerID).Return(true, nil)
-			m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: callerID}).Return(true, nil)
+			m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 				ID: sessionID, RoomID: roomID, StartedBy: callerID, ControllerID: callerID, Status: "active", Type: watchPartyTypeScreenShare,
 			}, nil)
-			m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, callerID).Return(participantRow(sessionID, callerID, tc.caller), nil)
+			m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: callerID}).Return(participantRow(sessionID, callerID, tc.caller), nil)
 			if tc.caller == participantActive {
-				m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, targetID).Return(participantRow(sessionID, targetID, tc.target), nil)
+				m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: targetID}).Return(participantRow(sessionID, targetID, tc.target), nil)
 			}
 
 			// when the caller tries to force mute
@@ -187,13 +189,13 @@ func TestClearWatchPartyParticipation(t *testing.T) {
 			userID := uuid.New()
 			markedLeft := false
 
-			watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]repository.ChatWatchPartySessionRow{
+			watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]model.ChatWatchPartySessionRow{
 				{ID: sessionID, RoomID: roomID, Status: "active"},
 			}, nil)
-			watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(participantRow(sessionID, userID, tc.participant), nil)
+			watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).Return(participantRow(sessionID, userID, tc.participant), nil)
 			if tc.wantMarkedLeft {
-				watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, userID).
-					Run(func(ctx context.Context, sessionID uuid.UUID, userID uuid.UUID, _ ...*sql.Tx) { markedLeft = true }).
+				watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).
+					Run(func(_ context.Context, _ spec.WatchPartyParticipantRef, _ ...*sql.Tx) { markedLeft = true }).
 					Return(nil)
 				lk.EXPECT().RemoveParticipant(mock.Anything, voiceSessionRoomPrefix+sessionID.String(), userID.String()).Return(nil)
 			}
@@ -222,7 +224,7 @@ func TestEvictUserFromRoom_DropsLiveKitSession(t *testing.T) {
 	targetID := uuid.New()
 
 	chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
-	chatRepo.EXPECT().RemoveMember(mock.Anything, roomID, targetID).Return(nil)
+	chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: targetID}).Return(nil)
 	watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return(nil, nil)
 	lk.EXPECT().RemoveParticipant(mock.Anything, roomID.String(), targetID.String()).Return(nil)
 

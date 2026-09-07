@@ -6,8 +6,11 @@ import (
 	"fmt"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -23,7 +26,7 @@ func TestOptInRoleValidator(t *testing.T) {
 	cases := []struct {
 		name    string
 		value   string
-		row     *repository.VanityRoleRow
+		row     *model.VanityRoleRow
 		rowErr  error
 		perms   map[string][]string
 		wantErr error
@@ -39,7 +42,7 @@ func TestOptInRoleValidator(t *testing.T) {
 		{
 			name:  "vanity role carrying use_chatbot",
 			value: roleID,
-			row:   &repository.VanityRoleRow{ID: roleID, Label: "Characters"},
+			row:   &model.VanityRoleRow{ID: roleID, Label: "Characters"},
 			perms: map[string][]string{roleID: {string(authz.PermUseChatbot)}},
 		},
 		{
@@ -51,20 +54,20 @@ func TestOptInRoleValidator(t *testing.T) {
 		{
 			name:    "system vanity role",
 			value:   roleID,
-			row:     &repository.VanityRoleRow{ID: roleID, Label: "Bot", IsSystem: true},
+			row:     &model.VanityRoleRow{ID: roleID, Label: "Bot", IsSystem: true},
 			wantErr: ErrOptInRoleIsSystem,
 		},
 		{
 			name:    "vanity role without use_chatbot",
 			value:   roleID,
-			row:     &repository.VanityRoleRow{ID: roleID, Label: "Characters"},
+			row:     &model.VanityRoleRow{ID: roleID, Label: "Characters"},
 			perms:   map[string][]string{roleID: {string(authz.PermManageBannedWords)}},
 			wantErr: ErrOptInRoleNoChatbot,
 		},
 		{
 			name:    "vanity role with no permissions at all",
 			value:   roleID,
-			row:     &repository.VanityRoleRow{ID: roleID, Label: "Characters"},
+			row:     &model.VanityRoleRow{ID: roleID, Label: "Characters"},
 			perms:   map[string][]string{},
 			wantErr: ErrOptInRoleNoChatbot,
 		},
@@ -109,7 +112,7 @@ func TestOptInRoleValidator_RepositoryErrors(t *testing.T) {
 			// given
 			vanityRepo := repository.NewMockVanityRoleRepository(t)
 			permRepo := repository.NewMockPermissionRepository(t)
-			vanityRepo.EXPECT().GetByID(mock.Anything, "characters").Return(&repository.VanityRoleRow{ID: "characters"}, tc.rowErr)
+			vanityRepo.EXPECT().GetByID(mock.Anything, "characters").Return(&model.VanityRoleRow{ID: "characters"}, tc.rowErr)
 			permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, tc.permErr).Maybe()
 			validate := OptInRoleValidator(vanityRepo, permRepo)
 
@@ -132,10 +135,10 @@ func newTestMigrator(t *testing.T, current string) (*OptInRoleMigrator, *reposit
 	return NewOptInRoleMigrator(vanityRepo, auditRepo, settingsSvc), vanityRepo, auditRepo
 }
 
-func migrationEntry(from, to string, holders, moved, failed int) repository.NewAuditEntry {
-	return repository.NewAuditEntry{
-		Action:     repository.AuditActionChatbotOptInRoleMigrate,
-		TargetType: repository.AuditTargetVanityRole,
+func migrationEntry(from, to string, holders, moved, failed int) audit.NewEntry {
+	return audit.NewEntry{
+		Action:     audit.ActionChatbotOptInRoleMigrate,
+		TargetType: audit.TargetVanityRole,
 		TargetID:   to,
 		Details:    fmt.Sprintf("from=%s to=%s holders=%d moved=%d failed=%d", from, to, holders, moved, failed),
 	}
@@ -188,15 +191,15 @@ func TestOptInRoleMigrator_PlanRemembersTheLatestRole(t *testing.T) {
 	assert.False(t, second)
 }
 
-func moveSpec(userID uuid.UUID, from, to string) repository.VanityRoleMove {
-	return repository.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
+func moveSpec(userID uuid.UUID, from, to string) spec.VanityRoleMove {
+	return spec.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
 }
 
 func TestOptInRoleMigrator_MigrateMovesHolders(t *testing.T) {
 	// given
 	migrator, vanityRepo, auditRepo := newTestMigrator(t, "a")
-	holders := []repository.VanityRoleUserRow{{UserID: uuid.New()}, {UserID: uuid.New()}}
-	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(holders, len(holders), nil)
+	holders := []model.VanityRoleUserRow{{UserID: uuid.New()}, {UserID: uuid.New()}}
+	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "a", Limit: optInRolePageSize, Offset: 0}).Return(holders, len(holders), nil)
 	for _, holder := range holders {
 		vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(holder.UserID, "a", "b")).Return(nil)
 	}
@@ -212,14 +215,14 @@ func TestOptInRoleMigrator_MigrateMovesHolders(t *testing.T) {
 func TestOptInRoleMigrator_MigratePagesThroughHolders(t *testing.T) {
 	// given
 	migrator, vanityRepo, auditRepo := newTestMigrator(t, "a")
-	first := make([]repository.VanityRoleUserRow, optInRolePageSize)
+	first := make([]model.VanityRoleUserRow, optInRolePageSize)
 	for i := range first {
-		first[i] = repository.VanityRoleUserRow{UserID: uuid.New()}
+		first[i] = model.VanityRoleUserRow{UserID: uuid.New()}
 	}
-	second := []repository.VanityRoleUserRow{{UserID: uuid.New()}}
+	second := []model.VanityRoleUserRow{{UserID: uuid.New()}}
 	total := len(first) + len(second)
-	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(first, total, nil)
-	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, optInRolePageSize).Return(second, total, nil)
+	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "a", Limit: optInRolePageSize, Offset: 0}).Return(first, total, nil)
+	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "a", Limit: optInRolePageSize, Offset: optInRolePageSize}).Return(second, total, nil)
 	vanityRepo.EXPECT().MoveUserRole(mock.Anything, mock.Anything).Return(nil).Times(total)
 	auditRepo.EXPECT().CreateSystem(mock.Anything, migrationEntry("a", "b", total, total, 0)).Return(nil)
 
@@ -236,8 +239,8 @@ func TestOptInRoleMigrator_MigrateContinuesAfterFailures(t *testing.T) {
 	moveFails := uuid.New()
 	succeeds := uuid.New()
 	alsoSucceeds := uuid.New()
-	holders := []repository.VanityRoleUserRow{{UserID: moveFails}, {UserID: succeeds}, {UserID: alsoSucceeds}}
-	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(holders, len(holders), nil)
+	holders := []model.VanityRoleUserRow{{UserID: moveFails}, {UserID: succeeds}, {UserID: alsoSucceeds}}
+	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "a", Limit: optInRolePageSize, Offset: 0}).Return(holders, len(holders), nil)
 	vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(moveFails, "a", "b")).Return(errors.New("boom"))
 	vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(succeeds, "a", "b")).Return(nil)
 	vanityRepo.EXPECT().MoveUserRole(mock.Anything, moveSpec(alsoSucceeds, "a", "b")).Return(nil)
@@ -253,7 +256,7 @@ func TestOptInRoleMigrator_MigrateContinuesAfterFailures(t *testing.T) {
 func TestOptInRoleMigrator_MigrateStopsWhenHoldersCannotBeListed(t *testing.T) {
 	// given
 	migrator, vanityRepo, _ := newTestMigrator(t, "a")
-	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "a", "", optInRolePageSize, 0).Return(nil, 0, errors.New("boom"))
+	vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "a", Limit: optInRolePageSize, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	migrator.Migrate(context.Background(), "a", "b")

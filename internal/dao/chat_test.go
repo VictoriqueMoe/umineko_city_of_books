@@ -7,7 +7,8 @@ import (
 
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,11 +22,11 @@ func TestChatDAO_CreateRoom_Group(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Room", Description: "desc", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Room", Description: "desc", Type: "group", IsPublic: true, IsRP: false, CreatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, room.ID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.Equal(t, "Room", row.Name)
@@ -43,11 +44,11 @@ func TestChatDAO_CreateRoom_RPFlag(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "RP", Description: "", Type: "group", IsPublic: false, IsRP: true, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "RP", Description: "", Type: "group", IsPublic: false, IsRP: true, CreatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, room.ID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.True(t, row.IsRP)
@@ -62,11 +63,11 @@ func TestChatDAO_CreateSystemRoom(t *testing.T) {
 	roomID := uuid.New()
 
 	// when
-	_, err := repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: roomID, Name: "System", Description: "system room", SystemKind: "announcements", CreatedBy: user.ID})
+	_, err := repos.Chat.CreateSystemRoom(ctx, spec.NewChatSystemRoom{ID: roomID, Name: "System", Description: "system room", SystemKind: "announcements", CreatedBy: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.True(t, row.IsSystem)
@@ -80,7 +81,7 @@ func TestChatDAO_GetSystemRoomID_Found(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	roomID := uuid.New()
-	_, err := repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: roomID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: user.ID})
+	_, err := repos.Chat.CreateSystemRoom(ctx, spec.NewChatSystemRoom{ID: roomID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: user.ID})
 	require.NoError(t, err)
 
 	// when
@@ -112,7 +113,7 @@ func TestChatDAO_CreateDMRoomAtomic_New(t *testing.T) {
 	b := daotest.CreateUser(t, repos)
 
 	// when
-	gotRow, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	gotRow, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 
 	// then
 	require.NoError(t, err)
@@ -128,11 +129,11 @@ func TestChatDAO_CreateDMRoomAtomic_Idempotent(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	first, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	first, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 
 	// when
-	gotRow, err := repos.Chat.CreateDMRoomAtomic(ctx, b.ID, a.ID)
+	gotRow, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: b.ID, UserB: a.ID})
 
 	// then
 	require.NoError(t, err)
@@ -145,16 +146,16 @@ func TestChatDAO_AddMember(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	err = repos.Chat.AddMember(ctx, roomID, joiner.ID)
+	err = repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 
 	// then
 	require.NoError(t, err)
-	isMember, err := repos.Chat.IsMember(ctx, roomID, joiner.ID)
+	isMember, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.True(t, isMember)
 }
@@ -165,13 +166,13 @@ func TestChatDAO_AddMember_Idempotent(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, joiner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID}))
 
 	// when
-	err = repos.Chat.AddMember(ctx, roomID, joiner.ID)
+	err = repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 
 	// then
 	require.NoError(t, err)
@@ -186,16 +187,16 @@ func TestChatDAO_AddMemberWithRole(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	err = repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "host", false)
+	err = repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "host", Ghost: false})
 
 	// then
 	require.NoError(t, err)
-	role, err := repos.Chat.GetMemberRole(ctx, roomID, joiner.ID)
+	role, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "host", role)
 }
@@ -206,17 +207,17 @@ func TestChatDAO_SetMemberRole(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member", Ghost: false}))
 
 	// when
-	err = repos.Chat.SetMemberRole(ctx, roomID, joiner.ID, "host")
+	err = repos.Chat.SetMemberRole(ctx, spec.ChatMemberRoleUpdate{RoomID: roomID, UserID: joiner.ID, Role: "host"})
 
 	// then
 	require.NoError(t, err)
-	role, err := repos.Chat.GetMemberRole(ctx, roomID, joiner.ID)
+	role, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "host", role)
 }
@@ -227,12 +228,12 @@ func TestChatDAO_GetMemberRole_NotMember(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	role, err := repos.Chat.GetMemberRole(ctx, roomID, other.ID)
+	role, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: other.ID})
 
 	// then
 	require.NoError(t, err)
@@ -245,17 +246,17 @@ func TestChatDAO_RemoveMember(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, joiner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID}))
 
 	// when
-	err = repos.Chat.RemoveMember(ctx, roomID, joiner.ID)
+	err = repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 
 	// then
 	require.NoError(t, err)
-	isMember, err := repos.Chat.IsMember(ctx, roomID, joiner.ID)
+	isMember, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.False(t, isMember)
 }
@@ -267,11 +268,11 @@ func TestChatDAO_CountRoomMembers(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, a.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, b.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: b.ID}))
 
 	// when
 	count, err := repos.Chat.CountRoomMembers(ctx, roomID)
@@ -286,7 +287,7 @@ func TestChatDAO_CountRoomMembers_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
@@ -303,7 +304,7 @@ func TestChatDAO_DeleteRoom(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
@@ -312,7 +313,7 @@ func TestChatDAO_DeleteRoom(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, owner.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: owner.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -324,7 +325,7 @@ func TestChatDAO_GetRoomByID_NotFound(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	row, err := repos.Chat.GetRoomByID(ctx, uuid.New(), user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: uuid.New(), ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -337,12 +338,12 @@ func TestChatDAO_GetRoomByID_NonMember(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, viewer.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: viewer.ID})
 
 	// then
 	require.NoError(t, err)
@@ -356,13 +357,13 @@ func TestChatDAO_GetRoomByID_Member(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: owner.ID, Role: "host", Ghost: false}))
 
 	// when
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, owner.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: owner.ID})
 
 	// then
 	require.NoError(t, err)
@@ -376,13 +377,13 @@ func TestChatDAO_GetRoomByID_IncludesTags(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, roomID, []string{"lore", "rp"}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"lore", "rp"}}))
 
 	// when
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, owner.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: owner.ID})
 
 	// then
 	require.NoError(t, err)
@@ -397,11 +398,11 @@ func TestChatDAO_GetRoomMembers(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, a.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, b.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: b.ID}))
 
 	// when
 	members, err := repos.Chat.GetRoomMembers(ctx, roomID)
@@ -416,7 +417,7 @@ func TestChatDAO_GetRoomMembers_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
@@ -434,11 +435,11 @@ func TestChatDAO_GetRoomMembersDetailed(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos, daotest.WithDisplayName("Owner"))
 	member := daotest.CreateUser(t, repos, daotest.WithDisplayName("Member"))
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: owner.ID, Role: "host", Ghost: false}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: member.ID, Role: "member", Ghost: false}))
 
 	// when
 	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
@@ -457,13 +458,13 @@ func TestChatDAO_IsMember_True(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, owner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID}))
 
 	// when
-	ok, err := repos.Chat.IsMember(ctx, roomID, owner.ID)
+	ok, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID})
 
 	// then
 	require.NoError(t, err)
@@ -476,12 +477,12 @@ func TestChatDAO_IsMember_False(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	ok, err := repos.Chat.IsMember(ctx, roomID, other.ID)
+	ok, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: other.ID})
 
 	// then
 	require.NoError(t, err)
@@ -493,17 +494,17 @@ func TestChatDAO_SetMuted_And_IsMuted(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, owner.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID}))
 
 	// when
-	err = repos.Chat.SetMuted(ctx, roomID, owner.ID, true)
+	err = repos.Chat.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: owner.ID, Muted: true})
 
 	// then
 	require.NoError(t, err)
-	muted, err := repos.Chat.IsMuted(ctx, roomID, owner.ID)
+	muted, err := repos.Chat.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID})
 	require.NoError(t, err)
 	assert.True(t, muted)
 }
@@ -513,18 +514,18 @@ func TestChatDAO_IsMuted_Unmute(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, owner.ID))
-	require.NoError(t, repos.Chat.SetMuted(ctx, roomID, owner.ID, true))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID}))
+	require.NoError(t, repos.Chat.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: owner.ID, Muted: true}))
 
 	// when
-	err = repos.Chat.SetMuted(ctx, roomID, owner.ID, false)
+	err = repos.Chat.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: owner.ID, Muted: false})
 
 	// then
 	require.NoError(t, err)
-	muted, err := repos.Chat.IsMuted(ctx, roomID, owner.ID)
+	muted, err := repos.Chat.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID})
 	require.NoError(t, err)
 	assert.False(t, muted)
 }
@@ -535,12 +536,12 @@ func TestChatDAO_IsMuted_NotMember(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	muted, err := repos.Chat.IsMuted(ctx, roomID, other.ID)
+	muted, err := repos.Chat.IsMuted(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: other.ID})
 
 	// then
 	require.NoError(t, err)
@@ -554,12 +555,12 @@ func TestChatDAO_GetRoomMembersUnmuted(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, a.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, b.ID))
-	require.NoError(t, repos.Chat.SetMuted(ctx, roomID, a.ID, true))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: b.ID}))
+	require.NoError(t, repos.Chat.SetMuted(ctx, spec.ChatMemberMuteUpdate{RoomID: roomID, UserID: a.ID, Muted: true}))
 
 	// when
 	members, err := repos.Chat.GetRoomMembersUnmuted(ctx, roomID)
@@ -575,12 +576,12 @@ func TestChatDAO_FindDMRoom_Found(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	got, err := repos.Chat.FindDMRoom(ctx, a.ID, b.ID)
+	got, err := repos.Chat.FindDMRoom(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 
 	// then
 	require.NoError(t, err)
@@ -595,7 +596,7 @@ func TestChatDAO_FindDMRoom_NotFound(t *testing.T) {
 	b := daotest.CreateUser(t, repos)
 
 	// when
-	got, err := repos.Chat.FindDMRoom(ctx, a.ID, b.ID)
+	got, err := repos.Chat.FindDMRoom(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 
 	// then
 	require.NoError(t, err)
@@ -607,12 +608,12 @@ func TestChatDAO_AddRoomTags(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	err = repos.Chat.AddRoomTags(ctx, roomID, []string{"a", "b"})
+	err = repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"a", "b"}})
 
 	// then
 	require.NoError(t, err)
@@ -626,12 +627,12 @@ func TestChatDAO_AddRoomTags_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	err = repos.Chat.AddRoomTags(ctx, roomID, nil)
+	err = repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: nil})
 
 	// then
 	require.NoError(t, err)
@@ -645,12 +646,12 @@ func TestChatDAO_AddRoomTags_SkipEmptyStrings(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	err = repos.Chat.AddRoomTags(ctx, roomID, []string{"valid", "", "also"})
+	err = repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"valid", "", "also"}})
 
 	// then
 	require.NoError(t, err)
@@ -664,13 +665,13 @@ func TestChatDAO_AddRoomTags_Idempotent(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, roomID, []string{"x"}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"x"}}))
 
 	// when
-	err = repos.Chat.AddRoomTags(ctx, roomID, []string{"x", "y"})
+	err = repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"x", "y"}})
 
 	// then
 	require.NoError(t, err)
@@ -684,13 +685,13 @@ func TestChatDAO_ReplaceRoomTags(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, roomID, []string{"old1", "old2"}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"old1", "old2"}}))
 
 	// when
-	err = repos.Chat.ReplaceRoomTags(ctx, roomID, []string{"new1", "new2"})
+	err = repos.Chat.ReplaceRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"new1", "new2"}})
 
 	// then
 	require.NoError(t, err)
@@ -704,13 +705,13 @@ func TestChatDAO_ReplaceRoomTags_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, roomID, []string{"a"}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"a"}}))
 
 	// when
-	err = repos.Chat.ReplaceRoomTags(ctx, roomID, nil)
+	err = repos.Chat.ReplaceRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: nil})
 
 	// then
 	require.NoError(t, err)
@@ -724,7 +725,7 @@ func TestChatDAO_GetRoomTags_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
@@ -741,14 +742,14 @@ func TestChatDAO_GetRoomTagsBatch(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room1Row, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "r1", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room1Row, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "r1", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	room1 := room1Row.ID
-	room2Row, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "r2", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room2Row, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "r2", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	room2 := room2Row.ID
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, room1, []string{"t1", "t2"}))
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, room2, []string{"t3"}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: room1, Tags: []string{"t1", "t2"}}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: room2, Tags: []string{"t3"}}))
 
 	// when
 	got, err := repos.Chat.GetRoomTagsBatch(ctx, []uuid.UUID{room1, room2})
@@ -778,14 +779,14 @@ func TestChatDAO_GetRoomsByUser(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	r1Row, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R1", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	r1Row, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R1", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	r1 := r1Row.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, r1, user.ID, "host", false))
-	r2Row, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R2", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: other.ID})
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: r1, UserID: user.ID, Role: "host", Ghost: false}))
+	r2Row, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R2", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: other.ID})
 	require.NoError(t, err)
 	r2 := r2Row.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, r2, other.ID, "host", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: r2, UserID: other.ID, Role: "host", Ghost: false}))
 
 	// when
 	rooms, err := repos.Chat.GetRoomsByUser(ctx, user.ID)
@@ -817,13 +818,13 @@ func TestChatDAO_GetRoomsByUser_SystemFirst(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	sysID := uuid.New()
-	normal, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Normal", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	normal, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Normal", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	normalID := normal.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, normalID, user.ID))
-	_, err = repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: sysID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: user.ID})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: normalID, UserID: user.ID}))
+	_, err = repos.Chat.CreateSystemRoom(ctx, spec.NewChatSystemRoom{ID: sysID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: user.ID})
 	require.NoError(t, err)
-	require.NoError(t, repos.Chat.AddMember(ctx, sysID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: sysID, UserID: user.ID}))
 
 	// when
 	rooms, err := repos.Chat.GetRoomsByUser(ctx, user.ID)
@@ -840,11 +841,11 @@ func TestChatDAO_GetRoomsByUser_IncludesTags(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, roomID, []string{"lore"}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: roomID, Tags: []string{"lore"}}))
 
 	// when
 	rooms, err := repos.Chat.GetRoomsByUser(ctx, user.ID)
@@ -860,13 +861,13 @@ func TestChatDAO_ListUserGroupRooms_Basic(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Alpha", Description: "about alpha", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Alpha", Description: "about alpha", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, user.ID, "host", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: user.ID, Role: "host", Ghost: false}))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", false, 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, UserID: user.ID, Role: ""})
 
 	// then
 	require.NoError(t, err)
@@ -880,17 +881,17 @@ func TestChatDAO_ListUserGroupRooms_SearchFilter(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	aRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Apples", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	aRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Apples", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	a := aRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, a, user.ID))
-	bRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Bananas", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: a, UserID: user.ID}))
+	bRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Bananas", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	b := bRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, b, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: b, UserID: user.ID}))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "Apple", false, "", "", false, 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "Apple", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, UserID: user.ID, Role: ""})
 
 	// then
 	require.NoError(t, err)
@@ -904,17 +905,17 @@ func TestChatDAO_ListUserGroupRooms_RPOnlyFilter(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	normalRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Normal", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	normalRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Normal", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	normal := normalRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, normal, user.ID))
-	rpRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "RP", Description: "", Type: "group", IsPublic: false, IsRP: true, CreatedBy: user.ID})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: normal, UserID: user.ID}))
+	rpRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "RP", Description: "", Type: "group", IsPublic: false, IsRP: true, CreatedBy: user.ID})
 	require.NoError(t, err)
 	rp := rpRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, rp, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: rp, UserID: user.ID}))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", true, "", "", false, 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: true, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, UserID: user.ID, Role: ""})
 
 	// then
 	require.NoError(t, err)
@@ -928,18 +929,18 @@ func TestChatDAO_ListUserGroupRooms_TagFilter(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	taggedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "T", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	taggedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "T", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	tagged := taggedRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, tagged, user.ID))
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, tagged, []string{"lore"}))
-	plainRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "P", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: tagged, UserID: user.ID}))
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: tagged, Tags: []string{"lore"}}))
+	plainRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "P", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	plain := plainRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, plain, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: plain, UserID: user.ID}))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "lore", "", false, 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "lore", IncludeArchived: false, Limit: 20, Offset: 0}, UserID: user.ID, Role: ""})
 
 	// then
 	require.NoError(t, err)
@@ -954,17 +955,17 @@ func TestChatDAO_ListUserGroupRooms_HostRoleFilter(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	hostedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "H", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	hostedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "H", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	hosted := hostedRow.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, hosted, user.ID, "host", false))
-	joinedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "J", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: other.ID})
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: hosted, UserID: user.ID, Role: "host", Ghost: false}))
+	joinedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "J", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: other.ID})
 	require.NoError(t, err)
 	joined := joinedRow.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: joined, UserID: user.ID, Role: "member", Ghost: false}))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "host", false, 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, UserID: user.ID, Role: "host"})
 
 	// then
 	require.NoError(t, err)
@@ -979,17 +980,17 @@ func TestChatDAO_ListUserGroupRooms_MemberRoleFilter(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	hostedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "H", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	hostedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "H", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	hosted := hostedRow.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, hosted, user.ID, "host", false))
-	joinedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "J", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: other.ID})
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: hosted, UserID: user.ID, Role: "host", Ghost: false}))
+	joinedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "J", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: other.ID})
 	require.NoError(t, err)
 	joined := joinedRow.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, joined, user.ID, "member", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: joined, UserID: user.ID, Role: "member", Ghost: false}))
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "member", false, 20, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, UserID: user.ID, Role: "member"})
 
 	// then
 	require.NoError(t, err)
@@ -1004,14 +1005,14 @@ func TestChatDAO_ListUserGroupRooms_Pagination(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	for range 3 {
-		created, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+		created, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 		require.NoError(t, err)
 		id := created.ID
-		require.NoError(t, repos.Chat.AddMember(ctx, id, user.ID))
+		require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: id, UserID: user.ID}))
 	}
 
 	// when
-	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, user.ID, "", false, "", "", false, 2, 0)
+	rooms, total, err := repos.Chat.ListUserGroupRooms(ctx, spec.ChatUserRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 2, Offset: 0}, UserID: user.ID, Role: ""})
 
 	// then
 	require.NoError(t, err)
@@ -1025,14 +1026,14 @@ func TestChatDAO_ListPublicRooms_Basic(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	publicRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Public", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	publicRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Public", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	public := publicRow.ID
-	_, err = repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Private", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	_, err = repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Private", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1048,11 +1049,11 @@ func TestChatDAO_ListPublicRooms_ExcludesSystem(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
 	sysID := uuid.New()
-	_, err := repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: sysID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: owner.ID})
+	_, err := repos.Chat.CreateSystemRoom(ctx, spec.NewChatSystemRoom{ID: sysID, Name: "Sys", Description: "", SystemKind: "announcements", CreatedBy: owner.ID})
 	require.NoError(t, err)
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1066,16 +1067,16 @@ func TestChatDAO_ListPublicRooms_ExcludesMembership(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	joinedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Joined", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	joinedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Joined", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	joined := joinedRow.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, joined, viewer.ID))
-	unjoinedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Unjoined", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: joined, UserID: viewer.ID}))
+	unjoinedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Unjoined", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	unjoined := unjoinedRow.ID
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1090,14 +1091,14 @@ func TestChatDAO_ListPublicRooms_SearchFilter(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	applesRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Apples", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	applesRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Apples", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	apples := applesRow.ID
-	_, err = repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Bananas", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	_, err = repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Bananas", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "Apple", false, "", viewer.ID, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "Apple", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1112,14 +1113,14 @@ func TestChatDAO_ListPublicRooms_RPOnly(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	_, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "N", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	_, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "N", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
-	rpRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "RP", Description: "", Type: "group", IsPublic: true, IsRP: true, CreatedBy: owner.ID})
+	rpRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "RP", Description: "", Type: "group", IsPublic: true, IsRP: true, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	rp := rpRow.ID
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", true, "", viewer.ID, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: true, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1134,15 +1135,15 @@ func TestChatDAO_ListPublicRooms_TagFilter(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	taggedRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "T", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	taggedRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "T", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	tagged := taggedRow.ID
-	require.NoError(t, repos.Chat.AddRoomTags(ctx, tagged, []string{"lore"}))
-	_, err = repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "P", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	require.NoError(t, repos.Chat.AddRoomTags(ctx, spec.ChatRoomTags{RoomID: tagged, Tags: []string{"lore"}}))
+	_, err = repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "P", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "lore", viewer.ID, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "lore", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1158,14 +1159,14 @@ func TestChatDAO_ListPublicRooms_ExcludeUsers(t *testing.T) {
 	ownerA := daotest.CreateUser(t, repos)
 	ownerB := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	_, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "A", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: ownerA.ID})
+	_, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "A", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: ownerA.ID})
 	require.NoError(t, err)
-	roomBRow, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "B", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: ownerB.ID})
+	roomBRow, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "B", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: ownerB.ID})
 	require.NoError(t, err)
 	roomB := roomBRow.ID
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, []uuid.UUID{ownerA.ID}, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: []uuid.UUID{ownerA.ID}})
 
 	// then
 	require.NoError(t, err)
@@ -1179,12 +1180,12 @@ func TestChatDAO_ListPublicRooms_NilViewer(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", uuid.Nil, nil, false, 20, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: uuid.Nil, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1199,11 +1200,11 @@ func TestChatDAO_ListPublicRooms_IsMemberFlag(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
-	_, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+	_, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 
 	// when
-	rooms, _, err := repos.Chat.ListPublicRooms(ctx, "", false, "", uuid.Nil, nil, false, 20, 0)
+	rooms, _, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 20, Offset: 0}, ViewerID: uuid.Nil, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1219,12 +1220,12 @@ func TestChatDAO_ListPublicRooms_Pagination(t *testing.T) {
 	owner := daotest.CreateUser(t, repos)
 	viewer := daotest.CreateUser(t, repos)
 	for range 3 {
-		_, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
+		_, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: true, IsRP: false, CreatedBy: owner.ID})
 		require.NoError(t, err)
 	}
 
 	// when
-	rooms, total, err := repos.Chat.ListPublicRooms(ctx, "", false, "", viewer.ID, nil, false, 2, 0)
+	rooms, total, err := repos.Chat.ListPublicRooms(ctx, spec.ChatPublicRoomFilter{ChatRoomFilter: spec.ChatRoomFilter{Search: "", IsRPOnly: false, Tag: "", IncludeArchived: false, Limit: 2, Offset: 0}, ViewerID: viewer.ID, ExcludeUserIDs: nil})
 
 	// then
 	require.NoError(t, err)
@@ -1237,13 +1238,13 @@ func TestChatDAO_InsertMessage(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hello"})
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hello"})
 
 	// then
 	require.NoError(t, err)
@@ -1259,18 +1260,18 @@ func TestChatDAO_SearchMessagesForViewer_FindsMatchInMemberRoom(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	match, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "the golden witch beatrice laughs"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	match, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "the golden witch beatrice laughs"})
 	require.NoError(t, err)
 	matchID := match.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "an ordinary mundane lunch"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "an ordinary mundane lunch"})
 	require.NoError(t, err)
 
 	// when
-	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "beatrice", 20, 0)
+	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: user.ID, RoomID: uuid.Nil, Query: "beatrice", Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1287,15 +1288,15 @@ func TestChatDAO_SearchMessagesForViewer_ExcludesNonMemberRooms(t *testing.T) {
 	ctx := context.Background()
 	viewer := daotest.CreateUser(t, repos)
 	owner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "Private", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "Private", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, owner.ID))
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: owner.ID, Body: "secret beatrice plans"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: owner.ID}))
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: owner.ID, Body: "secret beatrice plans"})
 	require.NoError(t, err)
 
 	// when
-	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, viewer.ID, uuid.Nil, "beatrice", 20, 0)
+	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: viewer.ID, RoomID: uuid.Nil, Query: "beatrice", Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1308,24 +1309,24 @@ func TestChatDAO_SearchMessagesForViewer_RoomFilter(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room1Row, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R1", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room1Row, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R1", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	room1 := room1Row.ID
-	room2Row, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R2", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room2Row, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R2", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	room2 := room2Row.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, room1, user.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, room2, user.ID))
-	msg1Row, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: room1, SenderID: user.ID, Body: "phoenix rises"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: room1, UserID: user.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: room2, UserID: user.ID}))
+	msg1Row, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: room1, SenderID: user.ID, Body: "phoenix rises"})
 	require.NoError(t, err)
 	msg1 := msg1Row.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: room2, SenderID: user.ID, Body: "phoenix falls"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: room2, SenderID: user.ID, Body: "phoenix falls"})
 	require.NoError(t, err)
 
 	// when
-	scoped, scopedTotal, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, room1, "phoenix", 20, 0)
+	scoped, scopedTotal, err := repos.Chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: user.ID, RoomID: room1, Query: "phoenix", Limit: 20, Offset: 0})
 	require.NoError(t, err)
-	all, allTotal, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "phoenix", 20, 0)
+	all, allTotal, err := repos.Chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: user.ID, RoomID: uuid.Nil, Query: "phoenix", Limit: 20, Offset: 0})
 	require.NoError(t, err)
 
 	// then
@@ -1341,15 +1342,15 @@ func TestChatDAO_SearchMessagesForViewer_ExcludesSystemMessages(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	_, err = repos.Chat.InsertSystemMessage(ctx, roomID, user.ID, "beatrice joined the room")
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	_, err = repos.Chat.InsertSystemMessage(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "beatrice joined the room"})
 	require.NoError(t, err)
 
 	// when
-	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "beatrice", 20, 0)
+	results, total, err := repos.Chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: user.ID, RoomID: uuid.Nil, Query: "beatrice", Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1362,20 +1363,20 @@ func TestChatDAO_SearchMessagesForViewer_CreatedAtSupportsJumpCursor(t *testing.
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "unicorn sighting reported"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "unicorn sighting reported"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
 	// when: the created_at returned by search is used to build a jump cursor
-	results, _, err := repos.Chat.SearchMessagesForViewer(ctx, user.ID, uuid.Nil, "unicorn", 20, 0)
+	results, _, err := repos.Chat.SearchMessagesForViewer(ctx, spec.ChatMessageSearch{ViewerID: user.ID, RoomID: uuid.Nil, Query: "unicorn", Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	cursor := results[0].CreatedAt + "|ffffffff-ffff-ffff-ffff-ffffffffffff"
-	before, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, cursor, 50)
+	before, err := repos.Chat.GetMessagesBefore(ctx, spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: uuid.Nil, Before: cursor, Limit: 50})
 	require.NoError(t, err)
 
 	// then: the target message is inside that cursor window (full-precision round-trip)
@@ -1393,17 +1394,17 @@ func TestChatDAO_InsertMessage_UpdatesRoomLastMessage(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.True(t, row.LastMessageAt.Valid)
@@ -1414,16 +1415,16 @@ func TestChatDAO_InsertMessage_WithReply(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Sender"))
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	parent, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "parent"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	parent, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "parent"})
 	require.NoError(t, err)
 	parentID := parent.ID
 
 	// when
-	reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "reply", ReplyToID: &parentID})
+	reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "reply", ReplyToID: &parentID})
 
 	// then
 	require.NoError(t, err)
@@ -1444,16 +1445,16 @@ func TestChatDAO_ReplyPreview_UsesRoomAliasWhenSet(t *testing.T) {
 	ctx := context.Background()
 	parentAuthor := daotest.CreateUser(t, repos, daotest.WithDisplayName("RealName"))
 	replier := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: parentAuthor.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: parentAuthor.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, parentAuthor.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, replier.ID))
-	require.NoError(t, repos.Chat.SetMemberNickname(ctx, roomID, parentAuthor.ID, "Battler"))
-	parent, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: parentAuthor.ID, Body: "parent"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: parentAuthor.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: replier.ID}))
+	require.NoError(t, repos.Chat.SetMemberNickname(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: parentAuthor.ID, Nickname: "Battler"}))
+	parent, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: parentAuthor.ID, Body: "parent"})
 	require.NoError(t, err)
 	parentID := parent.ID
-	reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: replier.ID, Body: "reply", ReplyToID: &parentID})
+	reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: replier.ID, Body: "reply", ReplyToID: &parentID})
 	require.NoError(t, err)
 	replyID := reply.ID
 
@@ -1472,15 +1473,15 @@ func TestChatDAO_ReplyPreview_FallsBackToDisplayNameWhenNoAlias(t *testing.T) {
 	ctx := context.Background()
 	parentAuthor := daotest.CreateUser(t, repos, daotest.WithDisplayName("RealName"))
 	replier := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: parentAuthor.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: parentAuthor.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, parentAuthor.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, replier.ID))
-	parent, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: parentAuthor.ID, Body: "parent"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: parentAuthor.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: replier.ID}))
+	parent, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: parentAuthor.ID, Body: "parent"})
 	require.NoError(t, err)
 	parentID := parent.ID
-	reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: replier.ID, Body: "reply", ReplyToID: &parentID})
+	reply, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: replier.ID, Body: "reply", ReplyToID: &parentID})
 	require.NoError(t, err)
 	replyID := reply.ID
 
@@ -1498,17 +1499,17 @@ func TestChatDAO_GetMessages(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 	for range 3 {
-		_, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+		_, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 		require.NoError(t, err)
 	}
 
 	// when
-	msgs, total, err := repos.Chat.GetMessages(ctx, roomID, 20, 0)
+	msgs, total, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1521,12 +1522,12 @@ func TestChatDAO_GetMessages_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	msgs, total, err := repos.Chat.GetMessages(ctx, roomID, 20, 0)
+	msgs, total, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 20, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1539,17 +1540,17 @@ func TestChatDAO_GetMessages_Limit(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 	for range 5 {
-		_, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+		_, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 		require.NoError(t, err)
 	}
 
 	// when
-	msgs, total, err := repos.Chat.GetMessages(ctx, roomID, 2, 0)
+	msgs, total, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 2, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -1562,17 +1563,17 @@ func TestChatDAO_GetMessagesBefore(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 	for range 3 {
-		_, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+		_, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 		require.NoError(t, err)
 	}
 
 	// when
-	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, "2099-01-01 00:00:00", 20)
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: uuid.Nil, Before: "2099-01-01 00:00:00", Limit: 20})
 
 	// then
 	require.NoError(t, err)
@@ -1584,15 +1585,15 @@ func TestChatDAO_GetMessagesBefore_FiltersOld(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 
 	// when
-	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, "2000-01-01 00:00:00", 20)
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: uuid.Nil, Before: "2000-01-01 00:00:00", Limit: 20})
 
 	// then
 	require.NoError(t, err)
@@ -1604,15 +1605,15 @@ func TestChatDAO_GetMessagesBefore_RFC3339CursorUsesDatetimeComparison(t *testin
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
-	older, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "older"})
+	older, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "older"})
 	require.NoError(t, err)
 	olderID := older.ID
-	newer, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "newer"})
+	newer, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "newer"})
 	require.NoError(t, err)
 	newerID := newer.ID
 
@@ -1628,7 +1629,7 @@ func TestChatDAO_GetMessagesBefore_RFC3339CursorUsesDatetimeComparison(t *testin
 	require.NoError(t, err)
 
 	// when
-	msgs, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, "2024-01-01T01:00:00Z", 20)
+	msgs, err := repos.Chat.GetMessagesBefore(ctx, spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: uuid.Nil, Before: "2024-01-01T01:00:00Z", Limit: 20})
 
 	// then
 	require.NoError(t, err)
@@ -1641,14 +1642,14 @@ func TestChatDAO_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessages(t *te
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	ids := make([]uuid.UUID, 3)
 	for i := range ids {
-		msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+		msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 		require.NoError(t, err)
 		ids[i] = msg.ID
 		_, err = repos.DB().ExecContext(ctx,
@@ -1666,13 +1667,13 @@ func TestChatDAO_GetMessagesBefore_CursorWithIDPaginatesSameSecondMessages(t *te
 	expectedOldestID := sorted[0]
 
 	// when
-	firstPage, total, err := repos.Chat.GetMessages(ctx, roomID, 2, 0)
+	firstPage, total, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 2, Offset: 0})
 	require.NoError(t, err)
 	require.Equal(t, 3, total)
 	require.Len(t, firstPage, 2)
 
 	cursor := firstPage[0].CreatedAt + "|" + firstPage[0].ID.String()
-	secondPage, err := repos.Chat.GetMessagesBefore(ctx, roomID, uuid.Nil, cursor, 2)
+	secondPage, err := repos.Chat.GetMessagesBefore(ctx, spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: uuid.Nil, Before: cursor, Limit: 2})
 
 	// then
 	require.NoError(t, err)
@@ -1698,11 +1699,11 @@ func TestChatDAO_DeleteMessages(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 
 	// when
@@ -1710,7 +1711,7 @@ func TestChatDAO_DeleteMessages(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	_, total, err := repos.Chat.GetMessages(ctx, roomID, 20, 0)
+	_, total, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -1720,11 +1721,11 @@ func TestChatDAO_GetMessageSenderID(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
@@ -1741,11 +1742,11 @@ func TestChatDAO_GetMessageRoomID(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
@@ -1762,16 +1763,16 @@ func TestChatDAO_AddMessageMedia(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
 	// when
-	id, err := repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msgID, MediaURL: "/url", MediaType: "image", ThumbnailURL: "/thumb", SortOrder: 0})
+	id, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/url", MediaType: "image", ThumbnailURL: "/thumb", SortOrder: 0}})
 
 	// then
 	require.NoError(t, err)
@@ -1790,15 +1791,15 @@ func TestChatDAO_MessageMediaSpoilerRoundTrips(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
-	require.NoError(t, repos.Chat.AddMember(ctx, room.ID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: room.ID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: room.ID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: room.ID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msg.ID, MediaURL: "/plain", MediaType: "image", SortOrder: 0})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msg.ID, MediaURL: "/plain", MediaType: "image", SortOrder: 0}})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msg.ID, MediaURL: "/hidden", MediaType: "image", SortOrder: 1, IsSpoiler: true})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msg.ID, MediaURL: "/hidden", MediaType: "image", SortOrder: 1, IsSpoiler: true}})
 	require.NoError(t, err)
 
 	// when the message is read back
@@ -1822,18 +1823,18 @@ func TestChatDAO_UpdateMessageMediaURL(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 	msgID := msg.ID
-	id, err := repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msgID, MediaURL: "/old", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	id, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/old", MediaType: "image", ThumbnailURL: "", SortOrder: 0}})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Chat.UpdateMessageMediaURL(ctx, id, "/new")
+	err = repos.Chat.UpdateMessageMediaURL(ctx, spec.MediaURLUpdate{ID: id, URL: "/new"})
 
 	// then
 	require.NoError(t, err)
@@ -1848,18 +1849,18 @@ func TestChatDAO_UpdateMessageMediaThumbnail(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 	msgID := msg.ID
-	id, err := repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msgID, MediaURL: "/u", MediaType: "image", ThumbnailURL: "", SortOrder: 0})
+	id, err := repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/u", MediaType: "image", ThumbnailURL: "", SortOrder: 0}})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Chat.UpdateMessageMediaThumbnail(ctx, id, "/newthumb")
+	err = repos.Chat.UpdateMessageMediaThumbnail(ctx, spec.MediaURLUpdate{ID: id, URL: "/newthumb"})
 
 	// then
 	require.NoError(t, err)
@@ -1887,16 +1888,16 @@ func TestChatDAO_GetMessageMediaBatch_SortOrder(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "m"})
 	require.NoError(t, err)
 	msgID := msg.ID
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msgID, MediaURL: "/b", MediaType: "image", ThumbnailURL: "", SortOrder: 2})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/b", MediaType: "image", ThumbnailURL: "", SortOrder: 2}})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: msgID, MediaURL: "/a", MediaType: "image", ThumbnailURL: "", SortOrder: 1})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: msgID, MediaURL: "/a", MediaType: "image", ThumbnailURL: "", SortOrder: 1}})
 	require.NoError(t, err)
 
 	// when
@@ -1914,17 +1915,17 @@ func TestChatDAO_TouchRoomActivity(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
 	err = repos.Chat.TouchRoomActivity(ctx, roomID)
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.True(t, row.LastMessageAt.Valid)
@@ -1935,17 +1936,17 @@ func TestChatDAO_MarkRoomRead(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	err = repos.Chat.MarkRoomRead(ctx, roomID, user.ID)
+	err = repos.Chat.MarkRoomRead(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 	require.NoError(t, err)
 	require.NotNil(t, row)
 	assert.True(t, row.LastReadAt.Valid)
@@ -1971,10 +1972,10 @@ func TestChatDAO_CountUnreadRoomsForUser_DMUnread(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: b.ID, Body: "hi"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: b.ID, Body: "hi"})
 	require.NoError(t, err)
 
 	// when
@@ -1991,12 +1992,12 @@ func TestChatDAO_CountUnreadRoomsForUser_AfterMarkRead(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: b.ID, Body: "hi"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: b.ID, Body: "hi"})
 	require.NoError(t, err)
-	require.NoError(t, repos.Chat.MarkRoomRead(ctx, roomID, a.ID))
+	require.NoError(t, repos.Chat.MarkRoomRead(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
 
 	// when
 	count, err := repos.Chat.CountUnreadRoomsForUser(ctx, a.ID)
@@ -2011,11 +2012,11 @@ func TestChatDAO_CountUnreadRoomsForUser_IgnoresGroups(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 	require.NoError(t, err)
 
 	// when
@@ -2031,13 +2032,13 @@ func TestChatDAO_SetMemberNickname(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	err = repos.Chat.SetMemberNickname(ctx, roomID, user.ID, "Beato")
+	err = repos.Chat.SetMemberNickname(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: user.ID, Nickname: "Beato"})
 
 	// then
 	require.NoError(t, err)
@@ -2052,14 +2053,14 @@ func TestChatDAO_SetMemberAvatar_Overwrites(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, user.ID, "/uploads/chat-avatars/first.png"))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: user.ID, AvatarURL: "/uploads/chat-avatars/first.png"}))
 
 	// when
-	err = repos.Chat.SetMemberAvatar(ctx, roomID, user.ID, "/uploads/chat-avatars/second.png")
+	err = repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: user.ID, AvatarURL: "/uploads/chat-avatars/second.png"})
 
 	// then
 	require.NoError(t, err)
@@ -2074,17 +2075,17 @@ func TestChatDAO_PinAndUnpinMessage(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
 	// when
-	require.NoError(t, repos.Chat.PinMessage(ctx, msgID, user.ID))
-	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID, user.ID)
+	require.NoError(t, repos.Chat.PinMessage(ctx, spec.ChatMessagePin{MessageID: msgID, PinnedBy: user.ID}))
+	pinned, err := repos.Chat.ListPinnedMessages(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2095,7 +2096,7 @@ func TestChatDAO_PinAndUnpinMessage(t *testing.T) {
 	assert.Equal(t, user.ID, *pinned[0].PinnedBy)
 
 	require.NoError(t, repos.Chat.UnpinMessage(ctx, msgID))
-	after, err := repos.Chat.ListPinnedMessages(ctx, roomID, user.ID)
+	after, err := repos.Chat.ListPinnedMessages(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Len(t, after, 0)
 }
@@ -2105,38 +2106,38 @@ func TestChatDAO_ListRoomAttachments(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
-	withMedia, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "look"})
+	withMedia, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "look"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: withMedia.ID, MediaURL: "/uploads/a.png", MediaType: "image"})
-	require.NoError(t, err)
-
-	withLink, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "see https://example.com/page"})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: withMedia.ID, MediaURL: "/uploads/a.png", MediaType: "image"}})
 	require.NoError(t, err)
 
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "just talking"})
+	withLink, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "see https://example.com/page"})
 	require.NoError(t, err)
 
-	systemWithLink, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "system https://example.com/sys", IsSystem: true})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "just talking"})
+	require.NoError(t, err)
+
+	systemWithLink, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "system https://example.com/sys", IsSystem: true})
 	require.NoError(t, err)
 
 	tests := []struct {
 		name string
-		kind repository.AttachmentKind
+		kind model.AttachmentKind
 		want []uuid.UUID
 	}{
-		{name: "media returns only messages carrying a media row", kind: repository.AttachmentKindMedia, want: []uuid.UUID{withMedia.ID}},
-		{name: "links returns only bodies holding a url", kind: repository.AttachmentKindLinks, want: []uuid.UUID{withLink.ID}},
+		{name: "media returns only messages carrying a media row", kind: model.AttachmentKindMedia, want: []uuid.UUID{withMedia.ID}},
+		{name: "links returns only bodies holding a url", kind: model.AttachmentKindLinks, want: []uuid.UUID{withLink.ID}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// when
-			rows, err := repos.Chat.ListRoomAttachments(ctx, roomID, user.ID, tc.kind, "", 50)
+			rows, err := repos.Chat.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: user.ID, Before: "", Limit: 50}, Kind: tc.kind})
 
 			// then
 			require.NoError(t, err)
@@ -2151,7 +2152,7 @@ func TestChatDAO_ListRoomAttachments(t *testing.T) {
 
 	t.Run("an unknown kind is an error rather than a silent default", func(t *testing.T) {
 		// when
-		_, err := repos.Chat.ListRoomAttachments(ctx, roomID, user.ID, repository.AttachmentKind("files"), "", 50)
+		_, err := repos.Chat.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: user.ID, Before: "", Limit: 50}, Kind: model.AttachmentKind("files")})
 
 		// then
 		require.Error(t, err)
@@ -2164,27 +2165,27 @@ func TestChatDAO_ListRoomAttachments_HidesMessagesFromBeforeADMRejoin(t *testing
 	ctx := context.Background()
 	stayer := daotest.CreateUser(t, repos)
 	leaver := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: stayer.ID, UserB: leaver.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_room_members SET joined_at = $1 WHERE room_id = $2`, "2024-01-01 00:00:00", roomID)
 	require.NoError(t, err)
-	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "secret https://example.com/old"})
+	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "secret https://example.com/old"})
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET created_at = $1 WHERE id = $2`, "2024-01-01 01:00:00", old.ID)
 	require.NoError(t, err)
 
 	// when the leaver leaves and rejoins the same pair
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
-	_, err = repos.Chat.CreateDMRoomAtomic(ctx, leaver.ID, stayer.ID)
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: leaver.ID}))
+	_, err = repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: leaver.ID, UserB: stayer.ID})
 	require.NoError(t, err)
 
 	// then the rejoiner sees nothing from before, and the other party still sees it
-	forLeaver, err := repos.Chat.ListRoomAttachments(ctx, roomID, leaver.ID, repository.AttachmentKindLinks, "", 50)
+	forLeaver, err := repos.Chat.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: leaver.ID, Before: "", Limit: 50}, Kind: model.AttachmentKindLinks})
 	require.NoError(t, err)
 	assert.Empty(t, forLeaver, "a link from before the rejoin must not leak to the rejoiner")
 
-	forStayer, err := repos.Chat.ListRoomAttachments(ctx, roomID, stayer.ID, repository.AttachmentKindLinks, "", 50)
+	forStayer, err := repos.Chat.ListRoomAttachments(ctx, spec.ChatRoomAttachmentQuery{ChatMessageCursorPage: spec.ChatMessageCursorPage{RoomID: roomID, ViewerID: stayer.ID, Before: "", Limit: 50}, Kind: model.AttachmentKindLinks})
 	require.NoError(t, err)
 	require.Len(t, forStayer, 1)
 	assert.Equal(t, old.ID, forStayer[0].ID)
@@ -2196,28 +2197,28 @@ func TestChatDAO_ListPinnedMessages_HidesPinsFromBeforeADMRejoin(t *testing.T) {
 	ctx := context.Background()
 	stayer := daotest.CreateUser(t, repos)
 	leaver := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: stayer.ID, UserB: leaver.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_room_members SET joined_at = $1 WHERE room_id = $2`, "2024-01-01 00:00:00", roomID)
 	require.NoError(t, err)
-	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "secret"})
+	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "secret"})
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET created_at = $1 WHERE id = $2`, "2024-01-01 01:00:00", old.ID)
 	require.NoError(t, err)
-	require.NoError(t, repos.Chat.PinMessage(ctx, old.ID, stayer.ID))
+	require.NoError(t, repos.Chat.PinMessage(ctx, spec.ChatMessagePin{MessageID: old.ID, PinnedBy: stayer.ID}))
 
 	// when the leaver leaves and rejoins the same pair
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
-	_, err = repos.Chat.CreateDMRoomAtomic(ctx, leaver.ID, stayer.ID)
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: leaver.ID}))
+	_, err = repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: leaver.ID, UserB: stayer.ID})
 	require.NoError(t, err)
 
 	// then the rejoiner sees no pins from before, and the other party still sees them
-	forLeaver, err := repos.Chat.ListPinnedMessages(ctx, roomID, leaver.ID)
+	forLeaver, err := repos.Chat.ListPinnedMessages(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: leaver.ID})
 	require.NoError(t, err)
 	assert.Empty(t, forLeaver, "a pin from before the rejoin must not leak to the rejoiner")
 
-	forStayer, err := repos.Chat.ListPinnedMessages(ctx, roomID, stayer.ID)
+	forStayer, err := repos.Chat.ListPinnedMessages(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: stayer.ID})
 	require.NoError(t, err)
 	require.Len(t, forStayer, 1)
 	assert.Equal(t, old.ID, forStayer[0].ID)
@@ -2228,22 +2229,22 @@ func TestChatDAO_ListPinnedMessages_OrdersByPinnedAtDesc(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	firstRow, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "first"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	firstRow, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "first"})
 	require.NoError(t, err)
 	first := firstRow.ID
-	secondRow, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "second"})
+	secondRow, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "second"})
 	require.NoError(t, err)
 	second := secondRow.ID
 
 	// when
-	require.NoError(t, repos.Chat.PinMessage(ctx, first, user.ID))
+	require.NoError(t, repos.Chat.PinMessage(ctx, spec.ChatMessagePin{MessageID: first, PinnedBy: user.ID}))
 	_, _ = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET pinned_at = pinned_at - INTERVAL '1 second' WHERE id = $1`, first)
-	require.NoError(t, repos.Chat.PinMessage(ctx, second, user.ID))
-	pinned, err := repos.Chat.ListPinnedMessages(ctx, roomID, user.ID)
+	require.NoError(t, repos.Chat.PinMessage(ctx, spec.ChatMessagePin{MessageID: second, PinnedBy: user.ID}))
+	pinned, err := repos.Chat.ListPinnedMessages(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2257,19 +2258,19 @@ func TestChatDAO_AddAndRemoveReaction(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
 	// when
-	inserted, err := repos.Chat.AddReaction(ctx, msgID, user.ID, "👍")
+	inserted, err := repos.Chat.AddReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: user.ID, Emoji: "👍"})
 	require.NoError(t, err)
 	assert.True(t, inserted)
-	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
+	groups, err := repos.Chat.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{msgID}, ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2278,10 +2279,10 @@ func TestChatDAO_AddAndRemoveReaction(t *testing.T) {
 	assert.Equal(t, 1, groups[msgID][0].Count)
 	assert.True(t, groups[msgID][0].ViewerReacted)
 
-	deleted, err := repos.Chat.RemoveReaction(ctx, msgID, user.ID, "👍")
+	deleted, err := repos.Chat.RemoveReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: user.ID, Emoji: "👍"})
 	require.NoError(t, err)
 	assert.True(t, deleted)
-	after, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
+	after, err := repos.Chat.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{msgID}, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Empty(t, after[msgID])
 }
@@ -2291,22 +2292,22 @@ func TestChatDAO_AddReaction_Idempotent(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
 	// when
-	firstInserted, err := repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉")
+	firstInserted, err := repos.Chat.AddReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: user.ID, Emoji: "🎉"})
 	require.NoError(t, err)
 	assert.True(t, firstInserted)
-	secondInserted, err := repos.Chat.AddReaction(ctx, msgID, user.ID, "🎉")
+	secondInserted, err := repos.Chat.AddReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: user.ID, Emoji: "🎉"})
 	require.NoError(t, err)
 	assert.False(t, secondInserted)
-	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, user.ID)
+	groups, err := repos.Chat.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{msgID}, ViewerID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2320,23 +2321,23 @@ func TestChatDAO_GetReactionsBatch_GroupsByEmoji(t *testing.T) {
 	ctx := context.Background()
 	userA := daotest.CreateUser(t, repos)
 	userB := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: userA.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: userA.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, userA.ID))
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, userB.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: userA.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userA.ID}))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: userB.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: userA.ID, Body: "hi"})
 	require.NoError(t, err)
 	msgID := msg.ID
-	_, err = repos.Chat.AddReaction(ctx, msgID, userA.ID, "👍")
+	_, err = repos.Chat.AddReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: userA.ID, Emoji: "👍"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddReaction(ctx, msgID, userB.ID, "👍")
+	_, err = repos.Chat.AddReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: userB.ID, Emoji: "👍"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddReaction(ctx, msgID, userA.ID, "😂")
+	_, err = repos.Chat.AddReaction(ctx, spec.ChatMessageReaction{MessageID: msgID, UserID: userA.ID, Emoji: "😂"})
 	require.NoError(t, err)
 
 	// when
-	groups, err := repos.Chat.GetReactionsBatch(ctx, []uuid.UUID{msgID}, userB.ID)
+	groups, err := repos.Chat.GetReactionsBatch(ctx, spec.ChatReactionsQuery{MessageIDs: []uuid.UUID{msgID}, ViewerID: userB.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2356,13 +2357,13 @@ func TestChatDAO_IsMemberNicknameLocked_False(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2374,14 +2375,14 @@ func TestChatDAO_IsMemberNicknameLocked_True(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, user.ID, "Locked", true))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: user.ID, Nickname: "Locked", Locked: true}))
 
 	// when
-	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2393,12 +2394,12 @@ func TestChatDAO_IsMemberNicknameLocked_NotMember(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, uuid.New())
+	locked, err := repos.Chat.IsMemberNicknameLocked(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: uuid.New()})
 
 	// then
 	require.NoError(t, err)
@@ -2410,14 +2411,14 @@ func TestChatDAO_SetMemberNicknameWithLock_LocksAndUnlocks(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, user.ID, "Forced", true))
-	lockedAfter, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: user.ID, Nickname: "Forced", Locked: true}))
+	lockedAfter, err := repos.Chat.IsMemberNicknameLocked(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID})
 
 	// then
 	require.NoError(t, err)
@@ -2429,8 +2430,8 @@ func TestChatDAO_SetMemberNicknameWithLock_LocksAndUnlocks(t *testing.T) {
 	assert.True(t, members[0].NicknameLocked)
 
 	// and when unlocking
-	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, user.ID, "", false))
-	lockedAfterUnlock, err := repos.Chat.IsMemberNicknameLocked(ctx, roomID, user.ID)
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: user.ID, Nickname: "", Locked: false}))
+	lockedAfterUnlock, err := repos.Chat.IsMemberNicknameLocked(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID})
 	require.NoError(t, err)
 	assert.False(t, lockedAfterUnlock)
 	members2, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
@@ -2446,12 +2447,12 @@ func TestChatDAO_GetRoomMembersDetailed_PopulatesNicknameLocked(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, other.ID, "member", false))
-	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, other.ID, "Pinned", true))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: owner.ID, Role: "host", Ghost: false}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: other.ID, Role: "member", Ghost: false}))
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: other.ID, Nickname: "Pinned", Locked: true}))
 
 	// when
 	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
@@ -2471,19 +2472,19 @@ func TestChatDAO_SetMemberTimeoutAndGetMemberTimeoutState(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	member := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, member.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: member.ID}))
 
 	until := "2099-01-01 00:00:00"
 
 	// when
-	err = repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, until, true)
+	err = repos.Chat.SetMemberTimeout(ctx, spec.ChatMemberTimeout{RoomID: roomID, UserID: member.ID, Until: until, ByStaff: true})
 
 	// then
 	require.NoError(t, err)
-	active, gotUntil, byStaff, err := repos.Chat.GetMemberTimeoutState(ctx, roomID, member.ID)
+	active, gotUntil, byStaff, err := repos.Chat.GetMemberTimeoutState(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: member.ID})
 	require.NoError(t, err)
 	assert.True(t, active)
 	assert.Contains(t, gotUntil, "2099-01-01")
@@ -2496,18 +2497,18 @@ func TestChatDAO_ClearMemberTimeout(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	member := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, member.ID))
-	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, "2099-01-01 00:00:00", true))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: member.ID}))
+	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, spec.ChatMemberTimeout{RoomID: roomID, UserID: member.ID, Until: "2099-01-01 00:00:00", ByStaff: true}))
 
 	// when
-	err = repos.Chat.ClearMemberTimeout(ctx, roomID, member.ID)
+	err = repos.Chat.ClearMemberTimeout(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: member.ID})
 
 	// then
 	require.NoError(t, err)
-	active, gotUntil, byStaff, err := repos.Chat.GetMemberTimeoutState(ctx, roomID, member.ID)
+	active, gotUntil, byStaff, err := repos.Chat.GetMemberTimeoutState(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: member.ID})
 	require.NoError(t, err)
 	assert.False(t, active)
 	assert.Equal(t, "", gotUntil)
@@ -2520,12 +2521,12 @@ func TestChatDAO_GetRoomMembersDetailed_ShowsOnlyActiveTimeout(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	member := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, owner.ID, "host", false))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, member.ID, "member", false))
-	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, roomID, member.ID, "2099-01-01 00:00:00", true))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: owner.ID, Role: "host", Ghost: false}))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: member.ID, Role: "member", Ghost: false}))
+	require.NoError(t, repos.Chat.SetMemberTimeout(ctx, spec.ChatMemberTimeout{RoomID: roomID, UserID: member.ID, Until: "2099-01-01 00:00:00", ByStaff: true}))
 
 	// when
 	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
@@ -2546,18 +2547,18 @@ func TestChatDAO_RemoveMember_SoftDeletes(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, joiner.ID))
-	require.NoError(t, repos.Chat.SetMemberNickname(ctx, roomID, joiner.ID, "Beato"))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID}))
+	require.NoError(t, repos.Chat.SetMemberNickname(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: joiner.ID, Nickname: "Beato"}))
 
 	// when
-	err = repos.Chat.RemoveMember(ctx, roomID, joiner.ID)
+	err = repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 
 	// then
 	require.NoError(t, err)
-	isMember, err := repos.Chat.IsMember(ctx, roomID, joiner.ID)
+	isMember, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.False(t, isMember)
 
@@ -2575,26 +2576,26 @@ func TestChatDAO_AddMember_Rejoin_PreservesNickname(t *testing.T) {
 	ctx := context.Background()
 	owner := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: owner.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member", false))
-	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, roomID, joiner.ID, "Beato", true))
-	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, joiner.ID, "/custom.png"))
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, joiner.ID))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member", Ghost: false}))
+	require.NoError(t, repos.Chat.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: joiner.ID, Nickname: "Beato", Locked: true}))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: joiner.ID, AvatarURL: "/custom.png"}))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID}))
 
 	// when
-	err = repos.Chat.AddMemberWithRole(ctx, roomID, joiner.ID, "member", false)
+	err = repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member", Ghost: false})
 
 	// then
 	require.NoError(t, err)
-	isMember, err := repos.Chat.IsMember(ctx, roomID, joiner.ID)
+	isMember, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.True(t, isMember)
 
 	detailed, err := repos.Chat.GetRoomMembersDetailed(ctx, roomID)
 	require.NoError(t, err)
-	var found *repository.ChatRoomMemberRow
+	var found *model.ChatRoomMemberRow
 	for i := range detailed {
 		if detailed[i].UserID == joiner.ID {
 			found = &detailed[i]
@@ -2612,11 +2613,11 @@ func TestChatDAO_DeleteMessage(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 	require.NoError(t, err)
 	msgID := msg.ID
 
@@ -2635,11 +2636,11 @@ func TestChatDAO_EditMessage_UpdatesBodyAndStampsEditedAt(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "original"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "original"})
 	require.NoError(t, err)
 	msgID := msg.ID
 	before, err := repos.Chat.GetMessageByID(ctx, msgID)
@@ -2648,7 +2649,7 @@ func TestChatDAO_EditMessage_UpdatesBodyAndStampsEditedAt(t *testing.T) {
 	assert.Nil(t, before.EditedAt, "new message should have no edited_at")
 
 	// when
-	err = repos.Chat.EditMessage(ctx, msgID, "updated body")
+	err = repos.Chat.EditMessage(ctx, spec.ChatMessageUpdate{MessageID: msgID, Body: "updated body"})
 
 	// then
 	require.NoError(t, err)
@@ -2665,17 +2666,17 @@ func TestChatDAO_EditMessage_SurfacesInListQueries(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hello"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	msg, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hello"})
 	require.NoError(t, err)
 	msgID := msg.ID
-	require.NoError(t, repos.Chat.EditMessage(ctx, msgID, "hello world"))
+	require.NoError(t, repos.Chat.EditMessage(ctx, spec.ChatMessageUpdate{MessageID: msgID, Body: "hello world"}))
 
 	// when
-	messages, _, err := repos.Chat.GetMessages(ctx, roomID, 10, 0)
+	messages, _, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -2689,7 +2690,7 @@ func TestChatDAO_EditMessage_UnknownIDIsNoop(t *testing.T) {
 	ctx := context.Background()
 
 	// when
-	err := repos.Chat.EditMessage(ctx, uuid.New(), "noop")
+	err := repos.Chat.EditMessage(ctx, spec.ChatMessageUpdate{MessageID: uuid.New(), Body: "noop"})
 
 	// then
 	require.NoError(t, err)
@@ -2700,17 +2701,17 @@ func TestChatDAO_GetMessages_UsesPerRoomOverrides(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
-	require.NoError(t, repos.Chat.SetMemberNickname(ctx, roomID, user.ID, "Beato"))
-	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, user.ID, "/custom.png"))
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
+	require.NoError(t, repos.Chat.SetMemberNickname(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: user.ID, Nickname: "Beato"}))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: user.ID, AvatarURL: "/custom.png"}))
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "hi"})
 	require.NoError(t, err)
 
 	// when
-	msgs, _, err := repos.Chat.GetMessages(ctx, roomID, 10, 0)
+	msgs, _, err := repos.Chat.GetMessages(ctx, spec.ChatMessagePage{RoomID: roomID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -2724,13 +2725,13 @@ func TestChatDAO_InsertSystemMessage_SetsSystemFlag(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateRoom(ctx, repository.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
+	room, err := repos.Chat.CreateRoom(ctx, spec.NewChatRoom{Name: "R", Description: "", Type: "group", IsPublic: false, IsRP: false, CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.AddMember(ctx, roomID, user.ID))
+	require.NoError(t, repos.Chat.AddMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID}))
 
 	// when
-	msg, err := repos.Chat.InsertSystemMessage(ctx, roomID, user.ID, "System test")
+	msg, err := repos.Chat.InsertSystemMessage(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "System test"})
 
 	// then
 	require.NoError(t, err)
@@ -2747,23 +2748,23 @@ func TestChatDAO_CreateDMRoomAtomic_RestoresAMemberWhoLeft(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, a.ID))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
 
-	left, err := repos.Chat.IsMember(ctx, roomID, a.ID)
+	left, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID})
 	require.NoError(t, err)
 	require.False(t, left, "leaving must actually remove membership")
 
 	// when
-	againRow, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	againRow, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, roomID, againRow.ID, "the pair keeps its room")
 
-	rejoined, err := repos.Chat.IsMember(ctx, roomID, a.ID)
+	rejoined, err := repos.Chat.IsMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID})
 	require.NoError(t, err)
 	assert.True(t, rejoined, "messaging againRow.ID must put the sender back in the room")
 }
@@ -2775,25 +2776,25 @@ func TestChatDAO_GetMessagesForMember_StartsFreshAfterDeletingADM(t *testing.T) 
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "before"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "before"})
 	require.NoError(t, err)
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: b.ID, Body: "also before"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: b.ID, Body: "also before"})
 	require.NoError(t, err)
 
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, a.ID))
-	_, err = repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
+	_, err = repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "after"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "after"})
 	require.NoError(t, err)
 
 	// when
-	mine, err := repos.Chat.GetMessagesForMember(ctx, roomID, a.ID, 50)
+	mine, err := repos.Chat.GetMessagesForMember(ctx, spec.ChatMessagePage{RoomID: roomID, ViewerID: a.ID, Limit: 50})
 	require.NoError(t, err)
 
-	theirs, err := repos.Chat.GetMessagesForMember(ctx, roomID, b.ID, 50)
+	theirs, err := repos.Chat.GetMessagesForMember(ctx, spec.ChatMessagePage{RoomID: roomID, ViewerID: b.ID, Limit: 50})
 	require.NoError(t, err)
 
 	// then
@@ -2810,7 +2811,7 @@ func TestChatDAO_CreateGroupRoom_CreatesRoomTagsAndMembers(t *testing.T) {
 	member := daotest.CreateUser(t, repos)
 
 	// when
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{
 		Name:        "Party",
 		Description: "desc",
 		IsPublic:    true,
@@ -2821,10 +2822,10 @@ func TestChatDAO_CreateGroupRoom_CreatesRoomTagsAndMembers(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	hostRole, err := repos.Chat.GetMemberRole(ctx, room.ID, host.ID)
+	hostRole, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: room.ID, UserID: host.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "host", hostRole)
-	memberRole, err := repos.Chat.GetMemberRole(ctx, room.ID, member.ID)
+	memberRole, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: room.ID, UserID: member.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "member", memberRole)
 	tags, err := repos.Chat.GetRoomTags(ctx, room.ID)
@@ -2839,7 +2840,7 @@ func TestChatDAO_CreateGroupRoom_RollsBackWhenAMemberDoesNotExist(t *testing.T) 
 	host := daotest.CreateUser(t, repos)
 
 	// when
-	_, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+	_, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{
 		Name:      "Party",
 		CreatedBy: host.ID,
 		MemberIDs: []uuid.UUID{uuid.New()},
@@ -2857,7 +2858,7 @@ func TestChatDAO_UpdateRoom_WritesEveryEditableFieldAndLeavesTheRestAlone(t *tes
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	host := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{
 		Name:        "Old name",
 		Description: "old description",
 		IsPublic:    false,
@@ -2865,12 +2866,12 @@ func TestChatDAO_UpdateRoom_WritesEveryEditableFieldAndLeavesTheRestAlone(t *tes
 		CreatedBy:   host.ID,
 	})
 	require.NoError(t, err)
-	before, err := repos.Chat.GetRoomByID(ctx, room.ID, host.ID)
+	before, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: host.ID})
 	require.NoError(t, err)
 	require.NotNil(t, before)
 
 	// when
-	err = repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+	err = repos.Chat.UpdateRoom(ctx, spec.UpdateChatRoom{
 		RoomID:      room.ID,
 		Name:        "New name",
 		Description: "new description",
@@ -2880,7 +2881,7 @@ func TestChatDAO_UpdateRoom_WritesEveryEditableFieldAndLeavesTheRestAlone(t *tes
 
 	// then
 	require.NoError(t, err)
-	after, err := repos.Chat.GetRoomByID(ctx, room.ID, host.ID)
+	after, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: host.ID})
 	require.NoError(t, err)
 	require.NotNil(t, after)
 	assert.Equal(t, "New name", after.Name)
@@ -2898,7 +2899,7 @@ func TestChatDAO_UpdateGroupRoom_ReplacesTheWholeTagSet(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	host := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{
 		Name:      "Tagged",
 		CreatedBy: host.ID,
 		Tags:      []string{"old-one", "old-two"},
@@ -2906,7 +2907,7 @@ func TestChatDAO_UpdateGroupRoom_ReplacesTheWholeTagSet(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	err = repos.Chat.UpdateGroupRoom(ctx, repository.UpdateChatRoom{
+	err = repos.Chat.UpdateGroupRoom(ctx, spec.UpdateChatRoom{
 		RoomID:      room.ID,
 		Name:        "Tagged again",
 		Description: "desc",
@@ -2920,7 +2921,7 @@ func TestChatDAO_UpdateGroupRoom_ReplacesTheWholeTagSet(t *testing.T) {
 	tags, err := repos.Chat.GetRoomTags(ctx, room.ID)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"new-one", "new-two", "new-three"}, tags)
-	after, err := repos.Chat.GetRoomByID(ctx, room.ID, host.ID)
+	after, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: host.ID})
 	require.NoError(t, err)
 	require.NotNil(t, after)
 	assert.Equal(t, "Tagged again", after.Name)
@@ -2932,7 +2933,7 @@ func TestChatDAO_UpdateGroupRoom_ClearsTheTagsWhenNoneAreGiven(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	host := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{
 		Name:      "Tagged",
 		CreatedBy: host.ID,
 		Tags:      []string{"keep-me"},
@@ -2940,7 +2941,7 @@ func TestChatDAO_UpdateGroupRoom_ClearsTheTagsWhenNoneAreGiven(t *testing.T) {
 	require.NoError(t, err)
 
 	// when
-	err = repos.Chat.UpdateGroupRoom(ctx, repository.UpdateChatRoom{
+	err = repos.Chat.UpdateGroupRoom(ctx, spec.UpdateChatRoom{
 		RoomID: room.ID,
 		Name:   "Tagged",
 		Tags:   nil,
@@ -2959,14 +2960,14 @@ func TestChatDAO_UpdateRoom_RefusesToTouchADM(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
-	before, err := repos.Chat.GetRoomByID(ctx, room.ID, a.ID)
+	before, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: a.ID})
 	require.NoError(t, err)
 	require.NotNil(t, before)
 
 	// when
-	err = repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+	err = repos.Chat.UpdateRoom(ctx, spec.UpdateChatRoom{
 		RoomID:      room.ID,
 		Name:        "Renamed DM",
 		Description: "hijacked",
@@ -2976,7 +2977,7 @@ func TestChatDAO_UpdateRoom_RefusesToTouchADM(t *testing.T) {
 
 	// then
 	require.Error(t, err, "the WHERE clause carries type = 'group' so a DM must never match")
-	after, err := repos.Chat.GetRoomByID(ctx, room.ID, a.ID)
+	after, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: room.ID, ViewerID: a.ID})
 	require.NoError(t, err)
 	require.NotNil(t, after)
 	assert.Equal(t, before.Name, after.Name)
@@ -2991,11 +2992,11 @@ func TestChatDAO_UpdateRoom_RefusesToTouchASystemRoom(t *testing.T) {
 	ctx := context.Background()
 	host := daotest.CreateUser(t, repos)
 	roomID := uuid.New()
-	_, err := repos.Chat.CreateSystemRoom(ctx, repository.NewChatSystemRoom{ID: roomID, Name: "Announcements", Description: "system room", SystemKind: "announcements", CreatedBy: host.ID})
+	_, err := repos.Chat.CreateSystemRoom(ctx, spec.NewChatSystemRoom{ID: roomID, Name: "Announcements", Description: "system room", SystemKind: "announcements", CreatedBy: host.ID})
 	require.NoError(t, err)
 
 	// when
-	err = repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+	err = repos.Chat.UpdateRoom(ctx, spec.UpdateChatRoom{
 		RoomID:      roomID,
 		Name:        "Renamed system room",
 		Description: "hijacked",
@@ -3005,7 +3006,7 @@ func TestChatDAO_UpdateRoom_RefusesToTouchASystemRoom(t *testing.T) {
 
 	// then
 	require.Error(t, err, "the WHERE clause carries is_system = FALSE so a system room must never match")
-	after, err := repos.Chat.GetRoomByID(ctx, roomID, host.ID)
+	after, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: host.ID})
 	require.NoError(t, err)
 	require.NotNil(t, after)
 	assert.Equal(t, "Announcements", after.Name)
@@ -3019,7 +3020,7 @@ func TestChatDAO_UpdateRoom_MissingRowIsAnError(t *testing.T) {
 	ctx := context.Background()
 
 	// when
-	err := repos.Chat.UpdateRoom(ctx, repository.UpdateChatRoom{
+	err := repos.Chat.UpdateRoom(ctx, spec.UpdateChatRoom{
 		RoomID: uuid.New(),
 		Name:   "Ghost room",
 	})
@@ -3036,7 +3037,7 @@ func TestChatDAO_CreateSystemRoomWithHost(t *testing.T) {
 	roomID := uuid.New()
 
 	// when
-	room, err := repos.Chat.CreateSystemRoomWithHost(ctx, repository.NewChatSystemRoom{
+	room, err := repos.Chat.CreateSystemRoomWithHost(ctx, spec.NewChatSystemRoom{
 		ID:         roomID,
 		Name:       "Stream",
 		SystemKind: "live_stream",
@@ -3046,7 +3047,7 @@ func TestChatDAO_CreateSystemRoomWithHost(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Equal(t, roomID, room.ID)
-	got, err := repos.Chat.GetMemberRole(ctx, roomID, host.ID)
+	got, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: host.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "host", got)
 }
@@ -3058,28 +3059,28 @@ func TestChatDAO_SyncSystemRoomMembership_JoinsAndLeaves(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	joinRoomID := uuid.New()
 	leaveRoomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateSystemRooms(ctx, []repository.NewChatSystemRoom{
+	require.NoError(t, repos.Chat.CreateSystemRooms(ctx, []spec.NewChatSystemRoom{
 		{ID: joinRoomID, Name: "Mods", SystemKind: "mods", CreatedBy: user.ID},
 		{ID: leaveRoomID, Name: "Admins", SystemKind: "admins", CreatedBy: user.ID},
 	}))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, leaveRoomID, user.ID, "member", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: leaveRoomID, UserID: user.ID, Role: "member", Ghost: false}))
 
 	// when
-	changes, err := repos.Chat.SyncSystemRoomMembership(ctx, []repository.SystemRoomMembership{
+	changes, err := repos.Chat.SyncSystemRoomMembership(ctx, []spec.SystemRoomMembership{
 		{RoomID: joinRoomID, UserID: user.ID, ShouldBeMember: true, DesiredRole: "host"},
 		{RoomID: leaveRoomID, UserID: user.ID, ShouldBeMember: false, DesiredRole: "host"},
 	})
 
 	// then
 	require.NoError(t, err)
-	assert.Equal(t, []repository.SystemRoomMembershipChange{
+	assert.Equal(t, []model.SystemRoomMembershipChange{
 		{RoomID: joinRoomID, Joined: true},
 		{RoomID: leaveRoomID, Left: true},
 	}, changes)
-	joined, err := repos.Chat.GetMemberRole(ctx, joinRoomID, user.ID)
+	joined, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: joinRoomID, UserID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "host", joined)
-	left, err := repos.Chat.GetMemberRole(ctx, leaveRoomID, user.ID)
+	left, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: leaveRoomID, UserID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "", left)
 }
@@ -3090,20 +3091,20 @@ func TestChatDAO_SyncSystemRoomMembership_UpgradesAnExistingRole(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 	roomID := uuid.New()
-	require.NoError(t, repos.Chat.CreateSystemRooms(ctx, []repository.NewChatSystemRoom{
+	require.NoError(t, repos.Chat.CreateSystemRooms(ctx, []spec.NewChatSystemRoom{
 		{ID: roomID, Name: "Mods", SystemKind: "mods", CreatedBy: user.ID},
 	}))
-	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, roomID, user.ID, "member", false))
+	require.NoError(t, repos.Chat.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: roomID, UserID: user.ID, Role: "member", Ghost: false}))
 
 	// when
-	changes, err := repos.Chat.SyncSystemRoomMembership(ctx, []repository.SystemRoomMembership{
+	changes, err := repos.Chat.SyncSystemRoomMembership(ctx, []spec.SystemRoomMembership{
 		{RoomID: roomID, UserID: user.ID, ShouldBeMember: true, DesiredRole: "host"},
 	})
 
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, changes, "a role change is not a join or a leave, so the hub is left alone")
-	got, err := repos.Chat.GetMemberRole(ctx, roomID, user.ID)
+	got, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: user.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "host", got)
 }
@@ -3114,22 +3115,22 @@ func TestChatDAO_AddMemberWithSystemMessage(t *testing.T) {
 	ctx := context.Background()
 	host := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{Name: "R", CreatedBy: host.ID})
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{Name: "R", CreatedBy: host.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	msg, err := repos.Chat.AddMemberWithSystemMessage(ctx,
-		repository.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member"},
-		repository.NewChatMessage{RoomID: roomID, SenderID: joiner.ID, Body: "Test User joined the room.", IsSystem: true},
-	)
+	msg, err := repos.Chat.AddMemberWithSystemMessage(ctx, spec.ChatMemberJoinAnnouncement{
+		Member:  spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member"},
+		Message: spec.NewChatMessage{RoomID: roomID, SenderID: joiner.ID, Body: "Test User joined the room.", IsSystem: true},
+	})
 
 	// then
 	require.NoError(t, err)
 	require.NotNil(t, msg)
 	assert.Equal(t, "Test User joined the room.", msg.Body)
 	assert.True(t, msg.IsSystem)
-	role, err := repos.Chat.GetMemberRole(ctx, roomID, joiner.ID)
+	role, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "member", role)
 }
@@ -3140,20 +3141,20 @@ func TestChatDAO_AddMemberWithSystemMessage_SkipsTheMessageWhenTheBodyIsEmpty(t 
 	ctx := context.Background()
 	host := daotest.CreateUser(t, repos)
 	joiner := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{Name: "R", CreatedBy: host.ID})
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{Name: "R", CreatedBy: host.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when
-	msg, err := repos.Chat.AddMemberWithSystemMessage(ctx,
-		repository.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member", Ghost: true},
-		repository.NewChatMessage{RoomID: roomID, SenderID: joiner.ID, IsSystem: true},
-	)
+	msg, err := repos.Chat.AddMemberWithSystemMessage(ctx, spec.ChatMemberJoinAnnouncement{
+		Member:  spec.NewChatRoomMember{RoomID: roomID, UserID: joiner.ID, Role: "member", Ghost: true},
+		Message: spec.NewChatMessage{RoomID: roomID, SenderID: joiner.ID, IsSystem: true},
+	})
 
 	// then
 	require.NoError(t, err)
 	assert.Nil(t, msg, "a ghost join is silent")
-	role, err := repos.Chat.GetMemberRole(ctx, roomID, joiner.ID)
+	role, err := repos.Chat.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: joiner.ID})
 	require.NoError(t, err)
 	assert.Equal(t, "member", role)
 }
@@ -3163,10 +3164,10 @@ func TestChatDAO_DeleteRoomWithMessages(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{Name: "R", CreatedBy: user.ID})
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{Name: "R", CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "bye"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "bye"})
 	require.NoError(t, err)
 
 	// when
@@ -3175,7 +3176,7 @@ func TestChatDAO_DeleteRoomWithMessages(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, paths)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, user.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: user.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -3187,20 +3188,20 @@ func TestChatDAO_DeleteRoomWithMessages_ReturnsEveryOrphanedFile(t *testing.T) {
 	host := daotest.CreateUser(t, repos)
 	guest := daotest.CreateUser(t, repos)
 	bare := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{Name: "R", CreatedBy: host.ID, MemberIDs: []uuid.UUID{guest.ID, bare.ID}})
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{Name: "R", CreatedBy: host.ID, MemberIDs: []uuid.UUID{guest.ID, bare.ID}})
 	require.NoError(t, err)
 	roomID := room.ID
-	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, host.ID, "/uploads/chat-avatars/host.webp"))
-	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, roomID, guest.ID, "/uploads/chat-avatars/guest.webp"))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: host.ID, AvatarURL: "/uploads/chat-avatars/host.webp"}))
+	require.NoError(t, repos.Chat.SetMemberAvatar(ctx, spec.ChatMemberAvatarUpdate{RoomID: roomID, UserID: guest.ID, AvatarURL: "/uploads/chat-avatars/guest.webp"}))
 
-	first, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: host.ID, Body: "look"})
+	first, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: host.ID, Body: "look"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: first.ID, MediaURL: "/uploads/chat/one.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/one_thumb.webp", SortOrder: 0})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: first.ID, MediaURL: "/uploads/chat/one.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/one_thumb.webp", SortOrder: 0}})
 	require.NoError(t, err)
 
-	second, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: guest.ID, Body: "clip"})
+	second, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: guest.ID, Body: "clip"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: second.ID, MediaURL: "/uploads/chat/two.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 0})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: second.ID, MediaURL: "/uploads/chat/two.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 0}})
 	require.NoError(t, err)
 
 	// when
@@ -3215,7 +3216,7 @@ func TestChatDAO_DeleteRoomWithMessages_ReturnsEveryOrphanedFile(t *testing.T) {
 		"/uploads/chat-avatars/host.webp",
 		"/uploads/chat-avatars/guest.webp",
 	}, paths)
-	row, err := repos.Chat.GetRoomByID(ctx, roomID, host.ID)
+	row, err := repos.Chat.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: roomID, ViewerID: host.ID})
 	require.NoError(t, err)
 	assert.Nil(t, row)
 }
@@ -3225,20 +3226,20 @@ func TestChatDAO_DeleteMessageWithMedia_ReturnsThatMessagesFiles(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateGroupRoom(ctx, repository.NewChatGroupRoom{Name: "R", CreatedBy: user.ID})
+	room, err := repos.Chat.CreateGroupRoom(ctx, spec.NewChatGroupRoom{Name: "R", CreatedBy: user.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
-	target, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "mine"})
+	target, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "mine"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: target.ID, MediaURL: "/uploads/chat/target.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/target_thumb.webp", SortOrder: 0})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: target.ID, MediaURL: "/uploads/chat/target.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/target_thumb.webp", SortOrder: 0}})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: target.ID, MediaURL: "/uploads/chat/target2.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 1})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: target.ID, MediaURL: "/uploads/chat/target2.mp4", MediaType: "video", ThumbnailURL: "", SortOrder: 1}})
 	require.NoError(t, err)
 
-	other, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "theirs"})
+	other, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: user.ID, Body: "theirs"})
 	require.NoError(t, err)
-	_, err = repos.Chat.AddMessageMedia(ctx, repository.NewChatMessageMedia{MessageID: other.ID, MediaURL: "/uploads/chat/other.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/other_thumb.webp", SortOrder: 0})
+	_, err = repos.Chat.AddMessageMedia(ctx, spec.NewChatMessageMedia{NewMedia: spec.NewMedia{TargetID: other.ID, MediaURL: "/uploads/chat/other.webp", MediaType: "image", ThumbnailURL: "/uploads/chat/other_thumb.webp", SortOrder: 0}})
 	require.NoError(t, err)
 
 	// when
@@ -3266,19 +3267,19 @@ func TestChatDAO_FindDMRoom_AgreesWithTheRoomTheNextSendWillAttachTo(t *testing.
 	ctx := context.Background()
 	stayer := daotest.CreateUser(t, repos)
 	leaver := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: stayer.ID, UserB: leaver.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "hello"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "hello"})
 	require.NoError(t, err)
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: leaver.ID}))
 
 	// when each side resolves the pair
-	forStayer, err := repos.Chat.FindDMRoom(ctx, stayer.ID, leaver.ID)
+	forStayer, err := repos.Chat.FindDMRoom(ctx, spec.ChatDMPair{UserA: stayer.ID, UserB: leaver.ID})
 	require.NoError(t, err)
-	forLeaver, err := repos.Chat.FindDMRoom(ctx, leaver.ID, stayer.ID)
+	forLeaver, err := repos.Chat.FindDMRoom(ctx, spec.ChatDMPair{UserA: leaver.ID, UserB: stayer.ID})
 	require.NoError(t, err)
-	byPair, err := repos.Chat.FindDMRoomByPair(ctx, stayer.ID, leaver.ID)
+	byPair, err := repos.Chat.FindDMRoomByPair(ctx, spec.ChatDMPair{UserA: stayer.ID, UserB: leaver.ID})
 	require.NoError(t, err)
 
 	// then the side that still holds the thread resolves the very room the next send attaches to
@@ -3294,32 +3295,32 @@ func TestChatDAO_SoftLeaveHidesTheLeaversHistoryAndKeepsTheOthers(t *testing.T) 
 	ctx := context.Background()
 	stayer := daotest.CreateUser(t, repos)
 	leaver := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, stayer.ID, leaver.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: stayer.ID, UserB: leaver.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_room_members SET joined_at = $1 WHERE room_id = $2`, "2024-01-01 00:00:00", roomID)
 	require.NoError(t, err)
-	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "before the leave"})
+	old, err := repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: stayer.ID, Body: "before the leave"})
 	require.NoError(t, err)
 	_, err = repos.DB().ExecContext(ctx, `UPDATE chat_messages SET created_at = $1 WHERE id = $2`, "2024-01-01 01:00:00", old.ID)
 	require.NoError(t, err)
 
 	// when the leaver leaves and later reopens the same pair
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, leaver.ID))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: leaver.ID}))
 	remaining, err := repos.Chat.CountRoomMembers(ctx, roomID)
 	require.NoError(t, err)
-	reopened, err := repos.Chat.CreateDMRoomAtomic(ctx, leaver.ID, stayer.ID)
+	reopened, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: leaver.ID, UserB: stayer.ID})
 	require.NoError(t, err)
 
 	// then the pair is reused, the leaver's thread is blank and the other party keeps everything
 	assert.Equal(t, 1, remaining, "one member left is what stops the service hard-deleting the pair")
 	assert.Equal(t, roomID, reopened.ID)
 
-	leaverView, _, err := repos.Chat.GetMessagesForViewer(ctx, roomID, leaver.ID, 20, 0)
+	leaverView, _, err := repos.Chat.GetMessagesForViewer(ctx, spec.ChatMessagePage{RoomID: roomID, ViewerID: leaver.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	assert.Empty(t, leaverView, "the history clip is the load-bearing half of soft-leave")
 
-	stayerView, _, err := repos.Chat.GetMessagesForViewer(ctx, roomID, stayer.ID, 20, 0)
+	stayerView, _, err := repos.Chat.GetMessagesForViewer(ctx, spec.ChatMessagePage{RoomID: roomID, ViewerID: stayer.ID, Limit: 20, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, stayerView, 1)
 	assert.Equal(t, "before the leave", stayerView[0].Body)
@@ -3331,15 +3332,15 @@ func TestChatDAO_BothPartiesLeavingEmptiesThePair(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "hi"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "hi"})
 	require.NoError(t, err)
 
 	// when both sides leave
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, a.ID))
-	require.NoError(t, repos.Chat.RemoveMember(ctx, roomID, b.ID))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: a.ID}))
+	require.NoError(t, repos.Chat.RemoveMember(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: b.ID}))
 
 	// then the count the service hard-deletes on reaches zero
 	remaining, err := repos.Chat.CountRoomMembers(ctx, roomID)
@@ -3353,14 +3354,14 @@ func TestChatDAO_GetRoomSendContext_CarriesLastMessageAt(t *testing.T) {
 	ctx := context.Background()
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	room, err := repos.Chat.CreateDMRoomAtomic(ctx, a.ID, b.ID)
+	room, err := repos.Chat.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: a.ID, UserB: b.ID})
 	require.NoError(t, err)
 	roomID := room.ID
 
 	// when the send context is read before and after the first message
 	fresh, err := repos.Chat.GetRoomSendContext(ctx, roomID)
 	require.NoError(t, err)
-	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, repository.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "hi"})
+	_, err = repos.Chat.InsertMessageAndMarkRead(ctx, spec.NewChatMessage{RoomID: roomID, SenderID: a.ID, Body: "hi"})
 	require.NoError(t, err)
 	used, err := repos.Chat.GetRoomSendContext(ctx, roomID)
 	require.NoError(t, err)

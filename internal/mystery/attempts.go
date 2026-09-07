@@ -4,11 +4,12 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/mention"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -32,7 +33,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 		return uuid.Nil, ErrAlreadySolved
 	}
 	if userID != authorID {
-		if won, err := s.mysteryRepo.UserHasWinningAttempt(ctx, mysteryID, userID); err != nil {
+		if won, err := s.mysteryRepo.UserHasWinningAttempt(ctx, spec.MysterySolverQuery{MysteryID: mysteryID, UserID: userID}); err != nil {
 			return uuid.Nil, err
 		} else if won {
 			return uuid.Nil, ErrAlreadySolved
@@ -57,7 +58,12 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 
 	body := strings.TrimSpace(req.Body)
 
-	created, err := s.mysteryRepo.CreateAttempt(ctx, mysteryID, userID, req.ParentID, body)
+	created, err := s.mysteryRepo.CreateAttempt(ctx, spec.NewMysteryAttempt{
+		MysteryID: mysteryID,
+		UserID:    userID,
+		ParentID:  req.ParentID,
+		Body:      body,
+	})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -119,7 +125,7 @@ func (s *service) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID
 
 func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	if !s.authz.Can(ctx, userID, authz.PermDeleteAnyComment) {
-		return s.mysteryRepo.DeleteAttempt(ctx, id, userID)
+		return s.mysteryRepo.DeleteAttempt(ctx, spec.MysteryAttemptDeletion{ID: id, UserID: userID})
 	}
 
 	attemptAuthorID, err := s.mysteryRepo.GetAttemptAuthorID(ctx, id)
@@ -132,10 +138,10 @@ func (s *service) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	if attemptAuthorID != userID {
-		s.audit(ctx, repository.NewAuditEntry{
+		s.audit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionMysteryAttemptDeleteAdmin,
-			TargetType: repository.AuditTargetMysteryAttempt,
+			Action:     audit.ActionMysteryAttemptDeleteAdmin,
+			TargetType: audit.TargetMysteryAttempt,
 			TargetID:   id.String(),
 			SubjectID:  attemptAuthorID,
 		})
@@ -157,7 +163,7 @@ func (s *service) VoteAttempt(ctx context.Context, attemptID uuid.UUID, userID u
 		return block.ErrUserBlocked
 	}
 
-	if err := s.mysteryRepo.VoteAttempt(ctx, userID, attemptID, value); err != nil {
+	if err := s.mysteryRepo.VoteAttempt(ctx, spec.Vote{UserID: userID, TargetID: attemptID, Value: value}); err != nil {
 		return err
 	}
 

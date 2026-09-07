@@ -8,17 +8,24 @@ import (
 
 	"github.com/google/uuid"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	StreamCredentialsDAO interface {
+		Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*model.StreamCredentialsRow, error)
+		Upsert(ctx context.Context, s spec.NewStreamCredentials, tx ...*sql.Tx) error
+		Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error
+	}
+
 	streamCredentialsDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*repository.StreamCredentialsRow, error) {
-	var row repository.StreamCredentialsRow
+func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*model.StreamCredentialsRow, error) {
+	var row model.StreamCredentialsRow
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT user_id, ingress_id, whip_url, stream_key, room
 		   FROM stream_credentials
@@ -35,7 +42,7 @@ func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...
 	return &row, nil
 }
 
-func (r *streamCredentialsDAO) Upsert(ctx context.Context, spec repository.NewStreamCredentials, tx ...*sql.Tx) error {
+func (r *streamCredentialsDAO) Upsert(ctx context.Context, s spec.NewStreamCredentials, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO stream_credentials (user_id, ingress_id, whip_url, stream_key, room)
 		 VALUES ($1, $2, $3, $4, $5)
@@ -45,7 +52,7 @@ func (r *streamCredentialsDAO) Upsert(ctx context.Context, spec repository.NewSt
 		        stream_key = excluded.stream_key,
 		        room = excluded.room,
 		        updated_at = NOW()`,
-		spec.UserID, spec.IngressID, spec.WhipURL, spec.StreamKey, spec.Room,
+		s.UserID, s.IngressID, s.WhipURL, s.StreamKey, s.Room,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert stream credentials: %w", err)

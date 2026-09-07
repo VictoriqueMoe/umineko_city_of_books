@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,7 +22,7 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	user := daotest.CreateUser(t, repos, daotest.WithDisplayName("Beatrice"))
 
 	// when
-	stream, err := repo.Create(ctx, user.ID, "My Stream", 3)
+	stream, err := repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "My Stream", MaxConcurrent: 3})
 
 	// then
 	require.NoError(t, err)
@@ -49,14 +50,14 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	assert.Equal(t, id, active.ID)
 
 	// when
-	_, err = repo.Create(ctx, user.ID, "Another", 3)
+	_, err = repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "Another", MaxConcurrent: 3})
 
 	// then
-	require.ErrorIs(t, err, repository.ErrLiveStreamActiveExists)
+	require.ErrorIs(t, err, dao.ErrLiveStreamActiveExists)
 
 	// when
 	room := "live_" + id.String()
-	require.NoError(t, repo.SetIngress(ctx, repository.LiveStreamIngressUpdate{
+	require.NoError(t, repo.SetIngress(ctx, spec.LiveStreamIngressUpdate{
 		ID:        id,
 		IngressID: "ing_1",
 		Room:      room,
@@ -80,7 +81,7 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	assert.Equal(t, id, live[0].ID)
 
 	// when
-	count, ok, err := repo.AdjustViewerCount(ctx, id, 1)
+	count, ok, err := repo.AdjustViewerCount(ctx, spec.LiveStreamViewerAdjustment{ID: id, Delta: 1})
 
 	// then
 	require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	assert.False(t, again)
 
 	// when
-	_, ok, err = repo.AdjustViewerCount(ctx, id, 1)
+	_, ok, err = repo.AdjustViewerCount(ctx, spec.LiveStreamViewerAdjustment{ID: id, Delta: 1})
 
 	// then
 	require.NoError(t, err)
@@ -110,7 +111,7 @@ func TestLiveStreamDAO_Lifecycle(t *testing.T) {
 	assert.Equal(t, 0, n)
 
 	// when
-	_, err = repo.Create(ctx, user.ID, "Fresh", 3)
+	_, err = repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "Fresh", MaxConcurrent: 3})
 
 	// then
 	require.NoError(t, err)
@@ -125,16 +126,16 @@ func TestLiveStreamDAO_Capacity(t *testing.T) {
 	u2 := daotest.CreateUser(t, repos)
 	u3 := daotest.CreateUser(t, repos)
 
-	_, err := repo.Create(ctx, u1.ID, "a", 2)
+	_, err := repo.Create(ctx, spec.NewLiveStream{UserID: u1.ID, Title: "a", MaxConcurrent: 2})
 	require.NoError(t, err)
-	_, err = repo.Create(ctx, u2.ID, "b", 2)
+	_, err = repo.Create(ctx, spec.NewLiveStream{UserID: u2.ID, Title: "b", MaxConcurrent: 2})
 	require.NoError(t, err)
 
 	// when
-	_, err = repo.Create(ctx, u3.ID, "c", 2)
+	_, err = repo.Create(ctx, spec.NewLiveStream{UserID: u3.ID, Title: "c", MaxConcurrent: 2})
 
 	// then
-	require.ErrorIs(t, err, repository.ErrLiveStreamCapacity)
+	require.ErrorIs(t, err, dao.ErrLiveStreamCapacity)
 }
 
 func TestLiveStreamDAO_ListStartingBefore(t *testing.T) {
@@ -144,7 +145,7 @@ func TestLiveStreamDAO_ListStartingBefore(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
 
-	stream, err := repo.Create(ctx, user.ID, "stale", 5)
+	stream, err := repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "stale", MaxConcurrent: 5})
 	require.NoError(t, err)
 
 	// when
@@ -171,12 +172,12 @@ func TestLiveStreamDAO_SetTitle(t *testing.T) {
 	repo := repos.LiveStream
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos)
-	stream, err := repo.Create(ctx, user.ID, "Old Title", 3)
+	stream, err := repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "Old Title", MaxConcurrent: 3})
 	require.NoError(t, err)
 	id := stream.ID
 
 	// when
-	err = repo.SetTitle(ctx, id, "New Title")
+	err = repo.SetTitle(ctx, spec.LiveStreamTitleUpdate{ID: id, Title: "New Title"})
 
 	// then
 	require.NoError(t, err)
@@ -193,7 +194,7 @@ func TestLiveStreamDAO_GetActiveByUsername(t *testing.T) {
 	ctx := context.Background()
 	user := daotest.CreateUser(t, repos, daotest.WithUsername("Featherine"), daotest.WithDisplayName("Featherine"))
 
-	stream, err := repo.Create(ctx, user.ID, "Ciconia blind run", 3)
+	stream, err := repo.Create(ctx, spec.NewLiveStream{UserID: user.ID, Title: "Ciconia blind run", MaxConcurrent: 3})
 	require.NoError(t, err)
 	require.NotNil(t, stream)
 

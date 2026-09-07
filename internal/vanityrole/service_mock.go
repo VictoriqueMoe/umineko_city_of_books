@@ -6,7 +6,7 @@ package vanityrole
 
 import (
 	"context"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -101,23 +101,23 @@ func (_c *MockService_GetAllAssignments_Call) RunAndReturn(run func(ctx context.
 }
 
 // List provides a mock function for the type MockService
-func (_mock *MockService) List(ctx context.Context) ([]repository.VanityRoleRow, error) {
+func (_mock *MockService) List(ctx context.Context) ([]model.VanityRoleRow, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
 	}
 
-	var r0 []repository.VanityRoleRow
+	var r0 []model.VanityRoleRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]repository.VanityRoleRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]model.VanityRoleRow, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []repository.VanityRoleRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []model.VanityRoleRow); ok {
 		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.VanityRoleRow)
+			r0 = ret.Get(0).([]model.VanityRoleRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
@@ -152,12 +152,12 @@ func (_c *MockService_List_Call) Run(run func(ctx context.Context)) *MockService
 	return _c
 }
 
-func (_c *MockService_List_Call) Return(vanityRoleRows []repository.VanityRoleRow, err error) *MockService_List_Call {
+func (_c *MockService_List_Call) Return(vanityRoleRows []model.VanityRoleRow, err error) *MockService_List_Call {
 	_c.Call.Return(vanityRoleRows, err)
 	return _c
 }
 
-func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context) ([]repository.VanityRoleRow, error)) *MockService_List_Call {
+func (_c *MockService_List_Call) RunAndReturn(run func(ctx context.Context) ([]model.VanityRoleRow, error)) *MockService_List_Call {
 	_c.Call.Return(run)
 	return _c
 }

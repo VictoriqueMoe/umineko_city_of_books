@@ -4,8 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -15,22 +18,22 @@ import (
 
 func createAnnouncement(t *testing.T, repos *repository.Repositories, authorID uuid.UUID, title, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Announcement.Create(context.Background(), authorID, title, body)
+	created, err := repos.Announcement.Create(context.Background(), spec.NewAnnouncement{AuthorID: authorID, Title: title, Body: body})
 	require.NoError(t, err)
 	return created.ID
 }
 
 func createAnnouncementComment(t *testing.T, repos *repository.Repositories, announcementID, userID uuid.UUID, parentID *uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Comments.ByID[string(mention.KindAnnouncementComment)].CreateComment(context.Background(), announcementID, parentID, userID, body)
+	created, err := repos.Comments.ByID[string(mention.KindAnnouncementComment)].CreateComment(context.Background(), spec.NewComment[uuid.UUID]{TargetID: announcementID, ParentID: parentID, UserID: userID, Body: body})
 	require.NoError(t, err)
 	return created.ID
 }
 
 func addAnnouncementCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) {
 	t.Helper()
-	_, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{
-		CommentID:    commentID,
+	_, err := repos.Announcement.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     commentID,
 		MediaURL:     mediaURL,
 		MediaType:    "image",
 		ThumbnailURL: thumbnailURL,
@@ -79,7 +82,7 @@ func TestAnnouncementDAO_Update(t *testing.T) {
 	id := createAnnouncement(t, repos, user.ID, "Old", "Old body")
 
 	// when
-	err := repos.Announcement.Update(context.Background(), id, "New Title", "New body")
+	err := repos.Announcement.Update(context.Background(), spec.AnnouncementUpdate{ID: id, Title: "New Title", Body: "New body"})
 
 	// then
 	require.NoError(t, err)
@@ -113,10 +116,10 @@ func TestAnnouncementDAO_List_PaginationAndOrdering(t *testing.T) {
 	first := createAnnouncement(t, repos, user.ID, "First", "1")
 	second := createAnnouncement(t, repos, user.ID, "Second", "2")
 	third := createAnnouncement(t, repos, user.ID, "Third", "3")
-	require.NoError(t, repos.Announcement.SetPinned(context.Background(), second, true))
+	require.NoError(t, repos.Announcement.SetPinned(context.Background(), spec.AnnouncementPinUpdate{ID: second, Pinned: true}))
 
 	// when
-	rows, total, err := repos.Announcement.List(context.Background(), 10, 0)
+	rows, total, err := repos.Announcement.List(context.Background(), spec.AnnouncementListQuery{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -127,7 +130,7 @@ func TestAnnouncementDAO_List_PaginationAndOrdering(t *testing.T) {
 	assert.Contains(t, []uuid.UUID{first, third}, rows[1].ID)
 	assert.Contains(t, []uuid.UUID{first, third}, rows[2].ID)
 
-	pageRows, pageTotal, err := repos.Announcement.List(context.Background(), 1, 1)
+	pageRows, pageTotal, err := repos.Announcement.List(context.Background(), spec.AnnouncementListQuery{Limit: 1, Offset: 1})
 	require.NoError(t, err)
 	assert.Equal(t, 3, pageTotal)
 	assert.Len(t, pageRows, 1)
@@ -138,7 +141,7 @@ func TestAnnouncementDAO_List_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 
 	// when
-	rows, total, err := repos.Announcement.List(context.Background(), 10, 0)
+	rows, total, err := repos.Announcement.List(context.Background(), spec.AnnouncementListQuery{Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -153,7 +156,7 @@ func TestAnnouncementDAO_GetLatest(t *testing.T) {
 	createAnnouncement(t, repos, user.ID, "First", "a")
 	pinned := createAnnouncement(t, repos, user.ID, "Pinned", "b")
 	createAnnouncement(t, repos, user.ID, "Third", "c")
-	require.NoError(t, repos.Announcement.SetPinned(context.Background(), pinned, true))
+	require.NoError(t, repos.Announcement.SetPinned(context.Background(), spec.AnnouncementPinUpdate{ID: pinned, Pinned: true}))
 
 	// when
 	latest, err := repos.Announcement.GetLatest(context.Background())
@@ -183,10 +186,10 @@ func TestAnnouncementDAO_SetPinned_Toggle(t *testing.T) {
 	id := createAnnouncement(t, repos, user.ID, "T", "B")
 
 	// when
-	require.NoError(t, repos.Announcement.SetPinned(context.Background(), id, true))
+	require.NoError(t, repos.Announcement.SetPinned(context.Background(), spec.AnnouncementPinUpdate{ID: id, Pinned: true}))
 	pinnedRow, err := repos.Announcement.GetByID(context.Background(), id)
 	require.NoError(t, err)
-	require.NoError(t, repos.Announcement.SetPinned(context.Background(), id, false))
+	require.NoError(t, repos.Announcement.SetPinned(context.Background(), spec.AnnouncementPinUpdate{ID: id, Pinned: false}))
 	unpinnedRow, err := repos.Announcement.GetByID(context.Background(), id)
 	require.NoError(t, err)
 
@@ -207,7 +210,7 @@ func TestAnnouncementDAO_CreateComment_WithParent(t *testing.T) {
 	childID := createAnnouncementComment(t, repos, annID, commenter.ID, &parentID, "child")
 
 	// then
-	comments, total, err := repos.Announcement.GetComments(context.Background(), annID, commenter.ID, 10, 0, nil)
+	comments, total, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: commenter.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 2, total)
 	require.Len(t, comments, 2)
@@ -231,13 +234,13 @@ func TestAnnouncementDAO_UpdateComment_OwnedAndNotOwned(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "old")
 
 	// when
-	ownErr := repos.Announcement.UpdateComment(context.Background(), commentID, author.ID, "new")
-	notOwnedErr := repos.Announcement.UpdateComment(context.Background(), commentID, other.ID, "evil")
+	ownErr := repos.Announcement.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: author.ID, Body: "new"})
+	notOwnedErr := repos.Announcement.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: other.ID, Body: "evil"})
 
 	// then
 	require.NoError(t, ownErr)
 	require.Error(t, notOwnedErr)
-	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "new", comments[0].Body)
@@ -252,11 +255,11 @@ func TestAnnouncementDAO_UpdateCommentAsAdmin(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
 
 	// when
-	err := repos.Announcement.UpdateCommentAsAdmin(context.Background(), commentID, "admin-edit")
+	err := repos.Announcement.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: commentID, Body: "admin-edit", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "admin-edit", comments[0].Body)
@@ -271,13 +274,13 @@ func TestAnnouncementDAO_DeleteComment_OwnedAndNotOwned(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
 
 	// when
-	notOwnedErr := repos.Announcement.DeleteComment(context.Background(), commentID, other.ID)
-	ownedErr := repos.Announcement.DeleteComment(context.Background(), commentID, author.ID)
+	notOwnedErr := repos.Announcement.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: other.ID})
+	ownedErr := repos.Announcement.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: author.ID})
 
 	// then
 	require.Error(t, notOwnedErr)
 	require.NoError(t, ownedErr)
-	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	_, total, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -290,11 +293,11 @@ func TestAnnouncementDAO_DeleteCommentAsAdmin(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
 
 	// when
-	err := repos.Announcement.DeleteCommentAsAdmin(context.Background(), commentID)
+	err := repos.Announcement.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: commentID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	_, total, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -308,13 +311,13 @@ func TestAnnouncementDAO_UpdateCommentBody_OwnedAndNotOwned(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "old")
 
 	// when
-	ownErr := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: author.ID, Body: "new"})
-	notOwnedErr := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: other.ID, Body: "evil"})
+	ownErr := repos.Announcement.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: author.ID, Body: "new"})
+	notOwnedErr := repos.Announcement.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: other.ID, Body: "evil"})
 
 	// then
 	require.NoError(t, ownErr)
 	require.Error(t, notOwnedErr)
-	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "new", comments[0].Body)
@@ -329,11 +332,11 @@ func TestAnnouncementDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
 
 	// when
-	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
+	err := repos.Announcement.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, "admin-edit", comments[0].Body)
@@ -348,15 +351,15 @@ func TestAnnouncementDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
 
 	// when
-	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
+	err := repos.Announcement.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: moderator.ID, Body: "admin-edit", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentUpdateAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionAnnouncementCommentUpdateAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, repository.AuditTargetAnnouncementComment, entries[0].TargetType)
+	assert.Equal(t, audit.TargetAnnouncementComment, entries[0].TargetType)
 	assert.Equal(t, commentID.String(), entries[0].TargetID)
 	require.NotNil(t, entries[0].SubjectID)
 	assert.Equal(t, author.ID, *entries[0].SubjectID)
@@ -371,11 +374,11 @@ func TestAnnouncementDAO_UpdateCommentBody_OwnEditWritesNoAudit(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "original")
 
 	// when
-	err := repos.Announcement.UpdateCommentBody(context.Background(), repository.AnnouncementCommentUpdate{CommentID: commentID, UserID: author.ID, Body: "mine", AsAdmin: true})
+	err := repos.Announcement.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: commentID, UserID: author.ID, Body: "mine", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentUpdateAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionAnnouncementCommentUpdateAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }
@@ -389,19 +392,19 @@ func TestAnnouncementDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
 
 	// when
-	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), repository.AnnouncementCommentDeletion{CommentID: commentID, UserID: moderator.ID, AsAdmin: true})
+	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
 	assert.Empty(t, paths)
-	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	_, total, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentDeleteAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionAnnouncementCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, repository.AuditTargetAnnouncementComment, entries[0].TargetType)
+	assert.Equal(t, audit.TargetAnnouncementComment, entries[0].TargetType)
 	assert.Equal(t, commentID.String(), entries[0].TargetID)
 }
 
@@ -414,15 +417,15 @@ func TestAnnouncementDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
 
 	// when
-	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), repository.AnnouncementCommentDeletion{CommentID: commentID, UserID: other.ID})
+	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: commentID, UserID: other.ID})
 
 	// then
 	require.Error(t, err)
 	assert.Empty(t, paths)
-	_, total, err := repos.Announcement.GetComments(context.Background(), annID, author.ID, 10, 0, nil)
+	_, total, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionAnnouncementCommentDelete, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionAnnouncementCommentDelete, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }
@@ -472,7 +475,7 @@ func TestAnnouncementDAO_DeleteCommentWithAudit_ReturnsThatCommentsMediaPaths(t 
 	addAnnouncementCommentMedia(t, repos, survivor, "/uploads/announcements/kept.png", "/uploads/announcements/kept-thumb.png")
 
 	// when
-	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), repository.AnnouncementCommentDeletion{CommentID: target, UserID: author.ID})
+	paths, err := repos.Announcement.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: target, UserID: author.ID})
 
 	// then
 	require.NoError(t, err)
@@ -495,9 +498,9 @@ func TestAnnouncementDAO_GetComments_PaginationOrderingAndExclusion(t *testing.T
 	createAnnouncementComment(t, repos, annID, blocked.ID, nil, "blocked-comment")
 
 	// when
-	all, total, err := repos.Announcement.GetComments(context.Background(), annID, commenterA.ID, 10, 0, nil)
-	excluded, exclTotal, exclErr := repos.Announcement.GetComments(context.Background(), annID, commenterA.ID, 10, 0, []uuid.UUID{blocked.ID})
-	page, _, pageErr := repos.Announcement.GetComments(context.Background(), annID, commenterA.ID, 1, 1, nil)
+	all, total, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: commenterA.ID, Limit: 10, Offset: 0})
+	excluded, exclTotal, exclErr := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: commenterA.ID, Limit: 10, Offset: 0, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
+	page, _, pageErr := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: commenterA.ID, Limit: 1, Offset: 1})
 
 	// then
 	require.NoError(t, err)
@@ -555,12 +558,12 @@ func TestAnnouncementDAO_LikeAndUnlikeComment(t *testing.T) {
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
 
 	// when
-	require.NoError(t, repos.Announcement.LikeComment(context.Background(), liker.ID, commentID))
-	require.NoError(t, repos.Announcement.LikeComment(context.Background(), liker.ID, commentID))
-	likedComments, _, err := repos.Announcement.GetComments(context.Background(), annID, liker.ID, 10, 0, nil)
+	require.NoError(t, repos.Announcement.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	require.NoError(t, repos.Announcement.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	likedComments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: liker.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
-	require.NoError(t, repos.Announcement.UnlikeComment(context.Background(), liker.ID, commentID))
-	unlikedComments, _, err := repos.Announcement.GetComments(context.Background(), annID, liker.ID, 10, 0, nil)
+	require.NoError(t, repos.Announcement.UnlikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: commentID}))
+	unlikedComments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: liker.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 
 	// then
@@ -582,11 +585,11 @@ func TestAnnouncementDAO_AddCommentMedia_AndBatch(t *testing.T) {
 	commentC := createAnnouncementComment(t, repos, annID, author.ID, nil, "c")
 
 	// when
-	idA0, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentA, MediaURL: "url-a-0", MediaType: "image", ThumbnailURL: "thumb-a-0"})
+	idA0, err := repos.Announcement.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentA, MediaURL: "url-a-0", MediaType: "image", ThumbnailURL: "thumb-a-0"})
 	require.NoError(t, err)
-	idA1, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentA, MediaURL: "url-a-1", MediaType: "image", ThumbnailURL: "thumb-a-1"})
+	idA1, err := repos.Announcement.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentA, MediaURL: "url-a-1", MediaType: "image", ThumbnailURL: "thumb-a-1"})
 	require.NoError(t, err)
-	idB, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentB, MediaURL: "url-b", MediaType: "video", ThumbnailURL: "thumb-b"})
+	idB, err := repos.Announcement.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentB, MediaURL: "url-b", MediaType: "video", ThumbnailURL: "thumb-b"})
 	require.NoError(t, err)
 	batch, batchErr := repos.Announcement.GetCommentMediaBatch(context.Background(), []uuid.UUID{commentA, commentB, commentC})
 
@@ -622,12 +625,12 @@ func TestAnnouncementDAO_UpdateCommentMediaURLAndThumbnail(t *testing.T) {
 	author := daotest.CreateUser(t, repos)
 	annID := createAnnouncement(t, repos, author.ID, "T", "B")
 	commentID := createAnnouncementComment(t, repos, annID, author.ID, nil, "x")
-	mediaID, err := repos.Announcement.AddCommentMedia(context.Background(), repository.NewAnnouncementCommentMedia{CommentID: commentID, MediaURL: "old-url", MediaType: "image", ThumbnailURL: "old-thumb"})
+	mediaID, err := repos.Announcement.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: commentID, MediaURL: "old-url", MediaType: "image", ThumbnailURL: "old-thumb"})
 	require.NoError(t, err)
 
 	// when
-	require.NoError(t, repos.Announcement.UpdateCommentMediaURL(context.Background(), mediaID, "new-url"))
-	require.NoError(t, repos.Announcement.UpdateCommentMediaThumbnail(context.Background(), mediaID, "new-thumb"))
+	require.NoError(t, repos.Announcement.UpdateCommentMediaURL(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "new-url"}))
+	require.NoError(t, repos.Announcement.UpdateCommentMediaThumbnail(context.Background(), spec.MediaURLUpdate{ID: mediaID, URL: "new-thumb"}))
 
 	// then
 	batch, err := repos.Announcement.GetCommentMediaBatch(context.Background(), []uuid.UUID{commentID})
@@ -647,7 +650,7 @@ func TestAnnouncementDAO_GetByID_WithRoleJoin(t *testing.T) {
 	// when
 	annRow, err := repos.Announcement.GetByID(context.Background(), annID)
 	require.NoError(t, err)
-	comments, _, err := repos.Announcement.GetComments(context.Background(), annID, user.ID, 10, 0, nil)
+	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: user.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 
 	// then

@@ -3,12 +3,13 @@ package vanityrole
 import (
 	"context"
 
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 )
 
 type (
 	Service interface {
-		List(ctx context.Context) ([]repository.VanityRoleRow, error)
+		List(ctx context.Context) ([]model.VanityRoleRow, error)
 		GetAllAssignments(ctx context.Context) (map[string][]string, error)
 	}
 
@@ -21,7 +22,7 @@ func NewService(repo repository.VanityRoleRepository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) List(ctx context.Context) ([]repository.VanityRoleRow, error) {
+func (s *service) List(ctx context.Context) ([]model.VanityRoleRow, error) {
 	return s.repo.List(ctx)
 }
 

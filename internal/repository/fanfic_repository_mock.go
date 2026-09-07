@@ -7,9 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/fanfic/params"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -43,12 +42,12 @@ func (_m *MockFanficRepository) EXPECT() *MockFanficRepository_Expecter {
 }
 
 // AddCharacters provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) AddCharacters(ctx context.Context, fanficID uuid.UUID, characters []dto.FanficCharacter, isPairing bool, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) AddCharacters(ctx context.Context, s spec.FanficCharacters, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, characters, isPairing, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, characters, isPairing)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -57,8 +56,8 @@ func (_mock *MockFanficRepository) AddCharacters(ctx context.Context, fanficID u
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []dto.FanficCharacter, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, fanficID, characters, isPairing, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficCharacters, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -72,45 +71,33 @@ type MockFanficRepository_AddCharacters_Call struct {
 
 // AddCharacters is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - characters []dto.FanficCharacter
-//   - isPairing bool
+//   - s spec.FanficCharacters
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) AddCharacters(ctx any, fanficID any, characters any, isPairing any, tx ...any) *MockFanficRepository_AddCharacters_Call {
+func (_e *MockFanficRepository_Expecter) AddCharacters(ctx any, s any, tx ...any) *MockFanficRepository_AddCharacters_Call {
 	return &MockFanficRepository_AddCharacters_Call{Call: _e.mock.On("AddCharacters",
-		append([]any{ctx, fanficID, characters, isPairing}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_AddCharacters_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, characters []dto.FanficCharacter, isPairing bool, tx ...*sql.Tx)) *MockFanficRepository_AddCharacters_Call {
+func (_c *MockFanficRepository_AddCharacters_Call) Run(run func(ctx context.Context, s spec.FanficCharacters, tx ...*sql.Tx)) *MockFanficRepository_AddCharacters_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficCharacters
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficCharacters)
 		}
-		var arg2 []dto.FanficCharacter
-		if args[2] != nil {
-			arg2 = args[2].([]dto.FanficCharacter)
-		}
-		var arg3 bool
-		if args[3] != nil {
-			arg3 = args[3].(bool)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -121,18 +108,18 @@ func (_c *MockFanficRepository_AddCharacters_Call) Return(err error) *MockFanfic
 	return _c
 }
 
-func (_c *MockFanficRepository_AddCharacters_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, characters []dto.FanficCharacter, isPairing bool, tx ...*sql.Tx) error) *MockFanficRepository_AddCharacters_Call {
+func (_c *MockFanficRepository_AddCharacters_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficCharacters, tx ...*sql.Tx) error) *MockFanficRepository_AddCharacters_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddCommentMedia provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) AddCommentMedia(ctx context.Context, spec NewFanficCommentMedia, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockFanficRepository) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -142,16 +129,16 @@ func (_mock *MockFanficRepository) AddCommentMedia(ctx context.Context, spec New
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewFanficCommentMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewFanficCommentMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewFanficCommentMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -165,22 +152,22 @@ type MockFanficRepository_AddCommentMedia_Call struct {
 
 // AddCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewFanficCommentMedia
+//   - s spec.NewMedia
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) AddCommentMedia(ctx any, spec any, tx ...any) *MockFanficRepository_AddCommentMedia_Call {
+func (_e *MockFanficRepository_Expecter) AddCommentMedia(ctx any, s any, tx ...any) *MockFanficRepository_AddCommentMedia_Call {
 	return &MockFanficRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, spec NewFanficCommentMedia, tx ...*sql.Tx)) *MockFanficRepository_AddCommentMedia_Call {
+func (_c *MockFanficRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockFanficRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewFanficCommentMedia
+		var arg1 spec.NewMedia
 		if args[1] != nil {
-			arg1 = args[1].(NewFanficCommentMedia)
+			arg1 = args[1].(spec.NewMedia)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -202,18 +189,18 @@ func (_c *MockFanficRepository_AddCommentMedia_Call) Return(n int64, err error) 
 	return _c
 }
 
-func (_c *MockFanficRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewFanficCommentMedia, tx ...*sql.Tx) (int64, error)) *MockFanficRepository_AddCommentMedia_Call {
+func (_c *MockFanficRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockFanficRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddGenres provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) AddGenres(ctx context.Context, fanficID uuid.UUID, genres []string, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) AddGenres(ctx context.Context, s spec.FanficGenres, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, genres, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, genres)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -222,8 +209,8 @@ func (_mock *MockFanficRepository) AddGenres(ctx context.Context, fanficID uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, fanficID, genres, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficGenres, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -237,39 +224,33 @@ type MockFanficRepository_AddGenres_Call struct {
 
 // AddGenres is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - genres []string
+//   - s spec.FanficGenres
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) AddGenres(ctx any, fanficID any, genres any, tx ...any) *MockFanficRepository_AddGenres_Call {
+func (_e *MockFanficRepository_Expecter) AddGenres(ctx any, s any, tx ...any) *MockFanficRepository_AddGenres_Call {
 	return &MockFanficRepository_AddGenres_Call{Call: _e.mock.On("AddGenres",
-		append([]any{ctx, fanficID, genres}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_AddGenres_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, genres []string, tx ...*sql.Tx)) *MockFanficRepository_AddGenres_Call {
+func (_c *MockFanficRepository_AddGenres_Call) Run(run func(ctx context.Context, s spec.FanficGenres, tx ...*sql.Tx)) *MockFanficRepository_AddGenres_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficGenres
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficGenres)
 		}
-		var arg2 []string
-		if args[2] != nil {
-			arg2 = args[2].([]string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -280,18 +261,18 @@ func (_c *MockFanficRepository_AddGenres_Call) Return(err error) *MockFanficRepo
 	return _c
 }
 
-func (_c *MockFanficRepository_AddGenres_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, genres []string, tx ...*sql.Tx) error) *MockFanficRepository_AddGenres_Call {
+func (_c *MockFanficRepository_AddGenres_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficGenres, tx ...*sql.Tx) error) *MockFanficRepository_AddGenres_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AddTags provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) AddTags(ctx context.Context, fanficID uuid.UUID, tags []string, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) AddTags(ctx context.Context, s spec.FanficTags, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, tags, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, tags)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -300,8 +281,8 @@ func (_mock *MockFanficRepository) AddTags(ctx context.Context, fanficID uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, []string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, fanficID, tags, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficTags, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -315,39 +296,33 @@ type MockFanficRepository_AddTags_Call struct {
 
 // AddTags is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - tags []string
+//   - s spec.FanficTags
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) AddTags(ctx any, fanficID any, tags any, tx ...any) *MockFanficRepository_AddTags_Call {
+func (_e *MockFanficRepository_Expecter) AddTags(ctx any, s any, tx ...any) *MockFanficRepository_AddTags_Call {
 	return &MockFanficRepository_AddTags_Call{Call: _e.mock.On("AddTags",
-		append([]any{ctx, fanficID, tags}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_AddTags_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, tags []string, tx ...*sql.Tx)) *MockFanficRepository_AddTags_Call {
+func (_c *MockFanficRepository_AddTags_Call) Run(run func(ctx context.Context, s spec.FanficTags, tx ...*sql.Tx)) *MockFanficRepository_AddTags_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficTags
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficTags)
 		}
-		var arg2 []string
-		if args[2] != nil {
-			arg2 = args[2].([]string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -358,7 +333,7 @@ func (_c *MockFanficRepository_AddTags_Call) Return(err error) *MockFanficReposi
 	return _c
 }
 
-func (_c *MockFanficRepository_AddTags_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, tags []string, tx ...*sql.Tx) error) *MockFanficRepository_AddTags_Call {
+func (_c *MockFanficRepository_AddTags_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficTags, tx ...*sql.Tx) error) *MockFanficRepository_AddTags_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -530,12 +505,12 @@ func (_c *MockFanficRepository_CollectSingleCommentMediaPaths_Call) RunAndReturn
 }
 
 // Create provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) Create(ctx context.Context, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, isPairing bool, tx ...*sql.Tx) (*model.FanficRow, error) {
+func (_mock *MockFanficRepository) Create(ctx context.Context, s spec.NewFanfic, tx ...*sql.Tx) (*model.FanficRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -545,18 +520,18 @@ func (_mock *MockFanficRepository) Create(ctx context.Context, userID uuid.UUID,
 
 	var r0 *model.FanficRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, string, string, bool, bool, bool, ...*sql.Tx) (*model.FanficRow, error)); ok {
-		return returnFunc(ctx, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewFanfic, ...*sql.Tx) (*model.FanficRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, string, string, string, string, bool, bool, bool, ...*sql.Tx) *model.FanficRow); ok {
-		r0 = returnFunc(ctx, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewFanfic, ...*sql.Tx) *model.FanficRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, string, string, string, string, bool, bool, bool, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewFanfic, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -570,87 +545,33 @@ type MockFanficRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - title string
-//   - summary string
-//   - series string
-//   - rating string
-//   - language string
-//   - status string
-//   - isOneshot bool
-//   - containsLemons bool
-//   - isPairing bool
+//   - s spec.NewFanfic
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) Create(ctx any, userID any, title any, summary any, series any, rating any, language any, status any, isOneshot any, containsLemons any, isPairing any, tx ...any) *MockFanficRepository_Create_Call {
+func (_e *MockFanficRepository_Expecter) Create(ctx any, s any, tx ...any) *MockFanficRepository_Create_Call {
 	return &MockFanficRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, isPairing}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_Create_Call) Run(run func(ctx context.Context, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, isPairing bool, tx ...*sql.Tx)) *MockFanficRepository_Create_Call {
+func (_c *MockFanficRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewFanfic, tx ...*sql.Tx)) *MockFanficRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewFanfic
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewFanfic)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 string
-		if args[6] != nil {
-			arg6 = args[6].(string)
-		}
-		var arg7 string
-		if args[7] != nil {
-			arg7 = args[7].(string)
-		}
-		var arg8 bool
-		if args[8] != nil {
-			arg8 = args[8].(bool)
-		}
-		var arg9 bool
-		if args[9] != nil {
-			arg9 = args[9].(bool)
-		}
-		var arg10 bool
-		if args[10] != nil {
-			arg10 = args[10].(bool)
-		}
-		var arg11 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 11 {
-			variadicArgs = args[11].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg11 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-			arg8,
-			arg9,
-			arg10,
-			arg11...,
+			arg2...,
 		)
 	})
 	return _c
@@ -661,18 +582,18 @@ func (_c *MockFanficRepository_Create_Call) Return(fanficRow *model.FanficRow, e
 	return _c
 }
 
-func (_c *MockFanficRepository_Create_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, isPairing bool, tx ...*sql.Tx) (*model.FanficRow, error)) *MockFanficRepository_Create_Call {
+func (_c *MockFanficRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewFanfic, tx ...*sql.Tx) (*model.FanficRow, error)) *MockFanficRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateChapter provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) CreateChapter(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
+func (_mock *MockFanficRepository) CreateChapter(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -682,18 +603,18 @@ func (_mock *MockFanficRepository) CreateChapter(ctx context.Context, fanficID u
 
 	var r0 *model.FanficChapterRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewChapter, ...*sql.Tx) (*model.FanficChapterRow, error)); ok {
-		return returnFunc(ctx, fanficID, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChapter, ...*sql.Tx) (*model.FanficChapterRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewChapter, ...*sql.Tx) *model.FanficChapterRow); ok {
-		r0 = returnFunc(ctx, fanficID, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChapter, ...*sql.Tx) *model.FanficChapterRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.FanficChapterRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, NewChapter, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, fanficID, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewChapter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -707,39 +628,33 @@ type MockFanficRepository_CreateChapter_Call struct {
 
 // CreateChapter is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - spec NewChapter
+//   - s spec.NewChapter
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) CreateChapter(ctx any, fanficID any, spec any, tx ...any) *MockFanficRepository_CreateChapter_Call {
+func (_e *MockFanficRepository_Expecter) CreateChapter(ctx any, s any, tx ...any) *MockFanficRepository_CreateChapter_Call {
 	return &MockFanficRepository_CreateChapter_Call{Call: _e.mock.On("CreateChapter",
-		append([]any{ctx, fanficID, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_CreateChapter_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx)) *MockFanficRepository_CreateChapter_Call {
+func (_c *MockFanficRepository_CreateChapter_Call) Run(run func(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx)) *MockFanficRepository_CreateChapter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewChapter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewChapter)
 		}
-		var arg2 NewChapter
-		if args[2] != nil {
-			arg2 = args[2].(NewChapter)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -750,18 +665,18 @@ func (_c *MockFanficRepository_CreateChapter_Call) Return(fanficChapterRow *mode
 	return _c
 }
 
-func (_c *MockFanficRepository_CreateChapter_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error)) *MockFanficRepository_CreateChapter_Call {
+func (_c *MockFanficRepository_CreateChapter_Call) RunAndReturn(run func(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error)) *MockFanficRepository_CreateChapter_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateChapterWithCount provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) CreateChapterWithCount(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
+func (_mock *MockFanficRepository) CreateChapterWithCount(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -771,18 +686,18 @@ func (_mock *MockFanficRepository) CreateChapterWithCount(ctx context.Context, f
 
 	var r0 *model.FanficChapterRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewChapter, ...*sql.Tx) (*model.FanficChapterRow, error)); ok {
-		return returnFunc(ctx, fanficID, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChapter, ...*sql.Tx) (*model.FanficChapterRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, NewChapter, ...*sql.Tx) *model.FanficChapterRow); ok {
-		r0 = returnFunc(ctx, fanficID, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewChapter, ...*sql.Tx) *model.FanficChapterRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.FanficChapterRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, NewChapter, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, fanficID, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewChapter, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -796,39 +711,33 @@ type MockFanficRepository_CreateChapterWithCount_Call struct {
 
 // CreateChapterWithCount is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - spec NewChapter
+//   - s spec.NewChapter
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) CreateChapterWithCount(ctx any, fanficID any, spec any, tx ...any) *MockFanficRepository_CreateChapterWithCount_Call {
+func (_e *MockFanficRepository_Expecter) CreateChapterWithCount(ctx any, s any, tx ...any) *MockFanficRepository_CreateChapterWithCount_Call {
 	return &MockFanficRepository_CreateChapterWithCount_Call{Call: _e.mock.On("CreateChapterWithCount",
-		append([]any{ctx, fanficID, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_CreateChapterWithCount_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx)) *MockFanficRepository_CreateChapterWithCount_Call {
+func (_c *MockFanficRepository_CreateChapterWithCount_Call) Run(run func(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx)) *MockFanficRepository_CreateChapterWithCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewChapter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewChapter)
 		}
-		var arg2 NewChapter
-		if args[2] != nil {
-			arg2 = args[2].(NewChapter)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -839,18 +748,18 @@ func (_c *MockFanficRepository_CreateChapterWithCount_Call) Return(fanficChapter
 	return _c
 }
 
-func (_c *MockFanficRepository_CreateChapterWithCount_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, spec NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error)) *MockFanficRepository_CreateChapterWithCount_Call {
+func (_c *MockFanficRepository_CreateChapterWithCount_Call) RunAndReturn(run func(ctx context.Context, s spec.NewChapter, tx ...*sql.Tx) (*model.FanficChapterRow, error)) *MockFanficRepository_CreateChapterWithCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateWithDetails provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) CreateWithDetails(ctx context.Context, spec NewFanfic, tx ...*sql.Tx) (*model.FanficRow, error) {
+func (_mock *MockFanficRepository) CreateWithDetails(ctx context.Context, s spec.NewFanficWithDetails, tx ...*sql.Tx) (*model.FanficRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -860,18 +769,18 @@ func (_mock *MockFanficRepository) CreateWithDetails(ctx context.Context, spec N
 
 	var r0 *model.FanficRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewFanfic, ...*sql.Tx) (*model.FanficRow, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewFanficWithDetails, ...*sql.Tx) (*model.FanficRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewFanfic, ...*sql.Tx) *model.FanficRow); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewFanficWithDetails, ...*sql.Tx) *model.FanficRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewFanfic, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewFanficWithDetails, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -885,22 +794,22 @@ type MockFanficRepository_CreateWithDetails_Call struct {
 
 // CreateWithDetails is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewFanfic
+//   - s spec.NewFanficWithDetails
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) CreateWithDetails(ctx any, spec any, tx ...any) *MockFanficRepository_CreateWithDetails_Call {
+func (_e *MockFanficRepository_Expecter) CreateWithDetails(ctx any, s any, tx ...any) *MockFanficRepository_CreateWithDetails_Call {
 	return &MockFanficRepository_CreateWithDetails_Call{Call: _e.mock.On("CreateWithDetails",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_CreateWithDetails_Call) Run(run func(ctx context.Context, spec NewFanfic, tx ...*sql.Tx)) *MockFanficRepository_CreateWithDetails_Call {
+func (_c *MockFanficRepository_CreateWithDetails_Call) Run(run func(ctx context.Context, s spec.NewFanficWithDetails, tx ...*sql.Tx)) *MockFanficRepository_CreateWithDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewFanfic
+		var arg1 spec.NewFanficWithDetails
 		if args[1] != nil {
-			arg1 = args[1].(NewFanfic)
+			arg1 = args[1].(spec.NewFanficWithDetails)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -922,18 +831,18 @@ func (_c *MockFanficRepository_CreateWithDetails_Call) Return(fanficRow *model.F
 	return _c
 }
 
-func (_c *MockFanficRepository_CreateWithDetails_Call) RunAndReturn(run func(ctx context.Context, spec NewFanfic, tx ...*sql.Tx) (*model.FanficRow, error)) *MockFanficRepository_CreateWithDetails_Call {
+func (_c *MockFanficRepository_CreateWithDetails_Call) RunAndReturn(run func(ctx context.Context, s spec.NewFanficWithDetails, tx ...*sql.Tx) (*model.FanficRow, error)) *MockFanficRepository_CreateWithDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Delete provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -942,8 +851,8 @@ func (_mock *MockFanficRepository) Delete(ctx context.Context, id uuid.UUID, use
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.OwnedDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -957,39 +866,33 @@ type MockFanficRepository_Delete_Call struct {
 
 // Delete is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.OwnedDeletion
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) Delete(ctx any, id any, userID any, tx ...any) *MockFanficRepository_Delete_Call {
+func (_e *MockFanficRepository_Expecter) Delete(ctx any, s any, tx ...any) *MockFanficRepository_Delete_Call {
 	return &MockFanficRepository_Delete_Call{Call: _e.mock.On("Delete",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_Delete_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_Delete_Call {
+func (_c *MockFanficRepository_Delete_Call) Run(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx)) *MockFanficRepository_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.OwnedDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.OwnedDeletion)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1000,7 +903,7 @@ func (_c *MockFanficRepository_Delete_Call) Return(err error) *MockFanficReposit
 	return _c
 }
 
-func (_c *MockFanficRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_Delete_Call {
+func (_c *MockFanficRepository_Delete_Call) RunAndReturn(run func(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error) *MockFanficRepository_Delete_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1294,12 +1197,12 @@ func (_c *MockFanficRepository_DeleteCharacters_Call) RunAndReturn(run func(ctx 
 }
 
 // DeleteComment provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1308,8 +1211,8 @@ func (_mock *MockFanficRepository) DeleteComment(ctx context.Context, id uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1323,100 +1226,22 @@ type MockFanficRepository_DeleteComment_Call struct {
 
 // DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *MockFanficRepository_DeleteComment_Call {
+func (_e *MockFanficRepository_Expecter) DeleteComment(ctx any, s any, tx ...any) *MockFanficRepository_DeleteComment_Call {
 	return &MockFanficRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_DeleteComment_Call {
+func (_c *MockFanficRepository_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockFanficRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockFanficRepository_DeleteComment_Call) Return(err error) *MockFanficRepository_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockFanficRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentAsAdmin provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockFanficRepository_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
-type MockFanficRepository_DeleteCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *MockFanficRepository_DeleteCommentAsAdmin_Call {
-	return &MockFanficRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
-		append([]any{ctx, id}, tx...)...)}
-}
-
-func (_c *MockFanficRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1433,23 +1258,23 @@ func (_c *MockFanficRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx conte
 	return _c
 }
 
-func (_c *MockFanficRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockFanficRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockFanficRepository_DeleteComment_Call) Return(err error) *MockFanficRepository_DeleteComment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockFanficRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockFanficRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *MockFanficRepository_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteCommentWithAudit provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) DeleteCommentWithAudit(ctx context.Context, spec FanficCommentDelete, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockFanficRepository) DeleteCommentWithAudit(ctx context.Context, s spec.FanficCommentDelete, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1459,18 +1284,18 @@ func (_mock *MockFanficRepository) DeleteCommentWithAudit(ctx context.Context, s
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, FanficCommentDelete, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficCommentDelete, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, FanficCommentDelete, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficCommentDelete, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, FanficCommentDelete, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficCommentDelete, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1484,22 +1309,22 @@ type MockFanficRepository_DeleteCommentWithAudit_Call struct {
 
 // DeleteCommentWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec FanficCommentDelete
+//   - s spec.FanficCommentDelete
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) DeleteCommentWithAudit(ctx any, spec any, tx ...any) *MockFanficRepository_DeleteCommentWithAudit_Call {
+func (_e *MockFanficRepository_Expecter) DeleteCommentWithAudit(ctx any, s any, tx ...any) *MockFanficRepository_DeleteCommentWithAudit_Call {
 	return &MockFanficRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, spec FanficCommentDelete, tx ...*sql.Tx)) *MockFanficRepository_DeleteCommentWithAudit_Call {
+func (_c *MockFanficRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, s spec.FanficCommentDelete, tx ...*sql.Tx)) *MockFanficRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 FanficCommentDelete
+		var arg1 spec.FanficCommentDelete
 		if args[1] != nil {
-			arg1 = args[1].(FanficCommentDelete)
+			arg1 = args[1].(spec.FanficCommentDelete)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1521,18 +1346,18 @@ func (_c *MockFanficRepository_DeleteCommentWithAudit_Call) Return(strings []str
 	return _c
 }
 
-func (_c *MockFanficRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, spec FanficCommentDelete, tx ...*sql.Tx) ([]string, error)) *MockFanficRepository_DeleteCommentWithAudit_Call {
+func (_c *MockFanficRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficCommentDelete, tx ...*sql.Tx) ([]string, error)) *MockFanficRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteFanfic provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) DeleteFanfic(ctx context.Context, spec FanficDelete, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockFanficRepository) DeleteFanfic(ctx context.Context, s spec.FanficDelete, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1542,18 +1367,18 @@ func (_mock *MockFanficRepository) DeleteFanfic(ctx context.Context, spec Fanfic
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, FanficDelete, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficDelete, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, FanficDelete, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficDelete, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, FanficDelete, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficDelete, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1567,22 +1392,22 @@ type MockFanficRepository_DeleteFanfic_Call struct {
 
 // DeleteFanfic is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec FanficDelete
+//   - s spec.FanficDelete
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) DeleteFanfic(ctx any, spec any, tx ...any) *MockFanficRepository_DeleteFanfic_Call {
+func (_e *MockFanficRepository_Expecter) DeleteFanfic(ctx any, s any, tx ...any) *MockFanficRepository_DeleteFanfic_Call {
 	return &MockFanficRepository_DeleteFanfic_Call{Call: _e.mock.On("DeleteFanfic",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_DeleteFanfic_Call) Run(run func(ctx context.Context, spec FanficDelete, tx ...*sql.Tx)) *MockFanficRepository_DeleteFanfic_Call {
+func (_c *MockFanficRepository_DeleteFanfic_Call) Run(run func(ctx context.Context, s spec.FanficDelete, tx ...*sql.Tx)) *MockFanficRepository_DeleteFanfic_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 FanficDelete
+		var arg1 spec.FanficDelete
 		if args[1] != nil {
-			arg1 = args[1].(FanficDelete)
+			arg1 = args[1].(spec.FanficDelete)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1604,7 +1429,7 @@ func (_c *MockFanficRepository_DeleteFanfic_Call) Return(strings []string, err e
 	return _c
 }
 
-func (_c *MockFanficRepository_DeleteFanfic_Call) RunAndReturn(run func(ctx context.Context, spec FanficDelete, tx ...*sql.Tx) ([]string, error)) *MockFanficRepository_DeleteFanfic_Call {
+func (_c *MockFanficRepository_DeleteFanfic_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficDelete, tx ...*sql.Tx) ([]string, error)) *MockFanficRepository_DeleteFanfic_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1754,12 +1579,12 @@ func (_c *MockFanficRepository_DeleteTags_Call) RunAndReturn(run func(ctx contex
 }
 
 // Favourite provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) Favourite(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) Favourite(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, fanficID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, fanficID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1768,8 +1593,8 @@ func (_mock *MockFanficRepository) Favourite(ctx context.Context, userID uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, fanficID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserRef, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1783,39 +1608,33 @@ type MockFanficRepository_Favourite_Call struct {
 
 // Favourite is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - fanficID uuid.UUID
+//   - s spec.FanficUserRef
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) Favourite(ctx any, userID any, fanficID any, tx ...any) *MockFanficRepository_Favourite_Call {
+func (_e *MockFanficRepository_Expecter) Favourite(ctx any, s any, tx ...any) *MockFanficRepository_Favourite_Call {
 	return &MockFanficRepository_Favourite_Call{Call: _e.mock.On("Favourite",
-		append([]any{ctx, userID, fanficID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_Favourite_Call) Run(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_Favourite_Call {
+func (_c *MockFanficRepository_Favourite_Call) Run(run func(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx)) *MockFanficRepository_Favourite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficUserRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficUserRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1826,7 +1645,7 @@ func (_c *MockFanficRepository_Favourite_Call) Return(err error) *MockFanficRepo
 	return _c
 }
 
-func (_c *MockFanficRepository_Favourite_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_Favourite_Call {
+func (_c *MockFanficRepository_Favourite_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx) error) *MockFanficRepository_Favourite_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1915,12 +1734,12 @@ func (_c *MockFanficRepository_GetAuthorID_Call) RunAndReturn(run func(ctx conte
 }
 
 // GetByID provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) GetByID(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.FanficRow, error) {
+func (_mock *MockFanficRepository) GetByID(ctx context.Context, s spec.FanficLookup, tx ...*sql.Tx) (*model.FanficRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, viewerID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, viewerID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1930,18 +1749,18 @@ func (_mock *MockFanficRepository) GetByID(ctx context.Context, id uuid.UUID, vi
 
 	var r0 *model.FanficRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (*model.FanficRow, error)); ok {
-		return returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficLookup, ...*sql.Tx) (*model.FanficRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) *model.FanficRow); ok {
-		r0 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficLookup, ...*sql.Tx) *model.FanficRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, id, viewerID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficLookup, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1955,39 +1774,33 @@ type MockFanficRepository_GetByID_Call struct {
 
 // GetByID is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - viewerID uuid.UUID
+//   - s spec.FanficLookup
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) GetByID(ctx any, id any, viewerID any, tx ...any) *MockFanficRepository_GetByID_Call {
+func (_e *MockFanficRepository_Expecter) GetByID(ctx any, s any, tx ...any) *MockFanficRepository_GetByID_Call {
 	return &MockFanficRepository_GetByID_Call{Call: _e.mock.On("GetByID",
-		append([]any{ctx, id, viewerID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_GetByID_Call) Run(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_GetByID_Call {
+func (_c *MockFanficRepository_GetByID_Call) Run(run func(ctx context.Context, s spec.FanficLookup, tx ...*sql.Tx)) *MockFanficRepository_GetByID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficLookup
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficLookup)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1998,18 +1811,18 @@ func (_c *MockFanficRepository_GetByID_Call) Return(fanficRow *model.FanficRow, 
 	return _c
 }
 
-func (_c *MockFanficRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (*model.FanficRow, error)) *MockFanficRepository_GetByID_Call {
+func (_c *MockFanficRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficLookup, tx ...*sql.Tx) (*model.FanficRow, error)) *MockFanficRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetChapter provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
+func (_mock *MockFanficRepository) GetChapter(ctx context.Context, s spec.FanficChapterLookup, tx ...*sql.Tx) (*model.FanficChapterRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, chapterNumber, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, chapterNumber)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2019,18 +1832,18 @@ func (_mock *MockFanficRepository) GetChapter(ctx context.Context, fanficID uuid
 
 	var r0 *model.FanficChapterRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) (*model.FanficChapterRow, error)); ok {
-		return returnFunc(ctx, fanficID, chapterNumber, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficChapterLookup, ...*sql.Tx) (*model.FanficChapterRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, ...*sql.Tx) *model.FanficChapterRow); ok {
-		r0 = returnFunc(ctx, fanficID, chapterNumber, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficChapterLookup, ...*sql.Tx) *model.FanficChapterRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*model.FanficChapterRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, fanficID, chapterNumber, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficChapterLookup, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -2044,39 +1857,33 @@ type MockFanficRepository_GetChapter_Call struct {
 
 // GetChapter is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - chapterNumber int
+//   - s spec.FanficChapterLookup
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) GetChapter(ctx any, fanficID any, chapterNumber any, tx ...any) *MockFanficRepository_GetChapter_Call {
+func (_e *MockFanficRepository_Expecter) GetChapter(ctx any, s any, tx ...any) *MockFanficRepository_GetChapter_Call {
 	return &MockFanficRepository_GetChapter_Call{Call: _e.mock.On("GetChapter",
-		append([]any{ctx, fanficID, chapterNumber}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_GetChapter_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx)) *MockFanficRepository_GetChapter_Call {
+func (_c *MockFanficRepository_GetChapter_Call) Run(run func(ctx context.Context, s spec.FanficChapterLookup, tx ...*sql.Tx)) *MockFanficRepository_GetChapter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficChapterLookup
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficChapterLookup)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2087,7 +1894,7 @@ func (_c *MockFanficRepository_GetChapter_Call) Return(fanficChapterRow *model.F
 	return _c
 }
 
-func (_c *MockFanficRepository_GetChapter_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) (*model.FanficChapterRow, error)) *MockFanficRepository_GetChapter_Call {
+func (_c *MockFanficRepository_GetChapter_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficChapterLookup, tx ...*sql.Tx) (*model.FanficChapterRow, error)) *MockFanficRepository_GetChapter_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2838,12 +2645,12 @@ func (_c *MockFanficRepository_GetCommentMediaBatch_Call) RunAndReturn(run func(
 }
 
 // GetComments provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) GetComments(ctx context.Context, fanficID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+func (_mock *MockFanficRepository) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, viewerID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, viewerID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -2851,26 +2658,26 @@ func (_mock *MockFanficRepository) GetComments(ctx context.Context, fanficID uui
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []CommentRow
+	var r0 []model.CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, fanficID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
-		r0 = returnFunc(ctx, fanficID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
+			r0 = ret.Get(0).([]model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, fanficID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, fanficID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -2884,68 +2691,44 @@ type MockFanficRepository_GetComments_Call struct {
 
 // GetComments is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.CommentQuery[uuid.UUID]
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) GetComments(ctx any, fanficID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockFanficRepository_GetComments_Call {
+func (_e *MockFanficRepository_Expecter) GetComments(ctx any, q any, tx ...any) *MockFanficRepository_GetComments_Call {
 	return &MockFanficRepository_GetComments_Call{Call: _e.mock.On("GetComments",
-		append([]any{ctx, fanficID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_GetComments_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_GetComments_Call {
+func (_c *MockFanficRepository_GetComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockFanficRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentQuery[uuid.UUID]
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		var arg6 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 6 {
-			variadicArgs = args[6].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg6 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockFanficRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockFanficRepository_GetComments_Call {
+func (_c *MockFanficRepository_GetComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockFanficRepository_GetComments_Call {
 	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockFanficRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockFanficRepository_GetComments_Call {
+func (_c *MockFanficRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockFanficRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3358,12 +3141,12 @@ func (_c *MockFanficRepository_GetNextChapterNumber_Call) RunAndReturn(run func(
 }
 
 // GetReadingProgress provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) GetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) (int, error) {
+func (_mock *MockFanficRepository) GetReadingProgress(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx) (int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, fanficID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, fanficID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3373,16 +3156,16 @@ func (_mock *MockFanficRepository) GetReadingProgress(ctx context.Context, userI
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (int, error)); ok {
-		return returnFunc(ctx, userID, fanficID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserRef, ...*sql.Tx) (int, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) int); ok {
-		r0 = returnFunc(ctx, userID, fanficID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserRef, ...*sql.Tx) int); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, fanficID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficUserRef, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -3396,39 +3179,33 @@ type MockFanficRepository_GetReadingProgress_Call struct {
 
 // GetReadingProgress is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - fanficID uuid.UUID
+//   - s spec.FanficUserRef
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) GetReadingProgress(ctx any, userID any, fanficID any, tx ...any) *MockFanficRepository_GetReadingProgress_Call {
+func (_e *MockFanficRepository_Expecter) GetReadingProgress(ctx any, s any, tx ...any) *MockFanficRepository_GetReadingProgress_Call {
 	return &MockFanficRepository_GetReadingProgress_Call{Call: _e.mock.On("GetReadingProgress",
-		append([]any{ctx, userID, fanficID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_GetReadingProgress_Call) Run(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_GetReadingProgress_Call {
+func (_c *MockFanficRepository_GetReadingProgress_Call) Run(run func(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx)) *MockFanficRepository_GetReadingProgress_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficUserRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficUserRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3439,7 +3216,7 @@ func (_c *MockFanficRepository_GetReadingProgress_Call) Return(n int, err error)
 	return _c
 }
 
-func (_c *MockFanficRepository_GetReadingProgress_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) (int, error)) *MockFanficRepository_GetReadingProgress_Call {
+func (_c *MockFanficRepository_GetReadingProgress_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx) (int, error)) *MockFanficRepository_GetReadingProgress_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3687,13 +3464,85 @@ func (_c *MockFanficRepository_GetTagsBatch_Call) RunAndReturn(run func(ctx cont
 	return _c
 }
 
-// LikeComment provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+// IncrementViewCount provides a mock function for the type MockFanficRepository
+func (_mock *MockFanficRepository) IncrementViewCount(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, id, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, id)
+	}
+	ret := tmpRet
+
+	if len(ret) == 0 {
+		panic("no return value specified for IncrementViewCount")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, id, tx...)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockFanficRepository_IncrementViewCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncrementViewCount'
+type MockFanficRepository_IncrementViewCount_Call struct {
+	*mock.Call
+}
+
+// IncrementViewCount is a helper method to define mock.On call
+//   - ctx context.Context
+//   - id uuid.UUID
+//   - tx ...*sql.Tx
+func (_e *MockFanficRepository_Expecter) IncrementViewCount(ctx any, id any, tx ...any) *MockFanficRepository_IncrementViewCount_Call {
+	return &MockFanficRepository_IncrementViewCount_Call{Call: _e.mock.On("IncrementViewCount",
+		append([]any{ctx, id}, tx...)...)}
+}
+
+func (_c *MockFanficRepository_IncrementViewCount_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_IncrementViewCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 uuid.UUID
+		if args[1] != nil {
+			arg1 = args[1].(uuid.UUID)
+		}
+		var arg2 []*sql.Tx
+		var variadicArgs []*sql.Tx
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
+		}
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
+	})
+	return _c
+}
+
+func (_c *MockFanficRepository_IncrementViewCount_Call) Return(err error) *MockFanficRepository_IncrementViewCount_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockFanficRepository_IncrementViewCount_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_IncrementViewCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LikeComment provides a mock function for the type MockFanficRepository
+func (_mock *MockFanficRepository) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
+	var tmpRet mock.Arguments
+	if len(tx) > 0 {
+		tmpRet = _mock.Called(ctx, s, tx)
+	} else {
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -3702,8 +3551,8 @@ func (_mock *MockFanficRepository) LikeComment(ctx context.Context, userID uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3717,39 +3566,33 @@ type MockFanficRepository_LikeComment_Call struct {
 
 // LikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockFanficRepository_LikeComment_Call {
+func (_e *MockFanficRepository_Expecter) LikeComment(ctx any, s any, tx ...any) *MockFanficRepository_LikeComment_Call {
 	return &MockFanficRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_LikeComment_Call {
+func (_c *MockFanficRepository_LikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockFanficRepository_LikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3760,18 +3603,18 @@ func (_c *MockFanficRepository_LikeComment_Call) Return(err error) *MockFanficRe
 	return _c
 }
 
-func (_c *MockFanficRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_LikeComment_Call {
+func (_c *MockFanficRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockFanficRepository_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) List(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
+func (_mock *MockFanficRepository) List(ctx context.Context, q spec.FanficListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, viewerID, params1, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, viewerID, params1, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -3782,23 +3625,23 @@ func (_mock *MockFanficRepository) List(ctx context.Context, viewerID uuid.UUID,
 	var r0 []model.FanficRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID, ...*sql.Tx) ([]model.FanficRow, int, error)); ok {
-		return returnFunc(ctx, viewerID, params1, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficListFilter, ...*sql.Tx) ([]model.FanficRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID, ...*sql.Tx) []model.FanficRow); ok {
-		r0 = returnFunc(ctx, viewerID, params1, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficListFilter, ...*sql.Tx) []model.FanficRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, viewerID, params1, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficListFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, params.ListParams, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, viewerID, params1, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.FanficListFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3812,45 +3655,33 @@ type MockFanficRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - viewerID uuid.UUID
-//   - params1 params.ListParams
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.FanficListFilter
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) List(ctx any, viewerID any, params1 any, excludeUserIDs any, tx ...any) *MockFanficRepository_List_Call {
+func (_e *MockFanficRepository_Expecter) List(ctx any, q any, tx ...any) *MockFanficRepository_List_Call {
 	return &MockFanficRepository_List_Call{Call: _e.mock.On("List",
-		append([]any{ctx, viewerID, params1, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_List_Call) Run(run func(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_List_Call {
+func (_c *MockFanficRepository_List_Call) Run(run func(ctx context.Context, q spec.FanficListFilter, tx ...*sql.Tx)) *MockFanficRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficListFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficListFilter)
 		}
-		var arg2 params.ListParams
-		if args[2] != nil {
-			arg2 = args[2].(params.ListParams)
-		}
-		var arg3 []uuid.UUID
-		if args[3] != nil {
-			arg3 = args[3].([]uuid.UUID)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3861,18 +3692,18 @@ func (_c *MockFanficRepository_List_Call) Return(fanficRows []model.FanficRow, n
 	return _c
 }
 
-func (_c *MockFanficRepository_List_Call) RunAndReturn(run func(ctx context.Context, viewerID uuid.UUID, params1 params.ListParams, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]model.FanficRow, int, error)) *MockFanficRepository_List_Call {
+func (_c *MockFanficRepository_List_Call) RunAndReturn(run func(ctx context.Context, q spec.FanficListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error)) *MockFanficRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListByUser provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
+func (_mock *MockFanficRepository) ListByUser(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -3883,23 +3714,23 @@ func (_mock *MockFanficRepository) ListByUser(ctx context.Context, userID uuid.U
 	var r0 []model.FanficRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]model.FanficRow, int, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) ([]model.FanficRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []model.FanficRow); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) []model.FanficRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -3913,51 +3744,33 @@ type MockFanficRepository_ListByUser_Call struct {
 
 // ListByUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
+//   - q spec.FanficUserListFilter
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) ListByUser(ctx any, userID any, viewerID any, limit any, offset any, tx ...any) *MockFanficRepository_ListByUser_Call {
+func (_e *MockFanficRepository_Expecter) ListByUser(ctx any, q any, tx ...any) *MockFanficRepository_ListByUser_Call {
 	return &MockFanficRepository_ListByUser_Call{Call: _e.mock.On("ListByUser",
-		append([]any{ctx, userID, viewerID, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_ListByUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockFanficRepository_ListByUser_Call {
+func (_c *MockFanficRepository_ListByUser_Call) Run(run func(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx)) *MockFanficRepository_ListByUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficUserListFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficUserListFilter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -3968,7 +3781,7 @@ func (_c *MockFanficRepository_ListByUser_Call) Return(fanficRows []model.Fanfic
 	return _c
 }
 
-func (_c *MockFanficRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error)) *MockFanficRepository_ListByUser_Call {
+func (_c *MockFanficRepository_ListByUser_Call) RunAndReturn(run func(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error)) *MockFanficRepository_ListByUser_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4057,12 +3870,12 @@ func (_c *MockFanficRepository_ListChapters_Call) RunAndReturn(run func(ctx cont
 }
 
 // ListFavourites provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) ListFavourites(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
+func (_mock *MockFanficRepository) ListFavourites(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, viewerID, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -4073,23 +3886,23 @@ func (_mock *MockFanficRepository) ListFavourites(ctx context.Context, userID uu
 	var r0 []model.FanficRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) ([]model.FanficRow, int, error)); ok {
-		return returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) ([]model.FanficRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) []model.FanficRow); ok {
-		r0 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) []model.FanficRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]model.FanficRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, userID, viewerID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.FanficUserListFilter, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -4103,51 +3916,33 @@ type MockFanficRepository_ListFavourites_Call struct {
 
 // ListFavourites is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
+//   - q spec.FanficUserListFilter
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) ListFavourites(ctx any, userID any, viewerID any, limit any, offset any, tx ...any) *MockFanficRepository_ListFavourites_Call {
+func (_e *MockFanficRepository_Expecter) ListFavourites(ctx any, q any, tx ...any) *MockFanficRepository_ListFavourites_Call {
 	return &MockFanficRepository_ListFavourites_Call{Call: _e.mock.On("ListFavourites",
-		append([]any{ctx, userID, viewerID, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_ListFavourites_Call) Run(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockFanficRepository_ListFavourites_Call {
+func (_c *MockFanficRepository_ListFavourites_Call) Run(run func(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx)) *MockFanficRepository_ListFavourites_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficUserListFilter
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficUserListFilter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4158,18 +3953,18 @@ func (_c *MockFanficRepository_ListFavourites_Call) Return(fanficRows []model.Fa
 	return _c
 }
 
-func (_c *MockFanficRepository_ListFavourites_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]model.FanficRow, int, error)) *MockFanficRepository_ListFavourites_Call {
+func (_c *MockFanficRepository_ListFavourites_Call) RunAndReturn(run func(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error)) *MockFanficRepository_ListFavourites_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RecordView provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) RecordView(ctx context.Context, fanficID uuid.UUID, viewerHash string, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockFanficRepository) RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, fanficID, viewerHash, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, fanficID, viewerHash)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4179,16 +3974,16 @@ func (_mock *MockFanficRepository) RecordView(ctx context.Context, fanficID uuid
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, fanficID, viewerHash, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ViewRecord, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, fanficID, viewerHash, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ViewRecord, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, fanficID, viewerHash, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.ViewRecord, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -4202,39 +3997,33 @@ type MockFanficRepository_RecordView_Call struct {
 
 // RecordView is a helper method to define mock.On call
 //   - ctx context.Context
-//   - fanficID uuid.UUID
-//   - viewerHash string
+//   - s spec.ViewRecord
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) RecordView(ctx any, fanficID any, viewerHash any, tx ...any) *MockFanficRepository_RecordView_Call {
+func (_e *MockFanficRepository_Expecter) RecordView(ctx any, s any, tx ...any) *MockFanficRepository_RecordView_Call {
 	return &MockFanficRepository_RecordView_Call{Call: _e.mock.On("RecordView",
-		append([]any{ctx, fanficID, viewerHash}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_RecordView_Call) Run(run func(ctx context.Context, fanficID uuid.UUID, viewerHash string, tx ...*sql.Tx)) *MockFanficRepository_RecordView_Call {
+func (_c *MockFanficRepository_RecordView_Call) Run(run func(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx)) *MockFanficRepository_RecordView_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ViewRecord
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ViewRecord)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4245,7 +4034,7 @@ func (_c *MockFanficRepository_RecordView_Call) Return(b bool, err error) *MockF
 	return _c
 }
 
-func (_c *MockFanficRepository_RecordView_Call) RunAndReturn(run func(ctx context.Context, fanficID uuid.UUID, viewerHash string, tx ...*sql.Tx) (bool, error)) *MockFanficRepository_RecordView_Call {
+func (_c *MockFanficRepository_RecordView_Call) RunAndReturn(run func(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error)) *MockFanficRepository_RecordView_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4323,12 +4112,12 @@ func (_c *MockFanficRepository_RegisterLanguage_Call) RunAndReturn(run func(ctx 
 }
 
 // RegisterOCCharacter provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) RegisterOCCharacter(ctx context.Context, name string, creatorID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) RegisterOCCharacter(ctx context.Context, s spec.NewFanficOCCharacter, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, name, creatorID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, name, creatorID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4337,8 +4126,8 @@ func (_mock *MockFanficRepository) RegisterOCCharacter(ctx context.Context, name
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, name, creatorID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewFanficOCCharacter, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4352,39 +4141,33 @@ type MockFanficRepository_RegisterOCCharacter_Call struct {
 
 // RegisterOCCharacter is a helper method to define mock.On call
 //   - ctx context.Context
-//   - name string
-//   - creatorID uuid.UUID
+//   - s spec.NewFanficOCCharacter
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) RegisterOCCharacter(ctx any, name any, creatorID any, tx ...any) *MockFanficRepository_RegisterOCCharacter_Call {
+func (_e *MockFanficRepository_Expecter) RegisterOCCharacter(ctx any, s any, tx ...any) *MockFanficRepository_RegisterOCCharacter_Call {
 	return &MockFanficRepository_RegisterOCCharacter_Call{Call: _e.mock.On("RegisterOCCharacter",
-		append([]any{ctx, name, creatorID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_RegisterOCCharacter_Call) Run(run func(ctx context.Context, name string, creatorID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_RegisterOCCharacter_Call {
+func (_c *MockFanficRepository_RegisterOCCharacter_Call) Run(run func(ctx context.Context, s spec.NewFanficOCCharacter, tx ...*sql.Tx)) *MockFanficRepository_RegisterOCCharacter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.NewFanficOCCharacter
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.NewFanficOCCharacter)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4395,7 +4178,7 @@ func (_c *MockFanficRepository_RegisterOCCharacter_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockFanficRepository_RegisterOCCharacter_Call) RunAndReturn(run func(ctx context.Context, name string, creatorID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_RegisterOCCharacter_Call {
+func (_c *MockFanficRepository_RegisterOCCharacter_Call) RunAndReturn(run func(ctx context.Context, s spec.NewFanficOCCharacter, tx ...*sql.Tx) error) *MockFanficRepository_RegisterOCCharacter_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4556,12 +4339,12 @@ func (_c *MockFanficRepository_SearchOCCharacters_Call) RunAndReturn(run func(ct
 }
 
 // SetReadingProgress provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) SetReadingProgress(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) SetReadingProgress(ctx context.Context, s spec.FanficReadingProgress, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, fanficID, chapterNumber, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, fanficID, chapterNumber)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4570,8 +4353,8 @@ func (_mock *MockFanficRepository) SetReadingProgress(ctx context.Context, userI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, fanficID, chapterNumber, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficReadingProgress, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4585,45 +4368,33 @@ type MockFanficRepository_SetReadingProgress_Call struct {
 
 // SetReadingProgress is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - fanficID uuid.UUID
-//   - chapterNumber int
+//   - s spec.FanficReadingProgress
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) SetReadingProgress(ctx any, userID any, fanficID any, chapterNumber any, tx ...any) *MockFanficRepository_SetReadingProgress_Call {
+func (_e *MockFanficRepository_Expecter) SetReadingProgress(ctx any, s any, tx ...any) *MockFanficRepository_SetReadingProgress_Call {
 	return &MockFanficRepository_SetReadingProgress_Call{Call: _e.mock.On("SetReadingProgress",
-		append([]any{ctx, userID, fanficID, chapterNumber}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_SetReadingProgress_Call) Run(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx)) *MockFanficRepository_SetReadingProgress_Call {
+func (_c *MockFanficRepository_SetReadingProgress_Call) Run(run func(ctx context.Context, s spec.FanficReadingProgress, tx ...*sql.Tx)) *MockFanficRepository_SetReadingProgress_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficReadingProgress
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficReadingProgress)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4634,18 +4405,18 @@ func (_c *MockFanficRepository_SetReadingProgress_Call) Return(err error) *MockF
 	return _c
 }
 
-func (_c *MockFanficRepository_SetReadingProgress_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, chapterNumber int, tx ...*sql.Tx) error) *MockFanficRepository_SetReadingProgress_Call {
+func (_c *MockFanficRepository_SetReadingProgress_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficReadingProgress, tx ...*sql.Tx) error) *MockFanficRepository_SetReadingProgress_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unfavourite provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) Unfavourite(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) Unfavourite(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, fanficID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, fanficID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4654,8 +4425,8 @@ func (_mock *MockFanficRepository) Unfavourite(ctx context.Context, userID uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, fanficID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUserRef, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4669,39 +4440,33 @@ type MockFanficRepository_Unfavourite_Call struct {
 
 // Unfavourite is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - fanficID uuid.UUID
+//   - s spec.FanficUserRef
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) Unfavourite(ctx any, userID any, fanficID any, tx ...any) *MockFanficRepository_Unfavourite_Call {
+func (_e *MockFanficRepository_Expecter) Unfavourite(ctx any, s any, tx ...any) *MockFanficRepository_Unfavourite_Call {
 	return &MockFanficRepository_Unfavourite_Call{Call: _e.mock.On("Unfavourite",
-		append([]any{ctx, userID, fanficID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_Unfavourite_Call) Run(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_Unfavourite_Call {
+func (_c *MockFanficRepository_Unfavourite_Call) Run(run func(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx)) *MockFanficRepository_Unfavourite_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficUserRef
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficUserRef)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4712,18 +4477,18 @@ func (_c *MockFanficRepository_Unfavourite_Call) Return(err error) *MockFanficRe
 	return _c
 }
 
-func (_c *MockFanficRepository_Unfavourite_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, fanficID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_Unfavourite_Call {
+func (_c *MockFanficRepository_Unfavourite_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficUserRef, tx ...*sql.Tx) error) *MockFanficRepository_Unfavourite_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnlikeComment provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4732,8 +4497,8 @@ func (_mock *MockFanficRepository) UnlikeComment(ctx context.Context, userID uui
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4747,39 +4512,33 @@ type MockFanficRepository_UnlikeComment_Call struct {
 
 // UnlikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockFanficRepository_UnlikeComment_Call {
+func (_e *MockFanficRepository_Expecter) UnlikeComment(ctx any, s any, tx ...any) *MockFanficRepository_UnlikeComment_Call {
 	return &MockFanficRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockFanficRepository_UnlikeComment_Call {
+func (_c *MockFanficRepository_UnlikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockFanficRepository_UnlikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4790,18 +4549,18 @@ func (_c *MockFanficRepository_UnlikeComment_Call) Return(err error) *MockFanfic
 	return _c
 }
 
-func (_c *MockFanficRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockFanficRepository_UnlikeComment_Call {
+func (_c *MockFanficRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockFanficRepository_UnlikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, asAdmin bool, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, asAdmin, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, asAdmin)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4810,8 +4569,8 @@ func (_mock *MockFanficRepository) Update(ctx context.Context, id uuid.UUID, use
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, string, string, string, string, string, bool, bool, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, asAdmin, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4825,93 +4584,33 @@ type MockFanficRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - title string
-//   - summary string
-//   - series string
-//   - rating string
-//   - language string
-//   - status string
-//   - isOneshot bool
-//   - containsLemons bool
-//   - asAdmin bool
+//   - s spec.FanficUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) Update(ctx any, id any, userID any, title any, summary any, series any, rating any, language any, status any, isOneshot any, containsLemons any, asAdmin any, tx ...any) *MockFanficRepository_Update_Call {
+func (_e *MockFanficRepository_Expecter) Update(ctx any, s any, tx ...any) *MockFanficRepository_Update_Call {
 	return &MockFanficRepository_Update_Call{Call: _e.mock.On("Update",
-		append([]any{ctx, id, userID, title, summary, series, rating, language, status, isOneshot, containsLemons, asAdmin}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, asAdmin bool, tx ...*sql.Tx)) *MockFanficRepository_Update_Call {
+func (_c *MockFanficRepository_Update_Call) Run(run func(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx)) *MockFanficRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 string
-		if args[4] != nil {
-			arg4 = args[4].(string)
-		}
-		var arg5 string
-		if args[5] != nil {
-			arg5 = args[5].(string)
-		}
-		var arg6 string
-		if args[6] != nil {
-			arg6 = args[6].(string)
-		}
-		var arg7 string
-		if args[7] != nil {
-			arg7 = args[7].(string)
-		}
-		var arg8 string
-		if args[8] != nil {
-			arg8 = args[8].(string)
-		}
-		var arg9 bool
-		if args[9] != nil {
-			arg9 = args[9].(bool)
-		}
-		var arg10 bool
-		if args[10] != nil {
-			arg10 = args[10].(bool)
-		}
-		var arg11 bool
-		if args[11] != nil {
-			arg11 = args[11].(bool)
-		}
-		var arg12 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 12 {
-			variadicArgs = args[12].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg12 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6,
-			arg7,
-			arg8,
-			arg9,
-			arg10,
-			arg11,
-			arg12...,
+			arg2...,
 		)
 	})
 	return _c
@@ -4922,18 +4621,18 @@ func (_c *MockFanficRepository_Update_Call) Return(err error) *MockFanficReposit
 	return _c
 }
 
-func (_c *MockFanficRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, summary string, series string, rating string, language string, status string, isOneshot bool, containsLemons bool, asAdmin bool, tx ...*sql.Tx) error) *MockFanficRepository_Update_Call {
+func (_c *MockFanficRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficUpdate, tx ...*sql.Tx) error) *MockFanficRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateChapter provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateChapter(ctx context.Context, id uuid.UUID, title string, body string, wordCount int, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateChapter(ctx context.Context, s spec.ChapterUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, title, body, wordCount, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, title, body, wordCount)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -4942,8 +4641,8 @@ func (_mock *MockFanficRepository) UpdateChapter(ctx context.Context, id uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, int, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, title, body, wordCount, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChapterUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -4957,51 +4656,33 @@ type MockFanficRepository_UpdateChapter_Call struct {
 
 // UpdateChapter is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - title string
-//   - body string
-//   - wordCount int
+//   - s spec.ChapterUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateChapter(ctx any, id any, title any, body any, wordCount any, tx ...any) *MockFanficRepository_UpdateChapter_Call {
+func (_e *MockFanficRepository_Expecter) UpdateChapter(ctx any, s any, tx ...any) *MockFanficRepository_UpdateChapter_Call {
 	return &MockFanficRepository_UpdateChapter_Call{Call: _e.mock.On("UpdateChapter",
-		append([]any{ctx, id, title, body, wordCount}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateChapter_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, wordCount int, tx ...*sql.Tx)) *MockFanficRepository_UpdateChapter_Call {
+func (_c *MockFanficRepository_UpdateChapter_Call) Run(run func(ctx context.Context, s spec.ChapterUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateChapter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.ChapterUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.ChapterUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 5 {
-			variadicArgs = args[5].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg5 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5...,
+			arg2...,
 		)
 	})
 	return _c
@@ -5012,18 +4693,18 @@ func (_c *MockFanficRepository_UpdateChapter_Call) Return(err error) *MockFanfic
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateChapter_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, wordCount int, tx ...*sql.Tx) error) *MockFanficRepository_UpdateChapter_Call {
+func (_c *MockFanficRepository_UpdateChapter_Call) RunAndReturn(run func(ctx context.Context, s spec.ChapterUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateChapter_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateChapterWithCount provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateChapterWithCount(ctx context.Context, spec ChapterUpdate, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateChapterWithCount(ctx context.Context, s spec.ChapterUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5032,8 +4713,8 @@ func (_mock *MockFanficRepository) UpdateChapterWithCount(ctx context.Context, s
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ChapterUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.ChapterUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5047,22 +4728,22 @@ type MockFanficRepository_UpdateChapterWithCount_Call struct {
 
 // UpdateChapterWithCount is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec ChapterUpdate
+//   - s spec.ChapterUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateChapterWithCount(ctx any, spec any, tx ...any) *MockFanficRepository_UpdateChapterWithCount_Call {
+func (_e *MockFanficRepository_Expecter) UpdateChapterWithCount(ctx any, s any, tx ...any) *MockFanficRepository_UpdateChapterWithCount_Call {
 	return &MockFanficRepository_UpdateChapterWithCount_Call{Call: _e.mock.On("UpdateChapterWithCount",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateChapterWithCount_Call) Run(run func(ctx context.Context, spec ChapterUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateChapterWithCount_Call {
+func (_c *MockFanficRepository_UpdateChapterWithCount_Call) Run(run func(ctx context.Context, s spec.ChapterUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateChapterWithCount_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 ChapterUpdate
+		var arg1 spec.ChapterUpdate
 		if args[1] != nil {
-			arg1 = args[1].(ChapterUpdate)
+			arg1 = args[1].(spec.ChapterUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -5084,18 +4765,18 @@ func (_c *MockFanficRepository_UpdateChapterWithCount_Call) Return(err error) *M
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateChapterWithCount_Call) RunAndReturn(run func(ctx context.Context, spec ChapterUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateChapterWithCount_Call {
+func (_c *MockFanficRepository_UpdateChapterWithCount_Call) RunAndReturn(run func(ctx context.Context, s spec.ChapterUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateChapterWithCount_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateComment provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, body, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, body)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5104,8 +4785,8 @@ func (_mock *MockFanficRepository) UpdateComment(ctx context.Context, id uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5119,45 +4800,33 @@ type MockFanficRepository_UpdateComment_Call struct {
 
 // UpdateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - body string
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any, tx ...any) *MockFanficRepository_UpdateComment_Call {
+func (_e *MockFanficRepository_Expecter) UpdateComment(ctx any, s any, tx ...any) *MockFanficRepository_UpdateComment_Call {
 	return &MockFanficRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
-		append([]any{ctx, id, userID, body}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockFanficRepository_UpdateComment_Call {
+func (_c *MockFanficRepository_UpdateComment_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -5168,96 +4837,18 @@ func (_c *MockFanficRepository_UpdateComment_Call) Return(err error) *MockFanfic
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error) *MockFanficRepository_UpdateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentAsAdmin provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, body, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id, body)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, body, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockFanficRepository_UpdateCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentAsAdmin'
-type MockFanficRepository_UpdateCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - body string
-//   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any, tx ...any) *MockFanficRepository_UpdateCommentAsAdmin_Call {
-	return &MockFanficRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin",
-		append([]any{ctx, id, body}, tx...)...)}
-}
-
-func (_c *MockFanficRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockFanficRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockFanficRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockFanficRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockFanficRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentBody provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateCommentBody(ctx context.Context, spec FanficCommentUpdate, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateCommentBody(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5266,8 +4857,8 @@ func (_mock *MockFanficRepository) UpdateCommentBody(ctx context.Context, spec F
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, FanficCommentUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5281,22 +4872,22 @@ type MockFanficRepository_UpdateCommentBody_Call struct {
 
 // UpdateCommentBody is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec FanficCommentUpdate
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateCommentBody(ctx any, spec any, tx ...any) *MockFanficRepository_UpdateCommentBody_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCommentBody(ctx any, s any, tx ...any) *MockFanficRepository_UpdateCommentBody_Call {
 	return &MockFanficRepository_UpdateCommentBody_Call{Call: _e.mock.On("UpdateCommentBody",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateCommentBody_Call) Run(run func(ctx context.Context, spec FanficCommentUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentBody_Call {
+func (_c *MockFanficRepository_UpdateCommentBody_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentBody_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 FanficCommentUpdate
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(FanficCommentUpdate)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -5318,18 +4909,18 @@ func (_c *MockFanficRepository_UpdateCommentBody_Call) Return(err error) *MockFa
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateCommentBody_Call) RunAndReturn(run func(ctx context.Context, spec FanficCommentUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentBody_Call {
+func (_c *MockFanficRepository_UpdateCommentBody_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentBody_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaThumbnail provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5338,8 +4929,8 @@ func (_mock *MockFanficRepository) UpdateCommentMediaThumbnail(ctx context.Conte
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5353,39 +4944,33 @@ type MockFanficRepository_UpdateCommentMediaThumbnail_Call struct {
 
 // UpdateCommentMediaThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, s any, tx ...any) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockFanficRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
-		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockFanficRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -5396,18 +4981,18 @@ func (_c *MockFanficRepository_UpdateCommentMediaThumbnail_Call) Return(err erro
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockFanficRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaURL provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, mediaURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5416,8 +5001,8 @@ func (_mock *MockFanficRepository) UpdateCommentMediaURL(ctx context.Context, id
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5431,39 +5016,33 @@ type MockFanficRepository_UpdateCommentMediaURL_Call struct {
 
 // UpdateCommentMediaURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - mediaURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockFanficRepository_UpdateCommentMediaURL_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCommentMediaURL(ctx any, s any, tx ...any) *MockFanficRepository_UpdateCommentMediaURL_Call {
 	return &MockFanficRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
-		append([]any{ctx, id, mediaURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentMediaURL_Call {
+func (_c *MockFanficRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -5474,18 +5053,18 @@ func (_c *MockFanficRepository_UpdateCommentMediaURL_Call) Return(err error) *Mo
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentMediaURL_Call {
+func (_c *MockFanficRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCoverImage provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateCoverImage(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateCoverImage(ctx context.Context, s spec.FanficCoverUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, imageURL, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, imageURL, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5494,8 +5073,8 @@ func (_mock *MockFanficRepository) UpdateCoverImage(ctx context.Context, id uuid
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, imageURL, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficCoverUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5509,45 +5088,33 @@ type MockFanficRepository_UpdateCoverImage_Call struct {
 
 // UpdateCoverImage is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - imageURL string
-//   - thumbnailURL string
+//   - s spec.FanficCoverUpdate
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateCoverImage(ctx any, id any, imageURL any, thumbnailURL any, tx ...any) *MockFanficRepository_UpdateCoverImage_Call {
+func (_e *MockFanficRepository_Expecter) UpdateCoverImage(ctx any, s any, tx ...any) *MockFanficRepository_UpdateCoverImage_Call {
 	return &MockFanficRepository_UpdateCoverImage_Call{Call: _e.mock.On("UpdateCoverImage",
-		append([]any{ctx, id, imageURL, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateCoverImage_Call) Run(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx)) *MockFanficRepository_UpdateCoverImage_Call {
+func (_c *MockFanficRepository_UpdateCoverImage_Call) Run(run func(ctx context.Context, s spec.FanficCoverUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateCoverImage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.FanficCoverUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.FanficCoverUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -5558,18 +5125,18 @@ func (_c *MockFanficRepository_UpdateCoverImage_Call) Return(err error) *MockFan
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateCoverImage_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, imageURL string, thumbnailURL string, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCoverImage_Call {
+func (_c *MockFanficRepository_UpdateCoverImage_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficCoverUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateCoverImage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateWithDetails provides a mock function for the type MockFanficRepository
-func (_mock *MockFanficRepository) UpdateWithDetails(ctx context.Context, spec FanficUpdate, tx ...*sql.Tx) error {
+func (_mock *MockFanficRepository) UpdateWithDetails(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -5578,8 +5145,8 @@ func (_mock *MockFanficRepository) UpdateWithDetails(ctx context.Context, spec F
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, FanficUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.FanficUpdateWithDetails, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -5593,22 +5160,22 @@ type MockFanficRepository_UpdateWithDetails_Call struct {
 
 // UpdateWithDetails is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec FanficUpdate
+//   - s spec.FanficUpdateWithDetails
 //   - tx ...*sql.Tx
-func (_e *MockFanficRepository_Expecter) UpdateWithDetails(ctx any, spec any, tx ...any) *MockFanficRepository_UpdateWithDetails_Call {
+func (_e *MockFanficRepository_Expecter) UpdateWithDetails(ctx any, s any, tx ...any) *MockFanficRepository_UpdateWithDetails_Call {
 	return &MockFanficRepository_UpdateWithDetails_Call{Call: _e.mock.On("UpdateWithDetails",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockFanficRepository_UpdateWithDetails_Call) Run(run func(ctx context.Context, spec FanficUpdate, tx ...*sql.Tx)) *MockFanficRepository_UpdateWithDetails_Call {
+func (_c *MockFanficRepository_UpdateWithDetails_Call) Run(run func(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx)) *MockFanficRepository_UpdateWithDetails_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 FanficUpdate
+		var arg1 spec.FanficUpdateWithDetails
 		if args[1] != nil {
-			arg1 = args[1].(FanficUpdate)
+			arg1 = args[1].(spec.FanficUpdateWithDetails)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -5630,7 +5197,7 @@ func (_c *MockFanficRepository_UpdateWithDetails_Call) Return(err error) *MockFa
 	return _c
 }
 
-func (_c *MockFanficRepository_UpdateWithDetails_Call) RunAndReturn(run func(ctx context.Context, spec FanficUpdate, tx ...*sql.Tx) error) *MockFanficRepository_UpdateWithDetails_Call {
+func (_c *MockFanficRepository_UpdateWithDetails_Call) RunAndReturn(run func(ctx context.Context, s spec.FanficUpdateWithDetails, tx ...*sql.Tx) error) *MockFanficRepository_UpdateWithDetails_Call {
 	_c.Call.Return(run)
 	return _c
 }

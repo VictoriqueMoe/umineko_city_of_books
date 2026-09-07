@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -45,20 +46,20 @@ func (s *service) MarkSolved(ctx context.Context, mysteryID uuid.UUID, userID uu
 	}
 	ongoing := row.KeepOpenAfterSolve
 
-	if alreadyWon, err := s.mysteryRepo.UserHasWinningAttempt(ctx, mysteryID, attemptAuthorID); err != nil {
+	if alreadyWon, err := s.mysteryRepo.UserHasWinningAttempt(ctx, spec.MysterySolverQuery{MysteryID: mysteryID, UserID: attemptAuthorID}); err != nil {
 		return err
 	} else if alreadyWon {
 		return fmt.Errorf("user has already solved this mystery")
 	}
 
-	if err := s.mysteryRepo.MarkSolved(ctx, mysteryID, attemptID, !ongoing); err != nil {
+	if err := s.mysteryRepo.MarkSolved(ctx, spec.MysterySolve{MysteryID: mysteryID, AttemptID: attemptID, LockMystery: !ongoing}); err != nil {
 		return err
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysterySolved,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysterySolved,
+		TargetType: audit.TargetMystery,
 		TargetID:   mysteryID.String(),
 		Details:    fmt.Sprintf("attempt=%s", attemptID),
 		SubjectID:  attemptAuthorID,
@@ -162,10 +163,10 @@ func (s *service) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID
 		by = "staff"
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryClosed,
-		TargetType: repository.AuditTargetMystery,
+		Action:     audit.ActionMysteryClosed,
+		TargetType: audit.TargetMystery,
 		TargetID:   mysteryID.String(),
 		Details:    fmt.Sprintf("by=%s", by),
 		SubjectID:  authorID,
@@ -243,11 +244,14 @@ func (s *service) AddClue(ctx context.Context, mysteryID uuid.UUID, userID uuid.
 	}
 
 	count, _ := s.mysteryRepo.CountClues(ctx, mysteryID)
-	if _, err := s.mysteryRepo.AddClue(ctx, mysteryID, repository.NewClue{
-		Body:      req.Body,
-		TruthType: req.TruthType,
-		SortOrder: count,
-		PlayerID:  req.PlayerID,
+	if _, err := s.mysteryRepo.AddClue(ctx, spec.NewMysteryClue{
+		MysteryID: mysteryID,
+		NewClue: spec.NewClue{
+			Body:      req.Body,
+			TruthType: req.TruthType,
+			SortOrder: count,
+			PlayerID:  req.PlayerID,
+		},
 	}); err != nil {
 		return err
 	}

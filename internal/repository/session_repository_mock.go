@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"time"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -116,12 +117,12 @@ func (_c *MockSessionRepository_CleanExpired_Call) RunAndReturn(run func(ctx con
 }
 
 // Create provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) Create(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
+func (_mock *MockSessionRepository) Create(ctx context.Context, s spec.NewSession, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, token, userID, expiresAt, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, token, userID, expiresAt)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -130,8 +131,8 @@ func (_mock *MockSessionRepository) Create(ctx context.Context, token string, us
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, time.Time, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, token, userID, expiresAt, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewSession, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -145,45 +146,33 @@ type MockSessionRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - token string
-//   - userID uuid.UUID
-//   - expiresAt time.Time
+//   - s spec.NewSession
 //   - tx ...*sql.Tx
-func (_e *MockSessionRepository_Expecter) Create(ctx any, token any, userID any, expiresAt any, tx ...any) *MockSessionRepository_Create_Call {
+func (_e *MockSessionRepository_Expecter) Create(ctx any, s any, tx ...any) *MockSessionRepository_Create_Call {
 	return &MockSessionRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, token, userID, expiresAt}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_Create_Call) Run(run func(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx)) *MockSessionRepository_Create_Call {
+func (_c *MockSessionRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewSession, tx ...*sql.Tx)) *MockSessionRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.NewSession
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.NewSession)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 time.Time
-		if args[3] != nil {
-			arg3 = args[3].(time.Time)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -194,7 +183,7 @@ func (_c *MockSessionRepository_Create_Call) Return(err error) *MockSessionRepos
 	return _c
 }
 
-func (_c *MockSessionRepository_Create_Call) RunAndReturn(run func(ctx context.Context, token string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error) *MockSessionRepository_Create_Call {
+func (_c *MockSessionRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewSession, tx ...*sql.Tx) error) *MockSessionRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -344,12 +333,12 @@ func (_c *MockSessionRepository_DeleteAllForUser_Call) RunAndReturn(run func(ctx
 }
 
 // DeleteAllForUserExcept provides a mock function for the type MockSessionRepository
-func (_mock *MockSessionRepository) DeleteAllForUserExcept(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx) error {
+func (_mock *MockSessionRepository) DeleteAllForUserExcept(ctx context.Context, s spec.SessionDeletionExcept, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, keepToken, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, keepToken)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -358,8 +347,8 @@ func (_mock *MockSessionRepository) DeleteAllForUserExcept(ctx context.Context, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, keepToken, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.SessionDeletionExcept, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -373,39 +362,33 @@ type MockSessionRepository_DeleteAllForUserExcept_Call struct {
 
 // DeleteAllForUserExcept is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - keepToken string
+//   - s spec.SessionDeletionExcept
 //   - tx ...*sql.Tx
-func (_e *MockSessionRepository_Expecter) DeleteAllForUserExcept(ctx any, userID any, keepToken any, tx ...any) *MockSessionRepository_DeleteAllForUserExcept_Call {
+func (_e *MockSessionRepository_Expecter) DeleteAllForUserExcept(ctx any, s any, tx ...any) *MockSessionRepository_DeleteAllForUserExcept_Call {
 	return &MockSessionRepository_DeleteAllForUserExcept_Call{Call: _e.mock.On("DeleteAllForUserExcept",
-		append([]any{ctx, userID, keepToken}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Run(run func(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx)) *MockSessionRepository_DeleteAllForUserExcept_Call {
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Run(run func(ctx context.Context, s spec.SessionDeletionExcept, tx ...*sql.Tx)) *MockSessionRepository_DeleteAllForUserExcept_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.SessionDeletionExcept
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.SessionDeletionExcept)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -416,7 +399,7 @@ func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, keepToken string, tx ...*sql.Tx) error) *MockSessionRepository_DeleteAllForUserExcept_Call {
+func (_c *MockSessionRepository_DeleteAllForUserExcept_Call) RunAndReturn(run func(ctx context.Context, s spec.SessionDeletionExcept, tx ...*sql.Tx) error) *MockSessionRepository_DeleteAllForUserExcept_Call {
 	_c.Call.Return(run)
 	return _c
 }

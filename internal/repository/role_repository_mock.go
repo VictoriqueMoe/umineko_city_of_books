@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -288,12 +289,12 @@ func (_c *MockRoleRepository_GetUsersByRoles_Call) RunAndReturn(run func(ctx con
 }
 
 // HasRole provides a mock function for the type MockRoleRepository
-func (_mock *MockRoleRepository) HasRole(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockRoleRepository) HasRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, r, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, r)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -303,16 +304,16 @@ func (_mock *MockRoleRepository) HasRole(ctx context.Context, userID uuid.UUID, 
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, role.Role, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, userID, r, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserRoleSpec, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, role.Role, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, userID, r, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserRoleSpec, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, role.Role, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userID, r, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.UserRoleSpec, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -326,39 +327,33 @@ type MockRoleRepository_HasRole_Call struct {
 
 // HasRole is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - r role.Role
+//   - s spec.UserRoleSpec
 //   - tx ...*sql.Tx
-func (_e *MockRoleRepository_Expecter) HasRole(ctx any, userID any, r any, tx ...any) *MockRoleRepository_HasRole_Call {
+func (_e *MockRoleRepository_Expecter) HasRole(ctx any, s any, tx ...any) *MockRoleRepository_HasRole_Call {
 	return &MockRoleRepository_HasRole_Call{Call: _e.mock.On("HasRole",
-		append([]any{ctx, userID, r}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockRoleRepository_HasRole_Call) Run(run func(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx)) *MockRoleRepository_HasRole_Call {
+func (_c *MockRoleRepository_HasRole_Call) Run(run func(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx)) *MockRoleRepository_HasRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserRoleSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserRoleSpec)
 		}
-		var arg2 role.Role
-		if args[2] != nil {
-			arg2 = args[2].(role.Role)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -369,18 +364,18 @@ func (_c *MockRoleRepository_HasRole_Call) Return(b bool, err error) *MockRoleRe
 	return _c
 }
 
-func (_c *MockRoleRepository_HasRole_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) (bool, error)) *MockRoleRepository_HasRole_Call {
+func (_c *MockRoleRepository_HasRole_Call) RunAndReturn(run func(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) (bool, error)) *MockRoleRepository_HasRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RemoveRole provides a mock function for the type MockRoleRepository
-func (_mock *MockRoleRepository) RemoveRole(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) error {
+func (_mock *MockRoleRepository) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, r, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, r)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -389,8 +384,8 @@ func (_mock *MockRoleRepository) RemoveRole(ctx context.Context, userID uuid.UUI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, role.Role, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, r, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserRoleSpec, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -404,39 +399,33 @@ type MockRoleRepository_RemoveRole_Call struct {
 
 // RemoveRole is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - r role.Role
+//   - s spec.UserRoleSpec
 //   - tx ...*sql.Tx
-func (_e *MockRoleRepository_Expecter) RemoveRole(ctx any, userID any, r any, tx ...any) *MockRoleRepository_RemoveRole_Call {
+func (_e *MockRoleRepository_Expecter) RemoveRole(ctx any, s any, tx ...any) *MockRoleRepository_RemoveRole_Call {
 	return &MockRoleRepository_RemoveRole_Call{Call: _e.mock.On("RemoveRole",
-		append([]any{ctx, userID, r}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockRoleRepository_RemoveRole_Call) Run(run func(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx)) *MockRoleRepository_RemoveRole_Call {
+func (_c *MockRoleRepository_RemoveRole_Call) Run(run func(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx)) *MockRoleRepository_RemoveRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserRoleSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserRoleSpec)
 		}
-		var arg2 role.Role
-		if args[2] != nil {
-			arg2 = args[2].(role.Role)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -447,18 +436,18 @@ func (_c *MockRoleRepository_RemoveRole_Call) Return(err error) *MockRoleReposit
 	return _c
 }
 
-func (_c *MockRoleRepository_RemoveRole_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) error) *MockRoleRepository_RemoveRole_Call {
+func (_c *MockRoleRepository_RemoveRole_Call) RunAndReturn(run func(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error) *MockRoleRepository_RemoveRole_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetRole provides a mock function for the type MockRoleRepository
-func (_mock *MockRoleRepository) SetRole(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) error {
+func (_mock *MockRoleRepository) SetRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, r, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, r)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -467,8 +456,8 @@ func (_mock *MockRoleRepository) SetRole(ctx context.Context, userID uuid.UUID, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, role.Role, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, r, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.UserRoleSpec, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -482,39 +471,33 @@ type MockRoleRepository_SetRole_Call struct {
 
 // SetRole is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - r role.Role
+//   - s spec.UserRoleSpec
 //   - tx ...*sql.Tx
-func (_e *MockRoleRepository_Expecter) SetRole(ctx any, userID any, r any, tx ...any) *MockRoleRepository_SetRole_Call {
+func (_e *MockRoleRepository_Expecter) SetRole(ctx any, s any, tx ...any) *MockRoleRepository_SetRole_Call {
 	return &MockRoleRepository_SetRole_Call{Call: _e.mock.On("SetRole",
-		append([]any{ctx, userID, r}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockRoleRepository_SetRole_Call) Run(run func(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx)) *MockRoleRepository_SetRole_Call {
+func (_c *MockRoleRepository_SetRole_Call) Run(run func(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx)) *MockRoleRepository_SetRole_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.UserRoleSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.UserRoleSpec)
 		}
-		var arg2 role.Role
-		if args[2] != nil {
-			arg2 = args[2].(role.Role)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -525,7 +508,7 @@ func (_c *MockRoleRepository_SetRole_Call) Return(err error) *MockRoleRepository
 	return _c
 }
 
-func (_c *MockRoleRepository_SetRole_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, r role.Role, tx ...*sql.Tx) error) *MockRoleRepository_SetRole_Call {
+func (_c *MockRoleRepository_SetRole_Call) RunAndReturn(run func(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error) *MockRoleRepository_SetRole_Call {
 	_c.Call.Return(run)
 	return _c
 }

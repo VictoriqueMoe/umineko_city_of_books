@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/ws"
 
@@ -67,7 +68,7 @@ func (s *service) ClearEchoCache(ctx context.Context) error {
 
 func (s *service) buildEchoes(ctx context.Context) []dto.HomeEcho {
 	for _, window := range echoWindows {
-		rows, err := s.repo.ListEchoes(ctx, window.ago, echoCandidateLimit)
+		rows, err := s.repo.ListEchoes(ctx, spec.HomeEchoQuery{Ago: window.ago, Limit: echoCandidateLimit})
 		if err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Str("ago", window.ago).Msg("list echoes failed")
 			return nil

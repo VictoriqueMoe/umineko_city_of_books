@@ -8,8 +8,8 @@ import (
 	"maps"
 	"strings"
 	"time"
-	"umineko_city_of_books/internal/repository/model"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
@@ -17,6 +17,8 @@ import (
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
@@ -116,7 +118,7 @@ func NewService(
 	}
 }
 
-func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -204,7 +206,7 @@ func (s *service) UpdateProfile(ctx context.Context, userID uuid.UUID, req dto.U
 		}
 	}
 
-	if err := s.userRepo.UpdateProfile(ctx, userID, req); err != nil {
+	if err := s.userRepo.UpdateProfile(ctx, spec.UserProfileUpdate{UserID: userID, Profile: req}); err != nil {
 		return err
 	}
 
@@ -254,7 +256,7 @@ func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, contentTyp
 		return "", err
 	}
 
-	if err := s.userRepo.UpdateAvatarURL(ctx, userID, avatarURL); err != nil {
+	if err := s.userRepo.UpdateAvatarURL(ctx, spec.UserAvatarUpdate{UserID: userID, AvatarURL: avatarURL}); err != nil {
 		return "", fmt.Errorf("update avatar url: %w", err)
 	}
 
@@ -271,7 +273,7 @@ func (s *service) UploadBanner(ctx context.Context, userID uuid.UUID, contentTyp
 		return "", err
 	}
 
-	if err := s.userRepo.UpdateBannerURL(ctx, userID, bannerURL); err != nil {
+	if err := s.userRepo.UpdateBannerURL(ctx, spec.UserBannerUpdate{UserID: userID, BannerURL: bannerURL}); err != nil {
 		return "", fmt.Errorf("update banner url: %w", err)
 	}
 
@@ -301,7 +303,7 @@ func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, currentT
 		return fmt.Errorf("hash password: %w", err)
 	}
 
-	if err := s.userRepo.SetPasswordHash(ctx, userID, string(passwordHash)); err != nil {
+	if err := s.userRepo.SetPasswordHash(ctx, spec.UserPasswordHashUpdate{UserID: userID, PasswordHash: string(passwordHash)}); err != nil {
 		return fmt.Errorf("set password: %w", err)
 	}
 
@@ -314,10 +316,10 @@ func (s *service) ChangePassword(ctx context.Context, userID uuid.UUID, currentT
 		}
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangePassword,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangePassword,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    fmt.Sprintf("other_sessions_revoked=%t", othersRevoked),
 		SubjectID:  userID,
@@ -339,10 +341,10 @@ func (s *service) DeleteAccount(ctx context.Context, userID uuid.UUID, req dto.D
 		return ErrIncorrectPassword
 	}
 
-	s.audit(ctx, repository.NewAuditEntry{
+	s.audit(ctx, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionDeleteAccount,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionDeleteAccount,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    fmt.Sprintf("username=%s display_name=%s", user.Username, user.DisplayName),
 	})
@@ -366,7 +368,7 @@ func (s *service) GetActivity(ctx context.Context, username string, page bounds.
 		return nil, ErrUserNotFound
 	}
 
-	items, total, err := s.theoryRepo.GetRecentActivityByUser(ctx, user.ID, page.Limit(), page.Offset())
+	items, total, err := s.theoryRepo.GetRecentActivityByUser(ctx, spec.UserActivityQuery{UserID: user.ID, Limit: page.Limit(), Offset: page.Offset()})
 	if err != nil {
 		return nil, fmt.Errorf("get activity: %w", err)
 	}
@@ -389,7 +391,7 @@ func (s *service) ListPublicUsers(ctx context.Context) ([]dto.UserResponse, erro
 }
 
 func (s *service) SearchUsers(ctx context.Context, query string, limit int) ([]dto.UserResponse, error) {
-	users, err := s.userRepo.SearchByName(ctx, query, limit)
+	users, err := s.userRepo.SearchByName(ctx, spec.UserSearchFilter{Query: query, Limit: limit})
 	if err != nil {
 		return nil, err
 	}

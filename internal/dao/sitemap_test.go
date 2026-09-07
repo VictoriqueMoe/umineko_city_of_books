@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,7 +44,7 @@ func TestSitemapDAO_ListJournalRows_NullUpdatedAt(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
-	journal, err := repos.Journal.Create(context.Background(), user.ID, dto.CreateJournalRequest{Title: "Reading Umineko"})
+	journal, err := repos.Journal.Create(context.Background(), spec.NewJournal{UserID: user.ID, Title: "Reading Umineko"})
 	require.NoError(t, err)
 	journalID := journal.ID
 
@@ -76,13 +75,15 @@ func TestSitemapDAO_ListFanfics_ExcludesDrafts(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	publishedID := createFanfic(t, repos, user.ID, "Published")
-	_, err := repos.Fanfic.CreateWithDetails(context.Background(), repository.NewFanfic{
-		UserID:   user.ID,
-		Title:    "Draft",
-		Series:   "Umineko",
-		Rating:   "K",
-		Language: "English",
-		Status:   "draft",
+	_, err := repos.Fanfic.CreateWithDetails(context.Background(), spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:   user.ID,
+			Title:    "Draft",
+			Series:   "Umineko",
+			Rating:   "K",
+			Language: "English",
+			Status:   "draft",
+		},
 	})
 	require.NoError(t, err)
 

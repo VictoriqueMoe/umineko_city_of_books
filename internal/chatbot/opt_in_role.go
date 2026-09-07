@@ -8,9 +8,11 @@ import (
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/settings"
 
@@ -121,9 +123,9 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 	failed := 0
 
 	for _, userID := range holders {
-		spec := repository.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
+		move := spec.VanityRoleMove{UserID: userID, FromRoleID: from, ToRoleID: to}
 
-		if err := m.vanityRepo.MoveUserRole(ctx, spec); err != nil {
+		if err := m.vanityRepo.MoveUserRole(ctx, move); err != nil {
 			failed++
 			logger.Ctx(parent).Error().Err(err).Str("user_id", userID.String()).Str("from", from).Str("to", to).Msg("chatbot opt-in role migration could not move the member")
 
@@ -135,9 +137,9 @@ func (m *OptInRoleMigrator) Migrate(parent context.Context, from, to string) {
 
 	logger.Ctx(parent).Info().Str("from", from).Str("to", to).Int("holders", len(holders)).Int("moved", moved).Int("failed", failed).Msg("chatbot opt-in role migration finished")
 
-	entry := repository.NewAuditEntry{
-		Action:     repository.AuditActionChatbotOptInRoleMigrate,
-		TargetType: repository.AuditTargetVanityRole,
+	entry := audit.NewEntry{
+		Action:     audit.ActionChatbotOptInRoleMigrate,
+		TargetType: audit.TargetVanityRole,
 		TargetID:   to,
 		Details:    fmt.Sprintf("from=%s to=%s holders=%d moved=%d failed=%d", from, to, len(holders), moved, failed),
 	}
@@ -151,7 +153,7 @@ func (m *OptInRoleMigrator) holders(ctx context.Context, roleID string) ([]uuid.
 	var ids []uuid.UUID
 
 	for offset := 0; ; offset += optInRolePageSize {
-		rows, total, err := m.vanityRepo.GetUsersForRole(ctx, roleID, "", optInRolePageSize, offset)
+		rows, total, err := m.vanityRepo.GetUsersForRole(ctx, spec.VanityRoleUserQuery{RoleID: roleID, Limit: optInRolePageSize, Offset: offset})
 		if err != nil {
 			return nil, fmt.Errorf("get users for role: %w", err)
 		}

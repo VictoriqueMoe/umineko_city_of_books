@@ -11,10 +11,85 @@ import (
 
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	MysteryDAO interface {
+		Create(ctx context.Context, s spec.NewMystery, tx ...*sql.Tx) (*model.MysteryRow, error)
+		AddClue(ctx context.Context, s spec.NewMysteryClue, tx ...*sql.Tx) (*dto.MysteryClue, error)
+		Update(ctx context.Context, s spec.MysteryOwnerUpdate, tx ...*sql.Tx) error
+		UpdateAsAdmin(ctx context.Context, s spec.MysteryUpdate, tx ...*sql.Tx) error
+		Delete(ctx context.Context, s spec.OwnedDeletion, tx ...*sql.Tx) error
+		DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.MysteryRow, error)
+		List(ctx context.Context, s spec.MysteryListFilter, tx ...*sql.Tx) ([]model.MysteryRow, int, error)
+		ListByUser(ctx context.Context, s spec.MysteryUserListFilter, tx ...*sql.Tx) ([]model.MysteryRow, int, error)
+		GetClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryClue, error)
+		DeleteClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error
+		DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) error
+		UpdateClue(ctx context.Context, s spec.MysteryClueUpdate, tx ...*sql.Tx) error
+		GetAuthorID(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+
+		CreateAttempt(ctx context.Context, s spec.NewMysteryAttempt, tx ...*sql.Tx) (*model.MysteryAttemptRow, error)
+		DeleteAttempt(ctx context.Context, s spec.MysteryAttemptDeletion, tx ...*sql.Tx) error
+		DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		GetAttempts(ctx context.Context, s spec.MysteryAttemptQuery, tx ...*sql.Tx) ([]model.MysteryAttemptRow, error)
+		GetAttemptAuthorID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+
+		VoteAttempt(ctx context.Context, s spec.Vote, tx ...*sql.Tx) error
+
+		GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error)
+		SetMysteryWinner(ctx context.Context, s spec.MysteryWinner, tx ...*sql.Tx) error
+		SetAttemptWinner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) error
+		MarkPermanentlySolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) error
+		UserHasWinningAttempt(ctx context.Context, s spec.MysterySolverQuery, tx ...*sql.Tx) (bool, error)
+		GetSolverIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
+		IsSolved(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error)
+		IsPaused(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (bool, error)
+		SetPaused(ctx context.Context, s spec.MysteryPauseUpdate, tx ...*sql.Tx) error
+		SetGmAway(ctx context.Context, s spec.MysteryGmAwayUpdate, tx ...*sql.Tx) error
+
+		GetLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.LeaderboardEntry, error)
+		GetTopDetectiveIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error)
+		GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.GMLeaderboardEntry, error)
+		GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, error)
+
+		CountAttempts(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error)
+		CountClues(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) (int, error)
+		GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
+
+		UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error
+		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
+		GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)
+		GetCommentEntityID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+		UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error
+		AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
+		UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		GetCommentMedia(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
+		GetCommentMediaBatch(ctx context.Context, commentIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error)
+
+		AddAttachment(ctx context.Context, s spec.NewMysteryAttachment, tx ...*sql.Tx) (int64, error)
+		DeleteAttachment(ctx context.Context, s spec.MysteryAttachmentDeletion, tx ...*sql.Tx) error
+		GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]dto.MysteryAttachment, error)
+
+		AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)
+		UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		GetMedia(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error)
+		DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error)
+
+		GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectCommentMediaPaths(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+	}
+
 	mysteryDAO struct {
 		db *sql.DB
 		*ownedDAO
@@ -31,8 +106,8 @@ func mysteryNullTimePtr(t sql.NullTime) *string {
 	return new(t.Time.UTC().Format(time.RFC3339))
 }
 
-func (r *mysteryDAO) Create(ctx context.Context, userID uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) (*repository.MysteryRow, error) {
-	var row repository.MysteryRow
+func (r *mysteryDAO) Create(ctx context.Context, s spec.NewMystery, tx ...*sql.Tx) (*model.MysteryRow, error) {
+	var row model.MysteryRow
 	var solvedAt, pausedAt sql.NullTime
 	var createdAt, updatedAt time.Time
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
@@ -50,9 +125,9 @@ func (r *mysteryDAO) Create(ctx context.Context, userID uuid.UUID, title string,
 		FROM m
 		JOIN users u ON m.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id`,
-		userID, title, body, difficulty, freeForAll, keepOpenAfterSolve,
-		knox.CulpritNamedEarly, knox.NoSupernatural, knox.PassagesDeclared, knox.NoUnknownPoison, knox.NoOutsider,
-		knox.NoLuckyAccident, knox.DetectiveNotCulprit, knox.CluesShown, knox.NarratorHidesNothing, knox.NoUnannouncedTwins,
+		s.UserID, s.Title, s.Body, s.Difficulty, s.FreeForAll, s.KeepOpenAfterSolve,
+		s.Knox.CulpritNamedEarly, s.Knox.NoSupernatural, s.Knox.PassagesDeclared, s.Knox.NoUnknownPoison, s.Knox.NoOutsider,
+		s.Knox.NoLuckyAccident, s.Knox.DetectiveNotCulprit, s.Knox.CluesShown, s.Knox.NarratorHidesNothing, s.Knox.NoUnannouncedTwins,
 	).Scan(
 		&row.ID, &row.UserID, &row.Title, &row.Body, &row.Difficulty, &row.Solved, &row.Paused, &row.GmAway, &row.FreeForAll, &row.KeepOpenAfterSolve, &row.Knox.CulpritNamedEarly, &row.Knox.NoSupernatural, &row.Knox.PassagesDeclared, &row.Knox.NoUnknownPoison, &row.Knox.NoOutsider, &row.Knox.NoLuckyAccident, &row.Knox.DetectiveNotCulprit, &row.Knox.CluesShown, &row.Knox.NarratorHidesNothing, &row.Knox.NoUnannouncedTwins, &row.KnoxPublished, &solvedAt, &pausedAt, &row.PausedDurationSeconds, &createdAt, &updatedAt,
 		&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
@@ -71,12 +146,12 @@ func (r *mysteryDAO) Create(ctx context.Context, userID uuid.UUID, title string,
 	return &row, nil
 }
 
-func (r *mysteryDAO) AddClue(ctx context.Context, mysteryID uuid.UUID, spec repository.NewClue, tx ...*sql.Tx) (*dto.MysteryClue, error) {
+func (r *mysteryDAO) AddClue(ctx context.Context, s spec.NewMysteryClue, tx ...*sql.Tx) (*dto.MysteryClue, error) {
 	var clue dto.MysteryClue
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO mystery_clues (mystery_id, body, truth_type, sort_order, player_id) VALUES ($1, $2, $3, $4, $5)
 		 RETURNING id, body, truth_type, sort_order, player_id`,
-		mysteryID, spec.Body, spec.TruthType, spec.SortOrder, spec.PlayerID,
+		s.MysteryID, s.Body, s.TruthType, s.SortOrder, s.PlayerID,
 	).Scan(&clue.ID, &clue.Body, &clue.TruthType, &clue.SortOrder, &clue.PlayerID)
 	if err != nil {
 		return nil, fmt.Errorf("add clue: %w", err)
@@ -85,10 +160,10 @@ func (r *mysteryDAO) AddClue(ctx context.Context, mysteryID uuid.UUID, spec repo
 	return &clue, nil
 }
 
-func (r *mysteryDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID, title string, body string, difficulty string, tx ...*sql.Tx) error {
+func (r *mysteryDAO) Update(ctx context.Context, s spec.MysteryOwnerUpdate, tx ...*sql.Tx) error {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET title = $1, body = $2, difficulty = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND user_id = $5`,
-		title, body, difficulty, id, userID,
+		s.Title, s.Body, s.Difficulty, s.ID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("update mystery: %w", err)
@@ -100,17 +175,17 @@ func (r *mysteryDAO) Update(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	return nil
 }
 
-func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title string, body string, difficulty string, freeForAll bool, keepOpenAfterSolve bool, knox dto.KnoxContract, tx ...*sql.Tx) error {
+func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, s spec.MysteryUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET title = $1, body = $2, difficulty = $3, free_for_all = $4, keep_open_after_solve = $5,
 			knox_culprit_named_early = $6, knox_no_supernatural = $7, knox_passages_declared = $8, knox_no_unknown_poison = $9, knox_no_outsider = $10,
 			knox_no_lucky_accident = $11, knox_detective_not_culprit = $12, knox_clues_shown = $13, knox_narrator_hides_nothing = $14, knox_no_unannounced_twins = $15, knox_contract_published = TRUE,
 			updated_at = CURRENT_TIMESTAMP
 		 WHERE id = $16`,
-		title, body, difficulty, freeForAll, keepOpenAfterSolve,
-		knox.CulpritNamedEarly, knox.NoSupernatural, knox.PassagesDeclared, knox.NoUnknownPoison, knox.NoOutsider,
-		knox.NoLuckyAccident, knox.DetectiveNotCulprit, knox.CluesShown, knox.NarratorHidesNothing, knox.NoUnannouncedTwins,
-		id,
+		s.Title, s.Body, s.Difficulty, s.FreeForAll, s.KeepOpenAfterSolve,
+		s.Knox.CulpritNamedEarly, s.Knox.NoSupernatural, s.Knox.PassagesDeclared, s.Knox.NoUnknownPoison, s.Knox.NoOutsider,
+		s.Knox.NoLuckyAccident, s.Knox.DetectiveNotCulprit, s.Knox.CluesShown, s.Knox.NarratorHidesNothing, s.Knox.NoUnannouncedTwins,
+		s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update mystery as admin: %w", err)
@@ -118,8 +193,8 @@ func (r *mysteryDAO) UpdateAsAdmin(ctx context.Context, id uuid.UUID, title stri
 	return nil
 }
 
-func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*repository.MysteryRow, error) {
-	var row repository.MysteryRow
+func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.MysteryRow, error) {
+	var row model.MysteryRow
 	var solvedAt, pausedAt sql.NullTime
 	var createdAt, updatedAt time.Time
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
@@ -154,19 +229,19 @@ func (r *mysteryDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (
 	return &row, nil
 }
 
-func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]repository.MysteryRow, int, error) {
+func (r *mysteryDAO) List(ctx context.Context, s spec.MysteryListFilter, tx ...*sql.Tx) ([]model.MysteryRow, int, error) {
 	where := ""
 	var args []any
 
-	if solved != nil {
-		if *solved {
+	if s.Solved != nil {
+		if *s.Solved {
 			where = " WHERE m.solved = TRUE"
 		} else {
 			where = " WHERE m.solved = FALSE"
 		}
 	}
 
-	exclSQL, exclArgs := ExcludeClause("m.user_id", excludeUserIDs, len(args)+1)
+	exclSQL, exclArgs := ExcludeClause("m.user_id", s.ExcludeUserIDs, len(args)+1)
 	if where == "" && exclSQL != "" {
 		where = " WHERE 1=1" + exclSQL
 	} else {
@@ -182,7 +257,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 	}
 
 	orderBy := "ORDER BY m.created_at DESC"
-	if sort == "old" {
+	if s.Sort == "old" {
 		orderBy = "ORDER BY m.created_at ASC"
 	}
 
@@ -199,7 +274,7 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 	LEFT JOIN user_roles r ON r.user_id = u.id
 	LEFT JOIN users w ON m.winner_id = w.id
 	LEFT JOIN user_roles wr ON wr.user_id = w.id` + where + ` ` + orderBy + ` LIMIT ` + limitPlaceholder + ` OFFSET ` + offsetPlaceholder
-	args = append(args, limit, offset)
+	args = append(args, s.Limit, s.Offset)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
 	if err != nil {
@@ -207,9 +282,9 @@ func (r *mysteryDAO) List(ctx context.Context, sort string, solved *bool, limit,
 	}
 	defer rows.Close()
 
-	var result []repository.MysteryRow
+	var result []model.MysteryRow
 	for rows.Next() {
-		var row repository.MysteryRow
+		var row model.MysteryRow
 		var solvedAt, pausedAt sql.NullTime
 		var createdAt, updatedAt time.Time
 		if err := rows.Scan(
@@ -266,16 +341,16 @@ func (r *mysteryDAO) DeleteClue(ctx context.Context, clueID int, tx ...*sql.Tx) 
 	return nil
 }
 
-func (r *mysteryDAO) UpdateClue(ctx context.Context, clueID int, body string, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE mystery_clues SET body = $1 WHERE id = $2`, body, clueID)
+func (r *mysteryDAO) UpdateClue(ctx context.Context, s spec.MysteryClueUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE mystery_clues SET body = $1 WHERE id = $2`, s.Body, s.ClueID)
 	if err != nil {
 		return fmt.Errorf("update clue: %w", err)
 	}
 	return nil
 }
 
-func (r *mysteryDAO) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, parentID *uuid.UUID, body string, tx ...*sql.Tx) (*repository.MysteryAttemptRow, error) {
-	var row repository.MysteryAttemptRow
+func (r *mysteryDAO) CreateAttempt(ctx context.Context, s spec.NewMysteryAttempt, tx ...*sql.Tx) (*model.MysteryAttemptRow, error) {
+	var row model.MysteryAttemptRow
 	var createdAt time.Time
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH a AS (
@@ -288,7 +363,7 @@ func (r *mysteryDAO) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, use
 		FROM a
 		JOIN users u ON a.user_id = u.id
 		LEFT JOIN user_roles r ON r.user_id = u.id`,
-		mysteryID, userID, parentID, body,
+		s.MysteryID, s.UserID, s.ParentID, s.Body,
 	).Scan(
 		&row.ID, &row.MysteryID, &row.UserID, &row.ParentID, &row.Body, &row.IsWinner, &createdAt,
 		&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
@@ -303,8 +378,8 @@ func (r *mysteryDAO) CreateAttempt(ctx context.Context, mysteryID uuid.UUID, use
 	return &row, nil
 }
 
-func (r *mysteryDAO) DeleteAttempt(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_attempts WHERE id = $1 AND user_id = $2`, id, userID)
+func (r *mysteryDAO) DeleteAttempt(ctx context.Context, s spec.MysteryAttemptDeletion, tx ...*sql.Tx) error {
+	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM mystery_attempts WHERE id = $1 AND user_id = $2`, s.ID, s.UserID)
 	if err != nil {
 		return fmt.Errorf("delete attempt: %w", err)
 	}
@@ -323,7 +398,7 @@ func (r *mysteryDAO) DeleteAttemptAsAdmin(ctx context.Context, id uuid.UUID, tx 
 	return nil
 }
 
-func (r *mysteryDAO) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) ([]repository.MysteryAttemptRow, error) {
+func (r *mysteryDAO) GetAttempts(ctx context.Context, s spec.MysteryAttemptQuery, tx ...*sql.Tx) ([]model.MysteryAttemptRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT a.id, a.mystery_id, a.user_id, a.parent_id, a.body, a.is_winner, a.created_at,
 			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
@@ -334,16 +409,16 @@ func (r *mysteryDAO) GetAttempts(ctx context.Context, mysteryID uuid.UUID, viewe
 		LEFT JOIN user_roles r ON r.user_id = u.id
 		WHERE a.mystery_id = $2
 		ORDER BY a.created_at ASC`,
-		viewerID, mysteryID,
+		s.ViewerID, s.MysteryID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get attempts: %w", err)
 	}
 	defer rows.Close()
 
-	var result []repository.MysteryAttemptRow
+	var result []model.MysteryAttemptRow
 	for rows.Next() {
-		var row repository.MysteryAttemptRow
+		var row model.MysteryAttemptRow
 		var createdAt time.Time
 		if err := rows.Scan(
 			&row.ID, &row.MysteryID, &row.UserID, &row.ParentID, &row.Body, &row.IsWinner, &createdAt,
@@ -376,8 +451,8 @@ func (r *mysteryDAO) GetAttemptMysteryID(ctx context.Context, attemptID uuid.UUI
 	return mysteryID, nil
 }
 
-func (r *mysteryDAO) VoteAttempt(ctx context.Context, userID uuid.UUID, attemptID uuid.UUID, value int, tx ...*sql.Tx) error {
-	return r.attemptVotes.Vote(ctx, userID, attemptID, value, tx...)
+func (r *mysteryDAO) VoteAttempt(ctx context.Context, s spec.Vote, tx ...*sql.Tx) error {
+	return r.attemptVotes.Vote(ctx, s, tx...)
 }
 
 func (r *mysteryDAO) GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, uuid.UUID, error) {
@@ -392,10 +467,10 @@ func (r *mysteryDAO) GetAttemptOwner(ctx context.Context, attemptID uuid.UUID, t
 	return attemptUserID, attemptMysteryID, nil
 }
 
-func (r *mysteryDAO) SetMysteryWinner(ctx context.Context, mysteryID uuid.UUID, winnerID uuid.UUID, tx ...*sql.Tx) error {
+func (r *mysteryDAO) SetMysteryWinner(ctx context.Context, s spec.MysteryWinner, tx ...*sql.Tx) error {
 	if _, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE mysteries SET solved = TRUE, winner_id = $1, solved_at = NOW() WHERE id = $2`,
-		winnerID, mysteryID,
+		s.WinnerID, s.MysteryID,
 	); err != nil {
 		return fmt.Errorf("mark solved: %w", err)
 	}
@@ -428,11 +503,11 @@ func (r *mysteryDAO) MarkPermanentlySolved(ctx context.Context, mysteryID uuid.U
 	return nil
 }
 
-func (r *mysteryDAO) UserHasWinningAttempt(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *mysteryDAO) UserHasWinningAttempt(ctx context.Context, s spec.MysterySolverQuery, tx ...*sql.Tx) (bool, error) {
 	var exists bool
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT EXISTS(SELECT 1 FROM mystery_attempts WHERE mystery_id = $1 AND user_id = $2 AND is_winner = TRUE)`,
-		mysteryID, userID,
+		s.MysteryID, s.UserID,
 	).Scan(&exists)
 	if err != nil {
 		return false, fmt.Errorf("check user winning attempt: %w", err)
@@ -469,13 +544,13 @@ func (r *mysteryDAO) IsPaused(ctx context.Context, mysteryID uuid.UUID, tx ...*s
 	return paused, nil
 }
 
-func (r *mysteryDAO) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused bool, tx ...*sql.Tx) error {
-	if paused {
+func (r *mysteryDAO) SetPaused(ctx context.Context, s spec.MysteryPauseUpdate, tx ...*sql.Tx) error {
+	if s.Paused {
 		_, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE mysteries
 			 SET paused = TRUE,
 			     paused_at = CASE WHEN paused = TRUE THEN paused_at ELSE NOW() END
-			 WHERE id = $1`, mysteryID)
+			 WHERE id = $1`, s.MysteryID)
 		if err != nil {
 			return fmt.Errorf("set mystery paused: %w", err)
 		}
@@ -490,15 +565,15 @@ func (r *mysteryDAO) SetPaused(ctx context.Context, mysteryID uuid.UUID, paused 
 		         ELSE 0
 		     END,
 		     paused_at = NULL
-		 WHERE id = $1`, mysteryID)
+		 WHERE id = $1`, s.MysteryID)
 	if err != nil {
 		return fmt.Errorf("set mystery unpaused: %w", err)
 	}
 	return nil
 }
 
-func (r *mysteryDAO) SetGmAway(ctx context.Context, mysteryID uuid.UUID, away bool, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE mysteries SET gm_away = $1 WHERE id = $2`, away, mysteryID)
+func (r *mysteryDAO) SetGmAway(ctx context.Context, s spec.MysteryGmAwayUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE mysteries SET gm_away = $1 WHERE id = $2`, s.Away, s.MysteryID)
 	if err != nil {
 		return fmt.Errorf("set mystery gm_away: %w", err)
 	}
@@ -529,9 +604,9 @@ func (r *mysteryDAO) GetPlayerIDs(ctx context.Context, mysteryID uuid.UUID, tx .
 	return utils.ScanIDs(rows, "player id")
 }
 
-func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.MysteryRow, int, error) {
+func (r *mysteryDAO) ListByUser(ctx context.Context, s spec.MysteryUserListFilter, tx ...*sql.Tx) ([]model.MysteryRow, int, error) {
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, userID).Scan(&total); err != nil {
+	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, s.UserID).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("count user mysteries: %w", err)
 	}
 
@@ -550,15 +625,15 @@ func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, of
 	ORDER BY m.created_at DESC
 	LIMIT $2 OFFSET $3`
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, userID, limit, offset)
+	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, s.UserID, s.Limit, s.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user mysteries: %w", err)
 	}
 	defer rows.Close()
 
-	var result []repository.MysteryRow
+	var result []model.MysteryRow
 	for rows.Next() {
-		var row repository.MysteryRow
+		var row model.MysteryRow
 		var solvedAt, pausedAt sql.NullTime
 		var createdAt, updatedAt time.Time
 		if err := rows.Scan(
@@ -578,7 +653,7 @@ func (r *mysteryDAO) ListByUser(ctx context.Context, userID uuid.UUID, limit, of
 	return result, total, rows.Err()
 }
 
-func (r *mysteryDAO) GetLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.LeaderboardEntry, error) {
+func (r *mysteryDAO) GetLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.LeaderboardEntry, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -618,9 +693,9 @@ func (r *mysteryDAO) GetLeaderboard(ctx context.Context, limit int, tx ...*sql.T
 	}
 	defer rows.Close()
 
-	var result []repository.LeaderboardEntry
+	var result []model.LeaderboardEntry
 	for rows.Next() {
-		var e repository.LeaderboardEntry
+		var e model.LeaderboardEntry
 		if err := rows.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &e.Role,
 			&e.Score, &e.EasySolved, &e.MediumSolved, &e.HardSolved, &e.NightmareSolved, &e.ScoreAdjustment); err != nil {
 			return nil, fmt.Errorf("scan leaderboard entry: %w", err)
@@ -672,7 +747,7 @@ func (r *mysteryDAO) GetTopDetectiveIDs(ctx context.Context, tx ...*sql.Tx) ([]s
 	return ids, rows.Err()
 }
 
-func (r *mysteryDAO) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]repository.GMLeaderboardEntry, error) {
+func (r *mysteryDAO) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.GMLeaderboardEntry, error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -715,9 +790,9 @@ func (r *mysteryDAO) GetGMLeaderboard(ctx context.Context, limit int, tx ...*sql
 	}
 	defer rows.Close()
 
-	var result []repository.GMLeaderboardEntry
+	var result []model.GMLeaderboardEntry
 	for rows.Next() {
-		var e repository.GMLeaderboardEntry
+		var e model.GMLeaderboardEntry
 		if err := rows.Scan(&e.UserID, &e.Username, &e.DisplayName, &e.AvatarURL, &e.Role,
 			&e.Score, &e.MysteryCount, &e.PlayerCount); err != nil {
 			return nil, fmt.Errorf("scan gm leaderboard entry: %w", err)
@@ -775,11 +850,11 @@ func (r *mysteryDAO) GetTopGMIDs(ctx context.Context, tx ...*sql.Tx) ([]string, 
 	return ids, rows.Err()
 }
 
-func (r *mysteryDAO) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fileURL string, fileName string, fileSize int, tx ...*sql.Tx) (int64, error) {
+func (r *mysteryDAO) AddAttachment(ctx context.Context, s spec.NewMysteryAttachment, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO mystery_attachments (mystery_id, file_url, file_name, file_size) VALUES ($1, $2, $3, $4) RETURNING id`,
-		mysteryID, fileURL, fileName, fileSize,
+		s.MysteryID, s.FileURL, s.FileName, s.FileSize,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add attachment: %w", err)
@@ -787,10 +862,10 @@ func (r *mysteryDAO) AddAttachment(ctx context.Context, mysteryID uuid.UUID, fil
 	return id, nil
 }
 
-func (r *mysteryDAO) DeleteAttachment(ctx context.Context, id int64, mysteryID uuid.UUID, tx ...*sql.Tx) error {
+func (r *mysteryDAO) DeleteAttachment(ctx context.Context, s spec.MysteryAttachmentDeletion, tx ...*sql.Tx) error {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM mystery_attachments WHERE id = $1 AND mystery_id = $2`,
-		id, mysteryID,
+		s.ID, s.MysteryID,
 	)
 	if err != nil {
 		return fmt.Errorf("delete attachment: %w", err)
@@ -821,14 +896,6 @@ func (r *mysteryDAO) GetAttachments(ctx context.Context, mysteryID uuid.UUID, tx
 		attachments = append(attachments, a)
 	}
 	return attachments, rows.Err()
-}
-
-func (r *mysteryDAO) AddMedia(ctx context.Context, spec repository.NewMysteryMedia, tx ...*sql.Tx) (int64, error) {
-	return r.mediaDAO.AddMedia(ctx, spec.MysteryID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.IsSpoiler, tx...)
-}
-
-func (r *mysteryDAO) AddCommentMedia(ctx context.Context, spec repository.NewMysteryCommentMedia, tx ...*sql.Tx) (int64, error) {
-	return r.commentDAO.AddCommentMedia(ctx, spec.CommentID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.IsSpoiler, tx...)
 }
 
 func (r *mysteryDAO) GetAttachmentPaths(ctx context.Context, mysteryID uuid.UUID, tx ...*sql.Tx) ([]string, error) {

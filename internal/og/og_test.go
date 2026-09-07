@@ -8,8 +8,9 @@ import (
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 
 	"github.com/google/uuid"
@@ -96,22 +97,22 @@ func TestResolver_Resolve_WatchParty(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		session   *repository.ChatWatchPartySessionRow
+		session   *model.ChatWatchPartySessionRow
 		wantTitle string
 	}{
 		{
 			name:      "party title wins over room name",
-			session:   &repository.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "Umineko Episode 4", Status: "active"},
+			session:   &model.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "Umineko Episode 4", Status: "active"},
 			wantTitle: "Umineko Episode 4 - Watch Party in Rokkenjima",
 		},
 		{
 			name:      "untitled party falls back to a generic label",
-			session:   &repository.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "", Status: "active"},
+			session:   &model.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "", Status: "active"},
 			wantTitle: "Watch Party in Rokkenjima",
 		},
 		{
 			name:      "party belonging to another room is ignored",
-			session:   &repository.ChatWatchPartySessionRow{ID: partyID, RoomID: otherRoomID, Title: "Somewhere Else", Status: "active"},
+			session:   &model.ChatWatchPartySessionRow{ID: partyID, RoomID: otherRoomID, Title: "Somewhere Else", Status: "active"},
 			wantTitle: "Rokkenjima - Chat Room",
 		},
 		{
@@ -130,8 +131,8 @@ func TestResolver_Resolve_WatchParty(t *testing.T) {
 			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 			chatRepo := repository.NewMockChatRepository(t)
-			chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).
-				Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima", Description: "A room", Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+			chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil}).
+				Return(&model.ChatRoomRow{ID: roomID, Name: "Rokkenjima", Description: "A room", Type: dto.RoomTypeGroup, IsPublic: true}, nil)
 
 			partyRepo := repository.NewMockChatWatchPartyRepository(t)
 			partyRepo.EXPECT().GetByID(mock.Anything, partyID).Return(tc.session, nil)
@@ -163,8 +164,8 @@ func TestResolver_Resolve_IgnoresNonUUIDPartyParam(t *testing.T) {
 	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 	chatRepo := repository.NewMockChatRepository(t)
-	chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).
-		Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima", Type: dto.RoomTypeGroup, IsPublic: true}, nil)
+	chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil}).
+		Return(&model.ChatRoomRow{ID: roomID, Name: "Rokkenjima", Type: dto.RoomTypeGroup, IsPublic: true}, nil)
 
 	r := &Resolver{
 		settingsSvc: ss,
@@ -185,12 +186,12 @@ func TestResolver_Resolve_HidesRoomsThatAreNotPubliclyListed(t *testing.T) {
 
 	tests := []struct {
 		name   string
-		room   *repository.ChatRoomRow
+		room   *model.ChatRoomRow
 		secret string
 	}{
-		{name: "private group room", room: &repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima Conspiracy", Description: "Plotting", Type: dto.RoomTypeGroup, IsPublic: false}, secret: "Rokkenjima Conspiracy"},
-		{name: "direct message", room: &repository.ChatRoomRow{ID: roomID, Name: "Battler and Beatrice", Description: "Private", Type: dto.RoomTypeDM, IsPublic: false}, secret: "Battler and Beatrice"},
-		{name: "system room", room: &repository.ChatRoomRow{ID: roomID, Name: "Moderator Log", Type: dto.RoomTypeGroup, IsPublic: true, IsSystem: true}, secret: "Moderator Log"},
+		{name: "private group room", room: &model.ChatRoomRow{ID: roomID, Name: "Rokkenjima Conspiracy", Description: "Plotting", Type: dto.RoomTypeGroup, IsPublic: false}, secret: "Rokkenjima Conspiracy"},
+		{name: "direct message", room: &model.ChatRoomRow{ID: roomID, Name: "Battler and Beatrice", Description: "Private", Type: dto.RoomTypeDM, IsPublic: false}, secret: "Battler and Beatrice"},
+		{name: "system room", room: &model.ChatRoomRow{ID: roomID, Name: "Moderator Log", Type: dto.RoomTypeGroup, IsPublic: true, IsSystem: true}, secret: "Moderator Log"},
 		{name: "room does not exist", room: nil, secret: "should-not-appear"},
 	}
 
@@ -203,7 +204,7 @@ func TestResolver_Resolve_HidesRoomsThatAreNotPubliclyListed(t *testing.T) {
 			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 			chatRepo := repository.NewMockChatRepository(t)
-			chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).Return(tc.room, nil)
+			chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil}).Return(tc.room, nil)
 
 			r := &Resolver{settingsSvc: ss, chatRepo: chatRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
 
@@ -228,12 +229,12 @@ func TestResolver_Resolve_HidesWatchPartyInPrivateRoom(t *testing.T) {
 	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 	chatRepo := repository.NewMockChatRepository(t)
-	chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, uuid.Nil).
-		Return(&repository.ChatRoomRow{ID: roomID, Name: "Rokkenjima Conspiracy", Type: dto.RoomTypeGroup, IsPublic: false}, nil)
+	chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: uuid.Nil}).
+		Return(&model.ChatRoomRow{ID: roomID, Name: "Rokkenjima Conspiracy", Type: dto.RoomTypeGroup, IsPublic: false}, nil)
 
 	partyRepo := repository.NewMockChatWatchPartyRepository(t)
 	partyRepo.EXPECT().GetByID(mock.Anything, partyID).
-		Return(&repository.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "Secret Screening", Status: "active"}, nil)
+		Return(&model.ChatWatchPartySessionRow{ID: partyID, RoomID: roomID, Title: "Secret Screening", Status: "active"}, nil)
 
 	r := &Resolver{settingsSvc: ss, chatRepo: chatRepo, watchPartyRepo: partyRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
 
@@ -282,7 +283,7 @@ func TestResolver_Resolve_HidesDraftFanfic(t *testing.T) {
 	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 	fanficRepo := repository.NewMockFanficRepository(t)
-	fanficRepo.EXPECT().GetByID(mock.Anything, fanficID, uuid.Nil).
+	fanficRepo.EXPECT().GetByID(mock.Anything, spec.FanficLookup{ID: fanficID, ViewerID: uuid.Nil}).
 		Return(&model.FanficRow{ID: fanficID, Title: "Unfinished Golden Witch", Summary: "Secret draft summary", CoverImageURL: "https://example.com/uploads/fanfics/secret.webp", Status: "draft"}, nil)
 
 	r := &Resolver{settingsSvc: ss, fanficRepo: fanficRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
@@ -308,10 +309,10 @@ func TestResolver_Resolve_HidesDraftJournalEntry(t *testing.T) {
 	ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 	journalRepo := repository.NewMockJournalRepository(t)
-	journalRepo.EXPECT().GetByID(mock.Anything, journalID, uuid.Nil).
+	journalRepo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: journalID, ViewerID: uuid.Nil}).
 		Return(&dto.JournalResponse{ID: journalID, Title: "Umineko Read-through", Author: dto.UserResponse{DisplayName: "Battler"}}, nil)
-	journalRepo.EXPECT().GetEntry(mock.Anything, journalID, 6).
-		Return(&repository.JournalEntryRow{JournalID: journalID, EntryNumber: 6, Title: &draftTitle, Body: "Secret unpublished body", IsDraft: true}, nil)
+	journalRepo.EXPECT().GetEntry(mock.Anything, spec.JournalEntryLookup{JournalID: journalID, EntryNumber: 6}).
+		Return(&model.JournalEntryRow{JournalID: journalID, EntryNumber: 6, Title: &draftTitle, Body: "Secret unpublished body", IsDraft: true}, nil)
 
 	r := &Resolver{settingsSvc: ss, journalRepo: journalRepo, baseHTML: testBaseHTML, baseURL: "https://example.com"}
 
@@ -326,7 +327,7 @@ func TestResolver_Resolve_HidesDraftJournalEntry(t *testing.T) {
 
 func TestResolver_Resolve_LiveStreamByUsername(t *testing.T) {
 	streamID := uuid.New()
-	row := &repository.LiveStreamRow{
+	row := &model.LiveStreamRow{
 		ID:          streamID,
 		Title:       "Ciconia blind run",
 		Status:      "live",
@@ -337,7 +338,7 @@ func TestResolver_Resolve_LiveStreamByUsername(t *testing.T) {
 	tests := []struct {
 		name      string
 		path      string
-		row       *repository.LiveStreamRow
+		row       *model.LiveStreamRow
 		wantTitle string
 		wantURL   string
 	}{
@@ -508,7 +509,7 @@ func TestResolver_Resolve_LiveStreamCasingSharesOneCard(t *testing.T) {
 
 	streamRepo := repository.NewMockLiveStreamRepository(t)
 	streamRepo.EXPECT().GetActiveByUsername(mock.Anything, mock.Anything).
-		Return(&repository.LiveStreamRow{Title: "Ciconia blind run", Status: "live", Username: "Featherine", DisplayName: "Featherine"}, nil)
+		Return(&model.LiveStreamRow{Title: "Ciconia blind run", Status: "live", Username: "Featherine", DisplayName: "Featherine"}, nil)
 
 	r := &Resolver{settingsSvc: ss, liveStreamRepo: streamRepo, cache: cache.New(), baseHTML: testBaseHTML, baseURL: "https://example.com"}
 
@@ -567,7 +568,7 @@ func TestResolver_Resolve_PostSpoilerImageStaysOffTheCard(t *testing.T) {
 			ss.EXPECT().Get(mock.Anything, config.SettingSiteDescription).Return("")
 
 			postRepo := repository.NewMockPostRepository(t)
-			postRepo.EXPECT().GetByID(mock.Anything, postID, uuid.Nil).
+			postRepo.EXPECT().GetByID(mock.Anything, spec.PostLookup{ID: postID, ViewerID: uuid.Nil}).
 				Return(&model.PostRow{ID: postID, Body: "look at this"}, nil)
 			postRepo.EXPECT().GetMedia(mock.Anything, postID).Return(tc.media, nil)
 

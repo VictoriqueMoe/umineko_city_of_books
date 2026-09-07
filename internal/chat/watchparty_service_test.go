@@ -6,8 +6,10 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/hyperbeam"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -17,7 +19,7 @@ import (
 )
 
 func expectGroupRoomLookup(m *testMocks, roomID, userID uuid.UUID) {
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID}).Return(&model.ChatRoomRow{
 		ID: roomID, Type: "group", IsSystem: false,
 	}, nil)
 }
@@ -42,7 +44,7 @@ func TestStartWatchParty_NotMember(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(false, nil)
 
 	// when
 	_, err := svc.StartWatchParty(context.Background(), roomID, userID, "", "", "", "", false)
@@ -57,8 +59,8 @@ func TestStartWatchParty_RejectsDM(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID}).Return(&model.ChatRoomRow{
 		ID: roomID, Type: "dm", IsSystem: false,
 	}, nil)
 
@@ -75,8 +77,8 @@ func TestStartWatchParty_RejectsSystemRoom(t *testing.T) {
 	roomID := uuid.New()
 	userID := uuid.New()
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, userID).Return(&repository.ChatRoomRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: userID}).Return(&model.ChatRoomRow{
 		ID: roomID, Type: "group", IsSystem: true,
 	}, nil)
 
@@ -95,25 +97,25 @@ func TestStartWatchParty_OK(t *testing.T) {
 	sessionID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.MatchedBy(func(opts hyperbeam.CreateVMOptions) bool {
 		return opts.Timeout != nil && opts.Timeout.Offline == defaultOfflineTimeout && opts.Timeout.Absolute == defaultSessionTimeout
 	})).Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed", AdminToken: "admin"}, nil)
-	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.MatchedBy(func(spec repository.NewWatchPartySession) bool {
-		r := spec.Session
+	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.MatchedBy(func(party spec.NewWatchPartySession) bool {
+		r := party.Session
 
 		return r.RoomID == roomID && r.ControllerID == userID && r.HyperbeamSessionID == "hb_sess_1" && r.Title == "Movie night" && r.VMBaseURL == "https://hb/embed" &&
-			spec.RoomName == "Movie night" && spec.RoomSystemKind == SystemKindWatchParty
-	})).Return(&repository.ChatWatchPartySessionRow{
+			party.RoomName == "Movie night" && party.RoomSystemKind == SystemKindWatchParty
+	})).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: userID, ControllerID: userID,
 		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active", Title: "Movie night",
 	}, nil)
 
 	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, userID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: userID, Body: "Someone is hosting a watch party: Movie night"}).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
@@ -147,7 +149,7 @@ func TestStartWatchParty_BrowserOptions(t *testing.T) {
 			userID := uuid.New()
 
 			m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-			m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 			expectGroupRoomLookup(m, roomID, userID)
 
 			var got hyperbeam.CreateVMOptions
@@ -179,7 +181,7 @@ func TestStartWatchParty_HyperbeamFailureCleansUp(t *testing.T) {
 	userID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).Return(nil, errors.New("hyperbeam down"))
 
@@ -224,7 +226,7 @@ func TestStartWatchParty_FallsBackToAnotherRegionWhenTheFirstIsFull(t *testing.T
 	sessionID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 
 	var tried []string
@@ -235,17 +237,17 @@ func TestStartWatchParty_FallsBackToAnotherRegionWhenTheFirstIsFull(t *testing.T
 		Run(func(_ context.Context, opts hyperbeam.CreateVMOptions) { tried = append(tried, opts.Region) }).
 		Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed", AdminToken: "admin"}, nil).Once()
 
-	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.MatchedBy(func(spec repository.NewWatchPartySession) bool {
-		return spec.Session.Region.Valid && spec.Session.Region.String == "EU" && spec.RoomName == "Watch party"
-	})).Return(&repository.ChatWatchPartySessionRow{
+	m.watchPartyRepo.EXPECT().StartSession(mock.Anything, mock.MatchedBy(func(party spec.NewWatchPartySession) bool {
+		return party.Session.Region.Valid && party.Session.Region.String == "EU" && party.RoomName == "Watch party"
+	})).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: userID, ControllerID: userID,
 		HyperbeamSessionID: "hb_sess_1", EmbedURL: "https://hb/embed", Status: "active",
 	}, nil)
 
 	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil).Twice()
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, userID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, HasControl: true}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, userID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: userID, Body: "Someone is hosting a watch party: Untitled party"}).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, userID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
@@ -265,7 +267,7 @@ func TestStartWatchParty_NoCapacityAnywhereIsReportedAsSuch(t *testing.T) {
 	userID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
 		Return(nil, &hyperbeam.APIError{StatusCode: 503, Code: "err_no_available_vm", Body: "{}"}).Times(3)
@@ -284,7 +286,7 @@ func TestStartWatchParty_NonCapacityErrorIsNotRetried(t *testing.T) {
 	userID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
 		Return(nil, &hyperbeam.APIError{StatusCode: 401, Code: "err_unauthorised", Body: "{}"}).Once()
@@ -306,17 +308,17 @@ func TestJoinWatchParty_OK(t *testing.T) {
 	joinerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, joinerID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: joinerID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, ControllerID: controllerID, HyperbeamSessionID: "hb", Status: "active",
 		VMBaseURL: "https://hb.example/sess", EmbedURL: "https://hb.example/sess?token=u",
 	}, nil)
 	m.hyperbeamSvc.EXPECT().GetVMStatus(mock.Anything, "hb").Return(&hyperbeam.VMStatus{SessionID: "hb"}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, joinerID).Return(nil, nil).Once()
-	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, sessionID, joinerID, false, "").Return(nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, sessionID, joinerID).Return(false, nil)
-	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, sessionID, joinerID, "member", false).Return(nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, joinerID).Return(&repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: joinerID}).Return(nil, nil).Once()
+	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, spec.WatchPartyParticipantUpsert{SessionID: sessionID, UserID: joinerID, HasControl: false, Identifier: ""}).Return(nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: sessionID, UserID: joinerID}).Return(false, nil)
+	m.chatRepo.EXPECT().AddMemberWithRole(mock.Anything, spec.NewChatRoomMember{RoomID: sessionID, UserID: joinerID, Role: "member", Ghost: false}).Return(nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: joinerID}).Return(&model.ChatWatchPartyParticipantRow{
 		SessionID: sessionID, UserID: joinerID, Username: "joiner", DisplayName: "Joiner",
 	}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, joinerID).Return("", nil)
@@ -337,7 +339,7 @@ func TestJoinWatchParty_NotFound(t *testing.T) {
 	roomID := uuid.New()
 	sessionID := uuid.New()
 	userID := uuid.New()
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(nil, nil)
 
 	// when
@@ -356,12 +358,12 @@ func TestGrantWatchPartyControl_NotController(t *testing.T) {
 	targetID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, controllerID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: controllerID}).Return(true, nil)
 	otherOwnerID := uuid.New()
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: otherOwnerID, ControllerID: targetID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, controllerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: controllerID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: controllerID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: controllerID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, controllerID).Return("", nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, targetID).Return("", nil)
 
@@ -381,25 +383,25 @@ func TestGrantWatchPartyControl_OK(t *testing.T) {
 	targetID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, controllerID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: controllerID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: controllerID, ControllerID: controllerID, HyperbeamSessionID: "hb_sess", Status: "active", HyperbeamAdminToken: "vm_admin_token",
 		VMBaseURL: "https://hb.example/sess",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, controllerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: controllerID, HasControl: true, HyperbeamIdentifier: "id-controller"}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, targetID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: targetID, HasControl: false, HyperbeamIdentifier: "id-target"}, nil)
-	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: controllerID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: controllerID, HasControl: true, HyperbeamIdentifier: "id-controller"}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: targetID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: targetID, HasControl: false, HyperbeamIdentifier: "id-target"}, nil)
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]model.ChatWatchPartyParticipantRow{
 		{SessionID: sessionID, UserID: controllerID, HasControl: true, HyperbeamIdentifier: "id-controller"},
 		{SessionID: sessionID, UserID: targetID, HasControl: false, HyperbeamIdentifier: "id-target"},
 	}, nil)
-	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{controllerID}, targetID).Return(nil)
+	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, spec.WatchPartyControlTransfer{SessionID: sessionID, DemoteIDs: []uuid.UUID{controllerID}, TargetID: targetID}).Return(nil)
 	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "vm_admin_token", "id-controller", false).Return(nil)
 	m.hyperbeamSvc.EXPECT().SetControlRole(mock.Anything, "https://hb.example/sess", "vm_admin_token", "id-target", true).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, controllerID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, targetID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == controllerID && entry.Action == repository.AuditActionWatchPartyGrantControl && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == targetID
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: sessionID, SenderID: controllerID, Body: "A user gave control to A user."}).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == controllerID && entry.Action == audit.ActionWatchPartyGrantControl && entry.TargetType == audit.TargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == targetID
 	})).Return(nil)
 
 	// when
@@ -419,23 +421,23 @@ func TestGrantWatchPartyControl_AdminOutranksMod(t *testing.T) {
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, adminID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: adminID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: modID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: adminID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, modID).Return(role.RoleModerator, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
-	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: adminID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]model.ChatWatchPartyParticipantRow{
 		{SessionID: sessionID, UserID: modID, HasControl: true},
 		{SessionID: sessionID, UserID: adminID, HasControl: false},
 	}, nil)
-	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{modID}, adminID).Return(nil)
+	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, spec.WatchPartyControlTransfer{SessionID: sessionID, DemoteIDs: []uuid.UUID{modID}, TargetID: adminID}).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == adminID && entry.Action == repository.AuditActionWatchPartyGrantControl && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == adminID
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: sessionID, SenderID: adminID, Body: "A user took control."}).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == adminID && entry.Action == audit.ActionWatchPartyGrantControl && entry.TargetType == audit.TargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == adminID
 	})).Return(nil)
 
 	// when
@@ -455,11 +457,11 @@ func TestGrantWatchPartyControl_ModCannotReclaimFromAdmin(t *testing.T) {
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, modID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: modID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: adminID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, modID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: modID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: modID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: modID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, modID).Return(role.RoleModerator, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 
@@ -480,11 +482,11 @@ func TestGrantWatchPartyControl_SuperAdminControllerIsUntouchable(t *testing.T) 
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, adminID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: adminID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: superID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: adminID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, superID).Return(role.RoleSuperAdmin, nil)
 
@@ -504,23 +506,23 @@ func TestGrantWatchPartyControl_OwnerCanReclaimFromRegular(t *testing.T) {
 	memberID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, ownerID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: ownerID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: memberID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, ownerID).Return("", nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
-	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return([]model.ChatWatchPartyParticipantRow{
 		{SessionID: sessionID, UserID: memberID, HasControl: true},
 		{SessionID: sessionID, UserID: ownerID, HasControl: false},
 	}, nil)
-	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, sessionID, []uuid.UUID{memberID}, ownerID).Return(nil)
+	m.watchPartyRepo.EXPECT().TransferControl(mock.Anything, spec.WatchPartyControlTransfer{SessionID: sessionID, DemoteIDs: []uuid.UUID{memberID}, TargetID: ownerID}).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == ownerID && entry.Action == repository.AuditActionWatchPartyGrantControl && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == ownerID
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: sessionID, SenderID: ownerID, Body: "A user took control."}).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == ownerID && entry.Action == audit.ActionWatchPartyGrantControl && entry.TargetType == audit.TargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == ownerID
 	})).Return(nil)
 
 	// when
@@ -553,11 +555,11 @@ func TestKickWatchPartyParticipant_CannotOutrankTarget(t *testing.T) {
 	adminID := uuid.New()
 	ownerID := uuid.New()
 
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, memberID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: memberID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, adminID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: adminID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: adminID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 
@@ -577,19 +579,19 @@ func TestKickWatchPartyParticipant_OK(t *testing.T) {
 	memberID := uuid.New()
 	ownerID := uuid.New()
 
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, adminID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: adminID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, adminID).Return(role.RoleAdmin, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, memberID).Return("", nil)
-	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, memberID).Return(nil, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, adminID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, sessionID, mock.Anything, mock.Anything).Return(nil, errors.New("skip"))
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == adminID && entry.Action == repository.AuditActionWatchPartyKick && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == memberID
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: sessionID, SenderID: adminID, Body: "A user was kicked by A user."}).Return(nil, errors.New("skip"))
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == adminID && entry.Action == audit.ActionWatchPartyKick && entry.TargetType == audit.TargetChatWatchPartySession && entry.TargetID == sessionID.String() && entry.SubjectID == memberID
 	})).Return(nil)
 
 	// when
@@ -605,25 +607,25 @@ func TestLeaveWatchParty_OwnerLeavesEndsSession(t *testing.T) {
 	roomID := uuid.New()
 	sessionID := uuid.New()
 	ownerID := uuid.New()
-	session := &repository.ChatWatchPartySessionRow{
+	session := &model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID,
 		HyperbeamSessionID: "hb_sess", Status: "active",
 	}
 
 	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(session, nil).Twice()
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: true, LeftAt: sql.NullString{}}, nil).Twice()
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: ownerID, HasControl: true, LeftAt: sql.NullString{}}, nil).Twice()
 	m.hyperbeamSvc.EXPECT().TerminateVM(mock.Anything, "hb_sess").Return(nil)
 	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
-	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "owner_left").Return(nil)
+	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, spec.WatchPartySessionEnd{SessionID: sessionID, Reason: "owner_left"}).Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
 	m.chatRepo.EXPECT().DeleteRoomWithMessages(mock.Anything, sessionID).Return(nil, nil)
 	m.uploadSvc.EXPECT().Delete().Return()
 	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == ownerID && entry.Action == repository.AuditActionWatchPartyEnd && entry.TargetType == repository.AuditTargetChatWatchPartySession && entry.TargetID == sessionID.String()
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == ownerID && entry.Action == audit.ActionWatchPartyEnd && entry.TargetType == audit.TargetChatWatchPartySession && entry.TargetID == sessionID.String()
 	})).Return(nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, ownerID).Return(nil, nil)
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, roomID, ownerID, mock.Anything).Return(&repository.ChatMessageRow{ID: uuid.New()}, nil)
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: roomID, SenderID: ownerID, Body: "Someone's watch party ended: Untitled party"}).Return(&model.ChatMessageRow{ID: uuid.New()}, nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, ownerID).Return(nil, nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(nil, nil)
 
@@ -642,11 +644,11 @@ func TestLeaveWatchParty_NonControllerJustLeaves(t *testing.T) {
 	controllerID := uuid.New()
 	memberID := uuid.New()
 
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, ControllerID: controllerID, Status: "active",
 	}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
-	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: memberID, HasControl: false}, nil)
+	m.watchPartyRepo.EXPECT().RemoveParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(nil)
 
 	// when
 	err := svc.LeaveWatchParty(context.Background(), roomID, sessionID, memberID)
@@ -662,7 +664,7 @@ func TestMintSessionVoiceToken_NotRoomMember(t *testing.T) {
 	sessionID := uuid.New()
 	userID := uuid.New()
 
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(false, nil)
 
 	// when
 	_, _, err := svc.MintSessionVoiceToken(context.Background(), roomID, sessionID, userID)
@@ -678,7 +680,7 @@ func TestIdentifyWatchPartyParticipant_NotRoomMember(t *testing.T) {
 	sessionID := uuid.New()
 	userID := uuid.New()
 
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(false, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(false, nil)
 
 	// when
 	err := svc.IdentifyWatchPartyParticipant(context.Background(), roomID, sessionID, userID, "identifier")
@@ -694,7 +696,7 @@ func TestStartWatchParty_ChatRoomFailureRollsBackSession(t *testing.T) {
 	userID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, userID).Return(true, nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: userID}).Return(true, nil)
 	expectGroupRoomLookup(m, roomID, userID)
 	m.hyperbeamSvc.EXPECT().CreateVM(mock.Anything, mock.Anything).
 		Return(&hyperbeam.VM{SessionID: "hb_sess_1", EmbedURL: "https://hb/embed"}, nil)
@@ -716,7 +718,7 @@ func TestCleanupDeadSession_DeletesRoomThenMedia(t *testing.T) {
 	var order []string
 
 	m.watchPartyRepo.EXPECT().MarkAllParticipantsLeft(mock.Anything, sessionID).Return(nil)
-	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, sessionID, "vm_gone").Return(nil)
+	m.watchPartyRepo.EXPECT().EndSession(mock.Anything, spec.WatchPartySessionEnd{SessionID: sessionID, Reason: "vm_gone"}).Return(nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/uploads/party.webp"}).
 		Run(func(urlPaths ...string) { order = append(order, "delete-media") }).Return()
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, sessionID).Return(nil, nil)
@@ -726,7 +728,7 @@ func TestCleanupDeadSession_DeletesRoomThenMedia(t *testing.T) {
 	m.chatRepo.EXPECT().ClearVoiceForceMutes(mock.Anything, sessionID).Return(nil)
 
 	// when
-	svc.cleanupDeadSession(&repository.ChatWatchPartySessionRow{ID: sessionID, RoomID: roomID}, "vm_gone")
+	svc.cleanupDeadSession(&model.ChatWatchPartySessionRow{ID: sessionID, RoomID: roomID}, "vm_gone")
 
 	// then the rows go first and the files are unlinked only once that delete has committed
 	require.Equal(t, []string{"delete-room", "delete-media"}, order)
@@ -740,17 +742,17 @@ func TestJoinWatchParty_KeepsTheHostsRoomRole(t *testing.T) {
 	ownerID := uuid.New()
 
 	m.hyperbeamSvc.EXPECT().Enabled().Return(true)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, roomID, ownerID).Return(true, nil)
-	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&repository.ChatWatchPartySessionRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: roomID, UserID: ownerID}).Return(true, nil)
+	m.watchPartyRepo.EXPECT().GetByID(mock.Anything, sessionID).Return(&model.ChatWatchPartySessionRow{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID, HyperbeamSessionID: "hb", Status: "active",
 		EmbedURL: "https://hb.example/sess",
 	}, nil)
 	m.hyperbeamSvc.EXPECT().GetVMStatus(mock.Anything, "hb").Return(&hyperbeam.VMStatus{SessionID: "hb"}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(&model.ChatWatchPartyParticipantRow{
 		SessionID: sessionID, UserID: ownerID, HasControl: true,
 	}, nil)
-	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, sessionID, ownerID, true, "").Return(nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, sessionID, ownerID).Return(true, nil)
+	m.watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, spec.WatchPartyParticipantUpsert{SessionID: sessionID, UserID: ownerID, HasControl: true, Identifier: ""}).Return(nil)
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: sessionID, UserID: ownerID}).Return(true, nil)
 	m.roleRepo.EXPECT().GetRole(mock.Anything, ownerID).Return("", nil)
 	m.vanityRoleRepo.EXPECT().GetRolesForUser(mock.Anything, ownerID).Return(nil, nil)
 	m.watchPartyRepo.EXPECT().GetActiveParticipants(mock.Anything, sessionID).Return(nil, nil)
@@ -760,7 +762,7 @@ func TestJoinWatchParty_KeepsTheHostsRoomRole(t *testing.T) {
 
 	// then no AddMemberWithRole call downgrades them from host to member
 	require.NoError(t, err)
-	m.chatRepo.AssertNotCalled(t, "AddMemberWithRole", mock.Anything, sessionID, ownerID, "member", false)
+	m.chatRepo.AssertNotCalled(t, "AddMemberWithRole", mock.Anything, spec.NewChatRoomMember{RoomID: sessionID, UserID: ownerID, Role: "member", Ghost: false})
 }
 
 func TestHandleClientDisconnect_OwnerDroppingDoesNotEndTheParty(t *testing.T) {
@@ -770,22 +772,22 @@ func TestHandleClientDisconnect_OwnerDroppingDoesNotEndTheParty(t *testing.T) {
 	sessionID := uuid.New()
 	ownerID := uuid.New()
 
-	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]repository.ChatWatchPartySessionRow{{
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]model.ChatWatchPartySessionRow{{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID,
 		HyperbeamSessionID: "hb_sess", Status: "active",
 	}}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, ownerID).Return(&repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(&model.ChatWatchPartyParticipantRow{
 		SessionID: sessionID, UserID: ownerID, HasControl: true,
 	}, nil)
-	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, ownerID).Return(nil)
+	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(nil)
 
 	// when
 	svc.HandleClientDisconnect(context.Background(), ownerID, []uuid.UUID{roomID})
 
 	// then the vm survives, the session stays active and the host keeps their party chat seat
 	m.hyperbeamSvc.AssertNotCalled(t, "TerminateVM", mock.Anything, mock.Anything)
-	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything, mock.Anything)
-	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything, mock.Anything)
+	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything)
 }
 
 func TestHandleClientDisconnect_MemberDroppingKeepsTheirPartyChatSeat(t *testing.T) {
@@ -796,19 +798,19 @@ func TestHandleClientDisconnect_MemberDroppingKeepsTheirPartyChatSeat(t *testing
 	ownerID := uuid.New()
 	memberID := uuid.New()
 
-	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]repository.ChatWatchPartySessionRow{{
+	m.watchPartyRepo.EXPECT().ListActiveByRoom(mock.Anything, roomID).Return([]model.ChatWatchPartySessionRow{{
 		ID: sessionID, RoomID: roomID, StartedBy: ownerID, ControllerID: ownerID,
 		HyperbeamSessionID: "hb_sess", Status: "active",
 	}}, nil)
-	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, sessionID, memberID).Return(&repository.ChatWatchPartyParticipantRow{
+	m.watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(&model.ChatWatchPartyParticipantRow{
 		SessionID: sessionID, UserID: memberID, HasControl: false,
 	}, nil)
-	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, sessionID, memberID).Return(nil)
+	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(nil)
 
 	// when
 	svc.HandleClientDisconnect(context.Background(), memberID, []uuid.UUID{roomID})
 
 	// then they are not evicted, so a reconnecting tab can still post in the party chat
-	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything, mock.Anything)
-	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything, mock.Anything)
+	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything)
+	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything)
 }

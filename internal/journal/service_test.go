@@ -8,18 +8,21 @@ import (
 	"sync"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal/params"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 
@@ -52,7 +55,7 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	settingsSvc := settings.NewMockService(t)
 	mediaProc := &media.Processor{}
 	comments := repository.NewMockJournalCommentWriter(t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, repository.CommentDAOs{Journal: comments})
+	mentionSvc := mention.NewService(userRepo, blockSvc, notifSvc, dao.CommentDAOs{Journal: comments})
 	svc := NewService(repo, userRepo, auditRepo, authzSvc, blockSvc, notifSvc, mentionSvc, uploadSvc, mediaProc, settingsSvc, contentfilter.New(), nil, nil).(*service)
 	return svc, &testMocks{
 		repo:         repo,
@@ -93,7 +96,7 @@ func TestCreateJournal_NoLimit(t *testing.T) {
 	userID := uuid.New()
 	newID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, validCreateReq()).Return(&dto.JournalResponse{ID: newID}, nil)
+	m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: userID, Title: "Title", Work: "umineko"}).Return(&dto.JournalResponse{ID: newID}, nil)
 
 	// when
 	got, err := svc.CreateJournal(context.Background(), userID, validCreateReq())
@@ -138,7 +141,7 @@ func TestCreateJournal_UnderLimitOK(t *testing.T) {
 	newID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(5)
 	m.repo.EXPECT().CountUserJournalsToday(mock.Anything, userID).Return(2, nil)
-	m.repo.EXPECT().Create(mock.Anything, userID, validCreateReq()).Return(&dto.JournalResponse{ID: newID}, nil)
+	m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: userID, Title: "Title", Work: "umineko"}).Return(&dto.JournalResponse{ID: newID}, nil)
 
 	// when
 	got, err := svc.CreateJournal(context.Background(), userID, validCreateReq())
@@ -153,7 +156,7 @@ func TestCreateJournal_RepoCreateError(t *testing.T) {
 	svc, m := newTestService(t)
 	userID := uuid.New()
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, validCreateReq()).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: userID, Title: "Title", Work: "umineko"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateJournal(context.Background(), userID, validCreateReq())
@@ -171,7 +174,7 @@ func TestCreateJournal_MentionInTheTitleNotifiesTheNamedUser(t *testing.T) {
 	req := dto.CreateJournalRequest{Title: "reading along with @alice", Work: "umineko"}
 
 	m.settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxJournalsPerDay).Return(0)
-	m.repo.EXPECT().Create(mock.Anything, userID, req).Return(&dto.JournalResponse{ID: journalID}, nil)
+	m.repo.EXPECT().Create(mock.Anything, spec.NewJournal{UserID: userID, Title: req.Title, Work: req.Work}).Return(&dto.JournalResponse{ID: journalID}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, mentionedID).Return(false, nil)
@@ -206,7 +209,7 @@ func TestGetJournalDetail_NotFoundNil(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	viewer := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, id, viewer).Return(nil, nil)
+	m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: id, ViewerID: viewer}).Return(nil, nil)
 
 	// when
 	_, err := svc.GetJournalDetail(context.Background(), id, viewer)
@@ -220,7 +223,7 @@ func TestGetJournalDetail_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	viewer := uuid.New()
-	m.repo.EXPECT().GetByID(mock.Anything, id, viewer).Return(nil, errors.New("db down"))
+	m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: id, ViewerID: viewer}).Return(nil, errors.New("db down"))
 
 	// when
 	_, err := svc.GetJournalDetail(context.Background(), id, viewer)
@@ -235,9 +238,15 @@ func TestGetJournalDetail_CommentsError(t *testing.T) {
 	id := uuid.New()
 	viewer := uuid.New()
 	journal := &dto.JournalResponse{ID: id, Author: dto.UserResponse{ID: uuid.New()}}
-	m.repo.EXPECT().GetByID(mock.Anything, id, viewer).Return(journal, nil)
+	m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: id, ViewerID: viewer}).Return(journal, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, []uuid.UUID(nil)).Return(nil, 0, errors.New("boom"))
+	m.repo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewer,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: []uuid.UUID(nil),
+	}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.GetJournalDetail(context.Background(), id, viewer)
@@ -254,10 +263,17 @@ func TestGetJournalDetail_OK(t *testing.T) {
 	authorID := uuid.New()
 	journal := &dto.JournalResponse{ID: id, Author: dto.UserResponse{ID: authorID}}
 	commentID := uuid.New()
-	rows := []repository.CommentRow{{ID: commentID, UserID: authorID, Body: "hi"}}
-	m.repo.EXPECT().GetByID(mock.Anything, id, viewer).Return(journal, nil)
-	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return([]uuid.UUID{uuid.New()}, nil)
-	m.repo.EXPECT().GetComments(mock.Anything, id, viewer, 500, 0, mock.Anything).Return(rows, 1, nil)
+	rows := []model.CommentRow{{ID: commentID, UserID: authorID, Body: "hi"}}
+	blockedIDs := []uuid.UUID{uuid.New()}
+	m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: id, ViewerID: viewer}).Return(journal, nil)
+	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(blockedIDs, nil)
+	m.repo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewer,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	}).Return(rows, 1, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{commentID}).Return(nil, nil)
 	m.repo.EXPECT().ListEntries(mock.Anything, id).Return(nil, nil)
 
@@ -276,7 +292,17 @@ func TestListJournals_RepoError(t *testing.T) {
 	viewer := uuid.New()
 	p := params.NewListParams("new", "", uuid.Nil, "", false, 10, 0)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().List(mock.Anything, p, viewer, []uuid.UUID(nil)).Return(nil, 0, errors.New("boom"))
+	m.repo.EXPECT().List(mock.Anything, spec.JournalQuery{
+		Sort:            p.Sort,
+		Work:            p.Work,
+		AuthorID:        p.AuthorID,
+		Search:          p.Search,
+		IncludeArchived: p.IncludeArchived,
+		Limit:           p.Limit,
+		Offset:          p.Offset,
+		ViewerID:        viewer,
+		ExcludeUserIDs:  []uuid.UUID(nil),
+	}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListJournals(context.Background(), p, viewer)
@@ -292,7 +318,17 @@ func TestListJournals_OK(t *testing.T) {
 	p := params.NewListParams("new", "", uuid.Nil, "", false, 10, 0)
 	journals := []dto.JournalResponse{{ID: uuid.New()}}
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().List(mock.Anything, p, viewer, []uuid.UUID(nil)).Return(journals, 1, nil)
+	m.repo.EXPECT().List(mock.Anything, spec.JournalQuery{
+		Sort:            p.Sort,
+		Work:            p.Work,
+		AuthorID:        p.AuthorID,
+		Search:          p.Search,
+		IncludeArchived: p.IncludeArchived,
+		Limit:           p.Limit,
+		Offset:          p.Offset,
+		ViewerID:        viewer,
+		ExcludeUserIDs:  []uuid.UUID(nil),
+	}).Return(journals, 1, nil)
 
 	// when
 	got, err := svc.ListJournals(context.Background(), p, viewer)
@@ -311,9 +347,15 @@ func TestListJournalsByUser_OK(t *testing.T) {
 	viewer := uuid.New()
 	author := uuid.New()
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.repo.EXPECT().List(mock.Anything, mock.MatchedBy(func(p params.ListParams) bool {
-		return p.AuthorID == author && p.IncludeArchived && p.Sort == "new" && p.Limit == 10 && p.Offset == 5
-	}), viewer, []uuid.UUID(nil)).Return([]dto.JournalResponse{}, 0, nil)
+	m.repo.EXPECT().List(mock.Anything, spec.JournalQuery{
+		Sort:            "new",
+		AuthorID:        author,
+		IncludeArchived: true,
+		Limit:           10,
+		Offset:          5,
+		ViewerID:        viewer,
+		ExcludeUserIDs:  []uuid.UUID(nil),
+	}).Return([]dto.JournalResponse{}, 0, nil)
 
 	// when
 	_, err := svc.ListJournalsByUser(context.Background(), author, viewer, 10, 5)
@@ -343,7 +385,12 @@ func TestListFollowedByUser_DefaultsApplied(t *testing.T) {
 			svc, m := newTestService(t)
 			follower := uuid.New()
 			viewer := uuid.New()
-			m.repo.EXPECT().ListFollowedByUser(mock.Anything, follower, viewer, tc.wantLimit, tc.wantOffset).Return([]dto.JournalResponse{}, 0, nil)
+			m.repo.EXPECT().ListFollowedByUser(mock.Anything, spec.JournalFollowedQuery{
+				FollowerID: follower,
+				ViewerID:   viewer,
+				Limit:      tc.wantLimit,
+				Offset:     tc.wantOffset,
+			}).Return([]dto.JournalResponse{}, 0, nil)
 
 			// when
 			got, err := svc.ListFollowedByUser(context.Background(), follower, viewer, bounds.NewPage(tc.limit, tc.offset))
@@ -361,7 +408,12 @@ func TestListFollowedByUser_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	follower := uuid.New()
 	viewer := uuid.New()
-	m.repo.EXPECT().ListFollowedByUser(mock.Anything, follower, viewer, 20, 0).Return(nil, 0, errors.New("boom"))
+	m.repo.EXPECT().ListFollowedByUser(mock.Anything, spec.JournalFollowedQuery{
+		FollowerID: follower,
+		ViewerID:   viewer,
+		Limit:      20,
+		Offset:     0,
+	}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListFollowedByUser(context.Background(), follower, viewer, bounds.NewPage(0, 0))
@@ -391,18 +443,18 @@ func TestUpdateJournal_AsAdmin(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(true)
-	m.repo.EXPECT().GetByID(mock.Anything, id, userID).Return(&dto.JournalResponse{ID: id, Title: "Old", Work: "umineko"}, nil)
-	m.repo.EXPECT().Update(mock.Anything, repository.JournalUpdate{
+	m.repo.EXPECT().GetByID(mock.Anything, spec.JournalLookup{ID: id, ViewerID: userID}).Return(&dto.JournalResponse{ID: id, Title: "Old", Work: "umineko"}, nil)
+	m.repo.EXPECT().Update(mock.Anything, spec.JournalUpdate{
 		ID:      id,
 		UserID:  userID,
 		Title:   "Title",
 		Work:    "umineko",
 		AsAdmin: true,
 	}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalUpdateAdmin,
-		TargetType: repository.AuditTargetJournal,
+		Action:     audit.ActionJournalUpdateAdmin,
+		TargetType: audit.TargetJournal,
 		TargetID:   id.String(),
 		Details:    "changed=title",
 		SubjectID:  authorID,
@@ -421,7 +473,7 @@ func TestUpdateJournal_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().Update(mock.Anything, repository.JournalUpdate{
+	m.repo.EXPECT().Update(mock.Anything, spec.JournalUpdate{
 		ID:     id,
 		UserID: userID,
 		Title:  "Title",
@@ -442,7 +494,7 @@ func TestUpdateJournal_RepoErrorBubbles(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().Update(mock.Anything, repository.JournalUpdate{
+	m.repo.EXPECT().Update(mock.Anything, spec.JournalUpdate{
 		ID:     id,
 		UserID: userID,
 		Title:  "Title",
@@ -479,11 +531,15 @@ func TestDeleteJournal_AsAdmin(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyJournal).Return(true)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("Rokkenjima", nil)
-	m.repo.EXPECT().Delete(mock.Anything, id, userID, true).Return([]string{"/u/entry.png", "/u/entry-thumb.png"}, nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().DeleteWithMedia(mock.Anything, spec.JournalDeletion{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: true,
+	}).Return([]string{"/u/entry.png", "/u/entry-thumb.png"}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalDeleteAdmin,
-		TargetType: repository.AuditTargetJournal,
+		Action:     audit.ActionJournalDeleteAdmin,
+		TargetType: audit.TargetJournal,
 		TargetID:   id.String(),
 		Details:    "title=Rokkenjima",
 		SubjectID:  authorID,
@@ -504,11 +560,15 @@ func TestDeleteJournal_AsOwner(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("Rokkenjima", nil)
-	m.repo.EXPECT().Delete(mock.Anything, id, userID, false).Return([]string{"/u/comment.png"}, nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().DeleteWithMedia(mock.Anything, spec.JournalDeletion{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: false,
+	}).Return([]string{"/u/comment.png"}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalDelete,
-		TargetType: repository.AuditTargetJournal,
+		Action:     audit.ActionJournalDelete,
+		TargetType: audit.TargetJournal,
 		TargetID:   id.String(),
 		Details:    "title=Rokkenjima",
 		SubjectID:  userID,
@@ -529,7 +589,11 @@ func TestDeleteJournal_RepoError(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(userID, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("Rokkenjima", nil)
-	m.repo.EXPECT().Delete(mock.Anything, id, userID, false).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().DeleteWithMedia(mock.Anything, spec.JournalDeletion{
+		ID:      id,
+		UserID:  userID,
+		AsAdmin: false,
+	}).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteJournal(context.Background(), id, userID)
@@ -634,7 +698,7 @@ func TestCreateComment_CreateRepoError(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, repository.NewJournalComment{
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewJournalComment{
 		JournalID: journalID,
 		UserID:    userID,
 		Body:      "hi",
@@ -656,11 +720,11 @@ func TestCreateComment_OK_NotAuthor(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, repository.NewJournalComment{
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewJournalComment{
 		JournalID: journalID,
 		UserID:    userID,
 		Body:      "hi",
-	}).Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundCommentNotify(m)
 
 	// when
@@ -680,13 +744,13 @@ func TestCreateComment_OK_AuthorReplyWithParent(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, repository.NewJournalComment{
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewJournalComment{
 		JournalID:            journalID,
 		ParentID:             &parentID,
 		UserID:               userID,
 		Body:                 "hi",
 		RecordAuthorActivity: true,
-	}).Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	expectBackgroundCommentNotify(m)
 
 	// when
@@ -716,16 +780,16 @@ func TestUpdateComment_AsAdmin(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
-	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
-		ID:      id,
-		UserID:  userID,
-		Body:    "new body",
-		AsAdmin: true,
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      "new body",
+		AsAdmin:   true,
 	}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalCommentUpdateAdmin,
-		TargetType: repository.AuditTargetJournalComment,
+		Action:     audit.ActionJournalCommentUpdateAdmin,
+		TargetType: audit.TargetJournalComment,
 		TargetID:   id.String(),
 		SubjectID:  authorID,
 	}).Return(nil)
@@ -743,10 +807,10 @@ func TestUpdateComment_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
-		ID:     id,
-		UserID: userID,
-		Body:   "body",
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      "body",
 	}).Return(nil)
 
 	// when
@@ -763,10 +827,10 @@ func TestUpdateComment_TrimsBody(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
-		ID:     id,
-		UserID: userID,
-		Body:   "trimmed",
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      "trimmed",
 	}).Return(nil)
 
 	// when
@@ -782,10 +846,10 @@ func TestUpdateComment_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().UpdateComment(mock.Anything, repository.JournalCommentUpdate{
-		ID:     id,
-		UserID: userID,
-		Body:   "body",
+	m.repo.EXPECT().UpdateComment(mock.Anything, spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      "body",
 	}).Return(errors.New("boom"))
 
 	// when
@@ -803,7 +867,11 @@ func TestDeleteComment_AsAdmin(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
-	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID, true).Return([]string{"/u/c.png", "/u/c-thumb.png"}, nil)
+	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   true,
+	}).Return([]string{"/u/c.png", "/u/c-thumb.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/c.png", "/u/c-thumb.png"}).Return()
 
 	// when
@@ -819,7 +887,11 @@ func TestDeleteComment_AsOwner(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID, false).Return([]string{"/u/reply.png"}, nil)
+	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   false,
+	}).Return([]string{"/u/reply.png"}, nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/u/reply.png"}).Return()
 
 	// when
@@ -835,7 +907,11 @@ func TestDeleteComment_RepoError(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
-	m.repo.EXPECT().DeleteComment(mock.Anything, id, userID, false).Return(nil, errors.New("boom"))
+	m.repo.EXPECT().DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   false,
+	}).Return(nil, errors.New("boom"))
 
 	// when
 	err := svc.DeleteComment(context.Background(), id, userID)
@@ -882,7 +958,7 @@ func TestLikeComment_LikeRepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().LikeComment(mock.Anything, userID, id).Return(errors.New("boom"))
+	m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: id}).Return(errors.New("boom"))
 
 	// when
 	err := svc.LikeComment(context.Background(), id, userID)
@@ -898,7 +974,7 @@ func TestLikeComment_SelfLikeNoNotify(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(userID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, userID).Return(false, nil)
-	m.repo.EXPECT().LikeComment(mock.Anything, userID, id).Return(nil)
+	m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: id}).Return(nil)
 
 	// when
 	err := svc.LikeComment(context.Background(), id, userID)
@@ -915,7 +991,7 @@ func TestLikeComment_OKNotifies(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().LikeComment(mock.Anything, userID, id).Return(nil)
+	m.repo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: id}).Return(nil)
 	m.repo.EXPECT().GetCommentEntityID(mock.Anything, id).Return(uuid.New(), nil).Maybe()
 	m.repo.EXPECT().GetCommentEntryNumber(mock.Anything, id).Return(nil, nil).Maybe()
 	m.repo.EXPECT().GetTitle(mock.Anything, mock.Anything).Return("title", nil).Maybe()
@@ -935,7 +1011,7 @@ func TestUnlikeComment_Delegates(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().UnlikeComment(mock.Anything, userID, id).Return(nil)
+	m.repo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: id}).Return(nil)
 
 	// when
 	err := svc.UnlikeComment(context.Background(), id, userID)
@@ -949,7 +1025,7 @@ func TestUnlikeComment_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().UnlikeComment(mock.Anything, userID, id).Return(errors.New("boom"))
+	m.repo.EXPECT().UnlikeComment(mock.Anything, spec.CommentLike{UserID: userID, CommentID: id}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnlikeComment(context.Background(), id, userID)
@@ -1055,7 +1131,7 @@ func TestFollowJournal_FollowRepoError(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().Follow(mock.Anything, userID, id).Return(errors.New("boom"))
+	m.repo.EXPECT().Follow(mock.Anything, spec.JournalFollow{UserID: userID, JournalID: id}).Return(errors.New("boom"))
 
 	// when
 	err := svc.FollowJournal(context.Background(), id, userID)
@@ -1072,7 +1148,7 @@ func TestFollowJournal_OKNotifies(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().Follow(mock.Anything, userID, id).Return(nil)
+	m.repo.EXPECT().Follow(mock.Anything, spec.JournalFollow{UserID: userID, JournalID: id}).Return(nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, id).Return("title", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://base").Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
@@ -1090,7 +1166,7 @@ func TestUnfollowJournal_Delegates(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().Unfollow(mock.Anything, userID, id).Return(nil)
+	m.repo.EXPECT().Unfollow(mock.Anything, spec.JournalFollow{UserID: userID, JournalID: id}).Return(nil)
 
 	// when
 	err := svc.UnfollowJournal(context.Background(), id, userID)
@@ -1104,7 +1180,7 @@ func TestUnfollowJournal_RepoError(t *testing.T) {
 	svc, m := newTestService(t)
 	id := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().Unfollow(mock.Anything, userID, id).Return(errors.New("boom"))
+	m.repo.EXPECT().Unfollow(mock.Anything, spec.JournalFollow{UserID: userID, JournalID: id}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnfollowJournal(context.Background(), id, userID)
@@ -1195,12 +1271,12 @@ func TestCreateEntry_OK_TitleOptional(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(7, nil)
-	m.repo.EXPECT().CreateEntry(mock.Anything, repository.NewJournalEntry{
+	m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
 		JournalID:   journalID,
 		EntryNumber: 7,
 		Body:        "an entry",
 		WordCount:   2,
-	}).Return(&repository.JournalEntryRow{ID: uuid.New()}, nil)
+	}).Return(&model.JournalEntryRow{ID: uuid.New()}, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
@@ -1224,13 +1300,13 @@ func TestCreateEntry_OK_WithTitle(t *testing.T) {
 	userID := uuid.New()
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(1, nil)
-	m.repo.EXPECT().CreateEntry(mock.Anything, repository.NewJournalEntry{
+	m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
 		JournalID:   journalID,
 		EntryNumber: 1,
 		Title:       new("Day 1"),
 		Body:        "the body",
 		WordCount:   2,
-	}).Return(&repository.JournalEntryRow{ID: uuid.New()}, nil)
+	}).Return(&model.JournalEntryRow{ID: uuid.New()}, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
@@ -1256,16 +1332,16 @@ func TestCreateEntry_AsAdminAuditsCreation(t *testing.T) {
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(true)
 	m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(4, nil)
-	m.repo.EXPECT().CreateEntry(mock.Anything, repository.NewJournalEntry{
+	m.repo.EXPECT().CreateEntry(mock.Anything, spec.NewJournalEntry{
 		JournalID:   journalID,
 		EntryNumber: 4,
 		Body:        "an entry",
 		WordCount:   2,
-	}).Return(&repository.JournalEntryRow{ID: entryID}, nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	}).Return(&model.JournalEntryRow{ID: entryID}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalEntryCreateAdmin,
-		TargetType: repository.AuditTargetJournalEntry,
+		Action:     audit.ActionJournalEntryCreateAdmin,
+		TargetType: audit.TargetJournalEntry,
 		TargetID:   entryID.String(),
 		Details:    "journal_id=" + journalID.String() + ",entry_number=4,is_draft=false",
 		SubjectID:  authorID,
@@ -1321,11 +1397,11 @@ func TestJournalEntry_MentionFanOut(t *testing.T) {
 
 			if tt.publishing {
 				m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).
-					Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 3, IsDraft: true}, nil)
+					Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 3, IsDraft: true}, nil)
 				m.repo.EXPECT().UpdateEntry(mock.Anything, mock.Anything).Return(nil)
 			} else {
 				m.repo.EXPECT().GetNextEntryNumber(mock.Anything, journalID).Return(3, nil)
-				m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything).Return(&repository.JournalEntryRow{ID: entryID}, nil)
+				m.repo.EXPECT().CreateEntry(mock.Anything, mock.Anything).Return(&model.JournalEntryRow{ID: entryID}, nil)
 			}
 
 			m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("a journal", nil).Maybe()
@@ -1380,7 +1456,7 @@ func TestGetEntry_NotFound(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	journalID := uuid.New()
-	m.repo.EXPECT().GetEntry(mock.Anything, journalID, 5).Return(nil, nil)
+	m.repo.EXPECT().GetEntry(mock.Anything, spec.JournalEntryLookup{JournalID: journalID, EntryNumber: 5}).Return(nil, nil)
 
 	// when
 	_, _, err := svc.GetEntry(context.Background(), journalID, 5, uuid.Nil)
@@ -1395,11 +1471,17 @@ func TestGetEntry_OK(t *testing.T) {
 	journalID := uuid.New()
 	authorID := uuid.New()
 	entryID := uuid.New()
-	row := &repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 3, Body: "b", HasPrev: true}
-	m.repo.EXPECT().GetEntry(mock.Anything, journalID, 3).Return(row, nil)
+	row := &model.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 3, Body: "b", HasPrev: true}
+	m.repo.EXPECT().GetEntry(mock.Anything, spec.JournalEntryLookup{JournalID: journalID, EntryNumber: 3}).Return(row, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, uuid.Nil).Return(nil, nil)
-	m.repo.EXPECT().GetEntryComments(mock.Anything, entryID, uuid.Nil, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
+	m.repo.EXPECT().GetEntryComments(mock.Anything, spec.CommentQuery[uuid.UUID]{
+		TargetID:       entryID,
+		ViewerID:       uuid.Nil,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: []uuid.UUID(nil),
+	}).Return(nil, 0, nil)
 	m.repo.EXPECT().GetCommentMediaBatch(mock.Anything, []uuid.UUID{}).Return(nil, nil)
 	m.repo.EXPECT().GetMediaBatch(mock.Anything, []uuid.UUID{entryID}).Return(nil, nil)
 
@@ -1421,7 +1503,7 @@ func TestUpdateEntry_NotAuthor(t *testing.T) {
 	journalID := uuid.New()
 	userID := uuid.New()
 	authorID := uuid.New()
-	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID}, nil)
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID}, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(false)
 
@@ -1438,9 +1520,9 @@ func TestUpdateEntry_StillDraft_DoesNotRecordActivity(t *testing.T) {
 	entryID := uuid.New()
 	journalID := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, IsDraft: true}, nil)
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID, IsDraft: true}, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
-	m.repo.EXPECT().UpdateEntry(mock.Anything, repository.JournalEntryUpdate{
+	m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
 		ID:        entryID,
 		JournalID: journalID,
 		Body:      "still drafting",
@@ -1461,9 +1543,9 @@ func TestUpdateEntry_PublishingDraft_RecordsActivity(t *testing.T) {
 	entryID := uuid.New()
 	journalID := uuid.New()
 	userID := uuid.New()
-	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 2, IsDraft: true}, nil)
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 2, IsDraft: true}, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(userID, nil)
-	m.repo.EXPECT().UpdateEntry(mock.Anything, repository.JournalEntryUpdate{
+	m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
 		ID:                   entryID,
 		JournalID:            journalID,
 		Title:                new("Day 2"),
@@ -1491,20 +1573,20 @@ func TestUpdateEntry_AsAdminAuditsChangedFields(t *testing.T) {
 	journalID := uuid.New()
 	userID := uuid.New()
 	authorID := uuid.New()
-	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 2, Body: "old body", IsDraft: true}, nil)
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 2, Body: "old body", IsDraft: true}, nil)
 	m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyJournal).Return(true)
-	m.repo.EXPECT().UpdateEntry(mock.Anything, repository.JournalEntryUpdate{
+	m.repo.EXPECT().UpdateEntry(mock.Anything, spec.JournalEntryUpdate{
 		ID:                   entryID,
 		JournalID:            journalID,
 		Body:                 "new body",
 		WordCount:            2,
 		RecordAuthorActivity: true,
 	}).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalEntryUpdateAdmin,
-		TargetType: repository.AuditTargetJournalEntry,
+		Action:     audit.ActionJournalEntryUpdateAdmin,
+		TargetType: audit.TargetJournalEntry,
 		TargetID:   entryID.String(),
 		Details:    "changed=body,is_draft",
 		SubjectID:  authorID,
@@ -1528,11 +1610,11 @@ func TestDeleteEntry_OK(t *testing.T) {
 	entryID := uuid.New()
 	userID := uuid.New()
 	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(userID, nil)
-	m.repo.EXPECT().DeleteEntry(mock.Anything, entryID).Return([]string{"/u/e.png", "/u/e-thumb.png"}, nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, entryID).Return([]string{"/u/e.png", "/u/e-thumb.png"}, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalEntryDelete,
-		TargetType: repository.AuditTargetJournalEntry,
+		Action:     audit.ActionJournalEntryDelete,
+		TargetType: audit.TargetJournalEntry,
 		TargetID:   entryID.String(),
 		SubjectID:  userID,
 	}).Return(nil)
@@ -1553,11 +1635,11 @@ func TestDeleteEntry_AsAdmin(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetEntryAuthorID(mock.Anything, entryID).Return(authorID, nil)
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyJournal).Return(true)
-	m.repo.EXPECT().DeleteEntry(mock.Anything, entryID).Return(nil, nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.repo.EXPECT().DeleteEntryWithMedia(mock.Anything, entryID).Return(nil, nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionJournalEntryDeleteAdmin,
-		TargetType: repository.AuditTargetJournalEntry,
+		Action:     audit.ActionJournalEntryDeleteAdmin,
+		TargetType: audit.TargetJournalEntry,
 		TargetID:   entryID.String(),
 		SubjectID:  authorID,
 	}).Return(nil)
@@ -1599,13 +1681,13 @@ func TestCreateComment_OnEntry_OK(t *testing.T) {
 	m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 	m.repo.EXPECT().GetEntryJournalID(mock.Anything, entryID).Return(journalID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 4}, nil)
-	m.comments.EXPECT().CreateComment(mock.Anything, repository.NewJournalComment{
+	m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: 4}, nil)
+	m.comments.EXPECT().CreateComment(mock.Anything, spec.NewJournalComment{
 		JournalID: journalID,
 		EntryID:   &entryID,
 		UserID:    userID,
 		Body:      "body",
-	}).Return(&repository.CommentRow{ID: uuid.New()}, nil)
+	}).Return(&model.CommentRow{ID: uuid.New()}, nil)
 	m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil).Maybe()
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://b").Maybe()
 	m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(nil, nil).Maybe()
@@ -1652,20 +1734,20 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 			commentID := uuid.New()
 			mentionedID := uuid.New()
 
-			spec := repository.NewJournalComment{JournalID: journalID, UserID: userID, Body: "look at this @alice"}
+			wantComment := spec.NewJournalComment{JournalID: journalID, UserID: userID, Body: "look at this @alice"}
 			var entryArg *uuid.UUID
 			if tt.onEntry {
 				entryArg = &entryID
-				spec.EntryID = &entryID
+				wantComment.EntryID = &entryID
 				m.repo.EXPECT().GetEntryJournalID(mock.Anything, entryID).Return(journalID, nil)
 				m.repo.EXPECT().GetEntryByID(mock.Anything, entryID).
-					Return(&repository.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: tt.entryNumber}, nil)
+					Return(&model.JournalEntryRow{ID: entryID, JournalID: journalID, EntryNumber: tt.entryNumber}, nil)
 			}
 
 			m.repo.EXPECT().GetAuthorID(mock.Anything, journalID).Return(authorID, nil)
 			m.repo.EXPECT().IsArchived(mock.Anything, journalID).Return(false, nil)
 			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-			m.comments.EXPECT().CreateComment(mock.Anything, spec).Return(&repository.CommentRow{ID: commentID}, nil)
+			m.comments.EXPECT().CreateComment(mock.Anything, wantComment).Return(&model.CommentRow{ID: commentID}, nil)
 			m.repo.EXPECT().GetTitle(mock.Anything, journalID).Return("j", nil)
 			m.userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 			m.userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)

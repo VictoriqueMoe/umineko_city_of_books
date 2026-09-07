@@ -7,6 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -40,12 +42,12 @@ func (_m *MockBlockRepository) EXPECT() *MockBlockRepository_Expecter {
 }
 
 // Block provides a mock function for the type MockBlockRepository
-func (_mock *MockBlockRepository) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockBlockRepository) Block(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, blockerID, blockedID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, blockerID, blockedID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -54,8 +56,8 @@ func (_mock *MockBlockRepository) Block(ctx context.Context, blockerID uuid.UUID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, blockerID, blockedID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BlockSpec, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -69,39 +71,33 @@ type MockBlockRepository_Block_Call struct {
 
 // Block is a helper method to define mock.On call
 //   - ctx context.Context
-//   - blockerID uuid.UUID
-//   - blockedID uuid.UUID
+//   - s spec.BlockSpec
 //   - tx ...*sql.Tx
-func (_e *MockBlockRepository_Expecter) Block(ctx any, blockerID any, blockedID any, tx ...any) *MockBlockRepository_Block_Call {
+func (_e *MockBlockRepository_Expecter) Block(ctx any, s any, tx ...any) *MockBlockRepository_Block_Call {
 	return &MockBlockRepository_Block_Call{Call: _e.mock.On("Block",
-		append([]any{ctx, blockerID, blockedID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockBlockRepository_Block_Call) Run(run func(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx)) *MockBlockRepository_Block_Call {
+func (_c *MockBlockRepository_Block_Call) Run(run func(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx)) *MockBlockRepository_Block_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.BlockSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.BlockSpec)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -112,7 +108,7 @@ func (_c *MockBlockRepository_Block_Call) Return(err error) *MockBlockRepository
 	return _c
 }
 
-func (_c *MockBlockRepository_Block_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error) *MockBlockRepository_Block_Call {
+func (_c *MockBlockRepository_Block_Call) RunAndReturn(run func(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error) *MockBlockRepository_Block_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -201,7 +197,7 @@ func (_c *MockBlockRepository_GetBlockedIDs_Call) RunAndReturn(run func(ctx cont
 }
 
 // GetBlockedUsers provides a mock function for the type MockBlockRepository
-func (_mock *MockBlockRepository) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]BlockedUser, error) {
+func (_mock *MockBlockRepository) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]model.BlockedUser, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, blockerID, tx)
@@ -214,16 +210,16 @@ func (_mock *MockBlockRepository) GetBlockedUsers(ctx context.Context, blockerID
 		panic("no return value specified for GetBlockedUsers")
 	}
 
-	var r0 []BlockedUser
+	var r0 []model.BlockedUser
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]BlockedUser, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) ([]model.BlockedUser, error)); ok {
 		return returnFunc(ctx, blockerID, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []BlockedUser); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) []model.BlockedUser); ok {
 		r0 = returnFunc(ctx, blockerID, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]BlockedUser)
+			r0 = ret.Get(0).([]model.BlockedUser)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -273,23 +269,23 @@ func (_c *MockBlockRepository_GetBlockedUsers_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockBlockRepository_GetBlockedUsers_Call) Return(blockedUsers []BlockedUser, err error) *MockBlockRepository_GetBlockedUsers_Call {
+func (_c *MockBlockRepository_GetBlockedUsers_Call) Return(blockedUsers []model.BlockedUser, err error) *MockBlockRepository_GetBlockedUsers_Call {
 	_c.Call.Return(blockedUsers, err)
 	return _c
 }
 
-func (_c *MockBlockRepository_GetBlockedUsers_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]BlockedUser, error)) *MockBlockRepository_GetBlockedUsers_Call {
+func (_c *MockBlockRepository_GetBlockedUsers_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]model.BlockedUser, error)) *MockBlockRepository_GetBlockedUsers_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsBlocked provides a mock function for the type MockBlockRepository
-func (_mock *MockBlockRepository) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockBlockRepository) IsBlocked(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, blockerID, blockedID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, blockerID, blockedID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -299,16 +295,16 @@ func (_mock *MockBlockRepository) IsBlocked(ctx context.Context, blockerID uuid.
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, blockerID, blockedID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BlockSpec, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, blockerID, blockedID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BlockSpec, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, blockerID, blockedID, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.BlockSpec, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -322,39 +318,33 @@ type MockBlockRepository_IsBlocked_Call struct {
 
 // IsBlocked is a helper method to define mock.On call
 //   - ctx context.Context
-//   - blockerID uuid.UUID
-//   - blockedID uuid.UUID
+//   - s spec.BlockSpec
 //   - tx ...*sql.Tx
-func (_e *MockBlockRepository_Expecter) IsBlocked(ctx any, blockerID any, blockedID any, tx ...any) *MockBlockRepository_IsBlocked_Call {
+func (_e *MockBlockRepository_Expecter) IsBlocked(ctx any, s any, tx ...any) *MockBlockRepository_IsBlocked_Call {
 	return &MockBlockRepository_IsBlocked_Call{Call: _e.mock.On("IsBlocked",
-		append([]any{ctx, blockerID, blockedID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockBlockRepository_IsBlocked_Call) Run(run func(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx)) *MockBlockRepository_IsBlocked_Call {
+func (_c *MockBlockRepository_IsBlocked_Call) Run(run func(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx)) *MockBlockRepository_IsBlocked_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.BlockSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.BlockSpec)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -365,18 +355,18 @@ func (_c *MockBlockRepository_IsBlocked_Call) Return(b bool, err error) *MockBlo
 	return _c
 }
 
-func (_c *MockBlockRepository_IsBlocked_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockBlockRepository_IsBlocked_Call {
+func (_c *MockBlockRepository_IsBlocked_Call) RunAndReturn(run func(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) (bool, error)) *MockBlockRepository_IsBlocked_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsBlockedEither provides a mock function for the type MockBlockRepository
-func (_mock *MockBlockRepository) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (_mock *MockBlockRepository) IsBlockedEither(ctx context.Context, s spec.BlockPairSpec, tx ...*sql.Tx) (bool, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userA, userB, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userA, userB)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -386,16 +376,16 @@ func (_mock *MockBlockRepository) IsBlockedEither(ctx context.Context, userA uui
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) (bool, error)); ok {
-		return returnFunc(ctx, userA, userB, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BlockPairSpec, ...*sql.Tx) (bool, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) bool); ok {
-		r0 = returnFunc(ctx, userA, userB, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BlockPairSpec, ...*sql.Tx) bool); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, userA, userB, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.BlockPairSpec, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -409,39 +399,33 @@ type MockBlockRepository_IsBlockedEither_Call struct {
 
 // IsBlockedEither is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userA uuid.UUID
-//   - userB uuid.UUID
+//   - s spec.BlockPairSpec
 //   - tx ...*sql.Tx
-func (_e *MockBlockRepository_Expecter) IsBlockedEither(ctx any, userA any, userB any, tx ...any) *MockBlockRepository_IsBlockedEither_Call {
+func (_e *MockBlockRepository_Expecter) IsBlockedEither(ctx any, s any, tx ...any) *MockBlockRepository_IsBlockedEither_Call {
 	return &MockBlockRepository_IsBlockedEither_Call{Call: _e.mock.On("IsBlockedEither",
-		append([]any{ctx, userA, userB}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockBlockRepository_IsBlockedEither_Call) Run(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx)) *MockBlockRepository_IsBlockedEither_Call {
+func (_c *MockBlockRepository_IsBlockedEither_Call) Run(run func(ctx context.Context, s spec.BlockPairSpec, tx ...*sql.Tx)) *MockBlockRepository_IsBlockedEither_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.BlockPairSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.BlockPairSpec)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -452,18 +436,18 @@ func (_c *MockBlockRepository_IsBlockedEither_Call) Return(b bool, err error) *M
 	return _c
 }
 
-func (_c *MockBlockRepository_IsBlockedEither_Call) RunAndReturn(run func(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (bool, error)) *MockBlockRepository_IsBlockedEither_Call {
+func (_c *MockBlockRepository_IsBlockedEither_Call) RunAndReturn(run func(ctx context.Context, s spec.BlockPairSpec, tx ...*sql.Tx) (bool, error)) *MockBlockRepository_IsBlockedEither_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Unblock provides a mock function for the type MockBlockRepository
-func (_mock *MockBlockRepository) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockBlockRepository) Unblock(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, blockerID, blockedID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, blockerID, blockedID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -472,8 +456,8 @@ func (_mock *MockBlockRepository) Unblock(ctx context.Context, blockerID uuid.UU
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, blockerID, blockedID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.BlockSpec, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -487,39 +471,33 @@ type MockBlockRepository_Unblock_Call struct {
 
 // Unblock is a helper method to define mock.On call
 //   - ctx context.Context
-//   - blockerID uuid.UUID
-//   - blockedID uuid.UUID
+//   - s spec.BlockSpec
 //   - tx ...*sql.Tx
-func (_e *MockBlockRepository_Expecter) Unblock(ctx any, blockerID any, blockedID any, tx ...any) *MockBlockRepository_Unblock_Call {
+func (_e *MockBlockRepository_Expecter) Unblock(ctx any, s any, tx ...any) *MockBlockRepository_Unblock_Call {
 	return &MockBlockRepository_Unblock_Call{Call: _e.mock.On("Unblock",
-		append([]any{ctx, blockerID, blockedID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockBlockRepository_Unblock_Call) Run(run func(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx)) *MockBlockRepository_Unblock_Call {
+func (_c *MockBlockRepository_Unblock_Call) Run(run func(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx)) *MockBlockRepository_Unblock_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.BlockSpec
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.BlockSpec)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -530,7 +508,7 @@ func (_c *MockBlockRepository_Unblock_Call) Return(err error) *MockBlockReposito
 	return _c
 }
 
-func (_c *MockBlockRepository_Unblock_Call) RunAndReturn(run func(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error) *MockBlockRepository_Unblock_Call {
+func (_c *MockBlockRepository_Unblock_Call) RunAndReturn(run func(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error) *MockBlockRepository_Unblock_Call {
 	_c.Call.Return(run)
 	return _c
 }

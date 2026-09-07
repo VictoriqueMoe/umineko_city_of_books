@@ -6,9 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/text"
 	"umineko_city_of_books/internal/ws"
 
@@ -58,7 +59,7 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 			continue
 		}
 
-		existingRole, err := m.chatRepo.GetMemberRole(ctx, roomID, targetID)
+		existingRole, err := m.chatRepo.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 		if err != nil {
 			return nil, fmt.Errorf("get member role: %w", err)
 		}
@@ -67,7 +68,7 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 			continue
 		}
 
-		banned, err := m.banRepo.IsBanned(ctx, roomID, targetID)
+		banned, err := m.banRepo.IsBanned(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 		if err != nil {
 			return nil, fmt.Errorf("check ban: %w", err)
 		}
@@ -89,10 +90,10 @@ func (m *membersService) InviteMembers(ctx context.Context, hostID, roomID uuid.
 
 		actionBody := m.roomActionMessageBody(ctx, roomID, hostID, fmt.Sprintf("%s invited %s to the room.", inviterName, target.DisplayName))
 
-		actionRow, err := m.chatRepo.AddMemberWithSystemMessage(ctx,
-			repository.NewChatRoomMember{RoomID: roomID, UserID: targetID, Role: "member", Ghost: false},
-			repository.NewChatMessage{RoomID: roomID, SenderID: hostID, Body: actionBody, IsSystem: true},
-		)
+		actionRow, err := m.chatRepo.AddMemberWithSystemMessage(ctx, spec.ChatMemberJoinAnnouncement{
+			Member:  spec.NewChatRoomMember{RoomID: roomID, UserID: targetID, Role: "member", Ghost: false},
+			Message: spec.NewChatMessage{RoomID: roomID, SenderID: hostID, Body: actionBody, IsSystem: true},
+		})
 		if err != nil {
 			return nil, fmt.Errorf("add member: %w", err)
 		}
@@ -131,7 +132,7 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 		return err
 	}
 
-	targetRole, err := m.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	targetRole, err := m.chatRepo.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 	if err != nil {
 		return fmt.Errorf("get target role: %w", err)
 	}
@@ -159,10 +160,10 @@ func (m *membersService) KickMember(ctx context.Context, hostID, roomID, targetI
 	m.parent.notifyModerationAction(roomID, targetID, hostID, "kicked", "")
 
 	if isAuditableRoom(row) {
-		m.writeAudit(ctx, repository.NewAuditEntry{
+		m.writeAudit(ctx, audit.NewEntry{
 			ActorID:    hostID,
-			Action:     repository.AuditActionChatRoomKick,
-			TargetType: repository.AuditTargetChatRoom,
+			Action:     audit.ActionChatRoomKick,
+			TargetType: audit.TargetChatRoom,
 			TargetID:   roomID.String(),
 			SubjectID:  targetID,
 		})
@@ -177,7 +178,7 @@ func (m *membersService) SetMemberTimeout(ctx context.Context, roomID, actorID, 
 		return nil, err
 	}
 
-	targetRole, err := m.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	targetRole, err := m.chatRepo.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 	if err != nil {
 		return nil, fmt.Errorf("get target role: %w", err)
 	}
@@ -202,7 +203,7 @@ func (m *membersService) SetMemberTimeout(ctx context.Context, roomID, actorID, 
 		return nil, ErrTargetImmune
 	}
 
-	activeTimeout, _, timeoutByStaff, err := m.chatRepo.GetMemberTimeoutState(ctx, roomID, targetID)
+	activeTimeout, _, timeoutByStaff, err := m.chatRepo.GetMemberTimeoutState(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 	if err != nil {
 		return nil, fmt.Errorf("get timeout state: %w", err)
 	}
@@ -216,15 +217,15 @@ func (m *membersService) SetMemberTimeout(ctx context.Context, roomID, actorID, 
 		return nil, err
 	}
 
-	if err := m.chatRepo.SetMemberTimeout(ctx, roomID, targetID, until.Format(time.DateTime), actorIsStaff); err != nil {
+	if err := m.chatRepo.SetMemberTimeout(ctx, spec.ChatMemberTimeout{RoomID: roomID, UserID: targetID, Until: until.Format(time.DateTime), ByStaff: actorIsStaff}); err != nil {
 		return nil, fmt.Errorf("set member timeout: %w", err)
 	}
 
 	if isAuditableRoom(row) {
-		m.writeAudit(ctx, repository.NewAuditEntry{
+		m.writeAudit(ctx, audit.NewEntry{
 			ActorID:    actorID,
-			Action:     repository.AuditActionChatRoomTimeout,
-			TargetType: repository.AuditTargetChatRoom,
+			Action:     audit.ActionChatRoomTimeout,
+			TargetType: audit.TargetChatRoom,
 			TargetID:   roomID.String(),
 			Details:    fmt.Sprintf("until=%s duration=%s", until.Format(time.DateTime), label),
 			SubjectID:  targetID,
@@ -243,7 +244,7 @@ func (m *membersService) ClearMemberTimeout(ctx context.Context, roomID, actorID
 		return nil, err
 	}
 
-	targetRole, err := m.chatRepo.GetMemberRole(ctx, roomID, targetID)
+	targetRole, err := m.chatRepo.GetMemberRole(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 	if err != nil {
 		return nil, fmt.Errorf("get target role: %w", err)
 	}
@@ -257,7 +258,7 @@ func (m *membersService) ClearMemberTimeout(ctx context.Context, roomID, actorID
 	}
 	actorIsStaff := actorSiteRole.IsSiteStaff()
 
-	activeTimeout, _, timeoutByStaff, err := m.chatRepo.GetMemberTimeoutState(ctx, roomID, targetID)
+	activeTimeout, _, timeoutByStaff, err := m.chatRepo.GetMemberTimeoutState(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID})
 	if err != nil {
 		return nil, fmt.Errorf("get timeout state: %w", err)
 	}
@@ -265,7 +266,7 @@ func (m *membersService) ClearMemberTimeout(ctx context.Context, roomID, actorID
 		return nil, ErrTimeoutLockedByStaff
 	}
 
-	if err := m.chatRepo.ClearMemberTimeout(ctx, roomID, targetID); err != nil {
+	if err := m.chatRepo.ClearMemberTimeout(ctx, spec.ChatMemberRef{RoomID: roomID, UserID: targetID}); err != nil {
 		return nil, fmt.Errorf("clear member timeout: %w", err)
 	}
 
@@ -343,7 +344,7 @@ func (m *membersService) SetMemberNicknameAsMod(ctx context.Context, roomID, act
 	nickname = text.ClampRunes(strings.TrimSpace(nickname), 32)
 
 	locked := nickname != ""
-	if err := m.chatRepo.SetMemberNicknameWithLock(ctx, roomID, targetID, nickname, locked); err != nil {
+	if err := m.chatRepo.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: targetID, Nickname: nickname, Locked: locked}); err != nil {
 		return nil, fmt.Errorf("set member nickname as mod: %w", err)
 	}
 
@@ -365,7 +366,7 @@ func (m *membersService) UnlockMemberNickname(ctx context.Context, roomID, actor
 		return nil, err
 	}
 
-	if err := m.chatRepo.SetMemberNicknameWithLock(ctx, roomID, targetID, "", false); err != nil {
+	if err := m.chatRepo.SetMemberNicknameWithLock(ctx, spec.ChatMemberNicknameUpdate{RoomID: roomID, UserID: targetID, Nickname: "", Locked: false}); err != nil {
 		return nil, fmt.Errorf("unlock nickname: %w", err)
 	}
 

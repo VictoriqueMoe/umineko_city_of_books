@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -60,7 +61,7 @@ func (d *dmService) ResolveDMRoom(ctx context.Context, senderID, recipientID uui
 		Recipient: *recipient.ToResponse(),
 	}
 
-	existingID, err := d.chatRepo.FindDMRoom(ctx, senderID, recipientID)
+	existingID, err := d.chatRepo.FindDMRoom(ctx, spec.ChatDMPair{UserA: senderID, UserB: recipientID})
 	if err != nil {
 		return nil, fmt.Errorf("find dm room: %w", err)
 	}
@@ -96,7 +97,7 @@ func (d *dmService) SendDMMessage(ctx context.Context, senderID, recipientID uui
 		return nil, err
 	}
 
-	room, err := d.chatRepo.CreateDMRoomAtomic(ctx, senderID, recipientID)
+	room, err := d.chatRepo.CreateDMRoomAtomic(ctx, spec.ChatDMPair{UserA: senderID, UserB: recipientID})
 	if err != nil {
 		return nil, fmt.Errorf("create dm room: %w", err)
 	}

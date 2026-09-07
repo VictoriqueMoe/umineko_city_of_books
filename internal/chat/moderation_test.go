@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,8 +19,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func stubRoom(id uuid.UUID) *repository.ChatRoomRow {
-	return &repository.ChatRoomRow{
+func stubRoom(id uuid.UUID) *model.ChatRoomRow {
+	return &model.ChatRoomRow{
 		ID:       id,
 		Type:     "group",
 		IsPublic: true,
@@ -43,9 +44,9 @@ func TestBanMember_RejectsStaffTarget(t *testing.T) {
 	target := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleModerator, nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spam")
@@ -58,19 +59,19 @@ func TestBanMember_Succeeds(t *testing.T) {
 	target := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 
-	stubSystemMessage(m, actor, target)
+	stubSystemMessage(m, target, spec.NewChatMessage{RoomID: room, SenderID: actor, Body: "A user was banned because spam."})
 
-	m.banRepo.EXPECT().Ban(mock.Anything, room, target, &actor, "spam").Return(nil)
+	m.banRepo.EXPECT().Ban(mock.Anything, spec.NewChatRoomBan{RoomID: room, UserID: target, BannedBy: &actor, Reason: "spam"}).Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return(nil)
 	expectEvictionSideEffects(m, room)
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == actor && entry.Action == repository.AuditActionChatRoomBan && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == target
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == actor && entry.Action == audit.ActionChatRoomBan && entry.TargetType == audit.TargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == target
 	})).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spam")
@@ -83,18 +84,21 @@ func TestUnbanMember_AuditsOnSuccess(t *testing.T) {
 	target := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.banRepo.EXPECT().UnbanWithAudit(mock.Anything, room, target, actor).Return(nil)
-	stubSystemMessage(m, actor, target)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.banRepo.EXPECT().UnbanWithAudit(mock.Anything, spec.ChatRoomUnban{
+		ChatMemberRef: spec.ChatMemberRef{RoomID: room, UserID: target},
+		ActorID:       actor,
+	}).Return(nil)
+	stubSystemMessage(m, target, spec.NewChatMessage{RoomID: room, SenderID: actor, Body: "A user was unbanned."})
 
 	err := svc.UnbanMember(context.Background(), actor, room, target)
 	require.NoError(t, err)
 }
 
-func stubSystemMessage(m *testMocks, actor, target uuid.UUID) {
+func stubSystemMessage(m *testMocks, target uuid.UUID, message spec.NewChatMessage) {
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(nil, nil).Maybe()
-	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, mock.Anything, actor, mock.Anything).Return(nil, errors.New("skip")).Maybe()
+	m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, message).Return(nil, errors.New("skip")).Maybe()
 }
 
 func TestBanMember_PostsSystemMessageWithReason(t *testing.T) {
@@ -103,24 +107,24 @@ func TestBanMember_PostsSystemMessageWithReason(t *testing.T) {
 	target := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{
 		ID: target, Username: "bar", DisplayName: "Bar",
 	}, nil)
 	m.chatRepo.EXPECT().
-		InsertSystemMessage(mock.Anything, room, actor, "Bar was banned because spamming links.").
+		InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: room, SenderID: actor, Body: "Bar was banned because spamming links."}).
 		Return(nil, errors.New("skip"))
 
-	m.banRepo.EXPECT().Ban(mock.Anything, room, target, &actor, "spamming links").Return(nil)
+	m.banRepo.EXPECT().Ban(mock.Anything, spec.NewChatRoomBan{RoomID: room, UserID: target, BannedBy: &actor, Reason: "spamming links"}).Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return(nil)
 	expectEvictionSideEffects(m, room)
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == actor && entry.Action == repository.AuditActionChatRoomBan && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == target
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == actor && entry.Action == audit.ActionChatRoomBan && entry.TargetType == audit.TargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == target
 	})).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "spamming links")
@@ -133,24 +137,24 @@ func TestBanMember_PostsSystemMessageWithoutReason(t *testing.T) {
 	target := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, target).Return("member", nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{
 		ID: target, Username: "bar", DisplayName: "Bar",
 	}, nil)
 	m.chatRepo.EXPECT().
-		InsertSystemMessage(mock.Anything, room, actor, "Bar was banned.").
+		InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: room, SenderID: actor, Body: "Bar was banned."}).
 		Return(nil, errors.New("skip"))
 
-	m.banRepo.EXPECT().Ban(mock.Anything, room, target, &actor, "").Return(nil)
+	m.banRepo.EXPECT().Ban(mock.Anything, spec.NewChatRoomBan{RoomID: room, UserID: target, BannedBy: &actor, Reason: ""}).Return(nil)
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, target).Return(nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: target}).Return(nil)
 	expectEvictionSideEffects(m, room)
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == actor && entry.Action == repository.AuditActionChatRoomBan && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == target
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == actor && entry.Action == audit.ActionChatRoomBan && entry.TargetType == audit.TargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == target
 	})).Return(nil)
 
 	err := svc.BanMember(context.Background(), actor, room, target, "")
@@ -163,15 +167,18 @@ func TestUnbanMember_PostsSystemMessage(t *testing.T) {
 	target := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.banRepo.EXPECT().UnbanWithAudit(mock.Anything, room, target, actor).Return(nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.banRepo.EXPECT().UnbanWithAudit(mock.Anything, spec.ChatRoomUnban{
+		ChatMemberRef: spec.ChatMemberRef{RoomID: room, UserID: target},
+		ActorID:       actor,
+	}).Return(nil)
 
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{
 		ID: target, Username: "bar", DisplayName: "Bar",
 	}, nil)
 	m.chatRepo.EXPECT().
-		InsertSystemMessage(mock.Anything, room, actor, "Bar was unbanned.").
+		InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: room, SenderID: actor, Body: "Bar was unbanned."}).
 		Return(nil, errors.New("skip"))
 
 	err := svc.UnbanMember(context.Background(), actor, room, target)
@@ -208,18 +215,19 @@ func TestUpdateRoomBannedWord_Succeeds(t *testing.T) {
 	room := uuid.New()
 	ruleID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&model.ChatBannedWordRow{
 		ID: ruleID, Scope: "room", RoomID: &room, Pattern: "old",
 	}, nil).Once()
-	m.bannedWordRepo.EXPECT().Update(mock.Anything, ruleID, repository.ChatBannedWordUpdate{
+	m.bannedWordRepo.EXPECT().Update(mock.Anything, spec.ChatBannedWordUpdate{
+		ID:            ruleID,
 		Pattern:       "new",
 		MatchMode:     contentfilter.MatchModeWholeWord,
 		CaseSensitive: true,
 		Action:        contentfilter.BannedWordActionKick,
 	}).Return(nil)
-	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
+	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&model.ChatBannedWordRow{
 		ID:            ruleID,
 		Scope:         "room",
 		RoomID:        &room,
@@ -228,8 +236,8 @@ func TestUpdateRoomBannedWord_Succeeds(t *testing.T) {
 		CaseSensitive: true,
 		Action:        contentfilter.BannedWordActionKick,
 	}, nil).Once()
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == actor && entry.Action == repository.AuditActionChatRoomBannedWordUpdate && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == room.String()
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == actor && entry.Action == audit.ActionChatRoomBannedWordUpdate && entry.TargetType == audit.TargetChatRoom && entry.TargetID == room.String()
 	})).Return(nil)
 
 	resp, err := svc.UpdateRoomBannedWord(context.Background(), actor, room, ruleID, dto.UpdateBannedWordRequest{
@@ -247,9 +255,9 @@ func TestUpdateRoomBannedWord_RejectsMismatchedScope(t *testing.T) {
 	room := uuid.New()
 	ruleID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&model.ChatBannedWordRow{
 		ID: ruleID, Scope: "room", RoomID: new(uuid.New()),
 	}, nil)
 
@@ -278,7 +286,7 @@ func TestUpdateGlobalBannedWord_RejectsRoomScopeRule(t *testing.T) {
 	ruleID := uuid.New()
 
 	m.authzSvc.EXPECT().Can(mock.Anything, actor, authz.PermManageBannedWords).Return(true)
-	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
+	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&model.ChatBannedWordRow{
 		ID: ruleID, Scope: "room", RoomID: new(uuid.New()),
 	}, nil)
 
@@ -294,7 +302,7 @@ func TestUpdateGlobalBannedWord_RejectsInvalidRegex(t *testing.T) {
 	ruleID := uuid.New()
 
 	m.authzSvc.EXPECT().Can(mock.Anything, actor, authz.PermManageBannedWords).Return(true)
-	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
+	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&model.ChatBannedWordRow{
 		ID: ruleID, Scope: "global",
 	}, nil)
 
@@ -310,9 +318,9 @@ func TestDeleteRoomBannedWord_RejectsMismatchedScope(t *testing.T) {
 	room := uuid.New()
 	ruleID := uuid.New()
 
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(stubRoom(room), nil)
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, actor).Return("host", nil)
-	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&repository.ChatBannedWordRow{
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(stubRoom(room), nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: actor}).Return("host", nil)
+	m.bannedWordRepo.EXPECT().GetByID(mock.Anything, ruleID).Return(&model.ChatBannedWordRow{
 		ID: ruleID, Scope: "room", RoomID: new(uuid.New()),
 	}, nil)
 
@@ -327,7 +335,7 @@ func TestCreateRoomBannedWord_RejectsSystemRoom(t *testing.T) {
 
 	systemRoom := stubRoom(room)
 	systemRoom.IsSystem = true
-	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, room, actor).Return(systemRoom, nil)
+	m.chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: room, ViewerID: actor}).Return(systemRoom, nil)
 
 	_, err := svc.CreateRoomBannedWord(context.Background(), actor, room, dto.CreateBannedWordRequest{
 		Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring, Action: contentfilter.BannedWordActionKick,
@@ -341,19 +349,19 @@ func TestEditMessage_BannedWordBlocked(t *testing.T) {
 	room := uuid.New()
 	messageID := uuid.New()
 
-	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&repository.ChatMessageRow{
+	m.chatRepo.EXPECT().GetMessageByID(mock.Anything, messageID).Return(&model.ChatMessageRow{
 		ID: messageID, RoomID: room, SenderID: author, Body: "ok",
 	}, nil)
-	m.chatRepo.EXPECT().IsMember(mock.Anything, room, author).Return(true, nil)
-	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, room, author).Return(false, "", false, nil)
-	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]repository.ChatBannedWordRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: author}).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: author}).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]model.ChatBannedWordRow{
 		{ID: uuid.New(), Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring,
 			Action: contentfilter.BannedWordActionDelete, Scope: "room", RoomID: &room},
 	}, nil).Maybe()
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, author).Return("member", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: author}).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, author).Return("", nil)
-	m.auditRepo.EXPECT().CreateSystem(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.Action == repository.AuditActionChatWordFilterDelete && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == author
+	m.auditRepo.EXPECT().CreateSystem(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.Action == audit.ActionChatWordFilterDelete && entry.TargetType == audit.TargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == author
 	})).Return(nil)
 
 	resp, err := svc.EditMessage(context.Background(), messageID, author, "I love dogs")
@@ -369,21 +377,21 @@ func TestSendMessage_BannedWordKickFires(t *testing.T) {
 	sender := uuid.New()
 	room := uuid.New()
 
-	m.chatRepo.EXPECT().IsMember(mock.Anything, room, sender).Return(true, nil)
-	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, room, sender).Return(false, "", false, nil)
-	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]repository.ChatBannedWordRow{
+	m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(true, nil)
+	m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(false, "", false, nil)
+	m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]model.ChatBannedWordRow{
 		{ID: uuid.New(), Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring,
 			Action: contentfilter.BannedWordActionKick, Scope: "room", RoomID: &room},
 	}, nil).Maybe()
-	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, sender).Return("member", nil)
+	m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return("member", nil)
 	m.authzSvc.EXPECT().GetRole(mock.Anything, sender).Return("", nil)
-	m.auditRepo.EXPECT().CreateSystem(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.Action == repository.AuditActionChatWordFilterKick && entry.TargetType == repository.AuditTargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == sender
+	m.auditRepo.EXPECT().CreateSystem(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.Action == audit.ActionChatWordFilterKick && entry.TargetType == audit.TargetChatRoom && entry.TargetID == room.String() && entry.SubjectID == sender
 	})).Return(nil)
 	expectRoomKind(m, room, dto.RoomTypeGroup)
-	stubSystemMessage(m, sender, sender)
+	stubSystemMessage(m, sender, spec.NewChatMessage{RoomID: room, SenderID: sender, Body: "A user was kicked by the word filter."})
 	m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
-	m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, sender).Return(nil)
+	m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(nil)
 	expectEvictionSideEffects(m, room)
 
 	_, err := svc.SendMessage(context.Background(), sender, room, dto.SendMessageRequest{Body: "I love dogs"}, nil)
@@ -418,23 +426,23 @@ func TestSendMessage_BannedWordKickIsDeleteOnlyInsideAPair(t *testing.T) {
 			sender := uuid.New()
 			room := uuid.New()
 
-			m.chatRepo.EXPECT().IsMember(mock.Anything, room, sender).Return(true, nil)
-			m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, room, sender).Return(false, "", false, nil)
-			m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]repository.ChatBannedWordRow{
+			m.chatRepo.EXPECT().IsMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(true, nil)
+			m.chatRepo.EXPECT().GetMemberTimeoutState(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(false, "", false, nil)
+			m.bannedWordRepo.EXPECT().ListApplicable(mock.Anything, room).Return([]model.ChatBannedWordRow{
 				{ID: uuid.New(), Pattern: "dogs", MatchMode: contentfilter.MatchModeSubstring,
 					Action: contentfilter.BannedWordActionKick, Scope: "room", RoomID: &room},
 			}, nil).Maybe()
-			m.chatRepo.EXPECT().GetMemberRole(mock.Anything, room, sender).Return("member", nil)
+			m.chatRepo.EXPECT().GetMemberRole(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return("member", nil)
 			m.authzSvc.EXPECT().GetRole(mock.Anything, sender).Return("", nil)
 			m.auditRepo.EXPECT().CreateSystem(mock.Anything, mock.Anything).Return(nil)
 			m.userRepo.EXPECT().GetByID(mock.Anything, sender).Return(sampleUser(sender), nil)
 			expectRoomKind(m, room, tc.roomType)
 
 			if tc.wantKick {
-				m.chatRepo.EXPECT().GetMemberNickname(mock.Anything, room, sender).Return("", nil).Maybe()
-				m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, room, sender, mock.Anything).Return(nil, errors.New("skip"))
+				m.chatRepo.EXPECT().GetMemberNickname(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return("", nil).Maybe()
+				m.chatRepo.EXPECT().InsertSystemMessage(mock.Anything, spec.NewChatMessage{RoomID: room, SenderID: sender, Body: "User was kicked by the word filter."}).Return(nil, errors.New("skip"))
 				m.chatRepo.EXPECT().GetRoomMembers(mock.Anything, room).Return(nil, nil)
-				m.chatRepo.EXPECT().RemoveMember(mock.Anything, room, sender).Return(nil)
+				m.chatRepo.EXPECT().RemoveMember(mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender}).Return(nil)
 				expectEvictionSideEffects(m, room)
 			}
 
@@ -451,8 +459,8 @@ func TestSendMessage_BannedWordKickIsDeleteOnlyInsideAPair(t *testing.T) {
 				return
 			}
 
-			m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, room, sender)
-			m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+			m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, spec.ChatMemberRef{RoomID: room, UserID: sender})
+			m.chatRepo.AssertNotCalled(t, "InsertSystemMessage", mock.Anything, mock.Anything)
 		})
 	}
 }

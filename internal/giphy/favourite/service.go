@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -47,7 +48,8 @@ func (s *service) Add(ctx context.Context, userID uuid.UUID, fav Favourite) erro
 	if fav.URL == "" {
 		return ErrURLRequired
 	}
-	return s.repo.Add(ctx, userID, repository.GiphyFavourite{
+	return s.repo.Add(ctx, spec.NewGiphyFavourite{
+		UserID:     userID,
 		GiphyID:    fav.GiphyID,
 		URL:        fav.URL,
 		Title:      fav.Title,
@@ -58,11 +60,11 @@ func (s *service) Add(ctx context.Context, userID uuid.UUID, fav Favourite) erro
 }
 
 func (s *service) Remove(ctx context.Context, userID uuid.UUID, giphyID string) error {
-	return s.repo.Remove(ctx, userID, giphyID)
+	return s.repo.Remove(ctx, spec.GiphyFavouriteDeletion{UserID: userID, GiphyID: giphyID})
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID, limit, offset int) ([]Favourite, int, error) {
-	rows, total, err := s.repo.List(ctx, userID, limit, offset)
+	rows, total, err := s.repo.List(ctx, spec.GiphyFavouritePage{UserID: userID, Limit: limit, Offset: offset})
 	if err != nil {
 		return nil, 0, err
 	}

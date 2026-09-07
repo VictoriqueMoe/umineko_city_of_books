@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dao/daotest"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -21,11 +22,11 @@ func TestFollowDAO_Follow(t *testing.T) {
 	target := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Follow.Follow(context.Background(), follower.ID, target.ID)
+	err := repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 
 	// then
 	require.NoError(t, err)
-	following, err := repos.Follow.IsFollowing(context.Background(), follower.ID, target.ID)
+	following, err := repos.Follow.IsFollowing(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 	require.NoError(t, err)
 	assert.True(t, following)
 }
@@ -35,10 +36,10 @@ func TestFollowDAO_Follow_Idempotent(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	follower := daotest.CreateUser(t, repos)
 	target := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, target.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID}))
 
 	// when
-	err := repos.Follow.Follow(context.Background(), follower.ID, target.ID)
+	err := repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 
 	// then
 	require.NoError(t, err)
@@ -53,11 +54,11 @@ func TestFollowDAO_Follow_Self(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Follow.Follow(context.Background(), user.ID, user.ID)
+	err := repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: user.ID})
 
 	// then
 	require.NoError(t, err)
-	following, err := repos.Follow.IsFollowing(context.Background(), user.ID, user.ID)
+	following, err := repos.Follow.IsFollowing(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: user.ID})
 	require.NoError(t, err)
 	assert.True(t, following)
 }
@@ -67,14 +68,14 @@ func TestFollowDAO_Unfollow(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	follower := daotest.CreateUser(t, repos)
 	target := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, target.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID}))
 
 	// when
-	err := repos.Follow.Unfollow(context.Background(), follower.ID, target.ID)
+	err := repos.Follow.Unfollow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 
 	// then
 	require.NoError(t, err)
-	following, err := repos.Follow.IsFollowing(context.Background(), follower.ID, target.ID)
+	following, err := repos.Follow.IsFollowing(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 	require.NoError(t, err)
 	assert.False(t, following)
 }
@@ -86,7 +87,7 @@ func TestFollowDAO_Unfollow_NotFollowing(t *testing.T) {
 	target := daotest.CreateUser(t, repos)
 
 	// when
-	err := repos.Follow.Unfollow(context.Background(), follower.ID, target.ID)
+	err := repos.Follow.Unfollow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 
 	// then
 	require.NoError(t, err)
@@ -99,7 +100,7 @@ func TestFollowDAO_IsFollowing_False(t *testing.T) {
 	target := daotest.CreateUser(t, repos)
 
 	// when
-	following, err := repos.Follow.IsFollowing(context.Background(), follower.ID, target.ID)
+	following, err := repos.Follow.IsFollowing(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID})
 
 	// then
 	require.NoError(t, err)
@@ -111,10 +112,10 @@ func TestFollowDAO_IsFollowing_DirectionMatters(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), a.ID, b.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: a.ID, FollowingID: b.ID}))
 
 	// when
-	reverse, err := repos.Follow.IsFollowing(context.Background(), b.ID, a.ID)
+	reverse, err := repos.Follow.IsFollowing(context.Background(), spec.FollowSpec{FollowerID: b.ID, FollowingID: a.ID})
 
 	// then
 	require.NoError(t, err)
@@ -127,7 +128,7 @@ func TestFollowDAO_GetFollowerCount(t *testing.T) {
 	target := daotest.CreateUser(t, repos)
 	for range 3 {
 		f := daotest.CreateUser(t, repos)
-		require.NoError(t, repos.Follow.Follow(context.Background(), f.ID, target.ID))
+		require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: f.ID, FollowingID: target.ID}))
 	}
 
 	// when
@@ -157,7 +158,7 @@ func TestFollowDAO_GetFollowingCount(t *testing.T) {
 	follower := daotest.CreateUser(t, repos)
 	for range 4 {
 		t2 := daotest.CreateUser(t, repos)
-		require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, t2.ID))
+		require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: t2.ID}))
 	}
 
 	// when
@@ -192,7 +193,7 @@ func TestFollowDAO_GetFollowers_Ordering(t *testing.T) {
 	base := time.Now().UTC()
 
 	for i, followerID := range []uuid.UUID{first.ID, second.ID, third.ID} {
-		require.NoError(t, repos.Follow.Follow(ctx, followerID, target.ID))
+		require.NoError(t, repos.Follow.Follow(ctx, spec.FollowSpec{FollowerID: followerID, FollowingID: target.ID}))
 		_, err := repos.DB().ExecContext(ctx,
 			`UPDATE follows SET created_at = $1 WHERE follower_id = $2 AND following_id = $3`,
 			base.Add(time.Duration(i)*time.Minute), followerID, target.ID,
@@ -201,7 +202,7 @@ func TestFollowDAO_GetFollowers_Ordering(t *testing.T) {
 	}
 
 	// when
-	users, total, err := repos.Follow.GetFollowers(ctx, target.ID, 10, 0)
+	users, total, err := repos.Follow.GetFollowers(ctx, spec.FollowListSpec{UserID: target.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -223,7 +224,7 @@ func TestFollowDAO_GetFollowers_PaginatesDeterministicallyWhenCreatedAtTies(t *t
 	for i := range followerIDs {
 		follower := daotest.CreateUser(t, repos)
 		followerIDs[i] = follower.ID
-		require.NoError(t, repos.Follow.Follow(ctx, follower.ID, target.ID))
+		require.NoError(t, repos.Follow.Follow(ctx, spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID}))
 		_, err := repos.DB().ExecContext(ctx,
 			`UPDATE follows SET created_at = $1 WHERE follower_id = $2 AND following_id = $3`,
 			tied, follower.ID, target.ID,
@@ -235,8 +236,8 @@ func TestFollowDAO_GetFollowers_PaginatesDeterministicallyWhenCreatedAtTies(t *t
 	})
 
 	// when
-	firstPage, _, firstErr := repos.Follow.GetFollowers(ctx, target.ID, 2, 0)
-	secondPage, _, secondErr := repos.Follow.GetFollowers(ctx, target.ID, 2, 2)
+	firstPage, _, firstErr := repos.Follow.GetFollowers(ctx, spec.FollowListSpec{UserID: target.ID, Limit: 2, Offset: 0})
+	secondPage, _, secondErr := repos.Follow.GetFollowers(ctx, spec.FollowListSpec{UserID: target.ID, Limit: 2, Offset: 2})
 
 	// then
 	require.NoError(t, firstErr)
@@ -254,13 +255,13 @@ func TestFollowDAO_GetFollowers_Pagination(t *testing.T) {
 	target := daotest.CreateUser(t, repos)
 	for range 5 {
 		f := daotest.CreateUser(t, repos)
-		require.NoError(t, repos.Follow.Follow(context.Background(), f.ID, target.ID))
+		require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: f.ID, FollowingID: target.ID}))
 	}
 
 	// when
-	page1, total1, err1 := repos.Follow.GetFollowers(context.Background(), target.ID, 2, 0)
-	page2, total2, err2 := repos.Follow.GetFollowers(context.Background(), target.ID, 2, 2)
-	page3, total3, err3 := repos.Follow.GetFollowers(context.Background(), target.ID, 2, 4)
+	page1, total1, err1 := repos.Follow.GetFollowers(context.Background(), spec.FollowListSpec{UserID: target.ID, Limit: 2, Offset: 0})
+	page2, total2, err2 := repos.Follow.GetFollowers(context.Background(), spec.FollowListSpec{UserID: target.ID, Limit: 2, Offset: 2})
+	page3, total3, err3 := repos.Follow.GetFollowers(context.Background(), spec.FollowListSpec{UserID: target.ID, Limit: 2, Offset: 4})
 
 	// then
 	require.NoError(t, err1)
@@ -280,7 +281,7 @@ func TestFollowDAO_GetFollowers_Empty(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	users, total, err := repos.Follow.GetFollowers(context.Background(), user.ID, 10, 0)
+	users, total, err := repos.Follow.GetFollowers(context.Background(), spec.FollowListSpec{UserID: user.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -293,10 +294,10 @@ func TestFollowDAO_GetFollowers_PopulatesUserFields(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	target := daotest.CreateUser(t, repos)
 	follower := daotest.CreateUser(t, repos, daotest.WithUsername("alice_"+uuid.New().String()[:6]), daotest.WithDisplayName("Alice"))
-	require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, target.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: target.ID}))
 
 	// when
-	users, _, err := repos.Follow.GetFollowers(context.Background(), target.ID, 10, 0)
+	users, _, err := repos.Follow.GetFollowers(context.Background(), spec.FollowListSpec{UserID: target.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -317,7 +318,7 @@ func TestFollowDAO_GetFollowing_Ordering(t *testing.T) {
 	base := time.Now().UTC()
 
 	for i, followingID := range []uuid.UUID{a.ID, b.ID} {
-		require.NoError(t, repos.Follow.Follow(ctx, follower.ID, followingID))
+		require.NoError(t, repos.Follow.Follow(ctx, spec.FollowSpec{FollowerID: follower.ID, FollowingID: followingID}))
 		_, err := repos.DB().ExecContext(ctx,
 			`UPDATE follows SET created_at = $1 WHERE follower_id = $2 AND following_id = $3`,
 			base.Add(time.Duration(i)*time.Minute), follower.ID, followingID,
@@ -326,7 +327,7 @@ func TestFollowDAO_GetFollowing_Ordering(t *testing.T) {
 	}
 
 	// when
-	users, total, err := repos.Follow.GetFollowing(ctx, follower.ID, 10, 0)
+	users, total, err := repos.Follow.GetFollowing(ctx, spec.FollowListSpec{UserID: follower.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -342,11 +343,11 @@ func TestFollowDAO_GetFollowing_Pagination(t *testing.T) {
 	follower := daotest.CreateUser(t, repos)
 	for range 4 {
 		t2 := daotest.CreateUser(t, repos)
-		require.NoError(t, repos.Follow.Follow(context.Background(), follower.ID, t2.ID))
+		require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: follower.ID, FollowingID: t2.ID}))
 	}
 
 	// when
-	page, total, err := repos.Follow.GetFollowing(context.Background(), follower.ID, 2, 1)
+	page, total, err := repos.Follow.GetFollowing(context.Background(), spec.FollowListSpec{UserID: follower.ID, Limit: 2, Offset: 1})
 
 	// then
 	require.NoError(t, err)
@@ -360,7 +361,7 @@ func TestFollowDAO_GetFollowing_Empty(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 
 	// when
-	users, total, err := repos.Follow.GetFollowing(context.Background(), user.ID, 10, 0)
+	users, total, err := repos.Follow.GetFollowing(context.Background(), spec.FollowListSpec{UserID: user.ID, Limit: 10, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -375,11 +376,11 @@ func TestFollowDAO_GetMutualFollowers(t *testing.T) {
 	mutualA := daotest.CreateUser(t, repos, daotest.WithDisplayName("Beatrice"))
 	mutualB := daotest.CreateUser(t, repos, daotest.WithDisplayName("Ange"))
 	oneWay := daotest.CreateUser(t, repos, daotest.WithDisplayName("Zepar"))
-	require.NoError(t, repos.Follow.Follow(context.Background(), user.ID, mutualA.ID))
-	require.NoError(t, repos.Follow.Follow(context.Background(), mutualA.ID, user.ID))
-	require.NoError(t, repos.Follow.Follow(context.Background(), user.ID, mutualB.ID))
-	require.NoError(t, repos.Follow.Follow(context.Background(), mutualB.ID, user.ID))
-	require.NoError(t, repos.Follow.Follow(context.Background(), user.ID, oneWay.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: mutualA.ID}))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: mutualA.ID, FollowingID: user.ID}))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: mutualB.ID}))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: mutualB.ID, FollowingID: user.ID}))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: oneWay.ID}))
 
 	// when
 	users, err := repos.Follow.GetMutualFollowers(context.Background(), user.ID)
@@ -396,7 +397,7 @@ func TestFollowDAO_GetMutualFollowers_Empty(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 	other := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), user.ID, other.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: other.ID}))
 
 	// when
 	users, err := repos.Follow.GetMutualFollowers(context.Background(), user.ID)
@@ -426,9 +427,9 @@ func TestFollowDAO_FollowerAndFollowingCount_Independent(t *testing.T) {
 	a := daotest.CreateUser(t, repos)
 	b := daotest.CreateUser(t, repos)
 	c := daotest.CreateUser(t, repos)
-	require.NoError(t, repos.Follow.Follow(context.Background(), a.ID, user.ID))
-	require.NoError(t, repos.Follow.Follow(context.Background(), b.ID, user.ID))
-	require.NoError(t, repos.Follow.Follow(context.Background(), user.ID, c.ID))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: a.ID, FollowingID: user.ID}))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: b.ID, FollowingID: user.ID}))
+	require.NoError(t, repos.Follow.Follow(context.Background(), spec.FollowSpec{FollowerID: user.ID, FollowingID: c.ID}))
 
 	// when
 	followers, errF := repos.Follow.GetFollowerCount(context.Background(), user.ID)

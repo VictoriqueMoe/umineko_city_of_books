@@ -4,8 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -19,20 +22,20 @@ var testPieceIDs = []string{"piece_01", "piece_02", "piece_03", "piece_04"}
 
 func unlockSecretFor(t *testing.T, repos *repository.Repositories, userID uuid.UUID, secretID string) {
 	t.Helper()
-	require.NoError(t, repos.UserSecret.Unlock(context.Background(), userID, secretID))
+	require.NoError(t, repos.UserSecret.Unlock(context.Background(), spec.SecretUnlock{UserID: userID, SecretID: secretID}))
 }
 
 func createSecretComment(t *testing.T, repos *repository.Repositories, secretID string, parent *uuid.UUID, userID uuid.UUID, body string) uuid.UUID {
 	t.Helper()
-	created, err := repos.Comments.BySlug[string(mention.KindSecretComment)].CreateComment(context.Background(), secretID, parent, userID, body)
+	created, err := repos.Comments.BySlug[string(mention.KindSecretComment)].CreateComment(context.Background(), spec.NewComment[string]{TargetID: secretID, ParentID: parent, UserID: userID, Body: body})
 	require.NoError(t, err)
 	return created.ID
 }
 
 func addSecretCommentMedia(t *testing.T, repos *repository.Repositories, commentID uuid.UUID, mediaURL, thumbnailURL string) {
 	t.Helper()
-	_, err := repos.Secret.AddCommentMedia(context.Background(), repository.NewSecretCommentMedia{
-		CommentID:    commentID,
+	_, err := repos.Secret.AddCommentMedia(context.Background(), spec.NewMedia{
+		TargetID:     commentID,
 		MediaURL:     mediaURL,
 		MediaType:    "image/png",
 		ThumbnailURL: thumbnailURL,
@@ -117,7 +120,7 @@ func TestSecretDAO_GetPieceCountForUser(t *testing.T) {
 	unlockSecretFor(t, repos, user.ID, "piece_03")
 
 	// when
-	count, err := repos.Secret.GetPieceCountForUser(context.Background(), user.ID, testPieceIDs)
+	count, err := repos.Secret.GetPieceCountForUser(context.Background(), spec.SecretPieceCount{UserID: user.ID, PieceIDs: testPieceIDs})
 
 	// then
 	require.NoError(t, err)
@@ -132,7 +135,7 @@ func TestSecretDAO_GetPieceCountForUser_OtherUsersIgnored(t *testing.T) {
 	unlockSecretFor(t, repos, other.ID, "piece_01")
 
 	// when
-	count, err := repos.Secret.GetPieceCountForUser(context.Background(), user.ID, testPieceIDs)
+	count, err := repos.Secret.GetPieceCountForUser(context.Background(), spec.SecretPieceCount{UserID: user.ID, PieceIDs: testPieceIDs})
 
 	// then
 	require.NoError(t, err)
@@ -147,7 +150,7 @@ func TestSecretDAO_GetUserProgressSummary(t *testing.T) {
 	unlockSecretFor(t, repos, user.ID, "piece_02")
 
 	// when
-	summary, err := repos.Secret.GetUserProgressSummary(context.Background(), user.ID, testPieceIDs)
+	summary, err := repos.Secret.GetUserProgressSummary(context.Background(), spec.SecretPieceCount{UserID: user.ID, PieceIDs: testPieceIDs})
 
 	// then
 	require.NoError(t, err)
@@ -164,7 +167,7 @@ func TestSecretDAO_CreateComment_AndGet(t *testing.T) {
 
 	// when
 	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "first word")
-	comments, _, err := repos.Secret.GetComments(context.Background(), testSecretID, user.ID, 500, 0, nil)
+	comments, _, err := repos.Secret.GetComments(context.Background(), spec.CommentQuery[string]{TargetID: testSecretID, ViewerID: user.ID, Limit: 500, Offset: 0})
 
 	// then
 	require.NoError(t, err)
@@ -184,7 +187,7 @@ func TestSecretDAO_UpdateComment_OnlyOwner(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
 
 	// when
-	err := repos.Secret.UpdateComment(context.Background(), id, other.ID, "hijacked")
+	err := repos.Secret.UpdateComment(context.Background(), spec.CommentUpdate{CommentID: id, UserID: other.ID, Body: "hijacked"})
 
 	// then
 	assert.Error(t, err)
@@ -197,7 +200,7 @@ func TestSecretDAO_DeleteComment_AsAdmin(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "bye")
 
 	// when
-	require.NoError(t, repos.Secret.DeleteCommentAsAdmin(context.Background(), id))
+	require.NoError(t, repos.Secret.DeleteComment(context.Background(), spec.CommentDeletion{CommentID: id, AsAdmin: true}))
 
 	// then
 	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
@@ -213,7 +216,7 @@ func TestSecretDAO_UpdateCommentBody_AsAdmin(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
 
 	// when
-	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+	err := repos.Secret.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -231,15 +234,15 @@ func TestSecretDAO_UpdateCommentBody_AsAdminWritesAudit(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
 
 	// when
-	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
+	err := repos.Secret.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: id, UserID: moderator.ID, Body: "moderated", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentUpdateAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionSecretCommentUpdateAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, repository.AuditTargetSecretComment, entries[0].TargetType)
+	assert.Equal(t, audit.TargetSecretComment, entries[0].TargetType)
 	assert.Equal(t, id.String(), entries[0].TargetID)
 	require.NotNil(t, entries[0].SubjectID)
 	assert.Equal(t, owner.ID, *entries[0].SubjectID)
@@ -253,11 +256,11 @@ func TestSecretDAO_UpdateCommentBody_OwnEditWritesNoAudit(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
 
 	// when
-	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: owner.ID, Body: "mine", AsAdmin: true})
+	err := repos.Secret.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: id, UserID: owner.ID, Body: "mine", AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentUpdateAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionSecretCommentUpdateAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }
@@ -270,7 +273,7 @@ func TestSecretDAO_UpdateCommentBody_OnlyOwner(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "original")
 
 	// when
-	err := repos.Secret.UpdateCommentBody(context.Background(), repository.SecretCommentUpdate{CommentID: id, UserID: other.ID, Body: "hijacked"})
+	err := repos.Secret.UpdateCommentBody(context.Background(), spec.CommentUpdate{CommentID: id, UserID: other.ID, Body: "hijacked"})
 
 	// then
 	assert.Error(t, err)
@@ -284,7 +287,7 @@ func TestSecretDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "bye")
 
 	// when
-	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), repository.SecretCommentDeletion{CommentID: id, UserID: moderator.ID, AsAdmin: true})
+	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: id, UserID: moderator.ID, AsAdmin: true})
 
 	// then
 	require.NoError(t, err)
@@ -292,11 +295,11 @@ func TestSecretDAO_DeleteCommentWithAudit_AsAdmin(t *testing.T) {
 	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
 	require.NoError(t, err)
 	assert.Nil(t, comment)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentDeleteAdmin, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionSecretCommentDeleteAdmin, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	require.Len(t, entries, 1)
 	assert.Equal(t, moderator.ID, entries[0].ActorID)
-	assert.Equal(t, repository.AuditTargetSecretComment, entries[0].TargetType)
+	assert.Equal(t, audit.TargetSecretComment, entries[0].TargetType)
 	assert.Equal(t, id.String(), entries[0].TargetID)
 }
 
@@ -308,7 +311,7 @@ func TestSecretDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, owner.ID, "mine")
 
 	// when
-	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), repository.SecretCommentDeletion{CommentID: id, UserID: stranger.ID})
+	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: id, UserID: stranger.ID})
 
 	// then
 	require.Error(t, err)
@@ -316,7 +319,7 @@ func TestSecretDAO_DeleteCommentWithAudit_NotOwnedWritesNoAudit(t *testing.T) {
 	comment, err := repos.Secret.GetCommentByID(context.Background(), id)
 	require.NoError(t, err)
 	assert.NotNil(t, comment)
-	entries, _, err := repos.AuditLog.List(context.Background(), repository.AuditActionSecretCommentDelete, 10, 0)
+	entries, _, err := repos.AuditLog.List(context.Background(), spec.AuditLogListing{Action: audit.ActionSecretCommentDelete, Page: bounds.NewPage(10, 0)})
 	require.NoError(t, err)
 	assert.Empty(t, entries)
 }
@@ -332,7 +335,7 @@ func TestSecretDAO_DeleteCommentWithAudit_ReturnsThatCommentsMediaPaths(t *testi
 	addSecretCommentMedia(t, repos, survivor, "/uploads/secrets/kept.png", "/uploads/secrets/kept-thumb.png")
 
 	// when
-	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), repository.SecretCommentDeletion{CommentID: target, UserID: author.ID})
+	paths, err := repos.Secret.DeleteCommentWithAudit(context.Background(), spec.CommentDeletion{CommentID: target, UserID: author.ID})
 
 	// then
 	require.NoError(t, err)
@@ -380,18 +383,18 @@ func TestSecretDAO_LikeComment_Idempotent(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, author.ID, "nice")
 
 	// when
-	require.NoError(t, repos.Secret.LikeComment(context.Background(), liker.ID, id))
-	require.NoError(t, repos.Secret.LikeComment(context.Background(), liker.ID, id))
+	require.NoError(t, repos.Secret.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: id}))
+	require.NoError(t, repos.Secret.LikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: id}))
 
 	// then
-	comments, _, err := repos.Secret.GetComments(context.Background(), testSecretID, liker.ID, 500, 0, nil)
+	comments, _, err := repos.Secret.GetComments(context.Background(), spec.CommentQuery[string]{TargetID: testSecretID, ViewerID: liker.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
 	assert.Equal(t, 1, comments[0].LikeCount)
 	assert.True(t, comments[0].UserLiked)
 
-	require.NoError(t, repos.Secret.UnlikeComment(context.Background(), liker.ID, id))
-	comments, _, err = repos.Secret.GetComments(context.Background(), testSecretID, liker.ID, 500, 0, nil)
+	require.NoError(t, repos.Secret.UnlikeComment(context.Background(), spec.CommentLike{UserID: liker.ID, CommentID: id}))
+	comments, _, err = repos.Secret.GetComments(context.Background(), spec.CommentQuery[string]{TargetID: testSecretID, ViewerID: liker.ID, Limit: 500, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, comments[0].LikeCount)
 	assert.False(t, comments[0].UserLiked)
@@ -423,7 +426,7 @@ func TestSecretDAO_AddCommentMedia(t *testing.T) {
 	id := createSecretComment(t, repos, testSecretID, nil, user.ID, "with media")
 
 	// when
-	mediaID, err := repos.Secret.AddCommentMedia(context.Background(), repository.NewSecretCommentMedia{CommentID: id, MediaURL: "/u/a.png", MediaType: "image/png", ThumbnailURL: "/u/a-thumb.png"})
+	mediaID, err := repos.Secret.AddCommentMedia(context.Background(), spec.NewMedia{TargetID: id, MediaURL: "/u/a.png", MediaType: "image/png", ThumbnailURL: "/u/a-thumb.png"})
 
 	// then
 	require.NoError(t, err)
@@ -445,7 +448,7 @@ func TestSecretDAO_ExcludesBlockedUsers(t *testing.T) {
 	createSecretComment(t, repos, testSecretID, nil, friend.ID, "visible")
 
 	// when
-	rows, _, err := repos.Secret.GetComments(context.Background(), testSecretID, viewer.ID, 500, 0, []uuid.UUID{blocked.ID})
+	rows, _, err := repos.Secret.GetComments(context.Background(), spec.CommentQuery[string]{TargetID: testSecretID, ViewerID: viewer.ID, Limit: 500, Offset: 0, ExcludeUserIDs: []uuid.UUID{blocked.ID}})
 
 	// then
 	require.NoError(t, err)

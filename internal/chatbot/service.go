@@ -17,6 +17,7 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/logger"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/repository"
@@ -69,7 +70,7 @@ type (
 
 	job struct {
 		ev       botEvent
-		bot      repository.Chatbot
+		bot      model.Chatbot
 		useChain bool
 	}
 
@@ -98,7 +99,7 @@ type (
 
 		mu         sync.RWMutex
 		tune       tuning
-		bots       map[uuid.UUID]repository.Chatbot
+		bots       map[uuid.UUID]model.Chatbot
 		loaded     bool
 		lastUse    sync.Map
 		lastNotice sync.Map
@@ -135,7 +136,7 @@ func NewService(
 		authzSvc:    authzSvc,
 		settingsSvc: settingsSvc,
 		hub:         hub,
-		bots:        make(map[uuid.UUID]repository.Chatbot),
+		bots:        make(map[uuid.UUID]model.Chatbot),
 		jobs:        make(chan job, queueCap),
 		quit:        make(chan struct{}),
 	}
@@ -189,7 +190,7 @@ func (s *service) reload() {
 		perDay:            s.settingsSvc.GetInt(ctx, config.SettingChatbotMaxRepliesPerDay),
 	}
 
-	bots := make(map[uuid.UUID]repository.Chatbot)
+	bots := make(map[uuid.UUID]model.Chatbot)
 	if next.enabled {
 		rows, err := s.botRepo.ListBots(ctx)
 		if err != nil {
@@ -256,7 +257,7 @@ func (s *service) Listing() []dto.ChatbotSummary {
 	return out
 }
 
-func (s *service) snapshot() (tuning, map[uuid.UUID]repository.Chatbot) {
+func (s *service) snapshot() (tuning, map[uuid.UUID]model.Chatbot) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

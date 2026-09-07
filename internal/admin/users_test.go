@@ -2,14 +2,16 @@ package admin
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -21,7 +23,7 @@ import (
 func TestGetStats_ActiveUsersError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.statsRepo.EXPECT().GetOverview(mock.Anything).Return(&repository.SiteStats{}, nil)
+	m.statsRepo.EXPECT().GetOverview(mock.Anything).Return(&model.SiteStats{}, nil)
 	m.statsRepo.EXPECT().GetMostActiveUsers(mock.Anything, 10).Return(nil, errors.New("boom"))
 
 	// when
@@ -35,7 +37,7 @@ func TestListUsers_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	uid := uuid.New()
-	m.userRepo.EXPECT().ListAll(mock.Anything, "query", 10, 0).Return([]model.User{
+	m.userRepo.EXPECT().ListAll(mock.Anything, spec.UserListFilter{Search: "query", Limit: 10, Offset: 0}).Return([]model.User{
 		{ID: uid, Username: "a", DisplayName: "A", Role: string(authz.RoleAdmin), BannedAt: new("2026-01-01")},
 		{ID: uuid.New(), Username: "b", DisplayName: "B"},
 	}, 2, nil)
@@ -55,7 +57,7 @@ func TestListUsers_OK(t *testing.T) {
 func TestListUsers_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.userRepo.EXPECT().ListAll(mock.Anything, "", 10, 0).Return(nil, 0, errors.New("boom"))
+	m.userRepo.EXPECT().ListAll(mock.Anything, spec.UserListFilter{Search: "", Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.ListUsers(context.Background(), "", bounds.NewPage(10, 0))
@@ -216,8 +218,8 @@ func TestSetUserRole_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionSetRole, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "admin", SubjectID: target}).Return(nil)
+	m.roleRepo.EXPECT().SetRole(mock.Anything, spec.UserRoleSpec{UserID: target, Role: authz.RoleAdmin}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionSetRole, TargetType: audit.TargetUser, TargetID: target.String(), Details: "admin", SubjectID: target}).Return(nil)
 	m.chatSync.EXPECT().EnsureSystemRooms(mock.Anything).Return(nil).Once()
 	m.chatSync.EXPECT().SyncSystemRoomMembership(mock.Anything, target, authz.RoleAdmin).Return(nil).Once()
 
@@ -243,7 +245,7 @@ func TestSetUserRole_BotAccountIsProtected(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrBotAccountProtected)
-	m.roleRepo.AssertNotCalled(t, "SetRole", mock.Anything, mock.Anything, mock.Anything)
+	m.roleRepo.AssertNotCalled(t, "SetRole", mock.Anything, mock.Anything)
 }
 
 func TestSetUserRole_SetRoleError(t *testing.T) {
@@ -254,7 +256,7 @@ func TestSetUserRole_SetRoleError(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(errors.New("boom"))
+	m.roleRepo.EXPECT().SetRole(mock.Anything, spec.UserRoleSpec{UserID: target, Role: authz.RoleAdmin}).Return(errors.New("boom"))
 
 	// when
 	err := svc.SetUserRole(context.Background(), actor, target, authz.RoleAdmin)
@@ -273,8 +275,8 @@ func TestSetUserRole_ChatSyncErrorsLogged(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.roleRepo.EXPECT().SetRole(mock.Anything, target, authz.RoleAdmin).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionSetRole, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "admin", SubjectID: target}).Return(nil)
+	m.roleRepo.EXPECT().SetRole(mock.Anything, spec.UserRoleSpec{UserID: target, Role: authz.RoleAdmin}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionSetRole, TargetType: audit.TargetUser, TargetID: target.String(), Details: "admin", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.SetUserRole(context.Background(), actor, target, authz.RoleAdmin)
@@ -290,8 +292,8 @@ func TestRemoveUserRole_OK(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleModerator, nil)
-	m.roleRepo.EXPECT().RemoveRole(mock.Anything, target, authz.RoleModerator).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionRemoveRole, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "moderator", SubjectID: target}).Return(nil)
+	m.roleRepo.EXPECT().RemoveRole(mock.Anything, spec.UserRoleSpec{UserID: target, Role: authz.RoleModerator}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionRemoveRole, TargetType: audit.TargetUser, TargetID: target.String(), Details: "moderator", SubjectID: target}).Return(nil)
 	m.chatSync.EXPECT().SyncSystemRoomMembership(mock.Anything, target, role.Role("")).Return(nil).Once()
 
 	// when
@@ -324,7 +326,7 @@ func TestRemoveUserRole_RepoError(t *testing.T) {
 	target := uuid.New()
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return(authz.RoleModerator, nil)
-	m.roleRepo.EXPECT().RemoveRole(mock.Anything, target, authz.RoleModerator).Return(errors.New("boom"))
+	m.roleRepo.EXPECT().RemoveRole(mock.Anything, spec.UserRoleSpec{UserID: target, Role: authz.RoleModerator}).Return(errors.New("boom"))
 
 	// when
 	err := svc.RemoveUserRole(context.Background(), actor, target, authz.RoleModerator)
@@ -342,7 +344,7 @@ func TestSetUserEmail_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target, Email: "old@example.com"}, nil)
 	m.authSvc.EXPECT().SetEmailForUser(mock.Anything, target, "new@example.com").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionSetUserEmail, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "old@example.com -> new@example.com", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionSetUserEmail, TargetType: audit.TargetUser, TargetID: target.String(), Details: "old@example.com -> new@example.com", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.SetUserEmail(context.Background(), actor, target, "new@example.com")
@@ -391,7 +393,7 @@ func TestVerifyUserEmail_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.authSvc.EXPECT().MarkEmailVerified(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionVerifyUserEmail, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionVerifyUserEmail, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.VerifyUserEmail(context.Background(), actor, target)
@@ -408,7 +410,7 @@ func TestUnverifyUserEmail_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.authSvc.EXPECT().MarkEmailUnverified(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUnverifyUserEmail, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUnverifyUserEmail, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.UnverifyUserEmail(context.Background(), actor, target)
@@ -456,8 +458,8 @@ func TestSetUserDisplayName_ClampsAndAudits(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target, DisplayName: "Old Name"}, nil)
-	m.userRepo.EXPECT().SetDisplayName(mock.Anything, target, "Beatrice the Golden").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionSetDisplayName, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "Old Name -> Beatrice the Golden", SubjectID: target}).Return(nil)
+	m.userRepo.EXPECT().SetDisplayName(mock.Anything, spec.UserDisplayNameUpdate{UserID: target, DisplayName: "Beatrice the Golden"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionSetDisplayName, TargetType: audit.TargetUser, TargetID: target.String(), Details: "Old Name -> Beatrice the Golden", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.SetUserDisplayName(context.Background(), actor, target, "  <b>Beatrice</b>   the Golden  ")
@@ -498,10 +500,10 @@ func TestSetDisplayNameLocked_AuditsPerDirection(t *testing.T) {
 	tests := []struct {
 		name   string
 		locked bool
-		action repository.AuditAction
+		action audit.Action
 	}{
-		{name: "lock", locked: true, action: repository.AuditActionLockDisplayName},
-		{name: "unlock", locked: false, action: repository.AuditActionUnlockDisplayName},
+		{name: "lock", locked: true, action: audit.ActionLockDisplayName},
+		{name: "unlock", locked: false, action: audit.ActionUnlockDisplayName},
 	}
 
 	for _, tt := range tests {
@@ -511,8 +513,8 @@ func TestSetDisplayNameLocked_AuditsPerDirection(t *testing.T) {
 			target := uuid.New()
 			m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
 			m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
-			m.userRepo.EXPECT().SetDisplayNameLocked(mock.Anything, target, tt.locked).Return(nil)
-			m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: tt.action, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+			m.userRepo.EXPECT().SetDisplayNameLocked(mock.Anything, spec.UserDisplayNameLockUpdate{UserID: target, Locked: tt.locked}).Return(nil)
+			m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: tt.action, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 			// when
 			err := svc.SetDisplayNameLocked(context.Background(), actor, target, tt.locked)
@@ -531,7 +533,7 @@ func TestForceLogout_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionForceLogout, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionForceLogout, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.ForceLogout(context.Background(), actor, target)
@@ -578,7 +580,7 @@ func TestListAccountsOnIP_ReturnsSiblings(t *testing.T) {
 	sibling := uuid.New()
 	ip := "2a00:23c8:ec30:1001:65c3:a122:a356:90c4"
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target, IP: &ip}, nil)
-	m.userRepo.EXPECT().ListByIP(mock.Anything, ip, target).Return([]model.User{
+	m.userRepo.EXPECT().ListByIP(mock.Anything, spec.UserIPFilter{IP: ip, ExcludeUserID: target}).Return([]model.User{
 		{ID: sibling, Username: "alt", DisplayName: "Alt"},
 	}, nil)
 
@@ -600,9 +602,9 @@ func TestBanUser_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "reason").Return(nil)
+	m.userRepo.EXPECT().BanUser(mock.Anything, spec.UserBan{UserID: target, BannedBy: actor, Reason: "reason"}).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionBanUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "reason", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionBanUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "reason", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.BanUser(context.Background(), actor, target, "reason")
@@ -619,9 +621,9 @@ func TestBanUser_SessionDeleteErrorSwallowed(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "reason").Return(nil)
+	m.userRepo.EXPECT().BanUser(mock.Anything, spec.UserBan{UserID: target, BannedBy: actor, Reason: "reason"}).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(errors.New("session boom"))
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionBanUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "reason", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionBanUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "reason", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.BanUser(context.Background(), actor, target, "reason")
@@ -653,7 +655,7 @@ func TestBanUser_RepoError(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().BanUser(mock.Anything, target, actor, "r").Return(errors.New("boom"))
+	m.userRepo.EXPECT().BanUser(mock.Anything, spec.UserBan{UserID: target, BannedBy: actor, Reason: "r"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.BanUser(context.Background(), actor, target, "r")
@@ -670,7 +672,7 @@ func TestUnbanUser_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().UnbanUser(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUnbanUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUnbanUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.UnbanUser(context.Background(), actor, target)
@@ -718,7 +720,7 @@ func TestUnlockUser_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().UnlockUser(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUnlockUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUnlockUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.UnlockUser(context.Background(), actor, target)
@@ -735,8 +737,8 @@ func TestApproveUser_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().ApproveUser(mock.Anything, target, actor).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionApproveUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.userRepo.EXPECT().ApproveUser(mock.Anything, spec.UserApproval{UserID: target, ApprovedBy: actor}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionApproveUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.ApproveUser(context.Background(), actor, target)
@@ -768,7 +770,7 @@ func TestUnapproveUser_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleModerator, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().UnapproveUser(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUnapproveUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUnapproveUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.UnapproveUser(context.Background(), actor, target)
@@ -808,7 +810,7 @@ func TestDeleteUser_OK(t *testing.T) {
 	m.userRepo.EXPECT().AdminDeleteAccount(mock.Anything, target).Return(nil)
 	m.uploadSvc.EXPECT().Delete([]string{"/a.png"}).Return()
 	m.uploadSvc.EXPECT().Delete([]string{"/b.png"}).Return()
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionDeleteUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "username=beatrice"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionDeleteUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: "username=beatrice"}).Return(nil)
 
 	// when
 	err := svc.DeleteUser(context.Background(), actor, target)
@@ -843,7 +845,7 @@ func TestDeleteUser_UserLookupFailsStillDeletes(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().AdminDeleteAccount(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionDeleteUser, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: ""}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionDeleteUser, TargetType: audit.TargetUser, TargetID: target.String(), Details: ""}).Return(nil)
 
 	// when
 	err := svc.DeleteUser(context.Background(), actor, target)
@@ -893,9 +895,12 @@ func TestResetUserPassword_OK(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().SetPasswordHash(mock.Anything, target, mock.Anything).Return(nil)
+	m.userRepo.EXPECT().SetPasswordHash(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.UserPasswordHashUpdate, _ ...*sql.Tx) {
+		assert.Equal(t, target, s.UserID)
+		assert.NotEmpty(t, s.PasswordHash)
+	}).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionResetPassword, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionResetPassword, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	password, err := svc.ResetUserPassword(context.Background(), actor, target)
@@ -913,9 +918,12 @@ func TestResetUserPassword_SessionDeleteErrorSwallowed(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().SetPasswordHash(mock.Anything, target, mock.Anything).Return(nil)
+	m.userRepo.EXPECT().SetPasswordHash(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.UserPasswordHashUpdate, _ ...*sql.Tx) {
+		assert.Equal(t, target, s.UserID)
+		assert.NotEmpty(t, s.PasswordHash)
+	}).Return(nil)
 	m.sessionRepo.EXPECT().DeleteAllForUser(mock.Anything, target).Return(errors.New("session boom"))
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionResetPassword, TargetType: repository.AuditTargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionResetPassword, TargetType: audit.TargetUser, TargetID: target.String(), Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	password, err := svc.ResetUserPassword(context.Background(), actor, target)
@@ -949,7 +957,10 @@ func TestResetUserPassword_SetPasswordError(t *testing.T) {
 	m.authz.EXPECT().GetRole(mock.Anything, actor).Return(authz.RoleSuperAdmin, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, target).Return("", nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, target).Return(&model.User{ID: target}, nil)
-	m.userRepo.EXPECT().SetPasswordHash(mock.Anything, target, mock.Anything).Return(errors.New("boom"))
+	m.userRepo.EXPECT().SetPasswordHash(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.UserPasswordHashUpdate, _ ...*sql.Tx) {
+		assert.Equal(t, target, s.UserID)
+		assert.NotEmpty(t, s.PasswordHash)
+	}).Return(errors.New("boom"))
 
 	// when
 	password, err := svc.ResetUserPassword(context.Background(), actor, target)

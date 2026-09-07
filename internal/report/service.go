@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
@@ -73,7 +74,7 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 		return ErrMissingFields
 	}
 
-	spec := repository.NewReport{
+	newReport := spec.NewReport{
 		ReporterID: reporterID,
 		TargetType: req.TargetType,
 		TargetID:   req.TargetID,
@@ -81,7 +82,7 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 		Reason:     req.Reason,
 	}
 
-	_, err := s.reportRepo.Create(ctx, spec)
+	_, err := s.reportRepo.Create(ctx, newReport)
 	if err != nil {
 		return fmt.Errorf("create report: %w", err)
 	}
@@ -127,7 +128,11 @@ func (s *service) Create(ctx context.Context, reporterID uuid.UUID, req CreateRe
 }
 
 func (s *service) List(ctx context.Context, status string, page bounds.Page) (*ReportListResponse, error) {
-	rows, total, err := s.reportRepo.List(ctx, status, page.Limit(), page.Offset())
+	rows, total, err := s.reportRepo.List(ctx, spec.ReportFilter{
+		Status: status,
+		Limit:  page.Limit(),
+		Offset: page.Offset(),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list reports: %w", err)
 	}
@@ -162,7 +167,11 @@ func (s *service) Resolve(ctx context.Context, id int, resolvedBy uuid.UUID, com
 		return fmt.Errorf("resolve report: %w", err)
 	}
 
-	if err := s.reportRepo.Resolve(ctx, id, resolvedBy, comment); err != nil {
+	if err := s.reportRepo.Resolve(ctx, spec.ReportResolution{
+		ID:         id,
+		ResolvedBy: resolvedBy,
+		Comment:    comment,
+	}); err != nil {
 		return err
 	}
 

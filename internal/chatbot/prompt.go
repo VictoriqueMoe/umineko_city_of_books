@@ -7,8 +7,9 @@ import (
 	"strings"
 	"unicode"
 
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/openai"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/text"
 
 	"github.com/google/uuid"
@@ -101,7 +102,7 @@ func (s *service) postRoot(ctx context.Context, ev botEvent, botUserID uuid.UUID
 		return openai.Message{}, false
 	}
 
-	row, err := s.postRepo.GetByID(ctx, ev.ScopeID, botUserID)
+	row, err := s.postRepo.GetByID(ctx, spec.PostLookup{ID: ev.ScopeID, ViewerID: botUserID})
 	if err != nil || row == nil {
 		return openai.Message{}, false
 	}
@@ -122,7 +123,7 @@ func (s *service) dmHistory(ctx context.Context, ev botEvent, botUserID uuid.UUI
 		limit = 1
 	}
 
-	rows, err := s.chatRepo.GetMessagesForMember(ctx, ev.ScopeID, ev.SenderID, limit)
+	rows, err := s.chatRepo.GetMessagesForMember(ctx, spec.ChatMessagePage{RoomID: ev.ScopeID, ViewerID: ev.SenderID, Limit: limit})
 	if err != nil {
 		return []openai.Message{{Role: "user", Content: truncate(ev.Body, messageBodyMax)}}
 	}
@@ -192,7 +193,7 @@ func (s *service) parentRow(ctx context.Context, ev botEvent, id uuid.UUID) (pro
 	return chatPromptRow(*row), row.ReplyToID, true
 }
 
-func chatPromptRow(row repository.ChatMessageRow) promptRow {
+func chatPromptRow(row model.ChatMessageRow) promptRow {
 	out := promptRow{
 		AuthorID:    row.SenderID,
 		DisplayName: row.SenderDisplayName,
@@ -216,7 +217,7 @@ func chatPromptRow(row repository.ChatMessageRow) promptRow {
 	return out
 }
 
-func commentPromptRow(row repository.CommentRow) promptRow {
+func commentPromptRow(row model.CommentRow) promptRow {
 	return promptRow{
 		AuthorID:    row.UserID,
 		DisplayName: row.AuthorDisplayName,
@@ -227,7 +228,7 @@ func commentPromptRow(row repository.CommentRow) promptRow {
 
 func rowToMessage(row promptRow, botUserID uuid.UUID, limit int) openai.Message {
 	if row.AuthorID == botUserID {
-		own := stripSelfLabel(row.Body, repository.Chatbot{Username: row.Username, DisplayName: row.DisplayName})
+		own := stripSelfLabel(row.Body, model.Chatbot{Username: row.Username, DisplayName: row.DisplayName})
 
 		return openai.Message{Role: "assistant", Content: truncate(own, limit)}
 	}
@@ -271,7 +272,7 @@ func indentContinuation(body string) string {
 	return replacer.Replace(body)
 }
 
-func selfLabels(bot repository.Chatbot) []string {
+func selfLabels(bot model.Chatbot) []string {
 	labels := make([]string, 0, 4)
 
 	if handle := strings.ToLower(strings.TrimSpace(bot.Username)); handle != "" {
@@ -283,7 +284,7 @@ func selfLabels(bot repository.Chatbot) []string {
 	return labels
 }
 
-func stripSelfLabel(body string, bot repository.Chatbot) string {
+func stripSelfLabel(body string, bot model.Chatbot) string {
 	original := strings.TrimSpace(body)
 	if !strings.HasPrefix(original, "@") {
 		return original

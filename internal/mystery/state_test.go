@@ -8,6 +8,7 @@ import (
 	"testing/synctest"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -48,7 +49,7 @@ func TestSetPaused_RepoError(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().SetPaused(mock.Anything, mid, true).Return(errors.New("boom"))
+	m.repo.EXPECT().SetPaused(mock.Anything, spec.MysteryPauseUpdate{MysteryID: mid, Paused: true}).Return(errors.New("boom"))
 
 	// when
 	err := svc.SetPaused(context.Background(), mid, userID, true)
@@ -63,7 +64,7 @@ func TestSetPaused_OK_Pause(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().SetPaused(mock.Anything, mid, true).Return(nil)
+	m.repo.EXPECT().SetPaused(mock.Anything, spec.MysteryPauseUpdate{MysteryID: mid, Paused: true}).Return(nil)
 	m.repo.EXPECT().GetPlayerIDs(mock.Anything, mid).Return(nil, nil).Maybe()
 
 	// when
@@ -84,7 +85,7 @@ func testSetPausedOKUnpauseNotifiesPlayers(t *testing.T) {
 	userID := uuid.New()
 	player := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().SetPaused(mock.Anything, mid, false).Return(nil)
+	m.repo.EXPECT().SetPaused(mock.Anything, spec.MysteryPauseUpdate{MysteryID: mid, Paused: false}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -136,7 +137,7 @@ func TestSetGmAway_RepoError(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().SetGmAway(mock.Anything, mid, true).Return(errors.New("boom"))
+	m.repo.EXPECT().SetGmAway(mock.Anything, spec.MysteryGmAwayUpdate{MysteryID: mid, Away: true}).Return(errors.New("boom"))
 
 	// when
 	err := svc.SetGmAway(context.Background(), mid, userID, true)
@@ -151,7 +152,7 @@ func TestSetGmAway_OK_Away(t *testing.T) {
 	mid := uuid.New()
 	userID := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().SetGmAway(mock.Anything, mid, true).Return(nil)
+	m.repo.EXPECT().SetGmAway(mock.Anything, spec.MysteryGmAwayUpdate{MysteryID: mid, Away: true}).Return(nil)
 	m.repo.EXPECT().GetPlayerIDs(mock.Anything, mid).Return(nil, nil).Maybe()
 
 	// when
@@ -172,7 +173,7 @@ func testSetGmAwayOKBackNotifiesPlayers(t *testing.T) {
 	userID := uuid.New()
 	player := uuid.New()
 	stubAuthor(m, mid, userID)
-	m.repo.EXPECT().SetGmAway(mock.Anything, mid, false).Return(nil)
+	m.repo.EXPECT().SetGmAway(mock.Anything, spec.MysteryGmAwayUpdate{MysteryID: mid, Away: false}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)

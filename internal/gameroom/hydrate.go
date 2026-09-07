@@ -6,8 +6,7 @@ import (
 	"maps"
 	"time"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
@@ -58,7 +57,7 @@ func (s *service) loadRoom(ctx context.Context, roomID uuid.UUID) (*dto.GameRoom
 	return s.hydrateRoom(ctx, row)
 }
 
-func (s *service) hydrateRoom(ctx context.Context, row *repository.GameRoomRow) (*dto.GameRoom, error) {
+func (s *service) hydrateRoom(ctx context.Context, row *model.GameRoomRow) (*dto.GameRoom, error) {
 	players, err := s.loadPlayers(ctx, row.ID)
 	if err != nil {
 		return nil, err

@@ -10,8 +10,9 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
@@ -31,7 +32,7 @@ func newTestService(t *testing.T) (
 	notifRepo := repository.NewMockNotificationRepository(t)
 	userRepo := repository.NewMockUserRepository(t)
 	blockRepo := repository.NewMockBlockRepository(t)
-	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	emailSvc := email.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	hub := ws.NewHub()
@@ -72,7 +73,14 @@ func TestNotify_CreateErrorPropagates(t *testing.T) {
 		Message:       "liked your post",
 	}
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(nil, errors.New("db down"))
 
 	// when
@@ -96,10 +104,22 @@ func TestNotify_HasRecentDuplicateErrorIgnoredCreateProceeds(t *testing.T) {
 		EmailAction:   "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, errors.New("lookup failed"))
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 42}, nil)
 	userRepo.EXPECT().
 		GetByID(mock.Anything, params.RecipientID).
@@ -124,10 +144,22 @@ func TestNotify_DirectMessageSendsEmailWhenActionSet(t *testing.T) {
 		EmailAction: "messaged you",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "recipient@example.com",
@@ -165,7 +197,14 @@ func TestNotify_ChatTypesSkipEmail(t *testing.T) {
 				EmailAction: "messaged you",
 			}
 			notifRepo.EXPECT().
-				Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+				Create(mock.Anything, spec.NewNotification{
+					UserID:        params.RecipientID,
+					Type:          params.Type,
+					ReferenceID:   params.ReferenceID,
+					ReferenceType: params.ReferenceType,
+					ActorID:       params.ActorID,
+					Message:       params.Message,
+				}).
 				Return(&model.NotificationRow{ID: 1}, nil)
 
 			// when
@@ -189,10 +228,22 @@ func TestNotify_ChatRoomInviteStillSendsEmail(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "recipient@example.com",
@@ -217,7 +268,14 @@ func TestNotify_NoEmailActionSkipsEmail(t *testing.T) {
 		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 
 	// when
@@ -239,10 +297,22 @@ func TestNotify_EmailDupeSkipsEmail(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(true, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 
 	// when
@@ -264,10 +334,22 @@ func TestNotify_EmailSentWhenEligible(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "recipient@example.com",
@@ -294,10 +376,22 @@ func TestNotify_EmailSendErrorDoesNotBubble(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "recipient@example.com",
@@ -324,10 +418,22 @@ func TestNotify_EmailSkippedWhenUserLookupErrors(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(nil, errors.New("boom"))
 
@@ -350,10 +456,22 @@ func TestNotify_EmailSkippedWhenUserNil(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(nil, nil)
 
@@ -376,10 +494,22 @@ func TestNotify_EmailSkippedWhenEmailEmpty(t *testing.T) {
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{Email: ""}, nil)
 
@@ -402,10 +532,22 @@ func TestNotify_EmailSkippedWhenNotificationsDisabledAndNotReport(t *testing.T) 
 		EmailAction: "liked your post",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "r@example.com",
@@ -432,10 +574,22 @@ func TestNotify_ReportTypeSendsEmailEvenWithNotificationsDisabled(t *testing.T) 
 		EmailTitle:  "spam",
 	}
 	notifRepo.EXPECT().
-		HasRecentDuplicate(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ActorID).
+		HasRecentDuplicate(mock.Anything, spec.NotificationDuplicateCheck{
+			UserID:      params.RecipientID,
+			Type:        params.Type,
+			ReferenceID: params.ReferenceID,
+			ActorID:     params.ActorID,
+		}).
 		Return(false, nil)
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, params.RecipientID).Return(&model.User{
 		Email:              "admin@example.com",
@@ -460,7 +614,14 @@ func TestNotify_PushNotificationFindsRowSendsToHub(t *testing.T) {
 		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 123, UserID: params.RecipientID, Type: params.Type}, nil)
 
 	// when
@@ -480,7 +641,7 @@ func TestNotify_DispatchesToOverlay(t *testing.T) {
 	settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("https://test.example").Maybe()
 	overlay := NewMockOverlayDispatcher(t)
 	blockRepo := repository.NewMockBlockRepository(t)
-	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything, mock.Anything).Return(false, nil).Maybe()
+	blockRepo.EXPECT().IsBlockedEither(mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	svc := NewService(notifRepo, userRepo, blockRepo, ws.NewHub(), emailSvc, nil, settingsSvc, overlay)
 	recipient := uuid.New()
 	params := dto.NotifyParams{
@@ -490,7 +651,14 @@ func TestNotify_DispatchesToOverlay(t *testing.T) {
 		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
-		Create(mock.Anything, params.RecipientID, params.Type, params.ReferenceID, params.ReferenceType, params.ActorID, params.Message).
+		Create(mock.Anything, spec.NewNotification{
+			UserID:        params.RecipientID,
+			Type:          params.Type,
+			ReferenceID:   params.ReferenceID,
+			ReferenceType: params.ReferenceType,
+			ActorID:       params.ActorID,
+			Message:       params.Message,
+		}).
 		Return(&model.NotificationRow{ID: 55, UserID: params.RecipientID, Type: params.Type}, nil)
 	overlay.EXPECT().DispatchNotification(recipient, mock.MatchedBy(func(resp dto.NotificationResponse) bool {
 		return resp.Type == dto.NotifPostLiked
@@ -515,10 +683,20 @@ func TestNotifyMany_IteratesAllParamsAndSwallowsErrors(t *testing.T) {
 		{RecipientID: recipient, ActorID: actor, Type: dto.NotifChatMessage, ReferenceID: ref},
 	}
 	notifRepo.EXPECT().
-		Create(mock.Anything, recipient, dto.NotifChatMessage, ref, "", actor, "").
+		Create(mock.Anything, spec.NewNotification{
+			UserID:      recipient,
+			Type:        dto.NotifChatMessage,
+			ReferenceID: ref,
+			ActorID:     actor,
+		}).
 		Return(nil, errors.New("boom")).Once()
 	notifRepo.EXPECT().
-		Create(mock.Anything, recipient, dto.NotifChatMessage, ref, "", actor, "").
+		Create(mock.Anything, spec.NewNotification{
+			UserID:      recipient,
+			Type:        dto.NotifChatMessage,
+			ReferenceID: ref,
+			ActorID:     actor,
+		}).
 		Return(&model.NotificationRow{ID: 1}, nil).Once()
 
 	// when
@@ -546,7 +724,7 @@ func TestList_OK(t *testing.T) {
 		{ID: 1, UserID: userID, Type: dto.NotifPostLiked, ActorUsername: "alice"},
 		{ID: 2, UserID: userID, Type: dto.NotifMention, ActorUsername: "bob"},
 	}
-	notifRepo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(rows, 2, nil)
+	notifRepo.EXPECT().ListByUser(mock.Anything, spec.NotificationListing{UserID: userID, Limit: 10, Offset: 0}).Return(rows, 2, nil)
 
 	// when
 	got, err := svc.List(context.Background(), userID, bounds.NewPage(10, 0))
@@ -566,7 +744,7 @@ func TestList_EmptyRows(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	notifRepo.EXPECT().ListByUser(mock.Anything, userID, 5, 10).Return(nil, 0, nil)
+	notifRepo.EXPECT().ListByUser(mock.Anything, spec.NotificationListing{UserID: userID, Limit: 5, Offset: 10}).Return(nil, 0, nil)
 
 	// when
 	got, err := svc.List(context.Background(), userID, bounds.NewPage(5, 10))
@@ -584,7 +762,7 @@ func TestList_RepoError(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	notifRepo.EXPECT().ListByUser(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("db down"))
+	notifRepo.EXPECT().ListByUser(mock.Anything, spec.NotificationListing{UserID: userID, Limit: 10, Offset: 0}).Return(nil, 0, errors.New("db down"))
 
 	// when
 	got, err := svc.List(context.Background(), userID, bounds.NewPage(10, 0))
@@ -598,7 +776,7 @@ func TestMarkRead_Delegates(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	notifRepo.EXPECT().MarkRead(mock.Anything, 42, userID).Return(nil)
+	notifRepo.EXPECT().MarkRead(mock.Anything, spec.NotificationLookup{ID: 42, UserID: userID}).Return(nil)
 
 	// when
 	err := svc.MarkRead(context.Background(), 42, userID)
@@ -611,7 +789,7 @@ func TestMarkRead_RepoError(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	userID := uuid.New()
-	notifRepo.EXPECT().MarkRead(mock.Anything, 1, userID).Return(errors.New("boom"))
+	notifRepo.EXPECT().MarkRead(mock.Anything, spec.NotificationLookup{ID: 1, UserID: userID}).Return(errors.New("boom"))
 
 	// when
 	err := svc.MarkRead(context.Background(), 1, userID)
@@ -650,9 +828,9 @@ func TestPruneOld_SingleBatch(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
 	notifRepo.EXPECT().
-		DeleteOlderThanBatch(mock.Anything, mock.MatchedBy(func(cutoff time.Time) bool {
-			return time.Since(cutoff) > 89*24*time.Hour
-		}), pruneBatchSize).
+		DeleteOlderThanBatch(mock.Anything, mock.MatchedBy(func(s spec.NotificationPruneBatch) bool {
+			return time.Since(s.Cutoff) > 89*24*time.Hour && s.Limit == pruneBatchSize
+		})).
 		Return(int64(3), nil).
 		Once()
 
@@ -667,8 +845,12 @@ func TestPruneOld_SingleBatch(t *testing.T) {
 func TestPruneOld_MultipleBatches(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
-	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.Anything, pruneBatchSize).Return(int64(pruneBatchSize), nil).Twice()
-	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.Anything, pruneBatchSize).Return(int64(42), nil).Once()
+	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.MatchedBy(func(s spec.NotificationPruneBatch) bool {
+		return s.Limit == pruneBatchSize
+	})).Return(int64(pruneBatchSize), nil).Twice()
+	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.MatchedBy(func(s spec.NotificationPruneBatch) bool {
+		return s.Limit == pruneBatchSize
+	})).Return(int64(42), nil).Once()
 
 	// when
 	total, err := svc.PruneOld(context.Background())
@@ -681,7 +863,9 @@ func TestPruneOld_MultipleBatches(t *testing.T) {
 func TestPruneOld_ReturnsErrorFromRepo(t *testing.T) {
 	// given
 	svc, notifRepo, _, _, _ := newTestService(t)
-	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.Anything, pruneBatchSize).Return(int64(0), errors.New("boom")).Once()
+	notifRepo.EXPECT().DeleteOlderThanBatch(mock.Anything, mock.MatchedBy(func(s spec.NotificationPruneBatch) bool {
+		return s.Limit == pruneBatchSize
+	})).Return(int64(0), errors.New("boom")).Once()
 
 	// when
 	total, err := svc.PruneOld(context.Background())

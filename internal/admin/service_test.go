@@ -9,6 +9,7 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/email"
 	"umineko_city_of_books/internal/giphy/banlist"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
@@ -107,13 +108,13 @@ func TestGetStats_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	userID := uuid.New()
-	m.statsRepo.EXPECT().GetOverview(mock.Anything).Return(&repository.SiteStats{
+	m.statsRepo.EXPECT().GetOverview(mock.Anything).Return(&model.SiteStats{
 		TotalUsers:     5,
 		TotalTheories:  3,
 		TotalResponses: 2,
 		PostsByCorner:  map[string]int{"a": 1},
 	}, nil)
-	m.statsRepo.EXPECT().GetMostActiveUsers(mock.Anything, 10).Return([]repository.ActiveUser{
+	m.statsRepo.EXPECT().GetMostActiveUsers(mock.Anything, 10).Return([]model.ActiveUser{
 		{ID: userID, Username: "u", DisplayName: "U", AvatarURL: "/a.png", ActionCount: 7},
 	}, nil)
 

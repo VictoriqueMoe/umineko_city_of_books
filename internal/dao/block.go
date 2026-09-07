@@ -9,59 +9,75 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	BlockDAO interface {
+		Block(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error
+		Unblock(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error
+		IsBlocked(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) (bool, error)
+		IsBlockedEither(ctx context.Context, s spec.BlockPairSpec, tx ...*sql.Tx) (bool, error)
+		GetBlockedIDs(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
+		GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]model.BlockedUser, error)
+	}
+
 	blockDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *blockDAO) Block(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error {
+func (r *blockDAO) Block(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO blocks (blocker_id, blocked_id) VALUES ($1, $2)
 		 ON CONFLICT DO NOTHING`,
-		blockerID, blockedID,
+		s.BlockerID, s.BlockedID,
 	)
 	if err != nil {
 		return fmt.Errorf("block user: %w", err)
 	}
+
 	return nil
 }
 
-func (r *blockDAO) Unblock(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) error {
+func (r *blockDAO) Unblock(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
-		blockerID, blockedID,
+		s.BlockerID, s.BlockedID,
 	)
 	if err != nil {
 		return fmt.Errorf("unblock user: %w", err)
 	}
+
 	return nil
 }
 
-func (r *blockDAO) IsBlocked(ctx context.Context, blockerID uuid.UUID, blockedID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *blockDAO) IsBlocked(ctx context.Context, s spec.BlockSpec, tx ...*sql.Tx) (bool, error) {
 	var count int
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM blocks WHERE blocker_id = $1 AND blocked_id = $2`,
-		blockerID, blockedID,
+		s.BlockerID, s.BlockedID,
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check block: %w", err)
 	}
+
 	return count > 0, nil
 }
 
-func (r *blockDAO) IsBlockedEither(ctx context.Context, userA uuid.UUID, userB uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *blockDAO) IsBlockedEither(ctx context.Context, s spec.BlockPairSpec, tx ...*sql.Tx) (bool, error) {
 	var count int
+
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM blocks WHERE (blocker_id = $1 AND blocked_id = $2) OR (blocker_id = $3 AND blocked_id = $4)`,
-		userA, userB, userB, userA,
+		s.UserA, s.UserB, s.UserB, s.UserA,
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check block either: %w", err)
 	}
+
 	return count > 0, nil
 }
 
@@ -75,10 +91,11 @@ func (r *blockDAO) GetBlockedIDs(ctx context.Context, userID uuid.UUID, tx ...*s
 	if err != nil {
 		return nil, fmt.Errorf("get blocked ids: %w", err)
 	}
+
 	return utils.ScanIDs(rows, "blocked id")
 }
 
-func (r *blockDAO) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]repository.BlockedUser, error) {
+func (r *blockDAO) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx ...*sql.Tx) ([]model.BlockedUser, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT u.id, u.username, u.display_name, u.avatar_url, b.created_at
 		FROM blocks b
@@ -92,17 +109,22 @@ func (r *blockDAO) GetBlockedUsers(ctx context.Context, blockerID uuid.UUID, tx 
 	}
 	defer rows.Close()
 
-	var users []repository.BlockedUser
+	var users []model.BlockedUser
+
 	for rows.Next() {
 		var (
-			u         repository.BlockedUser
+			u         model.BlockedUser
 			blockedAt time.Time
 		)
+
 		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &blockedAt); err != nil {
 			return nil, fmt.Errorf("scan blocked user: %w", err)
 		}
+
 		u.BlockedAt = blockedAt.UTC().Format(time.RFC3339)
+
 		users = append(users, u)
 	}
+
 	return users, rows.Err()
 }

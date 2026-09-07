@@ -12,8 +12,98 @@ import (
 
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
+)
+
+type (
+	ChatDAO interface {
+		CreateRoom(ctx context.Context, s spec.NewChatRoom, tx ...*sql.Tx) (*model.ChatRoomRow, error)
+		CreateSystemRoom(ctx context.Context, s spec.NewChatSystemRoom, tx ...*sql.Tx) (*model.ChatRoomRow, error)
+		GetSystemRoomID(ctx context.Context, systemKind string, tx ...*sql.Tx) (uuid.UUID, error)
+		FindDMRoomByPair(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (*model.ChatRoomRow, error)
+		CreateDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (*model.ChatRoomRow, error)
+		AddDMMembers(ctx context.Context, s spec.ChatDMMembers, tx ...*sql.Tx) error
+		RejoinDMMembers(ctx context.Context, s spec.ChatDMMembers, tx ...*sql.Tx) error
+		AddMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error
+		AddMemberWithRole(ctx context.Context, s spec.NewChatRoomMember, tx ...*sql.Tx) error
+		IsGhostMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		HasGhostMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (bool, error)
+		SetMemberRole(ctx context.Context, s spec.ChatMemberRoleUpdate, tx ...*sql.Tx) error
+		RemoveMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error
+		CountRoomMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (int, error)
+		DeleteRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
+		ListRoomMediaURLs(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		ListMessageMediaURLs(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		ListRoomMemberAvatarURLs(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.ChatRoomRow, error)
+		ListUserGroupRooms(ctx context.Context, q spec.ChatUserRoomFilter, tx ...*sql.Tx) ([]model.ChatRoomRow, int, error)
+		GetRoomByID(ctx context.Context, s spec.ChatRoomViewer, tx ...*sql.Tx) (*model.ChatRoomRow, error)
+		GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*model.ChatRoomSendContext, error)
+		GetRoomMembers(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
+		GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatRoomMemberRow, error)
+		GetMemberRole(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (string, error)
+		GetMemberNickname(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (string, error)
+		IsMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		SetMuted(ctx context.Context, s spec.ChatMemberMuteUpdate, tx ...*sql.Tx) error
+		IsMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error)
+		SetVoiceForceMuted(ctx context.Context, s spec.ChatVoiceForceMuteUpdate, tx ...*sql.Tx) error
+		IsVoiceForceMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
+		ListPublicRooms(ctx context.Context, q spec.ChatPublicRoomFilter, tx ...*sql.Tx) ([]model.ChatRoomRow, int, error)
+		FindDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (uuid.UUID, error)
+		UpdateRoom(ctx context.Context, s spec.UpdateChatRoom, tx ...*sql.Tx) error
+		AddRoomTags(ctx context.Context, s spec.ChatRoomTags, tx ...*sql.Tx) error
+		ReplaceRoomTags(ctx context.Context, s spec.ChatRoomTags, tx ...*sql.Tx) error
+		GetRoomTags(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+		GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]string, error)
+
+		InsertMessageRow(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error)
+		TouchRoomActivityForMessage(ctx context.Context, s spec.ChatRoomActivityTouch, tx ...*sql.Tx) error
+		EditMessage(ctx context.Context, s spec.ChatMessageUpdate, tx ...*sql.Tx) error
+		GetMessages(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, int, error)
+		GetMessagesForMember(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, error)
+		GetMessagesForViewer(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, int, error)
+		SearchMessagesForViewer(ctx context.Context, s spec.ChatMessageSearch, tx ...*sql.Tx) ([]model.SearchResult, int, error)
+		GetMessagesBefore(ctx context.Context, q spec.ChatMessageCursorPage, tx ...*sql.Tx) ([]model.ChatMessageRow, error)
+		GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*model.ChatMessageRow, error)
+		DeleteMessages(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
+		DeleteMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error
+		GetMessageSenderID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		GetMessageRoomID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
+		AddMessageMedia(ctx context.Context, s spec.NewChatMessageMedia, tx ...*sql.Tx) (int64, error)
+		UpdateMessageMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		UpdateMessageMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error
+		GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]dto.PostMediaResponse, error)
+
+		TouchRoomActivity(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) error
+		ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error)
+		MarkRoomRead(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error
+		CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error)
+
+		SetMemberNickname(ctx context.Context, s spec.ChatMemberNicknameUpdate, tx ...*sql.Tx) error
+		SetMemberNicknameWithLock(ctx context.Context, s spec.ChatMemberNicknameUpdate, tx ...*sql.Tx) error
+		IsMemberNicknameLocked(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		SetMemberAvatar(ctx context.Context, s spec.ChatMemberAvatarUpdate, tx ...*sql.Tx) error
+		SetMemberTimeout(ctx context.Context, s spec.ChatMemberTimeout, tx ...*sql.Tx) error
+		ClearMemberTimeout(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error
+		GetMemberTimeoutState(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, string, bool, error)
+		HasActiveMemberTimeout(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error)
+		PinMessage(ctx context.Context, s spec.ChatMessagePin, tx ...*sql.Tx) error
+		UnpinMessage(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) error
+		ListPinnedMessages(ctx context.Context, s spec.ChatRoomViewer, tx ...*sql.Tx) ([]model.ChatMessageRow, error)
+		ListRoomAttachments(ctx context.Context, q spec.ChatRoomAttachmentQuery, tx ...*sql.Tx) ([]model.ChatMessageRow, error)
+		AddReaction(ctx context.Context, s spec.ChatMessageReaction, tx ...*sql.Tx) (bool, error)
+		RemoveReaction(ctx context.Context, s spec.ChatMessageReaction, tx ...*sql.Tx) (bool, error)
+		CountReactions(ctx context.Context, s spec.ChatReactionCount, tx ...*sql.Tx) (int, error)
+		GetReactionsBatch(ctx context.Context, q spec.ChatReactionsQuery, tx ...*sql.Tx) (map[uuid.UUID][]model.ReactionGroup, error)
+	}
+
+	chatDAO struct {
+		db *sql.DB
+	}
 )
 
 const (
@@ -59,14 +149,8 @@ func parseTimestampInput(s string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("unrecognised timestamp: %q", s)
 }
 
-type (
-	chatDAO struct {
-		db *sql.DB
-	}
-)
-
-func scanCreatedRoom(row interface{ Scan(dest ...any) error }) (*repository.ChatRoomRow, error) {
-	var out repository.ChatRoomRow
+func scanCreatedRoom(row interface{ Scan(dest ...any) error }) (*model.ChatRoomRow, error) {
+	var out model.ChatRoomRow
 	var systemKind sql.NullString
 	var createdAt time.Time
 	var lastMessageAt, archivedAt sql.NullTime
@@ -86,12 +170,12 @@ func scanCreatedRoom(row interface{ Scan(dest ...any) error }) (*repository.Chat
 	return &out, nil
 }
 
-func (r *chatDAO) CreateRoom(ctx context.Context, spec repository.NewChatRoom, tx ...*sql.Tx) (*repository.ChatRoomRow, error) {
+func (r *chatDAO) CreateRoom(ctx context.Context, s spec.NewChatRoom, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
 	row, err := scanCreatedRoom(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO chat_rooms (name, description, type, is_public, is_rp, created_by)
 		 VALUES ($1, $2, $3, $4, $5, $6)
 		 RETURNING `+createdRoomColumns,
-		spec.Name, spec.Description, spec.Type, spec.IsPublic, spec.IsRP, spec.CreatedBy,
+		s.Name, s.Description, s.Type, s.IsPublic, s.IsRP, s.CreatedBy,
 	))
 	if err != nil {
 		return nil, fmt.Errorf("create room: %w", err)
@@ -100,12 +184,12 @@ func (r *chatDAO) CreateRoom(ctx context.Context, spec repository.NewChatRoom, t
 	return row, nil
 }
 
-func (r *chatDAO) CreateSystemRoom(ctx context.Context, spec repository.NewChatSystemRoom, tx ...*sql.Tx) (*repository.ChatRoomRow, error) {
+func (r *chatDAO) CreateSystemRoom(ctx context.Context, s spec.NewChatSystemRoom, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
 	row, err := scanCreatedRoom(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO chat_rooms (id, name, description, type, is_public, is_rp, is_system, system_kind, created_by)
 		 VALUES ($1, $2, $3, 'group', FALSE, FALSE, TRUE, $4, $5)
 		 RETURNING `+createdRoomColumns,
-		spec.ID, spec.Name, spec.Description, spec.SystemKind, spec.CreatedBy,
+		s.ID, s.Name, s.Description, s.SystemKind, s.CreatedBy,
 	))
 	if err != nil {
 		return nil, fmt.Errorf("create system room: %w", err)
@@ -128,11 +212,11 @@ func (r *chatDAO) GetSystemRoomID(ctx context.Context, systemKind string, tx ...
 	return id, nil
 }
 
-func (r *chatDAO) UpdateRoom(ctx context.Context, spec repository.UpdateChatRoom, tx ...*sql.Tx) error {
+func (r *chatDAO) UpdateRoom(ctx context.Context, s spec.UpdateChatRoom, tx ...*sql.Tx) error {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_rooms SET name = $1, description = $2, is_public = $3, is_rp = $4
 		 WHERE id = $5 AND type = 'group' AND is_system = FALSE`,
-		spec.Name, spec.Description, spec.IsPublic, spec.IsRP, spec.RoomID,
+		s.Name, s.Description, s.IsPublic, s.IsRP, s.RoomID,
 	)
 	if err != nil {
 		return fmt.Errorf("update room: %w", err)
@@ -146,17 +230,17 @@ func (r *chatDAO) UpdateRoom(ctx context.Context, spec repository.UpdateChatRoom
 	return nil
 }
 
-func (r *chatDAO) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error {
-	if len(tags) == 0 {
+func (r *chatDAO) AddRoomTags(ctx context.Context, s spec.ChatRoomTags, tx ...*sql.Tx) error {
+	if len(s.Tags) == 0 {
 		return nil
 	}
-	for _, tag := range tags {
+	for _, tag := range s.Tags {
 		if tag == "" {
 			continue
 		}
 		_, err := txOrDB(r.db, tx).ExecContext(ctx,
 			`INSERT INTO chat_room_tags (room_id, tag) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-			roomID, tag,
+			s.RoomID, tag,
 		)
 		if err != nil {
 			return fmt.Errorf("add room tag: %w", err)
@@ -165,11 +249,11 @@ func (r *chatDAO) AddRoomTags(ctx context.Context, roomID uuid.UUID, tags []stri
 	return nil
 }
 
-func (r *chatDAO) ReplaceRoomTags(ctx context.Context, roomID uuid.UUID, tags []string, tx ...*sql.Tx) error {
-	if _, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM chat_room_tags WHERE room_id = $1`, roomID); err != nil {
+func (r *chatDAO) ReplaceRoomTags(ctx context.Context, s spec.ChatRoomTags, tx ...*sql.Tx) error {
+	if _, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM chat_room_tags WHERE room_id = $1`, s.RoomID); err != nil {
 		return fmt.Errorf("delete room tags: %w", err)
 	}
-	return r.AddRoomTags(ctx, roomID, tags, tx...)
+	return r.AddRoomTags(ctx, s, tx...)
 }
 
 func (r *chatDAO) GetRoomTags(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
@@ -201,11 +285,11 @@ func (r *chatDAO) GetRoomTagsBatch(ctx context.Context, roomIDs []uuid.UUID, tx 
 	return utils.ScanGroups[uuid.UUID, string](rows, "room tag batch")
 }
 
-func (r *chatDAO) AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUID, role string, ghost bool, tx ...*sql.Tx) error {
+func (r *chatDAO) AddMemberWithRole(ctx context.Context, s spec.NewChatRoomMember, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_room_members (room_id, user_id, role, ghost) VALUES ($1, $2, $3, $4)
 		 ON CONFLICT (room_id, user_id) DO UPDATE SET left_at = NULL, role = excluded.role, ghost = excluded.ghost, joined_at = NOW()`,
-		roomID, userID, role, ghost,
+		s.RoomID, s.UserID, s.Role, s.Ghost,
 	)
 	if err != nil {
 		return fmt.Errorf("add member with role: %w", err)
@@ -213,11 +297,11 @@ func (r *chatDAO) AddMemberWithRole(ctx context.Context, roomID, userID uuid.UUI
 	return nil
 }
 
-func (r *chatDAO) IsGhostMember(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) IsGhostMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
 	var g bool
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT ghost FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	).Scan(&g)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -240,10 +324,10 @@ func (r *chatDAO) HasGhostMembers(ctx context.Context, roomID uuid.UUID, tx ...*
 	return n > 0, nil
 }
 
-func (r *chatDAO) SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, role string, tx ...*sql.Tx) error {
+func (r *chatDAO) SetMemberRole(ctx context.Context, s spec.ChatMemberRoleUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET role = $1 WHERE room_id = $2 AND user_id = $3 AND left_at IS NULL`,
-		role, roomID, userID,
+		s.Role, s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("set member role: %w", err)
@@ -251,11 +335,11 @@ func (r *chatDAO) SetMemberRole(ctx context.Context, roomID, userID uuid.UUID, r
 	return nil
 }
 
-func (r *chatDAO) GetMemberNickname(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
+func (r *chatDAO) GetMemberNickname(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (string, error) {
 	var nickname string
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COALESCE(nickname, '') FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	).Scan(&nickname)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
@@ -266,19 +350,19 @@ func (r *chatDAO) GetMemberNickname(ctx context.Context, roomID, userID uuid.UUI
 	return nickname, nil
 }
 
-func (r *chatDAO) GetMemberRole(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
-	var role string
+func (r *chatDAO) GetMemberRole(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (string, error) {
+	var memberRole string
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT role FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
-	).Scan(&role)
+		s.RoomID, s.UserID,
+	).Scan(&memberRole)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("get member role: %w", err)
 	}
-	return role, nil
+	return memberRole, nil
 }
 
 func dmPairKey(a, b uuid.UUID) string {
@@ -289,10 +373,10 @@ func dmPairKey(a, b uuid.UUID) string {
 	return sa + ":" + sb
 }
 
-func (r *chatDAO) FindDMRoomByPair(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (*repository.ChatRoomRow, error) {
+func (r *chatDAO) FindDMRoomByPair(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
 	existing, err := scanCreatedRoom(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT `+createdRoomColumns+` FROM chat_rooms WHERE type = 'dm' AND dm_pair_key = $1`,
-		dmPairKey(userA, userB),
+		dmPairKey(s.UserA, s.UserB),
 	))
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return nil, fmt.Errorf("create dm: lookup: %w", err)
@@ -301,12 +385,12 @@ func (r *chatDAO) FindDMRoomByPair(ctx context.Context, userA, userB uuid.UUID, 
 	return existing, nil
 }
 
-func (r *chatDAO) RejoinDMMembers(ctx context.Context, roomID, userA, userB uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) RejoinDMMembers(ctx context.Context, s spec.ChatDMMembers, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2), ($1, $3)
 		 ON CONFLICT (room_id, user_id) DO UPDATE SET left_at = NULL, joined_at = NOW()
 		 WHERE chat_room_members.left_at IS NOT NULL`,
-		roomID, userA, userB,
+		s.RoomID, s.UserA, s.UserB,
 	)
 	if err != nil {
 		return fmt.Errorf("create dm: rejoin members: %w", err)
@@ -315,12 +399,12 @@ func (r *chatDAO) RejoinDMMembers(ctx context.Context, roomID, userA, userB uuid
 	return nil
 }
 
-func (r *chatDAO) CreateDMRoom(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (*repository.ChatRoomRow, error) {
+func (r *chatDAO) CreateDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
 	created, err := scanCreatedRoom(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO chat_rooms (name, type, created_by, dm_pair_key)
 		 VALUES ('', 'dm', $1, $2)
 		 RETURNING `+createdRoomColumns,
-		userA, dmPairKey(userA, userB),
+		s.UserA, dmPairKey(s.UserA, s.UserB),
 	))
 	if err != nil {
 		return nil, fmt.Errorf("create dm: insert room: %w", err)
@@ -329,10 +413,10 @@ func (r *chatDAO) CreateDMRoom(ctx context.Context, userA, userB uuid.UUID, tx .
 	return created, nil
 }
 
-func (r *chatDAO) AddDMMembers(ctx context.Context, roomID, userA, userB uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) AddDMMembers(ctx context.Context, s spec.ChatDMMembers, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2), ($1, $3)`,
-		roomID, userA, userB,
+		s.RoomID, s.UserA, s.UserB,
 	)
 	if err != nil {
 		return fmt.Errorf("create dm: insert members: %w", err)
@@ -412,11 +496,11 @@ func (r *chatDAO) ListRoomMemberAvatarURLs(ctx context.Context, roomID uuid.UUID
 	return urls, nil
 }
 
-func (r *chatDAO) AddMember(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) AddMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_room_members (room_id, user_id) VALUES ($1, $2)
 		 ON CONFLICT (room_id, user_id) DO UPDATE SET left_at = NULL, joined_at = NOW()`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("add member: %w", err)
@@ -424,10 +508,10 @@ func (r *chatDAO) AddMember(ctx context.Context, roomID, userID uuid.UUID, tx ..
 	return nil
 }
 
-func (r *chatDAO) RemoveMember(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) RemoveMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET left_at = NOW() WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("remove member: %w", err)
@@ -435,7 +519,7 @@ func (r *chatDAO) RemoveMember(ctx context.Context, roomID, userID uuid.UUID, tx
 	return nil
 }
 
-func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatRoomRow, error) {
+func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.ChatRoomRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at, m.last_read_at, m.role, m.muted, m.ghost,
 		 (SELECT COUNT(*) FROM chat_room_members WHERE room_id = cr.id AND left_at IS NULL)
@@ -449,9 +533,9 @@ func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*s
 	}
 	defer rows.Close()
 
-	var result []repository.ChatRoomRow
+	var result []model.ChatRoomRow
 	for rows.Next() {
-		var row repository.ChatRoomRow
+		var row model.ChatRoomRow
 		var systemKind sql.NullString
 		var createdAt time.Time
 		var lastMessageAt, archivedAt, lastReadAt sql.NullTime
@@ -476,30 +560,30 @@ func (r *chatDAO) GetRoomsByUser(ctx context.Context, userID uuid.UUID, tx ...*s
 	return result, nil
 }
 
-func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, search string, isRPOnly bool, tag, role string, includeArchived bool, limit, offset int, tx ...*sql.Tx) ([]repository.ChatRoomRow, int, error) {
+func (r *chatDAO) ListUserGroupRooms(ctx context.Context, q spec.ChatUserRoomFilter, tx ...*sql.Tx) ([]model.ChatRoomRow, int, error) {
 	conditions := []string{"cr.type = 'group'", "m.user_id = $1", "m.left_at IS NULL", "cr.system_kind IS DISTINCT FROM 'watch_party'"}
-	args := []any{userID}
+	args := []any{q.UserID}
 	idx := 2
-	if !includeArchived {
+	if !q.IncludeArchived {
 		conditions = append(conditions, "cr.archived_at IS NULL")
 	}
-	if search != "" {
+	if q.Search != "" {
 		conditions = append(conditions, fmt.Sprintf("(cr.name ILIKE $%d OR cr.description ILIKE $%d)", idx, idx+1))
-		wc := "%" + search + "%"
+		wc := "%" + q.Search + "%"
 		args = append(args, wc, wc)
 		idx += 2
 	}
-	if isRPOnly {
+	if q.IsRPOnly {
 		conditions = append(conditions, "cr.is_rp = TRUE")
 	}
-	if tag != "" {
+	if q.Tag != "" {
 		conditions = append(conditions, fmt.Sprintf("EXISTS(SELECT 1 FROM chat_room_tags WHERE room_id = cr.id AND tag = $%d)", idx))
-		args = append(args, tag)
+		args = append(args, q.Tag)
 		idx++
 	}
-	if role == "host" {
+	if q.Role == "host" {
 		conditions = append(conditions, "m.role = 'host'")
-	} else if role == "member" {
+	} else if q.Role == "member" {
 		conditions = append(conditions, "m.role != 'host'")
 	}
 
@@ -521,7 +605,7 @@ func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 
 	queryArgs := make([]any, 0, len(args)+2)
 	queryArgs = append(queryArgs, args...)
-	queryArgs = append(queryArgs, limit, offset)
+	queryArgs = append(queryArgs, q.Limit, q.Offset)
 	limitClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", idx, idx+1)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
@@ -537,9 +621,9 @@ func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 	}
 	defer rows.Close()
 
-	var result []repository.ChatRoomRow
+	var result []model.ChatRoomRow
 	for rows.Next() {
-		var row repository.ChatRoomRow
+		var row model.ChatRoomRow
 		var systemKind sql.NullString
 		var createdAt time.Time
 		var lastMessageAt, archivedAt, lastReadAt sql.NullTime
@@ -564,7 +648,7 @@ func (r *chatDAO) ListUserGroupRooms(ctx context.Context, userID uuid.UUID, sear
 	return result, total, nil
 }
 
-func (r *chatDAO) attachRoomTags(ctx context.Context, rooms []repository.ChatRoomRow, tx ...*sql.Tx) {
+func (r *chatDAO) attachRoomTags(ctx context.Context, rooms []model.ChatRoomRow, tx ...*sql.Tx) {
 	if len(rooms) == 0 {
 		return
 	}
@@ -580,8 +664,8 @@ func (r *chatDAO) attachRoomTags(ctx context.Context, rooms []repository.ChatRoo
 	}
 }
 
-func (r *chatDAO) GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID, tx ...*sql.Tx) (*repository.ChatRoomRow, error) {
-	var row repository.ChatRoomRow
+func (r *chatDAO) GetRoomByID(ctx context.Context, s spec.ChatRoomViewer, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
+	var row model.ChatRoomRow
 	var systemKind sql.NullString
 	var viewerRole sql.NullString
 	var viewerMuted, viewerGhost sql.NullBool
@@ -593,7 +677,7 @@ func (r *chatDAO) GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID, t
 		 FROM chat_rooms cr
 		 LEFT JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = $1 AND m.left_at IS NULL
 		 WHERE cr.id = $2`,
-		viewerID, roomID,
+		s.ViewerID, s.RoomID,
 	).Scan(&row.ID, &row.Name, &row.Description, &row.Type, &row.IsPublic, &row.IsRP, &row.IsSystem, &systemKind, &row.CreatedBy, &createdAt, &lastMessageAt, &archivedAt, &lastReadAt, &viewerRole, &viewerMuted, &viewerGhost, &row.MemberCount)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
@@ -618,12 +702,12 @@ func (r *chatDAO) GetRoomByID(ctx context.Context, roomID, viewerID uuid.UUID, t
 	if viewerGhost.Valid {
 		row.ViewerGhost = viewerGhost.Bool
 	}
-	row.Tags, _ = r.GetRoomTags(ctx, roomID, tx...)
+	row.Tags, _ = r.GetRoomTags(ctx, s.RoomID, tx...)
 	return &row, nil
 }
 
-func (r *chatDAO) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*repository.ChatRoomSendContext, error) {
-	var row repository.ChatRoomSendContext
+func (r *chatDAO) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*model.ChatRoomSendContext, error) {
+	var row model.ChatRoomSendContext
 	var systemKind sql.NullString
 	var lastMessageAt sql.NullTime
 
@@ -647,7 +731,7 @@ func (r *chatDAO) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx .
 	return &row, nil
 }
 
-func (r *chatDAO) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatRoomMemberRow, error) {
+func (r *chatDAO) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatRoomMemberRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT m.user_id, u.username, u.display_name, u.avatar_url, m.role, COALESCE(ur.role, ''), m.joined_at, m.nickname, m.nickname_locked, m.avatar_url,
 		 CASE WHEN m.timeout_until > NOW() THEN to_char(m.timeout_until AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') ELSE '' END,
@@ -665,9 +749,9 @@ func (r *chatDAO) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, 
 	}
 	defer rows.Close()
 
-	var result []repository.ChatRoomMemberRow
+	var result []model.ChatRoomMemberRow
 	for rows.Next() {
-		var m repository.ChatRoomMemberRow
+		var m model.ChatRoomMemberRow
 		var joinedAt time.Time
 		if err := rows.Scan(&m.UserID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.Role, &m.AuthorRole, &joinedAt, &m.Nickname, &m.NicknameLocked, &m.MemberAvatarURL, &m.TimeoutUntil, &m.TimeoutByStaff, &m.Ghost); err != nil {
 			return nil, fmt.Errorf("scan member detailed: %w", err)
@@ -679,33 +763,33 @@ func (r *chatDAO) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, 
 	return result, rows.Err()
 }
 
-func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly bool, tag string, viewerID uuid.UUID, excludeUserIDs []uuid.UUID, includeArchived bool, limit, offset int, tx ...*sql.Tx) ([]repository.ChatRoomRow, int, error) {
+func (r *chatDAO) ListPublicRooms(ctx context.Context, q spec.ChatPublicRoomFilter, tx ...*sql.Tx) ([]model.ChatRoomRow, int, error) {
 	conditions := []string{"cr.type = 'group'", "cr.is_public = TRUE", "cr.is_system = FALSE"}
-	if !includeArchived {
+	if !q.IncludeArchived {
 		conditions = append(conditions, "cr.archived_at IS NULL")
 	}
 	var countArgs []any
 	idx := 1
-	if search != "" {
+	if q.Search != "" {
 		conditions = append(conditions, fmt.Sprintf("(cr.name ILIKE $%d OR cr.description ILIKE $%d)", idx, idx+1))
-		wc := "%" + search + "%"
+		wc := "%" + q.Search + "%"
 		countArgs = append(countArgs, wc, wc)
 		idx += 2
 	}
-	if isRPOnly {
+	if q.IsRPOnly {
 		conditions = append(conditions, "cr.is_rp = TRUE")
 	}
-	if tag != "" {
+	if q.Tag != "" {
 		conditions = append(conditions, fmt.Sprintf("EXISTS(SELECT 1 FROM chat_room_tags WHERE room_id = cr.id AND tag = $%d)", idx))
-		countArgs = append(countArgs, tag)
+		countArgs = append(countArgs, q.Tag)
 		idx++
 	}
-	if viewerID != uuid.Nil {
+	if q.ViewerID != uuid.Nil {
 		conditions = append(conditions, fmt.Sprintf("NOT EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = $%d AND left_at IS NULL)", idx))
-		countArgs = append(countArgs, viewerID)
+		countArgs = append(countArgs, q.ViewerID)
 		idx++
 	}
-	countExclSQL, countExclArgs := ExcludeClauseNullable("cr.created_by", excludeUserIDs, idx)
+	countExclSQL, countExclArgs := ExcludeClauseNullable("cr.created_by", q.ExcludeUserIDs, idx)
 	countArgs = append(countArgs, countExclArgs...)
 
 	var whereCount strings.Builder
@@ -722,32 +806,32 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 		return nil, 0, fmt.Errorf("count public rooms: %w", err)
 	}
 
-	queryArgs := []any{viewerID}
+	queryArgs := []any{q.ViewerID}
 	qConditions := []string{"cr.type = 'group'", "cr.is_public = TRUE", "cr.is_system = FALSE"}
-	if !includeArchived {
+	if !q.IncludeArchived {
 		qConditions = append(qConditions, "cr.archived_at IS NULL")
 	}
 	qIdx := 2
-	if search != "" {
+	if q.Search != "" {
 		qConditions = append(qConditions, fmt.Sprintf("(cr.name ILIKE $%d OR cr.description ILIKE $%d)", qIdx, qIdx+1))
-		wc := "%" + search + "%"
+		wc := "%" + q.Search + "%"
 		queryArgs = append(queryArgs, wc, wc)
 		qIdx += 2
 	}
-	if isRPOnly {
+	if q.IsRPOnly {
 		qConditions = append(qConditions, "cr.is_rp = TRUE")
 	}
-	if tag != "" {
+	if q.Tag != "" {
 		qConditions = append(qConditions, fmt.Sprintf("EXISTS(SELECT 1 FROM chat_room_tags WHERE room_id = cr.id AND tag = $%d)", qIdx))
-		queryArgs = append(queryArgs, tag)
+		queryArgs = append(queryArgs, q.Tag)
 		qIdx++
 	}
-	if viewerID != uuid.Nil {
+	if q.ViewerID != uuid.Nil {
 		qConditions = append(qConditions, fmt.Sprintf("NOT EXISTS(SELECT 1 FROM chat_room_members WHERE room_id = cr.id AND user_id = $%d AND left_at IS NULL)", qIdx))
-		queryArgs = append(queryArgs, viewerID)
+		queryArgs = append(queryArgs, q.ViewerID)
 		qIdx++
 	}
-	qExclSQL, qExclArgs := ExcludeClauseNullable("cr.created_by", excludeUserIDs, qIdx)
+	qExclSQL, qExclArgs := ExcludeClauseNullable("cr.created_by", q.ExcludeUserIDs, qIdx)
 	queryArgs = append(queryArgs, qExclArgs...)
 	qIdx += len(qExclArgs)
 
@@ -759,7 +843,7 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	whereQuery.WriteString(qExclSQL)
 
 	limitClause := fmt.Sprintf(" LIMIT $%d OFFSET $%d", qIdx, qIdx+1)
-	queryArgs = append(queryArgs, limit, offset)
+	queryArgs = append(queryArgs, q.Limit, q.Offset)
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT cr.id, cr.name, cr.description, cr.type, cr.is_public, cr.is_rp, cr.is_system, cr.system_kind, cr.created_by, cr.created_at, cr.last_message_at, cr.archived_at,
@@ -775,9 +859,9 @@ func (r *chatDAO) ListPublicRooms(ctx context.Context, search string, isRPOnly b
 	}
 	defer rows.Close()
 
-	var result []repository.ChatRoomRow
+	var result []model.ChatRoomRow
 	for rows.Next() {
-		var row repository.ChatRoomRow
+		var row model.ChatRoomRow
 		var systemKind sql.NullString
 		var createdAt time.Time
 		var lastMessageAt, archivedAt sql.NullTime
@@ -810,10 +894,10 @@ func (r *chatDAO) GetRoomMembers(ctx context.Context, roomID uuid.UUID, tx ...*s
 	return utils.ScanIDs(rows, "member")
 }
 
-func (r *chatDAO) IsMember(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) IsMember(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
 	var count int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`, roomID, userID,
+		`SELECT COUNT(*) FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`, s.RoomID, s.UserID,
 	).Scan(&count)
 	if err != nil {
 		return false, fmt.Errorf("check membership: %w", err)
@@ -821,9 +905,9 @@ func (r *chatDAO) IsMember(ctx context.Context, roomID, userID uuid.UUID, tx ...
 	return count > 0, nil
 }
 
-func (r *chatDAO) SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted bool, tx ...*sql.Tx) error {
+func (r *chatDAO) SetMuted(ctx context.Context, s spec.ChatMemberMuteUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE chat_room_members SET muted = $1 WHERE room_id = $2 AND user_id = $3 AND left_at IS NULL`, muted, roomID, userID,
+		`UPDATE chat_room_members SET muted = $1 WHERE room_id = $2 AND user_id = $3 AND left_at IS NULL`, s.Muted, s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("set muted: %w", err)
@@ -831,10 +915,10 @@ func (r *chatDAO) SetMuted(ctx context.Context, roomID, userID uuid.UUID, muted 
 	return nil
 }
 
-func (r *chatDAO) IsMuted(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) IsMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
 	var muted bool
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT muted FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`, roomID, userID,
+		`SELECT muted FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`, s.RoomID, s.UserID,
 	).Scan(&muted)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -855,10 +939,10 @@ func (r *chatDAO) GetRoomMembersUnmuted(ctx context.Context, roomID uuid.UUID, t
 	return utils.ScanIDs(rows, "unmuted member")
 }
 
-func (r *chatDAO) SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedBy uuid.UUID, muted bool, tx ...*sql.Tx) error {
-	if !muted {
+func (r *chatDAO) SetVoiceForceMuted(ctx context.Context, s spec.ChatVoiceForceMuteUpdate, tx ...*sql.Tx) error {
+	if !s.Muted {
 		_, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`DELETE FROM chat_voice_force_mutes WHERE room_id = $1 AND user_id = $2`, roomID, userID,
+			`DELETE FROM chat_voice_force_mutes WHERE room_id = $1 AND user_id = $2`, s.RoomID, s.UserID,
 		)
 		if err != nil {
 			return fmt.Errorf("clear voice force mute: %w", err)
@@ -869,7 +953,7 @@ func (r *chatDAO) SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedB
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_voice_force_mutes (room_id, user_id, muted_by) VALUES ($1, $2, $3)
 		 ON CONFLICT (room_id, user_id) DO UPDATE SET muted_by = EXCLUDED.muted_by`,
-		roomID, userID, mutedBy,
+		s.RoomID, s.UserID, s.MutedBy,
 	)
 	if err != nil {
 		return fmt.Errorf("set voice force mute: %w", err)
@@ -877,10 +961,10 @@ func (r *chatDAO) SetVoiceForceMuted(ctx context.Context, roomID, userID, mutedB
 	return nil
 }
 
-func (r *chatDAO) IsVoiceForceMuted(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) IsVoiceForceMuted(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
 	var muted bool
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT EXISTS (SELECT 1 FROM chat_voice_force_mutes WHERE room_id = $1 AND user_id = $2)`, roomID, userID,
+		`SELECT EXISTS (SELECT 1 FROM chat_voice_force_mutes WHERE room_id = $1 AND user_id = $2)`, s.RoomID, s.UserID,
 	).Scan(&muted)
 	if err != nil {
 		return false, fmt.Errorf("check voice force mute: %w", err)
@@ -898,14 +982,14 @@ func (r *chatDAO) ClearVoiceForceMutes(ctx context.Context, roomID uuid.UUID, tx
 	return nil
 }
 
-func (r *chatDAO) FindDMRoom(ctx context.Context, userA, userB uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
+func (r *chatDAO) FindDMRoom(ctx context.Context, s spec.ChatDMPair, tx ...*sql.Tx) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT cr.id FROM chat_rooms cr
 		 JOIN chat_room_members m ON cr.id = m.room_id AND m.user_id = $1 AND m.left_at IS NULL
 		 WHERE cr.type = 'dm' AND cr.dm_pair_key = $2
 		 LIMIT 1`,
-		userA, dmPairKey(userA, userB),
+		s.UserA, dmPairKey(s.UserA, s.UserB),
 	).Scan(&id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return uuid.Nil, nil
@@ -916,7 +1000,7 @@ func (r *chatDAO) FindDMRoom(ctx context.Context, userA, userB uuid.UUID, tx ...
 	return id, nil
 }
 
-func (r *chatDAO) InsertMessageRow(ctx context.Context, spec repository.NewChatMessage, tx ...*sql.Tx) (*repository.ChatMessageRow, error) {
+func (r *chatDAO) InsertMessageRow(ctx context.Context, s spec.NewChatMessage, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
 	msg, err := scanMessageRow(txOrDB(r.db, tx).QueryRowContext(ctx,
 		`WITH ins AS (
 			INSERT INTO chat_messages (room_id, sender_id, body, reply_to_id, is_system)
@@ -936,7 +1020,7 @@ func (r *chatDAO) InsertMessageRow(ctx context.Context, spec repository.NewChatM
 		 LEFT JOIN users pu ON parent.sender_id = pu.id
 		 LEFT JOIN chat_room_members pmem ON pmem.room_id = cm.room_id AND pmem.user_id = parent.sender_id
 		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id`,
-		spec.RoomID, spec.SenderID, spec.Body, spec.ReplyToID, spec.IsSystem,
+		s.RoomID, s.SenderID, s.Body, s.ReplyToID, s.IsSystem,
 	))
 	if err != nil {
 		return nil, fmt.Errorf("insert message: %w", err)
@@ -945,18 +1029,18 @@ func (r *chatDAO) InsertMessageRow(ctx context.Context, spec repository.NewChatM
 	return &msg, nil
 }
 
-func (r *chatDAO) TouchRoomActivityForMessage(ctx context.Context, roomID uuid.UUID, isSystem bool, tx ...*sql.Tx) error {
+func (r *chatDAO) TouchRoomActivityForMessage(ctx context.Context, s spec.ChatRoomActivityTouch, tx ...*sql.Tx) error {
 	var err error
 
-	if isSystem {
+	if s.IsSystem {
 		_, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE chat_rooms SET last_message_at = NOW() WHERE id = $1`,
-			roomID,
+			s.RoomID,
 		)
 	} else {
 		_, err = txOrDB(r.db, tx).ExecContext(ctx,
 			`UPDATE chat_rooms SET last_message_at = NOW(), archived_at = NULL WHERE id = $1`,
-			roomID,
+			s.RoomID,
 		)
 	}
 
@@ -967,16 +1051,16 @@ func (r *chatDAO) TouchRoomActivityForMessage(ctx context.Context, roomID uuid.U
 	return nil
 }
 
-func (r *chatDAO) GetMessages(ctx context.Context, roomID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.ChatMessageRow, int, error) {
-	return r.getMessages(ctx, roomID, uuid.Nil, limit, offset, tx...)
+func (r *chatDAO) GetMessages(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, int, error) {
+	return r.getMessages(ctx, q, tx...)
 }
 
-func (r *chatDAO) GetMessagesForViewer(ctx context.Context, roomID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.ChatMessageRow, int, error) {
-	return r.getMessages(ctx, roomID, viewerID, limit, offset, tx...)
+func (r *chatDAO) GetMessagesForViewer(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, int, error) {
+	return r.getMessages(ctx, q, tx...)
 }
 
-func (r *chatDAO) GetMessagesForMember(ctx context.Context, roomID, viewerID uuid.UUID, limit int, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
-	rows, _, err := r.getMessages(ctx, roomID, viewerID, limit, 0, tx...)
+func (r *chatDAO) GetMessagesForMember(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, error) {
+	rows, _, err := r.getMessages(ctx, q, tx...)
 
 	return rows, err
 }
@@ -989,10 +1073,10 @@ const visibleToViewer = `
 		  WHERE m.room_id = cm.room_id AND m.user_id = $2),
 		cm.created_at)`
 
-func (r *chatDAO) getMessages(ctx context.Context, roomID, viewerID uuid.UUID, limit, offset int, tx ...*sql.Tx) ([]repository.ChatMessageRow, int, error) {
+func (r *chatDAO) getMessages(ctx context.Context, q spec.ChatMessagePage, tx ...*sql.Tx) ([]model.ChatMessageRow, int, error) {
 	var total int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM chat_messages cm WHERE cm.room_id = $1`+visibleToViewer, roomID, viewerID,
+		`SELECT COUNT(*) FROM chat_messages cm WHERE cm.room_id = $1`+visibleToViewer, q.RoomID, q.ViewerID,
 	).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count messages: %w", err)
@@ -1017,14 +1101,14 @@ func (r *chatDAO) getMessages(ctx context.Context, roomID, viewerID uuid.UUID, l
 			 ORDER BY cm.created_at DESC, cm.id DESC
 			 LIMIT $3
 		) sub ORDER BY sub.created_at ASC, sub.id ASC`,
-		roomID, viewerID, limit,
+		q.RoomID, q.ViewerID, q.Limit,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("get messages: %w", err)
 	}
 	defer rows.Close()
 
-	var messages []repository.ChatMessageRow
+	var messages []model.ChatMessageRow
 	for rows.Next() {
 		msg, err := scanMessageRow(rows)
 		if err != nil {
@@ -1035,7 +1119,7 @@ func (r *chatDAO) getMessages(ctx context.Context, roomID, viewerID uuid.UUID, l
 	return messages, total, rows.Err()
 }
 
-func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID uuid.UUID, query string, limit, offset int, tx ...*sql.Tx) ([]repository.SearchResult, int, error) {
+func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, s spec.ChatMessageSearch, tx ...*sql.Tx) ([]model.SearchResult, int, error) {
 	const (
 		fromWhere = `FROM chat_messages cm
 		 JOIN chat_room_members crm ON crm.room_id = cm.room_id AND crm.user_id = $1 AND crm.left_at IS NULL
@@ -1054,7 +1138,7 @@ func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID 
 		SELECT 'chat_message' AS entity_type, cm.id::text, cm.room_id::text,
 		 COALESCE(NULLIF(cr.name, ''), 'Direct message') AS parent_title,
 		 COALESCE(NULLIF(cr.name, ''), 'Direct message') AS title,
-		 ts_headline('english', cm.body, q.tsq, `+repository.SearchHeadlineOptions+`) AS snippet,
+		 ts_headline('english', cm.body, q.tsq, `+SearchHeadlineOptions+`) AS snippet,
 		 u.id::text, u.username, u.display_name, u.avatar_url,
 		 cm.created_at,
 		 (ts_rank_cd(cm.search_vector, q.tsq) + COALESCE(similarity(cm.body, q.qstr), 0))::float8 AS rank,
@@ -1062,18 +1146,18 @@ func (r *chatDAO) SearchMessagesForViewer(ctx context.Context, viewerID, roomID 
 		 `+fromWhere+`
 		 ORDER BY rank DESC, cm.created_at DESC
 		 LIMIT $4 OFFSET $5`,
-		viewerID, query, roomID, limit, offset,
+		s.ViewerID, s.Query, s.RoomID, s.Limit, s.Offset,
 	)
 	if err != nil {
 		return nil, 0, fmt.Errorf("search chat messages: %w", err)
 	}
 	defer rows.Close()
 
-	return scanSearchRowsWithTotal(rows, limit)
+	return scanSearchRowsWithTotal(rows, s.Limit)
 }
 
-func scanMessageRow(row interface{ Scan(dest ...any) error }) (repository.ChatMessageRow, error) {
-	var msg repository.ChatMessageRow
+func scanMessageRow(row interface{ Scan(dest ...any) error }) (model.ChatMessageRow, error) {
+	var msg model.ChatMessageRow
 	var pinnedAt, editedAt sql.NullTime
 	var pinnedBy uuid.NullUUID
 	var createdAt time.Time
@@ -1102,30 +1186,30 @@ func scanMessageRow(row interface{ Scan(dest ...any) error }) (repository.ChatMe
 	return msg, nil
 }
 
-func attachmentPredicate(kind repository.AttachmentKind) (string, error) {
+func attachmentPredicate(kind model.AttachmentKind) (string, error) {
 	switch kind {
-	case repository.AttachmentKindMedia:
+	case model.AttachmentKindMedia:
 		return ` AND EXISTS (SELECT 1 FROM chat_message_media cmm WHERE cmm.message_id = cm.id)`, nil
-	case repository.AttachmentKindLinks:
+	case model.AttachmentKindLinks:
 		return ` AND cm.body LIKE '%http%'`, nil
 	}
 
 	return "", fmt.Errorf("list room attachments: unknown kind %q", kind)
 }
 
-func (r *chatDAO) ListRoomAttachments(ctx context.Context, roomID, viewerID uuid.UUID, kind repository.AttachmentKind, before string, limit int, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
-	predicate, err := attachmentPredicate(kind)
+func (r *chatDAO) ListRoomAttachments(ctx context.Context, q spec.ChatRoomAttachmentQuery, tx ...*sql.Tx) ([]model.ChatMessageRow, error) {
+	predicate, err := attachmentPredicate(q.Kind)
 	if err != nil {
 		return nil, err
 	}
 
-	beforeTime, beforeID, err := splitMessageCursor(before)
+	beforeTime, beforeID, err := splitMessageCursor(q.Before)
 	if err != nil {
 		return nil, fmt.Errorf("list room attachments: %w", err)
 	}
 
 	var cursor *time.Time
-	if before != "" {
+	if q.Before != "" {
 		cursor = &beforeTime
 	}
 
@@ -1150,14 +1234,14 @@ func (r *chatDAO) ListRoomAttachments(ctx context.Context, roomID, viewerID uuid
 		 )`+predicate+strings.ReplaceAll(visibleToViewer, "$2", "$5")+`
 		 ORDER BY cm.created_at DESC, cm.id DESC
 		 LIMIT $4`,
-		roomID, cursor, beforeID, limit, viewerID,
+		q.RoomID, cursor, beforeID, q.Limit, q.ViewerID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list room attachments: %w", err)
 	}
 	defer rows.Close()
 
-	var messages []repository.ChatMessageRow
+	var messages []model.ChatMessageRow
 	for rows.Next() {
 		msg, err := scanMessageRow(rows)
 		if err != nil {
@@ -1191,23 +1275,10 @@ func splitMessageCursor(before string) (time.Time, string, error) {
 	return beforeTime, beforeID, nil
 }
 
-func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.UUID, before string, limit int, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
-	beforeTS := before
-	beforeID := ""
-	parts := strings.SplitN(before, "|", 2)
-	if len(parts) > 0 {
-		beforeTS = strings.TrimSpace(parts[0])
-	}
-	if len(parts) == 2 {
-		candidate := strings.TrimSpace(parts[1])
-		if _, err := uuid.Parse(candidate); err == nil {
-			beforeID = candidate
-		}
-	}
-
-	beforeTime, parseErr := parseTimestampInput(beforeTS)
+func (r *chatDAO) GetMessagesBefore(ctx context.Context, q spec.ChatMessageCursorPage, tx ...*sql.Tx) ([]model.ChatMessageRow, error) {
+	beforeTime, beforeID, parseErr := splitMessageCursor(q.Before)
 	if parseErr != nil {
-		return nil, fmt.Errorf("get messages before: parse before: %w", parseErr)
+		return nil, fmt.Errorf("get messages before: %w", parseErr)
 	}
 
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
@@ -1231,14 +1302,14 @@ func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.U
 			 ORDER BY cm.created_at DESC, cm.id DESC
 			 LIMIT $4
 		) sub ORDER BY sub.created_at ASC, sub.id ASC`,
-		roomID, beforeTime, beforeID, limit, viewerID,
+		q.RoomID, beforeTime, beforeID, q.Limit, q.ViewerID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("get messages before: %w", err)
 	}
 	defer rows.Close()
 
-	var messages []repository.ChatMessageRow
+	var messages []model.ChatMessageRow
 	for rows.Next() {
 		msg, err := scanMessageRow(rows)
 		if err != nil {
@@ -1249,8 +1320,8 @@ func (r *chatDAO) GetMessagesBefore(ctx context.Context, roomID, viewerID uuid.U
 	return messages, rows.Err()
 }
 
-func (r *chatDAO) GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*repository.ChatMessageRow, error) {
-	var msg repository.ChatMessageRow
+func (r *chatDAO) GetMessageByID(ctx context.Context, messageID uuid.UUID, tx ...*sql.Tx) (*model.ChatMessageRow, error) {
+	var msg model.ChatMessageRow
 	var pinnedAt, editedAt sql.NullTime
 	var pinnedBy uuid.NullUUID
 	var createdAt time.Time
@@ -1326,10 +1397,10 @@ func (r *chatDAO) DeleteMessage(ctx context.Context, messageID uuid.UUID, tx ...
 	return nil
 }
 
-func (r *chatDAO) EditMessage(ctx context.Context, messageID uuid.UUID, body string, tx ...*sql.Tx) error {
+func (r *chatDAO) EditMessage(ctx context.Context, s spec.ChatMessageUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_messages SET body = $1, edited_at = NOW() WHERE id = $2`,
-		body, messageID,
+		s.Body, s.MessageID,
 	)
 	if err != nil {
 		return fmt.Errorf("edit message: %w", err)
@@ -1384,10 +1455,10 @@ func (r *chatDAO) ArchiveStaleGroupRooms(ctx context.Context, cutoff time.Time, 
 	return ids, nil
 }
 
-func (r *chatDAO) MarkRoomRead(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) MarkRoomRead(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET last_read_at = NOW() WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("mark room read: %w", err)
@@ -1406,11 +1477,11 @@ func (r *chatDAO) GetMessageSenderID(ctx context.Context, messageID uuid.UUID, t
 	return senderID, nil
 }
 
-func (r *chatDAO) AddMessageMedia(ctx context.Context, spec repository.NewChatMessageMedia, tx ...*sql.Tx) (int64, error) {
+func (r *chatDAO) AddMessageMedia(ctx context.Context, s spec.NewChatMessageMedia, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`INSERT INTO chat_message_media (message_id, media_url, media_type, thumbnail_url, filename, sort_order, width, height, is_spoiler) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-		spec.MessageID, spec.MediaURL, spec.MediaType, spec.ThumbnailURL, spec.Filename, spec.SortOrder, spec.Width, spec.Height, spec.IsSpoiler,
+		s.TargetID, s.MediaURL, s.MediaType, s.ThumbnailURL, s.Filename, s.SortOrder, s.Width, s.Height, s.IsSpoiler,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add message media: %w", err)
@@ -1418,9 +1489,9 @@ func (r *chatDAO) AddMessageMedia(ctx context.Context, spec repository.NewChatMe
 	return id, nil
 }
 
-func (r *chatDAO) UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (r *chatDAO) UpdateMessageMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE chat_message_media SET media_url = $1 WHERE id = $2`, mediaURL, id,
+		`UPDATE chat_message_media SET media_url = $1 WHERE id = $2`, s.URL, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update message media url: %w", err)
@@ -1428,9 +1499,9 @@ func (r *chatDAO) UpdateMessageMediaURL(ctx context.Context, id int64, mediaURL 
 	return nil
 }
 
-func (r *chatDAO) UpdateMessageMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (r *chatDAO) UpdateMessageMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE chat_message_media SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id,
+		`UPDATE chat_message_media SET thumbnail_url = $1 WHERE id = $2`, s.URL, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update message media thumbnail: %w", err)
@@ -1480,10 +1551,10 @@ func (r *chatDAO) GetMessageMediaBatch(ctx context.Context, messageIDs []uuid.UU
 	return result, rows.Err()
 }
 
-func (r *chatDAO) SetMemberNickname(ctx context.Context, roomID, userID uuid.UUID, nickname string, tx ...*sql.Tx) error {
+func (r *chatDAO) SetMemberNickname(ctx context.Context, s spec.ChatMemberNicknameUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET nickname = $1 WHERE room_id = $2 AND user_id = $3 AND left_at IS NULL`,
-		nickname, roomID, userID,
+		s.Nickname, s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("set member nickname: %w", err)
@@ -1491,10 +1562,10 @@ func (r *chatDAO) SetMemberNickname(ctx context.Context, roomID, userID uuid.UUI
 	return nil
 }
 
-func (r *chatDAO) SetMemberNicknameWithLock(ctx context.Context, roomID, userID uuid.UUID, nickname string, locked bool, tx ...*sql.Tx) error {
+func (r *chatDAO) SetMemberNicknameWithLock(ctx context.Context, s spec.ChatMemberNicknameUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET nickname = $1, nickname_locked = $2 WHERE room_id = $3 AND user_id = $4 AND left_at IS NULL`,
-		nickname, locked, roomID, userID,
+		s.Nickname, s.Locked, s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("set member nickname with lock: %w", err)
@@ -1502,11 +1573,11 @@ func (r *chatDAO) SetMemberNicknameWithLock(ctx context.Context, roomID, userID 
 	return nil
 }
 
-func (r *chatDAO) IsMemberNicknameLocked(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) IsMemberNicknameLocked(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
 	var locked bool
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT nickname_locked FROM chat_room_members WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	).Scan(&locked)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -1517,10 +1588,10 @@ func (r *chatDAO) IsMemberNicknameLocked(ctx context.Context, roomID, userID uui
 	return locked, nil
 }
 
-func (r *chatDAO) SetMemberAvatar(ctx context.Context, roomID, userID uuid.UUID, avatarURL string, tx ...*sql.Tx) error {
+func (r *chatDAO) SetMemberAvatar(ctx context.Context, s spec.ChatMemberAvatarUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET avatar_url = $1 WHERE room_id = $2 AND user_id = $3 AND left_at IS NULL`,
-		avatarURL, roomID, userID,
+		s.AvatarURL, s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("set member avatar: %w", err)
@@ -1528,14 +1599,14 @@ func (r *chatDAO) SetMemberAvatar(ctx context.Context, roomID, userID uuid.UUID,
 	return nil
 }
 
-func (r *chatDAO) SetMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, until string, byStaff bool, tx ...*sql.Tx) error {
-	t, parseErr := parseTimestampInput(until)
+func (r *chatDAO) SetMemberTimeout(ctx context.Context, s spec.ChatMemberTimeout, tx ...*sql.Tx) error {
+	t, parseErr := parseTimestampInput(s.Until)
 	if parseErr != nil {
 		return fmt.Errorf("set member timeout: parse until: %w", parseErr)
 	}
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET timeout_until = $1, timeout_set_by_staff = $2 WHERE room_id = $3 AND user_id = $4 AND left_at IS NULL`,
-		t, byStaff, roomID, userID,
+		t, s.ByStaff, s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("set member timeout: %w", err)
@@ -1543,10 +1614,10 @@ func (r *chatDAO) SetMemberTimeout(ctx context.Context, roomID, userID uuid.UUID
 	return nil
 }
 
-func (r *chatDAO) ClearMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) ClearMemberTimeout(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_room_members SET timeout_until = NULL, timeout_set_by_staff = FALSE WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	)
 	if err != nil {
 		return fmt.Errorf("clear member timeout: %w", err)
@@ -1554,13 +1625,13 @@ func (r *chatDAO) ClearMemberTimeout(ctx context.Context, roomID, userID uuid.UU
 	return nil
 }
 
-func (r *chatDAO) HasActiveMemberTimeout(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) HasActiveMemberTimeout(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
 	var active bool
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT timeout_until > NOW()
 		 FROM chat_room_members
 		 WHERE room_id = $1 AND user_id = $2`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	).Scan(&active)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -1571,7 +1642,7 @@ func (r *chatDAO) HasActiveMemberTimeout(ctx context.Context, roomID, userID uui
 	return active, nil
 }
 
-func (r *chatDAO) GetMemberTimeoutState(ctx context.Context, roomID, userID uuid.UUID, tx ...*sql.Tx) (bool, string, bool, error) {
+func (r *chatDAO) GetMemberTimeoutState(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, string, bool, error) {
 	var active sql.NullBool
 	var until sql.NullTime
 	var byStaff bool
@@ -1581,7 +1652,7 @@ func (r *chatDAO) GetMemberTimeoutState(ctx context.Context, roomID, userID uuid
 		 timeout_set_by_staff
 		 FROM chat_room_members
 		 WHERE room_id = $1 AND user_id = $2 AND left_at IS NULL`,
-		roomID, userID,
+		s.RoomID, s.UserID,
 	).Scan(&active, &until, &byStaff)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, "", false, nil
@@ -1595,10 +1666,10 @@ func (r *chatDAO) GetMemberTimeoutState(ctx context.Context, roomID, userID uuid
 	return active.Valid && active.Bool, until.Time.UTC().Format(time.RFC3339), byStaff, nil
 }
 
-func (r *chatDAO) PinMessage(ctx context.Context, messageID, pinnedBy uuid.UUID, tx ...*sql.Tx) error {
+func (r *chatDAO) PinMessage(ctx context.Context, s spec.ChatMessagePin, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE chat_messages SET pinned_at = NOW(), pinned_by = $1 WHERE id = $2`,
-		pinnedBy, messageID,
+		s.PinnedBy, s.MessageID,
 	)
 	if err != nil {
 		return fmt.Errorf("pin message: %w", err)
@@ -1617,7 +1688,7 @@ func (r *chatDAO) UnpinMessage(ctx context.Context, messageID uuid.UUID, tx ...*
 	return nil
 }
 
-func (r *chatDAO) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.UUID, tx ...*sql.Tx) ([]repository.ChatMessageRow, error) {
+func (r *chatDAO) ListPinnedMessages(ctx context.Context, s spec.ChatRoomViewer, tx ...*sql.Tx) ([]model.ChatMessageRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT cm.id, cm.room_id, cm.sender_id, u.username, u.display_name, u.avatar_url,
 		 COALESCE(ur.role, ''),
@@ -1634,14 +1705,14 @@ func (r *chatDAO) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.
 		 LEFT JOIN chat_room_members mem ON mem.room_id = cm.room_id AND mem.user_id = cm.sender_id
 		 WHERE cm.room_id = $1 AND cm.pinned_at IS NOT NULL`+visibleToViewer+`
 		 ORDER BY cm.pinned_at DESC`,
-		roomID, viewerID,
+		s.RoomID, s.ViewerID,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("list pinned messages: %w", err)
 	}
 	defer rows.Close()
 
-	var messages []repository.ChatMessageRow
+	var messages []model.ChatMessageRow
 	for rows.Next() {
 		msg, err := scanMessageRow(rows)
 		if err != nil {
@@ -1652,10 +1723,10 @@ func (r *chatDAO) ListPinnedMessages(ctx context.Context, roomID, viewerID uuid.
 	return messages, rows.Err()
 }
 
-func (r *chatDAO) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) AddReaction(ctx context.Context, s spec.ChatMessageReaction, tx ...*sql.Tx) (bool, error) {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO chat_message_reactions (message_id, user_id, emoji) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-		messageID, userID, emoji,
+		s.MessageID, s.UserID, s.Emoji,
 	)
 	if err != nil {
 		return false, fmt.Errorf("add reaction: %w", err)
@@ -1667,10 +1738,10 @@ func (r *chatDAO) AddReaction(ctx context.Context, messageID, userID uuid.UUID, 
 	return n > 0, nil
 }
 
-func (r *chatDAO) RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string, tx ...*sql.Tx) (bool, error) {
+func (r *chatDAO) RemoveReaction(ctx context.Context, s spec.ChatMessageReaction, tx ...*sql.Tx) (bool, error) {
 	res, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM chat_message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3`,
-		messageID, userID, emoji,
+		s.MessageID, s.UserID, s.Emoji,
 	)
 	if err != nil {
 		return false, fmt.Errorf("remove reaction: %w", err)
@@ -1682,11 +1753,11 @@ func (r *chatDAO) RemoveReaction(ctx context.Context, messageID, userID uuid.UUI
 	return n > 0, nil
 }
 
-func (r *chatDAO) CountReactions(ctx context.Context, messageID uuid.UUID, emoji string, tx ...*sql.Tx) (int, error) {
+func (r *chatDAO) CountReactions(ctx context.Context, s spec.ChatReactionCount, tx ...*sql.Tx) (int, error) {
 	var n int
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM chat_message_reactions WHERE message_id = $1 AND emoji = $2`,
-		messageID, emoji,
+		s.MessageID, s.Emoji,
 	).Scan(&n)
 	if err != nil {
 		return 0, fmt.Errorf("count reactions: %w", err)
@@ -1694,14 +1765,14 @@ func (r *chatDAO) CountReactions(ctx context.Context, messageID uuid.UUID, emoji
 	return n, nil
 }
 
-func (r *chatDAO) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID, viewerID uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]repository.ReactionGroup, error) {
-	result := make(map[uuid.UUID][]repository.ReactionGroup)
-	if len(messageIDs) == 0 {
+func (r *chatDAO) GetReactionsBatch(ctx context.Context, q spec.ChatReactionsQuery, tx ...*sql.Tx) (map[uuid.UUID][]model.ReactionGroup, error) {
+	result := make(map[uuid.UUID][]model.ReactionGroup)
+	if len(q.MessageIDs) == 0 {
 		return result, nil
 	}
 
-	placeholders, idArgs := utils.PlaceholderArgs(messageIDs, 2)
-	args := append([]any{viewerID}, idArgs...)
+	placeholders, idArgs := utils.PlaceholderArgs(q.MessageIDs, 2)
+	args := append([]any{q.ViewerID}, idArgs...)
 
 	query := `SELECT r.message_id, r.emoji, COUNT(*) AS cnt,
 	          BOOL_OR(r.user_id = $1) AS viewer_reacted,
@@ -1731,7 +1802,7 @@ func (r *chatDAO) GetReactionsBatch(ctx context.Context, messageIDs []uuid.UUID,
 		if names.Valid && names.String != "" {
 			displayNames = strings.Split(names.String, "\n")
 		}
-		result[msgID] = append(result[msgID], repository.ReactionGroup{
+		result[msgID] = append(result[msgID], model.ReactionGroup{
 			Emoji:         emoji,
 			Count:         count,
 			ViewerReacted: viewerReacted,

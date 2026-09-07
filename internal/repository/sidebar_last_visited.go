@@ -1,31 +1,19 @@
 package repository
 
 import (
-	"context"
-	"database/sql"
-
-	"github.com/google/uuid"
+	"umineko_city_of_books/internal/dao"
 )
 
 type (
 	SidebarLastVisitedRepository interface {
-		Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error
-		ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error)
+		dao.SidebarLastVisitedDAO
+	}
+
+	sidebarLastVisitedRepository struct {
+		dao.SidebarLastVisitedDAO
 	}
 )
 
-type sidebarLastVisitedRepository struct {
-	dao SidebarLastVisitedRepository
-}
-
-func NewSidebarLastVisitedRepo(dao SidebarLastVisitedRepository) SidebarLastVisitedRepository {
-	return &sidebarLastVisitedRepository{dao: dao}
-}
-
-func (r *sidebarLastVisitedRepository) Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error {
-	return r.dao.Upsert(ctx, userID, key, tx...)
-}
-
-func (r *sidebarLastVisitedRepository) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error) {
-	return r.dao.ListForUser(ctx, userID, tx...)
+func NewSidebarLastVisitedRepo(visits dao.SidebarLastVisitedDAO) SidebarLastVisitedRepository {
+	return &sidebarLastVisitedRepository{SidebarLastVisitedDAO: visits}
 }

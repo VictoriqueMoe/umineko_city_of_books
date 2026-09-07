@@ -6,6 +6,7 @@ import (
 	"io"
 	"strings"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -14,10 +15,11 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/text"
@@ -114,7 +116,7 @@ func NewService(
 	}
 }
 
-func (s *service) audit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) audit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -128,8 +130,8 @@ func clueBodies(clues []dto.CreateClueRequest) []string {
 	return out
 }
 
-func newClues(clues []dto.CreateClueRequest) []repository.NewClue {
-	out := make([]repository.NewClue, 0, len(clues))
+func newClues(clues []dto.CreateClueRequest) []spec.NewClue {
+	out := make([]spec.NewClue, 0, len(clues))
 	for i, clue := range clues {
 		if strings.TrimSpace(clue.Body) == "" {
 			continue
@@ -140,7 +142,7 @@ func newClues(clues []dto.CreateClueRequest) []repository.NewClue {
 			truthType = "red"
 		}
 
-		out = append(out, repository.NewClue{
+		out = append(out, spec.NewClue{
 			Body:      clue.Body,
 			TruthType: truthType,
 			SortOrder: i,
@@ -152,7 +154,13 @@ func newClues(clues []dto.CreateClueRequest) []repository.NewClue {
 
 func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, viewerID uuid.UUID, page bounds.Page) (*dto.MysteryListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	rows, total, err := s.mysteryRepo.List(ctx, sort, solved, page.Limit(), page.Offset(), blockedIDs)
+	rows, total, err := s.mysteryRepo.List(ctx, spec.MysteryListFilter{
+		Sort:           sort,
+		Solved:         solved,
+		Limit:          page.Limit(),
+		Offset:         page.Offset(),
+		ExcludeUserIDs: blockedIDs,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +168,7 @@ func (s *service) ListMysteries(ctx context.Context, sort string, solved *bool, 
 	return s.buildMysteryList(rows, total, page.Limit(), page.Offset()), nil
 }
 
-func (s *service) buildMysteryList(rows []repository.MysteryRow, total, limit, offset int) *dto.MysteryListResponse {
+func (s *service) buildMysteryList(rows []model.MysteryRow, total, limit, offset int) *dto.MysteryListResponse {
 	mysteries := make([]dto.MysteryResponse, len(rows))
 	for i, r := range rows {
 		resp := r.ToResponse()
@@ -192,7 +200,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 		allClues = []dto.MysteryClue{}
 	}
 
-	attemptRows, _ := s.mysteryRepo.GetAttempts(ctx, id, viewerID)
+	attemptRows, _ := s.mysteryRepo.GetAttempts(ctx, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: viewerID})
 	flatAttempts := make([]dto.MysteryAttempt, len(attemptRows))
 	for i, a := range attemptRows {
 		flatAttempts[i] = dto.MysteryAttempt{
@@ -251,7 +259,13 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	var comments []dto.MysteryCommentResponse
 	if row.Solved {
 		blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-		commentRows, _, _ := s.mysteryRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+		commentRows, _, _ := s.mysteryRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+			TargetID:       id,
+			ViewerID:       viewerID,
+			Limit:          500,
+			Offset:         0,
+			ExcludeUserIDs: blockedIDs,
+		})
 		if len(commentRows) > 0 {
 			commentIDs := make([]uuid.UUID, len(commentRows))
 			for i, c := range commentRows {
@@ -283,7 +297,7 @@ func (s *service) GetMystery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 
 	viewerHasSolved := false
 	if viewerID != uuid.Nil && viewerID != row.UserID {
-		viewerHasSolved, _ = s.mysteryRepo.UserHasWinningAttempt(ctx, id, viewerID)
+		viewerHasSolved, _ = s.mysteryRepo.UserHasWinningAttempt(ctx, spec.MysterySolverQuery{MysteryID: id, UserID: viewerID})
 	}
 
 	resp := dto.MysteryDetailResponse{
@@ -348,15 +362,17 @@ func (s *service) CreateMystery(ctx context.Context, userID uuid.UUID, req dto.C
 		contract = *req.KnoxContract
 	}
 
-	created, err := s.mysteryRepo.CreateWithClues(ctx, repository.NewMystery{
-		UserID:             userID,
-		Title:              req.Title,
-		Body:               req.Body,
-		Difficulty:         req.Difficulty,
-		FreeForAll:         req.FreeForAll,
-		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
-		Knox:               contract,
-		Clues:              newClues(req.Clues),
+	created, err := s.mysteryRepo.CreateWithClues(ctx, spec.NewMysteryWithClues{
+		NewMystery: spec.NewMystery{
+			UserID:             userID,
+			Title:              req.Title,
+			Body:               req.Body,
+			Difficulty:         req.Difficulty,
+			FreeForAll:         req.FreeForAll,
+			KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+			Knox:               contract,
+		},
+		Clues: newClues(req.Clues),
 	})
 	if err != nil {
 		return uuid.Nil, err
@@ -398,15 +414,17 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 		return ErrContractLocked
 	}
 
-	if err := s.mysteryRepo.UpdateWithClues(ctx, repository.MysteryUpdate{
-		ID:                 id,
-		Title:              req.Title,
-		Body:               req.Body,
-		Difficulty:         req.Difficulty,
-		FreeForAll:         req.FreeForAll,
-		KeepOpenAfterSolve: req.KeepOpenAfterSolve,
-		Knox:               contract,
-		Clues:              newClues(req.Clues),
+	if err := s.mysteryRepo.UpdateWithClues(ctx, spec.MysteryUpdateWithClues{
+		MysteryUpdate: spec.MysteryUpdate{
+			ID:                 id,
+			Title:              req.Title,
+			Body:               req.Body,
+			Difficulty:         req.Difficulty,
+			FreeForAll:         req.FreeForAll,
+			KeepOpenAfterSolve: req.KeepOpenAfterSolve,
+			Knox:               contract,
+		},
+		Clues: newClues(req.Clues),
 	}); err != nil {
 		return err
 	}
@@ -434,10 +452,10 @@ func (s *service) UpdateMystery(ctx context.Context, id uuid.UUID, userID uuid.U
 			summary = strings.Join(changes, ", ")
 		}
 
-		s.audit(ctx, repository.NewAuditEntry{
+		s.audit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionMysteryUpdateAdmin,
-			TargetType: repository.AuditTargetMystery,
+			Action:     audit.ActionMysteryUpdateAdmin,
+			TargetType: audit.TargetMystery,
 			TargetID:   id.String(),
 			Details:    fmt.Sprintf("title=%q changed=%q clues=rewritten", old.Title, summary),
 			SubjectID:  old.UserID,
@@ -486,7 +504,7 @@ func cluesChanged(old []dto.MysteryClue, new []dto.CreateClueRequest) bool {
 func (s *service) DeleteMystery(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	asAdmin := s.authz.Can(ctx, userID, authz.PermDeleteAnyTheory)
 
-	paths, err := s.mysteryRepo.DeleteWithFiles(ctx, repository.MysteryDelete{ID: id, UserID: userID, AsAdmin: asAdmin})
+	paths, err := s.mysteryRepo.DeleteWithFiles(ctx, spec.MysteryDelete{ID: id, UserID: userID, AsAdmin: asAdmin})
 	if err != nil {
 		return err
 	}

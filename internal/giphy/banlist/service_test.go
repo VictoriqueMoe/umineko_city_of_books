@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/stretchr/testify/assert"
@@ -12,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newTestService(t *testing.T, seed []repository.BannedGiphyRow) (*service, *repository.MockBannedGiphyRepository) {
+func newTestService(t *testing.T, seed []model.BannedGiphyRow) (*service, *repository.MockBannedGiphyRepository) {
 	repo := repository.NewMockBannedGiphyRepository(t)
 	repo.EXPECT().List(mock.Anything).Return(seed, nil).Once()
 	svc, err := NewService(context.Background(), repo)
@@ -22,7 +24,7 @@ func newTestService(t *testing.T, seed []repository.BannedGiphyRow) (*service, *
 
 func TestNewService_LoadsSeed(t *testing.T) {
 	// given
-	seed := []repository.BannedGiphyRow{
+	seed := []model.BannedGiphyRow{
 		{Kind: "gif", Value: "abc123"},
 		{Kind: "user", Value: "Larperine"},
 	}
@@ -47,7 +49,7 @@ func TestContainsGif_Empty(t *testing.T) {
 
 func TestContainsUser_CaseInsensitive(t *testing.T) {
 	// given
-	svc, _ := newTestService(t, []repository.BannedGiphyRow{{Kind: "user", Value: "Larperine"}})
+	svc, _ := newTestService(t, []model.BannedGiphyRow{{Kind: "user", Value: "Larperine"}})
 
 	// when / then
 	assert.True(t, svc.ContainsUser("LARPERINE"))
@@ -57,7 +59,7 @@ func TestContainsUser_CaseInsensitive(t *testing.T) {
 func TestAdd_Gif_UpdatesDBAndCache(t *testing.T) {
 	// given
 	svc, repo := newTestService(t, nil)
-	repo.EXPECT().Add(mock.Anything, "gif", "xyz", "spam", mock.Anything).Return(nil)
+	repo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "gif", Value: "xyz", Reason: "spam"}).Return(nil)
 
 	// when
 	err := svc.Add(context.Background(), KindGif, "xyz", "spam", nil)
@@ -70,7 +72,7 @@ func TestAdd_Gif_UpdatesDBAndCache(t *testing.T) {
 func TestAdd_User_NormalisesCase(t *testing.T) {
 	// given
 	svc, repo := newTestService(t, nil)
-	repo.EXPECT().Add(mock.Anything, "user", "Larperine", "", mock.Anything).Return(nil)
+	repo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "user", Value: "Larperine"}).Return(nil)
 
 	// when
 	err := svc.Add(context.Background(), KindUser, "Larperine", "", nil)
@@ -104,8 +106,8 @@ func TestAdd_EmptyValue(t *testing.T) {
 
 func TestRemove_Gif(t *testing.T) {
 	// given
-	svc, repo := newTestService(t, []repository.BannedGiphyRow{{Kind: "gif", Value: "abc"}})
-	repo.EXPECT().Remove(mock.Anything, "gif", "abc").Return(nil)
+	svc, repo := newTestService(t, []model.BannedGiphyRow{{Kind: "gif", Value: "abc"}})
+	repo.EXPECT().Remove(mock.Anything, spec.BannedGiphyDeletion{Kind: "gif", Value: "abc"}).Return(nil)
 
 	// when
 	err := svc.Remove(context.Background(), KindGif, "abc")
@@ -118,7 +120,9 @@ func TestRemove_Gif(t *testing.T) {
 func TestConcurrentContainsDuringAdd(t *testing.T) {
 	// given
 	svc, repo := newTestService(t, nil)
-	repo.EXPECT().Add(mock.Anything, "gif", mock.Anything, "", mock.Anything).Return(nil).Maybe()
+	for i := range 10 {
+		repo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "gif", Value: string(rune('a' + i))}).Return(nil).Maybe()
+	}
 
 	// when — race the reader against writers
 	var wg sync.WaitGroup

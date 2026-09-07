@@ -6,6 +6,8 @@ import (
 
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 
@@ -32,8 +34,8 @@ func TestPubliclyVisibleRoom(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// given the same room described by both repository shapes
-			row := &repository.ChatRoomRow{Type: tt.roomType, IsPublic: tt.isPublic, IsSystem: tt.isSystem}
-			sendCtx := &repository.ChatRoomSendContext{Type: tt.roomType, IsPublic: tt.isPublic, IsSystem: tt.isSystem}
+			row := &model.ChatRoomRow{Type: tt.roomType, IsPublic: tt.isPublic, IsSystem: tt.isSystem}
+			sendCtx := &model.ChatRoomSendContext{Type: tt.roomType, IsPublic: tt.isPublic, IsSystem: tt.isSystem}
 
 			// when
 			rowVisible := row.PubliclyVisible()
@@ -50,8 +52,8 @@ func TestPubliclyVisibleRoom(t *testing.T) {
 
 func TestPubliclyVisibleRoom_NilIsNeverVisible(t *testing.T) {
 	// given
-	var row *repository.ChatRoomRow
-	var sendCtx *repository.ChatRoomSendContext
+	var row *model.ChatRoomRow
+	var sendCtx *model.ChatRoomSendContext
 
 	// when / then
 	assert.False(t, row.PubliclyVisible())
@@ -63,18 +65,18 @@ func TestPubliclyVisibleRoom_NilIsNeverVisible(t *testing.T) {
 func TestPlainMessageNotification(t *testing.T) {
 	tests := []struct {
 		name        string
-		room        *repository.ChatRoomSendContext
+		room        *model.ChatRoomSendContext
 		wantType    dto.NotificationType
 		wantMessage string
 	}{
 		{
 			name:     "a dm carries no message so the dao can collapse it",
-			room:     &repository.ChatRoomSendContext{Type: dto.RoomTypeDM, Name: "ignored"},
+			room:     &model.ChatRoomSendContext{Type: dto.RoomTypeDM, Name: "ignored"},
 			wantType: dto.NotifChatMessage,
 		},
 		{
 			name:        "a group room carries the wording the dao strips to recover the room name",
-			room:        &repository.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "General"},
+			room:        &model.ChatRoomSendContext{Type: dto.RoomTypeGroup, Name: "General"},
 			wantType:    dto.NotifChatRoomMessage,
 			wantMessage: "sent a message in General",
 		},
@@ -104,27 +106,27 @@ func TestLockedAccountRuleReachesStaffOnly(t *testing.T) {
 	tests := []struct {
 		name         string
 		locked       bool
-		room         *repository.ChatRoomRow
+		room         *model.ChatRoomRow
 		members      []uuid.UUID
 		audienceRole role.Role
 		wantErr      error
 	}{
 		{
 			name:    "an unlocked sender is never questioned",
-			room:    &repository.ChatRoomRow{Type: dto.RoomTypeGroup},
+			room:    &model.ChatRoomRow{Type: dto.RoomTypeGroup},
 			members: []uuid.UUID{senderID, otherID},
 		},
 		{
 			name:         "a locked sender may speak in a dm with site staff",
 			locked:       true,
-			room:         &repository.ChatRoomRow{Type: dto.RoomTypeDM},
+			room:         &model.ChatRoomRow{Type: dto.RoomTypeDM},
 			members:      []uuid.UUID{senderID, otherID},
 			audienceRole: authz.RoleModerator,
 		},
 		{
 			name:         "a locked sender may not speak in a dm with an ordinary member",
 			locked:       true,
-			room:         &repository.ChatRoomRow{Type: dto.RoomTypeDM},
+			room:         &model.ChatRoomRow{Type: dto.RoomTypeDM},
 			members:      []uuid.UUID{senderID, otherID},
 			audienceRole: role.Role("user"),
 			wantErr:      ErrLockedNonStaffDM,
@@ -132,21 +134,21 @@ func TestLockedAccountRuleReachesStaffOnly(t *testing.T) {
 		{
 			name:    "a locked sender may not speak in a dm they are alone in",
 			locked:  true,
-			room:    &repository.ChatRoomRow{Type: dto.RoomTypeDM},
+			room:    &model.ChatRoomRow{Type: dto.RoomTypeDM},
 			members: []uuid.UUID{senderID},
 			wantErr: ErrLockedNonStaffDM,
 		},
 		{
 			name:    "a locked sender may not speak in a group room",
 			locked:  true,
-			room:    &repository.ChatRoomRow{Type: dto.RoomTypeGroup},
+			room:    &model.ChatRoomRow{Type: dto.RoomTypeGroup},
 			members: []uuid.UUID{senderID, otherID},
 			wantErr: ErrLockedNonStaffDM,
 		},
 		{
 			name:    "a locked sender may not speak in the staff room either",
 			locked:  true,
-			room:    &repository.ChatRoomRow{Type: dto.RoomTypeGroup, IsSystem: true, SystemKind: SystemKindMods},
+			room:    &model.ChatRoomRow{Type: dto.RoomTypeGroup, IsSystem: true, SystemKind: SystemKindMods},
 			members: []uuid.UUID{senderID, otherID},
 			wantErr: ErrLockedNonStaffDM,
 		},
@@ -168,7 +170,7 @@ func TestLockedAccountRuleReachesStaffOnly(t *testing.T) {
 			c := &core{userRepo: userRepo, chatRepo: chatRepo, authzSvc: authzSvc}
 
 			userRepo.EXPECT().IsLocked(mock.Anything, senderID).Return(tt.locked, nil)
-			chatRepo.EXPECT().GetRoomByID(mock.Anything, roomID, senderID).Return(tt.room, nil).Maybe()
+			chatRepo.EXPECT().GetRoomByID(mock.Anything, spec.ChatRoomViewer{RoomID: roomID, ViewerID: senderID}).Return(tt.room, nil).Maybe()
 			chatRepo.EXPECT().GetRoomMembers(mock.Anything, roomID).Return(tt.members, nil).Maybe()
 			if tt.audienceRole != "" {
 				authzSvc.EXPECT().GetRoles(mock.Anything, []uuid.UUID{otherID}).

@@ -2,12 +2,15 @@ package admin
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -18,7 +21,7 @@ import (
 func TestListVanityRoles_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().List(mock.Anything).Return([]repository.VanityRoleRow{
+	m.vanityRepo.EXPECT().List(mock.Anything).Return([]model.VanityRoleRow{
 		{ID: "r1", Label: "L", Color: "#ff0000", IsSystem: true, SortOrder: 1},
 	}, nil)
 
@@ -72,9 +75,14 @@ func TestCreateVanityRole_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.vanityRepo.EXPECT().Create(mock.Anything, mock.AnythingOfType("string"), "gold", "#ffcc00", 3).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry repository.NewAuditEntry) bool {
-		return entry.ActorID == actor && entry.Action == repository.AuditActionCreateVanityRole && entry.TargetType == repository.AuditTargetVanityRole && entry.Details == ""
+	m.vanityRepo.EXPECT().Create(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.NewVanityRole, _ ...*sql.Tx) {
+		assert.NotEmpty(t, s.ID)
+		assert.Equal(t, "gold", s.Label)
+		assert.Equal(t, "#ffcc00", s.Color)
+		assert.Equal(t, 3, s.SortOrder)
+	}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, mock.MatchedBy(func(entry audit.NewEntry) bool {
+		return entry.ActorID == actor && entry.Action == audit.ActionCreateVanityRole && entry.TargetType == audit.TargetVanityRole && entry.Details == ""
 	})).Return(nil)
 
 	// when
@@ -96,7 +104,12 @@ func TestCreateVanityRole_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.vanityRepo.EXPECT().Create(mock.Anything, mock.AnythingOfType("string"), "gold", "#ffcc00", 0).Return(errors.New("boom"))
+	m.vanityRepo.EXPECT().Create(mock.Anything, mock.Anything).Run(func(_ context.Context, s spec.NewVanityRole, _ ...*sql.Tx) {
+		assert.NotEmpty(t, s.ID)
+		assert.Equal(t, "gold", s.Label)
+		assert.Equal(t, "#ffcc00", s.Color)
+		assert.Equal(t, 0, s.SortOrder)
+	}).Return(errors.New("boom"))
 
 	// when
 	_, err := svc.CreateVanityRole(context.Background(), actor, dto.CreateVanityRoleRequest{
@@ -113,9 +126,9 @@ func TestUpdateVanityRole_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	id := "r1"
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, id).Return(&repository.VanityRoleRow{ID: id, IsSystem: false}, nil)
-	m.vanityRepo.EXPECT().Update(mock.Anything, id, "silver", "#cccccc", 2).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUpdateVanityRole, TargetType: repository.AuditTargetVanityRole, TargetID: id, Details: ""}).Return(nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, id).Return(&model.VanityRoleRow{ID: id, IsSystem: false}, nil)
+	m.vanityRepo.EXPECT().Update(mock.Anything, spec.VanityRoleUpdate{ID: id, Label: "silver", Color: "#cccccc", SortOrder: 2}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUpdateVanityRole, TargetType: audit.TargetVanityRole, TargetID: id, Details: ""}).Return(nil)
 
 	// when
 	err := svc.UpdateVanityRole(context.Background(), actor, id, dto.UpdateVanityRoleRequest{
@@ -165,7 +178,7 @@ func TestUpdateVanityRole_ValidationErrors(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// given
 			svc, m := newTestService(t)
-			m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+			m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 
 			// when
 			err := svc.UpdateVanityRole(context.Background(), uuid.New(), "r1", tc.req)
@@ -179,8 +192,8 @@ func TestUpdateVanityRole_ValidationErrors(t *testing.T) {
 func TestUpdateVanityRole_UpdateError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
-	m.vanityRepo.EXPECT().Update(mock.Anything, "r1", "x", "#000000", 0).Return(errors.New("boom"))
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().Update(mock.Anything, spec.VanityRoleUpdate{ID: "r1", Label: "x", Color: "#000000", SortOrder: 0}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateVanityRole(context.Background(), uuid.New(), "r1", dto.UpdateVanityRoleRequest{Label: "x", Color: "#000000"})
@@ -193,10 +206,10 @@ func TestDeleteVanityRole_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1", IsSystem: false}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1", IsSystem: false}, nil)
 	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(false)
 	m.vanityRepo.EXPECT().Delete(mock.Anything, "r1").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionDeleteVanityRole, TargetType: repository.AuditTargetVanityRole, TargetID: "r1", Details: ""}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionDeleteVanityRole, TargetType: audit.TargetVanityRole, TargetID: "r1", Details: ""}).Return(nil)
 
 	// when
 	err := svc.DeleteVanityRole(context.Background(), actor, "r1")
@@ -209,7 +222,7 @@ func TestDeleteVanityRole_RefusedWhileItIsTheOptInRole(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	actor := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "patron").Return(&repository.VanityRoleRow{ID: "patron"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "patron").Return(&model.VanityRoleRow{ID: "patron"}, nil)
 	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(true)
 	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotRequirePermission).Return(true)
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingChatbotOptInRole).Return("patron")
@@ -249,7 +262,7 @@ func TestDeleteVanityRole_GetError(t *testing.T) {
 func TestDeleteVanityRole_SystemRole(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1", IsSystem: true}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1", IsSystem: true}, nil)
 
 	// when
 	err := svc.DeleteVanityRole(context.Background(), uuid.New(), "r1")
@@ -261,7 +274,7 @@ func TestDeleteVanityRole_SystemRole(t *testing.T) {
 func TestDeleteVanityRole_DeleteError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.settingsSvc.EXPECT().GetBool(mock.Anything, config.SettingChatbotEnabled).Return(false)
 	m.vanityRepo.EXPECT().Delete(mock.Anything, "r1").Return(errors.New("boom"))
 
@@ -276,7 +289,7 @@ func TestGetVanityRoleUsers_OK(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	uid := uuid.New()
-	m.vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "r1", "q", 10, 0).Return([]repository.VanityRoleUserRow{
+	m.vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "r1", Search: "q", Limit: 10, Offset: 0}).Return([]model.VanityRoleUserRow{
 		{UserID: uid, Username: "u", DisplayName: "U", AvatarURL: "/a.png"},
 	}, 1, nil)
 
@@ -293,7 +306,7 @@ func TestGetVanityRoleUsers_OK(t *testing.T) {
 func TestGetVanityRoleUsers_RepoError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().GetUsersForRole(mock.Anything, "r1", "", 10, 0).Return(nil, 0, errors.New("boom"))
+	m.vanityRepo.EXPECT().GetUsersForRole(mock.Anything, spec.VanityRoleUserQuery{RoleID: "r1", Search: "", Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.GetVanityRoleUsers(context.Background(), "r1", "", bounds.NewPage(10, 0))
@@ -307,10 +320,10 @@ func TestAssignVanityRole_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionAssignVanityRole, TargetType: repository.AuditTargetVanityRole, TargetID: "r1", Details: "", SubjectID: target}).Return(nil)
+	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionAssignVanityRole, TargetType: audit.TargetVanityRole, TargetID: "r1", Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.AssignVanityRole(context.Background(), actor, "r1", target)
@@ -346,7 +359,7 @@ func TestAssignVanityRole_GetError(t *testing.T) {
 func TestAssignVanityRole_SystemRole(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1", IsSystem: true}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1", IsSystem: true}, nil)
 
 	// when
 	err := svc.AssignVanityRole(context.Background(), uuid.New(), "r1", uuid.New())
@@ -359,9 +372,9 @@ func TestAssignVanityRole_AssignError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	target := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, target, "r1").Return(errors.New("boom"))
+	m.vanityRepo.EXPECT().AssignToUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.AssignVanityRole(context.Background(), uuid.New(), "r1", target)
@@ -375,10 +388,10 @@ func TestUnassignVanityRole_OK(t *testing.T) {
 	svc, m := newTestService(t)
 	actor := uuid.New()
 	target := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, target, "r1").Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{ActorID: actor, Action: repository.AuditActionUnassignVanityRole, TargetType: repository.AuditTargetVanityRole, TargetID: "r1", Details: "", SubjectID: target}).Return(nil)
+	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(nil)
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{ActorID: actor, Action: audit.ActionUnassignVanityRole, TargetType: audit.TargetVanityRole, TargetID: "r1", Details: "", SubjectID: target}).Return(nil)
 
 	// when
 	err := svc.UnassignVanityRole(context.Background(), actor, "r1", target)
@@ -414,7 +427,7 @@ func TestUnassignVanityRole_GetError(t *testing.T) {
 func TestUnassignVanityRole_SystemRole(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1", IsSystem: true}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1", IsSystem: true}, nil)
 
 	// when
 	err := svc.UnassignVanityRole(context.Background(), uuid.New(), "r1", uuid.New())
@@ -427,9 +440,9 @@ func TestUnassignVanityRole_UnassignError(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
 	target := uuid.New()
-	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&repository.VanityRoleRow{ID: "r1"}, nil)
+	m.vanityRepo.EXPECT().GetByID(mock.Anything, "r1").Return(&model.VanityRoleRow{ID: "r1"}, nil)
 	m.permRepo.EXPECT().GetVanityRolePermissions(mock.Anything).Return(nil, nil)
-	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, target, "r1").Return(errors.New("boom"))
+	m.vanityRepo.EXPECT().UnassignFromUser(mock.Anything, spec.VanityRoleAssignment{UserID: target, RoleID: "r1"}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UnassignVanityRole(context.Background(), uuid.New(), "r1", target)

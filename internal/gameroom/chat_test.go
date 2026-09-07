@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model/spec"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -55,7 +56,7 @@ func TestPostSpectatorChat_ClampsByRunesNotBytes(t *testing.T) {
 			spectator := uuid.New()
 
 			m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRoomRow(roomID, creator), nil)
-			m.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, spectator).Return(false, nil)
+			m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: spectator}).Return(false, nil)
 			seedUser(t, m, spectator, "Spectator")
 
 			// when
@@ -115,7 +116,7 @@ func TestPostSpectatorChat_RejectsAPlayer(t *testing.T) {
 	row := pendingRow(roomID, player)
 	row.Status = string(dto.GameStatusActive)
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, player).Return(true, nil)
+	m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player}).Return(true, nil)
 
 	// when
 	_, err := m.svc.PostSpectatorChat(context.Background(), roomID, player, "hello")
@@ -132,7 +133,7 @@ func TestPostPlayerChat_RejectsANonParticipant(t *testing.T) {
 	row := pendingRow(roomID, uuid.New())
 	row.Status = string(dto.GameStatusActive)
 	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(row, nil)
-	m.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, outsider).Return(false, nil)
+	m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: outsider}).Return(false, nil)
 
 	// when
 	_, err := m.svc.PostPlayerChat(context.Background(), roomID, outsider, "hello")
@@ -146,7 +147,7 @@ func TestGetSpectatorChat_HidesTheSpectatorFeedFromAPlayer(t *testing.T) {
 	m := newTestService(t)
 	roomID := uuid.New()
 	player := uuid.New()
-	m.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, player).Return(true, nil)
+	m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: player}).Return(true, nil)
 
 	// when
 	_, err := m.svc.GetSpectatorChat(context.Background(), roomID, player)
@@ -172,7 +173,7 @@ func TestGetPlayerChat_RejectsANonParticipant(t *testing.T) {
 	m := newTestService(t)
 	roomID := uuid.New()
 	outsider := uuid.New()
-	m.roomRepo.EXPECT().IsParticipant(mock.Anything, roomID, outsider).Return(false, nil)
+	m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: outsider}).Return(false, nil)
 
 	// when
 	_, err := m.svc.GetPlayerChat(context.Background(), roomID, outsider)

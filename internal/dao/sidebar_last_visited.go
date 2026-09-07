@@ -7,20 +7,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
+	SidebarLastVisitedDAO interface {
+		Upsert(ctx context.Context, s spec.NewSidebarVisit, tx ...*sql.Tx) error
+		ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (map[string]string, error)
+	}
+
 	sidebarLastVisitedDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *sidebarLastVisitedDAO) Upsert(ctx context.Context, userID uuid.UUID, key string, tx ...*sql.Tx) error {
+func (r *sidebarLastVisitedDAO) Upsert(ctx context.Context, s spec.NewSidebarVisit, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO sidebar_last_visited (user_id, key, visited_at)
 		 VALUES ($1, $2, NOW())
 		 ON CONFLICT (user_id, key) DO UPDATE SET visited_at = EXCLUDED.visited_at`,
-		userID, key,
+		s.UserID, s.Key,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert sidebar last visited: %w", err)

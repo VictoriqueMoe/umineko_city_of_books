@@ -9,12 +9,15 @@ import (
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/secrets"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/upload"
 	"umineko_city_of_books/internal/ws"
@@ -27,7 +30,7 @@ import (
 
 type testMocks struct {
 	secretRepo     *repository.MockSecretRepository
-	secretComments *repository.MockCommentDAO[string]
+	secretComments *dao.MockCommentDAO[string]
 	userSecretRepo *repository.MockUserSecretRepository
 	userRepo       *repository.MockUserRepository
 	authz          *authz.MockService
@@ -49,9 +52,9 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 
 	hub := ws.NewHub()
 	mediaProc := &media.Processor{}
-	secretComments := repository.NewMockCommentDAO[string](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notif, repository.CommentDAOs{
-		BySlug: map[string]repository.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
+	secretComments := dao.NewMockCommentDAO[string](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notif, dao.CommentDAOs{
+		BySlug: map[string]dao.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
 	})
 	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, mediaProc, hub, contentfilter.New()).(*service)
 
@@ -73,6 +76,12 @@ func newTestService(t *testing.T) (*service, *testMocks) {
 	}
 }
 
+func witchHunterPieceIDs() []string {
+	witchHunter, _ := secrets.Lookup("witchHunter")
+
+	return secrets.PieceIDStrings(witchHunter)
+}
+
 func TestList_ReturnsListedSecretsWithStatus(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -84,7 +93,7 @@ func TestList_ReturnsListedSecretsWithStatus(t *testing.T) {
 		GetFirstSolver(mock.Anything, "witchHunter").
 		Return(nil, nil)
 	m.secretRepo.EXPECT().
-		GetPieceCountForUser(mock.Anything, viewer, mock.Anything).
+		GetPieceCountForUser(mock.Anything, spec.SecretPieceCount{UserID: viewer, PieceIDs: witchHunterPieceIDs()}).
 		Return(3, nil)
 	m.secretRepo.EXPECT().
 		GetSolversLeaderboard(mock.Anything, mock.Anything).
@@ -112,13 +121,13 @@ func TestList_ShowsSolver(t *testing.T) {
 	m.secretRepo.EXPECT().CountCommentsBySecret(mock.Anything, mock.Anything).Return(map[string]int{}, nil)
 	m.secretRepo.EXPECT().
 		GetFirstSolver(mock.Anything, "witchHunter").
-		Return(&repository.SecretSolver{
+		Return(&model.SecretSolver{
 			UserID:      winnerID,
 			Username:    "winner",
 			DisplayName: "Winner",
 			UnlockedAt:  "2026-01-01T00:00:00Z",
 		}, nil)
-	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, viewer, mock.Anything).Return(0, nil)
+	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, spec.SecretPieceCount{UserID: viewer, PieceIDs: witchHunterPieceIDs()}).Return(0, nil)
 	m.secretRepo.EXPECT().GetSolversLeaderboard(mock.Anything, mock.Anything).Return(nil, nil)
 
 	// when
@@ -151,13 +160,18 @@ func TestGet_AssemblesLeaderboardAndComments(t *testing.T) {
 	hunterID := uuid.New()
 	m.secretRepo.EXPECT().CountCommentsBySecret(mock.Anything, []string{"witchHunter"}).Return(map[string]int{}, nil)
 	m.secretRepo.EXPECT().GetFirstSolver(mock.Anything, "witchHunter").Return(nil, nil)
-	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, viewer, mock.Anything).Return(0, nil)
-	m.secretRepo.EXPECT().GetProgressLeaderboard(mock.Anything, mock.Anything).Return([]repository.SecretLeaderboardRow{
+	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, spec.SecretPieceCount{UserID: viewer, PieceIDs: witchHunterPieceIDs()}).Return(0, nil)
+	m.secretRepo.EXPECT().GetProgressLeaderboard(mock.Anything, mock.Anything).Return([]model.SecretLeaderboardRow{
 		{UserID: hunterID, Username: "hunter", DisplayName: "Hunter", Pieces: 5},
 	}, nil)
 	m.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, "witchHunter").Return(nil, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.secretRepo.EXPECT().GetComments(mock.Anything, "witchHunter", viewer, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
+	m.secretRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[string]{
+		TargetID: "witchHunter",
+		ViewerID: viewer,
+		Limit:    500,
+		Offset:   0,
+	}).Return(nil, 0, nil)
 
 	// when
 	got, err := svc.Get(context.Background(), "witchHunter", viewer)
@@ -181,13 +195,18 @@ func TestGet_MarksSolversOnLeaderboard(t *testing.T) {
 	hunterID := uuid.New()
 	m.secretRepo.EXPECT().CountCommentsBySecret(mock.Anything, mock.Anything).Return(map[string]int{}, nil)
 	m.secretRepo.EXPECT().GetFirstSolver(mock.Anything, "witchHunter").Return(nil, nil)
-	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, viewer, mock.Anything).Return(0, nil)
-	m.secretRepo.EXPECT().GetProgressLeaderboard(mock.Anything, mock.Anything).Return([]repository.SecretLeaderboardRow{
+	m.secretRepo.EXPECT().GetPieceCountForUser(mock.Anything, spec.SecretPieceCount{UserID: viewer, PieceIDs: witchHunterPieceIDs()}).Return(0, nil)
+	m.secretRepo.EXPECT().GetProgressLeaderboard(mock.Anything, mock.Anything).Return([]model.SecretLeaderboardRow{
 		{UserID: hunterID, Username: "hunter", DisplayName: "Hunter", Pieces: 12},
 	}, nil)
 	m.userSecretRepo.EXPECT().GetUserIDsWithSecret(mock.Anything, "witchHunter").Return([]uuid.UUID{hunterID}, nil)
 	m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewer).Return(nil, nil)
-	m.secretRepo.EXPECT().GetComments(mock.Anything, "witchHunter", viewer, 500, 0, []uuid.UUID(nil)).Return(nil, 0, nil)
+	m.secretRepo.EXPECT().GetComments(mock.Anything, spec.CommentQuery[string]{
+		TargetID: "witchHunter",
+		ViewerID: viewer,
+		Limit:    500,
+		Offset:   0,
+	}).Return(nil, 0, nil)
 
 	// when
 	got, err := svc.Get(context.Background(), "witchHunter", viewer)
@@ -225,8 +244,8 @@ func TestCreateComment_Persists(t *testing.T) {
 	svc, m := newTestService(t)
 	user := uuid.New()
 	m.secretComments.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", (*uuid.UUID)(nil), user, "hello").
-		Return(&repository.CommentRow{ID: uuid.New()}, nil)
+		CreateComment(mock.Anything, spec.NewComment[string]{TargetID: "witchHunter", UserID: user, Body: "hello"}).
+		Return(&model.CommentRow{ID: uuid.New()}, nil)
 	m.userRepo.EXPECT().GetByID(mock.Anything, mock.Anything).Return(nil, errors.New("skip")).Maybe()
 
 	// when
@@ -247,9 +266,9 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	notif := notification.NewMockService(t)
 	settingsSvc := settings.NewMockService(t)
 	uploadSvc := upload.NewMockService(t)
-	secretComments := repository.NewMockCommentDAO[string](t)
-	mentionSvc := mention.NewService(userRepo, blockSvc, notif, repository.CommentDAOs{
-		BySlug: map[string]repository.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
+	secretComments := dao.NewMockCommentDAO[string](t)
+	mentionSvc := mention.NewService(userRepo, blockSvc, notif, dao.CommentDAOs{
+		BySlug: map[string]dao.CommentDAO[string]{string(mention.KindSecretComment): secretComments},
 	})
 	svc := NewService(secretRepo, userSecretRepo, userRepo, authzSvc, blockSvc, notif, mentionSvc, settingsSvc, uploadSvc, &media.Processor{}, ws.NewHub(), contentfilter.New())
 
@@ -258,8 +277,8 @@ func TestCreateComment_MentionNotifiesTheNamedUser(t *testing.T) {
 	mentionedID := uuid.New()
 
 	secretComments.EXPECT().
-		CreateComment(mock.Anything, "witchHunter", (*uuid.UUID)(nil), userID, "look at this @alice").
-		Return(&repository.CommentRow{ID: commentID}, nil)
+		CreateComment(mock.Anything, spec.NewComment[string]{TargetID: "witchHunter", UserID: userID, Body: "look at this @alice"}).
+		Return(&model.CommentRow{ID: commentID}, nil)
 	secretRepo.EXPECT().GetCommenterIDs(mock.Anything, "witchHunter").Return(nil, nil)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, DisplayName: "Battler"}, nil)
 	userRepo.EXPECT().GetByUsernames(mock.Anything, []string{"alice"}).Return([]model.User{{ID: mentionedID}}, nil)
@@ -314,7 +333,7 @@ func TestLikeComment_OK(t *testing.T) {
 	commentID := uuid.New()
 	m.secretRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, user, authorID).Return(false, nil)
-	m.secretRepo.EXPECT().LikeComment(mock.Anything, user, commentID).Return(nil)
+	m.secretRepo.EXPECT().LikeComment(mock.Anything, spec.CommentLike{UserID: user, CommentID: commentID}).Return(nil)
 
 	// when
 	err := svc.LikeComment(context.Background(), user, commentID)
@@ -330,7 +349,7 @@ func TestUpdateComment_AuthorPath(t *testing.T) {
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermEditAnyComment).Return(false)
 	m.secretRepo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.SecretCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: commentID,
 			UserID:    user,
 			Body:      "new body",
@@ -351,7 +370,7 @@ func TestUpdateComment_AdminPath(t *testing.T) {
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermEditAnyComment).Return(true)
 	m.secretRepo.EXPECT().
-		UpdateCommentBody(mock.Anything, repository.SecretCommentUpdate{
+		UpdateCommentBody(mock.Anything, spec.CommentUpdate{
 			CommentID: commentID,
 			UserID:    user,
 			Body:      "admin edit",
@@ -373,7 +392,7 @@ func TestDeleteComment_AdminPath(t *testing.T) {
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermDeleteAnyComment).Return(true)
 	m.secretRepo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.SecretCommentDeletion{CommentID: commentID, UserID: user, AsAdmin: true}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: commentID, UserID: user, AsAdmin: true}).
 		Return([]string{"/uploads/secrets/a.png", "/uploads/secrets/a-thumb.png"}, nil)
 	m.upload.EXPECT().Delete([]string{"/uploads/secrets/a.png", "/uploads/secrets/a-thumb.png"}).Return()
 
@@ -391,7 +410,7 @@ func TestDeleteComment_KeepsFilesWhenTransactionFails(t *testing.T) {
 	commentID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, user, authz.PermDeleteAnyComment).Return(false)
 	m.secretRepo.EXPECT().
-		DeleteCommentWithAudit(mock.Anything, repository.SecretCommentDeletion{CommentID: commentID, UserID: user}).
+		DeleteCommentWithAudit(mock.Anything, spec.CommentDeletion{CommentID: commentID, UserID: user}).
 		Return(nil, errors.New("rolled back"))
 
 	// when

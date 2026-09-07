@@ -6,11 +6,13 @@ import (
 	"sync"
 	"testing"
 	"testing/synctest"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -25,8 +27,8 @@ func TestGetMystery_NonGM_NotSolved_FiltersAttemptsAndClues(t *testing.T) {
 	author := uuid.New()
 	viewer := uuid.New()
 	other := uuid.New()
-	row := &repository.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
-	attempts := []repository.MysteryAttemptRow{
+	row := &model.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: false}
+	attempts := []model.MysteryAttemptRow{
 		{ID: uuid.New(), UserID: viewer, Body: "mine"},
 		{ID: uuid.New(), UserID: other, Body: "not mine"},
 	}
@@ -36,9 +38,9 @@ func TestGetMystery_NonGM_NotSolved_FiltersAttemptsAndClues(t *testing.T) {
 		{ID: 3, Body: "other", PlayerID: new(uuid.New())},
 	}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: id, UserID: viewer}).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(clues, nil)
-	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(attempts, nil)
+	m.repo.EXPECT().GetAttempts(mock.Anything, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: viewer}).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil).Maybe()
@@ -60,15 +62,15 @@ func TestGetMystery_FreeForAll_NonGM_SeesAllAttempts(t *testing.T) {
 	author := uuid.New()
 	viewer := uuid.New()
 	other := uuid.New()
-	row := &repository.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: true}
-	attempts := []repository.MysteryAttemptRow{
+	row := &model.MysteryRow{ID: id, UserID: author, Solved: false, FreeForAll: true}
+	attempts := []model.MysteryAttemptRow{
 		{ID: uuid.New(), UserID: viewer, Body: "mine"},
 		{ID: uuid.New(), UserID: other, Body: "other"},
 	}
 	m.repo.EXPECT().GetByID(mock.Anything, id).Return(row, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, id, viewer).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: id, UserID: viewer}).Return(false, nil)
 	m.repo.EXPECT().GetClues(mock.Anything, id).Return(nil, nil)
-	m.repo.EXPECT().GetAttempts(mock.Anything, id, viewer).Return(attempts, nil)
+	m.repo.EXPECT().GetAttempts(mock.Anything, spec.MysteryAttemptQuery{MysteryID: id, ViewerID: viewer}).Return(attempts, nil)
 	m.authz.EXPECT().GetRole(mock.Anything, viewer).Return("", nil)
 	m.repo.EXPECT().GetAttachments(mock.Anything, id).Return(nil, nil)
 	m.repo.EXPECT().GetMedia(mock.Anything, id).Return(nil, nil).Maybe()
@@ -146,7 +148,7 @@ func TestCreateAttempt_PausedBlocksNonAuthor(t *testing.T) {
 	authorID := uuid.New()
 	stubAuthor(m, mid, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(true, nil)
 
 	// when
@@ -164,7 +166,7 @@ func TestCreateAttempt_Blocked(t *testing.T) {
 	authorID := uuid.New()
 	stubAuthor(m, mid, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(true, nil)
 
@@ -184,7 +186,7 @@ func TestCreateAttempt_ReplyParentNotFound(t *testing.T) {
 	parentID := uuid.New()
 	stubAuthor(m, mid, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, parentID).Return(uuid.Nil, errors.New("boom"))
@@ -206,7 +208,7 @@ func TestCreateAttempt_ReplyByOtherUser_NotAllowed(t *testing.T) {
 	parentID := uuid.New()
 	stubAuthor(m, mid, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, parentID).Return(parentAuthor, nil)
@@ -226,10 +228,10 @@ func TestCreateAttempt_RepoError(t *testing.T) {
 	authorID := uuid.New()
 	stubAuthor(m, mid, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateAttempt(mock.Anything, mid, userID, (*uuid.UUID)(nil), "body").Return(nil, errors.New("boom"))
+	m.repo.EXPECT().CreateAttempt(mock.Anything, spec.NewMysteryAttempt{MysteryID: mid, UserID: userID, Body: "body"}).Return(nil, errors.New("boom"))
 
 	// when
 	_, err := svc.CreateAttempt(context.Background(), mid, userID, dto.CreateAttemptRequest{Body: "body"})
@@ -246,10 +248,10 @@ func TestCreateAttempt_OK(t *testing.T) {
 	authorID := uuid.New()
 	stubAuthor(m, mid, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mid, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mid, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mid).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateAttempt(mock.Anything, mid, userID, (*uuid.UUID)(nil), "body").Return(&repository.MysteryAttemptRow{ID: uuid.New(), AuthorUsername: "u"}, nil)
+	m.repo.EXPECT().CreateAttempt(mock.Anything, spec.NewMysteryAttempt{MysteryID: mid, UserID: userID, Body: "body"}).Return(&model.MysteryAttemptRow{ID: uuid.New(), AuthorUsername: "u"}, nil)
 
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
 	m.notifService.EXPECT().Notify(mock.Anything, mock.Anything).Return(nil).Maybe()
@@ -274,11 +276,11 @@ func TestCreateAttempt_MentionInTheBodyNotifiesTheNamedUser(t *testing.T) {
 
 	stubAuthor(m, mysteryID, authorID)
 	m.repo.EXPECT().IsSolved(mock.Anything, mysteryID).Return(false, nil)
-	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, mysteryID, userID).Return(false, nil)
+	m.repo.EXPECT().UserHasWinningAttempt(mock.Anything, spec.MysterySolverQuery{MysteryID: mysteryID, UserID: userID}).Return(false, nil)
 	m.repo.EXPECT().IsPaused(mock.Anything, mysteryID).Return(false, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().CreateAttempt(mock.Anything, mysteryID, userID, (*uuid.UUID)(nil), body).
-		Return(&repository.MysteryAttemptRow{ID: attemptID, AuthorUsername: "u"}, nil)
+	m.repo.EXPECT().CreateAttempt(mock.Anything, spec.NewMysteryAttempt{MysteryID: mysteryID, UserID: userID, Body: body}).
+		Return(&model.MysteryAttemptRow{ID: attemptID, AuthorUsername: "u"}, nil)
 	stubActor(m, userID, "Battler")
 	stubMentionOf(m, userID, mentionedID, "alice")
 	m.settingsSvc.EXPECT().Get(mock.Anything, config.SettingBaseURL).Return("http://e.test").Maybe()
@@ -318,10 +320,10 @@ func TestDeleteAttempt_Admin(t *testing.T) {
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(true)
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, id).Return(attemptAuthor, nil)
 	m.repo.EXPECT().DeleteAttemptAsAdmin(mock.Anything, id).Return(nil)
-	m.auditRepo.EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	m.auditRepo.EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionMysteryAttemptDeleteAdmin,
-		TargetType: repository.AuditTargetMysteryAttempt,
+		Action:     audit.ActionMysteryAttemptDeleteAdmin,
+		TargetType: audit.TargetMysteryAttempt,
 		TargetID:   id.String(),
 		SubjectID:  attemptAuthor,
 	}).Return(nil)
@@ -371,7 +373,7 @@ func TestDeleteAttempt_NonAdmin(t *testing.T) {
 	id := uuid.New()
 	userID := uuid.New()
 	m.authz.EXPECT().Can(mock.Anything, userID, authz.PermDeleteAnyComment).Return(false)
-	m.repo.EXPECT().DeleteAttempt(mock.Anything, id, userID).Return(nil)
+	m.repo.EXPECT().DeleteAttempt(mock.Anything, spec.MysteryAttemptDeletion{ID: id, UserID: userID}).Return(nil)
 
 	// when
 	err := svc.DeleteAttempt(context.Background(), id, userID)
@@ -429,7 +431,7 @@ func TestVoteAttempt_VoteError(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().VoteAttempt(mock.Anything, userID, aid, 1).Return(errors.New("boom"))
+	m.repo.EXPECT().VoteAttempt(mock.Anything, spec.Vote{UserID: userID, TargetID: aid, Value: 1}).Return(errors.New("boom"))
 
 	// when
 	err := svc.VoteAttempt(context.Background(), aid, userID, 1)
@@ -446,7 +448,7 @@ func TestVoteAttempt_ZeroVote_NoNotification(t *testing.T) {
 	authorID := uuid.New()
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().VoteAttempt(mock.Anything, userID, aid, 0).Return(nil)
+	m.repo.EXPECT().VoteAttempt(mock.Anything, spec.Vote{UserID: userID, TargetID: aid, Value: 0}).Return(nil)
 
 	// when
 	err := svc.VoteAttempt(context.Background(), aid, userID, 0)
@@ -468,7 +470,7 @@ func testVoteAttemptUpvoteSendsNotification(t *testing.T) {
 	mid := uuid.New()
 	m.repo.EXPECT().GetAttemptAuthorID(mock.Anything, aid).Return(authorID, nil)
 	m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, nil)
-	m.repo.EXPECT().VoteAttempt(mock.Anything, userID, aid, 1).Return(nil)
+	m.repo.EXPECT().VoteAttempt(mock.Anything, spec.Vote{UserID: userID, TargetID: aid, Value: 1}).Return(nil)
 
 	var wg sync.WaitGroup
 	wg.Add(1)

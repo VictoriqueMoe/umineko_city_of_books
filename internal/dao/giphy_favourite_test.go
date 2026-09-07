@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"umineko_city_of_books/internal/dao/daotest"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,7 +15,8 @@ func TestGiphyFavouriteDAO_Add_Insert(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	err := repos.GiphyFavourite.Add(context.Background(), user.ID, repository.GiphyFavourite{
+	err := repos.GiphyFavourite.Add(context.Background(), spec.NewGiphyFavourite{
+		UserID:     user.ID,
 		GiphyID:    "abc",
 		URL:        "https://media.giphy.com/abc.gif",
 		Title:      "cat",
@@ -25,7 +26,7 @@ func TestGiphyFavouriteDAO_Add_Insert(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	list, total, err := repos.GiphyFavourite.List(context.Background(), user.ID, 10, 0)
+	list, total, err := repos.GiphyFavourite.List(context.Background(), spec.GiphyFavouritePage{UserID: user.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	require.Len(t, list, 1)
@@ -42,18 +43,20 @@ func TestGiphyFavouriteDAO_Add_Upsert(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), user.ID, repository.GiphyFavourite{
+	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), spec.NewGiphyFavourite{
+		UserID:  user.ID,
 		GiphyID: "abc",
 		URL:     "old-url",
 		Title:   "old",
 	}))
-	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), user.ID, repository.GiphyFavourite{
+	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), spec.NewGiphyFavourite{
+		UserID:  user.ID,
 		GiphyID: "abc",
 		URL:     "new-url",
 		Title:   "new",
 	}))
 
-	list, total, err := repos.GiphyFavourite.List(context.Background(), user.ID, 10, 0)
+	list, total, err := repos.GiphyFavourite.List(context.Background(), spec.GiphyFavouritePage{UserID: user.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
 	require.Len(t, list, 1)
@@ -65,13 +68,14 @@ func TestGiphyFavouriteDAO_Remove(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), user.ID, repository.GiphyFavourite{
+	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), spec.NewGiphyFavourite{
+		UserID:  user.ID,
 		GiphyID: "abc",
 		URL:     "u",
 	}))
-	require.NoError(t, repos.GiphyFavourite.Remove(context.Background(), user.ID, "abc"))
+	require.NoError(t, repos.GiphyFavourite.Remove(context.Background(), spec.GiphyFavouriteDeletion{UserID: user.ID, GiphyID: "abc"}))
 
-	_, total, err := repos.GiphyFavourite.List(context.Background(), user.ID, 10, 0)
+	_, total, err := repos.GiphyFavourite.List(context.Background(), spec.GiphyFavouritePage{UserID: user.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }
@@ -80,7 +84,7 @@ func TestGiphyFavouriteDAO_Remove_Missing_IsNoOp(t *testing.T) {
 	repos := daotest.NewRepos(t)
 	user := daotest.CreateUser(t, repos)
 
-	err := repos.GiphyFavourite.Remove(context.Background(), user.ID, "does-not-exist")
+	err := repos.GiphyFavourite.Remove(context.Background(), spec.GiphyFavouriteDeletion{UserID: user.ID, GiphyID: "does-not-exist"})
 	assert.NoError(t, err)
 }
 
@@ -89,16 +93,16 @@ func TestGiphyFavouriteDAO_List_IsolatesUsers(t *testing.T) {
 	alice := daotest.CreateUser(t, repos)
 	bob := daotest.CreateUser(t, repos)
 
-	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), alice.ID, repository.GiphyFavourite{GiphyID: "a", URL: "u"}))
-	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), bob.ID, repository.GiphyFavourite{GiphyID: "b", URL: "u"}))
+	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), spec.NewGiphyFavourite{UserID: alice.ID, GiphyID: "a", URL: "u"}))
+	require.NoError(t, repos.GiphyFavourite.Add(context.Background(), spec.NewGiphyFavourite{UserID: bob.ID, GiphyID: "b", URL: "u"}))
 
-	aliceList, aliceTotal, err := repos.GiphyFavourite.List(context.Background(), alice.ID, 10, 0)
+	aliceList, aliceTotal, err := repos.GiphyFavourite.List(context.Background(), spec.GiphyFavouritePage{UserID: alice.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, aliceTotal)
 	require.Len(t, aliceList, 1)
 	assert.Equal(t, "a", aliceList[0].GiphyID)
 
-	bobList, bobTotal, err := repos.GiphyFavourite.List(context.Background(), bob.ID, 10, 0)
+	bobList, bobTotal, err := repos.GiphyFavourite.List(context.Background(), spec.GiphyFavouritePage{UserID: bob.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 1, bobTotal)
 	require.Len(t, bobList, 1)
@@ -111,7 +115,7 @@ func TestGiphyFavouriteDAO_List_OrdersByCreatedDesc(t *testing.T) {
 	ctx := context.Background()
 
 	for _, id := range []string{"first", "second", "third"} {
-		require.NoError(t, repos.GiphyFavourite.Add(ctx, user.ID, repository.GiphyFavourite{GiphyID: id, URL: "u"}))
+		require.NoError(t, repos.GiphyFavourite.Add(ctx, spec.NewGiphyFavourite{UserID: user.ID, GiphyID: id, URL: "u"}))
 	}
 	_, err := repos.DB().ExecContext(ctx,
 		`UPDATE giphy_favourites SET created_at =
@@ -123,7 +127,7 @@ func TestGiphyFavouriteDAO_List_OrdersByCreatedDesc(t *testing.T) {
 		 WHERE user_id = $1`, user.ID)
 	require.NoError(t, err)
 
-	list, total, err := repos.GiphyFavourite.List(ctx, user.ID, 10, 0)
+	list, total, err := repos.GiphyFavourite.List(ctx, spec.GiphyFavouritePage{UserID: user.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
 	require.Len(t, list, 3)
@@ -138,10 +142,10 @@ func TestGiphyFavouriteDAO_List_LimitAndOffset(t *testing.T) {
 	ctx := context.Background()
 
 	for _, id := range []string{"a", "b", "c", "d", "e"} {
-		require.NoError(t, repos.GiphyFavourite.Add(ctx, user.ID, repository.GiphyFavourite{GiphyID: id, URL: "u"}))
+		require.NoError(t, repos.GiphyFavourite.Add(ctx, spec.NewGiphyFavourite{UserID: user.ID, GiphyID: id, URL: "u"}))
 	}
 
-	list, total, err := repos.GiphyFavourite.List(ctx, user.ID, 2, 1)
+	list, total, err := repos.GiphyFavourite.List(ctx, spec.GiphyFavouritePage{UserID: user.ID, Limit: 2, Offset: 1})
 	require.NoError(t, err)
 	assert.Equal(t, 5, total)
 	assert.Len(t, list, 2)
@@ -152,9 +156,9 @@ func TestGiphyFavouriteDAO_List_DefaultsLimit(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	require.NoError(t, repos.GiphyFavourite.Add(ctx, user.ID, repository.GiphyFavourite{GiphyID: "a", URL: "u"}))
+	require.NoError(t, repos.GiphyFavourite.Add(ctx, spec.NewGiphyFavourite{UserID: user.ID, GiphyID: "a", URL: "u"}))
 
-	list, _, err := repos.GiphyFavourite.List(ctx, user.ID, 0, -5)
+	list, _, err := repos.GiphyFavourite.List(ctx, spec.GiphyFavouritePage{UserID: user.ID, Limit: 0, Offset: -5})
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
 }
@@ -165,7 +169,7 @@ func TestGiphyFavouriteDAO_ListIDs(t *testing.T) {
 	ctx := context.Background()
 
 	for _, id := range []string{"x", "y", "z"} {
-		require.NoError(t, repos.GiphyFavourite.Add(ctx, user.ID, repository.GiphyFavourite{GiphyID: id, URL: "u"}))
+		require.NoError(t, repos.GiphyFavourite.Add(ctx, spec.NewGiphyFavourite{UserID: user.ID, GiphyID: id, URL: "u"}))
 	}
 
 	ids, err := repos.GiphyFavourite.ListIDs(ctx, user.ID)
@@ -187,11 +191,11 @@ func TestGiphyFavouriteDAO_CascadesOnUserDelete(t *testing.T) {
 	user := daotest.CreateUser(t, repos)
 	ctx := context.Background()
 
-	require.NoError(t, repos.GiphyFavourite.Add(ctx, user.ID, repository.GiphyFavourite{GiphyID: "a", URL: "u"}))
+	require.NoError(t, repos.GiphyFavourite.Add(ctx, spec.NewGiphyFavourite{UserID: user.ID, GiphyID: "a", URL: "u"}))
 	_, err := repos.DB().ExecContext(ctx, `DELETE FROM users WHERE id = $1`, user.ID)
 	require.NoError(t, err)
 
-	_, total, err := repos.GiphyFavourite.List(ctx, user.ID, 10, 0)
+	_, total, err := repos.GiphyFavourite.List(ctx, spec.GiphyFavouritePage{UserID: user.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	assert.Equal(t, 0, total)
 }

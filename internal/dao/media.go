@@ -7,7 +7,8 @@ import (
 	"strings"
 
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -22,13 +23,13 @@ func newMediaDAO(db *sql.DB, table string, fk string) *mediaDAO {
 	return &mediaDAO{db: db, table: table, fk: fk}
 }
 
-func (m *mediaDAO) AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL string, mediaType string, thumbnailURL string, filename string, sortOrder int, isSpoiler bool, tx ...*sql.Tx) (int64, error) {
+func (m *mediaDAO) AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var id int64
 	err := txOrDB(m.db, tx).QueryRowContext(ctx,
 		`INSERT INTO `+m.table+` (`+m.fk+`, media_url, media_type, thumbnail_url, filename, sort_order, is_spoiler)
 		VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(sort_order) + 1 FROM `+m.table+` WHERE `+m.fk+` = $1), $6), $7)
 		RETURNING id`,
-		entityID, mediaURL, mediaType, thumbnailURL, filename, sortOrder, isSpoiler,
+		s.TargetID, s.MediaURL, s.MediaType, s.ThumbnailURL, s.Filename, s.SortOrder, s.IsSpoiler,
 	).Scan(&id)
 	if err != nil {
 		return 0, fmt.Errorf("add media in %s: %w", m.table, err)
@@ -37,17 +38,17 @@ func (m *mediaDAO) AddMedia(ctx context.Context, entityID uuid.UUID, mediaURL st
 	return id, nil
 }
 
-func (m *mediaDAO) DeleteMedia(ctx context.Context, id int64, entityID uuid.UUID, tx ...*sql.Tx) (string, error) {
+func (m *mediaDAO) DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error) {
 	var mediaURL string
 	err := txOrDB(m.db, tx).QueryRowContext(ctx,
-		`SELECT media_url FROM `+m.table+` WHERE id = $1 AND `+m.fk+` = $2`, id, entityID,
+		`SELECT media_url FROM `+m.table+` WHERE id = $1 AND `+m.fk+` = $2`, s.ID, s.TargetID,
 	).Scan(&mediaURL)
 	if err != nil {
 		return "", fmt.Errorf("media not found in %s: %w", m.table, err)
 	}
 
 	if _, err := txOrDB(m.db, tx).ExecContext(ctx,
-		`DELETE FROM `+m.table+` WHERE id = $1 AND `+m.fk+` = $2`, id, entityID,
+		`DELETE FROM `+m.table+` WHERE id = $1 AND `+m.fk+` = $2`, s.ID, s.TargetID,
 	); err != nil {
 		return "", fmt.Errorf("delete media in %s: %w", m.table, err)
 	}
@@ -55,8 +56,8 @@ func (m *mediaDAO) DeleteMedia(ctx context.Context, id int64, entityID uuid.UUID
 	return mediaURL, nil
 }
 
-func (m *mediaDAO) UpdateMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
-	_, err := txOrDB(m.db, tx).ExecContext(ctx, `UPDATE `+m.table+` SET media_url = $1 WHERE id = $2`, mediaURL, id)
+func (m *mediaDAO) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(m.db, tx).ExecContext(ctx, `UPDATE `+m.table+` SET media_url = $1 WHERE id = $2`, s.URL, s.ID)
 	if err != nil {
 		return fmt.Errorf("update media url in %s: %w", m.table, err)
 	}
@@ -64,8 +65,8 @@ func (m *mediaDAO) UpdateMediaURL(ctx context.Context, id int64, mediaURL string
 	return nil
 }
 
-func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
-	_, err := txOrDB(m.db, tx).ExecContext(ctx, `UPDATE `+m.table+` SET thumbnail_url = $1 WHERE id = $2`, thumbnailURL, id)
+func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
+	_, err := txOrDB(m.db, tx).ExecContext(ctx, `UPDATE `+m.table+` SET thumbnail_url = $1 WHERE id = $2`, s.URL, s.ID)
 	if err != nil {
 		return fmt.Errorf("update media thumbnail in %s: %w", m.table, err)
 	}

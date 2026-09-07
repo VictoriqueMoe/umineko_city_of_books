@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 )
@@ -37,7 +37,7 @@ func capabilitiesFor(roomType dto.RoomType) roomCapabilities {
 	}
 }
 
-func sendContextCapabilities(roomRow *repository.ChatRoomSendContext) roomCapabilities {
+func sendContextCapabilities(roomRow *model.ChatRoomSendContext) roomCapabilities {
 	if roomRow == nil {
 		return roomCapabilities{}
 	}
@@ -45,7 +45,7 @@ func sendContextCapabilities(roomRow *repository.ChatRoomSendContext) roomCapabi
 	return capabilitiesFor(roomRow.Type)
 }
 
-func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
+func hostBlockApplies(roomRow *model.ChatRoomSendContext) bool {
 	if !roomRow.IsSystem {
 		return true
 	}
@@ -53,7 +53,7 @@ func hostBlockApplies(roomRow *repository.ChatRoomSendContext) bool {
 	return roomRow.SystemKind == SystemKindLiveStream || roomRow.SystemKind == SystemKindWatchParty
 }
 
-func plainMessageNotification(roomRow *repository.ChatRoomSendContext) (dto.NotificationType, string) {
+func plainMessageNotification(roomRow *model.ChatRoomSendContext) (dto.NotificationType, string) {
 	if roomRow == nil || roomRow.Type != dto.RoomTypeGroup {
 		return dto.NotifChatMessage, ""
 	}
@@ -69,7 +69,7 @@ func (c *core) assertPairNotBlocked(ctx context.Context, userID, otherID uuid.UU
 	return nil
 }
 
-func (c *core) assertBlocksAllowParticipation(ctx context.Context, roomRow *repository.ChatRoomSendContext, userID uuid.UUID, members []uuid.UUID) error {
+func (c *core) assertBlocksAllowParticipation(ctx context.Context, roomRow *model.ChatRoomSendContext, userID uuid.UUID, members []uuid.UUID) error {
 	if roomRow == nil {
 		return nil
 	}
@@ -99,7 +99,7 @@ func (c *core) assertBlocksAllowParticipation(ctx context.Context, roomRow *repo
 	return nil
 }
 
-func (c *core) assertBlocksAllowRoomEntry(ctx context.Context, roomRow *repository.ChatRoomSendContext, userID uuid.UUID) error {
+func (c *core) assertBlocksAllowRoomEntry(ctx context.Context, roomRow *model.ChatRoomSendContext, userID uuid.UUID) error {
 	if roomRow == nil {
 		return nil
 	}

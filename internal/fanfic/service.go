@@ -8,6 +8,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
@@ -18,10 +19,11 @@ import (
 	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/media"
 	"umineko_city_of_books/internal/mention"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
 	"umineko_city_of_books/internal/og"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/text"
@@ -124,7 +126,7 @@ func NewService(
 	}
 }
 
-func (s *service) writeAudit(ctx context.Context, entry repository.NewAuditEntry) {
+func (s *service) writeAudit(ctx context.Context, entry audit.NewEntry) {
 	if err := s.auditRepo.Create(ctx, entry); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("action", string(entry.Action)).Msg("failed to write audit log")
 	}
@@ -199,42 +201,42 @@ func validateFanficFields(genres, rawTags []string, rawRating, rawSeries, rawLan
 	}, nil
 }
 
-func fanficUpdateDetails(before *model.FanficRow, spec repository.FanficUpdate) string {
+func fanficUpdateDetails(before *model.FanficRow, update spec.FanficUpdate) string {
 	if before == nil {
 		return ""
 	}
 
 	var changed []string
 
-	if before.Title != spec.Title {
+	if before.Title != update.Title {
 		changed = append(changed, "title")
 	}
 
-	if before.Summary != spec.Summary {
+	if before.Summary != update.Summary {
 		changed = append(changed, "summary")
 	}
 
-	if before.Series != spec.Series {
+	if before.Series != update.Series {
 		changed = append(changed, "series")
 	}
 
-	if before.Rating != spec.Rating {
+	if before.Rating != update.Rating {
 		changed = append(changed, "rating")
 	}
 
-	if before.Language != spec.Language {
+	if before.Language != update.Language {
 		changed = append(changed, "language")
 	}
 
-	if before.Status != spec.Status {
+	if before.Status != update.Status {
 		changed = append(changed, "status")
 	}
 
-	if before.IsOneshot != spec.IsOneshot {
+	if before.IsOneshot != update.IsOneshot {
 		changed = append(changed, "is_oneshot")
 	}
 
-	if before.ContainsLemons != spec.ContainsLemons {
+	if before.ContainsLemons != update.ContainsLemons {
 		changed = append(changed, "contains_lemons")
 	}
 
@@ -266,41 +268,43 @@ func (s *service) CreateFanfic(ctx context.Context, userID uuid.UUID, req dto.Cr
 		status = "in_progress"
 	}
 
-	spec := repository.NewFanfic{
-		UserID:         userID,
-		Title:          title,
-		Summary:        strings.TrimSpace(req.Summary),
-		Series:         fields.Series,
-		Rating:         fields.Rating,
-		Language:       fields.Language,
-		Status:         status,
-		IsOneshot:      req.IsOneshot,
-		ContainsLemons: req.ContainsLemons,
-		IsPairing:      req.IsPairing,
-		Genres:         req.Genres,
-		Tags:           fields.Tags,
-		Characters:     req.Characters,
+	newFanfic := spec.NewFanficWithDetails{
+		NewFanfic: spec.NewFanfic{
+			UserID:         userID,
+			Title:          title,
+			Summary:        strings.TrimSpace(req.Summary),
+			Series:         fields.Series,
+			Rating:         fields.Rating,
+			Language:       fields.Language,
+			Status:         status,
+			IsOneshot:      req.IsOneshot,
+			ContainsLemons: req.ContainsLemons,
+			IsPairing:      req.IsPairing,
+		},
+		Genres:     req.Genres,
+		Tags:       fields.Tags,
+		Characters: req.Characters,
 	}
 
 	body := strings.TrimSpace(req.Body)
 	if body != "" {
-		spec.FirstChapter = &repository.NewChapter{Number: 1, Body: body, WordCount: countWords(body)}
+		newFanfic.FirstChapter = &spec.NewChapter{Number: 1, Body: body, WordCount: countWords(body)}
 	}
 
-	created, err := s.fanficRepo.CreateWithDetails(ctx, spec)
+	created, err := s.fanficRepo.CreateWithDetails(ctx, newFanfic)
 	if err != nil {
 		return uuid.Nil, err
 	}
 
 	if status != "draft" {
-		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindFanfic, EntityID: created.ID}, userID, spec.Summary+"\n"+body)
+		s.mentionSvc.NotifyAsync(ctx, mention.Reference{Kind: mention.KindFanfic, EntityID: created.ID}, userID, newFanfic.Summary+"\n"+body)
 	}
 
 	return created.ID, nil
 }
 
 func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerHash string) (*dto.FanficDetailResponse, error) {
-	row, err := s.fanficRepo.GetByID(ctx, id, viewerID)
+	row, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: viewerID})
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +313,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	}
 
 	if viewerHash != "" {
-		isNew, _ := s.fanficRepo.RecordView(ctx, id, viewerHash)
+		isNew, _ := s.fanficRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
 		if isNew {
 			row.ViewCount++
 		}
@@ -335,7 +339,13 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 	}
 
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
-	comments, _, _ := s.fanficRepo.GetComments(ctx, id, viewerID, 500, 0, blockedIDs)
+	comments, _, _ := s.fanficRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+		TargetID:       id,
+		ViewerID:       viewerID,
+		Limit:          500,
+		Offset:         0,
+		ExcludeUserIDs: blockedIDs,
+	})
 
 	var threaded []dto.FanficCommentResponse
 	if len(comments) > 0 {
@@ -361,7 +371,7 @@ func (s *service) GetFanfic(ctx context.Context, id, viewerID uuid.UUID, viewerH
 		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
 	}
 
-	readingProgress, _ := s.fanficRepo.GetReadingProgress(ctx, viewerID, id)
+	readingProgress, _ := s.fanficRepo.GetReadingProgress(ctx, spec.FanficUserRef{UserID: viewerID, FanficID: id})
 
 	return &dto.FanficDetailResponse{
 		FanficResponse:  row.ToResponse(genres, tags, characters),
@@ -396,40 +406,42 @@ func (s *service) UpdateFanfic(ctx context.Context, id, userID uuid.UUID, req dt
 		return err
 	}
 
-	spec := repository.FanficUpdate{
-		ID:             id,
-		UserID:         userID,
-		Title:          title,
-		Summary:        strings.TrimSpace(req.Summary),
-		Series:         fields.Series,
-		Rating:         fields.Rating,
-		Language:       fields.Language,
-		Status:         strings.TrimSpace(req.Status),
-		IsOneshot:      req.IsOneshot,
-		ContainsLemons: req.ContainsLemons,
-		IsPairing:      req.IsPairing,
-		AsAdmin:        asAdmin,
-		Genres:         req.Genres,
-		Tags:           fields.Tags,
-		Characters:     req.Characters,
+	update := spec.FanficUpdateWithDetails{
+		FanficUpdate: spec.FanficUpdate{
+			ID:             id,
+			UserID:         userID,
+			Title:          title,
+			Summary:        strings.TrimSpace(req.Summary),
+			Series:         fields.Series,
+			Rating:         fields.Rating,
+			Language:       fields.Language,
+			Status:         strings.TrimSpace(req.Status),
+			IsOneshot:      req.IsOneshot,
+			ContainsLemons: req.ContainsLemons,
+			AsAdmin:        asAdmin,
+		},
+		IsPairing:  req.IsPairing,
+		Genres:     req.Genres,
+		Tags:       fields.Tags,
+		Characters: req.Characters,
 	}
 
 	var before *model.FanficRow
 	if asAdmin {
-		before, _ = s.fanficRepo.GetByID(ctx, id, userID)
+		before, _ = s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: id, ViewerID: userID})
 	}
 
-	if err := s.fanficRepo.UpdateWithDetails(ctx, spec); err != nil {
+	if err := s.fanficRepo.UpdateWithDetails(ctx, update); err != nil {
 		return err
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionFanficUpdateAdmin,
-			TargetType: repository.AuditTargetFanfic,
+			Action:     audit.ActionFanficUpdateAdmin,
+			TargetType: audit.TargetFanfic,
 			TargetID:   id.String(),
-			Details:    fanficUpdateDetails(before, spec),
+			Details:    fanficUpdateDetails(before, update.FanficUpdate),
 			SubjectID:  authorID,
 		})
 	}
@@ -445,26 +457,26 @@ func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error 
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyPost)
 
-	spec := repository.FanficDelete{
+	deletion := spec.FanficDelete{
 		ID:      id,
 		UserID:  userID,
 		AsAdmin: asAdmin,
 	}
 
-	paths, err := s.fanficRepo.DeleteFanfic(ctx, spec)
+	paths, err := s.fanficRepo.DeleteFanfic(ctx, deletion)
 	if err != nil {
 		return err
 	}
 
-	action := repository.AuditActionFanficDelete
+	action := audit.ActionFanficDelete
 	if asAdmin {
-		action = repository.AuditActionFanficDeleteAdmin
+		action = audit.ActionFanficDeleteAdmin
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetFanfic,
+		TargetType: audit.TargetFanfic,
 		TargetID:   id.String(),
 		SubjectID:  authorID,
 	})
@@ -481,7 +493,7 @@ func (s *service) DeleteFanfic(ctx context.Context, id, userID uuid.UUID) error 
 func (s *service) ListFanfics(ctx context.Context, viewerID uuid.UUID, params fanficparams.ListParams) (*dto.FanficListResponse, error) {
 	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
 
-	rows, total, err := s.fanficRepo.List(ctx, viewerID, params, blockedIDs)
+	rows, total, err := s.fanficRepo.List(ctx, spec.FanficListFilter{ViewerID: viewerID, Params: params, ExcludeUserIDs: blockedIDs})
 	if err != nil {
 		return nil, err
 	}
@@ -515,7 +527,12 @@ func (s *service) buildFanficList(ctx context.Context, rows []model.FanficRow, t
 }
 
 func (s *service) ListFanficsByUser(ctx context.Context, userID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error) {
-	rows, total, err := s.fanficRepo.ListByUser(ctx, userID, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.fanficRepo.ListByUser(ctx, spec.FanficUserListFilter{
+		UserID:   userID,
+		ViewerID: viewerID,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -523,7 +540,12 @@ func (s *service) ListFanficsByUser(ctx context.Context, userID, viewerID uuid.U
 }
 
 func (s *service) ListFavourites(ctx context.Context, userID, viewerID uuid.UUID, page bounds.Page) (*dto.FanficListResponse, error) {
-	rows, total, err := s.fanficRepo.ListFavourites(ctx, userID, viewerID, page.Limit(), page.Offset())
+	rows, total, err := s.fanficRepo.ListFavourites(ctx, spec.FanficUserListFilter{
+		UserID:   userID,
+		ViewerID: viewerID,
+		Limit:    page.Limit(),
+		Offset:   page.Offset(),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -546,7 +568,7 @@ func (s *service) UploadCoverImage(ctx context.Context, fanficID, userID uuid.UU
 		return "", err
 	}
 
-	if err := s.fanficRepo.UpdateCoverImage(ctx, fanficID, urlPath, ""); err != nil {
+	if err := s.fanficRepo.UpdateCoverImage(ctx, spec.FanficCoverUpdate{ID: fanficID, ImageURL: urlPath, ThumbnailURL: ""}); err != nil {
 		return "", err
 	}
 
@@ -561,7 +583,7 @@ func (s *service) RemoveCoverImage(ctx context.Context, fanficID, userID uuid.UU
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyPost) {
 		return fmt.Errorf("not authorised")
 	}
-	return s.fanficRepo.UpdateCoverImage(ctx, fanficID, "", "")
+	return s.fanficRepo.UpdateCoverImage(ctx, spec.FanficCoverUpdate{ID: fanficID, ImageURL: "", ThumbnailURL: ""})
 }
 
 func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID, req dto.CreateChapterRequest) (uuid.UUID, error) {
@@ -586,14 +608,15 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, err
 	}
 
-	spec := repository.NewChapter{
+	chapter := spec.NewChapter{
+		FanficID:  fanficID,
 		Number:    chapterNum,
 		Title:     strings.TrimSpace(req.Title),
 		Body:      body,
 		WordCount: countWords(body),
 	}
 
-	created, err := s.fanficRepo.CreateChapterWithCount(ctx, fanficID, spec)
+	created, err := s.fanficRepo.CreateChapterWithCount(ctx, chapter)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -606,7 +629,7 @@ func (s *service) hiddenDraft(ctx context.Context, row *model.FanficRow, viewerI
 }
 
 func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNumber int, viewerID uuid.UUID) (*dto.FanficChapterResponse, error) {
-	fanfic, err := s.fanficRepo.GetByID(ctx, fanficID, viewerID)
+	fanfic, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: fanficID, ViewerID: viewerID})
 	if err != nil {
 		return nil, err
 	}
@@ -614,7 +637,7 @@ func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNum
 		return nil, ErrNotFound
 	}
 
-	ch, err := s.fanficRepo.GetChapter(ctx, fanficID, chapterNumber)
+	ch, err := s.fanficRepo.GetChapter(ctx, spec.FanficChapterLookup{FanficID: fanficID, ChapterNumber: chapterNumber})
 	if err != nil {
 		return nil, err
 	}
@@ -628,7 +651,11 @@ func (s *service) GetChapter(ctx context.Context, fanficID uuid.UUID, chapterNum
 	}
 
 	if viewerID != uuid.Nil {
-		_ = s.fanficRepo.SetReadingProgress(ctx, viewerID, fanficID, chapterNumber)
+		_ = s.fanficRepo.SetReadingProgress(ctx, spec.FanficReadingProgress{
+			UserID:        viewerID,
+			FanficID:      fanficID,
+			ChapterNumber: chapterNumber,
+		})
 	}
 
 	return &dto.FanficChapterResponse{
@@ -663,24 +690,24 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 		return ErrEmptyBody
 	}
 
-	spec := repository.ChapterUpdate{
+	chapterUpdate := spec.ChapterUpdate{
 		ID:        chapterID,
 		Title:     strings.TrimSpace(req.Title),
 		Body:      body,
 		WordCount: countWords(body),
 	}
 
-	if err := s.fanficRepo.UpdateChapterWithCount(ctx, spec); err != nil {
+	if err := s.fanficRepo.UpdateChapterWithCount(ctx, chapterUpdate); err != nil {
 		return err
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionFanficChapterUpdateAdmin,
-			TargetType: repository.AuditTargetFanficChapter,
+			Action:     audit.ActionFanficChapterUpdateAdmin,
+			TargetType: audit.TargetFanficChapter,
 			TargetID:   chapterID.String(),
-			Details:    fmt.Sprintf("title=%s,word_count=%d", spec.Title, spec.WordCount),
+			Details:    fmt.Sprintf("title=%s,word_count=%d", chapterUpdate.Title, chapterUpdate.WordCount),
 			SubjectID:  authorID,
 		})
 	}
@@ -703,15 +730,15 @@ func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID
 		return err
 	}
 
-	action := repository.AuditActionFanficChapterDelete
+	action := audit.ActionFanficChapterDelete
 	if asAdmin {
-		action = repository.AuditActionFanficChapterDeleteAdmin
+		action = audit.ActionFanficChapterDeleteAdmin
 	}
 
-	s.writeAudit(ctx, repository.NewAuditEntry{
+	s.writeAudit(ctx, audit.NewEntry{
 		ActorID:    userID,
 		Action:     action,
-		TargetType: repository.AuditTargetFanficChapter,
+		TargetType: audit.TargetFanficChapter,
 		TargetID:   chapterID.String(),
 		SubjectID:  authorID,
 	})
@@ -720,7 +747,7 @@ func (s *service) DeleteChapter(ctx context.Context, chapterID, userID uuid.UUID
 }
 
 func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) error {
-	fanfic, err := s.fanficRepo.GetByID(ctx, fanficID, userID)
+	fanfic, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: fanficID, ViewerID: userID})
 	if err != nil {
 		return err
 	}
@@ -733,7 +760,7 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 		return block.ErrUserBlocked
 	}
 
-	if err := s.fanficRepo.Favourite(ctx, userID, fanficID); err != nil {
+	if err := s.fanficRepo.Favourite(ctx, spec.FanficUserRef{UserID: userID, FanficID: fanficID}); err != nil {
 		return err
 	}
 
@@ -762,7 +789,7 @@ func (s *service) Favourite(ctx context.Context, userID, fanficID uuid.UUID) err
 }
 
 func (s *service) Unfavourite(ctx context.Context, userID, fanficID uuid.UUID) error {
-	return s.fanficRepo.Unfavourite(ctx, userID, fanficID)
+	return s.fanficRepo.Unfavourite(ctx, spec.FanficUserRef{UserID: userID, FanficID: fanficID})
 }
 
 func (s *service) GetLanguages(ctx context.Context) ([]string, error) {
@@ -786,7 +813,7 @@ func (s *service) CreateComment(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, err
 	}
 
-	fanfic, err := s.fanficRepo.GetByID(ctx, fanficID, userID)
+	fanfic, err := s.fanficRepo.GetByID(ctx, spec.FanficLookup{ID: fanficID, ViewerID: userID})
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -863,22 +890,22 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermEditAnyComment)
 
-	spec := repository.FanficCommentUpdate{
-		ID:      id,
-		UserID:  userID,
-		Body:    body,
-		AsAdmin: asAdmin,
+	commentUpdate := spec.CommentUpdate{
+		CommentID: id,
+		UserID:    userID,
+		Body:      body,
+		AsAdmin:   asAdmin,
 	}
 
-	if err := s.fanficRepo.UpdateCommentBody(ctx, spec); err != nil {
+	if err := s.fanficRepo.UpdateCommentBody(ctx, commentUpdate); err != nil {
 		return err
 	}
 
 	if asAdmin {
-		s.writeAudit(ctx, repository.NewAuditEntry{
+		s.writeAudit(ctx, audit.NewEntry{
 			ActorID:    userID,
-			Action:     repository.AuditActionFanficCommentUpdateAdmin,
-			TargetType: repository.AuditTargetFanficComment,
+			Action:     audit.ActionFanficCommentUpdateAdmin,
+			TargetType: audit.TargetFanficComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		})
@@ -895,25 +922,27 @@ func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)
 
-	action := repository.AuditActionFanficCommentDelete
+	action := audit.ActionFanficCommentDelete
 	if asAdmin {
-		action = repository.AuditActionFanficCommentDeleteAdmin
+		action = audit.ActionFanficCommentDeleteAdmin
 	}
 
-	spec := repository.FanficCommentDelete{
-		ID:      id,
-		UserID:  userID,
-		AsAdmin: asAdmin,
-		Audit: repository.NewAuditEntry{
+	commentDelete := spec.FanficCommentDelete{
+		CommentDeletion: spec.CommentDeletion{
+			CommentID: id,
+			UserID:    userID,
+			AsAdmin:   asAdmin,
+		},
+		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
-			TargetType: repository.AuditTargetFanficComment,
+			TargetType: audit.TargetFanficComment,
 			TargetID:   id.String(),
 			SubjectID:  authorID,
 		},
 	}
 
-	paths, err := s.fanficRepo.DeleteCommentWithAudit(ctx, spec)
+	paths, err := s.fanficRepo.DeleteCommentWithAudit(ctx, commentDelete)
 	if err != nil {
 		return err
 	}
@@ -931,7 +960,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
 		return block.ErrUserBlocked
 	}
-	if err := s.fanficRepo.LikeComment(ctx, userID, commentID); err != nil {
+	if err := s.fanficRepo.LikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID}); err != nil {
 		return err
 	}
 
@@ -960,7 +989,7 @@ func (s *service) LikeComment(ctx context.Context, userID, commentID uuid.UUID) 
 }
 
 func (s *service) UnlikeComment(ctx context.Context, userID, commentID uuid.UUID) error {
-	return s.fanficRepo.UnlikeComment(ctx, userID, commentID)
+	return s.fanficRepo.UnlikeComment(ctx, spec.CommentLike{UserID: userID, CommentID: commentID})
 }
 
 func (s *service) UploadCommentMedia(
@@ -983,8 +1012,8 @@ func (s *service) UploadCommentMedia(
 
 	return s.uploader.SaveAndRecord(ctx, "fanfics", contentType, filename, fileSize, reader, isSpoiler,
 		func(mediaURL, mediaType, thumbURL, filename string, sortOrder int) (int64, error) {
-			return s.fanficRepo.AddCommentMedia(ctx, repository.NewFanficCommentMedia{
-				CommentID:    commentID,
+			return s.fanficRepo.AddCommentMedia(ctx, spec.NewMedia{
+				TargetID:     commentID,
 				MediaURL:     mediaURL,
 				MediaType:    mediaType,
 				ThumbnailURL: thumbURL,
@@ -998,7 +1027,7 @@ func (s *service) UploadCommentMedia(
 	)
 }
 
-func fanficCommentToResponse(c repository.CommentRow, media []model.PostMediaRow) dto.FanficCommentResponse {
+func fanficCommentToResponse(c model.CommentRow, media []model.PostMediaRow) dto.FanficCommentResponse {
 	return dto.FanficCommentResponse{
 		ID:       c.ID,
 		ParentID: c.ParentID,

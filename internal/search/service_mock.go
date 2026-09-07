@@ -7,7 +7,7 @@ package search
 import (
 	"context"
 	"umineko_city_of_books/internal/bounds"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -41,19 +41,19 @@ func (_m *MockService) EXPECT() *MockService_Expecter {
 }
 
 // ChildEntityTypes provides a mock function for the type MockService
-func (_mock *MockService) ChildEntityTypes() []repository.SearchEntityType {
+func (_mock *MockService) ChildEntityTypes() []model.SearchEntityType {
 	ret := _mock.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for ChildEntityTypes")
 	}
 
-	var r0 []repository.SearchEntityType
-	if returnFunc, ok := ret.Get(0).(func() []repository.SearchEntityType); ok {
+	var r0 []model.SearchEntityType
+	if returnFunc, ok := ret.Get(0).(func() []model.SearchEntityType); ok {
 		r0 = returnFunc()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.SearchEntityType)
+			r0 = ret.Get(0).([]model.SearchEntityType)
 		}
 	}
 	return r0
@@ -76,30 +76,30 @@ func (_c *MockService_ChildEntityTypes_Call) Run(run func()) *MockService_ChildE
 	return _c
 }
 
-func (_c *MockService_ChildEntityTypes_Call) Return(searchEntityTypes []repository.SearchEntityType) *MockService_ChildEntityTypes_Call {
+func (_c *MockService_ChildEntityTypes_Call) Return(searchEntityTypes []model.SearchEntityType) *MockService_ChildEntityTypes_Call {
 	_c.Call.Return(searchEntityTypes)
 	return _c
 }
 
-func (_c *MockService_ChildEntityTypes_Call) RunAndReturn(run func() []repository.SearchEntityType) *MockService_ChildEntityTypes_Call {
+func (_c *MockService_ChildEntityTypes_Call) RunAndReturn(run func() []model.SearchEntityType) *MockService_ChildEntityTypes_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ParseTypes provides a mock function for the type MockService
-func (_mock *MockService) ParseTypes(raw string) []repository.SearchEntityType {
+func (_mock *MockService) ParseTypes(raw string) []model.SearchEntityType {
 	ret := _mock.Called(raw)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ParseTypes")
 	}
 
-	var r0 []repository.SearchEntityType
-	if returnFunc, ok := ret.Get(0).(func(string) []repository.SearchEntityType); ok {
+	var r0 []model.SearchEntityType
+	if returnFunc, ok := ret.Get(0).(func(string) []model.SearchEntityType); ok {
 		r0 = returnFunc(raw)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]repository.SearchEntityType)
+			r0 = ret.Get(0).([]model.SearchEntityType)
 		}
 	}
 	return r0
@@ -129,12 +129,12 @@ func (_c *MockService_ParseTypes_Call) Run(run func(raw string)) *MockService_Pa
 	return _c
 }
 
-func (_c *MockService_ParseTypes_Call) Return(searchEntityTypes []repository.SearchEntityType) *MockService_ParseTypes_Call {
+func (_c *MockService_ParseTypes_Call) Return(searchEntityTypes []model.SearchEntityType) *MockService_ParseTypes_Call {
 	_c.Call.Return(searchEntityTypes)
 	return _c
 }
 
-func (_c *MockService_ParseTypes_Call) RunAndReturn(run func(raw string) []repository.SearchEntityType) *MockService_ParseTypes_Call {
+func (_c *MockService_ParseTypes_Call) RunAndReturn(run func(raw string) []model.SearchEntityType) *MockService_ParseTypes_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -220,7 +220,7 @@ func (_c *MockService_QuickSearch_Call) RunAndReturn(run func(ctx context.Contex
 }
 
 // Search provides a mock function for the type MockService
-func (_mock *MockService) Search(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID uuid.UUID, roomID uuid.UUID) ([]Result, int, error) {
+func (_mock *MockService) Search(ctx context.Context, query string, types []model.SearchEntityType, page bounds.Page, viewerID uuid.UUID, roomID uuid.UUID) ([]Result, int, error) {
 	ret := _mock.Called(ctx, query, types, page, viewerID, roomID)
 
 	if len(ret) == 0 {
@@ -230,22 +230,22 @@ func (_mock *MockService) Search(ctx context.Context, query string, types []repo
 	var r0 []Result
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []repository.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) ([]Result, int, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []model.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) ([]Result, int, error)); ok {
 		return returnFunc(ctx, query, types, page, viewerID, roomID)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []repository.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) []Result); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, []model.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) []Result); ok {
 		r0 = returnFunc(ctx, query, types, page, viewerID, roomID)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]Result)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []repository.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) int); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, []model.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) int); ok {
 		r1 = returnFunc(ctx, query, types, page, viewerID, roomID)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, string, []repository.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) error); ok {
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string, []model.SearchEntityType, bounds.Page, uuid.UUID, uuid.UUID) error); ok {
 		r2 = returnFunc(ctx, query, types, page, viewerID, roomID)
 	} else {
 		r2 = ret.Error(2)
@@ -261,7 +261,7 @@ type MockService_Search_Call struct {
 // Search is a helper method to define mock.On call
 //   - ctx context.Context
 //   - query string
-//   - types []repository.SearchEntityType
+//   - types []model.SearchEntityType
 //   - page bounds.Page
 //   - viewerID uuid.UUID
 //   - roomID uuid.UUID
@@ -269,7 +269,7 @@ func (_e *MockService_Expecter) Search(ctx any, query any, types any, page any, 
 	return &MockService_Search_Call{Call: _e.mock.On("Search", ctx, query, types, page, viewerID, roomID)}
 }
 
-func (_c *MockService_Search_Call) Run(run func(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID uuid.UUID, roomID uuid.UUID)) *MockService_Search_Call {
+func (_c *MockService_Search_Call) Run(run func(ctx context.Context, query string, types []model.SearchEntityType, page bounds.Page, viewerID uuid.UUID, roomID uuid.UUID)) *MockService_Search_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -279,9 +279,9 @@ func (_c *MockService_Search_Call) Run(run func(ctx context.Context, query strin
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 []repository.SearchEntityType
+		var arg2 []model.SearchEntityType
 		if args[2] != nil {
-			arg2 = args[2].([]repository.SearchEntityType)
+			arg2 = args[2].([]model.SearchEntityType)
 		}
 		var arg3 bounds.Page
 		if args[3] != nil {
@@ -312,7 +312,7 @@ func (_c *MockService_Search_Call) Return(results []Result, n int, err error) *M
 	return _c
 }
 
-func (_c *MockService_Search_Call) RunAndReturn(run func(ctx context.Context, query string, types []repository.SearchEntityType, page bounds.Page, viewerID uuid.UUID, roomID uuid.UUID) ([]Result, int, error)) *MockService_Search_Call {
+func (_c *MockService_Search_Call) RunAndReturn(run func(ctx context.Context, query string, types []model.SearchEntityType, page bounds.Page, viewerID uuid.UUID, roomID uuid.UUID) ([]Result, int, error)) *MockService_Search_Call {
 	_c.Call.Return(run)
 	return _c
 }

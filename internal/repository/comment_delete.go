@@ -5,7 +5,9 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -14,58 +16,49 @@ type (
 	commentDeleteDAO interface {
 		GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error)
 		CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error)
-		DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error
-		DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error
+		DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error
 	}
 
 	commentDeleteSpec struct {
-		CommentID   uuid.UUID
-		UserID      uuid.UUID
-		AsAdmin     bool
-		OwnAction   AuditAction
-		AdminAction AuditAction
-		TargetType  AuditTargetType
+		spec.CommentDeletion
+		OwnAction   audit.Action
+		AdminAction audit.Action
+		TargetType  audit.TargetType
 	}
 )
 
-func deleteCommentWithAudit(ctx context.Context, database *sql.DB, dao commentDeleteDAO, audit AuditLogRepository, spec commentDeleteSpec, tx []*sql.Tx) ([]string, error) {
+func deleteCommentWithAudit(ctx context.Context, database *sql.DB, comments commentDeleteDAO, auditRepo AuditLogRepository, s commentDeleteSpec, tx []*sql.Tx) ([]string, error) {
 	var paths []string
 
 	err := db.WithTx(ctx, database, tx, func(tx *sql.Tx) error {
-		authorID, err := dao.GetCommentAuthorID(ctx, spec.CommentID, tx)
+		authorID, err := comments.GetCommentAuthorID(ctx, s.CommentID, tx)
 		if err != nil {
 			return err
 		}
 
-		mediaPaths, err := dao.CollectSingleCommentMediaPaths(ctx, spec.CommentID, tx)
+		mediaPaths, err := comments.CollectSingleCommentMediaPaths(ctx, s.CommentID, tx)
 		if err != nil {
 			return err
 		}
 
-		action := spec.OwnAction
-		if authorID != spec.UserID {
-			action = spec.AdminAction
+		action := s.OwnAction
+		if authorID != s.UserID {
+			action = s.AdminAction
 		}
 
-		if spec.AsAdmin {
-			if err := dao.DeleteCommentAsAdmin(ctx, spec.CommentID, tx); err != nil {
-				return err
-			}
-		} else {
-			if err := dao.DeleteComment(ctx, spec.CommentID, spec.UserID, tx); err != nil {
-				return err
-			}
+		if err := comments.DeleteComment(ctx, s.CommentDeletion, tx); err != nil {
+			return err
 		}
 
-		entry := NewAuditEntry{
-			ActorID:    spec.UserID,
+		entry := audit.NewEntry{
+			ActorID:    s.UserID,
 			Action:     action,
-			TargetType: spec.TargetType,
-			TargetID:   spec.CommentID.String(),
+			TargetType: s.TargetType,
+			TargetID:   s.CommentID.String(),
 			SubjectID:  authorID,
 		}
 
-		if err := audit.Create(ctx, entry, tx); err != nil {
+		if err := auditRepo.Create(ctx, entry, tx); err != nil {
 			return fmt.Errorf("audit comment delete: %w", err)
 		}
 

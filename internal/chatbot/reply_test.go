@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/openai"
 	"umineko_city_of_books/internal/post"
 	"umineko_city_of_books/internal/repository"
@@ -91,7 +93,7 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 		incomplete bool
 		reason     string
 		wantBody   string
-		wantStatus repository.InvocationStatus
+		wantStatus model.InvocationStatus
 	}{
 		{
 			name:       "a reply cut short by the token cap is still delivered",
@@ -99,13 +101,13 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 			incomplete: true,
 			reason:     openai.IncompleteMaxOutputTokens,
 			wantBody:   "The culprit is not human, and the proof begins with the",
-			wantStatus: repository.InvocationReplied,
+			wantStatus: model.InvocationReplied,
 		},
 		{
 			name:       "a complete reply is unaffected",
 			text:       "The culprit is not human.",
 			wantBody:   "The culprit is not human.",
-			wantStatus: repository.InvocationReplied,
+			wantStatus: model.InvocationReplied,
 		},
 	}
 
@@ -126,13 +128,17 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 			}, nil).Once()
 
 			botRepo := repository.NewMockChatbotRepository(t)
-			botRepo.EXPECT().CreateInvocation(mock.Anything, mock.MatchedBy(func(spec repository.NewInvocation) bool {
-				return spec.BotUserID == botUserID &&
-					spec.RoomID == nil &&
-					spec.Channel == string(SurfacePost) &&
-					spec.Model == "gpt-5.6"
-			})).Return(&repository.ChatbotInvocation{ID: invocationID}, nil).Once()
-			botRepo.EXPECT().CompleteInvocation(mock.Anything, invocationID, mock.Anything, tc.wantStatus).Return(nil).Once()
+			botRepo.EXPECT().CreateInvocation(mock.Anything, mock.MatchedBy(func(inv spec.NewInvocation) bool {
+				return inv.BotUserID == botUserID &&
+					inv.RoomID == nil &&
+					inv.Channel == string(SurfacePost) &&
+					inv.Model == "gpt-5.6"
+			})).Return(&model.ChatbotInvocation{ID: invocationID}, nil).Once()
+			botRepo.EXPECT().CompleteInvocation(mock.Anything, spec.InvocationCompletion{
+				ID:     invocationID,
+				Usage:  spec.InvocationUsage{CompletionTokens: 120, ReasoningTokens: 400},
+				Status: tc.wantStatus,
+			}).Return(nil).Once()
 
 			postSvc := post.NewMockService(t)
 			postSvc.EXPECT().CreateComment(mock.Anything, postID, botUserID, mock.MatchedBy(func(req dto.CreateCommentRequest) bool {
@@ -142,7 +148,7 @@ func TestReply_IncompleteTextIsDeliveredNotBinned(t *testing.T) {
 			svc := &service{openaiSvc: openaiSvc, botRepo: botRepo, postSvc: postSvc, quit: make(chan struct{})}
 			j := job{
 				ev:  botEvent{Surface: SurfacePost, ScopeID: postID, ItemID: postID, SenderID: uuid.New(), Body: "@beatrice who did it?"},
-				bot: repository.Chatbot{UserID: botUserID, Username: "beatrice"},
+				bot: model.Chatbot{UserID: botUserID, Username: "beatrice"},
 			}
 
 			// when
@@ -182,20 +188,24 @@ func TestReply_EmptyTextBecomesAnExplainableOutcome(t *testing.T) {
 			}, nil).Once()
 
 			botRepo := repository.NewMockChatbotRepository(t)
-			botRepo.EXPECT().CreateInvocation(mock.Anything, mock.MatchedBy(func(spec repository.NewInvocation) bool {
-				return spec.BotUserID == botUserID &&
-					spec.RoomID == nil &&
-					spec.Channel == string(SurfacePost) &&
-					spec.Model == "gpt-5.6"
-			})).Return(&repository.ChatbotInvocation{ID: invocationID}, nil).Once()
-			botRepo.EXPECT().CompleteInvocation(mock.Anything, invocationID, mock.Anything, repository.InvocationRefused).Return(nil).Once()
+			botRepo.EXPECT().CreateInvocation(mock.Anything, mock.MatchedBy(func(inv spec.NewInvocation) bool {
+				return inv.BotUserID == botUserID &&
+					inv.RoomID == nil &&
+					inv.Channel == string(SurfacePost) &&
+					inv.Model == "gpt-5.6"
+			})).Return(&model.ChatbotInvocation{ID: invocationID}, nil).Once()
+			botRepo.EXPECT().CompleteInvocation(mock.Anything, spec.InvocationCompletion{
+				ID:     invocationID,
+				Usage:  spec.InvocationUsage{ReasoningTokens: 1800},
+				Status: model.InvocationRefused,
+			}).Return(nil).Once()
 
 			postSvc := post.NewMockService(t)
 
 			svc := &service{openaiSvc: openaiSvc, botRepo: botRepo, postSvc: postSvc, quit: make(chan struct{})}
 			j := job{
 				ev:  botEvent{Surface: SurfacePost, ScopeID: postID, ItemID: postID, SenderID: uuid.New(), Body: "@beatrice who did it?"},
-				bot: repository.Chatbot{UserID: botUserID, Username: "beatrice"},
+				bot: model.Chatbot{UserID: botUserID, Username: "beatrice"},
 			}
 
 			// when
@@ -239,7 +249,7 @@ func TestSettle_EveryOutcomeReachesTheMember(t *testing.T) {
 			svc := &service{postSvc: postSvc, quit: make(chan struct{})}
 			j := job{
 				ev:  botEvent{Surface: SurfacePost, ScopeID: postID, ItemID: postID, SenderID: senderID},
-				bot: repository.Chatbot{UserID: botUserID, Username: "beatrice"},
+				bot: model.Chatbot{UserID: botUserID, Username: "beatrice"},
 			}
 
 			// when
@@ -262,7 +272,7 @@ func TestSettle_ErrorOutcomesAreNeverSuppressedByTheNoticeCooldown(t *testing.T)
 	svc := &service{postSvc: postSvc, quit: make(chan struct{})}
 	j := job{
 		ev:  botEvent{Surface: SurfacePost, ScopeID: postID, ItemID: postID, SenderID: senderID},
-		bot: repository.Chatbot{UserID: botUserID, Username: "beatrice"},
+		bot: model.Chatbot{UserID: botUserID, Username: "beatrice"},
 	}
 
 	// when three provider failures land back to back for the same member

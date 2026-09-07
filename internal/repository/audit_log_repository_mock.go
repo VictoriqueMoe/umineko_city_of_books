@@ -7,8 +7,9 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/audit"
+	"umineko_city_of_books/internal/model/spec"
 
-	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -40,12 +41,12 @@ func (_m *MockAuditLogRepository) EXPECT() *MockAuditLogRepository_Expecter {
 }
 
 // Create provides a mock function for the type MockAuditLogRepository
-func (_mock *MockAuditLogRepository) Create(ctx context.Context, spec NewAuditEntry, tx ...*sql.Tx) error {
+func (_mock *MockAuditLogRepository) Create(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, entry, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, entry)
 	}
 	ret := tmpRet
 
@@ -54,8 +55,8 @@ func (_mock *MockAuditLogRepository) Create(ctx context.Context, spec NewAuditEn
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewAuditEntry, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, audit.NewEntry, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, entry, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -69,22 +70,22 @@ type MockAuditLogRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewAuditEntry
+//   - entry audit.NewEntry
 //   - tx ...*sql.Tx
-func (_e *MockAuditLogRepository_Expecter) Create(ctx any, spec any, tx ...any) *MockAuditLogRepository_Create_Call {
+func (_e *MockAuditLogRepository_Expecter) Create(ctx any, entry any, tx ...any) *MockAuditLogRepository_Create_Call {
 	return &MockAuditLogRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, entry}, tx...)...)}
 }
 
-func (_c *MockAuditLogRepository_Create_Call) Run(run func(ctx context.Context, spec NewAuditEntry, tx ...*sql.Tx)) *MockAuditLogRepository_Create_Call {
+func (_c *MockAuditLogRepository_Create_Call) Run(run func(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx)) *MockAuditLogRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewAuditEntry
+		var arg1 audit.NewEntry
 		if args[1] != nil {
-			arg1 = args[1].(NewAuditEntry)
+			arg1 = args[1].(audit.NewEntry)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -106,18 +107,18 @@ func (_c *MockAuditLogRepository_Create_Call) Return(err error) *MockAuditLogRep
 	return _c
 }
 
-func (_c *MockAuditLogRepository_Create_Call) RunAndReturn(run func(ctx context.Context, spec NewAuditEntry, tx ...*sql.Tx) error) *MockAuditLogRepository_Create_Call {
+func (_c *MockAuditLogRepository_Create_Call) RunAndReturn(run func(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error) *MockAuditLogRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CreateSystem provides a mock function for the type MockAuditLogRepository
-func (_mock *MockAuditLogRepository) CreateSystem(ctx context.Context, spec NewAuditEntry, tx ...*sql.Tx) error {
+func (_mock *MockAuditLogRepository) CreateSystem(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, entry, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, entry)
 	}
 	ret := tmpRet
 
@@ -126,8 +127,8 @@ func (_mock *MockAuditLogRepository) CreateSystem(ctx context.Context, spec NewA
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewAuditEntry, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, audit.NewEntry, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, entry, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -141,22 +142,22 @@ type MockAuditLogRepository_CreateSystem_Call struct {
 
 // CreateSystem is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewAuditEntry
+//   - entry audit.NewEntry
 //   - tx ...*sql.Tx
-func (_e *MockAuditLogRepository_Expecter) CreateSystem(ctx any, spec any, tx ...any) *MockAuditLogRepository_CreateSystem_Call {
+func (_e *MockAuditLogRepository_Expecter) CreateSystem(ctx any, entry any, tx ...any) *MockAuditLogRepository_CreateSystem_Call {
 	return &MockAuditLogRepository_CreateSystem_Call{Call: _e.mock.On("CreateSystem",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, entry}, tx...)...)}
 }
 
-func (_c *MockAuditLogRepository_CreateSystem_Call) Run(run func(ctx context.Context, spec NewAuditEntry, tx ...*sql.Tx)) *MockAuditLogRepository_CreateSystem_Call {
+func (_c *MockAuditLogRepository_CreateSystem_Call) Run(run func(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx)) *MockAuditLogRepository_CreateSystem_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewAuditEntry
+		var arg1 audit.NewEntry
 		if args[1] != nil {
-			arg1 = args[1].(NewAuditEntry)
+			arg1 = args[1].(audit.NewEntry)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -178,18 +179,18 @@ func (_c *MockAuditLogRepository_CreateSystem_Call) Return(err error) *MockAudit
 	return _c
 }
 
-func (_c *MockAuditLogRepository_CreateSystem_Call) RunAndReturn(run func(ctx context.Context, spec NewAuditEntry, tx ...*sql.Tx) error) *MockAuditLogRepository_CreateSystem_Call {
+func (_c *MockAuditLogRepository_CreateSystem_Call) RunAndReturn(run func(ctx context.Context, entry audit.NewEntry, tx ...*sql.Tx) error) *MockAuditLogRepository_CreateSystem_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockAuditLogRepository
-func (_mock *MockAuditLogRepository) List(ctx context.Context, action AuditAction, limit int, offset int, tx ...*sql.Tx) ([]AuditLogEntry, int, error) {
+func (_mock *MockAuditLogRepository) List(ctx context.Context, s spec.AuditLogListing, tx ...*sql.Tx) ([]audit.Entry, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, action, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, action, limit, offset)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -197,26 +198,26 @@ func (_mock *MockAuditLogRepository) List(ctx context.Context, action AuditActio
 		panic("no return value specified for List")
 	}
 
-	var r0 []AuditLogEntry
+	var r0 []audit.Entry
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, AuditAction, int, int, ...*sql.Tx) ([]AuditLogEntry, int, error)); ok {
-		return returnFunc(ctx, action, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AuditLogListing, ...*sql.Tx) ([]audit.Entry, int, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, AuditAction, int, int, ...*sql.Tx) []AuditLogEntry); ok {
-		r0 = returnFunc(ctx, action, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AuditLogListing, ...*sql.Tx) []audit.Entry); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]AuditLogEntry)
+			r0 = ret.Get(0).([]audit.Entry)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, AuditAction, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, action, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.AuditLogListing, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, AuditAction, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, action, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.AuditLogListing, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -230,67 +231,55 @@ type MockAuditLogRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - action AuditAction
-//   - limit int
-//   - offset int
+//   - s spec.AuditLogListing
 //   - tx ...*sql.Tx
-func (_e *MockAuditLogRepository_Expecter) List(ctx any, action any, limit any, offset any, tx ...any) *MockAuditLogRepository_List_Call {
+func (_e *MockAuditLogRepository_Expecter) List(ctx any, s any, tx ...any) *MockAuditLogRepository_List_Call {
 	return &MockAuditLogRepository_List_Call{Call: _e.mock.On("List",
-		append([]any{ctx, action, limit, offset}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAuditLogRepository_List_Call) Run(run func(ctx context.Context, action AuditAction, limit int, offset int, tx ...*sql.Tx)) *MockAuditLogRepository_List_Call {
+func (_c *MockAuditLogRepository_List_Call) Run(run func(ctx context.Context, s spec.AuditLogListing, tx ...*sql.Tx)) *MockAuditLogRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 AuditAction
+		var arg1 spec.AuditLogListing
 		if args[1] != nil {
-			arg1 = args[1].(AuditAction)
+			arg1 = args[1].(spec.AuditLogListing)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockAuditLogRepository_List_Call) Return(auditLogEntrys []AuditLogEntry, n int, err error) *MockAuditLogRepository_List_Call {
-	_c.Call.Return(auditLogEntrys, n, err)
+func (_c *MockAuditLogRepository_List_Call) Return(entrys []audit.Entry, n int, err error) *MockAuditLogRepository_List_Call {
+	_c.Call.Return(entrys, n, err)
 	return _c
 }
 
-func (_c *MockAuditLogRepository_List_Call) RunAndReturn(run func(ctx context.Context, action AuditAction, limit int, offset int, tx ...*sql.Tx) ([]AuditLogEntry, int, error)) *MockAuditLogRepository_List_Call {
+func (_c *MockAuditLogRepository_List_Call) RunAndReturn(run func(ctx context.Context, s spec.AuditLogListing, tx ...*sql.Tx) ([]audit.Entry, int, error)) *MockAuditLogRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListForUser provides a mock function for the type MockAuditLogRepository
-func (_mock *MockAuditLogRepository) ListForUser(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]AuditLogEntry, int, error) {
+func (_mock *MockAuditLogRepository) ListForUser(ctx context.Context, s spec.AuditLogUserListing, tx ...*sql.Tx) ([]audit.Entry, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, limit, offset)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -298,26 +287,26 @@ func (_mock *MockAuditLogRepository) ListForUser(ctx context.Context, userID uui
 		panic("no return value specified for ListForUser")
 	}
 
-	var r0 []AuditLogEntry
+	var r0 []audit.Entry
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) ([]AuditLogEntry, int, error)); ok {
-		return returnFunc(ctx, userID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AuditLogUserListing, ...*sql.Tx) ([]audit.Entry, int, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) []AuditLogEntry); ok {
-		r0 = returnFunc(ctx, userID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AuditLogUserListing, ...*sql.Tx) []audit.Entry); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]AuditLogEntry)
+			r0 = ret.Get(0).([]audit.Entry)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, userID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.AuditLogUserListing, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, userID, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.AuditLogUserListing, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, s, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -331,56 +320,44 @@ type MockAuditLogRepository_ListForUser_Call struct {
 
 // ListForUser is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - limit int
-//   - offset int
+//   - s spec.AuditLogUserListing
 //   - tx ...*sql.Tx
-func (_e *MockAuditLogRepository_Expecter) ListForUser(ctx any, userID any, limit any, offset any, tx ...any) *MockAuditLogRepository_ListForUser_Call {
+func (_e *MockAuditLogRepository_Expecter) ListForUser(ctx any, s any, tx ...any) *MockAuditLogRepository_ListForUser_Call {
 	return &MockAuditLogRepository_ListForUser_Call{Call: _e.mock.On("ListForUser",
-		append([]any{ctx, userID, limit, offset}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAuditLogRepository_ListForUser_Call) Run(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx)) *MockAuditLogRepository_ListForUser_Call {
+func (_c *MockAuditLogRepository_ListForUser_Call) Run(run func(ctx context.Context, s spec.AuditLogUserListing, tx ...*sql.Tx)) *MockAuditLogRepository_ListForUser_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.AuditLogUserListing
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.AuditLogUserListing)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockAuditLogRepository_ListForUser_Call) Return(auditLogEntrys []AuditLogEntry, n int, err error) *MockAuditLogRepository_ListForUser_Call {
-	_c.Call.Return(auditLogEntrys, n, err)
+func (_c *MockAuditLogRepository_ListForUser_Call) Return(entrys []audit.Entry, n int, err error) *MockAuditLogRepository_ListForUser_Call {
+	_c.Call.Return(entrys, n, err)
 	return _c
 }
 
-func (_c *MockAuditLogRepository_ListForUser_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, limit int, offset int, tx ...*sql.Tx) ([]AuditLogEntry, int, error)) *MockAuditLogRepository_ListForUser_Call {
+func (_c *MockAuditLogRepository_ListForUser_Call) RunAndReturn(run func(ctx context.Context, s spec.AuditLogUserListing, tx ...*sql.Tx) ([]audit.Entry, int, error)) *MockAuditLogRepository_ListForUser_Call {
 	_c.Call.Return(run)
 	return _c
 }

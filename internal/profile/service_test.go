@@ -7,14 +7,16 @@ import (
 	"testing"
 	"time"
 
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/session"
 	"umineko_city_of_books/internal/settings"
@@ -35,9 +37,9 @@ func hashFor(t *testing.T, password string) string {
 	return string(h)
 }
 
-func matchesPassword(password string) any {
-	return mock.MatchedBy(func(hash string) bool {
-		return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
+func matchesPasswordHashUpdate(userID uuid.UUID, password string) any {
+	return mock.MatchedBy(func(s spec.UserPasswordHashUpdate) bool {
+		return s.UserID == userID && bcrypt.CompareHashAndPassword([]byte(s.PasswordHash), []byte(password)) == nil
 	})
 }
 
@@ -237,7 +239,7 @@ func TestUpdateProfile_OK(t *testing.T) {
 	expected := req
 	expected.DefaultProfileTab = "posts"
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(nil)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -262,7 +264,7 @@ func TestUpdateProfile_DisplayNameLocked(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrDisplayNameLocked)
-	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything)
 }
 
 func TestUpdateProfile_LockedNameUnchangedStillSaves(t *testing.T) {
@@ -277,7 +279,7 @@ func TestUpdateProfile_LockedNameUnchangedStillSaves(t *testing.T) {
 		DisplayName:       "Locked Name",
 		DisplayNameLocked: true,
 	}, nil)
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(nil)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -297,7 +299,7 @@ func TestUpdateProfile_InvalidDOBFormat(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidDOB)
-	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything)
 }
 
 func TestUpdateProfile_FutureDOB(t *testing.T) {
@@ -312,7 +314,7 @@ func TestUpdateProfile_FutureDOB(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrFutureDOB)
-	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything)
 }
 
 func TestUpdateProfile_RepoError(t *testing.T) {
@@ -323,7 +325,7 @@ func TestUpdateProfile_RepoError(t *testing.T) {
 	expected := req
 	expected.DefaultProfileTab = "posts"
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(errors.New("boom"))
+	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(errors.New("boom"))
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -343,7 +345,7 @@ func TestUpdateProfile_RejectsInvalidDefaultTab(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidDefaultProfileTab)
-	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything)
 }
 
 func TestUpdateProfile_AcceptsOCsAsDefaultTab(t *testing.T) {
@@ -352,7 +354,7 @@ func TestUpdateProfile_AcceptsOCsAsDefaultTab(t *testing.T) {
 	userID := uuid.New()
 	req := dto.UpdateProfileRequest{DisplayName: "New Name", DefaultProfileTab: "ocs"}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID}, nil)
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, req).Return(nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: req}).Return(nil)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -371,7 +373,7 @@ func TestUpdateProfile_EmailChangeTriggersReverification(t *testing.T) {
 	expected.Email = "new@example.com"
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "old@example.com"}, nil)
 	svc.authService.(*auth.MockService).EXPECT().SetEmail(mock.Anything, userID, "new@example.com", "").Return(nil)
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(nil)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -389,7 +391,7 @@ func TestUpdateProfile_UnchangedEmailSkipsReverification(t *testing.T) {
 	expected.DefaultProfileTab = "posts"
 	expected.Email = "same@example.com"
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, Email: "same@example.com"}, nil)
-	userRepo.EXPECT().UpdateProfile(mock.Anything, userID, expected).Return(nil)
+	userRepo.EXPECT().UpdateProfile(mock.Anything, spec.UserProfileUpdate{UserID: userID, Profile: expected}).Return(nil)
 
 	// when
 	err := svc.UpdateProfile(context.Background(), userID, req)
@@ -412,7 +414,7 @@ func TestUpdateProfile_EmailTakenIsTranslated(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrEmailTaken)
-	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything, mock.Anything)
+	userRepo.AssertNotCalled(t, "UpdateProfile", mock.Anything, mock.Anything)
 }
 
 func TestUploadAvatar_OK(t *testing.T) {
@@ -422,7 +424,7 @@ func TestUploadAvatar_OK(t *testing.T) {
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
 	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, int64(3), int64(1024), reader).Return("/avatars/a.png", nil)
-	userRepo.EXPECT().UpdateAvatarURL(mock.Anything, userID, "/avatars/a.png").Return(nil)
+	userRepo.EXPECT().UpdateAvatarURL(mock.Anything, spec.UserAvatarUpdate{UserID: userID, AvatarURL: "/avatars/a.png"}).Return(nil)
 
 	// when
 	got, err := svc.UploadAvatar(context.Background(), userID, "image/png", 3, reader)
@@ -455,7 +457,7 @@ func TestUploadAvatar_UpdateRepoError(t *testing.T) {
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(1024)
 	uploadSvc.EXPECT().SaveImage(mock.Anything, "avatars", userID, int64(3), int64(1024), reader).Return("/avatars/a.png", nil)
-	userRepo.EXPECT().UpdateAvatarURL(mock.Anything, userID, "/avatars/a.png").Return(errors.New("db down"))
+	userRepo.EXPECT().UpdateAvatarURL(mock.Anything, spec.UserAvatarUpdate{UserID: userID, AvatarURL: "/avatars/a.png"}).Return(errors.New("db down"))
 
 	// when
 	got, err := svc.UploadAvatar(context.Background(), userID, "image/png", 3, reader)
@@ -473,7 +475,7 @@ func TestUploadBanner_OK(t *testing.T) {
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(2048)
 	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, int64(3), int64(2048), reader).Return("/banners/b.jpg", nil)
-	userRepo.EXPECT().UpdateBannerURL(mock.Anything, userID, "/banners/b.jpg").Return(nil)
+	userRepo.EXPECT().UpdateBannerURL(mock.Anything, spec.UserBannerUpdate{UserID: userID, BannerURL: "/banners/b.jpg"}).Return(nil)
 
 	// when
 	got, err := svc.UploadBanner(context.Background(), userID, "image/jpeg", 3, reader)
@@ -506,7 +508,7 @@ func TestUploadBanner_UpdateRepoError(t *testing.T) {
 	reader := strings.NewReader("img")
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMaxImageSize).Return(2048)
 	uploadSvc.EXPECT().SaveImage(mock.Anything, "banners", userID, int64(3), int64(2048), reader).Return("/banners/b.jpg", nil)
-	userRepo.EXPECT().UpdateBannerURL(mock.Anything, userID, "/banners/b.jpg").Return(errors.New("db down"))
+	userRepo.EXPECT().UpdateBannerURL(mock.Anything, spec.UserBannerUpdate{UserID: userID, BannerURL: "/banners/b.jpg"}).Return(errors.New("db down"))
 
 	// when
 	got, err := svc.UploadBanner(context.Background(), userID, "image/jpeg", 3, reader)
@@ -536,11 +538,11 @@ func TestChangePassword_MinLenZeroSkipsValidation(t *testing.T) {
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(0)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "old")}, nil)
-	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("x")).Return(nil)
-	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, matchesPasswordHashUpdate(userID, "x")).Return(nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangePassword,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangePassword,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "other_sessions_revoked=false",
 		SubjectID:  userID,
@@ -559,11 +561,11 @@ func TestChangePassword_OK(t *testing.T) {
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
-	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(nil)
-	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, matchesPasswordHashUpdate(userID, "newpass")).Return(nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangePassword,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangePassword,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "other_sessions_revoked=false",
 		SubjectID:  userID,
@@ -584,12 +586,12 @@ func TestChangePassword_RevokesOtherSessionsKeepingCurrent(t *testing.T) {
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
-	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(nil)
-	sessionRepo.EXPECT().DeleteAllForUserExcept(mock.Anything, userID, "current-token").Return(nil)
-	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, matchesPasswordHashUpdate(userID, "newpass")).Return(nil)
+	sessionRepo.EXPECT().DeleteAllForUserExcept(mock.Anything, spec.SessionDeletionExcept{UserID: userID, KeepToken: "current-token"}).Return(nil)
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionChangePassword,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionChangePassword,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "other_sessions_revoked=true",
 		SubjectID:  userID,
@@ -611,14 +613,14 @@ func TestChangePassword_DoesNotRevokeWhenChangeFails(t *testing.T) {
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
-	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(errors.New("write failed"))
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, matchesPasswordHashUpdate(userID, "newpass")).Return(errors.New("write failed"))
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "current-token", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
 
 	// then
 	require.Error(t, err)
-	sessionRepo.AssertNotCalled(t, "DeleteAllForUserExcept", mock.Anything, mock.Anything, mock.Anything)
+	sessionRepo.AssertNotCalled(t, "DeleteAllForUserExcept", mock.Anything, mock.Anything)
 }
 
 func TestChangePassword_RepoError(t *testing.T) {
@@ -627,7 +629,7 @@ func TestChangePassword_RepoError(t *testing.T) {
 	userID := uuid.New()
 	settingsSvc.EXPECT().GetInt(mock.Anything, config.SettingMinPasswordLength).Return(4)
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(&model.User{ID: userID, PasswordHash: hashFor(t, "oldpass")}, nil)
-	userRepo.EXPECT().SetPasswordHash(mock.Anything, userID, matchesPassword("newpass")).Return(errors.New("write failed"))
+	userRepo.EXPECT().SetPasswordHash(mock.Anything, matchesPasswordHashUpdate(userID, "newpass")).Return(errors.New("write failed"))
 
 	// when
 	err := svc.ChangePassword(context.Background(), userID, "tok", dto.ChangePasswordRequest{OldPassword: "oldpass", NewPassword: "newpass"})
@@ -642,10 +644,10 @@ func TestDeleteAccount_OK_CleansUpUploads(t *testing.T) {
 	userID := uuid.New()
 	user := &model.User{ID: userID, Username: "alice", DisplayName: "Alice", AvatarURL: "/avatars/a.png", BannerURL: "/banners/b.jpg", PasswordHash: hashFor(t, "pw")}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionDeleteAccount,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionDeleteAccount,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "username=alice display_name=Alice",
 	}).Return(nil)
@@ -708,10 +710,10 @@ func TestDeleteAccount_DeleteRepoError(t *testing.T) {
 	userID := uuid.New()
 	user := &model.User{ID: userID, Username: "alice", DisplayName: "Alice", PasswordHash: hashFor(t, "pw")}
 	userRepo.EXPECT().GetByID(mock.Anything, userID).Return(user, nil)
-	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, repository.NewAuditEntry{
+	auditRepoOf(t, svc).EXPECT().Create(mock.Anything, audit.NewEntry{
 		ActorID:    userID,
-		Action:     repository.AuditActionDeleteAccount,
-		TargetType: repository.AuditTargetUser,
+		Action:     audit.ActionDeleteAccount,
+		TargetType: audit.TargetUser,
 		TargetID:   userID.String(),
 		Details:    "username=alice display_name=Alice",
 	}).Return(nil)
@@ -732,7 +734,7 @@ func TestGetActivity_OK(t *testing.T) {
 	user := &model.User{ID: userID, Username: "alice"}
 	items := []dto.ActivityItem{{Type: "theory", TheoryTitle: "Foo"}}
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(user, nil)
-	theoryRepo.EXPECT().GetRecentActivityByUser(mock.Anything, userID, 10, 0).Return(items, 1, nil)
+	theoryRepo.EXPECT().GetRecentActivityByUser(mock.Anything, spec.UserActivityQuery{UserID: userID, Limit: 10, Offset: 0}).Return(items, 1, nil)
 
 	// when
 	got, err := svc.GetActivity(context.Background(), "alice", bounds.NewPage(10, 0))
@@ -777,7 +779,7 @@ func TestGetActivity_TheoryRepoError(t *testing.T) {
 	userID := uuid.New()
 	user := &model.User{ID: userID, Username: "alice"}
 	userRepo.EXPECT().GetByUsername(mock.Anything, "alice").Return(user, nil)
-	theoryRepo.EXPECT().GetRecentActivityByUser(mock.Anything, userID, 10, 0).Return(nil, 0, errors.New("boom"))
+	theoryRepo.EXPECT().GetRecentActivityByUser(mock.Anything, spec.UserActivityQuery{UserID: userID, Limit: 10, Offset: 0}).Return(nil, 0, errors.New("boom"))
 
 	// when
 	_, err := svc.GetActivity(context.Background(), "alice", bounds.NewPage(10, 0))
@@ -843,7 +845,7 @@ func TestSearchUsers_OK(t *testing.T) {
 	svc, userRepo, _, authzSvc, _, _ := newTestService(t)
 	id1 := uuid.New()
 	users := []model.User{{ID: id1, Username: "alice", DisplayName: "Alice"}}
-	userRepo.EXPECT().SearchByName(mock.Anything, "ali", 5).Return(users, nil)
+	userRepo.EXPECT().SearchByName(mock.Anything, spec.UserSearchFilter{Query: "ali", Limit: 5}).Return(users, nil)
 	authzSvc.EXPECT().GetRoles(mock.Anything, mock.Anything).Return(map[uuid.UUID]role.Role{
 		id1: authz.RoleModerator,
 	}, nil)
@@ -861,7 +863,7 @@ func TestSearchUsers_OK(t *testing.T) {
 func TestSearchUsers_RepoError(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)
-	userRepo.EXPECT().SearchByName(mock.Anything, "ali", 5).Return(nil, errors.New("db down"))
+	userRepo.EXPECT().SearchByName(mock.Anything, spec.UserSearchFilter{Query: "ali", Limit: 5}).Return(nil, errors.New("db down"))
 
 	// when
 	_, err := svc.SearchUsers(context.Background(), "ali", 5)
@@ -873,7 +875,7 @@ func TestSearchUsers_RepoError(t *testing.T) {
 func TestSearchUsers_EmptyResult(t *testing.T) {
 	// given
 	svc, userRepo, _, _, _, _ := newTestService(t)
-	userRepo.EXPECT().SearchByName(mock.Anything, "zzz", 5).Return([]model.User{}, nil)
+	userRepo.EXPECT().SearchByName(mock.Anything, spec.UserSearchFilter{Query: "zzz", Limit: 5}).Return([]model.User{}, nil)
 
 	// when
 	got, err := svc.SearchUsers(context.Background(), "zzz", 5)

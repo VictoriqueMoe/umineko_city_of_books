@@ -8,7 +8,7 @@ import (
 	"context"
 	"io"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/role"
 
 	"github.com/google/uuid"
@@ -2989,7 +2989,7 @@ func (_c *MockService_ListPublicRooms_Call) RunAndReturn(run func(ctx context.Co
 }
 
 // ListRoomAttachments provides a mock function for the type MockService
-func (_mock *MockService) ListRoomAttachments(ctx context.Context, userID uuid.UUID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error) {
+func (_mock *MockService) ListRoomAttachments(ctx context.Context, userID uuid.UUID, roomID uuid.UUID, kind model.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error) {
 	ret := _mock.Called(ctx, userID, roomID, kind, before, limit)
 
 	if len(ret) == 0 {
@@ -2998,17 +2998,17 @@ func (_mock *MockService) ListRoomAttachments(ctx context.Context, userID uuid.U
 
 	var r0 *dto.ChatMessageListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, repository.AttachmentKind, string, int) (*dto.ChatMessageListResponse, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, model.AttachmentKind, string, int) (*dto.ChatMessageListResponse, error)); ok {
 		return returnFunc(ctx, userID, roomID, kind, before, limit)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, repository.AttachmentKind, string, int) *dto.ChatMessageListResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, model.AttachmentKind, string, int) *dto.ChatMessageListResponse); ok {
 		r0 = returnFunc(ctx, userID, roomID, kind, before, limit)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*dto.ChatMessageListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, repository.AttachmentKind, string, int) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, model.AttachmentKind, string, int) error); ok {
 		r1 = returnFunc(ctx, userID, roomID, kind, before, limit)
 	} else {
 		r1 = ret.Error(1)
@@ -3025,14 +3025,14 @@ type MockService_ListRoomAttachments_Call struct {
 //   - ctx context.Context
 //   - userID uuid.UUID
 //   - roomID uuid.UUID
-//   - kind repository.AttachmentKind
+//   - kind model.AttachmentKind
 //   - before string
 //   - limit int
 func (_e *MockService_Expecter) ListRoomAttachments(ctx any, userID any, roomID any, kind any, before any, limit any) *MockService_ListRoomAttachments_Call {
 	return &MockService_ListRoomAttachments_Call{Call: _e.mock.On("ListRoomAttachments", ctx, userID, roomID, kind, before, limit)}
 }
 
-func (_c *MockService_ListRoomAttachments_Call) Run(run func(ctx context.Context, userID uuid.UUID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int)) *MockService_ListRoomAttachments_Call {
+func (_c *MockService_ListRoomAttachments_Call) Run(run func(ctx context.Context, userID uuid.UUID, roomID uuid.UUID, kind model.AttachmentKind, before string, limit int)) *MockService_ListRoomAttachments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -3046,9 +3046,9 @@ func (_c *MockService_ListRoomAttachments_Call) Run(run func(ctx context.Context
 		if args[2] != nil {
 			arg2 = args[2].(uuid.UUID)
 		}
-		var arg3 repository.AttachmentKind
+		var arg3 model.AttachmentKind
 		if args[3] != nil {
-			arg3 = args[3].(repository.AttachmentKind)
+			arg3 = args[3].(model.AttachmentKind)
 		}
 		var arg4 string
 		if args[4] != nil {
@@ -3075,7 +3075,7 @@ func (_c *MockService_ListRoomAttachments_Call) Return(chatMessageListResponse *
 	return _c
 }
 
-func (_c *MockService_ListRoomAttachments_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, roomID uuid.UUID, kind repository.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error)) *MockService_ListRoomAttachments_Call {
+func (_c *MockService_ListRoomAttachments_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, roomID uuid.UUID, kind model.AttachmentKind, before string, limit int) (*dto.ChatMessageListResponse, error)) *MockService_ListRoomAttachments_Call {
 	_c.Call.Return(run)
 	return _c
 }

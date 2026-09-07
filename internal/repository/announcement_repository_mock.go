@@ -7,7 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"umineko_city_of_books/internal/repository/model"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -41,12 +42,12 @@ func (_m *MockAnnouncementRepository) EXPECT() *MockAnnouncementRepository_Expec
 }
 
 // AddCommentMedia provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) AddCommentMedia(ctx context.Context, spec NewAnnouncementCommentMedia, tx ...*sql.Tx) (int64, error) {
+func (_mock *MockAnnouncementRepository) AddCommentMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -56,16 +57,16 @@ func (_mock *MockAnnouncementRepository) AddCommentMedia(ctx context.Context, sp
 
 	var r0 int64
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewAnnouncementCommentMedia, ...*sql.Tx) (int64, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) (int64, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewAnnouncementCommentMedia, ...*sql.Tx) int64); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewMedia, ...*sql.Tx) int64); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Get(0).(int64)
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, NewAnnouncementCommentMedia, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewMedia, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -79,22 +80,22 @@ type MockAnnouncementRepository_AddCommentMedia_Call struct {
 
 // AddCommentMedia is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewAnnouncementCommentMedia
+//   - s spec.NewMedia
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) AddCommentMedia(ctx any, spec any, tx ...any) *MockAnnouncementRepository_AddCommentMedia_Call {
+func (_e *MockAnnouncementRepository_Expecter) AddCommentMedia(ctx any, s any, tx ...any) *MockAnnouncementRepository_AddCommentMedia_Call {
 	return &MockAnnouncementRepository_AddCommentMedia_Call{Call: _e.mock.On("AddCommentMedia",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, spec NewAnnouncementCommentMedia, tx ...*sql.Tx)) *MockAnnouncementRepository_AddCommentMedia_Call {
+func (_c *MockAnnouncementRepository_AddCommentMedia_Call) Run(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx)) *MockAnnouncementRepository_AddCommentMedia_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewAnnouncementCommentMedia
+		var arg1 spec.NewMedia
 		if args[1] != nil {
-			arg1 = args[1].(NewAnnouncementCommentMedia)
+			arg1 = args[1].(spec.NewMedia)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -116,7 +117,7 @@ func (_c *MockAnnouncementRepository_AddCommentMedia_Call) Return(n int64, err e
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, spec NewAnnouncementCommentMedia, tx ...*sql.Tx) (int64, error)) *MockAnnouncementRepository_AddCommentMedia_Call {
+func (_c *MockAnnouncementRepository_AddCommentMedia_Call) RunAndReturn(run func(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error)) *MockAnnouncementRepository_AddCommentMedia_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -288,12 +289,12 @@ func (_c *MockAnnouncementRepository_CollectSingleCommentMediaPaths_Call) RunAnd
 }
 
 // Create provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) Create(ctx context.Context, authorID uuid.UUID, title string, body string, tx ...*sql.Tx) (*AnnouncementRow, error) {
+func (_mock *MockAnnouncementRepository) Create(ctx context.Context, s spec.NewAnnouncement, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, authorID, title, body, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, authorID, title, body)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -301,20 +302,20 @@ func (_mock *MockAnnouncementRepository) Create(ctx context.Context, authorID uu
 		panic("no return value specified for Create")
 	}
 
-	var r0 *AnnouncementRow
+	var r0 *model.AnnouncementRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) (*AnnouncementRow, error)); ok {
-		return returnFunc(ctx, authorID, title, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewAnnouncement, ...*sql.Tx) (*model.AnnouncementRow, error)); ok {
+		return returnFunc(ctx, s, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) *AnnouncementRow); ok {
-		r0 = returnFunc(ctx, authorID, title, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewAnnouncement, ...*sql.Tx) *model.AnnouncementRow); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*AnnouncementRow)
+			r0 = ret.Get(0).(*model.AnnouncementRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, authorID, title, body, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.NewAnnouncement, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, s, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -328,56 +329,44 @@ type MockAnnouncementRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - authorID uuid.UUID
-//   - title string
-//   - body string
+//   - s spec.NewAnnouncement
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) Create(ctx any, authorID any, title any, body any, tx ...any) *MockAnnouncementRepository_Create_Call {
+func (_e *MockAnnouncementRepository_Expecter) Create(ctx any, s any, tx ...any) *MockAnnouncementRepository_Create_Call {
 	return &MockAnnouncementRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, authorID, title, body}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_Create_Call) Run(run func(ctx context.Context, authorID uuid.UUID, title string, body string, tx ...*sql.Tx)) *MockAnnouncementRepository_Create_Call {
+func (_c *MockAnnouncementRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewAnnouncement, tx ...*sql.Tx)) *MockAnnouncementRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.NewAnnouncement
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.NewAnnouncement)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_Create_Call) Return(announcementRow *AnnouncementRow, err error) *MockAnnouncementRepository_Create_Call {
+func (_c *MockAnnouncementRepository_Create_Call) Return(announcementRow *model.AnnouncementRow, err error) *MockAnnouncementRepository_Create_Call {
 	_c.Call.Return(announcementRow, err)
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_Create_Call) RunAndReturn(run func(ctx context.Context, authorID uuid.UUID, title string, body string, tx ...*sql.Tx) (*AnnouncementRow, error)) *MockAnnouncementRepository_Create_Call {
+func (_c *MockAnnouncementRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewAnnouncement, tx ...*sql.Tx) (*model.AnnouncementRow, error)) *MockAnnouncementRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -455,12 +444,12 @@ func (_c *MockAnnouncementRepository_Delete_Call) RunAndReturn(run func(ctx cont
 }
 
 // DeleteComment provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) DeleteComment(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -469,8 +458,8 @@ func (_mock *MockAnnouncementRepository) DeleteComment(ctx context.Context, id u
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -484,100 +473,22 @@ type MockAnnouncementRepository_DeleteComment_Call struct {
 
 // DeleteComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
+//   - s spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) DeleteComment(ctx any, id any, userID any, tx ...any) *MockAnnouncementRepository_DeleteComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) DeleteComment(ctx any, s any, tx ...any) *MockAnnouncementRepository_DeleteComment_Call {
 	return &MockAnnouncementRepository_DeleteComment_Call{Call: _e.mock.On("DeleteComment",
-		append([]any{ctx, id, userID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_DeleteComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx)) *MockAnnouncementRepository_DeleteComment_Call {
+func (_c *MockAnnouncementRepository_DeleteComment_Call) Run(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx)) *MockAnnouncementRepository_DeleteComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockAnnouncementRepository_DeleteComment_Call) Return(err error) *MockAnnouncementRepository_DeleteComment_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockAnnouncementRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, tx ...*sql.Tx) error) *MockAnnouncementRepository_DeleteComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// DeleteCommentAsAdmin provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) DeleteCommentAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for DeleteCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockAnnouncementRepository_DeleteCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DeleteCommentAsAdmin'
-type MockAnnouncementRepository_DeleteCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// DeleteCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) DeleteCommentAsAdmin(ctx any, id any, tx ...any) *MockAnnouncementRepository_DeleteCommentAsAdmin_Call {
-	return &MockAnnouncementRepository_DeleteCommentAsAdmin_Call{Call: _e.mock.On("DeleteCommentAsAdmin",
-		append([]any{ctx, id}, tx...)...)}
-}
-
-func (_c *MockAnnouncementRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx)) *MockAnnouncementRepository_DeleteCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -594,23 +505,23 @@ func (_c *MockAnnouncementRepository_DeleteCommentAsAdmin_Call) Run(run func(ctx
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_DeleteCommentAsAdmin_Call) Return(err error) *MockAnnouncementRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockAnnouncementRepository_DeleteComment_Call) Return(err error) *MockAnnouncementRepository_DeleteComment_Call {
 	_c.Call.Return(err)
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_DeleteCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error) *MockAnnouncementRepository_DeleteCommentAsAdmin_Call {
+func (_c *MockAnnouncementRepository_DeleteComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentDeletion, tx ...*sql.Tx) error) *MockAnnouncementRepository_DeleteComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // DeleteCommentWithAudit provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) DeleteCommentWithAudit(ctx context.Context, spec AnnouncementCommentDeletion, tx ...*sql.Tx) ([]string, error) {
+func (_mock *MockAnnouncementRepository) DeleteCommentWithAudit(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx) ([]string, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, deletion, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, deletion)
 	}
 	ret := tmpRet
 
@@ -620,18 +531,18 @@ func (_mock *MockAnnouncementRepository) DeleteCommentWithAudit(ctx context.Cont
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, AnnouncementCommentDeletion, ...*sql.Tx) ([]string, error)); ok {
-		return returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) ([]string, error)); ok {
+		return returnFunc(ctx, deletion, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, AnnouncementCommentDeletion, ...*sql.Tx) []string); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) []string); ok {
+		r0 = returnFunc(ctx, deletion, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, AnnouncementCommentDeletion, ...*sql.Tx) error); ok {
-		r1 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentDeletion, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, deletion, tx...)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -645,22 +556,22 @@ type MockAnnouncementRepository_DeleteCommentWithAudit_Call struct {
 
 // DeleteCommentWithAudit is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec AnnouncementCommentDeletion
+//   - deletion spec.CommentDeletion
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) DeleteCommentWithAudit(ctx any, spec any, tx ...any) *MockAnnouncementRepository_DeleteCommentWithAudit_Call {
+func (_e *MockAnnouncementRepository_Expecter) DeleteCommentWithAudit(ctx any, deletion any, tx ...any) *MockAnnouncementRepository_DeleteCommentWithAudit_Call {
 	return &MockAnnouncementRepository_DeleteCommentWithAudit_Call{Call: _e.mock.On("DeleteCommentWithAudit",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, deletion}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, spec AnnouncementCommentDeletion, tx ...*sql.Tx)) *MockAnnouncementRepository_DeleteCommentWithAudit_Call {
+func (_c *MockAnnouncementRepository_DeleteCommentWithAudit_Call) Run(run func(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx)) *MockAnnouncementRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 AnnouncementCommentDeletion
+		var arg1 spec.CommentDeletion
 		if args[1] != nil {
-			arg1 = args[1].(AnnouncementCommentDeletion)
+			arg1 = args[1].(spec.CommentDeletion)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -682,7 +593,7 @@ func (_c *MockAnnouncementRepository_DeleteCommentWithAudit_Call) Return(strings
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, spec AnnouncementCommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockAnnouncementRepository_DeleteCommentWithAudit_Call {
+func (_c *MockAnnouncementRepository_DeleteCommentWithAudit_Call) RunAndReturn(run func(ctx context.Context, deletion spec.CommentDeletion, tx ...*sql.Tx) ([]string, error)) *MockAnnouncementRepository_DeleteCommentWithAudit_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -771,7 +682,7 @@ func (_c *MockAnnouncementRepository_DeleteWithMedia_Call) RunAndReturn(run func
 }
 
 // GetByID provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*AnnouncementRow, error) {
+func (_mock *MockAnnouncementRepository) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, id, tx)
@@ -784,16 +695,16 @@ func (_mock *MockAnnouncementRepository) GetByID(ctx context.Context, id uuid.UU
 		panic("no return value specified for GetByID")
 	}
 
-	var r0 *AnnouncementRow
+	var r0 *model.AnnouncementRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*AnnouncementRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) (*model.AnnouncementRow, error)); ok {
 		return returnFunc(ctx, id, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *AnnouncementRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, ...*sql.Tx) *model.AnnouncementRow); ok {
 		r0 = returnFunc(ctx, id, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*AnnouncementRow)
+			r0 = ret.Get(0).(*model.AnnouncementRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, ...*sql.Tx) error); ok {
@@ -843,12 +754,12 @@ func (_c *MockAnnouncementRepository_GetByID_Call) Run(run func(ctx context.Cont
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_GetByID_Call) Return(announcementRow *AnnouncementRow, err error) *MockAnnouncementRepository_GetByID_Call {
+func (_c *MockAnnouncementRepository_GetByID_Call) Return(announcementRow *model.AnnouncementRow, err error) *MockAnnouncementRepository_GetByID_Call {
 	_c.Call.Return(announcementRow, err)
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*AnnouncementRow, error)) *MockAnnouncementRepository_GetByID_Call {
+func (_c *MockAnnouncementRepository_GetByID_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.AnnouncementRow, error)) *MockAnnouncementRepository_GetByID_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1103,12 +1014,12 @@ func (_c *MockAnnouncementRepository_GetCommentMediaBatch_Call) RunAndReturn(run
 }
 
 // GetComments provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) GetComments(ctx context.Context, announcementID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error) {
+func (_mock *MockAnnouncementRepository) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, announcementID, viewerID, limit, offset, excludeUserIDs, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, announcementID, viewerID, limit, offset, excludeUserIDs)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -1116,26 +1027,26 @@ func (_mock *MockAnnouncementRepository) GetComments(ctx context.Context, announ
 		panic("no return value specified for GetComments")
 	}
 
-	var r0 []CommentRow
+	var r0 []model.CommentRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) ([]CommentRow, int, error)); ok {
-		return returnFunc(ctx, announcementID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) ([]model.CommentRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) []CommentRow); ok {
-		r0 = returnFunc(ctx, announcementID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) []model.CommentRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]CommentRow)
+			r0 = ret.Get(0).([]model.CommentRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, announcementID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, uuid.UUID, uuid.UUID, int, int, []uuid.UUID, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, announcementID, viewerID, limit, offset, excludeUserIDs, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.CommentQuery[uuid.UUID], ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1149,74 +1060,50 @@ type MockAnnouncementRepository_GetComments_Call struct {
 
 // GetComments is a helper method to define mock.On call
 //   - ctx context.Context
-//   - announcementID uuid.UUID
-//   - viewerID uuid.UUID
-//   - limit int
-//   - offset int
-//   - excludeUserIDs []uuid.UUID
+//   - q spec.CommentQuery[uuid.UUID]
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) GetComments(ctx any, announcementID any, viewerID any, limit any, offset any, excludeUserIDs any, tx ...any) *MockAnnouncementRepository_GetComments_Call {
+func (_e *MockAnnouncementRepository_Expecter) GetComments(ctx any, q any, tx ...any) *MockAnnouncementRepository_GetComments_Call {
 	return &MockAnnouncementRepository_GetComments_Call{Call: _e.mock.On("GetComments",
-		append([]any{ctx, announcementID, viewerID, limit, offset, excludeUserIDs}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_GetComments_Call) Run(run func(ctx context.Context, announcementID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx)) *MockAnnouncementRepository_GetComments_Call {
+func (_c *MockAnnouncementRepository_GetComments_Call) Run(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx)) *MockAnnouncementRepository_GetComments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentQuery[uuid.UUID]
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentQuery[uuid.UUID])
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 int
-		if args[3] != nil {
-			arg3 = args[3].(int)
-		}
-		var arg4 int
-		if args[4] != nil {
-			arg4 = args[4].(int)
-		}
-		var arg5 []uuid.UUID
-		if args[5] != nil {
-			arg5 = args[5].([]uuid.UUID)
-		}
-		var arg6 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 6 {
-			variadicArgs = args[6].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg6 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4,
-			arg5,
-			arg6...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_GetComments_Call) Return(commentRows []CommentRow, n int, err error) *MockAnnouncementRepository_GetComments_Call {
+func (_c *MockAnnouncementRepository_GetComments_Call) Return(commentRows []model.CommentRow, n int, err error) *MockAnnouncementRepository_GetComments_Call {
 	_c.Call.Return(commentRows, n, err)
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, announcementID uuid.UUID, viewerID uuid.UUID, limit int, offset int, excludeUserIDs []uuid.UUID, tx ...*sql.Tx) ([]CommentRow, int, error)) *MockAnnouncementRepository_GetComments_Call {
+func (_c *MockAnnouncementRepository_GetComments_Call) RunAndReturn(run func(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error)) *MockAnnouncementRepository_GetComments_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetLatest provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) GetLatest(ctx context.Context, tx ...*sql.Tx) (*AnnouncementRow, error) {
+func (_mock *MockAnnouncementRepository) GetLatest(ctx context.Context, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -1229,16 +1116,16 @@ func (_mock *MockAnnouncementRepository) GetLatest(ctx context.Context, tx ...*s
 		panic("no return value specified for GetLatest")
 	}
 
-	var r0 *AnnouncementRow
+	var r0 *model.AnnouncementRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (*AnnouncementRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) (*model.AnnouncementRow, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) *AnnouncementRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) *model.AnnouncementRow); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*AnnouncementRow)
+			r0 = ret.Get(0).(*model.AnnouncementRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -1282,23 +1169,23 @@ func (_c *MockAnnouncementRepository_GetLatest_Call) Run(run func(ctx context.Co
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_GetLatest_Call) Return(announcementRow *AnnouncementRow, err error) *MockAnnouncementRepository_GetLatest_Call {
+func (_c *MockAnnouncementRepository_GetLatest_Call) Return(announcementRow *model.AnnouncementRow, err error) *MockAnnouncementRepository_GetLatest_Call {
 	_c.Call.Return(announcementRow, err)
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_GetLatest_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (*AnnouncementRow, error)) *MockAnnouncementRepository_GetLatest_Call {
+func (_c *MockAnnouncementRepository_GetLatest_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) (*model.AnnouncementRow, error)) *MockAnnouncementRepository_GetLatest_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // LikeComment provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) LikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1307,8 +1194,8 @@ func (_mock *MockAnnouncementRepository) LikeComment(ctx context.Context, userID
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1322,39 +1209,33 @@ type MockAnnouncementRepository_LikeComment_Call struct {
 
 // LikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) LikeComment(ctx any, userID any, commentID any, tx ...any) *MockAnnouncementRepository_LikeComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) LikeComment(ctx any, s any, tx ...any) *MockAnnouncementRepository_LikeComment_Call {
 	return &MockAnnouncementRepository_LikeComment_Call{Call: _e.mock.On("LikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_LikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockAnnouncementRepository_LikeComment_Call {
+func (_c *MockAnnouncementRepository_LikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockAnnouncementRepository_LikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1365,18 +1246,18 @@ func (_c *MockAnnouncementRepository_LikeComment_Call) Return(err error) *MockAn
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockAnnouncementRepository_LikeComment_Call {
+func (_c *MockAnnouncementRepository_LikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockAnnouncementRepository_LikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // List provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) List(ctx context.Context, limit int, offset int, tx ...*sql.Tx) ([]AnnouncementRow, int, error) {
+func (_mock *MockAnnouncementRepository) List(ctx context.Context, q spec.AnnouncementListQuery, tx ...*sql.Tx) ([]model.AnnouncementRow, int, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, limit, offset, tx)
+		tmpRet = _mock.Called(ctx, q, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, limit, offset)
+		tmpRet = _mock.Called(ctx, q)
 	}
 	ret := tmpRet
 
@@ -1384,26 +1265,26 @@ func (_mock *MockAnnouncementRepository) List(ctx context.Context, limit int, of
 		panic("no return value specified for List")
 	}
 
-	var r0 []AnnouncementRow
+	var r0 []model.AnnouncementRow
 	var r1 int
 	var r2 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int, ...*sql.Tx) ([]AnnouncementRow, int, error)); ok {
-		return returnFunc(ctx, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AnnouncementListQuery, ...*sql.Tx) ([]model.AnnouncementRow, int, error)); ok {
+		return returnFunc(ctx, q, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int, int, ...*sql.Tx) []AnnouncementRow); ok {
-		r0 = returnFunc(ctx, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AnnouncementListQuery, ...*sql.Tx) []model.AnnouncementRow); ok {
+		r0 = returnFunc(ctx, q, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]AnnouncementRow)
+			r0 = ret.Get(0).([]model.AnnouncementRow)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, int, int, ...*sql.Tx) int); ok {
-		r1 = returnFunc(ctx, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, spec.AnnouncementListQuery, ...*sql.Tx) int); ok {
+		r1 = returnFunc(ctx, q, tx...)
 	} else {
 		r1 = ret.Get(1).(int)
 	}
-	if returnFunc, ok := ret.Get(2).(func(context.Context, int, int, ...*sql.Tx) error); ok {
-		r2 = returnFunc(ctx, limit, offset, tx...)
+	if returnFunc, ok := ret.Get(2).(func(context.Context, spec.AnnouncementListQuery, ...*sql.Tx) error); ok {
+		r2 = returnFunc(ctx, q, tx...)
 	} else {
 		r2 = ret.Error(2)
 	}
@@ -1417,61 +1298,55 @@ type MockAnnouncementRepository_List_Call struct {
 
 // List is a helper method to define mock.On call
 //   - ctx context.Context
-//   - limit int
-//   - offset int
+//   - q spec.AnnouncementListQuery
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) List(ctx any, limit any, offset any, tx ...any) *MockAnnouncementRepository_List_Call {
+func (_e *MockAnnouncementRepository_Expecter) List(ctx any, q any, tx ...any) *MockAnnouncementRepository_List_Call {
 	return &MockAnnouncementRepository_List_Call{Call: _e.mock.On("List",
-		append([]any{ctx, limit, offset}, tx...)...)}
+		append([]any{ctx, q}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_List_Call) Run(run func(ctx context.Context, limit int, offset int, tx ...*sql.Tx)) *MockAnnouncementRepository_List_Call {
+func (_c *MockAnnouncementRepository_List_Call) Run(run func(ctx context.Context, q spec.AnnouncementListQuery, tx ...*sql.Tx)) *MockAnnouncementRepository_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int
+		var arg1 spec.AnnouncementListQuery
 		if args[1] != nil {
-			arg1 = args[1].(int)
+			arg1 = args[1].(spec.AnnouncementListQuery)
 		}
-		var arg2 int
-		if args[2] != nil {
-			arg2 = args[2].(int)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_List_Call) Return(announcementRows []AnnouncementRow, n int, err error) *MockAnnouncementRepository_List_Call {
+func (_c *MockAnnouncementRepository_List_Call) Return(announcementRows []model.AnnouncementRow, n int, err error) *MockAnnouncementRepository_List_Call {
 	_c.Call.Return(announcementRows, n, err)
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_List_Call) RunAndReturn(run func(ctx context.Context, limit int, offset int, tx ...*sql.Tx) ([]AnnouncementRow, int, error)) *MockAnnouncementRepository_List_Call {
+func (_c *MockAnnouncementRepository_List_Call) RunAndReturn(run func(ctx context.Context, q spec.AnnouncementListQuery, tx ...*sql.Tx) ([]model.AnnouncementRow, int, error)) *MockAnnouncementRepository_List_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SetPinned provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) SetPinned(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) SetPinned(ctx context.Context, s spec.AnnouncementPinUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, pinned, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, pinned)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1480,8 +1355,8 @@ func (_mock *MockAnnouncementRepository) SetPinned(ctx context.Context, id uuid.
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, bool, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, pinned, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AnnouncementPinUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1495,39 +1370,33 @@ type MockAnnouncementRepository_SetPinned_Call struct {
 
 // SetPinned is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - pinned bool
+//   - s spec.AnnouncementPinUpdate
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) SetPinned(ctx any, id any, pinned any, tx ...any) *MockAnnouncementRepository_SetPinned_Call {
+func (_e *MockAnnouncementRepository_Expecter) SetPinned(ctx any, s any, tx ...any) *MockAnnouncementRepository_SetPinned_Call {
 	return &MockAnnouncementRepository_SetPinned_Call{Call: _e.mock.On("SetPinned",
-		append([]any{ctx, id, pinned}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_SetPinned_Call) Run(run func(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx)) *MockAnnouncementRepository_SetPinned_Call {
+func (_c *MockAnnouncementRepository_SetPinned_Call) Run(run func(ctx context.Context, s spec.AnnouncementPinUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_SetPinned_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.AnnouncementPinUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.AnnouncementPinUpdate)
 		}
-		var arg2 bool
-		if args[2] != nil {
-			arg2 = args[2].(bool)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1538,18 +1407,18 @@ func (_c *MockAnnouncementRepository_SetPinned_Call) Return(err error) *MockAnno
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_SetPinned_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, pinned bool, tx ...*sql.Tx) error) *MockAnnouncementRepository_SetPinned_Call {
+func (_c *MockAnnouncementRepository_SetPinned_Call) RunAndReturn(run func(ctx context.Context, s spec.AnnouncementPinUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_SetPinned_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UnlikeComment provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) UnlikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) UnlikeComment(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, userID, commentID, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, userID, commentID)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1558,8 +1427,8 @@ func (_mock *MockAnnouncementRepository) UnlikeComment(ctx context.Context, user
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, userID, commentID, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentLike, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1573,39 +1442,33 @@ type MockAnnouncementRepository_UnlikeComment_Call struct {
 
 // UnlikeComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - userID uuid.UUID
-//   - commentID uuid.UUID
+//   - s spec.CommentLike
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) UnlikeComment(ctx any, userID any, commentID any, tx ...any) *MockAnnouncementRepository_UnlikeComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) UnlikeComment(ctx any, s any, tx ...any) *MockAnnouncementRepository_UnlikeComment_Call {
 	return &MockAnnouncementRepository_UnlikeComment_Call{Call: _e.mock.On("UnlikeComment",
-		append([]any{ctx, userID, commentID}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_UnlikeComment_Call) Run(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx)) *MockAnnouncementRepository_UnlikeComment_Call {
+func (_c *MockAnnouncementRepository_UnlikeComment_Call) Run(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx)) *MockAnnouncementRepository_UnlikeComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentLike
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentLike)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1616,18 +1479,18 @@ func (_c *MockAnnouncementRepository_UnlikeComment_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, userID uuid.UUID, commentID uuid.UUID, tx ...*sql.Tx) error) *MockAnnouncementRepository_UnlikeComment_Call {
+func (_c *MockAnnouncementRepository_UnlikeComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentLike, tx ...*sql.Tx) error) *MockAnnouncementRepository_UnlikeComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Update provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) Update(ctx context.Context, id uuid.UUID, title string, body string, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) Update(ctx context.Context, s spec.AnnouncementUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, title, body, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, title, body)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1636,8 +1499,8 @@ func (_mock *MockAnnouncementRepository) Update(ctx context.Context, id uuid.UUI
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, title, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.AnnouncementUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1651,45 +1514,33 @@ type MockAnnouncementRepository_Update_Call struct {
 
 // Update is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - title string
-//   - body string
+//   - s spec.AnnouncementUpdate
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) Update(ctx any, id any, title any, body any, tx ...any) *MockAnnouncementRepository_Update_Call {
+func (_e *MockAnnouncementRepository_Expecter) Update(ctx any, s any, tx ...any) *MockAnnouncementRepository_Update_Call {
 	return &MockAnnouncementRepository_Update_Call{Call: _e.mock.On("Update",
-		append([]any{ctx, id, title, body}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_Update_Call) Run(run func(ctx context.Context, id uuid.UUID, title string, body string, tx ...*sql.Tx)) *MockAnnouncementRepository_Update_Call {
+func (_c *MockAnnouncementRepository_Update_Call) Run(run func(ctx context.Context, s spec.AnnouncementUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.AnnouncementUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.AnnouncementUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1700,18 +1551,18 @@ func (_c *MockAnnouncementRepository_Update_Call) Return(err error) *MockAnnounc
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_Update_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, title string, body string, tx ...*sql.Tx) error) *MockAnnouncementRepository_Update_Call {
+func (_c *MockAnnouncementRepository_Update_Call) RunAndReturn(run func(ctx context.Context, s spec.AnnouncementUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_Update_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateComment provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) UpdateComment(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, userID, body, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, userID, body)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1720,8 +1571,8 @@ func (_mock *MockAnnouncementRepository) UpdateComment(ctx context.Context, id u
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, userID, body, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1735,45 +1586,33 @@ type MockAnnouncementRepository_UpdateComment_Call struct {
 
 // UpdateComment is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id uuid.UUID
-//   - userID uuid.UUID
-//   - body string
+//   - s spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) UpdateComment(ctx any, id any, userID any, body any, tx ...any) *MockAnnouncementRepository_UpdateComment_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateComment(ctx any, s any, tx ...any) *MockAnnouncementRepository_UpdateComment_Call {
 	return &MockAnnouncementRepository_UpdateComment_Call{Call: _e.mock.On("UpdateComment",
-		append([]any{ctx, id, userID, body}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_UpdateComment_Call) Run(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateComment_Call {
+func (_c *MockAnnouncementRepository_UpdateComment_Call) Run(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateComment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 uuid.UUID
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 string
-		if args[3] != nil {
-			arg3 = args[3].(string)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -1784,96 +1623,18 @@ func (_c *MockAnnouncementRepository_UpdateComment_Call) Return(err error) *Mock
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, userID uuid.UUID, body string, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateComment_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// UpdateCommentAsAdmin provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) UpdateCommentAsAdmin(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error {
-	var tmpRet mock.Arguments
-	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, body, tx)
-	} else {
-		tmpRet = _mock.Called(ctx, id, body)
-	}
-	ret := tmpRet
-
-	if len(ret) == 0 {
-		panic("no return value specified for UpdateCommentAsAdmin")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, uuid.UUID, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, body, tx...)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// MockAnnouncementRepository_UpdateCommentAsAdmin_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UpdateCommentAsAdmin'
-type MockAnnouncementRepository_UpdateCommentAsAdmin_Call struct {
-	*mock.Call
-}
-
-// UpdateCommentAsAdmin is a helper method to define mock.On call
-//   - ctx context.Context
-//   - id uuid.UUID
-//   - body string
-//   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentAsAdmin(ctx any, id any, body any, tx ...any) *MockAnnouncementRepository_UpdateCommentAsAdmin_Call {
-	return &MockAnnouncementRepository_UpdateCommentAsAdmin_Call{Call: _e.mock.On("UpdateCommentAsAdmin",
-		append([]any{ctx, id, body}, tx...)...)}
-}
-
-func (_c *MockAnnouncementRepository_UpdateCommentAsAdmin_Call) Run(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 uuid.UUID
-		if args[1] != nil {
-			arg1 = args[1].(uuid.UUID)
-		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
-		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
-		}
-		arg3 = variadicArgs
-		run(
-			arg0,
-			arg1,
-			arg2,
-			arg3...,
-		)
-	})
-	return _c
-}
-
-func (_c *MockAnnouncementRepository_UpdateCommentAsAdmin_Call) Return(err error) *MockAnnouncementRepository_UpdateCommentAsAdmin_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *MockAnnouncementRepository_UpdateCommentAsAdmin_Call) RunAndReturn(run func(ctx context.Context, id uuid.UUID, body string, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentAsAdmin_Call {
+func (_c *MockAnnouncementRepository_UpdateComment_Call) RunAndReturn(run func(ctx context.Context, s spec.CommentUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateComment_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentBody provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) UpdateCommentBody(ctx context.Context, spec AnnouncementCommentUpdate, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) UpdateCommentBody(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, update, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, update)
 	}
 	ret := tmpRet
 
@@ -1882,8 +1643,8 @@ func (_mock *MockAnnouncementRepository) UpdateCommentBody(ctx context.Context, 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, AnnouncementCommentUpdate, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.CommentUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, update, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1897,22 +1658,22 @@ type MockAnnouncementRepository_UpdateCommentBody_Call struct {
 
 // UpdateCommentBody is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec AnnouncementCommentUpdate
+//   - update spec.CommentUpdate
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentBody(ctx any, spec any, tx ...any) *MockAnnouncementRepository_UpdateCommentBody_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateCommentBody(ctx any, update any, tx ...any) *MockAnnouncementRepository_UpdateCommentBody_Call {
 	return &MockAnnouncementRepository_UpdateCommentBody_Call{Call: _e.mock.On("UpdateCommentBody",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, update}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_UpdateCommentBody_Call) Run(run func(ctx context.Context, spec AnnouncementCommentUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentBody_Call {
+func (_c *MockAnnouncementRepository_UpdateCommentBody_Call) Run(run func(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentBody_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 AnnouncementCommentUpdate
+		var arg1 spec.CommentUpdate
 		if args[1] != nil {
-			arg1 = args[1].(AnnouncementCommentUpdate)
+			arg1 = args[1].(spec.CommentUpdate)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -1934,18 +1695,18 @@ func (_c *MockAnnouncementRepository_UpdateCommentBody_Call) Return(err error) *
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_UpdateCommentBody_Call) RunAndReturn(run func(ctx context.Context, spec AnnouncementCommentUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentBody_Call {
+func (_c *MockAnnouncementRepository_UpdateCommentBody_Call) RunAndReturn(run func(ctx context.Context, update spec.CommentUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentBody_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaThumbnail provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) UpdateCommentMediaThumbnail(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) UpdateCommentMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, thumbnailURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -1954,8 +1715,8 @@ func (_mock *MockAnnouncementRepository) UpdateCommentMediaThumbnail(ctx context
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, thumbnailURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -1969,39 +1730,33 @@ type MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call struct {
 
 // UpdateCommentMediaThumbnail is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - thumbnailURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, id any, thumbnailURL any, tx ...any) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaThumbnail(ctx any, s any, tx ...any) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
 	return &MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call{Call: _e.mock.On("UpdateCommentMediaThumbnail",
-		append([]any{ctx, id, thumbnailURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2012,18 +1767,18 @@ func (_c *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call) Return(er
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, id int64, thumbnailURL string, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
+func (_c *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentMediaThumbnail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // UpdateCommentMediaURL provides a mock function for the type MockAnnouncementRepository
-func (_mock *MockAnnouncementRepository) UpdateCommentMediaURL(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error {
+func (_mock *MockAnnouncementRepository) UpdateCommentMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, id, mediaURL, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, id, mediaURL)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -2032,8 +1787,8 @@ func (_mock *MockAnnouncementRepository) UpdateCommentMediaURL(ctx context.Conte
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, int64, string, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, id, mediaURL, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.MediaURLUpdate, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -2047,39 +1802,33 @@ type MockAnnouncementRepository_UpdateCommentMediaURL_Call struct {
 
 // UpdateCommentMediaURL is a helper method to define mock.On call
 //   - ctx context.Context
-//   - id int64
-//   - mediaURL string
+//   - s spec.MediaURLUpdate
 //   - tx ...*sql.Tx
-func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaURL(ctx any, id any, mediaURL any, tx ...any) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
+func (_e *MockAnnouncementRepository_Expecter) UpdateCommentMediaURL(ctx any, s any, tx ...any) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
 	return &MockAnnouncementRepository_UpdateCommentMediaURL_Call{Call: _e.mock.On("UpdateCommentMediaURL",
-		append([]any{ctx, id, mediaURL}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockAnnouncementRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
+func (_c *MockAnnouncementRepository_UpdateCommentMediaURL_Call) Run(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx)) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 int64
+		var arg1 spec.MediaURLUpdate
 		if args[1] != nil {
-			arg1 = args[1].(int64)
+			arg1 = args[1].(spec.MediaURLUpdate)
 		}
-		var arg2 string
-		if args[2] != nil {
-			arg2 = args[2].(string)
-		}
-		var arg3 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 3 {
-			variadicArgs = args[3].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg3 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3...,
+			arg2...,
 		)
 	})
 	return _c
@@ -2090,7 +1839,7 @@ func (_c *MockAnnouncementRepository_UpdateCommentMediaURL_Call) Return(err erro
 	return _c
 }
 
-func (_c *MockAnnouncementRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, id int64, mediaURL string, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
+func (_c *MockAnnouncementRepository_UpdateCommentMediaURL_Call) RunAndReturn(run func(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error) *MockAnnouncementRepository_UpdateCommentMediaURL_Call {
 	_c.Call.Return(run)
 	return _c
 }

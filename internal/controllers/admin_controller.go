@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"umineko_city_of_books/internal/admin"
+	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/auth"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/controllers/utils"
 	"umineko_city_of_books/internal/dto"
-	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/upload"
 	usersvc "umineko_city_of_books/internal/user"
@@ -551,7 +551,7 @@ func (s *Service) adminSendTestEmail(ctx fiber.Ctx) error {
 }
 
 func (s *Service) adminGetAuditLog(ctx fiber.Ctx) error {
-	action := repository.AuditAction(ctx.Query("action"))
+	action := audit.Action(ctx.Query("action"))
 	page := utils.Page(ctx, 50)
 
 	result, err := s.AdminService.GetAuditLog(ctx.Context(), action, page)

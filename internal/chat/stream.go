@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
@@ -24,7 +24,7 @@ func (s *streamChatService) CreateStreamRoom(ctx context.Context, streamID, stre
 		name = "Live stream"
 	}
 
-	if _, err := s.chatRepo.CreateSystemRoomWithHost(ctx, repository.NewChatSystemRoom{
+	if _, err := s.chatRepo.CreateSystemRoomWithHost(ctx, spec.NewChatSystemRoom{
 		ID:         streamID,
 		Name:       name,
 		SystemKind: SystemKindLiveStream,
@@ -39,7 +39,7 @@ func (s *streamChatService) CreateStreamRoom(ctx context.Context, streamID, stre
 }
 
 func (s *streamChatService) JoinStreamChat(ctx context.Context, streamID, userID uuid.UUID) error {
-	room, err := s.chatRepo.GetRoomByID(ctx, streamID, userID)
+	room, err := s.chatRepo.GetRoomByID(ctx, spec.ChatRoomViewer{RoomID: streamID, ViewerID: userID})
 	if err != nil {
 		return fmt.Errorf("get stream chat room: %w", err)
 	}
@@ -47,13 +47,13 @@ func (s *streamChatService) JoinStreamChat(ctx context.Context, streamID, userID
 		return ErrRoomNotFound
 	}
 
-	alreadyMember, err := s.chatRepo.IsMember(ctx, streamID, userID)
+	alreadyMember, err := s.chatRepo.IsMember(ctx, spec.ChatMemberRef{RoomID: streamID, UserID: userID})
 	if err != nil {
 		return fmt.Errorf("check stream chat membership: %w", err)
 	}
 
 	if !alreadyMember {
-		if err := s.chatRepo.AddMemberWithRole(ctx, streamID, userID, "member", false); err != nil {
+		if err := s.chatRepo.AddMemberWithRole(ctx, spec.NewChatRoomMember{RoomID: streamID, UserID: userID, Role: "member", Ghost: false}); err != nil {
 			return fmt.Errorf("join stream chat room: %w", err)
 		}
 	}

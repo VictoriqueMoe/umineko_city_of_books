@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 )
 
@@ -114,7 +115,7 @@ func (s *service) Add(ctx context.Context, kind Kind, value, reason string, crea
 	if value == "" {
 		return ErrValueRequired
 	}
-	if err := s.repo.Add(ctx, string(kind), value, reason, createdBy); err != nil {
+	if err := s.repo.Add(ctx, spec.NewBannedGiphy{Kind: string(kind), Value: value, Reason: reason, CreatedBy: createdBy}); err != nil {
 		return err
 	}
 	s.mu.Lock()
@@ -132,7 +133,7 @@ func (s *service) Remove(ctx context.Context, kind Kind, value string) error {
 	if kind != KindGif && kind != KindUser {
 		return ErrInvalidKind
 	}
-	if err := s.repo.Remove(ctx, string(kind), value); err != nil {
+	if err := s.repo.Remove(ctx, spec.BannedGiphyDeletion{Kind: string(kind), Value: value}); err != nil {
 		return err
 	}
 	s.mu.Lock()

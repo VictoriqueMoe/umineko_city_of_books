@@ -8,8 +8,9 @@ import (
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/email"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
-	"umineko_city_of_books/internal/repository/model"
 	"umineko_city_of_books/internal/settings"
 	"umineko_city_of_books/internal/ws"
 
@@ -102,11 +103,16 @@ func TestNotify_BlockFiltering(t *testing.T) {
 				ReferenceID: uuid.New(),
 			}
 			if !survivesBlock(tt.notifType) {
-				blockRepo.EXPECT().IsBlockedEither(mock.Anything, recipient, actor).Return(tt.blocked, tt.blockErr)
+				blockRepo.EXPECT().IsBlockedEither(mock.Anything, spec.BlockPairSpec{UserA: recipient, UserB: actor}).Return(tt.blocked, tt.blockErr)
 			}
 			if tt.wantCreated {
 				notifRepo.EXPECT().
-					Create(mock.Anything, recipient, tt.notifType, params.ReferenceID, "", actor, "").
+					Create(mock.Anything, spec.NewNotification{
+						UserID:      recipient,
+						Type:        tt.notifType,
+						ReferenceID: params.ReferenceID,
+						ActorID:     actor,
+					}).
 					Return(&model.NotificationRow{ID: 1, UserID: recipient, Type: tt.notifType}, nil)
 			}
 
@@ -116,7 +122,7 @@ func TestNotify_BlockFiltering(t *testing.T) {
 			// then
 			require.NoError(t, err)
 			if !tt.wantCreated {
-				notifRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+				notifRepo.AssertNotCalled(t, "Create", mock.Anything, mock.Anything)
 			}
 		})
 	}
@@ -133,7 +139,12 @@ func TestNotify_SystemActorSkipsBlockLookup(t *testing.T) {
 		ReferenceID: uuid.New(),
 	}
 	notifRepo.EXPECT().
-		Create(mock.Anything, recipient, dto.NotifMention, params.ReferenceID, "", uuid.Nil, "").
+		Create(mock.Anything, spec.NewNotification{
+			UserID:      recipient,
+			Type:        dto.NotifMention,
+			ReferenceID: params.ReferenceID,
+			ActorID:     uuid.Nil,
+		}).
 		Return(&model.NotificationRow{ID: 1, UserID: recipient, Type: dto.NotifMention}, nil)
 
 	// when
@@ -141,5 +152,5 @@ func TestNotify_SystemActorSkipsBlockLookup(t *testing.T) {
 
 	// then
 	require.NoError(t, err)
-	blockRepo.AssertNotCalled(t, "IsBlockedEither", mock.Anything, mock.Anything, mock.Anything)
+	blockRepo.AssertNotCalled(t, "IsBlockedEither", mock.Anything, mock.Anything)
 }

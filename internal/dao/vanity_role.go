@@ -7,19 +7,34 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
-
 	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/repository"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
+
+	"github.com/google/uuid"
 )
 
 type (
+	VanityRoleDAO interface {
+		List(ctx context.Context, tx ...*sql.Tx) ([]model.VanityRoleRow, error)
+		GetByID(ctx context.Context, id string, tx ...*sql.Tx) (*model.VanityRoleRow, error)
+		Create(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx) error
+		Update(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx) error
+		Delete(ctx context.Context, id string, tx ...*sql.Tx) error
+		AssignToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error
+		UnassignFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error
+		GetUsersForRole(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx) ([]model.VanityRoleUserRow, int, error)
+		GetRolesForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.VanityRoleRow, error)
+		GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.VanityRoleRow, error)
+		GetAllAssignments(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)
+	}
+
 	vanityRoleDAO struct {
 		db *sql.DB
 	}
 )
 
-func (r *vanityRoleDAO) List(ctx context.Context, tx ...*sql.Tx) ([]repository.VanityRoleRow, error) {
+func (r *vanityRoleDAO) List(ctx context.Context, tx ...*sql.Tx) ([]model.VanityRoleRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT id, label, color, is_system, sort_order FROM vanity_roles ORDER BY sort_order, label`,
 	)
@@ -28,9 +43,9 @@ func (r *vanityRoleDAO) List(ctx context.Context, tx ...*sql.Tx) ([]repository.V
 	}
 	defer rows.Close()
 
-	var result []repository.VanityRoleRow
+	var result []model.VanityRoleRow
 	for rows.Next() {
-		var row repository.VanityRoleRow
+		var row model.VanityRoleRow
 		if err := rows.Scan(&row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan vanity role: %w", err)
 		}
@@ -39,8 +54,8 @@ func (r *vanityRoleDAO) List(ctx context.Context, tx ...*sql.Tx) ([]repository.V
 	return result, rows.Err()
 }
 
-func (r *vanityRoleDAO) GetByID(ctx context.Context, id string, tx ...*sql.Tx) (*repository.VanityRoleRow, error) {
-	var row repository.VanityRoleRow
+func (r *vanityRoleDAO) GetByID(ctx context.Context, id string, tx ...*sql.Tx) (*model.VanityRoleRow, error) {
+	var row model.VanityRoleRow
 	err := txOrDB(r.db, tx).QueryRowContext(ctx,
 		`SELECT id, label, color, is_system, sort_order FROM vanity_roles WHERE id = $1`, id,
 	).Scan(&row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder)
@@ -53,10 +68,10 @@ func (r *vanityRoleDAO) GetByID(ctx context.Context, id string, tx ...*sql.Tx) (
 	return &row, nil
 }
 
-func (r *vanityRoleDAO) Create(ctx context.Context, id, label, color string, sortOrder int, tx ...*sql.Tx) error {
+func (r *vanityRoleDAO) Create(ctx context.Context, s spec.NewVanityRole, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO vanity_roles (id, label, color, sort_order) VALUES ($1, $2, $3, $4)`,
-		id, label, color, sortOrder,
+		s.ID, s.Label, s.Color, s.SortOrder,
 	)
 	if err != nil {
 		return fmt.Errorf("create vanity role: %w", err)
@@ -64,10 +79,10 @@ func (r *vanityRoleDAO) Create(ctx context.Context, id, label, color string, sor
 	return nil
 }
 
-func (r *vanityRoleDAO) Update(ctx context.Context, id, label, color string, sortOrder int, tx ...*sql.Tx) error {
+func (r *vanityRoleDAO) Update(ctx context.Context, s spec.VanityRoleUpdate, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`UPDATE vanity_roles SET label = $1, color = $2, sort_order = $3 WHERE id = $4`,
-		label, color, sortOrder, id,
+		s.Label, s.Color, s.SortOrder, s.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update vanity role: %w", err)
@@ -85,10 +100,10 @@ func (r *vanityRoleDAO) Delete(ctx context.Context, id string, tx ...*sql.Tx) er
 	return nil
 }
 
-func (r *vanityRoleDAO) AssignToUser(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx) error {
+func (r *vanityRoleDAO) AssignToUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`INSERT INTO user_vanity_roles (user_id, vanity_role_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		userID, roleID,
+		s.UserID, s.RoleID,
 	)
 	if err != nil {
 		return fmt.Errorf("assign vanity role: %w", err)
@@ -96,10 +111,10 @@ func (r *vanityRoleDAO) AssignToUser(ctx context.Context, userID uuid.UUID, role
 	return nil
 }
 
-func (r *vanityRoleDAO) UnassignFromUser(ctx context.Context, userID uuid.UUID, roleID string, tx ...*sql.Tx) error {
+func (r *vanityRoleDAO) UnassignFromUser(ctx context.Context, s spec.VanityRoleAssignment, tx ...*sql.Tx) error {
 	_, err := txOrDB(r.db, tx).ExecContext(ctx,
 		`DELETE FROM user_vanity_roles WHERE user_id = $1 AND vanity_role_id = $2`,
-		userID, roleID,
+		s.UserID, s.RoleID,
 	)
 	if err != nil {
 		return fmt.Errorf("unassign vanity role: %w", err)
@@ -107,11 +122,11 @@ func (r *vanityRoleDAO) UnassignFromUser(ctx context.Context, userID uuid.UUID, 
 	return nil
 }
 
-func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, roleID string, search string, limit, offset int, tx ...*sql.Tx) ([]repository.VanityRoleUserRow, int, error) {
-	args := []any{roleID}
+func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, q spec.VanityRoleUserQuery, tx ...*sql.Tx) ([]model.VanityRoleUserRow, int, error) {
+	args := []any{q.RoleID}
 	where := " WHERE uvr.vanity_role_id = $1"
-	if search != "" {
-		wc := "%" + search + "%"
+	if q.Search != "" {
+		wc := "%" + q.Search + "%"
 		args = append(args, wc, wc)
 		where += fmt.Sprintf(" AND (u.username LIKE $%d OR u.display_name LIKE $%d)", len(args)-1, len(args))
 	}
@@ -127,7 +142,7 @@ func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, roleID string, sear
 
 	limitIdx := len(args) + 1
 	offsetIdx := len(args) + 2
-	queryArgs := append(args, limit, offset)
+	queryArgs := append(args, q.Limit, q.Offset)
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		fmt.Sprintf(`SELECT u.id, u.username, u.display_name, u.avatar_url
 		 FROM user_vanity_roles uvr JOIN users u ON uvr.user_id = u.id`+where+`
@@ -139,9 +154,9 @@ func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, roleID string, sear
 	}
 	defer rows.Close()
 
-	var result []repository.VanityRoleUserRow
+	var result []model.VanityRoleUserRow
 	for rows.Next() {
-		var row repository.VanityRoleUserRow
+		var row model.VanityRoleUserRow
 		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL); err != nil {
 			return nil, 0, fmt.Errorf("scan vanity role user: %w", err)
 		}
@@ -150,7 +165,7 @@ func (r *vanityRoleDAO) GetUsersForRole(ctx context.Context, roleID string, sear
 	return result, total, rows.Err()
 }
 
-func (r *vanityRoleDAO) GetRolesForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]repository.VanityRoleRow, error) {
+func (r *vanityRoleDAO) GetRolesForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.VanityRoleRow, error) {
 	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
 		`SELECT vr.id, vr.label, vr.color, vr.is_system, vr.sort_order
 		 FROM vanity_roles vr
@@ -163,9 +178,9 @@ func (r *vanityRoleDAO) GetRolesForUser(ctx context.Context, userID uuid.UUID, t
 	}
 	defer rows.Close()
 
-	var result []repository.VanityRoleRow
+	var result []model.VanityRoleRow
 	for rows.Next() {
-		var row repository.VanityRoleRow
+		var row model.VanityRoleRow
 		if err := rows.Scan(&row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan vanity role: %w", err)
 		}
@@ -174,8 +189,8 @@ func (r *vanityRoleDAO) GetRolesForUser(ctx context.Context, userID uuid.UUID, t
 	return result, rows.Err()
 }
 
-func (r *vanityRoleDAO) GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]repository.VanityRoleRow, error) {
-	result := make(map[uuid.UUID][]repository.VanityRoleRow)
+func (r *vanityRoleDAO) GetRolesForUsersBatch(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.VanityRoleRow, error) {
+	result := make(map[uuid.UUID][]model.VanityRoleRow)
 	if len(userIDs) == 0 {
 		return result, nil
 	}
@@ -195,7 +210,7 @@ func (r *vanityRoleDAO) GetRolesForUsersBatch(ctx context.Context, userIDs []uui
 
 	for rows.Next() {
 		var userID uuid.UUID
-		var row repository.VanityRoleRow
+		var row model.VanityRoleRow
 		if err := rows.Scan(&userID, &row.ID, &row.Label, &row.Color, &row.IsSystem, &row.SortOrder); err != nil {
 			return nil, fmt.Errorf("scan batch vanity role: %w", err)
 		}

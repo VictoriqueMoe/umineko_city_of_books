@@ -7,6 +7,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"umineko_city_of_books/internal/model"
 
 	mock "github.com/stretchr/testify/mock"
 )
@@ -39,7 +40,7 @@ func (_m *MockSitemapRepository) EXPECT() *MockSitemapRepository_Expecter {
 }
 
 // ListArt provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListArt(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error) {
+func (_mock *MockSitemapRepository) ListArt(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -52,16 +53,16 @@ func (_mock *MockSitemapRepository) ListArt(ctx context.Context, tx ...*sql.Tx) 
 		panic("no return value specified for ListArt")
 	}
 
-	var r0 []SitemapEntry
+	var r0 []model.SitemapEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapEntry, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapEntry); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapEntry)
+			r0 = ret.Get(0).([]model.SitemapEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -105,18 +106,18 @@ func (_c *MockSitemapRepository_ListArt_Call) Run(run func(ctx context.Context, 
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListArt_Call) Return(sitemapEntrys []SitemapEntry, err error) *MockSitemapRepository_ListArt_Call {
+func (_c *MockSitemapRepository_ListArt_Call) Return(sitemapEntrys []model.SitemapEntry, err error) *MockSitemapRepository_ListArt_Call {
 	_c.Call.Return(sitemapEntrys, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListArt_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error)) *MockSitemapRepository_ListArt_Call {
+func (_c *MockSitemapRepository_ListArt_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)) *MockSitemapRepository_ListArt_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListFanfics provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error) {
+func (_mock *MockSitemapRepository) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -129,16 +130,16 @@ func (_mock *MockSitemapRepository) ListFanfics(ctx context.Context, tx ...*sql.
 		panic("no return value specified for ListFanfics")
 	}
 
-	var r0 []SitemapEntry
+	var r0 []model.SitemapEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapEntry, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapEntry); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapEntry)
+			r0 = ret.Get(0).([]model.SitemapEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -182,18 +183,18 @@ func (_c *MockSitemapRepository_ListFanfics_Call) Run(run func(ctx context.Conte
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListFanfics_Call) Return(sitemapEntrys []SitemapEntry, err error) *MockSitemapRepository_ListFanfics_Call {
+func (_c *MockSitemapRepository_ListFanfics_Call) Return(sitemapEntrys []model.SitemapEntry, err error) *MockSitemapRepository_ListFanfics_Call {
 	_c.Call.Return(sitemapEntrys, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListFanfics_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error)) *MockSitemapRepository_ListFanfics_Call {
+func (_c *MockSitemapRepository_ListFanfics_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)) *MockSitemapRepository_ListFanfics_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListJournalRows provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]SitemapJournalRow, error) {
+func (_mock *MockSitemapRepository) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapJournalRow, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -206,16 +207,16 @@ func (_mock *MockSitemapRepository) ListJournalRows(ctx context.Context, tx ...*
 		panic("no return value specified for ListJournalRows")
 	}
 
-	var r0 []SitemapJournalRow
+	var r0 []model.SitemapJournalRow
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapJournalRow, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapJournalRow, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapJournalRow); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapJournalRow); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapJournalRow)
+			r0 = ret.Get(0).([]model.SitemapJournalRow)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -259,18 +260,18 @@ func (_c *MockSitemapRepository_ListJournalRows_Call) Run(run func(ctx context.C
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListJournalRows_Call) Return(sitemapJournalRows []SitemapJournalRow, err error) *MockSitemapRepository_ListJournalRows_Call {
+func (_c *MockSitemapRepository_ListJournalRows_Call) Return(sitemapJournalRows []model.SitemapJournalRow, err error) *MockSitemapRepository_ListJournalRows_Call {
 	_c.Call.Return(sitemapJournalRows, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListJournalRows_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapJournalRow, error)) *MockSitemapRepository_ListJournalRows_Call {
+func (_c *MockSitemapRepository_ListJournalRows_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapJournalRow, error)) *MockSitemapRepository_ListJournalRows_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListMysteries provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error) {
+func (_mock *MockSitemapRepository) ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -283,16 +284,16 @@ func (_mock *MockSitemapRepository) ListMysteries(ctx context.Context, tx ...*sq
 		panic("no return value specified for ListMysteries")
 	}
 
-	var r0 []SitemapEntry
+	var r0 []model.SitemapEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapEntry, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapEntry); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapEntry)
+			r0 = ret.Get(0).([]model.SitemapEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -336,18 +337,18 @@ func (_c *MockSitemapRepository_ListMysteries_Call) Run(run func(ctx context.Con
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListMysteries_Call) Return(sitemapEntrys []SitemapEntry, err error) *MockSitemapRepository_ListMysteries_Call {
+func (_c *MockSitemapRepository_ListMysteries_Call) Return(sitemapEntrys []model.SitemapEntry, err error) *MockSitemapRepository_ListMysteries_Call {
 	_c.Call.Return(sitemapEntrys, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListMysteries_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error)) *MockSitemapRepository_ListMysteries_Call {
+func (_c *MockSitemapRepository_ListMysteries_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)) *MockSitemapRepository_ListMysteries_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListPosts provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListPosts(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error) {
+func (_mock *MockSitemapRepository) ListPosts(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -360,16 +361,16 @@ func (_mock *MockSitemapRepository) ListPosts(ctx context.Context, tx ...*sql.Tx
 		panic("no return value specified for ListPosts")
 	}
 
-	var r0 []SitemapEntry
+	var r0 []model.SitemapEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapEntry, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapEntry); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapEntry)
+			r0 = ret.Get(0).([]model.SitemapEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -413,18 +414,18 @@ func (_c *MockSitemapRepository_ListPosts_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListPosts_Call) Return(sitemapEntrys []SitemapEntry, err error) *MockSitemapRepository_ListPosts_Call {
+func (_c *MockSitemapRepository_ListPosts_Call) Return(sitemapEntrys []model.SitemapEntry, err error) *MockSitemapRepository_ListPosts_Call {
 	_c.Call.Return(sitemapEntrys, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListPosts_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error)) *MockSitemapRepository_ListPosts_Call {
+func (_c *MockSitemapRepository_ListPosts_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)) *MockSitemapRepository_ListPosts_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListShips provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListShips(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error) {
+func (_mock *MockSitemapRepository) ListShips(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -437,16 +438,16 @@ func (_mock *MockSitemapRepository) ListShips(ctx context.Context, tx ...*sql.Tx
 		panic("no return value specified for ListShips")
 	}
 
-	var r0 []SitemapEntry
+	var r0 []model.SitemapEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapEntry, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapEntry); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapEntry)
+			r0 = ret.Get(0).([]model.SitemapEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -490,18 +491,18 @@ func (_c *MockSitemapRepository_ListShips_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListShips_Call) Return(sitemapEntrys []SitemapEntry, err error) *MockSitemapRepository_ListShips_Call {
+func (_c *MockSitemapRepository_ListShips_Call) Return(sitemapEntrys []model.SitemapEntry, err error) *MockSitemapRepository_ListShips_Call {
 	_c.Call.Return(sitemapEntrys, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListShips_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error)) *MockSitemapRepository_ListShips_Call {
+func (_c *MockSitemapRepository_ListShips_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)) *MockSitemapRepository_ListShips_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ListTheories provides a mock function for the type MockSitemapRepository
-func (_mock *MockSitemapRepository) ListTheories(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error) {
+func (_mock *MockSitemapRepository) ListTheories(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tx)
@@ -514,16 +515,16 @@ func (_mock *MockSitemapRepository) ListTheories(ctx context.Context, tx ...*sql
 		panic("no return value specified for ListTheories")
 	}
 
-	var r0 []SitemapEntry
+	var r0 []model.SitemapEntry
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]SitemapEntry, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) ([]model.SitemapEntry, error)); ok {
 		return returnFunc(ctx, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []SitemapEntry); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...*sql.Tx) []model.SitemapEntry); ok {
 		r0 = returnFunc(ctx, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]SitemapEntry)
+			r0 = ret.Get(0).([]model.SitemapEntry)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...*sql.Tx) error); ok {
@@ -567,12 +568,12 @@ func (_c *MockSitemapRepository_ListTheories_Call) Run(run func(ctx context.Cont
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListTheories_Call) Return(sitemapEntrys []SitemapEntry, err error) *MockSitemapRepository_ListTheories_Call {
+func (_c *MockSitemapRepository_ListTheories_Call) Return(sitemapEntrys []model.SitemapEntry, err error) *MockSitemapRepository_ListTheories_Call {
 	_c.Call.Return(sitemapEntrys, err)
 	return _c
 }
 
-func (_c *MockSitemapRepository_ListTheories_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]SitemapEntry, error)) *MockSitemapRepository_ListTheories_Call {
+func (_c *MockSitemapRepository_ListTheories_Call) RunAndReturn(run func(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error)) *MockSitemapRepository_ListTheories_Call {
 	_c.Call.Return(run)
 	return _c
 }

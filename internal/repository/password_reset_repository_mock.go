@@ -7,7 +7,8 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"time"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 	mock "github.com/stretchr/testify/mock"
@@ -41,12 +42,12 @@ func (_m *MockPasswordResetRepository) EXPECT() *MockPasswordResetRepository_Exp
 }
 
 // Create provides a mock function for the type MockPasswordResetRepository
-func (_mock *MockPasswordResetRepository) Create(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error {
+func (_mock *MockPasswordResetRepository) Create(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, tokenHash, userID, expiresAt, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, tokenHash, userID, expiresAt)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -55,8 +56,8 @@ func (_mock *MockPasswordResetRepository) Create(ctx context.Context, tokenHash 
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, uuid.UUID, time.Time, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, tokenHash, userID, expiresAt, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewPasswordReset, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -70,45 +71,33 @@ type MockPasswordResetRepository_Create_Call struct {
 
 // Create is a helper method to define mock.On call
 //   - ctx context.Context
-//   - tokenHash string
-//   - userID uuid.UUID
-//   - expiresAt time.Time
+//   - s spec.NewPasswordReset
 //   - tx ...*sql.Tx
-func (_e *MockPasswordResetRepository_Expecter) Create(ctx any, tokenHash any, userID any, expiresAt any, tx ...any) *MockPasswordResetRepository_Create_Call {
+func (_e *MockPasswordResetRepository_Expecter) Create(ctx any, s any, tx ...any) *MockPasswordResetRepository_Create_Call {
 	return &MockPasswordResetRepository_Create_Call{Call: _e.mock.On("Create",
-		append([]any{ctx, tokenHash, userID, expiresAt}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockPasswordResetRepository_Create_Call) Run(run func(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx)) *MockPasswordResetRepository_Create_Call {
+func (_c *MockPasswordResetRepository_Create_Call) Run(run func(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx)) *MockPasswordResetRepository_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 spec.NewPasswordReset
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(spec.NewPasswordReset)
 		}
-		var arg2 uuid.UUID
-		if args[2] != nil {
-			arg2 = args[2].(uuid.UUID)
-		}
-		var arg3 time.Time
-		if args[3] != nil {
-			arg3 = args[3].(time.Time)
-		}
-		var arg4 []*sql.Tx
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 4 {
-			variadicArgs = args[4].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg4 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
 			arg1,
-			arg2,
-			arg3,
-			arg4...,
+			arg2...,
 		)
 	})
 	return _c
@@ -119,7 +108,7 @@ func (_c *MockPasswordResetRepository_Create_Call) Return(err error) *MockPasswo
 	return _c
 }
 
-func (_c *MockPasswordResetRepository_Create_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, userID uuid.UUID, expiresAt time.Time, tx ...*sql.Tx) error) *MockPasswordResetRepository_Create_Call {
+func (_c *MockPasswordResetRepository_Create_Call) RunAndReturn(run func(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx) error) *MockPasswordResetRepository_Create_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -197,7 +186,7 @@ func (_c *MockPasswordResetRepository_DeleteUnusedForUser_Call) RunAndReturn(run
 }
 
 // GetByTokenHash provides a mock function for the type MockPasswordResetRepository
-func (_mock *MockPasswordResetRepository) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*PasswordResetToken, error) {
+func (_mock *MockPasswordResetRepository) GetByTokenHash(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*model.PasswordResetToken, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
 		tmpRet = _mock.Called(ctx, tokenHash, tx)
@@ -210,16 +199,16 @@ func (_mock *MockPasswordResetRepository) GetByTokenHash(ctx context.Context, to
 		panic("no return value specified for GetByTokenHash")
 	}
 
-	var r0 *PasswordResetToken
+	var r0 *model.PasswordResetToken
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*PasswordResetToken, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) (*model.PasswordResetToken, error)); ok {
 		return returnFunc(ctx, tokenHash, tx...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *PasswordResetToken); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, ...*sql.Tx) *model.PasswordResetToken); ok {
 		r0 = returnFunc(ctx, tokenHash, tx...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*PasswordResetToken)
+			r0 = ret.Get(0).(*model.PasswordResetToken)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, string, ...*sql.Tx) error); ok {
@@ -269,23 +258,23 @@ func (_c *MockPasswordResetRepository_GetByTokenHash_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *MockPasswordResetRepository_GetByTokenHash_Call) Return(passwordResetToken *PasswordResetToken, err error) *MockPasswordResetRepository_GetByTokenHash_Call {
+func (_c *MockPasswordResetRepository_GetByTokenHash_Call) Return(passwordResetToken *model.PasswordResetToken, err error) *MockPasswordResetRepository_GetByTokenHash_Call {
 	_c.Call.Return(passwordResetToken, err)
 	return _c
 }
 
-func (_c *MockPasswordResetRepository_GetByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*PasswordResetToken, error)) *MockPasswordResetRepository_GetByTokenHash_Call {
+func (_c *MockPasswordResetRepository_GetByTokenHash_Call) RunAndReturn(run func(ctx context.Context, tokenHash string, tx ...*sql.Tx) (*model.PasswordResetToken, error)) *MockPasswordResetRepository_GetByTokenHash_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // Issue provides a mock function for the type MockPasswordResetRepository
-func (_mock *MockPasswordResetRepository) Issue(ctx context.Context, spec NewPasswordReset, tx ...*sql.Tx) error {
+func (_mock *MockPasswordResetRepository) Issue(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx) error {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(ctx, spec, tx)
+		tmpRet = _mock.Called(ctx, s, tx)
 	} else {
-		tmpRet = _mock.Called(ctx, spec)
+		tmpRet = _mock.Called(ctx, s)
 	}
 	ret := tmpRet
 
@@ -294,8 +283,8 @@ func (_mock *MockPasswordResetRepository) Issue(ctx context.Context, spec NewPas
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, NewPasswordReset, ...*sql.Tx) error); ok {
-		r0 = returnFunc(ctx, spec, tx...)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, spec.NewPasswordReset, ...*sql.Tx) error); ok {
+		r0 = returnFunc(ctx, s, tx...)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -309,22 +298,22 @@ type MockPasswordResetRepository_Issue_Call struct {
 
 // Issue is a helper method to define mock.On call
 //   - ctx context.Context
-//   - spec NewPasswordReset
+//   - s spec.NewPasswordReset
 //   - tx ...*sql.Tx
-func (_e *MockPasswordResetRepository_Expecter) Issue(ctx any, spec any, tx ...any) *MockPasswordResetRepository_Issue_Call {
+func (_e *MockPasswordResetRepository_Expecter) Issue(ctx any, s any, tx ...any) *MockPasswordResetRepository_Issue_Call {
 	return &MockPasswordResetRepository_Issue_Call{Call: _e.mock.On("Issue",
-		append([]any{ctx, spec}, tx...)...)}
+		append([]any{ctx, s}, tx...)...)}
 }
 
-func (_c *MockPasswordResetRepository_Issue_Call) Run(run func(ctx context.Context, spec NewPasswordReset, tx ...*sql.Tx)) *MockPasswordResetRepository_Issue_Call {
+func (_c *MockPasswordResetRepository_Issue_Call) Run(run func(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx)) *MockPasswordResetRepository_Issue_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 NewPasswordReset
+		var arg1 spec.NewPasswordReset
 		if args[1] != nil {
-			arg1 = args[1].(NewPasswordReset)
+			arg1 = args[1].(spec.NewPasswordReset)
 		}
 		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
@@ -346,7 +335,7 @@ func (_c *MockPasswordResetRepository_Issue_Call) Return(err error) *MockPasswor
 	return _c
 }
 
-func (_c *MockPasswordResetRepository_Issue_Call) RunAndReturn(run func(ctx context.Context, spec NewPasswordReset, tx ...*sql.Tx) error) *MockPasswordResetRepository_Issue_Call {
+func (_c *MockPasswordResetRepository_Issue_Call) RunAndReturn(run func(ctx context.Context, s spec.NewPasswordReset, tx ...*sql.Tx) error) *MockPasswordResetRepository_Issue_Call {
 	_c.Call.Return(run)
 	return _c
 }

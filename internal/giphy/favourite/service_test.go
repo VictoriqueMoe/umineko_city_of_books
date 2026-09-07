@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/repository"
 
 	"github.com/google/uuid"
@@ -42,7 +44,8 @@ func TestAdd_PassesAllFieldsToRepo(t *testing.T) {
 		Width:      200,
 		Height:     150,
 	}
-	repo.EXPECT().Add(mock.Anything, userID, repository.GiphyFavourite{
+	repo.EXPECT().Add(mock.Anything, spec.NewGiphyFavourite{
+		UserID:     userID,
 		GiphyID:    "abc",
 		URL:        "https://media.giphy.com/abc.gif",
 		Title:      "cat",
@@ -56,7 +59,7 @@ func TestAdd_PassesAllFieldsToRepo(t *testing.T) {
 
 func TestAdd_PropagatesRepoError(t *testing.T) {
 	svc, repo := newTestService(t)
-	repo.EXPECT().Add(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("boom"))
+	repo.EXPECT().Add(mock.Anything, mock.Anything).Return(errors.New("boom"))
 
 	err := svc.Add(context.Background(), uuid.New(), Favourite{GiphyID: "x", URL: "https://x"})
 	assert.EqualError(t, err, "boom")
@@ -65,7 +68,7 @@ func TestAdd_PropagatesRepoError(t *testing.T) {
 func TestRemove_DelegatesToRepo(t *testing.T) {
 	svc, repo := newTestService(t)
 	userID := uuid.New()
-	repo.EXPECT().Remove(mock.Anything, userID, "abc").Return(nil)
+	repo.EXPECT().Remove(mock.Anything, spec.GiphyFavouriteDeletion{UserID: userID, GiphyID: "abc"}).Return(nil)
 
 	require.NoError(t, svc.Remove(context.Background(), userID, "abc"))
 }
@@ -73,7 +76,7 @@ func TestRemove_DelegatesToRepo(t *testing.T) {
 func TestList_MapsRepoRowsAndTotal(t *testing.T) {
 	svc, repo := newTestService(t)
 	userID := uuid.New()
-	repo.EXPECT().List(mock.Anything, userID, 10, 5).Return([]repository.GiphyFavourite{
+	repo.EXPECT().List(mock.Anything, spec.GiphyFavouritePage{UserID: userID, Limit: 10, Offset: 5}).Return([]model.GiphyFavourite{
 		{GiphyID: "a", URL: "urlA", Title: "A", PreviewURL: "pA", Width: 100, Height: 50},
 		{GiphyID: "b", URL: "urlB", Title: "B", PreviewURL: "pB", Width: 200, Height: 75},
 	}, 42, nil)
@@ -89,7 +92,7 @@ func TestList_MapsRepoRowsAndTotal(t *testing.T) {
 
 func TestList_PropagatesRepoError(t *testing.T) {
 	svc, repo := newTestService(t)
-	repo.EXPECT().List(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+	repo.EXPECT().List(mock.Anything, mock.Anything).
 		Return(nil, 0, errors.New("db down"))
 
 	_, _, err := svc.List(context.Background(), uuid.New(), 10, 0)

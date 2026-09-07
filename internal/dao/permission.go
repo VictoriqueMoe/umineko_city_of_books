@@ -7,11 +7,20 @@ import (
 
 	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
 
 type (
+	PermissionDAO interface {
+		GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)
+		SetRolePermissions(ctx context.Context, s spec.RolePermissionsUpdate, tx ...*sql.Tx) error
+		GetVanityRolePermissions(ctx context.Context, tx ...*sql.Tx) (map[string][]string, error)
+		SetVanityRolePermissions(ctx context.Context, s spec.VanityRolePermissionsUpdate, tx ...*sql.Tx) error
+		GetVanityRoleIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error)
+	}
+
 	permissionDAO struct {
 		db *sql.DB
 	}
@@ -28,16 +37,16 @@ func (r *permissionDAO) GetRolePermissions(ctx context.Context, tx ...*sql.Tx) (
 	return utils.ScanGroups[string, string](rows, "role permission")
 }
 
-func (r *permissionDAO) SetRolePermissions(ctx context.Context, roleName string, perms []string, tx ...*sql.Tx) error {
+func (r *permissionDAO) SetRolePermissions(ctx context.Context, s spec.RolePermissionsUpdate, tx ...*sql.Tx) error {
 	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM role_permissions WHERE role = $1`, roleName); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM role_permissions WHERE role = $1`, s.RoleName); err != nil {
 			return fmt.Errorf("clear role permissions: %w", err)
 		}
 
-		for _, perm := range perms {
+		for _, perm := range s.Permissions {
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO role_permissions (role, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-				roleName, perm,
+				s.RoleName, perm,
 			); err != nil {
 				return fmt.Errorf("insert role permission: %w", err)
 			}
@@ -62,16 +71,16 @@ func (r *permissionDAO) GetVanityRolePermissions(ctx context.Context, tx ...*sql
 	return utils.ScanGroups[string, string](rows, "vanity role permission")
 }
 
-func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, vanityRoleID string, perms []string, tx ...*sql.Tx) error {
+func (r *permissionDAO) SetVanityRolePermissions(ctx context.Context, s spec.VanityRolePermissionsUpdate, tx ...*sql.Tx) error {
 	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM vanity_role_permissions WHERE vanity_role_id = $1`, vanityRoleID); err != nil {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM vanity_role_permissions WHERE vanity_role_id = $1`, s.VanityRoleID); err != nil {
 			return fmt.Errorf("clear vanity role permissions: %w", err)
 		}
 
-		for _, perm := range perms {
+		for _, perm := range s.Permissions {
 			if _, err := tx.ExecContext(ctx,
 				`INSERT INTO vanity_role_permissions (vanity_role_id, permission) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-				vanityRoleID, perm,
+				s.VanityRoleID, perm,
 			); err != nil {
 				return fmt.Errorf("insert vanity role permission: %w", err)
 			}
