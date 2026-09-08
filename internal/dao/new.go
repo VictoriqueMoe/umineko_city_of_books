@@ -4,6 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/google/uuid"
+
+	"umineko_city_of_books/internal/dao/sqlcgen"
 )
 
 func NewSession(db *sql.DB) SessionDAO { return &sessionDAO{db: db} }
@@ -46,7 +48,7 @@ func NewPost(db *sql.DB) (PostDAO, CommentDAO[uuid.UUID]) {
 	d := &postDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "posts", "post"),
-		commentDAO: newCommentDAO[uuid.UUID](db, "post_comments", "post_id", "post_comment_likes", "post_comment_media"),
+		commentDAO: newCommentDAO[uuid.UUID](db, postCommentQuerier{}),
 		likeDAO:    newLikeDAO(db, "post_likes", "post_id"),
 		mediaDAO:   newMediaDAO(db, "post_media", "post_id"),
 		viewDAO:    newViewDAO(db, "post_views", "post_id"),
@@ -61,7 +63,7 @@ func NewArt(db *sql.DB) (ArtDAO, CommentDAO[uuid.UUID]) {
 	d := &artDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "art", "art"),
-		commentDAO: newCommentDAO[uuid.UUID](db, "art_comments", "art_id", "art_comment_likes", "art_comment_media"),
+		commentDAO: newCommentDAO[uuid.UUID](db, artCommentQuerier{}),
 		likeDAO:    newLikeDAO(db, "art_likes", "art_id"),
 		viewDAO:    newViewDAO(db, "art_views", "art_id"),
 	}
@@ -76,7 +78,8 @@ func NewBlock(db *sql.DB) BlockDAO { return &blockDAO{db: db} }
 func NewAnnouncement(db *sql.DB) (AnnouncementDAO, CommentDAO[uuid.UUID]) {
 	d := &announcementDAO{
 		db:         db,
-		commentDAO: newCommentDAO[uuid.UUID](db, "announcement_comments", "announcement_id", "announcement_comment_likes", "announcement_comment_media"),
+		gen:        sqlcgen.New(db),
+		commentDAO: newCommentDAO[uuid.UUID](db, announcementCommentQuerier{}),
 	}
 
 	return d, d.commentDAO
@@ -87,7 +90,7 @@ func NewMystery(db *sql.DB) (MysteryDAO, CommentDAO[uuid.UUID]) {
 		db:           db,
 		ownedDAO:     newOwnedDAO(db, "mysteries", "mystery"),
 		attemptVotes: newVoteDAO(db, "mystery_attempt_votes", "attempt_id", "vote attempt"),
-		commentDAO:   newCommentDAO[uuid.UUID](db, "mystery_comments", "mystery_id", "mystery_comment_likes", "mystery_comment_media"),
+		commentDAO:   newCommentDAO[uuid.UUID](db, mysteryCommentQuerier{}),
 		mediaDAO:     newMediaDAO(db, "mystery_media", "mystery_id"),
 	}
 
@@ -99,7 +102,7 @@ func NewShip(db *sql.DB) (ShipDAO, CommentDAO[uuid.UUID]) {
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "ships", "ship"),
 		voteDAO:    newVoteDAO(db, "ship_votes", "ship_id", "vote ship"),
-		commentDAO: newCommentDAO[uuid.UUID](db, "ship_comments", "ship_id", "ship_comment_likes", "ship_comment_media"),
+		commentDAO: newCommentDAO[uuid.UUID](db, shipCommentQuerier{}),
 	}
 
 	return d, d.commentDAO
@@ -110,7 +113,7 @@ func NewOC(db *sql.DB) (OCDAO, CommentDAO[uuid.UUID]) {
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "ocs", "oc"),
 		voteDAO:    newVoteDAO(db, "oc_votes", "oc_id", "vote oc"),
-		commentDAO: newCommentDAO[uuid.UUID](db, "oc_comments", "oc_id", "oc_comment_likes", "oc_comment_media"),
+		commentDAO: newCommentDAO[uuid.UUID](db, oCCommentQuerier{}),
 	}
 
 	return d, d.commentDAO
@@ -120,7 +123,7 @@ func NewFanfic(db *sql.DB) (FanficDAO, CommentDAO[uuid.UUID]) {
 	d := &fanficDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "fanfics", "fanfic"),
-		commentDAO: newCommentDAO[uuid.UUID](db, "fanfic_comments", "fanfic_id", "fanfic_comment_likes", "fanfic_comment_media"),
+		commentDAO: newCommentDAO[uuid.UUID](db, fanficCommentQuerier{}),
 		viewDAO:    newViewDAO(db, "fanfic_views", "fanfic_id"),
 	}
 
@@ -131,7 +134,7 @@ func NewJournal(db *sql.DB) JournalDAO {
 	return &journalDAO{
 		db:         db,
 		ownedDAO:   newOwnedDAO(db, "journals", "journal"),
-		commentDAO: newCommentDAO[uuid.UUID](db, "journal_comments", "journal_id", "journal_comment_likes", "journal_comment_media"),
+		commentDAO: newCommentDAO[uuid.UUID](db, journalCommentQuerier{}),
 		mediaDAO:   newMediaDAO(db, "journal_entry_media", "entry_id"),
 	}
 }
@@ -151,7 +154,7 @@ func NewUserSecret(db *sql.DB) UserSecretDAO { return &userSecretDAO{db: db} }
 func NewSecret(db *sql.DB) (SecretDAO, CommentDAO[string]) {
 	d := &secretDAO{
 		db:         db,
-		commentDAO: newCommentDAO[string](db, "secret_comments", "secret_id", "secret_comment_likes", "secret_comment_media"),
+		commentDAO: newCommentDAO[string](db, secretCommentQuerier{}),
 	}
 
 	return d, d.commentDAO

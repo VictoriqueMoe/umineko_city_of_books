@@ -69,6 +69,12 @@ jobs:
       - name: Staticcheck
         run: go tool staticcheck ./...
 
+      - name: Check generated code is up to date
+        run: |
+          ./scripts/regen_sqlc.sh
+          ./scripts/regen_mocks.sh
+          git diff --exit-code
+
       - name: Test
         if: ${{ !contains(github.event.head_commit.message, '[skip tests]') }}
         run: go test ./... -count=1

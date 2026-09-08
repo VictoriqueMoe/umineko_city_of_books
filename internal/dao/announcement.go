@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -40,71 +41,62 @@ type (
 	}
 
 	announcementDAO struct {
-		db *sql.DB
+		db  *sql.DB
+		gen *sqlcgen.Queries
 		*commentDAO[uuid.UUID]
 	}
+
+	announcementJoinRow = sqlcgen.GetAnnouncementByIDRow
 )
 
-const (
-	announcementSelectBase = `SELECT a.id, a.title, a.body, a.author_id, a.pinned, a.created_at, a.updated_at,
-	COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(r.role, '')
-	FROM announcements a
-	LEFT JOIN users u ON a.author_id = u.id
-	LEFT JOIN user_roles r ON r.user_id = u.id`
-)
-
-func scanAnnouncementRow(scanner interface {
-	Scan(dest ...any) error
-}, row *model.AnnouncementRow) error {
-	var (
-		createdAt time.Time
-		updatedAt time.Time
-	)
-
-	err := scanner.Scan(
-		&row.ID, &row.Title, &row.Body, &row.AuthorID, &row.Pinned, &createdAt, &updatedAt,
-		&row.AuthorUsername, &row.AuthorDisplayName, &row.AuthorAvatarURL, &row.AuthorRole,
-	)
-	if err != nil {
-		return err
+func (r *announcementDAO) q(tx []*sql.Tx) *sqlcgen.Queries {
+	if len(tx) > 0 && tx[0] != nil {
+		return r.gen.WithTx(tx[0])
 	}
 
-	row.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	row.UpdatedAt = updatedAt.UTC().Format(time.RFC3339)
+	return r.gen
+}
 
-	return nil
+func toAnnouncementRow(row announcementJoinRow) model.AnnouncementRow {
+	out := model.AnnouncementRow{
+		ID:                row.ID,
+		Title:             row.Title,
+		Body:              row.Body,
+		Pinned:            row.Pinned,
+		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         row.UpdatedAt.UTC().Format(time.RFC3339),
+		AuthorUsername:    row.AuthorUsername,
+		AuthorDisplayName: row.AuthorDisplayName,
+		AuthorAvatarURL:   row.AuthorAvatarUrl,
+		AuthorRole:        row.AuthorRole,
+	}
+
+	if row.AuthorID != nil {
+		out.AuthorID = *row.AuthorID
+	}
+
+	return out
 }
 
 func (r *announcementDAO) Create(ctx context.Context, s spec.NewAnnouncement, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
-	var created model.AnnouncementRow
-
-	err := scanAnnouncementRow(
-		txOrDB(r.db, tx).QueryRowContext(ctx,
-			`WITH a AS (
-			     INSERT INTO announcements (author_id, title, body) VALUES ($1, $2, $3)
-			     RETURNING id, title, body, author_id, pinned, created_at, updated_at
-			 )
-			 SELECT a.id, a.title, a.body, a.author_id, a.pinned, a.created_at, a.updated_at,
-			        COALESCE(u.username, ''), COALESCE(u.display_name, ''), COALESCE(u.avatar_url, ''), COALESCE(r.role, '')
-			 FROM a
-			 LEFT JOIN users u ON u.id = a.author_id
-			 LEFT JOIN user_roles r ON r.user_id = u.id`,
-			s.AuthorID, s.Title, s.Body,
-		),
-		&created,
-	)
+	created, err := r.q(tx).CreateAnnouncement(ctx, sqlcgen.CreateAnnouncementParams{
+		AuthorID: &s.AuthorID,
+		Title:    s.Title,
+		Body:     s.Body,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create announcement: %w", err)
 	}
 
-	return &created, nil
+	return new(toAnnouncementRow(announcementJoinRow(created))), nil
 }
 
 func (r *announcementDAO) Update(ctx context.Context, s spec.AnnouncementUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE announcements SET title = $1, body = $2, updated_at = NOW() WHERE id = $3`,
-		s.Title, s.Body, s.ID,
-	)
+	err := r.q(tx).UpdateAnnouncement(ctx, sqlcgen.UpdateAnnouncementParams{
+		Title: s.Title,
+		Body:  s.Body,
+		ID:    s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("update announcement: %w", err)
 	}
@@ -113,8 +105,7 @@ func (r *announcementDAO) Update(ctx context.Context, s spec.AnnouncementUpdate,
 }
 
 func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM announcements WHERE id = $1`, id)
-	if err != nil {
+	if err := r.q(tx).DeleteAnnouncement(ctx, id); err != nil {
 		return fmt.Errorf("delete announcement: %w", err)
 	}
 
@@ -122,12 +113,7 @@ func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.T
 }
 
 func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
-	var row model.AnnouncementRow
-
-	err := scanAnnouncementRow(
-		txOrDB(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` WHERE a.id = $1`, id),
-		&row,
-	)
+	row, err := r.q(tx).GetAnnouncementByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -135,44 +121,35 @@ func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.
 		return nil, fmt.Errorf("get announcement: %w", err)
 	}
 
-	return &row, nil
+	return new(toAnnouncementRow(row)), nil
 }
 
 func (r *announcementDAO) List(ctx context.Context, q spec.AnnouncementListQuery, tx ...*sql.Tx) ([]model.AnnouncementRow, int, error) {
-	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM announcements`).Scan(&total); err != nil {
+	queries := r.q(tx)
+
+	total, err := queries.CountAnnouncements(ctx)
+	if err != nil {
 		return nil, 0, fmt.Errorf("count announcements: %w", err)
 	}
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT $1 OFFSET $2`,
-		q.Limit, q.Offset,
-	)
+	rows, err := queries.ListAnnouncements(ctx, sqlcgen.ListAnnouncementsParams{
+		Limit:  int32(q.Limit),
+		Offset: int32(q.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list announcements: %w", err)
 	}
-	defer rows.Close()
 
 	var result []model.AnnouncementRow
-	for rows.Next() {
-		var row model.AnnouncementRow
-		if err := scanAnnouncementRow(rows, &row); err != nil {
-			return nil, 0, fmt.Errorf("scan announcement: %w", err)
-		}
-
-		result = append(result, row)
+	for _, row := range rows {
+		result = append(result, toAnnouncementRow(announcementJoinRow(row)))
 	}
 
-	return result, total, rows.Err()
+	return result, int(total), nil
 }
 
 func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
-	var row model.AnnouncementRow
-
-	err := scanAnnouncementRow(
-		txOrDB(r.db, tx).QueryRowContext(ctx, announcementSelectBase+` ORDER BY a.pinned DESC, a.created_at DESC LIMIT 1`),
-		&row,
-	)
+	row, err := r.q(tx).GetLatestAnnouncement(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -180,11 +157,14 @@ func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*model.
 		return nil, fmt.Errorf("get latest announcement: %w", err)
 	}
 
-	return &row, nil
+	return new(toAnnouncementRow(announcementJoinRow(row))), nil
 }
 
 func (r *announcementDAO) SetPinned(ctx context.Context, s spec.AnnouncementPinUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE announcements SET pinned = $1 WHERE id = $2`, s.Pinned, s.ID)
+	err := r.q(tx).SetAnnouncementPinned(ctx, sqlcgen.SetAnnouncementPinnedParams{
+		Pinned: s.Pinned,
+		ID:     s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("set pinned: %w", err)
 	}

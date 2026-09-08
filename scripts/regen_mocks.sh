@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Regenerate all mockery mocks declared in .mockery.yml.
-# Usage: ./scripts/regen_mocks.sh
 set -euo pipefail
 
 cd "$(dirname "$0")/.."

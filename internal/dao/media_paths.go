@@ -42,33 +42,19 @@ func (m *mediaDAO) CollectMediaPaths(ctx context.Context, entityID uuid.UUID, tx
 }
 
 func (c *commentDAO[K]) CollectCommentMediaPaths(ctx context.Context, entityID K, tx ...*sql.Tx) ([]string, error) {
-	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
-		`SELECT m.media_url, m.thumbnail_url
-		 FROM `+c.mediaTable+` m
-		 JOIN `+c.table+` cm ON cm.id = m.comment_id
-		 WHERE cm.`+c.fk+` = $1`, entityID,
-	)
+	paths, err := c.q.Paths(ctx, c.queries(tx), entityID)
 	if err != nil {
-		return nil, fmt.Errorf("collect comment media paths in %s: %w", c.mediaTable, err)
+		return nil, fmt.Errorf("collect comment media paths: %w", err)
 	}
 
-	return scanMediaPaths(rows, c.mediaTable)
+	return paths, nil
 }
 
 func (c *commentDAO[K]) CollectSingleCommentMediaPaths(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := txOrDB(c.db, tx).QueryContext(ctx,
-		`WITH RECURSIVE tree AS (
-		     SELECT id FROM `+c.table+` WHERE id = $1
-		     UNION ALL
-		     SELECT child.id FROM `+c.table+` child JOIN tree ON child.parent_id = tree.id
-		 )
-		 SELECT m.media_url, m.thumbnail_url
-		 FROM `+c.mediaTable+` m
-		 JOIN tree ON tree.id = m.comment_id`, commentID,
-	)
+	paths, err := c.q.SinglePaths(ctx, c.queries(tx), commentID)
 	if err != nil {
-		return nil, fmt.Errorf("collect comment media paths in %s: %w", c.mediaTable, err)
+		return nil, fmt.Errorf("collect comment media paths: %w", err)
 	}
 
-	return scanMediaPaths(rows, c.mediaTable)
+	return paths, nil
 }
