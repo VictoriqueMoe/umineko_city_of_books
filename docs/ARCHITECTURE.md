@@ -171,7 +171,15 @@ announcementRepository struct {
 
 Every SQL statement in the codebase lives under `internal/dao`: 55 non-test files, one per domain (`theory.go`, `post.go`, `art.go`, `mystery.go`, `ship.go`, `fanfic.go`, `journal.go`, `chat.go`, `permission.go` and the rest), plus a handful of shared files described below. The structs are unexported and are only reachable through the constructors in `internal/dao/new.go`.
 
-A method is one logical statement, and the table it writes is its own. `artDAO.CreateArt` (`internal/dao/art.go:60-83`) is the shape: a single `QueryRowContext` running one `INSERT ... RETURNING` wrapped in a CTE, scanned into a `model.ArtRow`. The read half of that statement joins `users` and `user_roles` for the display columns, which is fine; what a DAO method may not do is write a second table. That restriction is what makes section 3.6's transaction rule enforceable.
+A method is one logical statement, and the table it writes is its own. The read half of a statement may join `users` and `user_roles` for display columns; what a DAO method may not do is write a second table. That restriction is what makes section 3.6's transaction rule enforceable.
+
+**The SQL is generated, not typed.** Queries live as plain `.sql` in `internal/dao/queries`, sqlc reads them together with `internal/db/migrations` and emits typed Go into `internal/dao/sqlcgen`, and the DAO method builds the generated params struct, calls the generated method through `genQueries(r.db, tx)`, and maps the generated row onto the `internal/model` type by hand. That last mapping is the deliberate seam: **generated types never leave the DAO body**, so a reordered column or a codegen bump cannot ripple into a service or a controller. The DAO interfaces are unchanged by any of it.
+
+The payoff is that a query is checked against the schema at build time. Renaming a column breaks `sqlc generate` with the query named, rather than breaking a request in production; a column made nullable by a later migration changes the generated Go type and breaks the mapping at compile time. Both of those were live bugs found the day the layer was converted.
+
+**Where the table name is a parameter, the queries are expanded first.** The generic DAOs are bound to their table at construction, which sqlc cannot express, so `internal/dao/queries/expand` renders one template per shape into a query set and a binding per entity before sqlc runs. Those outputs are committed and carry a generated header. The generic DAO keeps exactly one method per operation.
+
+**Where the query text cannot exist until run time, the DAO is hand-written and lives apart.** `internal/dao/dynamicsql` holds `search` (between one and twenty-two `UNION ALL` branches chosen by the caller) and `upload` (tables discovered from `information_schema`); `internal/dao/chat_dynamic.go` holds the two room listings that assemble a `WHERE` from five independent optional filters. The bar for that treatment is that the SQL is unknowable at build time, not that it is awkward.
 
 **Repeated shapes are generic and embedded by promotion.** Comments, likes, media attachments, view counters and votes are each written once and parameterised by table and foreign-key name at construction: `newCommentDAO[K comparable](db, table, fk, likesTable, mediaTable)` (`internal/dao/comments.go:28`), `newLikeDAO(db, table, fk)` (`likes.go:19`), `newMediaDAO(db, table, fk)` (`media.go:21`), `newViewDAO(db, viewsTable, fk)` (`views.go:19`) and `newVoteDAO(db, table, fk, action)` (`votes.go:20`). Each domain DAO embeds the pointer, so the methods promote onto the outer struct and satisfy the domain interface without a line of forwarding. Nine comment systems share the one implementation: announcements, art, fanfics, journals, mysteries, OCs, posts, secrets and ships. Eight of them embed `*commentDAO[uuid.UUID]`; secrets embed `*commentDAO[string]`, because a secret is keyed by slug rather than by UUID, which is the reason the type parameter exists at all.
 
@@ -888,8 +896,15 @@ The backend half first, then the frontend. Section 4 gives the frontend director
   internal/routes       mounts GetAPIRoutes under /api/v1 and GetPageRoutes at the app root
   internal/middleware   the global chain of section 3.8
   internal/repository   repository interfaces and the composites that span several DAOs
-  internal/dao          the DAO interfaces, every SQL statement, the sentinel errors,
+  internal/dao          the DAO interfaces, the sentinel errors, and the Go that
+                        maps generated rows onto internal/model types,
                         plus daotest for the container-backed tests
+  internal/dao/queries          the hand-written .sql sqlc generates from
+  internal/dao/queries/templates one template per generic shape
+  internal/dao/queries/expand    renders those templates per entity
+  internal/dao/queries/gen       generated .sql, committed
+  internal/dao/sqlcgen           generated Go, committed
+  internal/dao/dynamicsql        the DAOs whose SQL cannot exist until run time
   internal/model        rows, read models, enums, the search registry
   internal/model/spec   every input spec, one file per entity
   internal/audit        the audit vocabulary: audit.Action, audit.Entry, audit.NewEntry
