@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 )
 
@@ -24,78 +24,130 @@ type (
 	sitemapDAO struct {
 		db *sql.DB
 	}
+
+	sitemapEntryRow = sqlcgen.SitemapListTheoriesRow
 )
 
-func (r *sitemapDAO) listEntries(ctx context.Context, query, label string, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("list %s: %w", label, err)
+func toSitemapEntry(row sitemapEntryRow) model.SitemapEntry {
+	return model.SitemapEntry{
+		ID:      row.ID.String(),
+		LastMod: row.CreatedAt,
 	}
-	defer rows.Close()
-
-	var entries []model.SitemapEntry
-	for rows.Next() {
-		var e model.SitemapEntry
-		if err := rows.Scan(&e.ID, &e.LastMod); err != nil {
-			return nil, fmt.Errorf("scan %s: %w", label, err)
-		}
-		entries = append(entries, e)
-	}
-	return entries, rows.Err()
 }
 
 func (r *sitemapDAO) ListTheories(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM theories ORDER BY created_at DESC`, "theories", tx...)
+	rows, err := genQueries(r.db, tx).SitemapListTheories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list theories: %w", err)
+	}
+
+	var entries []model.SitemapEntry
+	for _, row := range rows {
+		entries = append(entries, toSitemapEntry(row))
+	}
+
+	return entries, nil
 }
 
 func (r *sitemapDAO) ListPosts(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM posts ORDER BY created_at DESC`, "posts", tx...)
+	rows, err := genQueries(r.db, tx).SitemapListPosts(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list posts: %w", err)
+	}
+
+	var entries []model.SitemapEntry
+	for _, row := range rows {
+		entries = append(entries, toSitemapEntry(sitemapEntryRow(row)))
+	}
+
+	return entries, nil
 }
 
 func (r *sitemapDAO) ListArt(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM art ORDER BY created_at DESC`, "art", tx...)
+	rows, err := genQueries(r.db, tx).SitemapListArt(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list art: %w", err)
+	}
+
+	var entries []model.SitemapEntry
+	for _, row := range rows {
+		entries = append(entries, toSitemapEntry(sitemapEntryRow(row)))
+	}
+
+	return entries, nil
 }
 
 func (r *sitemapDAO) ListMysteries(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM mysteries ORDER BY created_at DESC`, "mysteries", tx...)
+	rows, err := genQueries(r.db, tx).SitemapListMysteries(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list mysteries: %w", err)
+	}
+
+	var entries []model.SitemapEntry
+	for _, row := range rows {
+		entries = append(entries, toSitemapEntry(sitemapEntryRow(row)))
+	}
+
+	return entries, nil
 }
 
 func (r *sitemapDAO) ListShips(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM ships ORDER BY created_at DESC`, "ships", tx...)
+	rows, err := genQueries(r.db, tx).SitemapListShips(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list ships: %w", err)
+	}
+
+	var entries []model.SitemapEntry
+	for _, row := range rows {
+		entries = append(entries, toSitemapEntry(sitemapEntryRow(row)))
+	}
+
+	return entries, nil
 }
 
 func (r *sitemapDAO) ListFanfics(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapEntry, error) {
-	return r.listEntries(ctx, `SELECT id, created_at FROM fanfics WHERE status != 'draft' ORDER BY created_at DESC`, "fanfics", tx...)
+	rows, err := genQueries(r.db, tx).SitemapListFanfics(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list fanfics: %w", err)
+	}
+
+	var entries []model.SitemapEntry
+	for _, row := range rows {
+		entries = append(entries, toSitemapEntry(sitemapEntryRow(row)))
+	}
+
+	return entries, nil
 }
 
 func (r *sitemapDAO) ListUsernames(ctx context.Context, tx ...*sql.Tx) ([]string, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT username FROM users WHERE NOT is_bot ORDER BY created_at DESC`)
+	usernames, err := genQueries(r.db, tx).SitemapListUsernames(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list usernames: %w", err)
 	}
 
-	return utils.ScanStrings(rows, "username")
+	return usernames, nil
 }
 
 func (r *sitemapDAO) ListJournalRows(ctx context.Context, tx ...*sql.Tx) ([]model.SitemapJournalRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT j.id, COALESCE(j.updated_at, j.created_at), e.entry_number, e.updated_at
-		FROM journals j
-		LEFT JOIN journal_entries e ON e.journal_id = j.id AND NOT e.is_draft
-		WHERE j.archived_at IS NULL
-		ORDER BY j.id, e.entry_number`)
+	rows, err := genQueries(r.db, tx).SitemapListJournalRows(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list journal rows: %w", err)
 	}
-	defer rows.Close()
 
 	var result []model.SitemapJournalRow
-	for rows.Next() {
-		var row model.SitemapJournalRow
-		if err := rows.Scan(&row.JournalID, &row.JournalUpdatedAt, &row.EntryNumber, &row.EntryUpdatedAt); err != nil {
-			return nil, fmt.Errorf("scan journal row: %w", err)
+	for _, row := range rows {
+		entry := model.SitemapJournalRow{
+			JournalID:        row.ID.String(),
+			JournalUpdatedAt: row.JournalUpdatedAt,
+			EntryUpdatedAt:   row.UpdatedAt,
 		}
-		result = append(result, row)
+
+		if row.EntryNumber.Valid {
+			entry.EntryNumber = sql.NullInt64{Int64: int64(row.EntryNumber.Int32), Valid: true}
+		}
+
+		result = append(result, entry)
 	}
-	return result, rows.Err()
+
+	return result, nil
 }

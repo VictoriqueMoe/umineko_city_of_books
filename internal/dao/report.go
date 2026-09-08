@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -20,116 +22,112 @@ type (
 	reportDAO struct {
 		db *sql.DB
 	}
+
+	reportJoinRow = sqlcgen.GetReportByIDRow
 )
 
-func (r *reportDAO) Create(ctx context.Context, s spec.NewReport, tx ...*sql.Tx) (*model.ReportRow, error) {
-	var row model.ReportRow
+func toReportRow(row reportJoinRow) model.ReportRow {
+	return model.ReportRow{
+		ID:             int(row.ID),
+		ReporterID:     row.ReporterID,
+		ReporterName:   row.DisplayName,
+		ReporterAvatar: row.AvatarUrl,
+		TargetType:     row.TargetType,
+		TargetID:       row.TargetID,
+		ContextID:      row.ContextID,
+		Reason:         row.Reason,
+		Status:         row.Status,
+		ResolvedByID:   row.ResolvedBy,
+		ResolvedByName: row.ResolvedByName,
+		CreatedAt:      row.CreatedAt.UTC().Format(time.RFC3339Nano),
+	}
+}
 
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`WITH rep AS (
-		     INSERT INTO reports (reporter_id, target_type, target_id, context_id, reason)
-		     VALUES ($1, $2, $3, $4, $5)
-		     RETURNING id, reporter_id, target_type, target_id, context_id, reason, status, resolved_by, created_at
-		 )
-		 SELECT rep.id, rep.reporter_id, u.display_name, u.avatar_url,
-		        rep.target_type, rep.target_id, COALESCE(rep.context_id, ''), rep.reason, rep.status,
-		        rep.resolved_by, ''::text, rep.created_at
-		 FROM rep
-		 JOIN users u ON rep.reporter_id = u.id`,
-		s.ReporterID, s.TargetType, s.TargetID, s.ContextID, s.Reason,
-	).Scan(
-		&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
-		&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
-		&row.ResolvedByID, &row.ResolvedByName, &row.CreatedAt,
-	)
+func (r *reportDAO) Create(ctx context.Context, s spec.NewReport, tx ...*sql.Tx) (*model.ReportRow, error) {
+	created, err := genQueries(r.db, tx).CreateReport(ctx, sqlcgen.CreateReportParams{
+		ReporterID: s.ReporterID,
+		TargetType: s.TargetType,
+		TargetID:   s.TargetID,
+		ContextID:  s.ContextID,
+		Reason:     s.Reason,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create report: %w", err)
 	}
 
-	return &row, nil
+	return new(toReportRow(reportJoinRow(created))), nil
 }
 
 func (r *reportDAO) List(ctx context.Context, q spec.ReportFilter, tx ...*sql.Tx) ([]model.ReportRow, int, error) {
-	where := ""
-	var args []any
-	if q.Status != "" {
-		where = " WHERE r.status = $1"
-		args = append(args, q.Status)
-	}
+	queries := genQueries(r.db, tx)
 
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM reports r"+where, countArgs...,
-	).Scan(&total)
-	if err != nil {
-		return nil, 0, fmt.Errorf("count reports: %w", err)
-	}
-
-	limitIdx := len(args) + 1
-	offsetIdx := len(args) + 2
-	query := fmt.Sprintf(
-		`SELECT r.id, r.reporter_id, u.display_name, u.avatar_url,
-		        r.target_type, r.target_id, COALESCE(r.context_id, ''), r.reason, r.status,
-		        r.resolved_by, COALESCE(ru.display_name, ''), r.created_at
-		 FROM reports r
-		 JOIN users u ON r.reporter_id = u.id
-		 LEFT JOIN users ru ON r.resolved_by = ru.id
-		 %s ORDER BY r.created_at DESC LIMIT $%d OFFSET $%d`, where, limitIdx, offsetIdx,
+	var (
+		total  int64
+		joined []reportJoinRow
 	)
-	args = append(args, q.Limit, q.Offset)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list reports: %w", err)
+	if q.Status != "" {
+		count, err := queries.CountReportsByStatus(ctx, q.Status)
+		if err != nil {
+			return nil, 0, fmt.Errorf("count reports: %w", err)
+		}
+
+		rows, err := queries.ListReportsByStatus(ctx, sqlcgen.ListReportsByStatusParams{
+			Status: q.Status,
+			Limit:  int32(q.Limit),
+			Offset: int32(q.Offset),
+		})
+		if err != nil {
+			return nil, 0, fmt.Errorf("list reports: %w", err)
+		}
+
+		total = count
+		for _, row := range rows {
+			joined = append(joined, reportJoinRow(row))
+		}
+	} else {
+		count, err := queries.CountReports(ctx)
+		if err != nil {
+			return nil, 0, fmt.Errorf("count reports: %w", err)
+		}
+
+		rows, err := queries.ListReports(ctx, sqlcgen.ListReportsParams{
+			Limit:  int32(q.Limit),
+			Offset: int32(q.Offset),
+		})
+		if err != nil {
+			return nil, 0, fmt.Errorf("list reports: %w", err)
+		}
+
+		total = count
+		for _, row := range rows {
+			joined = append(joined, reportJoinRow(row))
+		}
 	}
-	defer rows.Close()
 
 	var reports []model.ReportRow
-	for rows.Next() {
-		var row model.ReportRow
-		if err := rows.Scan(
-			&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
-			&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
-			&row.ResolvedByID, &row.ResolvedByName, &row.CreatedAt,
-		); err != nil {
-			return nil, 0, fmt.Errorf("scan report: %w", err)
-		}
-		reports = append(reports, row)
+	for _, row := range joined {
+		reports = append(reports, toReportRow(row))
 	}
 
-	return reports, total, rows.Err()
+	return reports, int(total), nil
 }
 
 func (r *reportDAO) GetByID(ctx context.Context, id int, tx ...*sql.Tx) (*model.ReportRow, error) {
-	var row model.ReportRow
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT r.id, r.reporter_id, u.display_name, u.avatar_url,
-		        r.target_type, r.target_id, COALESCE(r.context_id, ''), r.reason, r.status,
-		        r.resolved_by, COALESCE(ru.display_name, ''), r.created_at
-		 FROM reports r
-		 JOIN users u ON r.reporter_id = u.id
-		 LEFT JOIN users ru ON r.resolved_by = ru.id
-		 WHERE r.id = $1`, id,
-	).Scan(
-		&row.ID, &row.ReporterID, &row.ReporterName, &row.ReporterAvatar,
-		&row.TargetType, &row.TargetID, &row.ContextID, &row.Reason, &row.Status,
-		&row.ResolvedByID, &row.ResolvedByName, &row.CreatedAt,
-	)
+	row, err := genQueries(r.db, tx).GetReportByID(ctx, int64(id))
 	if err != nil {
 		return nil, fmt.Errorf("get report by id: %w", err)
 	}
 
-	return &row, nil
+	return new(toReportRow(row)), nil
 }
 
 func (r *reportDAO) Resolve(ctx context.Context, s spec.ReportResolution, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE reports SET status = 'resolved', resolved_by = $1, resolution_comment = $2 WHERE id = $3`,
-		s.ResolvedBy, s.Comment, s.ID,
-	)
+	err := genQueries(r.db, tx).ResolveReport(ctx, sqlcgen.ResolveReportParams{
+		ResolvedBy:        &s.ResolvedBy,
+		ResolutionComment: s.Comment,
+		ID:                int64(s.ID),
+	})
 	if err != nil {
 		return fmt.Errorf("resolve report: %w", err)
 	}

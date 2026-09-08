@@ -5,11 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/dao/utils"
-	"umineko_city_of_books/internal/db"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -67,99 +65,103 @@ type (
 		*voteDAO
 		*commentDAO[uuid.UUID]
 	}
+
+	ocJoinRow = sqlcgen.GetOCByIDRow
 )
 
-const ocSelectBase = `
-	SELECT o.id, o.user_id, o.name, o.description, o.series, o.custom_series_name,
-		o.image_url, o.thumbnail_url, o.created_at, o.updated_at,
-		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-		COALESCE((SELECT SUM(value) FROM oc_votes WHERE oc_id = o.id), 0),
-		COALESCE((SELECT value FROM oc_votes WHERE oc_id = o.id AND user_id = $1), 0),
-		(SELECT COUNT(*) FROM oc_favourites WHERE oc_id = o.id),
-		EXISTS(SELECT 1 FROM oc_favourites WHERE oc_id = o.id AND user_id = $1),
-		(SELECT COUNT(*) FROM oc_comments WHERE oc_id = o.id)
-	FROM ocs o
-	JOIN users u ON o.user_id = u.id
-	LEFT JOIN user_roles r ON r.user_id = o.user_id`
-
-func scanOCRow(row interface{ Scan(...any) error }, o *model.OCRow) error {
-	var createdAt, updatedAt time.Time
-	if err := row.Scan(
-		&o.ID, &o.UserID, &o.Name, &o.Description, &o.Series, &o.CustomSeriesName,
-		&o.ImageURL, &o.ThumbnailURL, &createdAt, &updatedAt,
-		&o.AuthorUsername, &o.AuthorDisplayName, &o.AuthorAvatarURL, &o.AuthorRole,
-		&o.VoteScore, &o.UserVote, &o.FavouriteCount, &o.UserFavourited, &o.CommentCount,
-	); err != nil {
-		return err
+func toOCRow(row ocJoinRow) model.OCRow {
+	return model.OCRow{
+		ID:                row.ID,
+		UserID:            row.UserID,
+		Name:              row.Name,
+		Description:       row.Description,
+		Series:            row.Series,
+		CustomSeriesName:  row.CustomSeriesName,
+		ImageURL:          row.ImageUrl,
+		ThumbnailURL:      row.ThumbnailUrl,
+		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         new(row.UpdatedAt.UTC().Format(time.RFC3339)),
+		AuthorUsername:    row.Username,
+		AuthorDisplayName: row.DisplayName,
+		AuthorAvatarURL:   row.AvatarUrl,
+		AuthorRole:        row.AuthorRole,
+		VoteScore:         int(row.VoteScore),
+		UserVote:          int(row.UserVote),
+		FavouriteCount:    int(row.FavouriteCount),
+		UserFavourited:    row.UserFavourited,
+		CommentCount:      int(row.CommentCount),
 	}
+}
 
-	o.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	o.UpdatedAt = new(updatedAt.UTC().Format(time.RFC3339))
-
-	return nil
+func toOCImageRow(row sqlcgen.OcImage) model.OCImageRow {
+	return model.OCImageRow{
+		ID:           row.ID,
+		OCID:         row.OcID,
+		ImageURL:     row.ImageUrl,
+		ThumbnailURL: row.ThumbnailUrl,
+		Caption:      row.Caption,
+		SortOrder:    int(row.SortOrder),
+	}
 }
 
 func (r *ocDAO) Create(ctx context.Context, s spec.NewOC, tx ...*sql.Tx) (*model.OCRow, error) {
-	var created model.OCRow
-
-	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx,
-		`WITH o AS (
-		     INSERT INTO ocs (user_id, name, description, series, custom_series_name)
-		     VALUES ($1, $2, $3, $4, $5)
-		     RETURNING *
-		 )
-		 SELECT o.id, o.user_id, o.name, o.description, o.series, o.custom_series_name,
-		        o.image_url, o.thumbnail_url, o.created_at, o.updated_at,
-		        u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-		        0, 0, 0, FALSE, 0
-		 FROM o
-		 JOIN users u ON o.user_id = u.id
-		 LEFT JOIN user_roles r ON r.user_id = o.user_id`,
-		s.UserID, s.Name, s.Description, s.Series, s.CustomSeriesName,
-	), &created)
+	created, err := genQueries(r.db, tx).CreateOC(ctx, sqlcgen.CreateOCParams{
+		UserID:           s.UserID,
+		Name:             s.Name,
+		Description:      s.Description,
+		Series:           s.Series,
+		CustomSeriesName: s.CustomSeriesName,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create oc: %w", err)
 	}
 
-	return &created, nil
+	return new(toOCRow(ocJoinRow(created))), nil
 }
 
 func (r *ocDAO) Update(ctx context.Context, s spec.OCUpdate, tx ...*sql.Tx) error {
-	return db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error {
-		var (
-			res sql.Result
-			err error
-		)
+	queries := genQueries(r.db, tx)
 
-		if s.AsAdmin {
-			res, err = tx.ExecContext(ctx,
-				`UPDATE ocs SET name = $1, description = $2, series = $3, custom_series_name = $4, updated_at = NOW() WHERE id = $5`,
-				s.Name, s.Description, s.Series, s.CustomSeriesName, s.ID,
-			)
-		} else {
-			res, err = tx.ExecContext(ctx,
-				`UPDATE ocs SET name = $1, description = $2, series = $3, custom_series_name = $4, updated_at = NOW() WHERE id = $5 AND user_id = $6`,
-				s.Name, s.Description, s.Series, s.CustomSeriesName, s.ID, s.UserID,
-			)
-		}
-		if err != nil {
-			return fmt.Errorf("update oc: %w", err)
-		}
+	var (
+		affected int64
+		err      error
+	)
 
-		n, _ := res.RowsAffected()
-		if n == 0 {
-			return fmt.Errorf("oc not found or not owned")
-		}
+	if s.AsAdmin {
+		affected, err = queries.UpdateOCAsAdmin(ctx, sqlcgen.UpdateOCAsAdminParams{
+			Name:             s.Name,
+			Description:      s.Description,
+			Series:           s.Series,
+			CustomSeriesName: s.CustomSeriesName,
+			ID:               s.ID,
+		})
+	} else {
+		affected, err = queries.UpdateOC(ctx, sqlcgen.UpdateOCParams{
+			Name:             s.Name,
+			Description:      s.Description,
+			Series:           s.Series,
+			CustomSeriesName: s.CustomSeriesName,
+			ID:               s.ID,
+			UserID:           s.UserID,
+		})
+	}
+	if err != nil {
+		return fmt.Errorf("update oc: %w", err)
+	}
 
-		return nil
-	})
+	if affected == 0 {
+		return fmt.Errorf("oc not found or not owned")
+	}
+
+	return nil
 }
 
 func (r *ocDAO) UpdateImage(ctx context.Context, s spec.OCImageUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE ocs SET image_url = $1, thumbnail_url = $2 WHERE id = $3`,
-		s.ImageURL, s.ThumbnailURL, s.ID,
-	)
+	err := genQueries(r.db, tx).UpdateOCImage(ctx, sqlcgen.UpdateOCImageParams{
+		ImageUrl:     s.ImageURL,
+		ThumbnailUrl: s.ThumbnailURL,
+		ID:           s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("update oc image: %w", err)
 	}
@@ -180,11 +182,7 @@ func appendOCPaths(paths []string, values ...string) []string {
 }
 
 func (r *ocDAO) GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	var imageURL, thumbnailURL string
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT image_url, thumbnail_url FROM ocs WHERE id = $1`, ocID,
-	).Scan(&imageURL, &thumbnailURL)
+	row, err := genQueries(r.db, tx).GetOCImagePaths(ctx, ocID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -192,54 +190,43 @@ func (r *ocDAO) GetImagePaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx
 		return nil, fmt.Errorf("get oc image paths: %w", err)
 	}
 
-	return appendOCPaths(nil, imageURL, thumbnailURL), nil
+	return appendOCPaths(nil, row.ImageUrl, row.ThumbnailUrl), nil
 }
 
 func (r *ocDAO) GetGalleryPaths(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT image_url, thumbnail_url FROM oc_images WHERE oc_id = $1 ORDER BY sort_order, id`,
-		ocID,
-	)
+	rows, err := genQueries(r.db, tx).GetOCGalleryPaths(ctx, ocID)
 	if err != nil {
 		return nil, fmt.Errorf("get oc gallery paths: %w", err)
 	}
-	defer rows.Close()
 
 	var paths []string
-	for rows.Next() {
-		var imageURL, thumbnailURL string
-		if err := rows.Scan(&imageURL, &thumbnailURL); err != nil {
-			return nil, fmt.Errorf("scan oc gallery path: %w", err)
-		}
-
-		paths = appendOCPaths(paths, imageURL, thumbnailURL)
+	for _, row := range rows {
+		paths = appendOCPaths(paths, row.ImageUrl, row.ThumbnailUrl)
 	}
 
-	return paths, rows.Err()
+	return paths, nil
 }
 
 func (r *ocDAO) GetByID(ctx context.Context, s spec.OCByID, tx ...*sql.Tx) (*model.OCRow, error) {
-	var o model.OCRow
-
-	err := scanOCRow(txOrDB(r.db, tx).QueryRowContext(ctx, ocSelectBase+` WHERE o.id = $2`, s.ViewerID, s.ID), &o)
+	row, err := genQueries(r.db, tx).GetOCByID(ctx, sqlcgen.GetOCByIDParams{
+		UserID: s.ViewerID,
+		ID:     s.ID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-
 		return nil, fmt.Errorf("get oc: %w", err)
 	}
 
-	return &o, nil
+	return new(toOCRow(row)), nil
 }
 
 func (r *ocDAO) HasOC(ctx context.Context, s spec.OCNameLookup, tx ...*sql.Tx) (bool, error) {
-	var exists bool
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM ocs WHERE user_id = $1 AND lower(name) = lower($2))`,
-		s.UserID, s.Name,
-	).Scan(&exists)
+	exists, err := genQueries(r.db, tx).OCNameExists(ctx, sqlcgen.OCNameExistsParams{
+		UserID:  s.UserID,
+		Column2: s.Name,
+	})
 	if err != nil {
 		return false, fmt.Errorf("check oc exists: %w", err)
 	}
@@ -248,161 +235,161 @@ func (r *ocDAO) HasOC(ctx context.Context, s spec.OCNameLookup, tx ...*sql.Tx) (
 }
 
 func (r *ocDAO) List(ctx context.Context, s spec.OCListFilter, tx ...*sql.Tx) ([]model.OCRow, int, error) {
-	buildWhere := func(startIdx int) (string, []any, int) {
-		idx := startIdx
-		next := func() string {
-			ph := fmt.Sprintf("$%d", idx)
-			idx++
+	queries := genQueries(r.db, tx)
+	excluded := joinUUIDs(s.ExcludeUserIDs)
 
-			return ph
-		}
-
-		parts := []string{"1=1"}
-		var args []any
-
-		if s.Series != "" {
-			parts = append(parts, "o.series = "+next())
-			args = append(args, s.Series)
-		}
-
-		if s.CustomSeriesName != "" {
-			parts = append(parts, "lower(o.custom_series_name) = lower("+next()+")")
-			args = append(args, s.CustomSeriesName)
-		}
-
-		if s.OwnerID != uuid.Nil {
-			parts = append(parts, "o.user_id = "+next())
-			args = append(args, s.OwnerID)
-		}
-
-		if s.CrackOCsOnly {
-			parts = append(parts, fmt.Sprintf("COALESCE((SELECT SUM(value) FROM oc_votes WHERE oc_id = o.id), 0) <= %d", -3))
-		}
-
-		exclSQL, exclArgs := ExcludeClause("o.user_id", s.ExcludeUserIDs, idx)
-		idx += len(exclArgs)
-		args = append(args, exclArgs...)
-
-		return " WHERE " + strings.Join(parts, " AND ") + exclSQL, args, idx
-	}
-
-	countWhere, countArgs, _ := buildWhere(1)
-
-	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM ocs o`+countWhere, countArgs...,
-	).Scan(&total); err != nil {
+	total, err := queries.CountOCs(ctx, sqlcgen.CountOCsParams{
+		Series:           s.Series,
+		CustomSeriesName: s.CustomSeriesName,
+		OwnerID:          s.OwnerID,
+		CrackOnly:        s.CrackOCsOnly,
+		ExcludeUserIds:   excluded,
+	})
+	if err != nil {
 		return nil, 0, fmt.Errorf("count ocs: %w", err)
 	}
 
-	listWhere, listArgs, nextIdx := buildWhere(2)
-	limitPH := fmt.Sprintf("$%d", nextIdx)
-	offsetPH := fmt.Sprintf("$%d", nextIdx+1)
-	orderClause := ocOrderClause(s.Sort)
-	query := ocSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
-
-	queryArgs := []any{s.ViewerID}
-	queryArgs = append(queryArgs, listArgs...)
-	queryArgs = append(queryArgs, s.Limit, s.Offset)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list ocs: %w", err)
+	params := sqlcgen.ListOCsByNewParams{
+		ViewerID:         s.ViewerID,
+		Series:           s.Series,
+		CustomSeriesName: s.CustomSeriesName,
+		OwnerID:          s.OwnerID,
+		CrackOnly:        s.CrackOCsOnly,
+		ExcludeUserIds:   excluded,
+		PageOffset:       int32(s.Offset),
+		PageLimit:        int32(s.Limit),
 	}
-	defer rows.Close()
 
-	var ocs []model.OCRow
-	for rows.Next() {
-		var o model.OCRow
-		if err := scanOCRow(rows, &o); err != nil {
-			return nil, 0, fmt.Errorf("scan oc: %w", err)
+	var rows []ocJoinRow
+
+	switch s.Sort {
+	case "top":
+		found, listErr := queries.ListOCsByTop(ctx, sqlcgen.ListOCsByTopParams(params))
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
 		}
 
-		ocs = append(ocs, o)
-	}
-
-	return ocs, total, rows.Err()
-}
-
-func ocOrderClause(sort string) string {
-	voteScore := `COALESCE((SELECT SUM(value) FROM oc_votes WHERE oc_id = o.id), 0)`
-	favouriteCount := `(SELECT COUNT(*) FROM oc_favourites WHERE oc_id = o.id)`
-
-	switch sort {
-	case "top":
-		return ` ORDER BY ` + voteScore + ` DESC, o.created_at DESC`
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	case "crack":
-		return ` ORDER BY ` + voteScore + ` ASC, o.created_at DESC`
+		found, listErr := queries.ListOCsByCrack(ctx, sqlcgen.ListOCsByCrackParams(params))
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
+		}
+
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	case "favourites":
-		return ` ORDER BY ` + favouriteCount + ` DESC, o.created_at DESC`
+		found, listErr := queries.ListOCsByFavourites(ctx, sqlcgen.ListOCsByFavouritesParams(params))
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
+		}
+
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	case "comments":
-		return ` ORDER BY (SELECT COUNT(*) FROM oc_comments WHERE oc_id = o.id) DESC, o.created_at DESC`
+		found, listErr := queries.ListOCsByComments(ctx, sqlcgen.ListOCsByCommentsParams(params))
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
+		}
+
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	case "name":
-		return ` ORDER BY lower(o.name) ASC`
+		found, listErr := queries.ListOCsByName(ctx, sqlcgen.ListOCsByNameParams(params))
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
+		}
+
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	case "old":
-		return ` ORDER BY o.created_at ASC`
+		found, listErr := queries.ListOCsByOld(ctx, sqlcgen.ListOCsByOldParams(params))
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
+		}
+
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	default:
-		return ` ORDER BY o.created_at DESC`
+		found, listErr := queries.ListOCsByNew(ctx, params)
+		if listErr != nil {
+			return nil, 0, fmt.Errorf("list ocs: %w", listErr)
+		}
+
+		for _, row := range found {
+			rows = append(rows, ocJoinRow(row))
+		}
 	}
+
+	var ocs []model.OCRow
+	for _, row := range rows {
+		ocs = append(ocs, toOCRow(row))
+	}
+
+	return ocs, int(total), nil
 }
 
 func (r *ocDAO) ListByUser(ctx context.Context, s spec.OCUserListFilter, tx ...*sql.Tx) ([]model.OCRow, int, error) {
-	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ocs WHERE user_id = $1`, s.UserID).Scan(&total); err != nil {
+	queries := genQueries(r.db, tx)
+
+	total, err := queries.CountOCsByUser(ctx, s.UserID)
+	if err != nil {
 		return nil, 0, fmt.Errorf("count user ocs: %w", err)
 	}
 
-	query := ocSelectBase + ` WHERE o.user_id = $2 ORDER BY o.created_at DESC LIMIT $3 OFFSET $4`
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, s.ViewerID, s.UserID, s.Limit, s.Offset)
+	rows, err := queries.ListOCsByUser(ctx, sqlcgen.ListOCsByUserParams{
+		ViewerID:   s.ViewerID,
+		OwnerID:    s.UserID,
+		PageLimit:  int32(s.Limit),
+		PageOffset: int32(s.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user ocs: %w", err)
 	}
-	defer rows.Close()
 
 	var ocs []model.OCRow
-	for rows.Next() {
-		var o model.OCRow
-		if err := scanOCRow(rows, &o); err != nil {
-			return nil, 0, fmt.Errorf("scan oc: %w", err)
-		}
-
-		ocs = append(ocs, o)
+	for _, row := range rows {
+		ocs = append(ocs, toOCRow(ocJoinRow(row)))
 	}
 
-	return ocs, total, rows.Err()
+	return ocs, int(total), nil
 }
 
 func (r *ocDAO) ListSummariesByUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.OCSummaryRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, name, series, custom_series_name, thumbnail_url FROM ocs WHERE user_id = $1 ORDER BY lower(name) ASC`,
-		userID,
-	)
+	rows, err := genQueries(r.db, tx).ListOCSummariesByUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list oc summaries: %w", err)
 	}
-	defer rows.Close()
 
 	var summaries []model.OCSummaryRow
-	for rows.Next() {
-		var s model.OCSummaryRow
-		if err := rows.Scan(&s.ID, &s.Name, &s.Series, &s.CustomSeriesName, &s.ThumbnailURL); err != nil {
-			return nil, fmt.Errorf("scan oc summary: %w", err)
-		}
-
-		summaries = append(summaries, s)
+	for _, row := range rows {
+		summaries = append(summaries, model.OCSummaryRow{
+			ID:               row.ID,
+			Name:             row.Name,
+			Series:           row.Series,
+			CustomSeriesName: row.CustomSeriesName,
+			ThumbnailURL:     row.ThumbnailUrl,
+		})
 	}
 
-	return summaries, rows.Err()
+	return summaries, nil
 }
 
 func (r *ocDAO) AddGalleryImage(ctx context.Context, s spec.NewOCGalleryImage, tx ...*sql.Tx) (int64, error) {
-	var id int64
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`INSERT INTO oc_images (oc_id, image_url, thumbnail_url, caption, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-		s.OCID, s.ImageURL, s.ThumbnailURL, s.Caption, s.SortOrder,
-	).Scan(&id)
+	id, err := genQueries(r.db, tx).AddOCGalleryImage(ctx, sqlcgen.AddOCGalleryImageParams{
+		OcID:         s.OCID,
+		ImageUrl:     s.ImageURL,
+		ThumbnailUrl: s.ThumbnailURL,
+		Caption:      s.Caption,
+		SortOrder:    int32(s.SortOrder),
+	})
 	if err != nil {
 		return 0, fmt.Errorf("add oc gallery image: %w", err)
 	}
@@ -411,7 +398,10 @@ func (r *ocDAO) AddGalleryImage(ctx context.Context, s spec.NewOCGalleryImage, t
 }
 
 func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET image_url = $1 WHERE id = $2`, s.URL, s.ID)
+	err := genQueries(r.db, tx).UpdateOCGalleryImageURL(ctx, sqlcgen.UpdateOCGalleryImageURLParams{
+		ImageUrl: s.URL,
+		ID:       s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("update oc gallery image url: %w", err)
 	}
@@ -420,7 +410,10 @@ func (r *ocDAO) UpdateGalleryImageURL(ctx context.Context, s spec.MediaURLUpdate
 }
 
 func (r *ocDAO) UpdateGalleryImageThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `UPDATE oc_images SET thumbnail_url = $1 WHERE id = $2`, s.URL, s.ID)
+	err := genQueries(r.db, tx).UpdateOCGalleryImageThumbnail(ctx, sqlcgen.UpdateOCGalleryImageThumbnailParams{
+		ThumbnailUrl: s.URL,
+		ID:           s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("update oc gallery image thumbnail: %w", err)
 	}
@@ -433,32 +426,39 @@ func (r *ocDAO) UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpd
 		return nil
 	}
 
-	parts := make([]string, 0, 2)
-	args := make([]any, 0, 4)
-	idx := 1
+	queries := genQueries(r.db, tx)
 
-	if s.Caption != nil {
-		parts = append(parts, fmt.Sprintf("caption = $%d", idx))
-		args = append(args, *s.Caption)
-		idx++
+	var (
+		affected int64
+		err      error
+	)
+
+	switch {
+	case s.Caption != nil && s.SortOrder != nil:
+		affected, err = queries.UpdateOCGalleryImageDetails(ctx, sqlcgen.UpdateOCGalleryImageDetailsParams{
+			Caption:   *s.Caption,
+			SortOrder: int32(*s.SortOrder),
+			ID:        s.ID,
+			OcID:      s.OCID,
+		})
+	case s.Caption != nil:
+		affected, err = queries.UpdateOCGalleryImageCaption(ctx, sqlcgen.UpdateOCGalleryImageCaptionParams{
+			Caption: *s.Caption,
+			ID:      s.ID,
+			OcID:    s.OCID,
+		})
+	default:
+		affected, err = queries.UpdateOCGalleryImageSortOrder(ctx, sqlcgen.UpdateOCGalleryImageSortOrderParams{
+			SortOrder: int32(*s.SortOrder),
+			ID:        s.ID,
+			OcID:      s.OCID,
+		})
 	}
-
-	if s.SortOrder != nil {
-		parts = append(parts, fmt.Sprintf("sort_order = $%d", idx))
-		args = append(args, *s.SortOrder)
-		idx++
-	}
-
-	args = append(args, s.ID, s.OCID)
-	query := fmt.Sprintf(`UPDATE oc_images SET %s WHERE id = $%d AND oc_id = $%d`, strings.Join(parts, ", "), idx, idx+1)
-
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("update oc gallery image: %w", err)
 	}
 
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	if affected == 0 {
 		return fmt.Errorf("gallery image not found or not in oc")
 	}
 
@@ -466,13 +466,15 @@ func (r *ocDAO) UpdateGalleryImage(ctx context.Context, s spec.OCGalleryImageUpd
 }
 
 func (r *ocDAO) DeleteGalleryImage(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM oc_images WHERE id = $1 AND oc_id = $2`, s.ID, s.TargetID)
+	affected, err := genQueries(r.db, tx).DeleteOCGalleryImage(ctx, sqlcgen.DeleteOCGalleryImageParams{
+		ID:   s.ID,
+		OcID: s.TargetID,
+	})
 	if err != nil {
 		return fmt.Errorf("delete oc gallery image: %w", err)
 	}
 
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	if affected == 0 {
 		return fmt.Errorf("gallery image not found or not in oc")
 	}
 
@@ -480,26 +482,17 @@ func (r *ocDAO) DeleteGalleryImage(ctx context.Context, s spec.MediaDeletion, tx
 }
 
 func (r *ocDAO) GetGallery(ctx context.Context, ocID uuid.UUID, tx ...*sql.Tx) ([]model.OCImageRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id = $1 ORDER BY sort_order ASC, id ASC`,
-		ocID,
-	)
+	rows, err := genQueries(r.db, tx).GetOCGallery(ctx, ocID)
 	if err != nil {
 		return nil, fmt.Errorf("get oc gallery: %w", err)
 	}
-	defer rows.Close()
 
 	var images []model.OCImageRow
-	for rows.Next() {
-		var m model.OCImageRow
-		if err := rows.Scan(&m.ID, &m.OCID, &m.ImageURL, &m.ThumbnailURL, &m.Caption, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan oc gallery image: %w", err)
-		}
-
-		images = append(images, m)
+	for _, row := range rows {
+		images = append(images, toOCImageRow(row))
 	}
 
-	return images, rows.Err()
+	return images, nil
 }
 
 func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.OCImageRow, error) {
@@ -507,35 +500,25 @@ func (r *ocDAO) GetGalleryBatch(ctx context.Context, ocIDs []uuid.UUID, tx ...*s
 		return nil, nil
 	}
 
-	placeholders, args := utils.PlaceholderArgs(ocIDs, 1)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, oc_id, image_url, thumbnail_url, caption, sort_order FROM oc_images WHERE oc_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order ASC, id ASC`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).GetOCGalleryBatch(ctx, joinUUIDs(ocIDs))
 	if err != nil {
 		return nil, fmt.Errorf("batch get oc gallery: %w", err)
 	}
-	defer rows.Close()
 
 	result := make(map[uuid.UUID][]model.OCImageRow)
-	for rows.Next() {
-		var m model.OCImageRow
-		if err := rows.Scan(&m.ID, &m.OCID, &m.ImageURL, &m.ThumbnailURL, &m.Caption, &m.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan oc gallery image: %w", err)
-		}
-
-		result[m.OCID] = append(result[m.OCID], m)
+	for _, row := range rows {
+		image := toOCImageRow(row)
+		result[image.OCID] = append(result[image.OCID], image)
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 func (r *ocDAO) Favourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO oc_favourites (user_id, oc_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		s.UserID, s.TargetID,
-	)
+	err := genQueries(r.db, tx).FavouriteOC(ctx, sqlcgen.FavouriteOCParams{
+		UserID: s.UserID,
+		OcID:   s.TargetID,
+	})
 	if err != nil {
 		return fmt.Errorf("favourite oc: %w", err)
 	}
@@ -544,10 +527,10 @@ func (r *ocDAO) Favourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error
 }
 
 func (r *ocDAO) Unfavourite(ctx context.Context, s spec.Like, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM oc_favourites WHERE user_id = $1 AND oc_id = $2`,
-		s.UserID, s.TargetID,
-	)
+	err := genQueries(r.db, tx).UnfavouriteOC(ctx, sqlcgen.UnfavouriteOCParams{
+		UserID: s.UserID,
+		OcID:   s.TargetID,
+	})
 	if err != nil {
 		return fmt.Errorf("unfavourite oc: %w", err)
 	}

@@ -1,0 +1,6 @@
+-- name: Delete{{.Entity}}Vote :exec
+DELETE FROM {{.Table}} WHERE user_id = $1 AND {{.FK}} = $2;
+
+-- name: Upsert{{.Entity}}Vote :exec
+INSERT INTO {{.Table}} (user_id, {{.FK}}, value) VALUES ($1, $2, $3)
+ON CONFLICT (user_id, {{.FK}}) DO UPDATE SET value = EXCLUDED.value;

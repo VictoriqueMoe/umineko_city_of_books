@@ -1,0 +1,15 @@
+-- name: Like{{.Entity}} :exec
+INSERT INTO {{.Table}} (user_id, {{.FK}}) VALUES ($1, $2) ON CONFLICT DO NOTHING;
+
+-- name: Unlike{{.Entity}} :exec
+DELETE FROM {{.Table}} WHERE user_id = $1 AND {{.FK}} = $2;
+
+-- name: Get{{.Entity}}LikedBy :many
+SELECT u.id, u.username, u.display_name, u.avatar_url,
+       COALESCE(r.role, '')::text AS role
+FROM {{.Table}} lk
+JOIN users u ON lk.user_id = u.id
+LEFT JOIN user_roles r ON r.user_id = u.id
+WHERE lk.{{.FK}} = $1
+  AND ($2::text = '' OR lk.user_id <> ALL(string_to_array($2::text, ',')::uuid[]))
+ORDER BY lk.created_at DESC;

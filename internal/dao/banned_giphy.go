@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -19,47 +20,59 @@ type (
 	bannedGiphyDAO struct {
 		db *sql.DB
 	}
+
+	bannedGiphyRow = sqlcgen.BannedGiphy
 )
 
+func toBannedGiphyRow(row bannedGiphyRow) model.BannedGiphyRow {
+	out := model.BannedGiphyRow{
+		Kind:      row.Kind,
+		Value:     row.Value,
+		CreatedAt: row.CreatedAt,
+	}
+
+	if row.CreatedBy.Valid {
+		out.CreatedBy = new(row.CreatedBy.String)
+	}
+
+	if row.Reason.Valid {
+		out.Reason = row.Reason.String
+	}
+
+	return out
+}
+
 func (r *bannedGiphyDAO) List(ctx context.Context, tx ...*sql.Tx) ([]model.BannedGiphyRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT kind, value, created_at, created_by, reason FROM banned_giphy ORDER BY created_at DESC`,
-	)
+	rows, err := genQueries(r.db, tx).ListBannedGiphy(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list banned giphy: %w", err)
 	}
-	defer rows.Close()
 
 	var result []model.BannedGiphyRow
-
-	for rows.Next() {
-		var row model.BannedGiphyRow
-		var reason sql.NullString
-
-		if err := rows.Scan(&row.Kind, &row.Value, &row.CreatedAt, &row.CreatedBy, &reason); err != nil {
-			return nil, fmt.Errorf("scan banned giphy: %w", err)
-		}
-
-		if reason.Valid {
-			row.Reason = reason.String
-		}
-
-		result = append(result, row)
+	for _, row := range rows {
+		result = append(result, toBannedGiphyRow(row))
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 func (r *bannedGiphyDAO) Add(ctx context.Context, s spec.NewBannedGiphy, tx ...*sql.Tx) error {
-	var reasonVal any
-	if s.Reason != "" {
-		reasonVal = s.Reason
+	var createdBy sql.NullString
+	if s.CreatedBy != nil {
+		createdBy = sql.NullString{String: *s.CreatedBy, Valid: true}
 	}
 
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO banned_giphy (kind, value, created_by, reason) VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
-		s.Kind, s.Value, s.CreatedBy, reasonVal,
-	)
+	var reason sql.NullString
+	if s.Reason != "" {
+		reason = sql.NullString{String: s.Reason, Valid: true}
+	}
+
+	err := genQueries(r.db, tx).AddBannedGiphy(ctx, sqlcgen.AddBannedGiphyParams{
+		Kind:      s.Kind,
+		Value:     s.Value,
+		CreatedBy: createdBy,
+		Reason:    reason,
+	})
 	if err != nil {
 		return fmt.Errorf("add banned giphy: %w", err)
 	}
@@ -68,10 +81,10 @@ func (r *bannedGiphyDAO) Add(ctx context.Context, s spec.NewBannedGiphy, tx ...*
 }
 
 func (r *bannedGiphyDAO) Remove(ctx context.Context, s spec.BannedGiphyDeletion, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM banned_giphy WHERE kind = $1 AND value = $2`,
-		s.Kind, s.Value,
-	)
+	err := genQueries(r.db, tx).RemoveBannedGiphy(ctx, sqlcgen.RemoveBannedGiphyParams{
+		Kind:  s.Kind,
+		Value: s.Value,
+	})
 	if err != nil {
 		return fmt.Errorf("remove banned giphy: %w", err)
 	}

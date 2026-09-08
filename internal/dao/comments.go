@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 
-	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -15,22 +14,13 @@ import (
 
 type (
 	commentDAO[K comparable] struct {
-		db  *sql.DB
-		gen *sqlcgen.Queries
-		q   commentQuerier[K]
+		sqlcSource
+		q commentQuerier[K]
 	}
 )
 
 func newCommentDAO[K comparable](db *sql.DB, q commentQuerier[K]) *commentDAO[K] {
-	return &commentDAO[K]{db: db, gen: sqlcgen.New(db), q: q}
-}
-
-func (c *commentDAO[K]) queries(tx []*sql.Tx) *sqlcgen.Queries {
-	if len(tx) > 0 && tx[0] != nil {
-		return c.gen.WithTx(tx[0])
-	}
-
-	return c.gen
+	return &commentDAO[K]{sqlcSource: newSQLCSource(db), q: q}
 }
 
 func (c *commentDAO[K]) CreateComment(ctx context.Context, s spec.NewComment[K], tx ...*sql.Tx) (*model.CommentRow, error) {

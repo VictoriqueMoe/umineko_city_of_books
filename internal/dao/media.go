@@ -4,96 +4,71 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"strings"
 
-	"umineko_city_of_books/internal/dao/utils"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
 )
 
-type mediaDAO struct {
-	db    *sql.DB
-	table string
-	fk    string
-}
+type (
+	mediaDAO struct {
+		sqlcSource
+		q mediaQuerier
+	}
+)
 
-func newMediaDAO(db *sql.DB, table string, fk string) *mediaDAO {
-	return &mediaDAO{db: db, table: table, fk: fk}
+func newMediaDAO(db *sql.DB, q mediaQuerier) *mediaDAO {
+	return &mediaDAO{sqlcSource: newSQLCSource(db), q: q}
 }
 
 func (m *mediaDAO) AddMedia(ctx context.Context, s spec.NewMedia, tx ...*sql.Tx) (int64, error) {
-	var id int64
-	err := txOrDB(m.db, tx).QueryRowContext(ctx,
-		`INSERT INTO `+m.table+` (`+m.fk+`, media_url, media_type, thumbnail_url, filename, sort_order, is_spoiler)
-		VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(sort_order) + 1 FROM `+m.table+` WHERE `+m.fk+` = $1), $6), $7)
-		RETURNING id`,
-		s.TargetID, s.MediaURL, s.MediaType, s.ThumbnailURL, s.Filename, s.SortOrder, s.IsSpoiler,
-	).Scan(&id)
+	id, err := m.q.Add(ctx, m.queries(tx), s)
 	if err != nil {
-		return 0, fmt.Errorf("add media in %s: %w", m.table, err)
+		return 0, fmt.Errorf("add media: %w", err)
 	}
 
 	return id, nil
 }
 
 func (m *mediaDAO) DeleteMedia(ctx context.Context, s spec.MediaDeletion, tx ...*sql.Tx) (string, error) {
-	var mediaURL string
-	err := txOrDB(m.db, tx).QueryRowContext(ctx,
-		`SELECT media_url FROM `+m.table+` WHERE id = $1 AND `+m.fk+` = $2`, s.ID, s.TargetID,
-	).Scan(&mediaURL)
+	queries := m.queries(tx)
+
+	mediaURL, err := m.q.URL(ctx, queries, s)
 	if err != nil {
-		return "", fmt.Errorf("media not found in %s: %w", m.table, err)
+		return "", fmt.Errorf("media not found: %w", err)
 	}
 
-	if _, err := txOrDB(m.db, tx).ExecContext(ctx,
-		`DELETE FROM `+m.table+` WHERE id = $1 AND `+m.fk+` = $2`, s.ID, s.TargetID,
-	); err != nil {
-		return "", fmt.Errorf("delete media in %s: %w", m.table, err)
+	if err := m.q.DeleteRow(ctx, queries, s); err != nil {
+		return "", fmt.Errorf("delete media: %w", err)
 	}
 
 	return mediaURL, nil
 }
 
 func (m *mediaDAO) UpdateMediaURL(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(m.db, tx).ExecContext(ctx, `UPDATE `+m.table+` SET media_url = $1 WHERE id = $2`, s.URL, s.ID)
-	if err != nil {
-		return fmt.Errorf("update media url in %s: %w", m.table, err)
+	if err := m.q.SetURL(ctx, m.queries(tx), s); err != nil {
+		return fmt.Errorf("update media url: %w", err)
 	}
 
 	return nil
 }
 
 func (m *mediaDAO) UpdateMediaThumbnail(ctx context.Context, s spec.MediaURLUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(m.db, tx).ExecContext(ctx, `UPDATE `+m.table+` SET thumbnail_url = $1 WHERE id = $2`, s.URL, s.ID)
-	if err != nil {
-		return fmt.Errorf("update media thumbnail in %s: %w", m.table, err)
+	if err := m.q.SetThumbnail(ctx, m.queries(tx), s); err != nil {
+		return fmt.Errorf("update media thumbnail: %w", err)
 	}
 
 	return nil
 }
 
 func (m *mediaDAO) GetMedia(ctx context.Context, entityID uuid.UUID, tx ...*sql.Tx) ([]model.PostMediaRow, error) {
-	rows, err := txOrDB(m.db, tx).QueryContext(ctx,
-		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order, is_spoiler FROM `+m.table+` WHERE `+m.fk+` = $1 ORDER BY sort_order, id`,
-		entityID,
-	)
+	rows, err := m.q.Media(ctx, m.queries(tx), entityID)
 	if err != nil {
-		return nil, fmt.Errorf("get media in %s: %w", m.table, err)
-	}
-	defer rows.Close()
-
-	var media []model.PostMediaRow
-	for rows.Next() {
-		var row model.PostMediaRow
-		if err := rows.Scan(&row.ID, &row.PostID, &row.MediaURL, &row.MediaType, &row.ThumbnailURL, &row.Filename, &row.SortOrder, &row.IsSpoiler); err != nil {
-			return nil, fmt.Errorf("scan media in %s: %w", m.table, err)
-		}
-		media = append(media, row)
+		return nil, fmt.Errorf("get media: %w", err)
 	}
 
-	return media, rows.Err()
+	return rows, nil
 }
 
 func (m *mediaDAO) GetMediaBatch(ctx context.Context, entityIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.PostMediaRow, error) {
@@ -101,25 +76,10 @@ func (m *mediaDAO) GetMediaBatch(ctx context.Context, entityIDs []uuid.UUID, tx 
 		return nil, nil
 	}
 
-	placeholders, args := utils.PlaceholderArgs(entityIDs, 1)
-
-	rows, err := txOrDB(m.db, tx).QueryContext(ctx,
-		`SELECT id, `+m.fk+`, media_url, media_type, thumbnail_url, COALESCE(filename, ''), sort_order, is_spoiler FROM `+m.table+` WHERE `+m.fk+` IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order, id`,
-		args...,
-	)
+	rows, err := m.q.MediaBatch(ctx, m.queries(tx), entityIDs)
 	if err != nil {
-		return nil, fmt.Errorf("batch get media in %s: %w", m.table, err)
-	}
-	defer rows.Close()
-
-	result := make(map[uuid.UUID][]model.PostMediaRow)
-	for rows.Next() {
-		var row model.PostMediaRow
-		if err := rows.Scan(&row.ID, &row.PostID, &row.MediaURL, &row.MediaType, &row.ThumbnailURL, &row.Filename, &row.SortOrder, &row.IsSpoiler); err != nil {
-			return nil, fmt.Errorf("scan media in %s: %w", m.table, err)
-		}
-		result[row.PostID] = append(result[row.PostID], row)
+		return nil, fmt.Errorf("batch get media: %w", err)
 	}
 
-	return result, rows.Err()
+	return rows, nil
 }

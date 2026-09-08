@@ -1,0 +1,11 @@
+-- name: DeleteOwned{{.Entity}} :execrows
+DELETE FROM {{.Table}} WHERE id = $1 AND user_id = $2;
+
+-- name: DeleteOwned{{.Entity}}AsAdmin :exec
+DELETE FROM {{.Table}} WHERE id = $1;
+
+-- name: GetOwned{{.Entity}}AuthorID :one
+SELECT user_id FROM {{.Table}} WHERE id = $1;
+
+-- name: Increment{{.Entity}}ViewCount :exec
+UPDATE {{.Table}} SET view_count = view_count + 1 WHERE id = $1;

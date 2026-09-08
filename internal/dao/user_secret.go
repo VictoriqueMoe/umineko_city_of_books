@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
@@ -29,10 +29,10 @@ type (
 )
 
 func (r *userSecretDAO) Unlock(ctx context.Context, s spec.SecretUnlock, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO user_secrets (user_id, secret_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		s.UserID, s.SecretID,
-	)
+	err := genQueries(r.db, tx).UnlockUserSecret(ctx, sqlcgen.UnlockUserSecretParams{
+		UserID:   s.UserID,
+		SecretID: s.SecretID,
+	})
 	if err != nil {
 		return fmt.Errorf("unlock secret: %w", err)
 	}
@@ -41,15 +41,12 @@ func (r *userSecretDAO) Unlock(ctx context.Context, s spec.SecretUnlock, tx ...*
 }
 
 func (r *userSecretDAO) ListForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT secret_id FROM user_secrets WHERE user_id = $1 ORDER BY secret_id`,
-		userID,
-	)
+	rows, err := genQueries(r.db, tx).ListUserSecretIDsForUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list user secrets: %w", err)
 	}
 
-	return utils.ScanStrings(rows, "user secret")
+	return rows, nil
 }
 
 func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]uuid.UUID, error) {
@@ -57,25 +54,16 @@ func (r *userSecretDAO) GetUserIDsWithAnyPiece(ctx context.Context, pieceIDs []s
 		return nil, nil
 	}
 
-	placeholders, args := utils.PlaceholderArgs(pieceIDs, 1)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM user_secrets WHERE secret_id IN (`+strings.Join(placeholders, ",")+`)`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).ListUserIDsWithAnyUserSecret(ctx, strings.Join(pieceIDs, ","))
 	if err != nil {
 		return nil, fmt.Errorf("list piece participants: %w", err)
 	}
 
-	return utils.ScanIDs(rows, "participant id")
+	return rows, nil
 }
 
 func (r *userSecretDAO) IsSolvedByAnyone(ctx context.Context, secretID string, tx ...*sql.Tx) (bool, error) {
-	var exists int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT 1 FROM user_secrets WHERE secret_id = $1 LIMIT 1`,
-		secretID,
-	).Scan(&exists)
+	_, err := genQueries(r.db, tx).GetUserSecretSolvedMarker(ctx, secretID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -91,13 +79,7 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string, t
 		return nil
 	}
 
-	placeholders, args := utils.PlaceholderArgs(secretIDs, 1)
-
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM user_secrets WHERE secret_id IN (`+strings.Join(placeholders, ",")+`)`,
-		args...,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).DeleteUserSecrets(ctx, strings.Join(secretIDs, ",")); err != nil {
 		return fmt.Errorf("delete secrets: %w", err)
 	}
 
@@ -105,13 +87,10 @@ func (r *userSecretDAO) DeleteSecrets(ctx context.Context, secretIDs []string, t
 }
 
 func (r *userSecretDAO) GetUserIDsWithSecret(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT user_id FROM user_secrets WHERE secret_id = $1`,
-		secretID,
-	)
+	rows, err := genQueries(r.db, tx).ListUserIDsWithUserSecret(ctx, secretID)
 	if err != nil {
 		return nil, fmt.Errorf("list secret holders: %w", err)
 	}
 
-	return utils.ScanIDs(rows, "secret holder")
+	return rows, nil
 }

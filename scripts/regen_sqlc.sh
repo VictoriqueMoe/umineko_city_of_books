@@ -14,5 +14,6 @@ echo "Expanding query templates..."
 go run ./internal/dao/queries/expand
 
 echo "Regenerating sqlc code..."
+rm -rf internal/dao/sqlcgen
 go tool sqlc generate
 echo "Done."

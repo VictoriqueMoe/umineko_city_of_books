@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -25,18 +26,34 @@ type (
 	chatRoomBanDAO struct {
 		db *sql.DB
 	}
+
+	chatRoomBanJoinRow = sqlcgen.ListChatRoomBansRow
 )
 
+func toChatRoomBanRow(row chatRoomBanJoinRow) model.ChatRoomBanRow {
+	return model.ChatRoomBanRow{
+		RoomID:            row.RoomID,
+		UserID:            row.UserID,
+		Username:          row.Username,
+		DisplayName:       row.DisplayName,
+		AvatarURL:         row.AvatarUrl,
+		Role:              row.Role,
+		BannedByID:        row.BannedBy,
+		BannedByUsername:  row.BannedByUsername,
+		BannedByDisplay:   row.BannedByDisplayName,
+		BannedByAvatarURL: row.BannedByAvatarUrl,
+		Reason:            row.Reason,
+		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
+	}
+}
+
 func (r *chatRoomBanDAO) Ban(ctx context.Context, s spec.NewChatRoomBan, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO chat_room_bans (room_id, user_id, banned_by, reason)
-		 VALUES ($1, $2, $3, $4)
-		 ON CONFLICT (room_id, user_id) DO UPDATE SET
-		     banned_by = EXCLUDED.banned_by,
-		     reason    = EXCLUDED.reason,
-		     created_at = NOW()`,
-		s.RoomID, s.UserID, s.BannedBy, s.Reason,
-	)
+	err := genQueries(r.db, tx).BanFromChatRoom(ctx, sqlcgen.BanFromChatRoomParams{
+		RoomID:   s.RoomID,
+		UserID:   s.UserID,
+		BannedBy: s.BannedBy,
+		Reason:   s.Reason,
+	})
 	if err != nil {
 		return fmt.Errorf("ban from room: %w", err)
 	}
@@ -45,10 +62,10 @@ func (r *chatRoomBanDAO) Ban(ctx context.Context, s spec.NewChatRoomBan, tx ...*
 }
 
 func (r *chatRoomBanDAO) Unban(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM chat_room_bans WHERE room_id = $1 AND user_id = $2`,
-		s.RoomID, s.UserID,
-	)
+	err := genQueries(r.db, tx).UnbanFromChatRoom(ctx, sqlcgen.UnbanFromChatRoomParams{
+		RoomID: s.RoomID,
+		UserID: s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("unban from room: %w", err)
 	}
@@ -57,12 +74,10 @@ func (r *chatRoomBanDAO) Unban(ctx context.Context, s spec.ChatMemberRef, tx ...
 }
 
 func (r *chatRoomBanDAO) IsBanned(ctx context.Context, s spec.ChatMemberRef, tx ...*sql.Tx) (bool, error) {
-	var exists int
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT 1 FROM chat_room_bans WHERE room_id = $1 AND user_id = $2 LIMIT 1`,
-		s.RoomID, s.UserID,
-	).Scan(&exists)
+	_, err := genQueries(r.db, tx).IsBannedFromChatRoom(ctx, sqlcgen.IsBannedFromChatRoomParams{
+		RoomID: s.RoomID,
+		UserID: s.UserID,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
@@ -74,55 +89,24 @@ func (r *chatRoomBanDAO) IsBanned(ctx context.Context, s spec.ChatMemberRef, tx 
 }
 
 func (r *chatRoomBanDAO) ListForRoom(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatRoomBanRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT
-		     b.room_id, b.user_id,
-		     u.username, u.display_name, u.avatar_url, COALESCE(ur.role, ''),
-		     b.banned_by,
-		     COALESCE(bu.username, ''), COALESCE(bu.display_name, ''), COALESCE(bu.avatar_url, ''),
-		     b.reason, b.created_at
-		 FROM chat_room_bans b
-		 JOIN users u ON b.user_id = u.id
-		 LEFT JOIN user_roles ur ON ur.user_id = u.id
-		 LEFT JOIN users bu ON b.banned_by = bu.id
-		 WHERE b.room_id = $1
-		 ORDER BY b.created_at DESC`,
-		roomID,
-	)
+	rows, err := genQueries(r.db, tx).ListChatRoomBans(ctx, roomID)
 	if err != nil {
 		return nil, fmt.Errorf("list room bans: %w", err)
 	}
-	defer rows.Close()
 
 	var result []model.ChatRoomBanRow
-
-	for rows.Next() {
-		var row model.ChatRoomBanRow
-
-		if err := rows.Scan(
-			&row.RoomID, &row.UserID,
-			&row.Username, &row.DisplayName, &row.AvatarURL, &row.Role,
-			&row.BannedByID,
-			&row.BannedByUsername, &row.BannedByDisplay, &row.BannedByAvatarURL,
-			&row.Reason, &row.CreatedAt,
-		); err != nil {
-			return nil, fmt.Errorf("scan room ban: %w", err)
-		}
-
-		result = append(result, row)
+	for _, row := range rows {
+		result = append(result, toChatRoomBanRow(row))
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 func (r *chatRoomBanDAO) BannedRoomIDsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT room_id FROM chat_room_bans WHERE user_id = $1`,
-		userID,
-	)
+	ids, err := genQueries(r.db, tx).ListBannedRoomIDsForUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list banned rooms for user: %w", err)
 	}
 
-	return utils.ScanIDs(rows, "banned room id")
+	return ids, nil
 }

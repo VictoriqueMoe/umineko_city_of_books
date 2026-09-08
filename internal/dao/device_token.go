@@ -4,10 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"umineko_city_of_books/internal/model"
-	"umineko_city_of_books/internal/model/spec"
 
 	"github.com/google/uuid"
+
+	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/model"
+	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
@@ -23,48 +25,49 @@ type (
 	}
 )
 
+func toDeviceRegistration(row sqlcgen.ListDeviceTokensForUserRow) model.DeviceRegistration {
+	return model.DeviceRegistration{
+		Token:    row.Token,
+		Platform: row.Platform,
+	}
+}
+
 func (r *deviceTokenDAO) Upsert(ctx context.Context, s spec.NewDeviceToken, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO device_tokens (token, user_id, platform, last_seen)
-		 VALUES ($1, $2, $3, NOW())
-		 ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, platform = EXCLUDED.platform, last_seen = NOW()`,
-		s.Token, s.UserID, s.Platform,
-	)
+	err := genQueries(r.db, tx).UpsertDeviceToken(ctx, sqlcgen.UpsertDeviceTokenParams{
+		Token:    s.Token,
+		UserID:   s.UserID,
+		Platform: s.Platform,
+	})
 	if err != nil {
 		return fmt.Errorf("upsert device token: %w", err)
 	}
+
 	return nil
 }
 
 func (r *deviceTokenDAO) RegistrationsForUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) ([]model.DeviceRegistration, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT token, platform FROM device_tokens WHERE user_id = $1`, userID,
-	)
+	rows, err := genQueries(r.db, tx).ListDeviceTokensForUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("list device tokens: %w", err)
 	}
-	defer func() { _ = rows.Close() }()
 
 	var registrations []model.DeviceRegistration
-	for rows.Next() {
-		var reg model.DeviceRegistration
-		if err := rows.Scan(&reg.Token, &reg.Platform); err != nil {
-			return nil, fmt.Errorf("scan device token: %w", err)
-		}
-		registrations = append(registrations, reg)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("iterate device tokens: %w", err)
+	for _, row := range rows {
+		registrations = append(registrations, toDeviceRegistration(row))
 	}
 
 	return registrations, nil
 }
 
 func (r *deviceTokenDAO) Delete(ctx context.Context, s spec.DeviceTokenDeletion, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM device_tokens WHERE token = $1 AND user_id = $2`, s.Token, s.UserID)
+	err := genQueries(r.db, tx).DeleteDeviceToken(ctx, sqlcgen.DeleteDeviceTokenParams{
+		Token:  s.Token,
+		UserID: s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("delete device token: %w", err)
 	}
+
 	return nil
 }
 
@@ -74,5 +77,6 @@ func (r *deviceTokenDAO) DeleteMany(ctx context.Context, s spec.DeviceTokenBulkD
 			return err
 		}
 	}
+
 	return nil
 }

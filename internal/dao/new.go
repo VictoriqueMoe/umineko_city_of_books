@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/dynamicsql"
 	"umineko_city_of_books/internal/dao/sqlcgen"
 )
 
@@ -15,8 +16,8 @@ func NewUser(db *sql.DB) UserDAO { return &userDAO{db: db} }
 func NewTheory(db *sql.DB) TheoryDAO {
 	return &theoryDAO{
 		db:            db,
-		theoryVotes:   newVoteDAO(db, "theory_votes", "theory_id", ""),
-		responseVotes: newVoteDAO(db, "response_votes", "response_id", ""),
+		theoryVotes:   newVoteDAO(db, theoryVoteQuerier{}, ""),
+		responseVotes: newVoteDAO(db, responseVoteQuerier{}, ""),
 	}
 }
 
@@ -47,11 +48,11 @@ func NewReport(db *sql.DB) ReportDAO { return &reportDAO{db: db} }
 func NewPost(db *sql.DB) (PostDAO, CommentDAO[uuid.UUID]) {
 	d := &postDAO{
 		db:         db,
-		ownedDAO:   newOwnedDAO(db, "posts", "post"),
+		ownedDAO:   newOwnedDAO(db, postOwnedQuerier{}, "post"),
 		commentDAO: newCommentDAO[uuid.UUID](db, postCommentQuerier{}),
-		likeDAO:    newLikeDAO(db, "post_likes", "post_id"),
-		mediaDAO:   newMediaDAO(db, "post_media", "post_id"),
-		viewDAO:    newViewDAO(db, "post_views", "post_id"),
+		likeDAO:    newLikeDAO(db, postLikeQuerier{}),
+		mediaDAO:   newMediaDAO(db, postMediaQuerier{}),
+		viewDAO:    newViewDAO(db, postViewQuerier{}),
 	}
 
 	return d, d.commentDAO
@@ -62,16 +63,16 @@ func NewFollow(db *sql.DB) FollowDAO { return &followDAO{db: db} }
 func NewArt(db *sql.DB) (ArtDAO, CommentDAO[uuid.UUID]) {
 	d := &artDAO{
 		db:         db,
-		ownedDAO:   newOwnedDAO(db, "art", "art"),
+		ownedDAO:   newOwnedDAO(db, artOwnedQuerier{}, "art"),
 		commentDAO: newCommentDAO[uuid.UUID](db, artCommentQuerier{}),
-		likeDAO:    newLikeDAO(db, "art_likes", "art_id"),
-		viewDAO:    newViewDAO(db, "art_views", "art_id"),
+		likeDAO:    newLikeDAO(db, artLikeQuerier{}),
+		viewDAO:    newViewDAO(db, artViewQuerier{}),
 	}
 
 	return d, d.commentDAO
 }
 
-func NewUpload(db *sql.DB) UploadDAO { return &uploadDAO{db: db} }
+func NewUpload(db *sql.DB) UploadDAO { return dynamicsql.NewUpload(db) }
 
 func NewBlock(db *sql.DB) BlockDAO { return &blockDAO{db: db} }
 
@@ -88,10 +89,10 @@ func NewAnnouncement(db *sql.DB) (AnnouncementDAO, CommentDAO[uuid.UUID]) {
 func NewMystery(db *sql.DB) (MysteryDAO, CommentDAO[uuid.UUID]) {
 	d := &mysteryDAO{
 		db:           db,
-		ownedDAO:     newOwnedDAO(db, "mysteries", "mystery"),
-		attemptVotes: newVoteDAO(db, "mystery_attempt_votes", "attempt_id", "vote attempt"),
+		ownedDAO:     newOwnedDAO(db, mysteryOwnedQuerier{}, "mystery"),
+		attemptVotes: newVoteDAO(db, mysteryAttemptVoteQuerier{}, "vote attempt"),
 		commentDAO:   newCommentDAO[uuid.UUID](db, mysteryCommentQuerier{}),
-		mediaDAO:     newMediaDAO(db, "mystery_media", "mystery_id"),
+		mediaDAO:     newMediaDAO(db, mysteryMediaQuerier{}),
 	}
 
 	return d, d.commentDAO
@@ -100,8 +101,8 @@ func NewMystery(db *sql.DB) (MysteryDAO, CommentDAO[uuid.UUID]) {
 func NewShip(db *sql.DB) (ShipDAO, CommentDAO[uuid.UUID]) {
 	d := &shipDAO{
 		db:         db,
-		ownedDAO:   newOwnedDAO(db, "ships", "ship"),
-		voteDAO:    newVoteDAO(db, "ship_votes", "ship_id", "vote ship"),
+		ownedDAO:   newOwnedDAO(db, shipOwnedQuerier{}, "ship"),
+		voteDAO:    newVoteDAO(db, shipVoteQuerier{}, "vote ship"),
 		commentDAO: newCommentDAO[uuid.UUID](db, shipCommentQuerier{}),
 	}
 
@@ -111,8 +112,8 @@ func NewShip(db *sql.DB) (ShipDAO, CommentDAO[uuid.UUID]) {
 func NewOC(db *sql.DB) (OCDAO, CommentDAO[uuid.UUID]) {
 	d := &ocDAO{
 		db:         db,
-		ownedDAO:   newOwnedDAO(db, "ocs", "oc"),
-		voteDAO:    newVoteDAO(db, "oc_votes", "oc_id", "vote oc"),
+		ownedDAO:   newOwnedDAO(db, oCOwnedQuerier{}, "oc"),
+		voteDAO:    newVoteDAO(db, oCVoteQuerier{}, "vote oc"),
 		commentDAO: newCommentDAO[uuid.UUID](db, oCCommentQuerier{}),
 	}
 
@@ -122,9 +123,9 @@ func NewOC(db *sql.DB) (OCDAO, CommentDAO[uuid.UUID]) {
 func NewFanfic(db *sql.DB) (FanficDAO, CommentDAO[uuid.UUID]) {
 	d := &fanficDAO{
 		db:         db,
-		ownedDAO:   newOwnedDAO(db, "fanfics", "fanfic"),
+		ownedDAO:   newOwnedDAO(db, fanficOwnedQuerier{}, "fanfic"),
 		commentDAO: newCommentDAO[uuid.UUID](db, fanficCommentQuerier{}),
-		viewDAO:    newViewDAO(db, "fanfic_views", "fanfic_id"),
+		viewDAO:    newViewDAO(db, fanficViewQuerier{}),
 	}
 
 	return d, d.commentDAO
@@ -133,9 +134,9 @@ func NewFanfic(db *sql.DB) (FanficDAO, CommentDAO[uuid.UUID]) {
 func NewJournal(db *sql.DB) JournalDAO {
 	return &journalDAO{
 		db:         db,
-		ownedDAO:   newOwnedDAO(db, "journals", "journal"),
+		ownedDAO:   newOwnedDAO(db, journalOwnedQuerier{}, "journal"),
 		commentDAO: newCommentDAO[uuid.UUID](db, journalCommentQuerier{}),
-		mediaDAO:   newMediaDAO(db, "journal_entry_media", "entry_id"),
+		mediaDAO:   newMediaDAO(db, journalEntryMediaQuerier{}),
 	}
 }
 
@@ -184,7 +185,7 @@ func NewSidebarVisited(db *sql.DB) SidebarLastVisitedDAO {
 	return &sidebarLastVisitedDAO{db: db}
 }
 
-func NewSearch(db *sql.DB) SearchDAO { return &searchDAO{db: db} }
+func NewSearch(db *sql.DB) SearchDAO { return dynamicsql.NewSearch(db) }
 
 func NewSitemap(db *sql.DB) SitemapDAO { return &sitemapDAO{db: db} }
 

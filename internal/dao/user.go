@@ -6,8 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -63,247 +64,272 @@ type (
 	userDAO struct {
 		db *sql.DB
 	}
+
+	userJoinRow = sqlcgen.GetUserByIDRow
 )
 
-const (
-	userColumns = `u.id, u.username, u.password_hash, u.display_name, u.display_name_locked, u.created_at, u.bio, u.avatar_url, u.banner_url, u.favourite_character, u.gender, u.pronoun_subject, u.pronoun_possessive, u.banned_at, u.banned_by, u.ban_reason, u.locked_at, u.locked_by, u.lock_reason, u.approved_at, u.approved_by, u.social_twitter, u.social_discord, u.social_waifulist, u.social_tumblr, u.social_github, u.social_bluesky, u.website, u.banner_position, u.dms_enabled, u.episode_progress, u.higurashi_arc_progress, u.ciconia_chapter_progress, u.email, u.email_public, u.email_verified, u.verify_grace_until, u.dob, u.dob_public, u.email_notifications, u.play_message_sound, u.play_notification_sound, u.home_page, u.game_board_sort, u.default_profile_tab, u.theme, u.font, u.wide_layout, u.ip, u.mystery_score_adjustment, u.gm_score_adjustment, COALESCE(r.role, ''), u.is_bot, u.follow_activity_notifications, u.echoes_enabled`
+func toUserModel(row userJoinRow) model.User {
+	u := model.User{
+		ID:                     row.ID,
+		Username:               row.Username,
+		PasswordHash:           row.PasswordHash,
+		DisplayName:            row.DisplayName,
+		DisplayNameLocked:      row.DisplayNameLocked,
+		CreatedAt:              row.CreatedAt.UTC().Format(time.RFC3339),
+		Bio:                    row.Bio,
+		AvatarURL:              row.AvatarUrl,
+		BannerURL:              row.BannerUrl,
+		FavouriteCharacter:     row.FavouriteCharacter,
+		Gender:                 row.Gender,
+		PronounSubject:         row.PronounSubject,
+		PronounPossessive:      row.PronounPossessive,
+		BannedAt:               nullTimeToStringPtr(row.BannedAt),
+		BannedBy:               row.BannedBy,
+		BanReason:              row.BanReason,
+		LockedAt:               nullTimeToStringPtr(row.LockedAt),
+		LockedBy:               row.LockedBy,
+		LockReason:             row.LockReason,
+		ApprovedAt:             nullTimeToStringPtr(row.ApprovedAt),
+		ApprovedBy:             row.ApprovedBy,
+		SocialTwitter:          row.SocialTwitter,
+		SocialDiscord:          row.SocialDiscord,
+		SocialWaifulist:        row.SocialWaifulist,
+		SocialTumblr:           row.SocialTumblr,
+		SocialGithub:           row.SocialGithub,
+		SocialBluesky:          row.SocialBluesky,
+		Website:                row.Website,
+		BannerPosition:         float64(row.BannerPosition),
+		DmsEnabled:             row.DmsEnabled,
+		EpisodeProgress:        int(row.EpisodeProgress),
+		HigurashiArcProgress:   int(row.HigurashiArcProgress),
+		CiconiaChapterProgress: int(row.CiconiaChapterProgress),
+		Email:                  row.Email,
+		EmailPublic:            row.EmailPublic,
+		EmailVerified:          row.EmailVerified,
+		VerifyGraceUntil:       row.VerifyGraceUntil.UTC().Format(time.RFC3339),
+		DOB:                    row.Dob,
+		DOBPublic:              row.DobPublic,
+		EmailNotifications:     row.EmailNotifications,
+		PlayMessageSound:       row.PlayMessageSound,
+		PlayNotificationSound:  row.PlayNotificationSound,
+		HomePage:               row.HomePage,
+		GameBoardSort:          row.GameBoardSort,
+		DefaultProfileTab:      row.DefaultProfileTab,
+		Theme:                  row.Theme,
+		Font:                   row.Font,
+		WideLayout:             row.WideLayout,
+		MysteryScoreAdjustment: int(row.MysteryScoreAdjustment),
+		GMScoreAdjustment:      int(row.GmScoreAdjustment),
+		Role:                   row.Role,
+		IsBot:                  row.IsBot,
+		FollowActivity:         row.FollowActivityNotifications,
+		EchoesEnabled:          row.EchoesEnabled,
+	}
 
-	userInsertQuery = `
-	WITH u AS (
-		INSERT INTO users (username, email, password_hash, display_name, avatar_url, home_page, is_bot, dms_enabled, email_verified)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING *
-	)
-	SELECT ` + userColumns + ` FROM u LEFT JOIN user_roles r ON r.user_id = u.id`
-)
+	if row.Ip.Valid {
+		u.IP = new(row.Ip.String)
+	}
 
-func scanUser(row interface{ Scan(dest ...any) error }) (*model.User, error) {
-	var u model.User
-	err := row.Scan(&u.ID, &u.Username, &u.PasswordHash, &u.DisplayName, &u.DisplayNameLocked, &u.CreatedAt,
-		&u.Bio, &u.AvatarURL, &u.BannerURL, &u.FavouriteCharacter, &u.Gender,
-		&u.PronounSubject, &u.PronounPossessive,
-		&u.BannedAt, &u.BannedBy, &u.BanReason,
-		&u.LockedAt, &u.LockedBy, &u.LockReason,
-		&u.ApprovedAt, &u.ApprovedBy,
-		&u.SocialTwitter, &u.SocialDiscord, &u.SocialWaifulist, &u.SocialTumblr, &u.SocialGithub, &u.SocialBluesky, &u.Website,
-		&u.BannerPosition, &u.DmsEnabled, &u.EpisodeProgress, &u.HigurashiArcProgress, &u.CiconiaChapterProgress, &u.Email, &u.EmailPublic, &u.EmailVerified, &u.VerifyGraceUntil, &u.DOB, &u.DOBPublic, &u.EmailNotifications, &u.PlayMessageSound, &u.PlayNotificationSound, &u.HomePage, &u.GameBoardSort, &u.DefaultProfileTab, &u.Theme, &u.Font, &u.WideLayout, &u.IP, &u.MysteryScoreAdjustment, &u.GMScoreAdjustment, &u.Role, &u.IsBot, &u.FollowActivity, &u.EchoesEnabled)
-	return &u, err
+	return u
 }
 
 func (r *userDAO) Create(ctx context.Context, s spec.NewUser, tx ...*sql.Tx) (*model.User, error) {
-	created, err := scanUser(txOrDB(r.db, tx).QueryRowContext(ctx, userInsertQuery,
-		s.Username, s.Email, s.PasswordHash, s.DisplayName, s.AvatarURL, s.HomePage,
-		s.IsBot, s.DMsEnabled, s.EmailVerified,
-	))
+	created, err := genQueries(r.db, tx).CreateUser(ctx, sqlcgen.CreateUserParams{
+		Username:      s.Username,
+		Email:         s.Email,
+		PasswordHash:  s.PasswordHash,
+		DisplayName:   s.DisplayName,
+		AvatarUrl:     s.AvatarURL,
+		HomePage:      s.HomePage,
+		IsBot:         s.IsBot,
+		DmsEnabled:    s.DMsEnabled,
+		EmailVerified: s.EmailVerified,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	return created, nil
+	return new(toUserModel(userJoinRow(created))), nil
 }
 
 func (r *userDAO) SetEmail(ctx context.Context, s spec.UserEmailUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET email = $1, email_verified = FALSE WHERE id = $2`, s.Email, s.UserID,
-	)
+	err := genQueries(r.db, tx).SetUserEmail(ctx, sqlcgen.SetUserEmailParams{
+		Email: s.Email,
+		ID:    s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("set email: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) SetDisplayName(ctx context.Context, s spec.UserDisplayNameUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET display_name = $1 WHERE id = $2`, s.DisplayName, s.UserID,
-	)
+	err := genQueries(r.db, tx).SetUserDisplayName(ctx, sqlcgen.SetUserDisplayNameParams{
+		DisplayName: s.DisplayName,
+		ID:          s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("set display name: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) SetDisplayNameLocked(ctx context.Context, s spec.UserDisplayNameLockUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET display_name_locked = $1 WHERE id = $2`, s.Locked, s.UserID,
-	)
+	err := genQueries(r.db, tx).SetUserDisplayNameLocked(ctx, sqlcgen.SetUserDisplayNameLockedParams{
+		DisplayNameLocked: s.Locked,
+		ID:                s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("set display name locked: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) ListByIP(ctx context.Context, s spec.UserIPFilter, tx ...*sql.Tx) ([]model.User, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.ip = $1 AND u.id <> $2 ORDER BY u.created_at DESC`,
-		s.IP, s.ExcludeUserID,
-	)
+	rows, err := genQueries(r.db, tx).ListUsersByIP(ctx, sqlcgen.ListUsersByIPParams{
+		Column1: s.IP,
+		ID:      s.ExcludeUserID,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("list users by ip: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.User
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, *u)
+	for _, row := range rows {
+		users = append(users, toUserModel(userJoinRow(row)))
 	}
-	return users, rows.Err()
+
+	return users, nil
 }
 
 func (r *userDAO) MarkEmailVerified(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET email_verified = TRUE WHERE id = $1`, userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).MarkUserEmailVerified(ctx, userID); err != nil {
 		return fmt.Errorf("mark email verified: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) MarkEmailUnverified(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET email_verified = FALSE WHERE id = $1`, userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).MarkUserEmailUnverified(ctx, userID); err != nil {
 		return fmt.Errorf("mark email unverified: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) EmailInUse(ctx context.Context, s spec.UserEmailFilter, tx ...*sql.Tx) (bool, error) {
-	var exists bool
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email) = LOWER($1) AND email <> '' AND id <> $2)`,
-		s.Email, s.ExcludeUserID,
-	).Scan(&exists)
+	exists, err := genQueries(r.db, tx).UserEmailInUse(ctx, sqlcgen.UserEmailInUseParams{
+		Lower: s.Email,
+		ID:    s.ExcludeUserID,
+	})
 	if err != nil {
 		return false, fmt.Errorf("check email in use: %w", err)
 	}
+
 	return exists, nil
 }
 
 func (r *userDAO) RequiresEmailVerification(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
-	var blocked bool
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT NOT email_verified AND NOW() >= verify_grace_until FROM users WHERE id = $1`, userID,
-	).Scan(&blocked)
+	blocked, err := genQueries(r.db, tx).UserRequiresEmailVerification(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, fmt.Errorf("check email verification: %w", err)
 	}
+
 	return blocked, nil
 }
 
 func (r *userDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.User, error) {
-	u, err := scanUser(txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id = $1`, id,
-	))
+	row, err := genQueries(r.db, tx).GetUserByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get user by id: %w", err)
 	}
-	return u, nil
+
+	return new(toUserModel(row)), nil
 }
 
 func (r *userDAO) GetByIDs(ctx context.Context, ids []uuid.UUID, tx ...*sql.Tx) ([]model.User, error) {
 	if len(ids) == 0 {
 		return nil, nil
 	}
-	placeholders, args := utils.PlaceholderArgs(ids, 1)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.id IN (`+strings.Join(placeholders, ",")+`)`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).GetUsersByIDs(ctx, joinUUIDs(ids))
 	if err != nil {
 		return nil, fmt.Errorf("get users by ids: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.User
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, *u)
+	for _, row := range rows {
+		users = append(users, toUserModel(userJoinRow(row)))
 	}
-	return users, rows.Err()
+
+	return users, nil
 }
 
 func (r *userDAO) GetByUsername(ctx context.Context, username string, tx ...*sql.Tx) (*model.User, error) {
-	u, err := scanUser(txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE LOWER(u.username) = LOWER($1)`, username,
-	))
+	row, err := genQueries(r.db, tx).GetUserByUsername(ctx, username)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get user by username: %w", err)
 	}
-	return u, nil
+
+	return new(toUserModel(userJoinRow(row))), nil
 }
 
 func (r *userDAO) GetByUsernames(ctx context.Context, usernames []string, tx ...*sql.Tx) ([]model.User, error) {
 	if len(usernames) == 0 {
 		return nil, nil
 	}
-	args := make([]any, len(usernames))
-	placeholders := make([]string, len(usernames))
-	for i := range usernames {
-		args[i] = strings.ToLower(usernames[i])
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
+
+	lowered := make([]string, 0, len(usernames))
+	for _, username := range usernames {
+		lowered = append(lowered, strings.ToLower(username))
 	}
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE LOWER(u.username) IN (`+strings.Join(placeholders, ",")+`)`,
-		args...,
-	)
+
+	rows, err := genQueries(r.db, tx).GetUsersByUsernames(ctx, strings.Join(lowered, ","))
 	if err != nil {
 		return nil, fmt.Errorf("get users by usernames: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.User
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, *u)
+	for _, row := range rows {
+		users = append(users, toUserModel(userJoinRow(row)))
 	}
-	return users, rows.Err()
+
+	return users, nil
 }
 
 func (r *userDAO) ExistsByUsername(ctx context.Context, username string, tx ...*sql.Tx) (bool, error) {
-	var count int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM users WHERE LOWER(username) = LOWER($1)`, username,
-	).Scan(&count)
+	count, err := genQueries(r.db, tx).CountUsersByUsername(ctx, username)
 	if err != nil {
 		return false, fmt.Errorf("check username exists: %w", err)
 	}
+
 	return count > 0, nil
 }
 
 func (r *userDAO) Count(ctx context.Context, tx ...*sql.Tx) (int, error) {
-	var count int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM users`).Scan(&count)
+	count, err := genQueries(r.db, tx).CountUsers(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("count users: %w", err)
 	}
-	return count, nil
+
+	return int(count), nil
 }
 
 func (r *userDAO) GetPasswordHash(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (string, error) {
-	var hash string
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT password_hash FROM users WHERE id = $1`, userID).Scan(&hash)
+	hash, err := genQueries(r.db, tx).GetUserPasswordHash(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
@@ -317,146 +343,161 @@ func (r *userDAO) GetPasswordHash(ctx context.Context, userID uuid.UUID, tx ...*
 func (r *userDAO) UpdateProfile(ctx context.Context, s spec.UserProfileUpdate, tx ...*sql.Tx) error {
 	req := s.Profile
 
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET display_name = $1, bio = $2, banner_position = $3, favourite_character = $4, gender = $5,
-		 pronoun_subject = $6, pronoun_possessive = $7,
-		 social_twitter = $8, social_discord = $9, social_waifulist = $10, social_tumblr = $11, social_github = $12, social_bluesky = $13,
-		 website = $14, dms_enabled = $15, episode_progress = $16, higurashi_arc_progress = $17, ciconia_chapter_progress = $18, email = $19, email_public = $20, dob = $21, dob_public = $22, email_notifications = $23, play_message_sound = $24, play_notification_sound = $25, home_page = $26, game_board_sort = $27, default_profile_tab = $28, follow_activity_notifications = $29, echoes_enabled = $30
-		 WHERE id = $31`,
-		req.DisplayName, req.Bio, req.BannerPosition, req.FavouriteCharacter, req.Gender,
-		req.PronounSubject, req.PronounPossessive,
-		req.SocialTwitter, req.SocialDiscord, req.SocialWaifulist, req.SocialTumblr, req.SocialGithub, req.SocialBluesky, req.Website,
-		req.DmsEnabled, req.EpisodeProgress, req.HigurashiArcProgress, req.CiconiaChapterProgress, req.Email, req.EmailPublic, req.DOB, req.DOBPublic, req.EmailNotifications, req.PlayMessageSound, req.PlayNotificationSound, req.HomePage, req.GameBoardSort, req.DefaultProfileTab, req.FollowActivity, req.EchoesEnabled,
-		s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserProfile(ctx, sqlcgen.UpdateUserProfileParams{
+		DisplayName:                 req.DisplayName,
+		Bio:                         req.Bio,
+		BannerPosition:              float32(req.BannerPosition),
+		FavouriteCharacter:          req.FavouriteCharacter,
+		Gender:                      req.Gender,
+		PronounSubject:              req.PronounSubject,
+		PronounPossessive:           req.PronounPossessive,
+		SocialTwitter:               req.SocialTwitter,
+		SocialDiscord:               req.SocialDiscord,
+		SocialWaifulist:             req.SocialWaifulist,
+		SocialTumblr:                req.SocialTumblr,
+		SocialGithub:                req.SocialGithub,
+		SocialBluesky:               req.SocialBluesky,
+		Website:                     req.Website,
+		DmsEnabled:                  req.DmsEnabled,
+		EpisodeProgress:             int32(req.EpisodeProgress),
+		HigurashiArcProgress:        int32(req.HigurashiArcProgress),
+		CiconiaChapterProgress:      int32(req.CiconiaChapterProgress),
+		Email:                       req.Email,
+		EmailPublic:                 req.EmailPublic,
+		Dob:                         req.DOB,
+		DobPublic:                   req.DOBPublic,
+		EmailNotifications:          req.EmailNotifications,
+		PlayMessageSound:            req.PlayMessageSound,
+		PlayNotificationSound:       req.PlayNotificationSound,
+		HomePage:                    req.HomePage,
+		GameBoardSort:               req.GameBoardSort,
+		DefaultProfileTab:           req.DefaultProfileTab,
+		FollowActivityNotifications: req.FollowActivity,
+		EchoesEnabled:               req.EchoesEnabled,
+		ID:                          s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update profile: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UpdateAvatarURL(ctx context.Context, s spec.UserAvatarUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET avatar_url = $1 WHERE id = $2`, s.AvatarURL, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserAvatarURL(ctx, sqlcgen.UpdateUserAvatarURLParams{
+		AvatarUrl: s.AvatarURL,
+		ID:        s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update avatar url: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UpdateBannerURL(ctx context.Context, s spec.UserBannerUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET banner_url = $1 WHERE id = $2`, s.BannerURL, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserBannerURL(ctx, sqlcgen.UpdateUserBannerURLParams{
+		BannerUrl: s.BannerURL,
+		ID:        s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update banner url: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UpdateIP(ctx context.Context, s spec.UserIPUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET ip = $1 WHERE id = $2`, s.IP, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserIP(ctx, sqlcgen.UpdateUserIPParams{
+		Column1: s.IP,
+		ID:      s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update ip: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UpdateGameBoardSort(ctx context.Context, s spec.UserGameBoardSortUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET game_board_sort = $1 WHERE id = $2`, s.Sort, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserGameBoardSort(ctx, sqlcgen.UpdateUserGameBoardSortParams{
+		GameBoardSort: s.Sort,
+		ID:            s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update game board sort: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UpdateAppearance(ctx context.Context, s spec.UserAppearanceUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET theme = $1, font = $2, wide_layout = $3 WHERE id = $4`, s.Theme, s.Font, s.WideLayout, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserAppearance(ctx, sqlcgen.UpdateUserAppearanceParams{
+		Theme:      s.Theme,
+		Font:       s.Font,
+		WideLayout: s.WideLayout,
+		ID:         s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update appearance: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UpdateMysteryScoreAdjustment(ctx context.Context, s spec.UserMysteryScoreUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET mystery_score_adjustment = $1 WHERE id = $2`, s.Adjustment, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserMysteryScoreAdjustment(ctx, sqlcgen.UpdateUserMysteryScoreAdjustmentParams{
+		MysteryScoreAdjustment: int32(s.Adjustment),
+		ID:                     s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update mystery score adjustment: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) GetDetectiveRawScore(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
-	var score int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(
-			CASE m.difficulty
-				WHEN 'easy' THEN 2
-				WHEN 'medium' THEN 4
-				WHEN 'hard' THEN 6
-				WHEN 'nightmare' THEN 8
-				ELSE 4
-			END
-		), 0)
-		FROM mysteries m WHERE m.winner_id = $1 AND m.solved = TRUE`, userID,
-	).Scan(&score)
-	return score, err
+	score, err := genQueries(r.db, tx).GetUserDetectiveRawScore(ctx, &userID)
+
+	return int(score), err
 }
 
 func (r *userDAO) GetGMRawScore(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
-	var score int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(
-			CASE m.difficulty
-				WHEN 'easy' THEN 2
-				WHEN 'medium' THEN 4
-				WHEN 'hard' THEN 6
-				WHEN 'nightmare' THEN 8
-				ELSE 4
-			END
-			+ LEAST((SELECT COUNT(DISTINCT a.user_id) FROM mystery_attempts a WHERE a.mystery_id = m.id), 5)
-		), 0)
-		FROM mysteries m WHERE m.user_id = $1 AND m.solved = TRUE`, userID,
-	).Scan(&score)
-	return score, err
+	score, err := genQueries(r.db, tx).GetUserGMRawScore(ctx, userID)
+
+	return int(score), err
 }
 
 func (r *userDAO) UpdateGMScoreAdjustment(ctx context.Context, s spec.UserGMScoreUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET gm_score_adjustment = $1 WHERE id = $2`, s.Adjustment, s.UserID,
-	)
+	err := genQueries(r.db, tx).UpdateUserGMScoreAdjustment(ctx, sqlcgen.UpdateUserGMScoreAdjustmentParams{
+		GmScoreAdjustment: int32(s.Adjustment),
+		ID:                s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update gm score adjustment: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) SetPasswordHash(ctx context.Context, s spec.UserPasswordHashUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET password_hash = $1 WHERE id = $2`, s.PasswordHash, s.UserID,
-	)
+	err := genQueries(r.db, tx).SetUserPasswordHash(ctx, sqlcgen.SetUserPasswordHashParams{
+		PasswordHash: s.PasswordHash,
+		ID:           s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update password: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) DeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM users WHERE id = $1`, userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).DeleteUser(ctx, userID); err != nil {
 		return fmt.Errorf("delete account: %w", err)
 	}
+
 	return nil
 }
 
@@ -466,37 +507,51 @@ func (r *userDAO) GetProfileByUsername(ctx context.Context, username string, tx 
 		return u, nil, err
 	}
 
-	var stats model.UserStats
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM theories WHERE user_id = $1`, u.ID,
-	).Scan(&stats.TheoryCount)
+	queries := genQueries(r.db, tx)
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM responses WHERE user_id = $1`, u.ID,
-	).Scan(&stats.ResponseCount)
+	theoryCount, err := queries.CountProfileTheories(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile theories: %w", err)
+	}
 
-	var theoryVotes, responseVotes int
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(tv.value), 0) FROM theory_votes tv JOIN theories t ON tv.theory_id = t.id WHERE t.user_id = $1`, u.ID,
-	).Scan(&theoryVotes)
+	responseCount, err := queries.CountProfileResponses(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile responses: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COALESCE(SUM(rv.value), 0) FROM response_votes rv JOIN responses r ON rv.response_id = r.id WHERE r.user_id = $1`, u.ID,
-	).Scan(&responseVotes)
+	theoryVotes, err := queries.SumProfileTheoryVotes(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sum profile theory votes: %w", err)
+	}
 
-	stats.VotesReceived = theoryVotes + responseVotes
+	responseVotes, err := queries.SumProfileResponseVotes(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("sum profile response votes: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM ships WHERE user_id = $1`, u.ID,
-	).Scan(&stats.ShipCount)
+	shipCount, err := queries.CountProfileShips(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile ships: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, u.ID,
-	).Scan(&stats.MysteryCount)
+	mysteryCount, err := queries.CountProfileMysteries(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile mysteries: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, u.ID,
-	).Scan(&stats.FanficCount)
+	fanficCount, err := queries.CountProfileFanfics(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile fanfics: %w", err)
+	}
+
+	stats := model.UserStats{
+		TheoryCount:   int(theoryCount),
+		ResponseCount: int(responseCount),
+		VotesReceived: int(theoryVotes + responseVotes),
+		ShipCount:     int(shipCount),
+		MysteryCount:  int(mysteryCount),
+		FanficCount:   int(fanficCount),
+	}
 
 	return u, &stats, nil
 }
@@ -507,207 +562,200 @@ func (r *userDAO) GetProfileByID(ctx context.Context, id uuid.UUID, tx ...*sql.T
 		return u, nil, err
 	}
 
-	var stats model.UserStats
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM theories WHERE user_id = $1`, u.ID,
-	).Scan(&stats.TheoryCount)
+	queries := genQueries(r.db, tx)
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM responses WHERE user_id = $1`, u.ID,
-	).Scan(&stats.ResponseCount)
+	theoryCount, err := queries.CountProfileTheories(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile theories: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM ships WHERE user_id = $1`, u.ID,
-	).Scan(&stats.ShipCount)
+	responseCount, err := queries.CountProfileResponses(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile responses: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM mysteries WHERE user_id = $1`, u.ID,
-	).Scan(&stats.MysteryCount)
+	shipCount, err := queries.CountProfileShips(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile ships: %w", err)
+	}
 
-	txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM fanfics WHERE user_id = $1`, u.ID,
-	).Scan(&stats.FanficCount)
+	mysteryCount, err := queries.CountProfileMysteries(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile mysteries: %w", err)
+	}
+
+	fanficCount, err := queries.CountProfileFanfics(ctx, u.ID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("count profile fanfics: %w", err)
+	}
+
+	stats := model.UserStats{
+		TheoryCount:   int(theoryCount),
+		ResponseCount: int(responseCount),
+		ShipCount:     int(shipCount),
+		MysteryCount:  int(mysteryCount),
+		FanficCount:   int(fanficCount),
+	}
 
 	return u, &stats, nil
 }
 
 func (r *userDAO) ListAll(ctx context.Context, s spec.UserListFilter, tx ...*sql.Tx) ([]model.User, int, error) {
-	where := ""
-	var args []any
+	pattern := ""
 	if s.Search != "" {
-		pattern := "%" + s.Search + "%"
-		args = append(args, pattern, pattern)
-		where = " WHERE u.username ILIKE $1 OR u.display_name ILIKE $2"
+		pattern = "%" + s.Search + "%"
 	}
 
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM users u"+where, countArgs...,
-	).Scan(&total)
+	queries := genQueries(r.db, tx)
+
+	total, err := queries.CountUsersFiltered(ctx, sqlcgen.CountUsersFilteredParams{
+		Column1: s.Search,
+		Column2: pattern,
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count users: %w", err)
 	}
 
-	limitIdx := len(args) + 1
-	offsetIdx := len(args) + 2
-	args = append(args, s.Limit, s.Offset)
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		fmt.Sprintf("SELECT "+userColumns+" FROM users u LEFT JOIN user_roles r ON r.user_id = u.id"+where+" ORDER BY u.created_at DESC LIMIT $%d OFFSET $%d", limitIdx, offsetIdx), args...,
-	)
+	rows, err := queries.ListUsers(ctx, sqlcgen.ListUsersParams{
+		Column1: s.Search,
+		Column2: pattern,
+		Limit:   int32(s.Limit),
+		Offset:  int32(s.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list users: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.User
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, 0, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, *u)
+	for _, row := range rows {
+		users = append(users, toUserModel(userJoinRow(row)))
 	}
-	return users, total, rows.Err()
+
+	return users, int(total), nil
 }
 
 func (r *userDAO) ListPublic(ctx context.Context, tx ...*sql.Tx) ([]model.User, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL AND NOT u.is_bot ORDER BY LOWER(u.display_name)`,
-	)
+	rows, err := genQueries(r.db, tx).ListPublicUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("list public users: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.User
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, *u)
+	for _, row := range rows {
+		users = append(users, toUserModel(userJoinRow(row)))
 	}
-	return users, rows.Err()
+
+	return users, nil
 }
 
 func (r *userDAO) SearchByName(ctx context.Context, s spec.UserSearchFilter, tx ...*sql.Tx) ([]model.User, error) {
-	like := "%" + s.Query + "%"
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT `+userColumns+` FROM users u LEFT JOIN user_roles r ON r.user_id = u.id WHERE u.banned_at IS NULL AND (u.username ILIKE $1 OR u.display_name ILIKE $2) ORDER BY CASE WHEN u.username ILIKE $3 THEN 0 ELSE 1 END, LOWER(u.display_name) LIMIT $4`,
-		like, like, s.Query+"%", s.Limit,
-	)
+	rows, err := genQueries(r.db, tx).SearchUsersByName(ctx, sqlcgen.SearchUsersByNameParams{
+		Column1: "%" + s.Query + "%",
+		Column2: s.Query + "%",
+		Limit:   int32(s.Limit),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("search users: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.User
-	for rows.Next() {
-		u, err := scanUser(rows)
-		if err != nil {
-			return nil, fmt.Errorf("scan user: %w", err)
-		}
-		users = append(users, *u)
+	for _, row := range rows {
+		users = append(users, toUserModel(userJoinRow(row)))
 	}
-	return users, rows.Err()
+
+	return users, nil
 }
 
 func (r *userDAO) BanUser(ctx context.Context, s spec.UserBan, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET banned_at = NOW(), banned_by = $1, ban_reason = $2 WHERE id = $3`,
-		s.BannedBy, s.Reason, s.UserID,
-	)
+	err := genQueries(r.db, tx).BanUser(ctx, sqlcgen.BanUserParams{
+		BannedBy:  &s.BannedBy,
+		BanReason: s.Reason,
+		ID:        s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("ban user: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UnbanUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET banned_at = NULL, banned_by = NULL, ban_reason = '' WHERE id = $1`, userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).UnbanUser(ctx, userID); err != nil {
 		return fmt.Errorf("unban user: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) IsBanned(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
-	var bannedAt *string
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT banned_at FROM users WHERE id = $1`, userID,
-	).Scan(&bannedAt)
+	bannedAt, err := genQueries(r.db, tx).GetUserBannedAt(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, fmt.Errorf("check ban: %w", err)
 	}
-	return bannedAt != nil, nil
+
+	return bannedAt.Valid, nil
 }
 
 func (r *userDAO) LockUser(ctx context.Context, s spec.UserLock, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET locked_at = NOW(), locked_by = $1, lock_reason = $2 WHERE id = $3`,
-		s.LockedBy, s.Reason, s.UserID,
-	)
+	err := genQueries(r.db, tx).LockUser(ctx, sqlcgen.LockUserParams{
+		LockedBy:   &s.LockedBy,
+		LockReason: s.Reason,
+		ID:         s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("lock user: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UnlockUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET locked_at = NULL, locked_by = NULL, lock_reason = '' WHERE id = $1`, userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).UnlockUser(ctx, userID); err != nil {
 		return fmt.Errorf("unlock user: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) ApproveUser(ctx context.Context, s spec.UserApproval, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET approved_at = NOW(), approved_by = $1 WHERE id = $2`, s.ApprovedBy, s.UserID,
-	)
+	err := genQueries(r.db, tx).ApproveUser(ctx, sqlcgen.ApproveUserParams{
+		ApprovedBy: &s.ApprovedBy,
+		ID:         s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("approve user: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) UnapproveUser(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE users SET approved_at = NULL, approved_by = NULL WHERE id = $1`, userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).UnapproveUser(ctx, userID); err != nil {
 		return fmt.Errorf("unapprove user: %w", err)
 	}
+
 	return nil
 }
 
 func (r *userDAO) IsLocked(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (bool, error) {
-	var lockedAt *string
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT locked_at FROM users WHERE id = $1`, userID,
-	).Scan(&lockedAt)
+	lockedAt, err := genQueries(r.db, tx).GetUserLockedAt(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
 		return false, fmt.Errorf("check lock: %w", err)
 	}
-	return lockedAt != nil, nil
+
+	return lockedAt.Valid, nil
 }
 
 func (r *userDAO) AdminDeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM users WHERE id = $1`, userID)
-	if err != nil {
+	if err := genQueries(r.db, tx).DeleteUser(ctx, userID); err != nil {
 		return fmt.Errorf("admin delete account: %w", err)
 	}
+
 	return nil
 }

@@ -1,0 +1,31 @@
+-- name: Add{{.Entity}}Media :one
+INSERT INTO {{.Table}} ({{.FK}}, media_url, media_type, thumbnail_url, filename, sort_order, is_spoiler)
+VALUES ($1, $2, $3, $4, $5, COALESCE((SELECT MAX(m.sort_order) + 1 FROM {{.Table}} m WHERE m.{{.FK}} = $1), $6::int), $7)
+RETURNING id;
+
+-- name: Get{{.Entity}}MediaURL :one
+SELECT media_url FROM {{.Table}} WHERE id = $1 AND {{.FK}} = $2;
+
+-- name: Delete{{.Entity}}MediaRow :exec
+DELETE FROM {{.Table}} WHERE id = $1 AND {{.FK}} = $2;
+
+-- name: Update{{.Entity}}MediaURL :exec
+UPDATE {{.Table}} SET media_url = $1 WHERE id = $2;
+
+-- name: Update{{.Entity}}MediaThumbnail :exec
+UPDATE {{.Table}} SET thumbnail_url = $1 WHERE id = $2;
+
+-- name: Get{{.Entity}}Media :many
+SELECT id, {{.FK}} AS target_id, media_url, media_type, thumbnail_url, COALESCE(filename, '')::text AS filename, sort_order, is_spoiler
+FROM {{.Table}}
+WHERE {{.FK}} = $1
+ORDER BY sort_order, id;
+
+-- name: Get{{.Entity}}MediaBatch :many
+SELECT id, {{.FK}} AS target_id, media_url, media_type, thumbnail_url, COALESCE(filename, '')::text AS filename, sort_order, is_spoiler
+FROM {{.Table}}
+WHERE {{.FK}} = ANY(string_to_array($1::text, ',')::uuid[])
+ORDER BY sort_order, id;
+
+-- name: Collect{{.Entity}}MediaPaths :many
+SELECT media_url, thumbnail_url FROM {{.Table}} WHERE {{.FK}} = $1;

@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -24,14 +25,18 @@ type (
 	}
 )
 
+func toStreamCredentialsRow(row sqlcgen.GetStreamCredentialsRow) model.StreamCredentialsRow {
+	return model.StreamCredentialsRow{
+		UserID:    row.UserID,
+		IngressID: row.IngressID,
+		WhipURL:   row.WhipUrl,
+		StreamKey: row.StreamKey,
+		Room:      row.Room,
+	}
+}
+
 func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (*model.StreamCredentialsRow, error) {
-	var row model.StreamCredentialsRow
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT user_id, ingress_id, whip_url, stream_key, room
-		   FROM stream_credentials
-		  WHERE user_id = $1`,
-		userID,
-	).Scan(&row.UserID, &row.IngressID, &row.WhipURL, &row.StreamKey, &row.Room)
+	row, err := genQueries(r.db, tx).GetStreamCredentials(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -39,21 +44,17 @@ func (r *streamCredentialsDAO) Get(ctx context.Context, userID uuid.UUID, tx ...
 		return nil, fmt.Errorf("get stream credentials: %w", err)
 	}
 
-	return &row, nil
+	return new(toStreamCredentialsRow(row)), nil
 }
 
 func (r *streamCredentialsDAO) Upsert(ctx context.Context, s spec.NewStreamCredentials, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO stream_credentials (user_id, ingress_id, whip_url, stream_key, room)
-		 VALUES ($1, $2, $3, $4, $5)
-		 ON CONFLICT (user_id) DO UPDATE
-		    SET ingress_id = excluded.ingress_id,
-		        whip_url = excluded.whip_url,
-		        stream_key = excluded.stream_key,
-		        room = excluded.room,
-		        updated_at = NOW()`,
-		s.UserID, s.IngressID, s.WhipURL, s.StreamKey, s.Room,
-	)
+	err := genQueries(r.db, tx).UpsertStreamCredentials(ctx, sqlcgen.UpsertStreamCredentialsParams{
+		UserID:    s.UserID,
+		IngressID: s.IngressID,
+		WhipUrl:   s.WhipURL,
+		StreamKey: s.StreamKey,
+		Room:      s.Room,
+	})
 	if err != nil {
 		return fmt.Errorf("upsert stream credentials: %w", err)
 	}
@@ -62,11 +63,7 @@ func (r *streamCredentialsDAO) Upsert(ctx context.Context, s spec.NewStreamCrede
 }
 
 func (r *streamCredentialsDAO) Delete(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM stream_credentials WHERE user_id = $1`,
-		userID,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).DeleteStreamCredentials(ctx, userID); err != nil {
 		return fmt.Errorf("delete stream credentials: %w", err)
 	}
 

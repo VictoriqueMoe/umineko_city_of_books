@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"strings"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/role"
 
@@ -29,17 +29,24 @@ type (
 	}
 )
 
+func joinRoles(roles []role.Role) string {
+	parts := make([]string, 0, len(roles))
+	for _, rl := range roles {
+		parts = append(parts, string(rl))
+	}
+
+	return strings.Join(parts, ",")
+}
+
 func (r *roleDAO) GetRole(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (role.Role, error) {
-	var result string
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT role FROM user_roles WHERE user_id = $1 LIMIT 1`, userID,
-	).Scan(&result)
+	result, err := genQueries(r.db, tx).GetUserRole(ctx, userID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", nil
 	}
 	if err != nil {
 		return "", fmt.Errorf("get role: %w", err)
 	}
+
 	return role.Role(result), nil
 }
 
@@ -47,64 +54,59 @@ func (r *roleDAO) GetRoles(ctx context.Context, userIDs []uuid.UUID, tx ...*sql.
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
-	placeholders, args := utils.PlaceholderArgs(userIDs, 1)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT user_id, role FROM user_roles WHERE user_id IN (`+strings.Join(placeholders, ",")+`)`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).GetUserRolesBatch(ctx, joinUUIDs(userIDs))
 	if err != nil {
 		return nil, fmt.Errorf("get roles: %w", err)
 	}
-	defer rows.Close()
 
 	out := make(map[uuid.UUID]role.Role, len(userIDs))
-	for rows.Next() {
-		var uid uuid.UUID
-		var rl string
-		if err := rows.Scan(&uid, &rl); err != nil {
-			return nil, fmt.Errorf("scan role: %w", err)
-		}
-		out[uid] = role.Role(rl)
+	for _, row := range rows {
+		out[row.UserID] = role.Role(row.Role)
 	}
-	return out, rows.Err()
+
+	return out, nil
 }
 
 func (r *roleDAO) HasRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) (bool, error) {
-	var count int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_roles WHERE user_id = $1 AND role = $2`, s.UserID, string(s.Role),
-	).Scan(&count)
+	count, err := genQueries(r.db, tx).CountUserRole(ctx, sqlcgen.CountUserRoleParams{
+		UserID: s.UserID,
+		Role:   string(s.Role),
+	})
 	if err != nil {
 		return false, fmt.Errorf("check role: %w", err)
 	}
+
 	return count > 0, nil
 }
 
 func (r *roleDAO) SetRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM user_roles WHERE user_id = $1`, s.UserID,
-	)
-	if err != nil {
+	queries := genQueries(r.db, tx)
+
+	if err := queries.ClearUserRoles(ctx, s.UserID); err != nil {
 		return fmt.Errorf("clear existing role: %w", err)
 	}
 
-	_, err = txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO user_roles (user_id, role) VALUES ($1, $2)`, s.UserID, string(s.Role),
-	)
+	err := queries.InsertUserRole(ctx, sqlcgen.InsertUserRoleParams{
+		UserID: s.UserID,
+		Role:   string(s.Role),
+	})
 	if err != nil {
 		return fmt.Errorf("set role: %w", err)
 	}
+
 	return nil
 }
 
 func (r *roleDAO) RemoveRole(ctx context.Context, s spec.UserRoleSpec, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM user_roles WHERE user_id = $1 AND role = $2`, s.UserID, string(s.Role),
-	)
+	err := genQueries(r.db, tx).DeleteUserRole(ctx, sqlcgen.DeleteUserRoleParams{
+		UserID: s.UserID,
+		Role:   string(s.Role),
+	})
 	if err != nil {
 		return fmt.Errorf("remove role: %w", err)
 	}
+
 	return nil
 }
 
@@ -112,18 +114,11 @@ func (r *roleDAO) GetUsersByRoles(ctx context.Context, roles []role.Role, tx ...
 	if len(roles) == 0 {
 		return nil, nil
 	}
-	var placeholders strings.Builder
-	placeholders.WriteString("$1")
-	args := []any{string(roles[0])}
-	for i := 1; i < len(roles); i++ {
-		args = append(args, string(roles[i]))
-		placeholders.WriteString(fmt.Sprintf(", $%d", len(args)))
-	}
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM user_roles WHERE role IN (`+placeholders.String()+`)`, args...,
-	)
+
+	users, err := genQueries(r.db, tx).GetUsersByRoles(ctx, joinRoles(roles))
 	if err != nil {
 		return nil, fmt.Errorf("get users by roles: %w", err)
 	}
-	return utils.ScanIDs(rows, "user id")
+
+	return users, nil
 }

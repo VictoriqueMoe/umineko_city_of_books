@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/role"
 	"umineko_city_of_books/internal/text"
 
 	"github.com/google/uuid"
@@ -84,75 +85,139 @@ type (
 		*commentDAO[uuid.UUID]
 		*mediaDAO
 	}
-)
 
-const (
-	journalSelectBase = `SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity_at, j.archived_at, j.paused_at,
-		u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-		(SELECT COUNT(*) FROM journal_follows WHERE journal_id = j.id),
-		(SELECT COUNT(*) FROM journal_comments WHERE journal_id = j.id),
-		(SELECT COUNT(*) FROM journal_entries WHERE journal_id = j.id),
-		le.entry_number, le.title, le.body, le.created_at
-	FROM journals j
-	JOIN users u ON j.user_id = u.id
-	LEFT JOIN user_roles r ON r.user_id = u.id
-	LEFT JOIN LATERAL (
-		SELECT entry_number, title, body, created_at
-		FROM journal_entries
-		WHERE journal_id = j.id AND NOT is_draft
-		ORDER BY entry_number DESC
-		LIMIT 1
-	) le ON TRUE`
-)
+	journalJoinRow        = sqlcgen.GetJournalByIDRow
+	journalEntryJoinRow   = sqlcgen.GetJournalEntryByIDRow
+	journalCommentJoinRow = sqlcgen.ListJournalRootCommentsRow
 
-func scanJournalRow(ctx context.Context, scanner interface {
-	Scan(dest ...any) error
-}, viewerID uuid.UUID, db dbtx) (*dto.JournalResponse, error) {
-	var j dto.JournalResponse
-	var author dto.UserResponse
-	var createdAt, lastAuthorActivityAt time.Time
-	var updatedAt, archivedAt, pausedAt *time.Time
-	var latestEntryNumber *int
-	var latestEntryTitle *string
-	var latestEntryBody *string
-	var latestEntryAt *time.Time
-	err := scanner.Scan(
-		&j.ID, &j.Title, &j.Work, &createdAt, &updatedAt, &lastAuthorActivityAt, &archivedAt, &pausedAt,
-		&author.ID, &author.Username, &author.DisplayName, &author.AvatarURL, &author.Role,
-		&j.FollowerCount, &j.CommentCount, &j.EntryCount,
-		&latestEntryNumber, &latestEntryTitle, &latestEntryBody, &latestEntryAt,
-	)
-	if err != nil {
-		return nil, err
+	journalListRow interface {
+		sqlcgen.ListJournalsByNewRow |
+			sqlcgen.ListJournalsByOldRow |
+			sqlcgen.ListJournalsByRecentlyActiveRow |
+			sqlcgen.ListJournalsByMostFollowedRow
 	}
-	j.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	j.UpdatedAt = timePtrToString(updatedAt)
-	j.LastAuthorActivityAt = lastAuthorActivityAt.UTC().Format(time.RFC3339)
-	j.ArchivedAt = timePtrToString(archivedAt)
-	j.Author = author
-	j.IsArchived = j.ArchivedAt != nil
-	j.IsPaused = pausedAt != nil
-	j.LatestEntryNumber = latestEntryNumber
-	j.LatestEntryTitle = latestEntryTitle
-	j.LatestEntryAt = timePtrToString(latestEntryAt)
-	if latestEntryBody != nil {
-		excerpt := text.ClampRunes(*latestEntryBody, 300)
-		if len(excerpt) != len(*latestEntryBody) {
+)
+
+func journalStringPtr(ns sql.NullString) *string {
+	if !ns.Valid {
+		return nil
+	}
+
+	return new(ns.String)
+}
+
+func journalIntPtr(ni sql.NullInt32) *int {
+	if !ni.Valid {
+		return nil
+	}
+
+	return new(int(ni.Int32))
+}
+
+func journalNullString(value *string) sql.NullString {
+	if value == nil {
+		return sql.NullString{}
+	}
+
+	return sql.NullString{String: *value, Valid: true}
+}
+
+func toJournalResponse(row journalJoinRow) dto.JournalResponse {
+	out := dto.JournalResponse{
+		ID:    row.ID,
+		Title: row.Title,
+		Work:  row.Work,
+		Author: dto.UserResponse{
+			ID:          row.AuthorID,
+			Username:    row.AuthorUsername,
+			DisplayName: row.AuthorDisplayName,
+			AvatarURL:   row.AuthorAvatarUrl,
+			Role:        role.Role(row.AuthorRole),
+		},
+		FollowerCount:        int(row.FollowerCount),
+		IsArchived:           row.ArchivedAt.Valid,
+		IsPaused:             row.PausedAt.Valid,
+		CommentCount:         int(row.CommentCount),
+		EntryCount:           int(row.EntryCount),
+		LatestEntryNumber:    journalIntPtr(row.LatestEntryNumber),
+		LatestEntryTitle:     journalStringPtr(row.LatestEntryTitle),
+		LatestEntryAt:        nullTimeToStringPtr(row.LatestEntryAt),
+		CreatedAt:            row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:            nullTimeToStringPtr(row.UpdatedAt),
+		LastAuthorActivityAt: row.LastAuthorActivityAt.UTC().Format(time.RFC3339),
+		ArchivedAt:           nullTimeToStringPtr(row.ArchivedAt),
+	}
+
+	if row.LatestEntryBody.Valid {
+		excerpt := text.ClampRunes(row.LatestEntryBody.String, 300)
+		if len(excerpt) != len(row.LatestEntryBody.String) {
 			excerpt += "..."
 		}
 
-		j.LatestEntryExcerpt = excerpt
+		out.LatestEntryExcerpt = excerpt
 	}
 
-	if viewerID != uuid.Nil {
-		var exists bool
-		_ = db.QueryRowContext(ctx,
-			`SELECT EXISTS(SELECT 1 FROM journal_follows WHERE journal_id = $1 AND user_id = $2)`,
-			j.ID, viewerID,
-		).Scan(&exists)
-		j.IsFollowing = exists
+	return out
+}
+
+func toJournalEntryRow(row journalEntryJoinRow) model.JournalEntryRow {
+	return model.JournalEntryRow{
+		ID:          row.ID,
+		JournalID:   row.JournalID,
+		EntryNumber: int(row.EntryNumber),
+		Title:       journalStringPtr(row.Title),
+		Body:        row.Body,
+		WordCount:   int(row.WordCount),
+		IsDraft:     row.IsDraft,
+		CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:   new(row.UpdatedAt.UTC().Format(time.RFC3339)),
 	}
-	return &j, nil
+}
+
+func toJournalCommentRow(row journalCommentJoinRow) model.CommentRow {
+	return model.CommentRow{
+		ID:                row.ID,
+		EntityID:          row.EntityID,
+		EntryID:           row.EntryID,
+		ParentID:          row.ParentID,
+		UserID:            row.UserID,
+		Body:              row.Body,
+		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         nullTimeToStringPtr(row.UpdatedAt),
+		AuthorUsername:    row.Username,
+		AuthorDisplayName: row.DisplayName,
+		AuthorAvatarURL:   row.AvatarUrl,
+		AuthorRole:        row.AuthorRole,
+		LikeCount:         int(row.LikeCount),
+		UserLiked:         row.UserLiked,
+	}
+}
+
+func applyJournalViewerFollow(ctx context.Context, queries *sqlcgen.Queries, journal *dto.JournalResponse, viewerID uuid.UUID) error {
+	if viewerID == uuid.Nil {
+		return nil
+	}
+
+	following, err := queries.IsJournalFollowedByViewer(ctx, sqlcgen.IsJournalFollowedByViewerParams{
+		JournalID: journal.ID,
+		UserID:    viewerID,
+	})
+	if err != nil {
+		return fmt.Errorf("check journal follow: %w", err)
+	}
+
+	journal.IsFollowing = following
+
+	return nil
+}
+
+func journalResponses[T journalListRow](listed []T) []dto.JournalResponse {
+	var journals []dto.JournalResponse
+	for _, row := range listed {
+		journals = append(journals, toJournalResponse(journalJoinRow(row)))
+	}
+
+	return journals
 }
 
 func (r *journalDAO) Create(ctx context.Context, s spec.NewJournal, tx ...*sql.Tx) (*dto.JournalResponse, error) {
@@ -161,252 +226,212 @@ func (r *journalDAO) Create(ctx context.Context, s spec.NewJournal, tx ...*sql.T
 		work = "general"
 	}
 
-	created, err := scanJournalRow(ctx, txOrDB(r.db, tx).QueryRowContext(ctx,
-		`WITH j AS (
-		     INSERT INTO journals (user_id, title, work)
-		     VALUES ($1, $2, $3)
-		     RETURNING *
-		 )
-		 SELECT j.id, j.title, j.work, j.created_at, j.updated_at, j.last_author_activity_at, j.archived_at, j.paused_at,
-		        u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-		        0, 0, 0,
-		        NULL::int, NULL::text, NULL::text, NULL::timestamptz
-		 FROM j
-		 JOIN users u ON u.id = j.user_id
-		 LEFT JOIN user_roles r ON r.user_id = u.id`,
-		s.UserID, s.Title, work,
-	), uuid.Nil, txOrDB(r.db, tx))
+	created, err := genQueries(r.db, tx).CreateJournal(ctx, sqlcgen.CreateJournalParams{
+		UserID: s.UserID,
+		Title:  s.Title,
+		Work:   work,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create journal: %w", err)
 	}
 
-	return created, nil
+	return new(toJournalResponse(journalJoinRow(created))), nil
 }
 
 func (r *journalDAO) GetByID(ctx context.Context, s spec.JournalLookup, tx ...*sql.Tx) (*dto.JournalResponse, error) {
-	row := txOrDB(r.db, tx).QueryRowContext(ctx, journalSelectBase+` WHERE j.id = $1`, s.ID)
-	j, err := scanJournalRow(ctx, row, s.ViewerID, txOrDB(r.db, tx))
+	queries := genQueries(r.db, tx)
+
+	row, err := queries.GetJournalByID(ctx, s.ID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get journal: %w", err)
 	}
-	return j, nil
+
+	journal := toJournalResponse(row)
+	if err := applyJournalViewerFollow(ctx, queries, &journal, s.ViewerID); err != nil {
+		return nil, err
+	}
+
+	return &journal, nil
 }
 
 func (r *journalDAO) List(ctx context.Context, q spec.JournalQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error) {
-	idx := 1
-	next := func() string {
-		s := fmt.Sprintf("$%d", idx)
-		idx++
-		return s
-	}
-	var conditions []string
-	var args []any
-	if q.Work != "" {
-		conditions = append(conditions, "j.work = "+next())
-		args = append(args, q.Work)
-	}
+	queries := genQueries(r.db, tx)
+
+	var authorID *uuid.UUID
 	if q.AuthorID != uuid.Nil {
-		conditions = append(conditions, "j.user_id = "+next())
-		args = append(args, q.AuthorID)
-	}
-	if q.Search != "" {
-		conditions = append(conditions, "j.title ILIKE "+next())
-		wildcard := "%" + q.Search + "%"
-		args = append(args, wildcard)
-	}
-	if !q.IncludeArchived {
-		conditions = append(conditions, "j.archived_at IS NULL")
+		authorID = new(q.AuthorID)
 	}
 
-	where := ""
-	if len(conditions) > 0 {
-		where = " WHERE " + conditions[0]
-		for _, c := range conditions[1:] {
-			where += " AND " + c
-		}
-	}
+	exclude := joinUUIDs(q.ExcludeUserIDs)
 
-	exclSQL, exclArgs := ExcludeClause("j.user_id", q.ExcludeUserIDs, idx)
-	idx += len(exclArgs)
-	if where == "" && exclSQL != "" {
-		where = " WHERE 1=1" + exclSQL
-	} else {
-		where += exclSQL
-	}
-	args = append(args, exclArgs...)
-
-	var total int
-	countArgs := make([]any, len(args))
-	copy(countArgs, args)
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		"SELECT COUNT(*) FROM journals j"+where, countArgs...,
-	).Scan(&total); err != nil {
+	total, err := queries.CountJournals(ctx, sqlcgen.CountJournalsParams{
+		Work:            q.Work,
+		AuthorID:        authorID,
+		Search:          q.Search,
+		IncludeArchived: q.IncludeArchived,
+		ExcludeUserIds:  exclude,
+	})
+	if err != nil {
 		return nil, 0, fmt.Errorf("count journals: %w", err)
 	}
 
-	var orderBy string
-	switch q.Sort {
-	case "old":
-		orderBy = "ORDER BY j.created_at ASC"
-	case "recently_active":
-		orderBy = "ORDER BY j.last_author_activity_at DESC"
-	case "most_followed":
-		orderBy = "ORDER BY (SELECT COUNT(*) FROM journal_follows WHERE journal_id = j.id) DESC, j.created_at DESC"
-	default:
-		orderBy = "ORDER BY j.created_at DESC"
+	params := sqlcgen.ListJournalsByNewParams{
+		Work:            q.Work,
+		AuthorID:        authorID,
+		Search:          q.Search,
+		IncludeArchived: q.IncludeArchived,
+		ExcludeUserIds:  exclude,
+		RowOffset:       int32(q.Offset),
+		RowLimit:        int32(q.Limit),
 	}
-
-	limitPH := next()
-	offsetPH := next()
-	query := journalSelectBase + where + " " + orderBy + " LIMIT " + limitPH + " OFFSET " + offsetPH
-	args = append(args, q.Limit, q.Offset)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list journals: %w", err)
-	}
-	defer rows.Close()
 
 	var journals []dto.JournalResponse
-	for rows.Next() {
-		j, err := scanJournalRow(ctx, rows, q.ViewerID, txOrDB(r.db, tx))
+	switch q.Sort {
+	case "old":
+		listed, err := queries.ListJournalsByOld(ctx, sqlcgen.ListJournalsByOldParams(params))
 		if err != nil {
-			return nil, 0, fmt.Errorf("scan journal: %w", err)
+			return nil, 0, fmt.Errorf("list journals: %w", err)
 		}
-		journals = append(journals, *j)
+
+		journals = journalResponses(listed)
+	case "recently_active":
+		listed, err := queries.ListJournalsByRecentlyActive(ctx, sqlcgen.ListJournalsByRecentlyActiveParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list journals: %w", err)
+		}
+
+		journals = journalResponses(listed)
+	case "most_followed":
+		listed, err := queries.ListJournalsByMostFollowed(ctx, sqlcgen.ListJournalsByMostFollowedParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list journals: %w", err)
+		}
+
+		journals = journalResponses(listed)
+	default:
+		listed, err := queries.ListJournalsByNew(ctx, params)
+		if err != nil {
+			return nil, 0, fmt.Errorf("list journals: %w", err)
+		}
+
+		journals = journalResponses(listed)
 	}
-	return journals, total, rows.Err()
+
+	for i := range journals {
+		if err := applyJournalViewerFollow(ctx, queries, &journals[i], q.ViewerID); err != nil {
+			return nil, 0, err
+		}
+	}
+
+	return journals, int(total), nil
 }
 
 func (r *journalDAO) Update(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE journals SET title = $1, work = $2, updated_at = NOW(), last_author_activity_at = NOW(), archived_at = NULL WHERE id = $3 AND user_id = $4`,
-		s.Title, s.Work, s.ID, s.UserID,
-	)
+	n, err := genQueries(r.db, tx).UpdateJournal(ctx, sqlcgen.UpdateJournalParams{
+		Title:  s.Title,
+		Work:   s.Work,
+		ID:     s.ID,
+		UserID: s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("update journal: %w", err)
 	}
-	n, _ := res.RowsAffected()
+
 	if n == 0 {
 		return fmt.Errorf("journal not found or not owned")
 	}
+
 	return nil
 }
 
 func (r *journalDAO) UpdateAsAdmin(ctx context.Context, s spec.JournalUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE journals SET title = $1, work = $2, updated_at = NOW() WHERE id = $3`,
-		s.Title, s.Work, s.ID,
-	)
+	err := genQueries(r.db, tx).UpdateJournalAsAdmin(ctx, sqlcgen.UpdateJournalAsAdminParams{
+		Title: s.Title,
+		Work:  s.Work,
+		ID:    s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("admin update journal: %w", err)
 	}
+
 	return nil
 }
 
 func (r *journalDAO) ListEntryIDs(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id FROM journal_entries WHERE journal_id = $1 ORDER BY entry_number`,
-		journalID,
-	)
+	ids, err := genQueries(r.db, tx).ListJournalEntryIDs(ctx, journalID)
 	if err != nil {
 		return nil, fmt.Errorf("list journal entry ids: %w", err)
 	}
-	return utils.ScanIDs(rows, "journal entry id")
+
+	return ids, nil
 }
 
 func (r *journalDAO) ListEntryCommentIDs(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`WITH RECURSIVE tree AS (
-			SELECT id FROM journal_comments WHERE entry_id = $1
-			UNION
-			SELECT c.id FROM journal_comments c JOIN tree t ON c.parent_id = t.id
-		)
-		SELECT id FROM tree`,
-		entryID,
-	)
+	ids, err := genQueries(r.db, tx).ListJournalEntryCommentIDs(ctx, entryID)
 	if err != nil {
 		return nil, fmt.Errorf("list entry comment ids: %w", err)
 	}
-	return utils.ScanIDs(rows, "entry comment id")
+
+	return ids, nil
 }
 
 func (r *journalDAO) GetTitle(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (string, error) {
-	var title string
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT title FROM journals WHERE id = $1`, id).Scan(&title)
+	title, err := genQueries(r.db, tx).GetJournalTitle(ctx, id)
 	if err != nil {
 		return "", fmt.Errorf("get journal title: %w", err)
 	}
+
 	return title, nil
 }
 
 func (r *journalDAO) IsArchived(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (bool, error) {
-	var archivedAt *time.Time
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT archived_at FROM journals WHERE id = $1`, id).Scan(&archivedAt)
+	archivedAt, err := genQueries(r.db, tx).GetJournalArchivedAt(ctx, id)
 	if err != nil {
 		return false, fmt.Errorf("check archived: %w", err)
 	}
-	return archivedAt != nil, nil
+
+	return archivedAt.Valid, nil
 }
 
 func (r *journalDAO) CountUserJournalsToday(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) (int, error) {
-	var count int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM journals WHERE user_id = $1 AND created_at >= NOW() - INTERVAL '1 day'`,
-		userID,
-	).Scan(&count)
+	count, err := genQueries(r.db, tx).CountUserJournalsToday(ctx, userID)
 	if err != nil {
 		return 0, fmt.Errorf("count user journals today: %w", err)
 	}
-	return count, nil
+
+	return int(count), nil
 }
 
 func (r *journalDAO) UpdateLastAuthorActivity(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE journals SET last_author_activity_at = NOW(), archived_at = NULL WHERE id = $1`,
-		id,
-	)
-	if err != nil {
+	if err := genQueries(r.db, tx).UpdateJournalLastAuthorActivity(ctx, id); err != nil {
 		return fmt.Errorf("update last author activity: %w", err)
 	}
+
 	return nil
 }
 
 func (r *journalDAO) ArchiveStale(ctx context.Context, cutoff time.Time, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`UPDATE journals SET archived_at = NOW()
-		 WHERE archived_at IS NULL AND paused_at IS NULL AND last_author_activity_at < $1
-		 RETURNING id`,
-		cutoff,
-	)
+	ids, err := genQueries(r.db, tx).ArchiveStaleJournals(ctx, cutoff)
 	if err != nil {
 		return nil, fmt.Errorf("archive stale journals: %w", err)
 	}
 
-	return utils.ScanIDs(rows, "stale journal id")
+	return ids, nil
 }
 
 func (r *journalDAO) SetPaused(ctx context.Context, s spec.JournalPause, tx ...*sql.Tx) error {
-	var pausedAt any
-	if s.Paused {
-		pausedAt = time.Now().UTC()
-	}
-
-	res, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE journals SET paused_at = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3`,
-		pausedAt, s.ID, s.UserID,
-	)
+	affected, err := genQueries(r.db, tx).SetJournalPaused(ctx, sqlcgen.SetJournalPausedParams{
+		PausedAt: sql.NullTime{Time: time.Now().UTC(), Valid: s.Paused},
+		ID:       s.ID,
+		UserID:   s.UserID,
+	})
 	if err != nil {
 		return fmt.Errorf("set journal paused: %w", err)
 	}
 
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("set journal paused rows affected: %w", err)
-	}
 	if affected == 0 {
 		return fmt.Errorf("journal not found or not owned")
 	}
@@ -415,395 +440,329 @@ func (r *journalDAO) SetPaused(ctx context.Context, s spec.JournalPause, tx ...*
 }
 
 func (r *journalDAO) Follow(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`INSERT INTO journal_follows (user_id, journal_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		s.UserID, s.JournalID,
-	)
+	err := genQueries(r.db, tx).FollowJournal(ctx, sqlcgen.FollowJournalParams{
+		UserID:    s.UserID,
+		JournalID: s.JournalID,
+	})
 	if err != nil {
 		return fmt.Errorf("follow journal: %w", err)
 	}
+
 	return nil
 }
 
 func (r *journalDAO) Unfollow(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`DELETE FROM journal_follows WHERE user_id = $1 AND journal_id = $2`,
-		s.UserID, s.JournalID,
-	)
+	err := genQueries(r.db, tx).UnfollowJournal(ctx, sqlcgen.UnfollowJournalParams{
+		UserID:    s.UserID,
+		JournalID: s.JournalID,
+	})
 	if err != nil {
 		return fmt.Errorf("unfollow journal: %w", err)
 	}
+
 	return nil
 }
 
 func (r *journalDAO) IsFollower(ctx context.Context, s spec.JournalFollow, tx ...*sql.Tx) (bool, error) {
-	var exists bool
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT EXISTS(SELECT 1 FROM journal_follows WHERE user_id = $1 AND journal_id = $2)`,
-		s.UserID, s.JournalID,
-	).Scan(&exists)
+	exists, err := genQueries(r.db, tx).IsJournalFollower(ctx, sqlcgen.IsJournalFollowerParams{
+		UserID:    s.UserID,
+		JournalID: s.JournalID,
+	})
 	if err != nil {
 		return false, fmt.Errorf("check journal follower: %w", err)
 	}
+
 	return exists, nil
 }
 
 func (r *journalDAO) GetFollowerIDs(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT user_id FROM journal_follows WHERE journal_id = $1`,
-		journalID,
-	)
+	ids, err := genQueries(r.db, tx).GetJournalFollowerIDs(ctx, journalID)
 	if err != nil {
 		return nil, fmt.Errorf("get follower ids: %w", err)
 	}
-	return utils.ScanIDs(rows, "follower id")
+
+	return ids, nil
 }
 
 func (r *journalDAO) GetFollowerCount(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) (int, error) {
-	var count int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM journal_follows WHERE journal_id = $1`,
-		journalID,
-	).Scan(&count)
+	count, err := genQueries(r.db, tx).GetJournalFollowerCount(ctx, journalID)
 	if err != nil {
 		return 0, fmt.Errorf("get follower count: %w", err)
 	}
-	return count, nil
+
+	return int(count), nil
 }
 
 func (r *journalDAO) ListFollowedByUser(ctx context.Context, q spec.JournalFollowedQuery, tx ...*sql.Tx) ([]dto.JournalResponse, int, error) {
-	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM journal_follows WHERE user_id = $1`, q.FollowerID,
-	).Scan(&total); err != nil {
+	queries := genQueries(r.db, tx)
+
+	total, err := queries.CountFollowedJournals(ctx, q.FollowerID)
+	if err != nil {
 		return nil, 0, fmt.Errorf("count followed journals: %w", err)
 	}
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		journalSelectBase+`
-		JOIN journal_follows jf ON jf.journal_id = j.id
-		WHERE jf.user_id = $1
-		ORDER BY jf.created_at DESC
-		LIMIT $2 OFFSET $3`,
-		q.FollowerID, q.Limit, q.Offset,
-	)
+	rows, err := queries.ListFollowedJournals(ctx, sqlcgen.ListFollowedJournalsParams{
+		UserID: q.FollowerID,
+		Limit:  int32(q.Limit),
+		Offset: int32(q.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list followed journals: %w", err)
 	}
-	defer rows.Close()
 
 	var journals []dto.JournalResponse
-	for rows.Next() {
-		j, err := scanJournalRow(ctx, rows, q.ViewerID, txOrDB(r.db, tx))
-		if err != nil {
-			return nil, 0, fmt.Errorf("scan followed journal: %w", err)
+	for _, row := range rows {
+		journal := toJournalResponse(journalJoinRow(row))
+		if err := applyJournalViewerFollow(ctx, queries, &journal, q.ViewerID); err != nil {
+			return nil, 0, err
 		}
-		journals = append(journals, *j)
+
+		journals = append(journals, journal)
 	}
-	return journals, total, rows.Err()
+
+	return journals, int(total), nil
 }
 
 func (r *journalDAO) CreateEntry(ctx context.Context, s spec.NewJournalEntry, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
-	var e model.JournalEntryRow
-	var createdAt time.Time
-	var updatedAt *time.Time
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`INSERT INTO journal_entries (journal_id, entry_number, title, body, word_count, is_draft)
-		 VALUES ($1, $2, $3, $4, $5, $6)
-		 RETURNING id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at`,
-		s.JournalID, s.EntryNumber, s.Title, s.Body, s.WordCount, s.IsDraft,
-	).Scan(&e.ID, &e.JournalID, &e.EntryNumber, &e.Title, &e.Body, &e.WordCount, &e.IsDraft, &createdAt, &updatedAt)
+	created, err := genQueries(r.db, tx).CreateJournalEntry(ctx, sqlcgen.CreateJournalEntryParams{
+		JournalID:   s.JournalID,
+		EntryNumber: int32(s.EntryNumber),
+		Title:       journalNullString(s.Title),
+		Body:        s.Body,
+		WordCount:   int32(s.WordCount),
+		IsDraft:     s.IsDraft,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create journal entry: %w", err)
 	}
 
-	e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	e.UpdatedAt = timePtrToString(updatedAt)
-
-	return &e, nil
+	return new(toJournalEntryRow(journalEntryJoinRow(created))), nil
 }
 
 func (r *journalDAO) UpdateEntry(ctx context.Context, s spec.JournalEntryUpdate, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE journal_entries SET title = $1, body = $2, word_count = $3, is_draft = $4, updated_at = NOW() WHERE id = $5`,
-		s.Title, s.Body, s.WordCount, s.IsDraft, s.ID,
-	)
+	n, err := genQueries(r.db, tx).UpdateJournalEntry(ctx, sqlcgen.UpdateJournalEntryParams{
+		Title:     journalNullString(s.Title),
+		Body:      s.Body,
+		WordCount: int32(s.WordCount),
+		IsDraft:   s.IsDraft,
+		ID:        s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("update journal entry: %w", err)
 	}
-	n, _ := res.RowsAffected()
+
 	if n == 0 {
 		return fmt.Errorf("entry not found")
 	}
+
 	return nil
 }
 
 func (r *journalDAO) DeleteEntry(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	res, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM journal_entries WHERE id = $1`, id)
+	n, err := genQueries(r.db, tx).DeleteJournalEntry(ctx, id)
 	if err != nil {
 		return fmt.Errorf("delete journal entry: %w", err)
 	}
-	n, _ := res.RowsAffected()
+
 	if n == 0 {
 		return fmt.Errorf("entry not found")
 	}
+
 	return nil
 }
 
 func (r *journalDAO) GetEntry(ctx context.Context, s spec.JournalEntryLookup, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
-	var e model.JournalEntryRow
-	var createdAt time.Time
-	var updatedAt *time.Time
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at,
-			EXISTS(SELECT 1 FROM journal_entries WHERE journal_id = $1 AND entry_number < $2 AND NOT is_draft),
-			EXISTS(SELECT 1 FROM journal_entries WHERE journal_id = $1 AND entry_number > $2 AND NOT is_draft)
-		FROM journal_entries
-		WHERE journal_id = $1 AND entry_number = $2`,
-		s.JournalID, s.EntryNumber,
-	).Scan(&e.ID, &e.JournalID, &e.EntryNumber, &e.Title, &e.Body, &e.WordCount, &e.IsDraft, &createdAt, &updatedAt, &e.HasPrev, &e.HasNext)
+	row, err := genQueries(r.db, tx).GetJournalEntry(ctx, sqlcgen.GetJournalEntryParams{
+		JournalID:   s.JournalID,
+		EntryNumber: int32(s.EntryNumber),
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get journal entry: %w", err)
 	}
-	e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	e.UpdatedAt = timePtrToString(updatedAt)
-	return &e, nil
+
+	entry := toJournalEntryRow(journalEntryJoinRow{
+		ID:          row.ID,
+		JournalID:   row.JournalID,
+		EntryNumber: row.EntryNumber,
+		Title:       row.Title,
+		Body:        row.Body,
+		WordCount:   row.WordCount,
+		IsDraft:     row.IsDraft,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+	})
+	entry.HasPrev = row.HasPrev
+	entry.HasNext = row.HasNext
+
+	return &entry, nil
 }
 
 func (r *journalDAO) GetEntryByID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (*model.JournalEntryRow, error) {
-	var e model.JournalEntryRow
-	var createdAt time.Time
-	var updatedAt *time.Time
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT id, journal_id, entry_number, title, body, word_count, is_draft, created_at, updated_at
-		FROM journal_entries
-		WHERE id = $1`,
-		entryID,
-	).Scan(&e.ID, &e.JournalID, &e.EntryNumber, &e.Title, &e.Body, &e.WordCount, &e.IsDraft, &createdAt, &updatedAt)
+	row, err := genQueries(r.db, tx).GetJournalEntryByID(ctx, entryID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get journal entry by id: %w", err)
 	}
-	e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	e.UpdatedAt = timePtrToString(updatedAt)
-	return &e, nil
+
+	return new(toJournalEntryRow(row)), nil
 }
 
 func (r *journalDAO) ListEntries(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) ([]model.JournalEntrySummaryRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, entry_number, title, word_count, is_draft, created_at FROM journal_entries WHERE journal_id = $1 ORDER BY entry_number DESC`,
-		journalID,
-	)
+	rows, err := genQueries(r.db, tx).ListJournalEntries(ctx, journalID)
 	if err != nil {
 		return nil, fmt.Errorf("list journal entries: %w", err)
 	}
-	defer rows.Close()
 
 	var entries []model.JournalEntrySummaryRow
-	for rows.Next() {
-		var e model.JournalEntrySummaryRow
-		var createdAt time.Time
-		if err := rows.Scan(&e.ID, &e.EntryNumber, &e.Title, &e.WordCount, &e.IsDraft, &createdAt); err != nil {
-			return nil, fmt.Errorf("scan entry summary: %w", err)
-		}
-		e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		entries = append(entries, e)
+	for _, row := range rows {
+		entries = append(entries, model.JournalEntrySummaryRow{
+			ID:          row.ID,
+			EntryNumber: int(row.EntryNumber),
+			Title:       journalStringPtr(row.Title),
+			WordCount:   int(row.WordCount),
+			IsDraft:     row.IsDraft,
+			CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
+		})
 	}
-	return entries, rows.Err()
+
+	return entries, nil
 }
 
 func (r *journalDAO) GetNextEntryNumber(ctx context.Context, journalID uuid.UUID, tx ...*sql.Tx) (int, error) {
-	var next int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COALESCE(MAX(entry_number), 0) + 1 FROM journal_entries WHERE journal_id = $1`,
-		journalID,
-	).Scan(&next)
+	next, err := genQueries(r.db, tx).GetNextJournalEntryNumber(ctx, journalID)
 	if err != nil {
 		return 0, fmt.Errorf("get next entry number: %w", err)
 	}
-	return next, nil
+
+	return int(next), nil
 }
 
 func (r *journalDAO) GetEntryJournalID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var id uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT journal_id FROM journal_entries WHERE id = $1`, entryID).Scan(&id)
+	id, err := genQueries(r.db, tx).GetJournalEntryJournalID(ctx, entryID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get entry journal id: %w", err)
 	}
+
 	return id, nil
 }
 
 func (r *journalDAO) GetEntryAuthorID(ctx context.Context, entryID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
-	var userID uuid.UUID
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT j.user_id FROM journal_entries e JOIN journals j ON j.id = e.journal_id WHERE e.id = $1`,
-		entryID,
-	).Scan(&userID)
+	userID, err := genQueries(r.db, tx).GetJournalEntryAuthorID(ctx, entryID)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get entry author id: %w", err)
 	}
+
 	return userID, nil
 }
 
 func (r *journalDAO) CreateComment(ctx context.Context, s spec.NewJournalComment, tx ...*sql.Tx) (*model.CommentRow, error) {
-	var c model.CommentRow
-	var createdAt time.Time
-	var updatedAt *time.Time
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`WITH c AS (
-		     INSERT INTO journal_comments (journal_id, entry_id, parent_id, user_id, body)
-		     VALUES ($1, $2, $3, $4, $5)
-		     RETURNING *
-		 )
-		 SELECT c.id, c.journal_id::text, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-		        u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), (u.banned_at IS NOT NULL),
-		        0, FALSE
-		 FROM c
-		 JOIN users u ON u.id = c.user_id
-		 LEFT JOIN user_roles r ON r.user_id = c.user_id`,
-		s.JournalID, s.EntryID, s.ParentID, s.UserID, s.Body,
-	).Scan(
-		&c.ID, &c.EntityID, &c.EntryID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
-		&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole, &c.AuthorBanned,
-		&c.LikeCount, &c.UserLiked,
-	)
+	created, err := genQueries(r.db, tx).CreateJournalCommentWithEntry(ctx, sqlcgen.CreateJournalCommentWithEntryParams{
+		JournalID: s.JournalID,
+		EntryID:   s.EntryID,
+		ParentID:  s.ParentID,
+		UserID:    s.UserID,
+		Body:      s.Body,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("create journal comment: %w", err)
 	}
 
-	c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	c.UpdatedAt = timePtrToString(updatedAt)
+	comment := toJournalCommentRow(journalCommentJoinRow{
+		ID:          created.ID,
+		EntityID:    created.EntityID,
+		EntryID:     created.EntryID,
+		ParentID:    created.ParentID,
+		UserID:      created.UserID,
+		Body:        created.Body,
+		CreatedAt:   created.CreatedAt,
+		UpdatedAt:   created.UpdatedAt,
+		Username:    created.Username,
+		DisplayName: created.DisplayName,
+		AvatarUrl:   created.AvatarUrl,
+		AuthorRole:  created.AuthorRole,
+		LikeCount:   created.LikeCount,
+		UserLiked:   created.UserLiked,
+	})
+	comment.AuthorBanned = created.AuthorBanned
 
-	return &c, nil
+	return &comment, nil
 }
 
 func (r *journalDAO) GetComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
-	exclSQL, exclArgs := ExcludeClause("user_id", q.ExcludeUserIDs, 2)
-	var total int
-	countArgs := []any{q.TargetID}
-	countArgs = append(countArgs, exclArgs...)
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM journal_comments WHERE journal_id = $1 AND entry_id IS NULL`+exclSQL,
-		countArgs...,
-	).Scan(&total); err != nil {
+	queries := genQueries(r.db, tx)
+	exclude := joinUUIDs(q.ExcludeUserIDs)
+
+	total, err := queries.CountJournalRootComments(ctx, sqlcgen.CountJournalRootCommentsParams{
+		JournalID: q.TargetID,
+		Column2:   exclude,
+	})
+	if err != nil {
 		return nil, 0, fmt.Errorf("count journal comments: %w", err)
 	}
 
-	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", q.ExcludeUserIDs, 3)
-	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
-	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
-	queryArgs := []any{q.ViewerID, q.TargetID}
-	queryArgs = append(queryArgs, exclArgs2...)
-	queryArgs = append(queryArgs, q.Limit, q.Offset)
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT c.id, c.journal_id::text, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM journal_comment_likes WHERE comment_id = c.id),
-			EXISTS(SELECT 1 FROM journal_comment_likes WHERE comment_id = c.id AND user_id = $1)
-		FROM journal_comments c
-		JOIN users u ON c.user_id = u.id
-		LEFT JOIN user_roles r ON r.user_id = c.user_id
-		WHERE c.journal_id = $2 AND c.entry_id IS NULL`+exclSQL2+`
-		ORDER BY c.created_at ASC
-		LIMIT `+limitPH+` OFFSET `+offsetPH,
-		queryArgs...,
-	)
+	rows, err := queries.ListJournalRootComments(ctx, sqlcgen.ListJournalRootCommentsParams{
+		UserID:    q.ViewerID,
+		JournalID: q.TargetID,
+		Column3:   exclude,
+		Limit:     int32(q.Limit),
+		Offset:    int32(q.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("get journal comments: %w", err)
 	}
-	defer rows.Close()
 
-	comments, err := scanJournalCommentRows(rows)
-	if err != nil {
-		return nil, 0, err
+	var comments []model.CommentRow
+	for _, row := range rows {
+		comments = append(comments, toJournalCommentRow(row))
 	}
-	return comments, total, rows.Err()
+
+	return comments, int(total), nil
 }
 
 func (r *journalDAO) GetEntryComments(ctx context.Context, q spec.CommentQuery[uuid.UUID], tx ...*sql.Tx) ([]model.CommentRow, int, error) {
-	exclSQL, exclArgs := ExcludeClause("user_id", q.ExcludeUserIDs, 2)
-	var total int
-	countArgs := []any{q.TargetID}
-	countArgs = append(countArgs, exclArgs...)
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM journal_comments WHERE entry_id = $1`+exclSQL,
-		countArgs...,
-	).Scan(&total); err != nil {
+	queries := genQueries(r.db, tx)
+	exclude := joinUUIDs(q.ExcludeUserIDs)
+
+	total, err := queries.CountJournalEntryComments(ctx, sqlcgen.CountJournalEntryCommentsParams{
+		Column1: q.TargetID,
+		Column2: exclude,
+	})
+	if err != nil {
 		return nil, 0, fmt.Errorf("count entry comments: %w", err)
 	}
 
-	exclSQL2, exclArgs2 := ExcludeClause("c.user_id", q.ExcludeUserIDs, 3)
-	limitPH := fmt.Sprintf("$%d", 3+len(exclArgs2))
-	offsetPH := fmt.Sprintf("$%d", 4+len(exclArgs2))
-	queryArgs := []any{q.ViewerID, q.TargetID}
-	queryArgs = append(queryArgs, exclArgs2...)
-	queryArgs = append(queryArgs, q.Limit, q.Offset)
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT c.id, c.journal_id::text, c.entry_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM journal_comment_likes WHERE comment_id = c.id),
-			EXISTS(SELECT 1 FROM journal_comment_likes WHERE comment_id = c.id AND user_id = $1)
-		FROM journal_comments c
-		JOIN users u ON c.user_id = u.id
-		LEFT JOIN user_roles r ON r.user_id = c.user_id
-		WHERE c.entry_id = $2`+exclSQL2+`
-		ORDER BY c.created_at ASC
-		LIMIT `+limitPH+` OFFSET `+offsetPH,
-		queryArgs...,
-	)
+	rows, err := queries.ListJournalEntryComments(ctx, sqlcgen.ListJournalEntryCommentsParams{
+		UserID:  q.ViewerID,
+		Column2: q.TargetID,
+		Column3: exclude,
+		Limit:   int32(q.Limit),
+		Offset:  int32(q.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("get entry comments: %w", err)
 	}
-	defer rows.Close()
 
-	comments, err := scanJournalCommentRows(rows)
-	if err != nil {
-		return nil, 0, err
-	}
-	return comments, total, rows.Err()
-}
-
-func scanJournalCommentRows(rows *sql.Rows) ([]model.CommentRow, error) {
 	var comments []model.CommentRow
-	for rows.Next() {
-		var c model.CommentRow
-		var createdAt time.Time
-		var updatedAt *time.Time
-		if err := rows.Scan(
-			&c.ID, &c.EntityID, &c.EntryID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
-			&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
-			&c.LikeCount, &c.UserLiked,
-		); err != nil {
-			return nil, fmt.Errorf("scan journal comment: %w", err)
-		}
-		c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		c.UpdatedAt = timePtrToString(updatedAt)
-		comments = append(comments, c)
+	for _, row := range rows {
+		comments = append(comments, toJournalCommentRow(journalCommentJoinRow(row)))
 	}
-	return comments, nil
+
+	return comments, int(total), nil
 }
 
 func (r *journalDAO) GetCommentEntryNumber(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (*int, error) {
-	var entryNumber *int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT e.entry_number
-		FROM journal_comments c
-		LEFT JOIN journal_entries e ON e.id = c.entry_id
-		WHERE c.id = $1`,
-		commentID,
-	).Scan(&entryNumber)
+	entryNumber, err := genQueries(r.db, tx).GetJournalCommentEntryNumber(ctx, commentID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get comment entry number: %w", err)
 	}
-	return entryNumber, nil
+
+	return journalIntPtr(entryNumber), nil
 }

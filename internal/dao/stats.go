@@ -5,15 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
-)
-
-const (
-	recentCountsQuery = `SELECT
-		COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '1 day'),
-		COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '7 days'),
-		COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '30 days')
-	 FROM %s`
 )
 
 type (
@@ -25,63 +18,75 @@ type (
 	statsDAO struct {
 		db *sql.DB
 	}
+
+	statsRecentRow = sqlcgen.StatsRecentUsersRow
 )
 
+func applyRecentCounts(row statsRecentRow, err error, day, week, month *int) {
+	if err != nil {
+		return
+	}
+
+	*day = int(row.DayCount)
+	*week = int(row.WeekCount)
+	*month = int(row.MonthCount)
+}
+
 func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*model.SiteStats, error) {
+	queries := genQueries(r.db, tx)
+
 	var s model.SiteStats
 
-	err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM users WHERE NOT is_bot`).Scan(&s.TotalUsers)
+	users, err := queries.StatsCountUsers(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count users: %w", err)
 	}
+	s.TotalUsers = int(users)
 
-	err = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM theories`).Scan(&s.TotalTheories)
+	theories, err := queries.StatsCountTheories(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count theories: %w", err)
 	}
+	s.TotalTheories = int(theories)
 
-	err = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM responses`).Scan(&s.TotalResponses)
+	responses, err := queries.StatsCountResponses(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count responses: %w", err)
 	}
+	s.TotalResponses = int(responses)
 
-	err = txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT (SELECT COUNT(*) FROM theory_votes) + (SELECT COUNT(*) FROM response_votes)`,
-	).Scan(&s.TotalVotes)
+	votes, err := queries.StatsCountVotes(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count votes: %w", err)
 	}
+	s.TotalVotes = int(votes)
 
-	_ = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM posts`).Scan(&s.TotalPosts)
-	_ = txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM post_comments`).Scan(&s.TotalComments)
-
-	recent := []struct {
-		from  string
-		day   *int
-		week  *int
-		month *int
-	}{
-		{"users WHERE NOT is_bot", &s.NewUsers24h, &s.NewUsers7d, &s.NewUsers30d},
-		{"theories", &s.NewTheories24h, &s.NewTheories7d, &s.NewTheories30d},
-		{"responses", &s.NewResponses24h, &s.NewResponses7d, &s.NewResponses30d},
-		{"posts", &s.NewPosts24h, &s.NewPosts7d, &s.NewPosts30d},
+	if posts, postsErr := queries.StatsCountPosts(ctx); postsErr == nil {
+		s.TotalPosts = int(posts)
 	}
 
-	for _, c := range recent {
-		_ = txOrDB(r.db, tx).QueryRowContext(ctx, fmt.Sprintf(recentCountsQuery, c.from)).
-			Scan(c.day, c.week, c.month)
+	if comments, commentsErr := queries.StatsCountComments(ctx); commentsErr == nil {
+		s.TotalComments = int(comments)
 	}
+
+	recentUsers, err := queries.StatsRecentUsers(ctx)
+	applyRecentCounts(recentUsers, err, &s.NewUsers24h, &s.NewUsers7d, &s.NewUsers30d)
+
+	recentTheories, err := queries.StatsRecentTheories(ctx)
+	applyRecentCounts(statsRecentRow(recentTheories), err, &s.NewTheories24h, &s.NewTheories7d, &s.NewTheories30d)
+
+	recentResponses, err := queries.StatsRecentResponses(ctx)
+	applyRecentCounts(statsRecentRow(recentResponses), err, &s.NewResponses24h, &s.NewResponses7d, &s.NewResponses30d)
+
+	recentPosts, err := queries.StatsRecentPosts(ctx)
+	applyRecentCounts(statsRecentRow(recentPosts), err, &s.NewPosts24h, &s.NewPosts7d, &s.NewPosts30d)
 
 	s.PostsByCorner = make(map[string]int)
-	cornerRows, err := txOrDB(r.db, tx).QueryContext(ctx, `SELECT corner, COUNT(*) FROM posts GROUP BY corner`)
+
+	corners, err := queries.StatsPostsByCorner(ctx)
 	if err == nil {
-		defer cornerRows.Close()
-		for cornerRows.Next() {
-			var corner string
-			var count int
-			if cornerRows.Scan(&corner, &count) == nil {
-				s.PostsByCorner[corner] = count
-			}
+		for _, row := range corners {
+			s.PostsByCorner[row.Corner] = int(row.PostCount)
 		}
 	}
 
@@ -89,34 +94,21 @@ func (r *statsDAO) GetOverview(ctx context.Context, tx ...*sql.Tx) (*model.SiteS
 }
 
 func (r *statsDAO) GetMostActiveUsers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.ActiveUser, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, COUNT(*) as action_count
-		 FROM (
-			SELECT user_id FROM theories
-			UNION ALL
-			SELECT user_id FROM responses
-			UNION ALL
-			SELECT user_id FROM posts
-			UNION ALL
-			SELECT user_id FROM post_comments
-		 ) actions
-		 JOIN users u ON actions.user_id = u.id
-		 GROUP BY u.id
-		 ORDER BY action_count DESC
-		 LIMIT $1`, limit,
-	)
+	rows, err := genQueries(r.db, tx).StatsMostActiveUsers(ctx, int32(limit))
 	if err != nil {
 		return nil, fmt.Errorf("most active users: %w", err)
 	}
-	defer rows.Close()
 
 	var users []model.ActiveUser
-	for rows.Next() {
-		var u model.ActiveUser
-		if err := rows.Scan(&u.ID, &u.Username, &u.DisplayName, &u.AvatarURL, &u.ActionCount); err != nil {
-			return nil, fmt.Errorf("scan active user: %w", err)
-		}
-		users = append(users, u)
+	for _, row := range rows {
+		users = append(users, model.ActiveUser{
+			ID:          row.ID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarUrl,
+			ActionCount: int(row.ActionCount),
+		})
 	}
-	return users, rows.Err()
+
+	return users, nil
 }

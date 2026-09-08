@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 
@@ -48,34 +48,30 @@ type (
 		db *sql.DB
 		*commentDAO[string]
 	}
+
+	secretCommentJoinRow = sqlcgen.GetSecretCommentWithLikesRow
 )
 
-func secretIDPlaceholders(ids []string, startIndex int) (string, []any) {
-	if len(ids) == 0 {
-		return "", nil
+func toSecretCommentRow(row secretCommentJoinRow) model.CommentRow {
+	return model.CommentRow{
+		ID:                row.ID,
+		EntityID:          row.EntityID,
+		ParentID:          row.ParentID,
+		UserID:            row.UserID,
+		Body:              row.Body,
+		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         nullTimeToStringPtr(row.UpdatedAt),
+		AuthorUsername:    row.Username,
+		AuthorDisplayName: row.DisplayName,
+		AuthorAvatarURL:   row.AvatarUrl,
+		AuthorRole:        row.AuthorRole,
+		LikeCount:         int(row.LikeCount),
+		UserLiked:         row.UserLiked,
 	}
-
-	placeholders, args := utils.PlaceholderArgs(ids, startIndex)
-
-	return strings.Join(placeholders, ","), args
 }
 
 func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*sql.Tx) (*model.SecretSolver, error) {
-	var (
-		s          model.SecretSolver
-		unlockedAt time.Time
-	)
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), us.unlocked_at
-		 FROM user_secrets us
-		 JOIN users u ON us.user_id = u.id
-		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE us.secret_id = $1
-		 ORDER BY us.unlocked_at ASC
-		 LIMIT 1`,
-		secretID,
-	).Scan(&s.UserID, &s.Username, &s.DisplayName, &s.AvatarURL, &s.Role, &unlockedAt)
+	row, err := genQueries(r.db, tx).GetFirstSecretSolver(ctx, secretID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -83,9 +79,14 @@ func (r *secretDAO) GetFirstSolver(ctx context.Context, secretID string, tx ...*
 		return nil, fmt.Errorf("get first solver: %w", err)
 	}
 
-	s.UnlockedAt = unlockedAt.UTC().Format(time.RFC3339)
-
-	return &s, nil
+	return &model.SecretSolver{
+		UserID:      row.ID,
+		Username:    row.Username,
+		DisplayName: row.DisplayName,
+		AvatarURL:   row.AvatarUrl,
+		Role:        row.AuthorRole,
+		UnlockedAt:  row.UnlockedAt.UTC().Format(time.RFC3339),
+	}, nil
 }
 
 func (r *secretDAO) GetProgressLeaderboard(ctx context.Context, pieceIDs []string, tx ...*sql.Tx) ([]model.SecretLeaderboardRow, error) {
@@ -93,34 +94,24 @@ func (r *secretDAO) GetProgressLeaderboard(ctx context.Context, pieceIDs []strin
 		return nil, nil
 	}
 
-	placeholders, args := secretIDPlaceholders(pieceIDs, 1)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''), COUNT(*) AS pieces
-		 FROM user_secrets us
-		 JOIN users u ON us.user_id = u.id
-		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE us.secret_id IN (`+placeholders+`)
-		 GROUP BY u.id, u.username, u.display_name, u.avatar_url, r.role
-		 ORDER BY pieces DESC, u.display_name ASC`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).GetSecretProgressLeaderboard(ctx, strings.Join(pieceIDs, ","))
 	if err != nil {
 		return nil, fmt.Errorf("leaderboard: %w", err)
 	}
-	defer rows.Close()
 
 	var result []model.SecretLeaderboardRow
-	for rows.Next() {
-		var row model.SecretLeaderboardRow
-		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.Pieces); err != nil {
-			return nil, fmt.Errorf("scan leaderboard row: %w", err)
-		}
-
-		result = append(result, row)
+	for _, row := range rows {
+		result = append(result, model.SecretLeaderboardRow{
+			UserID:      row.ID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarUrl,
+			Role:        row.AuthorRole,
+			Pieces:      int(row.Pieces),
+		})
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 func (r *secretDAO) GetPieceCountForUser(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (int, error) {
@@ -128,19 +119,15 @@ func (r *secretDAO) GetPieceCountForUser(ctx context.Context, s spec.SecretPiece
 		return 0, nil
 	}
 
-	placeholders, args := secretIDPlaceholders(s.PieceIDs, 2)
-	args = append([]any{s.UserID}, args...)
-
-	var count int
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM user_secrets WHERE user_id = $1 AND secret_id IN (`+placeholders+`)`,
-		args...,
-	).Scan(&count)
+	count, err := genQueries(r.db, tx).CountSecretPiecesForUser(ctx, sqlcgen.CountSecretPiecesForUserParams{
+		UserID:  s.UserID,
+		Column2: strings.Join(s.PieceIDs, ","),
+	})
 	if err != nil {
 		return 0, fmt.Errorf("count user pieces: %w", err)
 	}
 
-	return count, nil
+	return int(count), nil
 }
 
 func (r *secretDAO) GetSolversLeaderboard(ctx context.Context, parentSecretIDs []string, tx ...*sql.Tx) ([]model.SecretSolverRow, error) {
@@ -148,40 +135,25 @@ func (r *secretDAO) GetSolversLeaderboard(ctx context.Context, parentSecretIDs [
 		return nil, nil
 	}
 
-	placeholders, args := secretIDPlaceholders(parentSecretIDs, 1)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			COUNT(*) AS solved,
-			MAX(us.unlocked_at) AS last_solved
-		 FROM user_secrets us
-		 JOIN users u ON us.user_id = u.id
-		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE us.secret_id IN (`+placeholders+`)
-		 GROUP BY u.id, u.username, u.display_name, u.avatar_url, r.role
-		 ORDER BY solved DESC, last_solved ASC`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).GetSecretSolversLeaderboard(ctx, strings.Join(parentSecretIDs, ","))
 	if err != nil {
 		return nil, fmt.Errorf("solvers leaderboard: %w", err)
 	}
-	defer rows.Close()
 
 	var result []model.SecretSolverRow
-	for rows.Next() {
-		var (
-			row          model.SecretSolverRow
-			lastSolvedAt time.Time
-		)
-		if err := rows.Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.SolvedCount, &lastSolvedAt); err != nil {
-			return nil, fmt.Errorf("scan solver row: %w", err)
-		}
-
-		row.LastSolvedAt = lastSolvedAt.UTC().Format(time.RFC3339)
-		result = append(result, row)
+	for _, row := range rows {
+		result = append(result, model.SecretSolverRow{
+			UserID:       row.ID,
+			Username:     row.Username,
+			DisplayName:  row.DisplayName,
+			AvatarURL:    row.AvatarUrl,
+			Role:         row.AuthorRole,
+			SolvedCount:  int(row.Solved),
+			LastSolvedAt: row.LastSolved.UTC().Format(time.RFC3339),
+		})
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
 
 func (r *secretDAO) GetUserProgressSummary(ctx context.Context, s spec.SecretPieceCount, tx ...*sql.Tx) (*model.SecretLeaderboardRow, error) {
@@ -189,19 +161,10 @@ func (r *secretDAO) GetUserProgressSummary(ctx context.Context, s spec.SecretPie
 		return nil, nil
 	}
 
-	placeholders, args := secretIDPlaceholders(s.PieceIDs, 1)
-	userIDPH := fmt.Sprintf("$%d", len(s.PieceIDs)+1)
-	queryArgs := append(args, s.UserID)
-
-	var row model.SecretLeaderboardRow
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT u.id, u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM user_secrets us WHERE us.user_id = u.id AND us.secret_id IN (`+placeholders+`))
-		 FROM users u
-		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE u.id = `+userIDPH,
-		queryArgs...,
-	).Scan(&row.UserID, &row.Username, &row.DisplayName, &row.AvatarURL, &row.Role, &row.Pieces)
+	row, err := genQueries(r.db, tx).GetSecretUserProgressSummary(ctx, sqlcgen.GetSecretUserProgressSummaryParams{
+		Column1: strings.Join(s.PieceIDs, ","),
+		ID:      s.UserID,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -209,31 +172,18 @@ func (r *secretDAO) GetUserProgressSummary(ctx context.Context, s spec.SecretPie
 		return nil, fmt.Errorf("user progress summary: %w", err)
 	}
 
-	return &row, nil
+	return &model.SecretLeaderboardRow{
+		UserID:      row.ID,
+		Username:    row.Username,
+		DisplayName: row.DisplayName,
+		AvatarURL:   row.AvatarUrl,
+		Role:        row.AuthorRole,
+		Pieces:      int(row.Pieces),
+	}, nil
 }
 
 func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.CommentRow, error) {
-	var (
-		c         model.CommentRow
-		createdAt time.Time
-		updatedAt *time.Time
-	)
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT c.id, c.secret_id, c.parent_id, c.user_id, c.body, c.created_at, c.updated_at,
-			u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-			(SELECT COUNT(*) FROM secret_comment_likes WHERE comment_id = c.id),
-			FALSE
-		 FROM secret_comments c
-		 JOIN users u ON c.user_id = u.id
-		 LEFT JOIN user_roles r ON r.user_id = u.id
-		 WHERE c.id = $1`,
-		id,
-	).Scan(
-		&c.ID, &c.EntityID, &c.ParentID, &c.UserID, &c.Body, &createdAt, &updatedAt,
-		&c.AuthorUsername, &c.AuthorDisplayName, &c.AuthorAvatarURL, &c.AuthorRole,
-		&c.LikeCount, &c.UserLiked,
-	)
+	row, err := genQueries(r.db, tx).GetSecretCommentWithLikes(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -241,37 +191,32 @@ func (r *secretDAO) GetCommentByID(ctx context.Context, id uuid.UUID, tx ...*sql
 		return nil, fmt.Errorf("get secret comment by id: %w", err)
 	}
 
-	c.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	c.UpdatedAt = timePtrToString(updatedAt)
-
-	return &c, nil
+	return new(toSecretCommentRow(row)), nil
 }
 
 func (r *secretDAO) GetCommenterIDs(ctx context.Context, secretID string, tx ...*sql.Tx) ([]uuid.UUID, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT DISTINCT user_id FROM secret_comments WHERE secret_id = $1`,
-		secretID,
-	)
+	ids, err := genQueries(r.db, tx).GetSecretCommenterIDs(ctx, secretID)
 	if err != nil {
 		return nil, fmt.Errorf("list commenter ids: %w", err)
 	}
 
-	return utils.ScanIDs(rows, "commenter id")
+	return ids, nil
 }
 
 func (r *secretDAO) CountCommentsBySecret(ctx context.Context, secretIDs []string, tx ...*sql.Tx) (map[string]int, error) {
+	counts := make(map[string]int)
 	if len(secretIDs) == 0 {
-		return make(map[string]int), nil
+		return counts, nil
 	}
 
-	placeholders, args := secretIDPlaceholders(secretIDs, 1)
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT secret_id, COUNT(*) FROM secret_comments WHERE secret_id IN (`+placeholders+`) GROUP BY secret_id`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).CountSecretCommentsBySecretIDs(ctx, strings.Join(secretIDs, ","))
 	if err != nil {
 		return nil, fmt.Errorf("count secret comments: %w", err)
 	}
 
-	return utils.ScanMap[string, int](rows, "secret comment count")
+	for _, row := range rows {
+		counts[row.SecretID] = int(row.CommentCount)
+	}
+
+	return counts, nil
 }

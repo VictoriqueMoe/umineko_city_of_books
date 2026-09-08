@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
@@ -24,219 +26,133 @@ type (
 	}
 )
 
-const homeActivitySQL = `
-WITH feed AS (
-    SELECT 'theory' AS kind, t.id AS id, t.title AS title, substr(t.body, 1, 200) AS body,
-           t.series AS corner, t.created_at AS created_at, t.user_id AS author_id
-    FROM theories t
-    UNION ALL
-    SELECT 'post' AS kind, p.id AS id, '' AS title, substr(p.body, 1, 200) AS body,
-           p.corner AS corner, p.created_at AS created_at, p.user_id AS author_id
-    FROM posts p
-    UNION ALL
-    SELECT 'journal' AS kind, j.id AS id, j.title AS title,
-           substr(COALESCE((SELECT body FROM journal_entries WHERE journal_id = j.id AND NOT is_draft ORDER BY entry_number DESC LIMIT 1), ''), 1, 200) AS body,
-           j.work AS corner, j.created_at AS created_at, j.user_id AS author_id
-    FROM journals j
-    WHERE j.archived_at IS NULL
-    UNION ALL
-    SELECT 'art' AS kind, a.id AS id, a.title AS title, substr(a.description, 1, 200) AS body,
-           a.corner AS corner, a.created_at AS created_at, a.user_id AS author_id
-    FROM art a
-)
-SELECT f.kind, f.id, f.title, f.body, f.corner, f.created_at,
-       f.author_id, u.username, u.display_name, u.avatar_url
-FROM feed f
-JOIN users u ON u.id = f.author_id
-WHERE u.banned_at IS NULL
-ORDER BY f.created_at DESC
-LIMIT $1
-`
-
 func (r *homeFeedDAO) ListRecentActivity(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeActivityRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeActivitySQL, limit)
+	rows, err := genQueries(r.db, tx).ListHomeRecentActivity(ctx, int32(limit))
 	if err != nil {
 		return nil, fmt.Errorf("home feed activity: %w", err)
 	}
-	defer rows.Close()
 
 	var out []model.HomeActivityRow
-	for rows.Next() {
-		var row model.HomeActivityRow
-		if err := rows.Scan(&row.Kind, &row.ID, &row.Title, &row.Body, &row.Corner, &row.CreatedAt,
-			&row.AuthorID, &row.Username, &row.DisplayName, &row.AvatarURL); err != nil {
-			return nil, fmt.Errorf("scan home activity: %w", err)
-		}
-		out = append(out, row)
+	for _, row := range rows {
+		out = append(out, model.HomeActivityRow{
+			Kind:        row.Kind,
+			ID:          row.ID,
+			Title:       row.Title,
+			Body:        row.Body,
+			Corner:      row.Corner,
+			CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
+			AuthorID:    row.AuthorID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarUrl,
+		})
 	}
-	return out, rows.Err()
+
+	return out, nil
 }
-
-func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeMemberRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, username, display_name, avatar_url, created_at
-		 FROM users
-		 WHERE banned_at IS NULL AND NOT is_bot
-		 ORDER BY created_at DESC
-		 LIMIT $1`, limit,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("home feed members: %w", err)
-	}
-	defer rows.Close()
-
-	var out []model.HomeMemberRow
-	for rows.Next() {
-		var m model.HomeMemberRow
-		if err := rows.Scan(&m.ID, &m.Username, &m.DisplayName, &m.AvatarURL, &m.CreatedAt); err != nil {
-			return nil, fmt.Errorf("scan home member: %w", err)
-		}
-		out = append(out, m)
-	}
-	return out, rows.Err()
-}
-
-func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]model.HomeCornerActivityRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT p.corner,
-		        COUNT(*) AS post_count,
-		        COUNT(DISTINCT p.user_id) AS unique_posters,
-		        MAX(p.created_at) AS last_post_at
-		 FROM posts p
-		 JOIN users u ON u.id = p.user_id
-		 WHERE p.created_at > NOW() - INTERVAL '1 day' AND u.banned_at IS NULL
-		 GROUP BY p.corner`,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("home feed corner activity: %w", err)
-	}
-	defer rows.Close()
-
-	var out []model.HomeCornerActivityRow
-	for rows.Next() {
-		var c model.HomeCornerActivityRow
-		if err := rows.Scan(&c.Corner, &c.PostCount, &c.UniquePosters, &c.LastPostAt); err != nil {
-			return nil, fmt.Errorf("scan corner activity: %w", err)
-		}
-		out = append(out, c)
-	}
-	return out, rows.Err()
-}
-
-const sidebarActivitySQL = `
-SELECT 'game_board_' || corner AS key, MAX(created_at) AS latest_at FROM posts GROUP BY corner
-UNION ALL
-SELECT 'gallery_' || corner AS key, MAX(created_at) AS latest_at FROM art GROUP BY corner
-UNION ALL
-SELECT 'theories_' || series AS key, MAX(created_at) AS latest_at FROM theories GROUP BY series
-UNION ALL
-SELECT 'mysteries' AS key, MAX(created_at) AS latest_at FROM mysteries
-UNION ALL
-SELECT 'secrets' AS key, MAX(created_at) AS latest_at FROM secret_comments
-UNION ALL
-SELECT 'ships' AS key, MAX(created_at) AS latest_at FROM ships
-UNION ALL
-SELECT 'fanfiction' AS key, MAX(created_at) AS latest_at FROM fanfics
-UNION ALL
-SELECT 'journals' AS key, MAX(created_at) AS latest_at FROM journals WHERE archived_at IS NULL
-UNION ALL
-SELECT 'rooms' AS key, MAX(created_at) AS latest_at FROM chat_rooms WHERE type = 'group' AND is_public = TRUE AND is_system = FALSE
-`
-
-func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]model.SidebarActivityEntry, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sidebarActivitySQL)
-	if err != nil {
-		return nil, fmt.Errorf("sidebar activity: %w", err)
-	}
-	defer rows.Close()
-
-	var out []model.SidebarActivityEntry
-	for rows.Next() {
-		var key string
-		var latest sql.NullString
-		if err := rows.Scan(&key, &latest); err != nil {
-			return nil, fmt.Errorf("scan sidebar activity: %w", err)
-		}
-		if !latest.Valid {
-			continue
-		}
-		out = append(out, model.SidebarActivityEntry{Key: key, LatestAt: latest.String})
-	}
-	return out, rows.Err()
-}
-
-func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomePublicRoomRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT cr.id, cr.name, cr.description,
-		        (SELECT COUNT(*) FROM chat_room_members m WHERE m.room_id = cr.id) AS member_count,
-		        cr.last_message_at
-		 FROM chat_rooms cr
-		 WHERE cr.type = 'group' AND cr.is_public = TRUE AND cr.is_system = FALSE AND cr.archived_at IS NULL
-		 ORDER BY COALESCE(cr.last_message_at, cr.created_at) DESC
-		 LIMIT $1`, limit,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("home feed public rooms: %w", err)
-	}
-	defer rows.Close()
-
-	var out []model.HomePublicRoomRow
-	for rows.Next() {
-		var rr model.HomePublicRoomRow
-		if err := rows.Scan(&rr.ID, &rr.Name, &rr.Description, &rr.MemberCount, &rr.LastMessageAt); err != nil {
-			return nil, fmt.Errorf("scan public room: %w", err)
-		}
-		out = append(out, rr)
-	}
-	return out, rows.Err()
-}
-
-const homeEchoSQL = `
-WITH feed AS (
-    SELECT 'theory' AS kind, t.id AS id, t.title AS title, substr(t.body, 1, 200) AS body,
-           t.series AS corner, t.episode AS episode, FALSE AS is_spoiler, t.created_at AS created_at, t.user_id AS author_id
-    FROM theories t
-    UNION ALL
-    SELECT 'post' AS kind, p.id AS id, '' AS title, substr(p.body, 1, 200) AS body,
-           p.corner AS corner, 0 AS episode, FALSE AS is_spoiler, p.created_at AS created_at, p.user_id AS author_id
-    FROM posts p
-    UNION ALL
-    SELECT 'journal' AS kind, j.id AS id, j.title AS title,
-           substr(COALESCE((SELECT body FROM journal_entries WHERE journal_id = j.id AND NOT is_draft ORDER BY entry_number DESC LIMIT 1), ''), 1, 200) AS body,
-           j.work AS corner, 0 AS episode, FALSE AS is_spoiler, j.created_at AS created_at, j.user_id AS author_id
-    FROM journals j
-    WHERE j.archived_at IS NULL
-    UNION ALL
-    SELECT 'art' AS kind, a.id AS id, a.title AS title, substr(a.description, 1, 200) AS body,
-           a.corner AS corner, 0 AS episode, a.is_spoiler AS is_spoiler, a.created_at AS created_at, a.user_id AS author_id
-    FROM art a
-)
-SELECT f.kind, f.id, f.title, f.body, f.corner, f.episode, f.is_spoiler, f.created_at,
-       f.author_id, u.username, u.display_name, u.avatar_url
-FROM feed f
-JOIN users u ON u.id = f.author_id
-WHERE u.banned_at IS NULL AND NOT u.is_bot AND u.echoes_enabled
-  AND f.created_at >= (CURRENT_DATE - $1::interval)
-  AND f.created_at < (CURRENT_DATE - $1::interval + INTERVAL '1 day')
-ORDER BY f.created_at DESC
-LIMIT $2
-`
 
 func (r *homeFeedDAO) ListEchoes(ctx context.Context, q spec.HomeEchoQuery, tx ...*sql.Tx) ([]model.HomeEchoRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, homeEchoSQL, q.Ago, q.Limit)
+	rows, err := genQueries(r.db, tx).ListHomeEchoes(ctx, sqlcgen.ListHomeEchoesParams{
+		Ago:      q.Ago,
+		RowLimit: int32(q.Limit),
+	})
 	if err != nil {
 		return nil, fmt.Errorf("home feed echoes: %w", err)
 	}
-	defer rows.Close()
 
 	var out []model.HomeEchoRow
-	for rows.Next() {
-		var row model.HomeEchoRow
-		if err := rows.Scan(&row.Kind, &row.ID, &row.Title, &row.Body, &row.Corner, &row.Episode, &row.IsSpoiler, &row.CreatedAt,
-			&row.AuthorID, &row.Username, &row.DisplayName, &row.AvatarURL); err != nil {
-			return nil, fmt.Errorf("scan home echo: %w", err)
-		}
-		out = append(out, row)
+	for _, row := range rows {
+		out = append(out, model.HomeEchoRow{
+			Kind:        row.Kind,
+			ID:          row.ID,
+			Title:       row.Title,
+			Body:        row.Body,
+			Corner:      row.Corner,
+			Episode:     int(row.Episode),
+			IsSpoiler:   row.IsSpoiler,
+			CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
+			AuthorID:    row.AuthorID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarUrl,
+		})
 	}
-	return out, rows.Err()
+
+	return out, nil
+}
+
+func (r *homeFeedDAO) ListRecentMembers(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomeMemberRow, error) {
+	rows, err := genQueries(r.db, tx).ListHomeRecentMembers(ctx, int32(limit))
+	if err != nil {
+		return nil, fmt.Errorf("home feed members: %w", err)
+	}
+
+	var out []model.HomeMemberRow
+	for _, row := range rows {
+		out = append(out, model.HomeMemberRow{
+			ID:          row.ID,
+			Username:    row.Username,
+			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarUrl,
+			CreatedAt:   row.CreatedAt.UTC().Format(time.RFC3339),
+		})
+	}
+
+	return out, nil
+}
+
+func (r *homeFeedDAO) ListCornerActivity24h(ctx context.Context, tx ...*sql.Tx) ([]model.HomeCornerActivityRow, error) {
+	rows, err := genQueries(r.db, tx).ListHomeCornerActivity24h(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("home feed corner activity: %w", err)
+	}
+
+	var out []model.HomeCornerActivityRow
+	for _, row := range rows {
+		out = append(out, model.HomeCornerActivityRow{
+			Corner:        row.Corner,
+			PostCount:     int(row.PostCount),
+			UniquePosters: int(row.UniquePosters),
+			LastPostAt:    new(row.LastPostAt.UTC().Format(time.RFC3339)),
+		})
+	}
+
+	return out, nil
+}
+
+func (r *homeFeedDAO) ListSidebarActivity(ctx context.Context, tx ...*sql.Tx) ([]model.SidebarActivityEntry, error) {
+	rows, err := genQueries(r.db, tx).ListHomeSidebarActivity(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("sidebar activity: %w", err)
+	}
+
+	var out []model.SidebarActivityEntry
+	for _, row := range rows {
+		out = append(out, model.SidebarActivityEntry{
+			Key:      row.Key,
+			LatestAt: row.LatestAt.UTC().Format(time.RFC3339),
+		})
+	}
+
+	return out, nil
+}
+
+func (r *homeFeedDAO) ListPublicRooms(ctx context.Context, limit int, tx ...*sql.Tx) ([]model.HomePublicRoomRow, error) {
+	rows, err := genQueries(r.db, tx).ListHomePublicRooms(ctx, int32(limit))
+	if err != nil {
+		return nil, fmt.Errorf("home feed public rooms: %w", err)
+	}
+
+	var out []model.HomePublicRoomRow
+	for _, row := range rows {
+		out = append(out, model.HomePublicRoomRow{
+			ID:            row.ID,
+			Name:          row.Name,
+			Description:   row.Description,
+			MemberCount:   int(row.MemberCount),
+			LastMessageAt: nullTimeToStringPtr(row.LastMessageAt),
+		})
+	}
+
+	return out, nil
 }

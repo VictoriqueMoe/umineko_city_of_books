@@ -10,26 +10,20 @@ import (
 
 type (
 	viewDAO struct {
-		db         *sql.DB
-		viewsTable string
-		fk         string
+		sqlcSource
+		q viewQuerier
 	}
 )
 
-func newViewDAO(db *sql.DB, viewsTable string, fk string) *viewDAO {
-	return &viewDAO{db: db, viewsTable: viewsTable, fk: fk}
+func newViewDAO(db *sql.DB, q viewQuerier) *viewDAO {
+	return &viewDAO{sqlcSource: newSQLCSource(db), q: q}
 }
 
 func (v *viewDAO) RecordView(ctx context.Context, s spec.ViewRecord, tx ...*sql.Tx) (bool, error) {
-	res, err := txOrDB(v.db, tx).ExecContext(ctx,
-		`INSERT INTO `+v.viewsTable+` (`+v.fk+`, viewer_hash) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-		s.TargetID, s.ViewerHash,
-	)
+	n, err := v.q.Record(ctx, v.queries(tx), s)
 	if err != nil {
-		return false, fmt.Errorf("record view in %s: %w", v.viewsTable, err)
+		return false, fmt.Errorf("record view: %w", err)
 	}
-
-	n, _ := res.RowsAffected()
 
 	return n > 0, nil
 }

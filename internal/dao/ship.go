@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/dao/utils"
+	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -59,80 +59,95 @@ type (
 		*voteDAO
 		*commentDAO[uuid.UUID]
 	}
+
+	shipJoinRow = sqlcgen.GetShipByIDRow
+
+	shipListRow interface {
+		sqlcgen.ListShipsByNewRow | sqlcgen.ListShipsByTopRow | sqlcgen.ListShipsByCrackshipRow |
+			sqlcgen.ListShipsByControversialRow | sqlcgen.ListShipsByCommentsRow | sqlcgen.ListShipsByOldRow
+	}
 )
 
-const shipSelectBase = `
-	SELECT s.id, s.user_id, s.title, s.description, s.image_url, s.thumbnail_url, s.created_at, s.updated_at,
-		u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-		COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0),
-		COALESCE((SELECT value FROM ship_votes WHERE ship_id = s.id AND user_id = $1), 0),
-		(SELECT COUNT(*) FROM ship_comments WHERE ship_id = s.id)
-	FROM ships s
-	JOIN users u ON s.user_id = u.id
-	LEFT JOIN user_roles r ON r.user_id = s.user_id`
+func toShipRow(row shipJoinRow) model.ShipRow {
+	return model.ShipRow{
+		ID:                row.ID,
+		UserID:            row.UserID,
+		Title:             row.Title,
+		Description:       row.Description,
+		ImageURL:          row.ImageUrl,
+		ThumbnailURL:      row.ThumbnailUrl,
+		CreatedAt:         row.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         new(row.UpdatedAt.UTC().Format(time.RFC3339)),
+		AuthorUsername:    row.Username,
+		AuthorDisplayName: row.DisplayName,
+		AuthorAvatarURL:   row.AvatarUrl,
+		AuthorRole:        row.AuthorRole,
+		VoteScore:         int(row.VoteScore),
+		UserVote:          int(row.UserVote),
+		CommentCount:      int(row.CommentCount),
+	}
+}
 
-func scanShipRow(row interface{ Scan(...any) error }, s *model.ShipRow) error {
-	var createdAt, updatedAt time.Time
-	if err := row.Scan(
-		&s.ID, &s.UserID, &s.Title, &s.Description, &s.ImageURL, &s.ThumbnailURL, &createdAt, &updatedAt,
-		&s.AuthorUsername, &s.AuthorDisplayName, &s.AuthorAvatarURL, &s.AuthorRole,
-		&s.VoteScore, &s.UserVote, &s.CommentCount,
-	); err != nil {
-		return err
+func toShipRows[T shipListRow](rows []T) []model.ShipRow {
+	var ships []model.ShipRow
+	for _, row := range rows {
+		ships = append(ships, toShipRow(shipJoinRow(row)))
 	}
 
-	s.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	s.UpdatedAt = new(updatedAt.UTC().Format(time.RFC3339))
+	return ships
+}
 
-	return nil
+func toShipCharacterRow(row sqlcgen.ShipCharacter) model.ShipCharacterRow {
+	return model.ShipCharacterRow{
+		ID:            int(row.ID),
+		ShipID:        row.ShipID,
+		Series:        row.Series,
+		CharacterID:   row.CharacterID,
+		CharacterName: row.CharacterName,
+		SortOrder:     int(row.SortOrder),
+	}
 }
 
 func (r *shipDAO) Create(ctx context.Context, s spec.NewShip, tx ...*sql.Tx) (*model.ShipRow, error) {
-	var created model.ShipRow
-
-	if err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx,
-		`WITH s AS (
-		     INSERT INTO ships (user_id, title, description, image_url, thumbnail_url)
-		     VALUES ($1, $2, $3, '', '')
-		     RETURNING id, user_id, title, description, image_url, thumbnail_url, created_at, updated_at
-		 )
-		 SELECT s.id, s.user_id, s.title, s.description, s.image_url, s.thumbnail_url, s.created_at, s.updated_at,
-		        u.username, u.display_name, u.avatar_url, COALESCE(r.role, ''),
-		        0, 0, 0
-		 FROM s
-		 JOIN users u ON u.id = s.user_id
-		 LEFT JOIN user_roles r ON r.user_id = s.user_id`,
-		s.UserID, s.Title, s.Description,
-	), &created); err != nil {
+	created, err := genQueries(r.db, tx).CreateShip(ctx, sqlcgen.CreateShipParams{
+		UserID:      s.UserID,
+		Title:       s.Title,
+		Description: s.Description,
+	})
+	if err != nil {
 		return nil, fmt.Errorf("create ship: %w", err)
 	}
 
-	return &created, nil
+	return new(toShipRow(shipJoinRow(created))), nil
 }
 
 func (r *shipDAO) UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, tx ...*sql.Tx) error {
+	queries := genQueries(r.db, tx)
+
 	var (
-		res sql.Result
-		err error
+		affected int64
+		err      error
 	)
 
 	if s.AsAdmin {
-		res, err = txOrDB(r.db, tx).ExecContext(ctx,
-			`UPDATE ships SET title = $1, description = $2, updated_at = NOW() WHERE id = $3`,
-			s.Title, s.Description, s.ID,
-		)
+		affected, err = queries.UpdateShipDetailsAsAdmin(ctx, sqlcgen.UpdateShipDetailsAsAdminParams{
+			Title:       s.Title,
+			Description: s.Description,
+			ID:          s.ID,
+		})
 	} else {
-		res, err = txOrDB(r.db, tx).ExecContext(ctx,
-			`UPDATE ships SET title = $1, description = $2, updated_at = NOW() WHERE id = $3 AND user_id = $4`,
-			s.Title, s.Description, s.ID, s.UserID,
-		)
+		affected, err = queries.UpdateShipDetails(ctx, sqlcgen.UpdateShipDetailsParams{
+			Title:       s.Title,
+			Description: s.Description,
+			ID:          s.ID,
+			UserID:      s.UserID,
+		})
 	}
 	if err != nil {
 		return fmt.Errorf("update ship: %w", err)
 	}
 
-	n, _ := res.RowsAffected()
-	if n == 0 {
+	if affected == 0 {
 		return fmt.Errorf("ship not found or not owned")
 	}
 
@@ -140,10 +155,11 @@ func (r *shipDAO) UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, t
 }
 
 func (r *shipDAO) UpdateImage(ctx context.Context, s spec.ShipImageUpdate, tx ...*sql.Tx) error {
-	_, err := txOrDB(r.db, tx).ExecContext(ctx,
-		`UPDATE ships SET image_url = $1, thumbnail_url = $2 WHERE id = $3`,
-		s.ImageURL, s.ThumbnailURL, s.ID,
-	)
+	err := genQueries(r.db, tx).UpdateShipImage(ctx, sqlcgen.UpdateShipImageParams{
+		ImageUrl:     s.ImageURL,
+		ThumbnailUrl: s.ThumbnailURL,
+		ID:           s.ID,
+	})
 	if err != nil {
 		return fmt.Errorf("update ship image: %w", err)
 	}
@@ -164,11 +180,7 @@ func appendShipPaths(paths []string, values ...string) []string {
 }
 
 func (r *shipDAO) GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) ([]string, error) {
-	var imageURL, thumbnailURL string
-
-	err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT image_url, thumbnail_url FROM ships WHERE id = $1`, shipID,
-	).Scan(&imageURL, &thumbnailURL)
+	row, err := genQueries(r.db, tx).GetShipImagePaths(ctx, shipID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -176,13 +188,14 @@ func (r *shipDAO) GetImagePaths(ctx context.Context, shipID uuid.UUID, tx ...*sq
 		return nil, fmt.Errorf("get ship image paths: %w", err)
 	}
 
-	return appendShipPaths(nil, imageURL, thumbnailURL), nil
+	return appendShipPaths(nil, row.ImageUrl, row.ThumbnailUrl), nil
 }
 
 func (r *shipDAO) GetByID(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx) (*model.ShipRow, error) {
-	var s model.ShipRow
-
-	err := scanShipRow(txOrDB(r.db, tx).QueryRowContext(ctx, shipSelectBase+` WHERE s.id = $2`, q.ViewerID, q.ID), &s)
+	row, err := genQueries(r.db, tx).GetShipByID(ctx, sqlcgen.GetShipByIDParams{
+		UserID: q.ViewerID,
+		ID:     q.ID,
+	})
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -190,135 +203,124 @@ func (r *shipDAO) GetByID(ctx context.Context, q spec.ShipLookup, tx ...*sql.Tx)
 		return nil, fmt.Errorf("get ship: %w", err)
 	}
 
-	return &s, nil
+	return new(toShipRow(row)), nil
 }
 
 func (r *shipDAO) List(ctx context.Context, q spec.ShipListing, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
-	buildWhere := func(startIdx int) (string, []any, int) {
-		idx := startIdx
-		next := func() string {
-			placeholder := fmt.Sprintf("$%d", idx)
-			idx++
-			return placeholder
-		}
+	queries := genQueries(r.db, tx)
 
-		parts := []string{"1=1"}
-		var args []any
+	excluded := joinUUIDs(q.ExcludeUserIDs)
 
-		if q.Series != "" {
-			parts = append(parts, "EXISTS(SELECT 1 FROM ship_characters WHERE ship_id = s.id AND series = "+next()+")")
-			args = append(args, q.Series)
-		}
-
-		if q.CharacterID != "" {
-			parts = append(parts, "EXISTS(SELECT 1 FROM ship_characters WHERE ship_id = s.id AND character_id = "+next()+")")
-			args = append(args, q.CharacterID)
-		}
-
-		if q.CrackshipsOnly {
-			parts = append(parts, fmt.Sprintf("COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0) <= %d", dto.CrackshipThreshold))
-		}
-
-		exclSQL, exclArgs := ExcludeClause("s.user_id", q.ExcludeUserIDs, idx)
-		idx += len(exclArgs)
-		args = append(args, exclArgs...)
-
-		return " WHERE " + strings.Join(parts, " AND ") + exclSQL, args, idx
-	}
-
-	countWhere, countArgs, _ := buildWhere(1)
-
-	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM ships s`+countWhere, countArgs...,
-	).Scan(&total); err != nil {
+	total, err := queries.CountShips(ctx, sqlcgen.CountShipsParams{
+		Column1: q.Series,
+		Column2: q.CharacterID,
+		Column3: q.CrackshipsOnly,
+		Column4: dto.CrackshipThreshold,
+		Column5: excluded,
+	})
+	if err != nil {
 		return nil, 0, fmt.Errorf("count ships: %w", err)
 	}
 
-	listWhere, listArgs, nextIdx := buildWhere(2)
-	limitPH := fmt.Sprintf("$%d", nextIdx)
-	offsetPH := fmt.Sprintf("$%d", nextIdx+1)
-	orderClause := shipOrderClause(q.Sort)
-	query := shipSelectBase + listWhere + orderClause + ` LIMIT ` + limitPH + ` OFFSET ` + offsetPH
-
-	queryArgs := []any{q.ViewerID}
-	queryArgs = append(queryArgs, listArgs...)
-	queryArgs = append(queryArgs, q.Limit, q.Offset)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, queryArgs...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("list ships: %w", err)
+	params := sqlcgen.ListShipsByNewParams{
+		UserID:  q.ViewerID,
+		Column2: q.Series,
+		Column3: q.CharacterID,
+		Column4: q.CrackshipsOnly,
+		Column5: dto.CrackshipThreshold,
+		Column6: excluded,
+		Limit:   int32(q.Limit),
+		Offset:  int32(q.Offset),
 	}
-	defer rows.Close()
 
 	var ships []model.ShipRow
-	for rows.Next() {
-		var s model.ShipRow
-		if err := scanShipRow(rows, &s); err != nil {
-			return nil, 0, fmt.Errorf("scan ship: %w", err)
+
+	switch q.Sort {
+	case "top":
+		rows, err := queries.ListShipsByTop(ctx, sqlcgen.ListShipsByTopParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list ships: %w", err)
 		}
 
-		ships = append(ships, s)
-	}
-
-	return ships, total, rows.Err()
-}
-
-func shipOrderClause(sort string) string {
-	voteScore := `COALESCE((SELECT SUM(value) FROM ship_votes WHERE ship_id = s.id), 0)`
-
-	switch sort {
-	case "top":
-		return ` ORDER BY ` + voteScore + ` DESC, s.created_at DESC`
+		ships = toShipRows(rows)
 	case "crackship":
-		return ` ORDER BY ` + voteScore + ` ASC, s.created_at DESC`
+		rows, err := queries.ListShipsByCrackship(ctx, sqlcgen.ListShipsByCrackshipParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list ships: %w", err)
+		}
+
+		ships = toShipRows(rows)
 	case "controversial":
-		return ` ORDER BY (
-			(SELECT COUNT(*) FROM ship_votes WHERE ship_id = s.id AND value = 1) *
-			(SELECT COUNT(*) FROM ship_votes WHERE ship_id = s.id AND value = -1)
-		) DESC, s.created_at DESC`
+		rows, err := queries.ListShipsByControversial(ctx, sqlcgen.ListShipsByControversialParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list ships: %w", err)
+		}
+
+		ships = toShipRows(rows)
 	case "comments":
-		return ` ORDER BY (SELECT COUNT(*) FROM ship_comments WHERE ship_id = s.id) DESC, s.created_at DESC`
+		rows, err := queries.ListShipsByComments(ctx, sqlcgen.ListShipsByCommentsParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list ships: %w", err)
+		}
+
+		ships = toShipRows(rows)
 	case "old":
-		return ` ORDER BY s.created_at ASC`
+		rows, err := queries.ListShipsByOld(ctx, sqlcgen.ListShipsByOldParams(params))
+		if err != nil {
+			return nil, 0, fmt.Errorf("list ships: %w", err)
+		}
+
+		ships = toShipRows(rows)
 	default:
-		return ` ORDER BY s.created_at DESC`
+		rows, err := queries.ListShipsByNew(ctx, params)
+		if err != nil {
+			return nil, 0, fmt.Errorf("list ships: %w", err)
+		}
+
+		ships = toShipRows(rows)
 	}
+
+	return ships, int(total), nil
 }
 
 func (r *shipDAO) ListByUser(ctx context.Context, q spec.ShipUserListing, tx ...*sql.Tx) ([]model.ShipRow, int, error) {
-	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, `SELECT COUNT(*) FROM ships WHERE user_id = $1`, q.UserID).Scan(&total); err != nil {
+	queries := genQueries(r.db, tx)
+
+	total, err := queries.CountShipsByUser(ctx, q.UserID)
+	if err != nil {
 		return nil, 0, fmt.Errorf("count user ships: %w", err)
 	}
 
-	query := shipSelectBase + ` WHERE s.user_id = $2 ORDER BY s.created_at DESC LIMIT $3 OFFSET $4`
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query, q.ViewerID, q.UserID, q.Limit, q.Offset)
+	rows, err := queries.ListShipsByUser(ctx, sqlcgen.ListShipsByUserParams{
+		UserID:   q.ViewerID,
+		UserID_2: q.UserID,
+		Limit:    int32(q.Limit),
+		Offset:   int32(q.Offset),
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user ships: %w", err)
 	}
-	defer rows.Close()
 
 	var ships []model.ShipRow
-	for rows.Next() {
-		var s model.ShipRow
-		if err := scanShipRow(rows, &s); err != nil {
-			return nil, 0, fmt.Errorf("scan ship: %w", err)
-		}
-
-		ships = append(ships, s)
+	for _, row := range rows {
+		ships = append(ships, toShipRow(shipJoinRow(row)))
 	}
 
-	return ships, total, rows.Err()
+	return ships, int(total), nil
 }
 
 func (r *shipDAO) InsertCharacters(ctx context.Context, s spec.NewShipCharacters, tx ...*sql.Tx) error {
+	queries := genQueries(r.db, tx)
+
 	for i, c := range s.Characters {
-		if _, err := txOrDB(r.db, tx).ExecContext(ctx,
-			`INSERT INTO ship_characters (ship_id, series, character_id, character_name, sort_order) VALUES ($1, $2, $3, $4, $5)`,
-			s.ShipID, c.Series, c.CharacterID, strings.TrimSpace(c.CharacterName), i,
-		); err != nil {
+		err := queries.InsertShipCharacter(ctx, sqlcgen.InsertShipCharacterParams{
+			ShipID:        s.ShipID,
+			Series:        c.Series,
+			CharacterID:   c.CharacterID,
+			CharacterName: strings.TrimSpace(c.CharacterName),
+			SortOrder:     int32(i),
+		})
+		if err != nil {
 			return fmt.Errorf("add ship character: %w", err)
 		}
 	}
@@ -327,7 +329,7 @@ func (r *shipDAO) InsertCharacters(ctx context.Context, s spec.NewShipCharacters
 }
 
 func (r *shipDAO) DeleteCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) error {
-	if _, err := txOrDB(r.db, tx).ExecContext(ctx, `DELETE FROM ship_characters WHERE ship_id = $1`, shipID); err != nil {
+	if err := genQueries(r.db, tx).DeleteShipCharacters(ctx, shipID); err != nil {
 		return fmt.Errorf("delete ship characters: %w", err)
 	}
 
@@ -335,26 +337,17 @@ func (r *shipDAO) DeleteCharacters(ctx context.Context, shipID uuid.UUID, tx ...
 }
 
 func (r *shipDAO) GetCharacters(ctx context.Context, shipID uuid.UUID, tx ...*sql.Tx) ([]model.ShipCharacterRow, error) {
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id = $1 ORDER BY sort_order ASC`,
-		shipID,
-	)
+	rows, err := genQueries(r.db, tx).GetShipCharacters(ctx, shipID)
 	if err != nil {
 		return nil, fmt.Errorf("get ship characters: %w", err)
 	}
-	defer rows.Close()
 
 	var chars []model.ShipCharacterRow
-	for rows.Next() {
-		var c model.ShipCharacterRow
-		if err := rows.Scan(&c.ID, &c.ShipID, &c.Series, &c.CharacterID, &c.CharacterName, &c.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan ship character: %w", err)
-		}
-
-		chars = append(chars, c)
+	for _, row := range rows {
+		chars = append(chars, toShipCharacterRow(row))
 	}
 
-	return chars, rows.Err()
+	return chars, nil
 }
 
 func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, tx ...*sql.Tx) (map[uuid.UUID][]model.ShipCharacterRow, error) {
@@ -362,26 +355,16 @@ func (r *shipDAO) GetCharactersBatch(ctx context.Context, shipIDs []uuid.UUID, t
 		return nil, nil
 	}
 
-	placeholders, args := utils.PlaceholderArgs(shipIDs, 1)
-
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx,
-		`SELECT id, ship_id, series, character_id, character_name, sort_order FROM ship_characters WHERE ship_id IN (`+strings.Join(placeholders, ", ")+`) ORDER BY sort_order ASC`,
-		args...,
-	)
+	rows, err := genQueries(r.db, tx).GetShipCharactersBatch(ctx, joinUUIDs(shipIDs))
 	if err != nil {
 		return nil, fmt.Errorf("batch get ship characters: %w", err)
 	}
-	defer rows.Close()
 
 	result := make(map[uuid.UUID][]model.ShipCharacterRow)
-	for rows.Next() {
-		var c model.ShipCharacterRow
-		if err := rows.Scan(&c.ID, &c.ShipID, &c.Series, &c.CharacterID, &c.CharacterName, &c.SortOrder); err != nil {
-			return nil, fmt.Errorf("scan ship character: %w", err)
-		}
-
+	for _, row := range rows {
+		c := toShipCharacterRow(row)
 		result[c.ShipID] = append(result[c.ShipID], c)
 	}
 
-	return result, rows.Err()
+	return result, nil
 }
