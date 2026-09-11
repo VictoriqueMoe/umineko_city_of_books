@@ -235,7 +235,10 @@ func (s *Service) deletePost(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.PostService.DeletePost(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete post")
+		if errors.Is(err, postsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "post not found")
+		}
+		return utils.InternalError(ctx, "failed to delete post", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

@@ -588,6 +588,21 @@ func TestDeletePost_AuthorLookupError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrNotFound)
+}
+
+func TestDeletePost_AlreadyDeleted(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, id).Return(uuid.Nil, fmt.Errorf("get post author: %w", dao.ErrNotFound))
+
+	// when
+	err := svc.DeletePost(context.Background(), id, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestDeletePost_RepoError(t *testing.T) {
@@ -729,7 +744,7 @@ func TestUploadPostMedia_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(uuid.Nil, errors.New("nope"))
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(uuid.Nil, fmt.Errorf("get post author: %w", dao.ErrNotFound))
 
 	// when
 	_, err := svc.UploadPostMedia(context.Background(), postID, userID, "image/png", "photo.png", 10, strings.NewReader("x"), false)
@@ -775,7 +790,7 @@ func TestDeletePostMedia_NotFound(t *testing.T) {
 	svc, m := newTestService(t)
 	postID := uuid.New()
 	userID := uuid.New()
-	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(uuid.Nil, errors.New("nope"))
+	m.postRepo.EXPECT().GetPostAuthorID(mock.Anything, postID).Return(uuid.Nil, fmt.Errorf("get post author: %w", dao.ErrNotFound))
 
 	// when
 	err := svc.DeletePostMedia(context.Background(), postID, 1, userID)
@@ -1379,6 +1394,21 @@ func TestDeleteComment_AuthorLookupError(t *testing.T) {
 
 	// then
 	require.Error(t, err)
+	require.NotErrorIs(t, err, ErrNotFound)
+}
+
+func TestDeleteComment_AlreadyDeleted(t *testing.T) {
+	// given
+	svc, m := newTestService(t)
+	id := uuid.New()
+	userID := uuid.New()
+	m.postRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.Nil, fmt.Errorf("get comment author: %w", dao.ErrNotFound))
+
+	// when
+	err := svc.DeleteComment(context.Background(), id, userID)
+
+	// then
+	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestDeleteComment_RepoError(t *testing.T) {

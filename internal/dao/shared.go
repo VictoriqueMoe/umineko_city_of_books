@@ -12,29 +12,16 @@ import (
 
 type (
 	sqlcSource struct {
-		db  *sql.DB
-		gen *sqlcgen.Queries
+		db *sql.DB
 	}
 )
 
 func newSQLCSource(db *sql.DB) sqlcSource {
-	return sqlcSource{db: db, gen: sqlcgen.New(db)}
+	return sqlcSource{db: db}
 }
 
 func (s sqlcSource) queries(tx []*sql.Tx) *sqlcgen.Queries {
-	if len(tx) > 0 && tx[0] != nil {
-		return s.gen.WithTx(tx[0])
-	}
-
-	return s.gen
-}
-
-func genQueries(db *sql.DB, tx []*sql.Tx) *sqlcgen.Queries {
-	if len(tx) > 0 && tx[0] != nil {
-		return sqlcgen.New(tx[0])
-	}
-
-	return sqlcgen.New(db)
+	return genQueries(s.db, tx)
 }
 
 func joinUUIDs(ids []uuid.UUID) string {

@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"umineko_city_of_books/internal/dao/dynamicsql"
 	"umineko_city_of_books/internal/dao/sqlcgen"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model"
@@ -102,6 +103,7 @@ type (
 	}
 
 	chatDAO struct {
+		*dynamicsql.ChatRooms
 		db *sql.DB
 	}
 
@@ -1369,4 +1371,117 @@ func (r *chatDAO) CountUnreadRoomsForUser(ctx context.Context, userID uuid.UUID,
 	}
 
 	return int(count), nil
+}
+
+func (r *chatDAO) ListUserGroupRooms(ctx context.Context, q spec.ChatUserRoomFilter, tx ...*sql.Tx) ([]model.ChatRoomRow, int, error) {
+	rooms, total, err := r.ChatRooms.ListUserGroupRooms(ctx, q, tx...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	r.attachRoomTags(ctx, rooms, tx...)
+
+	return rooms, total, nil
+}
+
+func (r *chatDAO) ListPublicRooms(ctx context.Context, q spec.ChatPublicRoomFilter, tx ...*sql.Tx) ([]model.ChatRoomRow, int, error) {
+	rooms, total, err := r.ChatRooms.ListPublicRooms(ctx, q, tx...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	r.attachRoomTags(ctx, rooms, tx...)
+
+	return rooms, total, nil
+}
+func (r *chatDAO) attachRoomTags(ctx context.Context, rooms []model.ChatRoomRow, tx ...*sql.Tx) {
+	if len(rooms) == 0 {
+		return
+	}
+
+	ids := make([]uuid.UUID, len(rooms))
+	for i := range rooms {
+		ids[i] = rooms[i].ID
+	}
+
+	tagMap, _ := r.GetRoomTagsBatch(ctx, ids, tx...)
+	for i := range rooms {
+		rooms[i].Tags = tagMap[rooms[i].ID]
+	}
+}
+
+func (r *chatDAO) GetRoomByID(ctx context.Context, s spec.ChatRoomViewer, tx ...*sql.Tx) (*model.ChatRoomRow, error) {
+	row, err := genQueries(r.db, tx).GetChatRoomByID(ctx, sqlcgen.GetChatRoomByIDParams{
+		UserID: s.ViewerID,
+		ID:     s.RoomID,
+	})
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get room by id: %w", err)
+	}
+
+	out := toChatRoomForViewer(row)
+	out.Tags, _ = r.GetRoomTags(ctx, s.RoomID, tx...)
+
+	return &out, nil
+}
+
+func (r *chatDAO) GetRoomSendContext(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) (*model.ChatRoomSendContext, error) {
+	row, err := genQueries(r.db, tx).GetChatRoomSendContext(ctx, roomID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get room send context: %w", err)
+	}
+
+	out := model.ChatRoomSendContext{
+		ID:            row.ID,
+		Name:          row.Name,
+		Type:          dto.RoomType(row.Type),
+		IsPublic:      row.IsPublic,
+		IsSystem:      row.IsSystem,
+		LastMessageAt: nullTimeToString(row.LastMessageAt),
+	}
+
+	if row.SystemKind.Valid {
+		out.SystemKind = row.SystemKind.String
+	}
+
+	if row.CreatedBy != nil {
+		out.CreatedBy = *row.CreatedBy
+	}
+
+	return &out, nil
+}
+
+func (r *chatDAO) GetRoomMembersDetailed(ctx context.Context, roomID uuid.UUID, tx ...*sql.Tx) ([]model.ChatRoomMemberRow, error) {
+	rows, err := genQueries(r.db, tx).GetChatRoomMembersDetailed(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("get room members detailed: %w", err)
+	}
+
+	var result []model.ChatRoomMemberRow
+	for _, row := range rows {
+		result = append(result, model.ChatRoomMemberRow{
+			UserID:          row.UserID,
+			Username:        row.Username,
+			DisplayName:     row.DisplayName,
+			AvatarURL:       row.AvatarUrl,
+			Role:            row.Role,
+			AuthorRole:      row.AuthorRole,
+			AuthorRoleTyped: role.Role(row.AuthorRole),
+			JoinedAt:        row.JoinedAt.UTC().Format(time.RFC3339),
+			Nickname:        row.Nickname,
+			NicknameLocked:  row.NicknameLocked,
+			MemberAvatarURL: row.MemberAvatarUrl,
+			TimeoutUntil:    row.TimeoutUntil,
+			TimeoutByStaff:  row.TimeoutByStaff,
+			Ghost:           row.Ghost,
+		})
+	}
+
+	return result, nil
 }

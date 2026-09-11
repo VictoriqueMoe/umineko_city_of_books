@@ -1,22 +1,16 @@
 package dao
 
 import (
-	"context"
 	"database/sql"
+
+	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/db"
 )
 
-type (
-	dbtx interface {
-		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	}
-)
+func txOrDB(handle *sql.DB, tx []*sql.Tx) sqlcgen.DBTX {
+	return db.TxOrDB(handle, tx)
+}
 
-func txOrDB(db *sql.DB, tx []*sql.Tx) dbtx {
-	if len(tx) > 0 && tx[0] != nil {
-		return tx[0]
-	}
-
-	return db
+func genQueries(handle *sql.DB, tx []*sql.Tx) *sqlcgen.Queries {
+	return sqlcgen.New(txOrDB(handle, tx))
 }

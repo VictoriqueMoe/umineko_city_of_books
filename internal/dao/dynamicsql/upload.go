@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/db"
 )
 
 type (
-	uploadDAO struct {
+	Upload struct {
 		db *sql.DB
 	}
 )
@@ -18,11 +21,11 @@ var (
 	safeIdentifier = regexp.MustCompile(`^[a-zA-Z0-9_]+$`)
 )
 
-func NewUpload(db *sql.DB) *uploadDAO {
-	return &uploadDAO{db: db}
+func NewUpload(db *sql.DB) *Upload {
+	return &Upload{db: db}
 }
 
-func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
+func (r *Upload) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 	ctx := context.Background()
 
 	query, err := r.buildUnionQuery(ctx, tx...)
@@ -34,7 +37,7 @@ func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 		return nil, nil
 	}
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, query)
+	rows, err := db.TxOrDB(r.db, tx).QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("query referenced files: %w", err)
 	}
@@ -56,8 +59,8 @@ func (r *uploadDAO) GetAllReferencedFiles(tx ...*sql.Tx) ([]string, error) {
 	return results, rows.Err()
 }
 
-func (r *uploadDAO) buildUnionQuery(ctx context.Context, tx ...*sql.Tx) (string, error) {
-	columns, err := genQueries(r.db, tx).ListUploadTextColumns(ctx)
+func (r *Upload) buildUnionQuery(ctx context.Context, tx ...*sql.Tx) (string, error) {
+	columns, err := sqlcgen.New(db.TxOrDB(r.db, tx)).ListUploadTextColumns(ctx)
 	if err != nil {
 		return "", fmt.Errorf("list text columns: %w", err)
 	}

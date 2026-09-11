@@ -3,6 +3,7 @@ package dao
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"umineko_city_of_books/internal/model/spec"
@@ -45,6 +46,9 @@ func (o *ownedDAO) DeleteAsAdmin(ctx context.Context, id uuid.UUID, tx ...*sql.T
 
 func (o *ownedDAO) GetAuthorID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := o.q.AuthorID(ctx, o.queries(tx), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get %s author: %w", o.entity, ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get %s author: %w", o.entity, err)
 	}

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { createTestQueryClient, providerWrapper } from "../../test-utils/render";
 import * as endpoints from "../../api/endpoints/post";
 import * as comments from "../../api/endpoints/comments";
+import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import {
     useCreateComment,
@@ -63,9 +64,10 @@ const file = new File(["gold"], "letter.png", { type: "image/png" });
 function setup<T>(useHook: () => T) {
     const queryClient = createTestQueryClient();
     const invalidate = vi.spyOn(queryClient, "invalidateQueries");
+    const remove = vi.spyOn(queryClient, "removeQueries");
     const { result } = renderHook(useHook, { wrapper: providerWrapper({ queryClient }) });
 
-    return { result, invalidate };
+    return { result, invalidate, remove };
 }
 
 beforeEach(() => {
@@ -98,14 +100,6 @@ describe("post mutations", () => {
             endpoint: vi.mocked(endpoints.updatePost),
             args: [postId, "an edited body"],
             keys: [queryKeys.post.detail(postId), queryKeys.post.all],
-        },
-        {
-            name: "useDeletePost deletes the id it is handed and refreshes the feed",
-            useHook: () => useDeletePost(),
-            variables: postId,
-            endpoint: vi.mocked(endpoints.deletePost),
-            args: [postId],
-            keys: [queryKeys.post.all],
         },
         {
             name: "useUploadPostMedia attaches the file to the post it was built with",
@@ -335,6 +329,44 @@ describe("useResolveSuggestion", () => {
 });
 
 describe("useDeletePost", () => {
+    it("deletes the id it is handed, drops that post's detail cache and refreshes everything else", async () => {
+        // given
+        const { result, invalidate, remove } = setup(() => useDeletePost());
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync(postId);
+        });
+
+        // then
+        expect(endpoints.deletePost).toHaveBeenCalledWith(postId);
+        expect(remove).toHaveBeenCalledWith({ queryKey: queryKeys.post.detail(postId) });
+        expect(invalidate).toHaveBeenCalledTimes(1);
+
+        const { queryKey, predicate } = invalidate.mock.calls[0][0] as {
+            queryKey: readonly string[];
+            predicate: (query: { queryKey: readonly unknown[] }) => boolean;
+        };
+        expect(queryKey).toEqual(queryKeys.post.all);
+        expect(predicate({ queryKey: queryKeys.post.detail(postId) })).toBe(false);
+        expect(predicate({ queryKey: queryKeys.post.detail("p-other") })).toBe(true);
+        expect(predicate({ queryKey: queryKeys.post.feed() })).toBe(true);
+    });
+
+    it("treats a 404 as an already-deleted post rather than a failure", async () => {
+        // given
+        vi.mocked(endpoints.deletePost).mockRejectedValue(new ApiError(404, "post not found", null));
+        const { result, remove } = setup(() => useDeletePost());
+
+        // when
+        await act(async () => {
+            await result.current.mutateAsync(postId);
+        });
+
+        // then
+        expect(remove).toHaveBeenCalledWith({ queryKey: queryKeys.post.detail(postId) });
+    });
+
     it("leaves the feed cache alone when the deletion is rejected", async () => {
         // given
         vi.mocked(endpoints.deletePost).mockRejectedValue(new Error("not the author"));

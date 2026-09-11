@@ -917,7 +917,7 @@ func (s *service) UpdateComment(ctx context.Context, id, userID uuid.UUID, req d
 func (s *service) DeleteComment(ctx context.Context, id, userID uuid.UUID) error {
 	authorID, err := s.fanficRepo.GetCommentAuthorID(ctx, id)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 
 	asAdmin := authorID != userID && s.authz.Can(ctx, userID, authz.PermDeleteAnyComment)

@@ -52,7 +52,7 @@ func (c *commentDAO[K]) DeleteComment(ctx context.Context, s spec.CommentDeletio
 	}
 
 	if n == 0 && !s.AsAdmin {
-		return fmt.Errorf("comment not found or not owned")
+		return fmt.Errorf("comment not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -98,6 +98,9 @@ func (c *commentDAO[K]) GetCommentEntityID(ctx context.Context, commentID uuid.U
 
 func (c *commentDAO[K]) GetCommentAuthorID(ctx context.Context, commentID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := c.q.AuthorID(ctx, c.queries(tx), commentID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get comment author: %w", ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get comment author: %w", err)
 	}
