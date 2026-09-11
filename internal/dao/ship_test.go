@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/mention"
@@ -397,7 +398,7 @@ func TestShipDAO_GetAuthorID_NotFound(t *testing.T) {
 	_, err := repos.Ship.GetAuthorID(context.Background(), uuid.New())
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, dao.ErrNotFound)
 }
 
 func TestShipDAO_List_Empty(t *testing.T) {

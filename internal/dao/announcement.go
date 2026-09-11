@@ -41,21 +41,12 @@ type (
 	}
 
 	announcementDAO struct {
-		db  *sql.DB
-		gen *sqlcgen.Queries
+		db *sql.DB
 		*commentDAO[uuid.UUID]
 	}
 
 	announcementJoinRow = sqlcgen.GetAnnouncementByIDRow
 )
-
-func (r *announcementDAO) q(tx []*sql.Tx) *sqlcgen.Queries {
-	if len(tx) > 0 && tx[0] != nil {
-		return r.gen.WithTx(tx[0])
-	}
-
-	return r.gen
-}
 
 func toAnnouncementRow(row announcementJoinRow) model.AnnouncementRow {
 	out := model.AnnouncementRow{
@@ -79,7 +70,7 @@ func toAnnouncementRow(row announcementJoinRow) model.AnnouncementRow {
 }
 
 func (r *announcementDAO) Create(ctx context.Context, s spec.NewAnnouncement, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
-	created, err := r.q(tx).CreateAnnouncement(ctx, sqlcgen.CreateAnnouncementParams{
+	created, err := genQueries(r.db, tx).CreateAnnouncement(ctx, sqlcgen.CreateAnnouncementParams{
 		AuthorID: &s.AuthorID,
 		Title:    s.Title,
 		Body:     s.Body,
@@ -92,7 +83,7 @@ func (r *announcementDAO) Create(ctx context.Context, s spec.NewAnnouncement, tx
 }
 
 func (r *announcementDAO) Update(ctx context.Context, s spec.AnnouncementUpdate, tx ...*sql.Tx) error {
-	err := r.q(tx).UpdateAnnouncement(ctx, sqlcgen.UpdateAnnouncementParams{
+	err := genQueries(r.db, tx).UpdateAnnouncement(ctx, sqlcgen.UpdateAnnouncementParams{
 		Title: s.Title,
 		Body:  s.Body,
 		ID:    s.ID,
@@ -105,7 +96,7 @@ func (r *announcementDAO) Update(ctx context.Context, s spec.AnnouncementUpdate,
 }
 
 func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) error {
-	if err := r.q(tx).DeleteAnnouncement(ctx, id); err != nil {
+	if err := genQueries(r.db, tx).DeleteAnnouncement(ctx, id); err != nil {
 		return fmt.Errorf("delete announcement: %w", err)
 	}
 
@@ -113,7 +104,7 @@ func (r *announcementDAO) Delete(ctx context.Context, id uuid.UUID, tx ...*sql.T
 }
 
 func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
-	row, err := r.q(tx).GetAnnouncementByID(ctx, id)
+	row, err := genQueries(r.db, tx).GetAnnouncementByID(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -125,7 +116,7 @@ func (r *announcementDAO) GetByID(ctx context.Context, id uuid.UUID, tx ...*sql.
 }
 
 func (r *announcementDAO) List(ctx context.Context, q spec.AnnouncementListQuery, tx ...*sql.Tx) ([]model.AnnouncementRow, int, error) {
-	queries := r.q(tx)
+	queries := genQueries(r.db, tx)
 
 	total, err := queries.CountAnnouncements(ctx)
 	if err != nil {
@@ -149,7 +140,7 @@ func (r *announcementDAO) List(ctx context.Context, q spec.AnnouncementListQuery
 }
 
 func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*model.AnnouncementRow, error) {
-	row, err := r.q(tx).GetLatestAnnouncement(ctx)
+	row, err := genQueries(r.db, tx).GetLatestAnnouncement(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -161,7 +152,7 @@ func (r *announcementDAO) GetLatest(ctx context.Context, tx ...*sql.Tx) (*model.
 }
 
 func (r *announcementDAO) SetPinned(ctx context.Context, s spec.AnnouncementPinUpdate, tx ...*sql.Tx) error {
-	err := r.q(tx).SetAnnouncementPinned(ctx, sqlcgen.SetAnnouncementPinnedParams{
+	err := genQueries(r.db, tx).SetAnnouncementPinned(ctx, sqlcgen.SetAnnouncementPinnedParams{
 		Pinned: s.Pinned,
 		ID:     s.ID,
 	})

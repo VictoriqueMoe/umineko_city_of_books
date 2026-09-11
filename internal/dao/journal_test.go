@@ -9,6 +9,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
@@ -533,7 +534,7 @@ func TestJournalDAO_GetAuthorID_NotFound(t *testing.T) {
 	_, err := repos.Journal.GetAuthorID(context.Background(), uuid.New())
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, dao.ErrNotFound)
 }
 
 func TestJournalDAO_GetTitle(t *testing.T) {

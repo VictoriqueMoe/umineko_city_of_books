@@ -20,10 +20,19 @@ func NewMockStreamCredentialsDAO(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *MockStreamCredentialsDAO {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &MockStreamCredentialsDAO{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }

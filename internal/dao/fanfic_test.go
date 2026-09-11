@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/dto"
 	fanficparams "umineko_city_of_books/internal/fanfic/params"
@@ -543,7 +544,7 @@ func TestFanficDAO_GetAuthorID_NotFound(t *testing.T) {
 	_, err := repos.Fanfic.GetAuthorID(context.Background(), uuid.New())
 
 	// then
-	require.Error(t, err)
+	require.ErrorIs(t, err, dao.ErrNotFound)
 }
 
 func TestFanficDAO_List_Defaults(t *testing.T) {

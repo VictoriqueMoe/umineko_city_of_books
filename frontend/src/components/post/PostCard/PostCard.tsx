@@ -50,6 +50,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     const [saving, setSaving] = useState(false);
     const [shareOpen, setShareOpen] = useState(false);
     const [replyOpen, setReplyOpen] = useState(false);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const mediaInputRef = useRef<HTMLInputElement>(null);
 
     const pendingLikeRef = useRef(0);
@@ -65,6 +66,7 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
         setSaving(false);
         setShareOpen(false);
         setReplyOpen(false);
+        setDeleteError(null);
     });
 
     useEffect(() => {
@@ -114,14 +116,20 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
     }
 
     async function handleDelete() {
+        if (deleteMutation.isPending) {
+            return;
+        }
         if (!window.confirm("Are you sure you want to delete this post?")) {
             return;
         }
+
+        setDeleteError(null);
+
         try {
             await deleteMutation.mutateAsync(post.id);
             onDelete?.();
-        } catch {
-            // ignore
+        } catch (err) {
+            setDeleteError(err instanceof Error ? err.message : "Failed to delete this post.");
         }
     }
 
@@ -278,8 +286,8 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 )}
 
                 {canDelete && (
-                    <Button variant="ghost" size="small" onClick={handleDelete}>
-                        Delete
+                    <Button variant="ghost" size="small" onClick={handleDelete} disabled={deleteMutation.isPending}>
+                        {deleteMutation.isPending ? "Deleting..." : "Delete"}
                     </Button>
                 )}
 
@@ -300,6 +308,8 @@ export function PostCard({ post, onDelete, onEdit, extraActions }: PostCardProps
                 {user && !isOwner && <ReportButton targetType="post" targetId={post.id} />}
                 {extraActions}
             </div>
+
+            {deleteError && <div className={styles.deleteError}>{deleteError}</div>}
 
             {user && replyOpen && (
                 <div className={styles.quickReply}>

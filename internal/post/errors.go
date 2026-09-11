@@ -1,9 +1,14 @@
 package post
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"umineko_city_of_books/internal/dao"
+)
 
 var (
-	ErrNotFound         = errors.New("post not found")
+	ErrNotFound         = fmt.Errorf("post not found: %w", dao.ErrNotFound)
 	ErrEmptyBody        = errors.New("post body cannot be empty")
 	ErrRateLimited      = errors.New("you have reached your daily post limit")
 	ErrInvalidPoll      = errors.New("poll must have between 2 and 10 options")

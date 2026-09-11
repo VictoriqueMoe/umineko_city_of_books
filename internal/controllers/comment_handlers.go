@@ -7,6 +7,7 @@ import (
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -20,7 +21,10 @@ func (s *Service) handleDeleteComment(ctx fiber.Ctx, del func(context.Context, u
 
 	userID := utils.UserID(ctx)
 	if err := del(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete comment")
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
+		return utils.InternalError(ctx, "failed to delete comment", err)
 	}
 
 	return ctx.SendStatus(fiber.StatusNoContent)

@@ -6,7 +6,6 @@ import (
 	"github.com/google/uuid"
 
 	"umineko_city_of_books/internal/dao/dynamicsql"
-	"umineko_city_of_books/internal/dao/sqlcgen"
 )
 
 func NewSession(db *sql.DB) SessionDAO { return &sessionDAO{db: db} }
@@ -41,7 +40,9 @@ func NewEmailVerification(db *sql.DB) EmailVerificationDAO {
 	return &emailVerificationDAO{db: db}
 }
 
-func NewChat(db *sql.DB) ChatDAO { return &chatDAO{db: db} }
+func NewChat(db *sql.DB) ChatDAO {
+	return &chatDAO{ChatRooms: dynamicsql.NewChatRooms(db), db: db}
+}
 
 func NewReport(db *sql.DB) ReportDAO { return &reportDAO{db: db} }
 
@@ -79,7 +80,6 @@ func NewBlock(db *sql.DB) BlockDAO { return &blockDAO{db: db} }
 func NewAnnouncement(db *sql.DB) (AnnouncementDAO, CommentDAO[uuid.UUID]) {
 	d := &announcementDAO{
 		db:         db,
-		gen:        sqlcgen.New(db),
 		commentDAO: newCommentDAO[uuid.UUID](db, announcementCommentQuerier{}),
 	}
 

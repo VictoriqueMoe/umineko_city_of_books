@@ -27,7 +27,7 @@ const { previews } = vi.hoisted(() => ({ previews: { byURL: new Map<string, Link
 vi.mock("../../../hooks/mutations/post", () => ({
     useLikePost: () => ({ mutateAsync: mocks.like }),
     useUnlikePost: () => ({ mutateAsync: mocks.unlike }),
-    useDeletePost: () => ({ mutateAsync: mocks.deletePost }),
+    useDeletePost: () => ({ mutateAsync: mocks.deletePost, isPending: false }),
     useUpdatePost: () => ({ mutateAsync: mocks.updatePost }),
     useUploadPostMedia: () => ({ mutateAsync: mocks.uploadPostMedia }),
     useDeletePostMedia: () => ({ mutateAsync: mocks.deletePostMedia }),
@@ -361,6 +361,7 @@ describe("PostCard", () => {
         // then
         expect(mocks.deletePost).toHaveBeenCalledWith(postId);
         expect(onDelete).not.toHaveBeenCalled();
+        expect(await screen.findByText("the witch protects it")).toBeInTheDocument();
     });
 
     it("opens the editor seeded with the current body and saves it trimmed", async () => {

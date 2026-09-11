@@ -7,46 +7,24 @@ import (
 	"strings"
 	"time"
 
-	"umineko_city_of_books/internal/dao/sqlcgen"
+	"umineko_city_of_books/internal/db"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 )
 
 type (
-	dbtx interface {
-		ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
-		QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
-		QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
-	}
-
-	searchDAO struct {
+	Search struct {
 		db *sql.DB
 	}
 )
 
 const SearchHeadlineOptions = `'MaxFragments=1, MaxWords=18, MinWords=5, ShortWord=3, HighlightAll=false, StartSel=<mark>, StopSel=</mark>'`
 
-func NewSearch(db *sql.DB) *searchDAO {
-	return &searchDAO{db: db}
+func NewSearch(db *sql.DB) *Search {
+	return &Search{db: db}
 }
 
-func txOrDB(db *sql.DB, tx []*sql.Tx) dbtx {
-	if len(tx) > 0 && tx[0] != nil {
-		return tx[0]
-	}
-
-	return db
-}
-
-func genQueries(db *sql.DB, tx []*sql.Tx) *sqlcgen.Queries {
-	if len(tx) > 0 && tx[0] != nil {
-		return sqlcgen.New(tx[0])
-	}
-
-	return sqlcgen.New(db)
-}
-
-func (r *searchDAO) Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.Tx) ([]model.SearchResult, int, error) {
+func (r *Search) Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.Tx) ([]model.SearchResult, int, error) {
 	srcs := model.ResolveSearchTypes(s.Types)
 	if len(srcs) == 0 {
 		return nil, 0, nil
@@ -62,7 +40,7 @@ func (r *searchDAO) Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.T
         SELECT COUNT(*) FROM (%s) results`, union)
 
 	var total int
-	if err := txOrDB(r.db, tx).QueryRowContext(ctx, countSQL, s.Query).Scan(&total); err != nil {
+	if err := db.TxOrDB(r.db, tx).QueryRowContext(ctx, countSQL, s.Query).Scan(&total); err != nil {
 		return nil, 0, fmt.Errorf("search count: %w", err)
 	}
 
@@ -73,7 +51,7 @@ func (r *searchDAO) Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.T
         ORDER BY rank DESC, created_at DESC
         LIMIT $2 OFFSET $3`, union)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, dataSQL, s.Query, s.Limit, s.Offset)
+	rows, err := db.TxOrDB(r.db, tx).QueryContext(ctx, dataSQL, s.Query, s.Limit, s.Offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("search query: %w", err)
 	}
@@ -87,7 +65,7 @@ func (r *searchDAO) Search(ctx context.Context, s spec.SearchQuery, tx ...*sql.T
 	return results, total, nil
 }
 
-func (r *searchDAO) QuickSearch(ctx context.Context, s spec.QuickSearchQuery, tx ...*sql.Tx) ([]model.SearchResult, error) {
+func (r *Search) QuickSearch(ctx context.Context, s spec.QuickSearchQuery, tx ...*sql.Tx) ([]model.SearchResult, error) {
 	sources := model.SearchSources()
 
 	subqueries := make([]string, len(sources))
@@ -102,7 +80,7 @@ func (r *searchDAO) QuickSearch(ctx context.Context, s spec.QuickSearchQuery, tx
         FROM (%s) results
         ORDER BY rank DESC, created_at DESC`, union)
 
-	rows, err := txOrDB(r.db, tx).QueryContext(ctx, sqlStr, s.Query)
+	rows, err := db.TxOrDB(r.db, tx).QueryContext(ctx, sqlStr, s.Query)
 	if err != nil {
 		return nil, fmt.Errorf("quick search: %w", err)
 	}

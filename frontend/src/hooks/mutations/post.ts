@@ -20,6 +20,7 @@ import {
     uploadCommentMedia,
 } from "../../api/endpoints/comments";
 import type { CreatePollPayload } from "../../types/api";
+import { ApiError } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 
 type CreatePostInput = {
@@ -61,9 +62,22 @@ export function useUpdatePost(id: string) {
 export function useDeletePost() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: (id: string) => deletePost(id),
-        onSuccess: () => {
-            qc.invalidateQueries({ queryKey: queryKeys.post.all });
+        mutationFn: async (id: string) => {
+            try {
+                await deletePost(id);
+            } catch (err) {
+                if (err instanceof ApiError && err.status === 404) {
+                    return;
+                }
+                throw err;
+            }
+        },
+        onSuccess: (_data, id) => {
+            qc.removeQueries({ queryKey: queryKeys.post.detail(id) });
+            qc.invalidateQueries({
+                queryKey: queryKeys.post.all,
+                predicate: query => query.queryKey[1] !== "detail" || query.queryKey[2] !== id,
+            });
         },
     });
 }

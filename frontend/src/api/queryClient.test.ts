@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "./client";
 import { queryClient } from "./queryClient";
 
 afterEach(() => {
@@ -33,10 +34,22 @@ describe("queryClient", () => {
     it("retries a query once but never retries a mutation", () => {
         // when
         const defaults = queryClient.getDefaultOptions();
+        const retry = defaults.queries?.retry as (failureCount: number, error: Error) => boolean;
 
         // then
-        expect(defaults.queries?.retry).toBe(1);
+        expect(retry(0, new Error("network down"))).toBe(true);
+        expect(retry(1, new Error("network down"))).toBe(false);
         expect(defaults.mutations?.retry).toBe(0);
+    });
+
+    it("never retries a client error, because the answer will not change", () => {
+        // given
+        const retry = queryClient.getDefaultOptions().queries?.retry as (failureCount: number, error: Error) => boolean;
+
+        // then
+        expect(retry(0, new ApiError(404, "post not found", null))).toBe(false);
+        expect(retry(0, new ApiError(403, "forbidden", null))).toBe(false);
+        expect(retry(0, new ApiError(500, "server exploded", null))).toBe(true);
     });
 
     it("serves a second fetch of the same key from the cache while it is still fresh", async () => {

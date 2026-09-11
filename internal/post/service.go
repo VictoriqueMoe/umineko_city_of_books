@@ -2,6 +2,7 @@ package post
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
@@ -324,6 +326,9 @@ func (s *service) UpdatePost(ctx context.Context, id uuid.UUID, userID uuid.UUID
 
 func (s *service) DeletePost(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, id)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
@@ -487,8 +492,11 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 
 func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
 	}
 	if authorID != userID {
 		return nil, fmt.Errorf("not the post author")
@@ -513,8 +521,11 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 
 func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID int64, userID uuid.UUID) error {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return ErrNotFound
+	}
+	if err != nil {
+		return err
 	}
 	if authorID != userID {
 		return fmt.Errorf("not the post author")
@@ -749,6 +760,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
 	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
@@ -759,11 +773,9 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	paths, err := s.postRepo.DeleteCommentWithAudit(ctx, spec.PostCommentDelete{
-		CommentDeletion: spec.CommentDeletion{
-			CommentID: id,
-			UserID:    userID,
-			AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
-		},
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
 		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,
