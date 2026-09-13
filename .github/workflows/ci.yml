@@ -86,6 +86,7 @@ jobs:
         run: go build ./...
 
   backend-test:
+    name: ${{ matrix.shard == 'rest' && 'backend-test (all other packages)' || format('backend-test (dao {0} of 4)', matrix.shard) }}
     if: ${{ !contains(github.event.head_commit.message, '[skip tests]') }}
     runs-on: ubuntu-latest
     strategy:
@@ -115,7 +116,7 @@ jobs:
           key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
           restore-keys: go-${{ runner.os }}-
 
-      - name: Test DAO shard ${{ matrix.shard }} of 4
+      - name: Test this job's share of the DAO package
         if: matrix.shard != 'rest'
         env:
           SHARD: ${{ matrix.shard }}
