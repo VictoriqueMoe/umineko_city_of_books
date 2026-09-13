@@ -926,7 +926,7 @@ The frontend, rooted at `frontend/`. Every directory below `src/` carries the la
 ```
   index.html            the SPA shell vite builds; the built output goes to ../static
   vite.config.ts        build, dev proxy and the ../static outDir
-  vitest.config.ts      jsdom, the setup file, and the coverage include and exclude lists
+  vitest.config.ts      jsdom in the vmThreads pool, the setup file, and the coverage include and exclude lists
   oxlint.layers.ts      the layer globs, the import and syntax rules, and the named file lists
   oxlint.config.ts      the base config, which spreads layerRules last
   oxlint-plugin-layers.mjs  the five esquery rules the layer blocks switch on and off

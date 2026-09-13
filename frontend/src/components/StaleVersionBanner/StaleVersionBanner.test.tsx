@@ -4,17 +4,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { StaleVersionBanner } from "./StaleVersionBanner";
 
-const { isNativeApp, hasOtaUpdate, applyOtaUpdate, subscribeOtaReady } = vi.hoisted(() => ({
+const { isNativeApp, hasOtaUpdate, applyOtaUpdate, subscribeOtaReady, reloadPage } = vi.hoisted(() => ({
     isNativeApp: vi.fn(),
     hasOtaUpdate: vi.fn(),
     applyOtaUpdate: vi.fn(),
     subscribeOtaReady: vi.fn(),
+    reloadPage: vi.fn(),
 }));
 
 vi.mock("../../platform/capabilities", () => ({ isNativeApp }));
 vi.mock("../../platform/appUpdate", () => ({ hasOtaUpdate, applyOtaUpdate, subscribeOtaReady }));
-
-const reload = vi.fn();
+vi.mock("../../platform/pageReload", () => ({ reloadPage }));
 
 let readyListeners: Array<() => void>;
 
@@ -31,7 +31,6 @@ beforeEach(() => {
         };
     });
     vi.stubGlobal("__APP_VERSION__", "6.10.0");
-    vi.stubGlobal("location", { reload, origin: "http://localhost:3000", href: "http://localhost:3000/" });
 });
 
 function announceOtaReady() {
@@ -76,7 +75,7 @@ describe("StaleVersionBanner", () => {
         await user.click(screen.getByRole("button", { name: "Reload now" }));
 
         // then
-        expect(reload).toHaveBeenCalledOnce();
+        expect(reloadPage).toHaveBeenCalledOnce();
     });
 
     it("stays quiet for a locally built bundle", () => {
@@ -171,7 +170,7 @@ describe("StaleVersionBanner", () => {
 
         // then
         expect(applyOtaUpdate).toHaveBeenCalledOnce();
-        expect(reload).not.toHaveBeenCalled();
+        expect(reloadPage).not.toHaveBeenCalled();
     });
 
     it("swallows a failure to apply the staged bundle", async () => {

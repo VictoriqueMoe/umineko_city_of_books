@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reloadPage } from "../../platform/pageReload";
 import styles from "./RootErrorBoundary.module.css";
 
 interface RootErrorBoundaryProps {
@@ -45,7 +46,7 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
     };
 
     handleReload = (): void => {
-        globalThis.location.reload();
+        reloadPage();
     };
 
     render(): ReactNode {
