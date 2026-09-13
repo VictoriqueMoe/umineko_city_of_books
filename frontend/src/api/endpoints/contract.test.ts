@@ -605,13 +605,17 @@ describe("response unwrapping", () => {
 
     it("getFanficLanguages returns just the language list", async () => {
         // given
-        fetchMock.mockResolvedValue({ languages: ["English", "Japanese"] });
+        const languages = vi
+            .when(fetchMock, { onUnmatched: "throw" })
+            .calledWith("/fanfic-languages")
+            .thenResolveOnce({ languages: ["English", "Japanese"] });
 
         // when
         const result = await api.getFanficLanguages();
 
         // then
         expect(result).toEqual(["English", "Japanese"]);
+        expect(languages).toHaveBeenExhausted();
     });
 
     it("searchOCCharacters queries by name and returns just the characters", async () => {

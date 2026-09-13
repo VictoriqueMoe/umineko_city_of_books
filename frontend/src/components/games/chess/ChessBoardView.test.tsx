@@ -246,10 +246,12 @@ describe("ChessBoardView", () => {
     it("sends the legal move that matches the square a piece was dropped on", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([
-            { from: "e2", to: "e3" },
-            { from: "e2", to: "e4" },
-        ]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([
+                { from: "e2", to: "e3" },
+                { from: "e2", to: "e4" },
+            ]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -264,7 +266,9 @@ describe("ChessBoardView", () => {
     it("refuses a drop on a square the piece cannot reach", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e2", to: "e3" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([{ from: "e2", to: "e3" }]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -277,7 +281,9 @@ describe("ChessBoardView", () => {
     it("refuses a drop while it is the opponent's turn", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e2", to: "e4" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([{ from: "e2", to: "e4" }]);
         renderBoard(makeRoom({ turn_user_id: "u-black" }), whiteViewer);
 
         // when
@@ -292,10 +298,12 @@ describe("ChessBoardView", () => {
         const user = userEvent.setup();
         harness.dropFrom = "e7";
         harness.dropTo = "e8";
-        chess.moves.mockReturnValue([
-            { from: "e7", to: "e8", promotion: "n" },
-            { from: "e7", to: "e8", promotion: "q" },
-        ]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e7", verbose: true })
+            .thenReturn([
+                { from: "e7", to: "e8", promotion: "n" },
+                { from: "e7", to: "e8", promotion: "q" },
+            ]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -310,7 +318,9 @@ describe("ChessBoardView", () => {
     it("shows why the server rejected a dropped move", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e2", to: "e4" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([{ from: "e2", to: "e4" }]);
         onMove.mockRejectedValue(new Error("not your turn"));
         renderBoard(makeRoom(), whiteViewer);
 
@@ -324,7 +334,9 @@ describe("ChessBoardView", () => {
     it("sends the typed coordinate move and empties the box", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e2", to: "e4" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([{ from: "e2", to: "e4" }]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -355,7 +367,9 @@ describe("ChessBoardView", () => {
     it("names the illegal coordinate move it will not play", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e2", to: "e4" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([{ from: "e2", to: "e4" }]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -370,10 +384,12 @@ describe("ChessBoardView", () => {
     it("asks for a promotion letter when the typed move promotes", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([
-            { from: "e7", to: "e8", promotion: "q" },
-            { from: "e7", to: "e8", promotion: "n" },
-        ]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e7", verbose: true })
+            .thenReturn([
+                { from: "e7", to: "e8", promotion: "q" },
+                { from: "e7", to: "e8", promotion: "n" },
+            ]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -388,7 +404,9 @@ describe("ChessBoardView", () => {
     it("rejects a promotion piece that is not on offer", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e7", to: "e8", promotion: "q" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e7", verbose: true })
+            .thenReturn([{ from: "e7", to: "e8", promotion: "q" }]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -403,7 +421,9 @@ describe("ChessBoardView", () => {
     it("rejects a promotion letter on an ordinary move", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([{ from: "e2", to: "e4" }]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([{ from: "e2", to: "e4" }]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when
@@ -549,10 +569,12 @@ describe("ChessBoardView", () => {
     it("marks where a hovered piece could go and forgets once the pointer leaves", async () => {
         // given
         const user = userEvent.setup();
-        chess.moves.mockReturnValue([
-            { from: "e2", to: "e4" },
-            { from: "e2", to: "d3", captured: "p" },
-        ]);
+        vi.when(chess.moves)
+            .calledWith({ square: "e2", verbose: true })
+            .thenReturn([
+                { from: "e2", to: "e4" },
+                { from: "e2", to: "d3", captured: "p" },
+            ]);
         renderBoard(makeRoom(), whiteViewer);
 
         // when

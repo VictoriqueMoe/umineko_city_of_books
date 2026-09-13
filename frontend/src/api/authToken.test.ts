@@ -78,7 +78,10 @@ describe("setAuthToken", () => {
 
     it("still caches the token when persistence fails", async () => {
         // given
-        preferences.set.mockRejectedValue(new Error("storage unavailable"));
+        const persist = vi
+            .when(preferences.set, { onUnmatched: "throw" })
+            .calledWith({ key: TOKEN_KEY, value: "beato-token" })
+            .thenRejectOnce(new Error("storage unavailable"));
         const { getAuthToken, setAuthToken } = await loadAuthTokenModule();
 
         // when
@@ -87,6 +90,7 @@ describe("setAuthToken", () => {
 
         // then
         expect(getAuthToken()).toBe("beato-token");
+        expect(persist).toHaveBeenExhausted();
     });
 });
 
@@ -116,7 +120,10 @@ describe("clearAuthToken", () => {
 
     it("still forgets the token when removal fails", async () => {
         // given
-        preferences.remove.mockRejectedValue(new Error("storage unavailable"));
+        const removal = vi
+            .when(preferences.remove, { onUnmatched: "throw" })
+            .calledWith({ key: TOKEN_KEY })
+            .thenRejectOnce(new Error("storage unavailable"));
         const { clearAuthToken, getAuthToken, setAuthToken } = await loadAuthTokenModule();
         setAuthToken("beato-token");
 
@@ -126,6 +133,7 @@ describe("clearAuthToken", () => {
 
         // then
         expect(getAuthToken()).toBeNull();
+        expect(removal).toHaveBeenExhausted();
     });
 });
 
@@ -147,21 +155,27 @@ describe("loadAuthToken", () => {
     it("restores a stored token into the cache on a native shell", async () => {
         // given
         capacitor.isNativePlatform.mockReturnValue(true);
-        preferences.get.mockResolvedValue({ value: "stored-token" });
+        const stored = vi
+            .when(preferences.get, { onUnmatched: "throw" })
+            .calledWith({ key: TOKEN_KEY })
+            .thenResolveOnce({ value: "stored-token" });
         const { getAuthToken, loadAuthToken } = await loadAuthTokenModule();
 
         // when
         await loadAuthToken();
 
         // then
-        expect(preferences.get).toHaveBeenCalledWith({ key: TOKEN_KEY });
         expect(getAuthToken()).toBe("stored-token");
+        expect(stored).toHaveBeenExhausted();
     });
 
     it("leaves the cache empty when the native shell has nothing stored", async () => {
         // given
         capacitor.isNativePlatform.mockReturnValue(true);
-        preferences.get.mockResolvedValue({ value: null });
+        const stored = vi
+            .when(preferences.get, { onUnmatched: "throw" })
+            .calledWith({ key: TOKEN_KEY })
+            .thenResolveOnce({ value: null });
         const { getAuthToken, loadAuthToken } = await loadAuthTokenModule();
 
         // when
@@ -169,12 +183,16 @@ describe("loadAuthToken", () => {
 
         // then
         expect(getAuthToken()).toBeNull();
+        expect(stored).toHaveBeenExhausted();
     });
 
     it("keeps a token captured in this session ahead of the stored one", async () => {
         // given
         capacitor.isNativePlatform.mockReturnValue(true);
-        preferences.get.mockResolvedValue({ value: "stored-token" });
+        const stored = vi
+            .when(preferences.get, { onUnmatched: "throw" })
+            .calledWith({ key: TOKEN_KEY })
+            .thenResolveOnce({ value: "stored-token" });
         const { getAuthToken, loadAuthToken, setAuthToken } = await loadAuthTokenModule();
         setAuthToken("in-memory-token");
 
@@ -183,17 +201,20 @@ describe("loadAuthToken", () => {
 
         // then
         expect(getAuthToken()).toBe("in-memory-token");
+        expect(stored).toHaveBeenExhausted();
     });
 
     it("does not wipe a token captured while storage was still being read", async () => {
         // given
         capacitor.isNativePlatform.mockReturnValue(true);
         let release: (result: { value: string | null }) => void = () => {};
-        preferences.get.mockReturnValue(
-            new Promise<{ value: string | null }>(resolve => {
-                release = resolve;
-            }),
-        );
+        const pendingRead = new Promise<{ value: string | null }>(resolve => {
+            release = resolve;
+        });
+        const stored = vi
+            .when(preferences.get, { onUnmatched: "throw" })
+            .calledWith({ key: TOKEN_KEY })
+            .thenReturnOnce(pendingRead);
         const { getAuthToken, loadAuthToken, setAuthToken } = await loadAuthTokenModule();
         const pending = loadAuthToken();
 
@@ -204,5 +225,6 @@ describe("loadAuthToken", () => {
 
         // then
         expect(getAuthToken()).toBe("header-token");
+        expect(stored).toHaveBeenExhausted();
     });
 });

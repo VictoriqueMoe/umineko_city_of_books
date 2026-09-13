@@ -6,9 +6,9 @@ export default defineConfig({
         globals: false,
         setupFiles: ["./src/test-utils/setup.ts"],
         include: ["src/**/*.{test,spec}.{ts,tsx}"],
-        clearMocks: true,
         unstubEnvs: true,
         unstubGlobals: true,
+        taskTitleValueFormatTruncate: 1000,
         env: {
             VITE_API_BASE: "",
         },
@@ -17,7 +17,6 @@ export default defineConfig({
             reporter: ["text-summary", "html"],
             include: ["src/**/*.{ts,tsx}"],
             exclude: [
-                "src/**/*.test.{ts,tsx}",
                 "src/test-utils/**",
                 "src/api/endpoints/testHarness.ts",
                 "src/vite-env.d.ts",

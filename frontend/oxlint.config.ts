@@ -22,7 +22,7 @@ const typescriptCoveredByTsc = [
 
 export default defineConfig({
     ignorePatterns: ["dist/**", "dist-app/**", "android/**", "ios/**", "scripts/**", "node_modules/**"],
-    plugins: ["eslint", "typescript", "react"],
+    plugins: ["eslint", "typescript", "react", "vitest"],
     jsPlugins: ["./oxlint-plugin-layers.mjs"],
     categories: { correctness: "off" },
     rules: {
@@ -147,6 +147,14 @@ export default defineConfig({
             files: ["**/*.{js,mjs,cjs,jsx}"],
             rules: {
                 "eslint/no-undef": "error",
+            },
+        },
+        {
+            files: ["**/*.test.{ts,tsx}"],
+            rules: {
+                "vitest/valid-expect": ["error", { alwaysAwait: true, maxArgs: 2 }],
+                "vitest/hoisted-apis-on-top": "error",
+                "vitest/require-awaited-expect-poll": "error",
             },
         },
         {
