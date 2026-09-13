@@ -48,7 +48,7 @@ jobs:
       - name: Build frontend
         run: cd frontend && npm run build
 
-  backend:
+  backend-lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -56,12 +56,18 @@ jobs:
       - name: Create static placeholder
         run: mkdir -p static && touch static/.gitkeep
 
-      - name: Install media tools
-        run: sudo apt-get update && sudo apt-get install -y webp
-
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
+          cache: false
+
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-${{ runner.os }}-
 
       - name: Vet
         run: go vet ./...
@@ -76,9 +82,61 @@ jobs:
           git add -A
           git diff --cached --exit-code
 
-      - name: Test
-        if: ${{ !contains(github.event.head_commit.message, '[skip tests]') }}
-        run: go test ./... -count=1
-
       - name: Build
         run: go build ./...
+
+  backend-test:
+    name: ${{ matrix.shard == 'rest' && 'backend-test (all other packages)' || format('backend-test (dao {0} of 4)', matrix.shard) }}
+    if: ${{ !contains(github.event.head_commit.message, '[skip tests]') }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ["1", "2", "3", "4", "rest"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Create static placeholder
+        run: mkdir -p static && touch static/.gitkeep
+
+      - name: Install media tools
+        if: matrix.shard == 'rest'
+        run: sudo apt-get update && sudo apt-get install -y webp
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: go-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-${{ runner.os }}-
+
+      - name: Test this job's share of the DAO package
+        if: matrix.shard != 'rest'
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          tests=$(go test -list '^Test' ./internal/dao | grep '^Test' | sort | awk -v shards=4 -v shard="$SHARD" 'NR % shards == shard - 1' | paste -sd '|')
+          pattern="^(${tests})\$"
+          go test ./internal/dao -count=1 -run "$pattern"
+
+      - name: Test everything except the DAO package
+        if: matrix.shard == 'rest'
+        run: go test $(go list ./... | grep -v '/internal/dao$') -count=1
+
+  backend:
+    if: ${{ always() }}
+    needs: [backend-lint, backend-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend job to pass
+        run: |
+          echo "lint: ${{ needs.backend-lint.result }}, tests: ${{ needs.backend-test.result }}"
+          [ "${{ needs.backend-lint.result }}" = "success" ]
+          [[ "${{ needs.backend-test.result }}" =~ ^(success|skipped)$ ]]
