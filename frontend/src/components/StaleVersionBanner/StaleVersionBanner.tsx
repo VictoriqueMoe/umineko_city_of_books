@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { isNativeApp } from "../../platform/capabilities";
 import { applyOtaUpdate, hasOtaUpdate, subscribeOtaReady } from "../../platform/appUpdate";
+import { reloadPage } from "../../platform/pageReload";
 import styles from "./StaleVersionBanner.module.css";
 
 export function StaleVersionBanner() {
@@ -25,7 +26,7 @@ export function StaleVersionBanner() {
     }
 
     function handleReload() {
-        window.location.reload();
+        reloadPage();
     }
 
     if (native) {

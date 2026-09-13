@@ -56,19 +56,13 @@ interface ListOptions {
 }
 
 function stubLists(options: ListOptions = {}) {
-    mocks.listMyChatRooms.mockImplementation((params: { role?: string }) => {
-        if (params.role === "host") {
-            return Promise.resolve({
-                rooms: options.hosted ?? [],
-                total: options.hostedTotal ?? options.hosted?.length ?? 0,
-            });
-        }
+    mocks.listMyChatRooms.mockReset();
+    vi.when(mocks.listMyChatRooms, { onUnmatched: "throw" })
+        .calledWith(expect.objectContaining({ role: "host" }))
+        .thenResolve({ rooms: options.hosted ?? [], total: options.hostedTotal ?? options.hosted?.length ?? 0 })
+        .calledWith(expect.objectContaining({ role: "member" }))
+        .thenResolve({ rooms: options.joined ?? [], total: options.joinedTotal ?? options.joined?.length ?? 0 });
 
-        return Promise.resolve({
-            rooms: options.joined ?? [],
-            total: options.joinedTotal ?? options.joined?.length ?? 0,
-        });
-    });
     mocks.listPublicChatRooms.mockResolvedValue({
         rooms: options.discover ?? [],
         total: options.discoverTotal ?? options.discover?.length ?? 0,
@@ -149,6 +143,7 @@ describe("RoomsListPage empty states", () => {
 
         // then
         expect(await screen.findByText("You haven't created any rooms yet.")).toBeInTheDocument();
+        expect(mocks.listMyChatRooms).toHaveReturnedTimes(mocks.listMyChatRooms.mock.calls.length);
     });
 
     it("says the member has joined nothing yet", async () => {
@@ -162,6 +157,7 @@ describe("RoomsListPage empty states", () => {
         expect(
             await screen.findByText("You haven't joined any rooms yet. Browse below or create one."),
         ).toBeInTheDocument();
+        expect(mocks.listMyChatRooms).toHaveReturnedTimes(mocks.listMyChatRooms.mock.calls.length);
     });
 
     it("invites the first public room when there are none", async () => {
@@ -189,6 +185,7 @@ describe("RoomsListPage empty states", () => {
         expect(await screen.findByText("No public rooms match your search.")).toBeInTheDocument();
         expect(screen.getByText("No rooms you host match the filters.")).toBeInTheDocument();
         expect(screen.getByText("No joined rooms match the filters.")).toBeInTheDocument();
+        expect(mocks.listMyChatRooms).toHaveReturnedTimes(mocks.listMyChatRooms.mock.calls.length);
     });
 });
 
@@ -304,6 +301,7 @@ describe("RoomsListPage room cards", () => {
         // then
         expect(await screen.findByText("You haven't created any rooms yet.")).toBeInTheDocument();
         expect(screen.queryByRole("link", { name: /Staff Lounge/ })).not.toBeInTheDocument();
+        expect(mocks.listMyChatRooms).toHaveReturnedTimes(mocks.listMyChatRooms.mock.calls.length);
     });
 
     it("separates roleplay rooms from ordinary chat rooms", async () => {

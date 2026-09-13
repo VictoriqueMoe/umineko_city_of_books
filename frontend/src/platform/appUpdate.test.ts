@@ -30,7 +30,17 @@ const source = { getManifest, bundleUrl };
 const otaReadyListener = vi.fn();
 
 let report: Mock<PlatformErrorReporter>;
-let stateHandler: AppStateHandler | null = null;
+
+function emitAppState(isActive: boolean) {
+    const call = capacitorApp.addListener.mock.calls[0];
+
+    if (!call) {
+        throw new Error("no appStateChange listener was registered");
+    }
+
+    const handler = call[1] as AppStateHandler;
+    handler({ isActive });
+}
 
 function signedManifest(): OtaManifest {
     return { version: "1.1.0", path: "/app-bundles/1.1.0.zip", checksum: "enc-checksum", session_key: "iv:session" };
@@ -47,12 +57,11 @@ async function loadAppUpdateModule(): Promise<typeof import("./appUpdate")> {
 }
 
 beforeEach(() => {
-    stateHandler = null;
     capacitor.isNativePlatform.mockReturnValue(true);
-    capacitorApp.addListener.mockImplementation((_event: string, handler: AppStateHandler) => {
-        stateHandler = handler;
-        return Promise.resolve({ remove: () => Promise.resolve() });
-    });
+    capacitorApp.addListener.mockReset();
+    vi.when(capacitorApp.addListener, { onUnmatched: "throw" })
+        .calledWith("appStateChange", expect.any(Function))
+        .thenResolve({ remove: () => Promise.resolve() });
     updater.notifyAppReady.mockResolvedValue(undefined);
     updater.current.mockResolvedValue({ bundle: { id: "bundle-1", version: "1.0.0" } });
     updater.download.mockResolvedValue({ id: "bundle-2", version: "1.1.0" });
@@ -255,7 +264,7 @@ describe("initAppUpdates", () => {
         });
 
         // when
-        stateHandler?.({ isActive: true });
+        emitAppState(true);
 
         // then
         await vi.waitFor(() => {
@@ -273,7 +282,7 @@ describe("initAppUpdates", () => {
         });
 
         // when
-        stateHandler?.({ isActive: false });
+        emitAppState(false);
         await Promise.resolve();
 
         // then
@@ -292,7 +301,7 @@ describe("initAppUpdates", () => {
         expect(appUpdate.hasOtaUpdate()).toBe(false);
 
         // when
-        stateHandler?.({ isActive: true });
+        emitAppState(true);
 
         // then
         await vi.waitFor(() => {
@@ -326,7 +335,7 @@ describe("initAppUpdates", () => {
         });
 
         // when
-        stateHandler?.({ isActive: true });
+        emitAppState(true);
         await vi.waitFor(() => {
             expect(getManifest).toHaveBeenCalledTimes(2);
         });

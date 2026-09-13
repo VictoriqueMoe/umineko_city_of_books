@@ -3,6 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RootErrorBoundary } from "./RootErrorBoundary";
 
+const { reloadPage } = vi.hoisted(() => ({ reloadPage: vi.fn() }));
+
+vi.mock("../../platform/pageReload", () => ({ reloadPage }));
+
 let thrown: unknown = null;
 
 function Fragile() {
@@ -120,8 +124,6 @@ describe("RootErrorBoundary", () => {
     it("offers a reload for when trying again is not enough", async () => {
         // given
         thrown = new Error("the golden land is closed");
-        const reload = vi.fn();
-        vi.stubGlobal("location", { ...globalThis.location, reload });
         render(
             <RootErrorBoundary onError={vi.fn()}>
                 <Fragile />
@@ -132,7 +134,7 @@ describe("RootErrorBoundary", () => {
         await userEvent.click(screen.getByRole("button", { name: "Reload the page" }));
 
         // then
-        expect(reload).toHaveBeenCalledTimes(1);
+        expect(reloadPage).toHaveBeenCalledTimes(1);
     });
 
     it("offers the way back to the city of books", () => {

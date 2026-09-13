@@ -439,14 +439,18 @@ describe("useMessageHistory loadUntilMessage", () => {
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
         });
-        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({
-            messages: [makeChatMessage({ id: "m4", created_at: "2026-01-04T00:00:00Z" })],
-            total: 900,
-        });
-        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({
-            messages: [makeChatMessage({ id: "m3", created_at: "2026-01-03T00:00:00Z" })],
-            total: 900,
-        });
+        const pages = vi
+            .when(mocks.fetchRoomMessagesBefore, { onUnmatched: "throw" })
+            .calledWith("room-1", "2026-01-05T00:00:00Z|m5", 50)
+            .thenResolveOnce({
+                messages: [makeChatMessage({ id: "m4", created_at: "2026-01-04T00:00:00Z" })],
+                total: 900,
+            })
+            .calledWith("room-1", "2026-01-04T00:00:00Z|m4", 50)
+            .thenResolveOnce({
+                messages: [makeChatMessage({ id: "m3", created_at: "2026-01-03T00:00:00Z" })],
+                total: 900,
+            });
 
         // when
         await act(async () => {
@@ -456,6 +460,7 @@ describe("useMessageHistory loadUntilMessage", () => {
         // then
         expect(mocks.fetchRoomMessagesBefore).toHaveBeenNthCalledWith(1, "room-1", "2026-01-05T00:00:00Z|m5", 50);
         expect(mocks.fetchRoomMessagesBefore).toHaveBeenNthCalledWith(2, "room-1", "2026-01-04T00:00:00Z|m4", 50);
+        expect(pages).toHaveBeenExhausted();
     });
 
     it("reports the message as found as soon as a page brings it in", async () => {
@@ -485,8 +490,12 @@ describe("useMessageHistory loadUntilMessage", () => {
         await waitFor(() => {
             expect(result.current.messages).toHaveLength(1);
         });
-        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({ messages: [makeChatMessage({ id: "m4" })], total: 90 });
-        mocks.fetchRoomMessagesBefore.mockResolvedValueOnce({ messages: [makeChatMessage({ id: "m3" })], total: 90 });
+        const pages = vi
+            .when(mocks.fetchRoomMessagesBefore, { onUnmatched: "throw" })
+            .calledWith("room-1", "2026-01-01T00:00:00Z|m5", 50)
+            .thenResolveOnce({ messages: [makeChatMessage({ id: "m4" })], total: 90 })
+            .calledWith("room-1", "2026-01-01T00:00:00Z|m4", 50)
+            .thenResolveOnce({ messages: [makeChatMessage({ id: "m3" })], total: 90 });
 
         // when
         await act(async () => {
@@ -495,6 +504,7 @@ describe("useMessageHistory loadUntilMessage", () => {
 
         // then
         expect(result.current.messages.map(m => m.id)).toEqual(["m3", "m4", "m5"]);
+        expect(pages).toHaveBeenExhausted();
     });
 
     it("gives up and stops offering history when a page comes back empty", async () => {

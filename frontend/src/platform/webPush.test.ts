@@ -44,6 +44,10 @@ const config: WebPushConfig = {
 
 const registration = { scope: "/" };
 
+const firebaseOptions = { apiKey: "api", projectId: "project", messagingSenderId: "sender", appId: "app" };
+const appHandle = { name: "app" };
+const messagingHandle = { name: "messaging" };
+
 const registerToken = vi.fn();
 const unregisterToken = vi.fn();
 const deps: WebPushDeps = { registerToken, unregisterToken };
@@ -86,8 +90,12 @@ beforeEach(async () => {
     stubNotification("granted");
 
     firebaseApp.getApps.mockReturnValue([]);
-    firebaseApp.initializeApp.mockReturnValue({ name: "app" });
-    firebaseMessaging.getMessaging.mockReturnValue({ name: "messaging" });
+    firebaseApp.initializeApp.mockReset();
+    vi.when(firebaseApp.initializeApp, { onUnmatched: "throw" }).calledWith(firebaseOptions).thenReturn(appHandle);
+    firebaseMessaging.getMessaging.mockReset();
+    vi.when(firebaseMessaging.getMessaging, { onUnmatched: "throw" }).calledWith(appHandle).thenReturn(messagingHandle);
+
+    pushRouting.routeFromPushData.mockReset();
 
     firebaseMessaging.onRegistered.mockImplementation((_messaging: unknown, cb: (fid: string) => void) => {
         registeredCallback = cb;
@@ -248,10 +256,10 @@ describe("enableWebPush", () => {
         await enableWebPush(config, deps);
 
         // then
-        expect(firebaseMessaging.register).toHaveBeenCalledWith(
-            { name: "messaging" },
-            { vapidKey: "vapid", serviceWorkerRegistration: registration },
-        );
+        expect(firebaseMessaging.register).toHaveBeenCalledWith(messagingHandle, {
+            vapidKey: "vapid",
+            serviceWorkerRegistration: registration,
+        });
         expect(registerToken).toHaveBeenCalledWith(FID, "web");
         expect(window.localStorage.getItem(FID_KEY)).toBe(FID);
     });
@@ -407,7 +415,10 @@ describe("initWebPushRouting", () => {
     it("navigates to the notification target when the service worker reports a click", () => {
         // given
         const navigate = vi.fn();
-        pushRouting.routeFromPushData.mockReturnValue("/theory/abc");
+        const route = vi
+            .when(pushRouting.routeFromPushData, { onUnmatched: "throw" })
+            .calledWith({ type: "reply" })
+            .thenReturnOnce("/theory/abc");
         initWebPushRouting(navigate);
 
         // when
@@ -417,6 +428,7 @@ describe("initWebPushRouting", () => {
 
         // then
         expect(navigate).toHaveBeenCalledWith("/theory/abc");
+        expect(route).toHaveBeenExhausted();
     });
 
     it("ignores service worker messages that are not notification clicks", () => {

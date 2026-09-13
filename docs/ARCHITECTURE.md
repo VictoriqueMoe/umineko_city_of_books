@@ -828,7 +828,7 @@ The README lists the stack. This section holds the reasons, because a version nu
 
 ### 7.2 Frontend
 
-- **React 19** (`react ^19.2.8`) with **TypeScript 6** (`typescript` aliased to `@typescript/typescript6@^6.0.2`, with `@typescript/native` alongside it), built by **Vite 8** (`^8.2.1`). Type checking is not a separate CI step: `npm run build` is `tsc -b && vite build`, so a type error fails the build job.
+- **React 19** (`react ^19.2.8`) with **TypeScript 7** (`typescript ^7.0.2`), built by **Vite 8** (`^8.2.1`). Type checking is not a separate CI step: `npm run build` is `tsc -b && vite build`, so a type error fails the build job.
 - **React Router v8** (`react-router ^8.3.0`). The package is `react-router`, not `react-router-dom`, which was folded in from v7 onwards; importing from `react-router-dom` is the mistake this line exists to prevent.
 - **TanStack Query v5** (`@tanstack/react-query ^5.101.4`) is the server-state layer, and invalidating a query on a WebSocket event is what replaces polling (section 6.7). Keys are meant to come from `src/api/queryKeys.ts`; a handful of pages still build theirs inline, which Phase 1 of `design/FRONTEND_REARCHITECTURE.md` closes before a lint rule can enforce it.
 - **CSS Modules**, no CSS framework and no runtime styling library. Colours must come from theme tokens rather than literals, because fourteen themes redefine them (`frontend/src/context/ThemeContext.tsx:16-30`).
@@ -838,7 +838,7 @@ The README lists the stack. This section holds the reasons, because a version nu
 - **`chess.js`** and **react-chessboard** for the chess board. `chess.js` computes legal-move highlights and rejects an illegal drag before it is sent (`frontend/src/components/games/chess/ChessBoardView.tsx:210,243`); the server's own validator above remains the authority, and the client copy exists only so the board feels immediate.
 - **emoji-picker-react** for chat reactions, **`@marsidev/react-turnstile`** for bot protection, and **firebase** for web push.
 - **Capacitor 8** (`@capacitor/*`) with **`@capgo/capacitor-updater`** packages the same SPA as the mobile app, using bearer-token auth and native push. There is no second frontend.
-- **Vitest 4** with Testing Library and jsdom, **oxlint** run as `oxlint --max-warnings=0 .`, and **oxfmt** run as `oxfmt --check ./src`. CI runs oxfmt, then oxlint, then the tests, then the build (`.github/workflows/ci.yml:39-49`), and a warning fails the job exactly as an error does. Both replaced ESLint 10 and Prettier 3; the rule set was carried across one for one, and the only two rules with no oxlint equivalent are `no-octal` and `no-dupe-args`, which tsc and the parser already catch.
+- **Vitest 5** with Testing Library and jsdom, **oxlint** run as `oxlint --max-warnings=0 .`, and **oxfmt** run as `oxfmt --check ./src`. CI runs oxfmt, then oxlint, then the tests, then the build (`.github/workflows/ci.yml:39-49`), and a warning fails the job exactly as an error does. Both replaced ESLint 10 and Prettier 3; the rule set was carried across one for one, and the only two rules with no oxlint equivalent are `no-octal` and `no-dupe-args`, which tsc and the parser already catch. Test files additionally get `vitest/valid-expect` (with `alwaysAwait`), `vitest/hoisted-apis-on-top` and `vitest/require-awaited-expect-poll`, which catch statically what Vitest 5 otherwise only fails at runtime.
 
 ### 7.3 Infrastructure
 
@@ -926,7 +926,7 @@ The frontend, rooted at `frontend/`. Every directory below `src/` carries the la
 ```
   index.html            the SPA shell vite builds; the built output goes to ../static
   vite.config.ts        build, dev proxy and the ../static outDir
-  vitest.config.ts      jsdom, the setup file, and the coverage include and exclude lists
+  vitest.config.ts      jsdom in the vmThreads pool, the setup file, and the coverage include and exclude lists
   oxlint.layers.ts      the layer globs, the import and syntax rules, and the named file lists
   oxlint.config.ts      the base config, which spreads layerRules last
   oxlint-plugin-layers.mjs  the five esquery rules the layer blocks switch on and off
