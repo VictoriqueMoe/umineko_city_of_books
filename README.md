@@ -282,7 +282,7 @@ The third row exists because sqlc needs a literal table name, which the generic 
 
 Two DAOs are deliberately **not** generated and live in `internal/dao/dynamicsql`, plus `internal/dao/chat_dynamic.go`. They build their SQL text at run time, which sqlc cannot validate: search chooses between one and twenty-two `UNION ALL` branches from the caller's entity list, upload discovers its tables from `information_schema`, and the two chat room listings assemble a `WHERE` from five independent optional filters. The bar for living there is that the query text cannot exist until run time, not that it is awkward to write.
 
-CI (`.github/workflows/ci.yml`) creates a `static/.gitkeep` placeholder, then runs `go vet ./...`, `go tool staticcheck ./...`, a generated-code drift check, `go test ./... -count=1`, and `go build ./...` in that order. The drift check reruns both generators and fails if anything changes, so stale generated code cannot be merged. Putting `[skip tests]` in the commit message skips the test step only.
+CI (`.github/workflows/ci.yml`) splits the backend across parallel jobs. `backend-lint` creates a `static/.gitkeep` placeholder, then runs `go vet ./...`, `go tool staticcheck ./...`, a generated-code drift check, and `go build ./...` in that order. `backend-test` runs the tests as five jobs at once: four divide the `internal/dao` tests between them by name, because that package holds almost all of the test time, and the fifth runs every other package. A final `backend` job, which is the required status check, passes only when all of them did. The drift check reruns both generators and fails if anything changes, so stale generated code cannot be merged. Putting `[skip tests]` in the commit message skips the test jobs only.
 
 ### Frontend
 
