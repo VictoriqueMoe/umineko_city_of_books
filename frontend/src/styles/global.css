@@ -515,29 +515,6 @@ body[data-chat-page="true"] .app-main {
     }
 }
 
-.announcement-banner {
-    background: linear-gradient(90deg, var(--gold-dark), var(--gold), var(--gold-dark));
-    color: var(--bg-void);
-    padding: 0.5rem 1rem;
-    text-align: center;
-    font-weight: 600;
-    font-size: 0.95rem;
-    width: 100%;
-    overflow-wrap: anywhere;
-}
-
-.announcement-banner a {
-    color: var(--bg-void);
-    font-weight: 800;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-}
-
-.announcement-banner a:hover {
-    color: var(--bg-void);
-    opacity: 0.75;
-}
-
 [data-theme="virgilia"] .butterfly {
     color: #8b1a2d;
     text-shadow:
@@ -548,14 +525,6 @@ body[data-chat-page="true"] .app-main {
 [data-theme="virgilia"] .particle {
     color: #9ba0b0;
     text-shadow: 0 0 10px rgba(139, 26, 45, 0.35);
-}
-
-[data-theme="battler"] .announcement-banner {
-    color: var(--text);
-}
-
-[data-theme="battler"] .announcement-banner a {
-    color: var(--text);
 }
 
 /* Responsive layout */

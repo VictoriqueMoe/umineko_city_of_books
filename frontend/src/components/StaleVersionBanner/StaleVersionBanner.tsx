@@ -3,7 +3,7 @@ import { useSiteInfo } from "../../hooks/useSiteInfo";
 import { isNativeApp } from "../../platform/capabilities";
 import { applyOtaUpdate, hasOtaUpdate, subscribeOtaReady } from "../../platform/appUpdate";
 import { reloadPage } from "../../platform/pageReload";
-import styles from "./StaleVersionBanner.module.css";
+import { Banner, BannerButton } from "../Banner/Banner";
 
 export function StaleVersionBanner() {
     const siteInfo = useSiteInfo();
@@ -35,12 +35,9 @@ export function StaleVersionBanner() {
         }
 
         return (
-            <div className={styles.banner} role="alert">
-                <span className={styles.text}>A new version is available. Tap to update now.</span>
-                <button type="button" onClick={handleApply} className={styles.button}>
-                    Update now
-                </button>
-            </div>
+            <Banner colour="red" role="alert" actions={<BannerButton onClick={handleApply}>Update now</BannerButton>}>
+                A new version is available. Tap to update now.
+            </Banner>
         );
     }
 
@@ -53,11 +50,8 @@ export function StaleVersionBanner() {
     }
 
     return (
-        <div className={styles.banner} role="alert">
-            <span className={styles.text}>A new version of the site is available. Please reload to update.</span>
-            <button type="button" onClick={handleReload} className={styles.button}>
-                Reload now
-            </button>
-        </div>
+        <Banner colour="red" role="alert" actions={<BannerButton onClick={handleReload}>Reload now</BannerButton>}>
+            A new version of the site is available. Please reload to update.
+        </Banner>
     );
 }

@@ -1,6 +1,5 @@
-import { Link } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
-import styles from "./LockBanner.module.css";
+import { Banner, BannerLink } from "../Banner/Banner";
 
 export function LockBanner() {
     const { user } = useAuth();
@@ -9,14 +8,9 @@ export function LockBanner() {
     }
 
     return (
-        <div className={styles.banner}>
-            <span className={styles.text}>
-                Your account is locked. You can still read the site and send direct messages to site staff.
-                {user.lock_reason ? ` Reason: ${user.lock_reason}` : ""}
-            </span>
-            <Link to="/users" className={styles.button}>
-                Find a moderator
-            </Link>
-        </div>
+        <Banner colour="amber" actions={<BannerLink to="/users">Find a moderator</BannerLink>}>
+            Your account is locked. You can still read the site and send direct messages to site staff.
+            {user.lock_reason ? ` Reason: ${user.lock_reason}` : ""}
+        </Banner>
     );
 }

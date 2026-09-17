@@ -232,7 +232,7 @@ func TestSaveImage_InvalidType(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
-	// when — PDF bytes should be rejected from image flow
+	// when: PDF bytes should be rejected from image flow
 	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytesReader(pdfMagic))
 
 	// then
@@ -240,7 +240,7 @@ func TestSaveImage_InvalidType(t *testing.T) {
 }
 
 func TestSaveImage_RejectsSpoofedContentType(t *testing.T) {
-	// given — the caller used to pass "image/png" which we trusted.
+	// given: the caller used to pass "image/png" which we trusted.
 	// Now the bytes are what count, and these bytes are PDF.
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
@@ -326,7 +326,7 @@ func TestSaveVideo_InvalidType(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
-	// when — image bytes in the video flow
+	// when: image bytes in the video flow
 	_, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(pngMagic)), 1024, bytesReader(pngMagic))
 
 	// then
@@ -401,7 +401,7 @@ func TestDetectContentType_WrappedReaderReplaysFullStream(t *testing.T) {
 }
 
 func TestDetectContentType_StripsCharsetSuffix(t *testing.T) {
-	// text/plain sniff returns "text/plain; charset=utf-8" — we strip the charset.
+	// text/plain sniff returns "text/plain; charset=utf-8": we strip the charset.
 	got, _, err := DetectContentType(strings.NewReader("just plain text here"))
 	require.NoError(t, err)
 	assert.Equal(t, "text/plain", got)

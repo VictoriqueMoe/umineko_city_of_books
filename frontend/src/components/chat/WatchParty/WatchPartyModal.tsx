@@ -5,6 +5,7 @@ import { Button } from "../../Button/Button";
 import type { SiteRole } from "../../../types/api";
 import { siteUrl } from "../../../platform/siteOrigin";
 import { errorMessage } from "../../../utils/errorMessage";
+import { nonFatal } from "../../../utils/nonFatal";
 import { VoiceParticipantList } from "../Voice/VoiceParticipants";
 import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
@@ -257,7 +258,7 @@ export function WatchPartyModal({
                                             variant="ghost"
                                             size="small"
                                             onClick={() => {
-                                                media.shareScreen(false, shareMode).catch(() => {});
+                                                media.shareScreen(false, shareMode).catch(nonFatal);
                                             }}
                                         >
                                             Stop sharing
@@ -290,7 +291,7 @@ export function WatchPartyModal({
                                                 variant="ghost"
                                                 size="small"
                                                 onClick={() => {
-                                                    media.shareScreen(true, shareMode).catch(() => {});
+                                                    media.shareScreen(true, shareMode).catch(nonFatal);
                                                 }}
                                             >
                                                 Share screen
@@ -298,6 +299,11 @@ export function WatchPartyModal({
                                         </div>
                                     ))}
                             </div>
+                            {media.shareError && (
+                                <span className={styles.voiceError} role="alert">
+                                    {media.shareError}
+                                </span>
+                            )}
                             {media.room && (
                                 <RoomContext.Provider value={media.room}>
                                     <RoomAudioRenderer />

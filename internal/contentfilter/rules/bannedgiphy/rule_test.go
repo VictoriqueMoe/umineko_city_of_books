@@ -105,7 +105,7 @@ func TestCheck_DetectsBannedProfileURL(t *testing.T) {
 }
 
 func TestCheck_IgnoresReservedProfileSegments(t *testing.T) {
-	// given — "gifs" is reserved, so it is never offered to ContainsUser and no such call is expected
+	// given:  "gifs" is reserved, so it is never offered to ContainsUser and no such call is expected
 	b := NewMockBanlist(t)
 	b.EXPECT().ContainsGif("something").Return(false).Once()
 
@@ -120,7 +120,7 @@ func TestCheck_IgnoresReservedProfileSegments(t *testing.T) {
 }
 
 func TestCheck_UsesGifCheckBeforeUserCheck(t *testing.T) {
-	// given — if GIF and user are both banned, the GIF detection takes precedence
+	// given: if GIF and user are both banned, the GIF detection takes precedence
 	b := NewMockBanlist(t)
 	b.EXPECT().ContainsGif("abc").Return(true).Once()
 
@@ -145,7 +145,7 @@ func TestCheck_ScansMultipleTextsInOrder(t *testing.T) {
 
 	r := New(b, nil)
 
-	// when — banned GIF is in the second text
+	// when: banned GIF is in the second text
 	rej, err := r.Check(context.Background(), []string{"clean", "https://media.giphy.com/media/bad/giphy.gif"})
 
 	// then
@@ -165,7 +165,7 @@ func TestCheck_ResolvesGifUploaderAgainstUserBanlist(t *testing.T) {
 
 	r := New(b, lookup)
 
-	// when — GIF ID isn't banned but its uploader is
+	// when: GIF ID isn't banned but its uploader is
 	rej, err := r.Check(context.Background(), []string{"https://giphy.com/gifs/battler-abc123"})
 
 	// then

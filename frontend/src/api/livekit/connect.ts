@@ -7,6 +7,8 @@ export interface RoomEventHandlers {
     onParticipantConnected?: (room: Room) => void;
     onParticipantDisconnected?: (room: Room) => void;
     onLocalPermissionsChanged?: (room: Room) => void;
+    onLocalPublicationsChanged?: (room: Room) => void;
+    onMediaDevicesError?: (room: Room, error: Error) => void;
 }
 
 export interface ConnectRoomOptions {
@@ -56,6 +58,17 @@ export async function connectRoom(options: ConnectRoomOptions): Promise<Room | n
 
             onLocalPermissionsChanged(room);
         });
+    }
+
+    const onLocalPublicationsChanged = handlers.onLocalPublicationsChanged;
+    if (onLocalPublicationsChanged) {
+        room.on(RoomEvent.LocalTrackPublished, () => onLocalPublicationsChanged(room));
+        room.on(RoomEvent.LocalTrackUnpublished, () => onLocalPublicationsChanged(room));
+    }
+
+    const onMediaDevicesError = handlers.onMediaDevicesError;
+    if (onMediaDevicesError) {
+        room.on(RoomEvent.MediaDevicesError, (error: Error) => onMediaDevicesError(room, error));
     }
 
     const connectOptions = options.autoSubscribe === undefined ? undefined : { autoSubscribe: options.autoSubscribe };

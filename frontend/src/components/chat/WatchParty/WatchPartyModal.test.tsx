@@ -112,6 +112,7 @@ interface MediaState {
     status?: "idle" | "connecting" | "connected";
     inVoice?: boolean;
     isSharing?: boolean;
+    shareError?: string | null;
 }
 
 function stubMedia(state: MediaState = {}) {
@@ -120,6 +121,7 @@ function stubMedia(state: MediaState = {}) {
         status: state.status ?? "idle",
         inVoice: state.inVoice ?? false,
         isSharing: state.isSharing ?? false,
+        shareError: state.shareError ?? null,
         joinVoice: vi.fn(() => Promise.resolve()),
         leaveVoice: vi.fn(() => Promise.resolve()),
         shareScreen: vi.fn(() => Promise.resolve()),
@@ -778,6 +780,73 @@ describe("WatchPartyModal sharing controls", () => {
         // then
         expect(media.shareScreen).toHaveBeenCalledWith(false, "gaming");
         expect(screen.queryByRole("group", { name: "Stream mode" })).not.toBeInTheDocument();
+    });
+
+    it("tells the host why a share never started", () => {
+        // given
+        stubMedia({ room: {}, shareError: "Could not start audio source" });
+
+        // when
+        renderModal({ active: screenShareActive(), isStarter: true });
+
+        // then
+        expect(screen.getByRole("alert")).toHaveTextContent("Could not start audio source");
+        expect(screen.getByRole("button", { name: "Share screen" })).toBeInTheDocument();
+    });
+
+    it("says nothing at all while no share has failed", () => {
+        // given
+        stubMedia({ room: {} });
+
+        // when
+        renderModal({ active: screenShareActive(), isStarter: true });
+
+        // then
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("keeps quiet about a picker the host simply closed", async () => {
+        // given
+        const user = userEvent.setup();
+        stubMedia({ room: {} });
+        renderModal({ active: screenShareActive(), isStarter: true });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Share screen" }));
+
+        // then
+        expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
+
+    it("leaves no rejection unhandled when a share fails", async () => {
+        // given
+        const unhandled: unknown[] = [];
+        const record = (reason: unknown) => unhandled.push(reason);
+        nodeProcess.on("unhandledRejection", record);
+        const user = userEvent.setup();
+        const media = stubMedia({ room: {} });
+        media.shareScreen.mockRejectedValue(new Error("Could not start audio source"));
+        renderModal({ active: screenShareActive(), isStarter: true });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Share screen" }));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        nodeProcess.off("unhandledRejection", record);
+
+        // then
+        expect(unhandled).toEqual([]);
+    });
+
+    it("keeps claiming nothing is shared while the hook says the share never took", () => {
+        // given
+        stubMedia({ room: {}, isSharing: false, shareError: "Could not start audio source" });
+
+        // when
+        renderModal({ active: screenShareActive(), isStarter: true });
+
+        // then
+        expect(screen.queryByRole("button", { name: "Stop sharing" })).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Share screen" })).toBeInTheDocument();
     });
 });
 

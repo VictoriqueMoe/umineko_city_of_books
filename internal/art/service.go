@@ -182,16 +182,14 @@ func (s *service) CreateArt(ctx context.Context, userID uuid.UUID, req dto.Creat
 	}
 
 	newArt := spec.NewArtWithTags{
-		NewArt: spec.NewArt{
-			UserID:      userID,
-			Corner:      corner,
-			ArtType:     artType,
-			Title:       title,
-			Description: description,
-			ImageURL:    urlPath,
-			IsSpoiler:   req.IsSpoiler,
-		},
-		Tags: tags,
+		UserID:      userID,
+		Corner:      corner,
+		ArtType:     artType,
+		Title:       title,
+		Description: description,
+		ImageURL:    urlPath,
+		IsSpoiler:   req.IsSpoiler,
+		Tags:        tags,
 	}
 
 	created, err := s.artRepo.CreateWithTags(ctx, newArt)
@@ -298,15 +296,13 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	asAdmin := s.authz.Can(ctx, userID, authz.PermEditAnyPost)
 
 	update := spec.ArtUpdateWithTags{
-		ArtUpdate: spec.ArtUpdate{
-			ID:          id,
-			UserID:      userID,
-			Title:       title,
-			Description: description,
-			IsSpoiler:   req.IsSpoiler,
-			AsAdmin:     asAdmin,
-		},
-		Tags: tags,
+		ID:          id,
+		UserID:      userID,
+		Title:       title,
+		Description: description,
+		IsSpoiler:   req.IsSpoiler,
+		AsAdmin:     asAdmin,
+		Tags:        tags,
 	}
 
 	if err := s.artRepo.UpdateWithTags(ctx, update); err != nil {
@@ -605,11 +601,9 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	paths, err := s.artRepo.DeleteCommentWithAudit(ctx, spec.ArtCommentDeletion{
-		CommentDeletion: spec.CommentDeletion{
-			CommentID: id,
-			UserID:    userID,
-			AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
-		},
+		CommentID: id,
+		UserID:    userID,
+		AsAdmin:   s.authz.Can(ctx, userID, authz.PermDeleteAnyComment),
 		Audit: audit.NewEntry{
 			ActorID:    userID,
 			Action:     action,

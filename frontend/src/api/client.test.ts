@@ -16,6 +16,7 @@ import {
     buildQueryString,
     postFile,
 } from "./client";
+import { clearSessionLost, isSessionLost } from "./sessionLost";
 
 const capacitor = vi.hoisted(() => ({ native: false, platform: "web" }));
 
@@ -56,6 +57,7 @@ beforeEach(() => {
     capacitor.native = false;
     capacitor.platform = "web";
     clearAuthToken();
+    clearSessionLost();
 });
 
 describe("apiUrl", () => {
@@ -174,6 +176,30 @@ describe("apiFetch", () => {
             message: "you are not the golden witch",
             body: { error: "you are not the golden witch" },
         });
+    });
+
+    it("marks the session lost when the server no longer accepts it", async () => {
+        // given
+        stubFetch(jsonResponse({ error: "authentication required" }, 401));
+
+        // when
+        const failure = apiPost("/theories/t-1/responses", { body: "without love, it cannot be seen" });
+
+        // then
+        await expect(failure).rejects.toMatchObject({ status: 401 });
+        expect(isSessionLost()).toBe(true);
+    });
+
+    it("leaves the session alone when a request fails for any other reason", async () => {
+        // given
+        stubFetch(jsonResponse({ error: "you are not the golden witch" }, 403));
+
+        // when
+        const failure = apiFetch("/admin/users");
+
+        // then
+        await expect(failure).rejects.toMatchObject({ status: 403 });
+        expect(isSessionLost()).toBe(false);
     });
 
     it("falls back to a generic message when the error body is not json", async () => {

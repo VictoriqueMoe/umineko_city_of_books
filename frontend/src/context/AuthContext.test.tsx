@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { clearSessionLost, isSessionLost, markSessionLost } from "../api/sessionLost";
 import { useAuth } from "../hooks/useAuth";
 import { makeUser } from "../test-utils/fixtures";
 import { createTestQueryClient, renderWithProviders } from "../test-utils/render";
@@ -86,6 +87,7 @@ function renderProvider(me: SessionUser | null, loading = false, next: SessionUs
 }
 
 beforeEach(() => {
+    clearSessionLost();
     refresh.mockResolvedValue(undefined);
     login.mockResolvedValue(undefined);
     register.mockResolvedValue(undefined);
@@ -179,6 +181,49 @@ describe("AuthProvider", () => {
         // then
         expect(await screen.findByText("outcome: rejected")).toBeInTheDocument();
         expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it("forgets a lost session once a fresh login has gone through", async () => {
+        // given
+        markSessionLost();
+        const user = userEvent.setup();
+        renderProvider(null);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "log in" }));
+
+        // then
+        expect(await screen.findByText("outcome: settled")).toBeInTheDocument();
+        expect(isSessionLost()).toBe(false);
+    });
+
+    it("still remembers the lost session when the login was rejected", async () => {
+        // given
+        markSessionLost();
+        login.mockRejectedValue(new Error("wrong password"));
+        const user = userEvent.setup();
+        renderProvider(null);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "log in" }));
+
+        // then
+        expect(await screen.findByText("outcome: rejected")).toBeInTheDocument();
+        expect(isSessionLost()).toBe(true);
+    });
+
+    it("forgets a lost session once a registration has gone through", async () => {
+        // given
+        markSessionLost();
+        const user = userEvent.setup();
+        renderProvider(null);
+
+        // when
+        await user.click(screen.getByRole("button", { name: "register" }));
+
+        // then
+        expect(await screen.findByText("outcome: settled")).toBeInTheDocument();
+        expect(isSessionLost()).toBe(false);
     });
 
     it("sends every registration field to the register mutation", async () => {

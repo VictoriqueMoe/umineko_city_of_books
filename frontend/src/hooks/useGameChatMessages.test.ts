@@ -4,7 +4,7 @@ import { makeSpectatorMessage } from "../test-utils/fixtures";
 import { emitRealtimeEvent, makeWSHarness, type WSHarness } from "../test-utils/ws";
 import type { SpectatorMessage } from "../types/api";
 import type { GameChatHistory } from "./queries/gameRoom";
-import { useGameChatMessages } from "./useGameChatMessages";
+import { useGameChatMessages, type GameChatEventName } from "./useGameChatMessages";
 
 const holder = vi.hoisted(() => ({ ws: null as unknown as WSHarness }));
 
@@ -23,14 +23,18 @@ function makeHistory(messages: SpectatorMessage[], refresh: () => Promise<unknow
     return history;
 }
 
-function mount(history: GameChatHistory, roomId = "room-1") {
-    return renderHook(props => useGameChatMessages(props.roomId, "spectator_chat_message", history), {
+function mount(history: GameChatHistory, roomId = "room-1", channel: GameChatEventName = "spectator_chat_message") {
+    return renderHook(props => useGameChatMessages(props.roomId, channel, history), {
         initialProps: { roomId },
     });
 }
 
-function arrive(roomId: string, message: SpectatorMessage): void {
-    emitRealtimeEvent({ type: "spectator_chat_message", data: { room_id: roomId, message } });
+function arrive(
+    roomId: string,
+    message: SpectatorMessage,
+    channel: GameChatEventName = "spectator_chat_message",
+): void {
+    emitRealtimeEvent({ type: channel, data: { room_id: roomId, message } });
 }
 
 describe("useGameChatMessages", () => {
@@ -60,6 +64,33 @@ describe("useGameChatMessages", () => {
         // then
         expect(result.current.map(m => m.body)).toEqual(["the golden truth", "beato is watching"]);
     });
+
+    it.each<GameChatEventName>(["player_chat_message", "spectator_chat_message"])(
+        "keeps %s in the order it was sent when your own messages and everyone else's interleave",
+        channel => {
+            // given
+            const history = makeHistory([
+                makeSpectatorMessage({ id: "m1", body: "Greetings", created_at: "2026-09-17T14:01:10.000Z" }),
+                makeSpectatorMessage({ id: "m3", body: "Wow", created_at: "2026-09-17T14:02:05.000Z" }),
+            ]);
+            const { result } = mount(history, "room-1", channel);
+
+            // when
+            arrive(
+                "room-1",
+                makeSpectatorMessage({ id: "m2", body: "Yo", created_at: "2026-09-17T14:01:40.000Z" }),
+                channel,
+            );
+            arrive(
+                "room-1",
+                makeSpectatorMessage({ id: "m4", body: "Beginner's luck", created_at: "2026-09-17T14:02:30.000Z" }),
+                channel,
+            );
+
+            // then
+            expect(result.current.map(m => m.body)).toEqual(["Greetings", "Yo", "Wow", "Beginner's luck"]);
+        },
+    );
 
     it("ignores a message that arrives for another room", () => {
         // given

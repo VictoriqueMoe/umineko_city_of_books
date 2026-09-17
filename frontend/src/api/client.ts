@@ -1,4 +1,5 @@
 import { getAuthToken, setAuthToken } from "./authToken";
+import { markSessionLost } from "./sessionLost";
 import { clientPlatform, isNativeApp } from "../platform/capabilities";
 
 const API_ORIGIN = import.meta.env.VITE_API_BASE ?? "";
@@ -85,6 +86,10 @@ function captureSessionToken(response: Response): void {
 async function failIfNotOk(response: Response): Promise<void> {
     if (response.ok) {
         return;
+    }
+
+    if (response.status === 401) {
+        markSessionLost();
     }
 
     const body = await response.json().catch(() => null);

@@ -5,6 +5,7 @@ import { AuthContext } from "./authContextValue";
 import { useMe } from "../hooks/queries/auth";
 import { useLogin, useLogout, useRegister } from "../hooks/mutations/auth";
 import { queryKeys } from "../api/queryKeys";
+import { clearSessionLost } from "../api/sessionLost";
 
 export function AuthProvider({ children }: PropsWithChildren) {
     const qc = useQueryClient();
@@ -25,6 +26,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const loginUser = useCallback(
         async (username: string, password: string, turnstileToken?: string) => {
             await login({ username, password, turnstileToken });
+            clearSessionLost();
             await refresh();
         },
         [login, refresh],
@@ -40,6 +42,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
             turnstileToken?: string,
         ) => {
             await register({ username, email, password, displayName, inviteCode, turnstileToken });
+            clearSessionLost();
             await refresh();
         },
         [register, refresh],

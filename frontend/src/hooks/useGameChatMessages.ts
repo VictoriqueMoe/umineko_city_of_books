@@ -20,6 +20,10 @@ function arrivalsFor(buffer: ArrivalBuffer, roomId: string, wsType: GameChatEven
     return buffer.roomId === roomId && buffer.wsType === wsType ? buffer.messages : NO_ARRIVALS;
 }
 
+function bySentAt(a: SpectatorMessage, b: SpectatorMessage): number {
+    return Date.parse(a.created_at) - Date.parse(b.created_at);
+}
+
 function withArrivals(history: SpectatorMessage[], arrivals: SpectatorMessage[]): SpectatorMessage[] {
     if (arrivals.length === 0) {
         return history;
@@ -27,8 +31,11 @@ function withArrivals(history: SpectatorMessage[], arrivals: SpectatorMessage[])
 
     const known = new Set(history.map(m => m.id));
     const unseen = arrivals.filter(m => !known.has(m.id));
+    if (unseen.length === 0) {
+        return history;
+    }
 
-    return unseen.length === 0 ? history : [...history, ...unseen];
+    return [...history, ...unseen].sort(bySentAt);
 }
 
 export function useGameChatMessages(

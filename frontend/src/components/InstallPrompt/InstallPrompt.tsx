@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { clearInstallPrompt, getInstallPrompt, subscribeInstallPrompt } from "../../platform/installPrompt";
-import styles from "./InstallPrompt.module.css";
+import { Banner, BannerButton, BannerDismiss } from "../Banner/Banner";
 
 const DISMISSED_KEY = "dismissed_install_prompt";
 
@@ -92,21 +92,18 @@ export function InstallPrompt() {
         setGone(true);
     }
 
+    const actions = (
+        <>
+            {mode === "event" ? <BannerButton onClick={handleInstall}>Install</BannerButton> : null}
+            <BannerDismiss onDismiss={handleDismiss} />
+        </>
+    );
+
     return (
-        <div className={styles.banner} role="region" aria-label="Install City of Books">
-            <span className={styles.text}>
-                {mode === "ios"
-                    ? "Add City of Books to your home screen: tap Share, then Add to Home Screen."
-                    : "Add City of Books to your home screen and it opens like an app, without the browser bars."}
-            </span>
-            {mode === "event" ? (
-                <button type="button" onClick={handleInstall} className={styles.button}>
-                    Install
-                </button>
-            ) : null}
-            <button type="button" onClick={handleDismiss} className={styles.dismiss} aria-label="Dismiss">
-                &times;
-            </button>
-        </div>
+        <Banner colour="teal" role="region" label="Install City of Books" actions={actions}>
+            {mode === "ios"
+                ? "Add City of Books to your home screen: tap Share, then Add to Home Screen."
+                : "Add City of Books to your home screen and it opens like an app, without the browser bars."}
+        </Banner>
     );
 }

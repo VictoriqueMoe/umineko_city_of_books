@@ -124,7 +124,7 @@ func TestConcurrentContainsDuringAdd(t *testing.T) {
 		repo.EXPECT().Add(mock.Anything, spec.NewBannedGiphy{Kind: "gif", Value: string(rune('a' + i))}).Return(nil).Maybe()
 	}
 
-	// when — race the reader against writers
+	// when: race the reader against writers
 	var wg sync.WaitGroup
 	for i := range 10 {
 		wg.Add(1)
@@ -140,6 +140,6 @@ func TestConcurrentContainsDuringAdd(t *testing.T) {
 	}
 	wg.Wait()
 
-	// then — no race (run under -race if enabled); sanity check we added something
+	// then :  no race (run under -race if enabled); sanity check we added something
 	assert.True(t, svc.ContainsGif("a"))
 }

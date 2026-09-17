@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-This document describes how the code in this repository is arranged and why it is arranged that way. On the Go side that is the controller, service, repository and DAO layering: controllers parse HTTP and gate on permissions, services hold the business rules and orchestrate, repositories own the contract and the cache seam, and DAOs own every line of SQL. On the React side it is the four frontend layers: render, orchestration (with data hooks as a named sub-layer), pure domain, and adapters. Each of those boundaries exists to enforce a single rule, and this document states that rule next to the layer it belongs to, because a boundary nobody can name is a boundary that erodes.
+How the code is laid out, and why. The Go backend has four layers: controllers parse HTTP and check permissions, services hold the business rules, repositories combine DAO calls into transactions and add caching, and DAOs hold all the SQL. The React frontend has four as well: render, orchestration (with data hooks as a sub-layer), pure domain logic, and adapters. Each layer has one rule about what it may and may not do, and that rule is written next to the layer.
 
 It is not a feature list: see [FEATURES.md](FEATURES.md) for what the site does. It is not an operations guide: see [DEPLOYMENT.md](DEPLOYMENT.md) for running, deploying and configuring it. It is not a contributor checklist: see [ADDING_A_PAGE.md](ADDING_A_PAGE.md) for the steps a new page needs. Those documents describe behaviour and procedure; this one describes the shape they live in.
 
