@@ -38,8 +38,6 @@ function fileInput(container: HTMLElement): HTMLInputElement {
     return input;
 }
 
-function noop() {}
-
 describe("MediaPreviews", () => {
     let revoked = vi.fn();
 
@@ -59,7 +57,7 @@ describe("MediaPreviews", () => {
         const files: File[] = [];
 
         // when
-        const { container } = renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        const { container } = renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} />);
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -70,7 +68,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("beatrice.png", "image/png"), makeFile("clip.mp4", "video/mp4")];
 
         // when
-        const { container } = renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        const { container } = renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} />);
 
         // then
         expect(container.querySelectorAll("img")).toHaveLength(1);
@@ -97,7 +95,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("a.png", "image/png")];
 
         // when
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={noop} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={vi.fn()} />);
 
         // then
         expect(screen.queryByRole("button", { name: "Move earlier" })).not.toBeInTheDocument();
@@ -109,7 +107,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
 
         // when
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} />);
 
         // then
         expect(screen.queryByRole("button", { name: "Move earlier" })).not.toBeInTheDocument();
@@ -120,7 +118,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png"), makeFile("c.png", "image/png")];
 
         // when
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={noop} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={vi.fn()} />);
 
         // then
         const earlier = screen.getAllByRole("button", { name: "Move earlier" });
@@ -136,7 +134,7 @@ describe("MediaPreviews", () => {
         const onReorder = vi.fn();
         const user = userEvent.setup();
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={onReorder} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={onReorder} />);
 
         // when
         await user.click(screen.getAllByRole("button", { name: "Move earlier" })[1]);
@@ -150,7 +148,7 @@ describe("MediaPreviews", () => {
         const onReorder = vi.fn();
         const user = userEvent.setup();
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={onReorder} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={onReorder} />);
 
         // when
         await user.click(screen.getAllByRole("button", { name: "Move later" })[0]);
@@ -163,7 +161,7 @@ describe("MediaPreviews", () => {
         // given
         const onReorder = vi.fn();
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png"), makeFile("c.png", "image/png")];
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={onReorder} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={onReorder} />);
         const items = previews();
 
         // when
@@ -179,7 +177,7 @@ describe("MediaPreviews", () => {
         // given
         const onReorder = vi.fn();
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={onReorder} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={onReorder} />);
         const items = previews();
 
         // when
@@ -194,7 +192,7 @@ describe("MediaPreviews", () => {
         // given
         const onReorder = vi.fn();
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} onReorder={onReorder} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} onReorder={onReorder} />);
         const items = previews();
 
         // when
@@ -208,12 +206,12 @@ describe("MediaPreviews", () => {
         // given
         const a = makeFile("a.png", "image/png");
         const b = makeFile("b.png", "image/png");
-        const { rerender } = renderWithProviders(<MediaPreviews files={[a, b]} onRemove={noop} />);
+        const { rerender } = renderWithProviders(<MediaPreviews files={[a, b]} onRemove={vi.fn()} />);
         const before = screen.getAllByRole("presentation").map(img => img.getAttribute("src"));
         revoked.mockClear();
 
         // when the second picture is dropped from the list
-        rerender(<MediaPreviews files={[a]} onRemove={noop} />);
+        rerender(<MediaPreviews files={[a]} onRemove={vi.fn()} />);
 
         // then only the urls that nothing points at any more are released
         const after = screen.getAllByRole("presentation").map(img => img.getAttribute("src"));
@@ -234,7 +232,7 @@ describe("MediaPreviews", () => {
         // when rendered without the test providers, which suppress that second pass
         render(
             <StrictMode>
-                <MediaPreviews files={files} onRemove={noop} />
+                <MediaPreviews files={files} onRemove={vi.fn()} />
             </StrictMode>,
         );
 
@@ -249,7 +247,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("theme.mp3", "audio/mpeg")];
 
         // when
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} />);
 
         // then
         expect(screen.getByLabelText("Audio file")).toBeInTheDocument();
@@ -261,7 +259,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("a.png", "image/png")];
 
         // when
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} />);
 
         // then
         expect(screen.getByRole("presentation")).toBeInTheDocument();
@@ -273,7 +271,7 @@ describe("MediaPreviews", () => {
         const files = [makeFile("a.png", "image/png")];
 
         // when
-        renderWithProviders(<MediaPreviews files={files} onRemove={noop} />);
+        renderWithProviders(<MediaPreviews files={files} onRemove={vi.fn()} />);
 
         // then the tile looks exactly as it always did
         expect(screen.queryByRole("button", { name: "Mark as spoiler" })).not.toBeInTheDocument();
@@ -286,7 +284,12 @@ describe("MediaPreviews", () => {
         const user = userEvent.setup();
         const files = [makeFile("a.png", "image/png"), makeFile("b.png", "image/png")];
         renderWithProviders(
-            <MediaPreviews files={files} onRemove={noop} spoilers={[false, false]} onToggleSpoiler={onToggleSpoiler} />,
+            <MediaPreviews
+                files={files}
+                onRemove={vi.fn()}
+                spoilers={[false, false]}
+                onToggleSpoiler={onToggleSpoiler}
+            />,
         );
 
         // when
@@ -302,7 +305,7 @@ describe("MediaPreviews", () => {
 
         // when
         renderWithProviders(
-            <MediaPreviews files={files} onRemove={noop} spoilers={[false, true]} onToggleSpoiler={noop} />,
+            <MediaPreviews files={files} onRemove={vi.fn()} spoilers={[false, true]} onToggleSpoiler={vi.fn()} />,
         );
 
         // then
@@ -319,7 +322,7 @@ describe("MediaPreviews", () => {
         // when
         renderWithProviders(
             <form>
-                <MediaPreviews files={files} onRemove={noop} spoilers={[false]} onToggleSpoiler={noop} />
+                <MediaPreviews files={files} onRemove={vi.fn()} spoilers={[false]} onToggleSpoiler={vi.fn()} />
             </form>,
         );
 
@@ -346,7 +349,7 @@ describe("MediaPickerButton", () => {
         const label = "Attach evidence";
 
         // when
-        renderWithProviders(<MediaPickerButton onFiles={noop} label={label} />, { siteInfo: limits });
+        renderWithProviders(<MediaPickerButton onFiles={vi.fn()} label={label} />, { siteInfo: limits });
 
         // then
         expect(screen.getByRole("button", { name: label })).toBeInTheDocument();
@@ -370,7 +373,7 @@ describe("MediaPickerButton", () => {
         const multiple = false;
 
         // when
-        const { container } = renderWithProviders(<MediaPickerButton onFiles={noop} multiple={multiple} />, {
+        const { container } = renderWithProviders(<MediaPickerButton onFiles={vi.fn()} multiple={multiple} />, {
             siteInfo: limits,
         });
 
@@ -381,8 +384,8 @@ describe("MediaPickerButton", () => {
     it("opens the hidden file chooser when the button is pressed", async () => {
         // given
         const user = userEvent.setup();
-        const { container } = renderWithProviders(<MediaPickerButton onFiles={noop} />, { siteInfo: limits });
-        const open = vi.spyOn(fileInput(container), "click").mockImplementation(noop);
+        const { container } = renderWithProviders(<MediaPickerButton onFiles={vi.fn()} />, { siteInfo: limits });
+        const open = vi.spyOn(fileInput(container), "click").mockImplementation(() => {});
 
         // when
         await user.click(screen.getByRole("button", { name: "+ Media" }));
@@ -446,7 +449,7 @@ describe("MediaPickerButton", () => {
         const onError = vi.fn();
         const user = userEvent.setup();
         const file = makeFile("clip.mp4", "video/mp4", 3 * MB);
-        const { container } = renderWithProviders(<MediaPickerButton onFiles={noop} onError={onError} />, {
+        const { container } = renderWithProviders(<MediaPickerButton onFiles={vi.fn()} onError={onError} />, {
             siteInfo: limits,
         });
 

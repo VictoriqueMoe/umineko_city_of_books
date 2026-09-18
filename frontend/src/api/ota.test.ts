@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getOtaManifest, otaBundleUrl } from "./ota";
+import { getOtaManifest } from "./ota";
 
-vi.mock("./client", () => ({ apiUrl: (path: string) => `https://api.test${path}` }));
+vi.mock("./origin", () => ({ apiUrl: (path: string) => `https://api.test${path}` }));
 
 const fetchMock = vi.fn();
 
@@ -48,18 +48,5 @@ describe("getOtaManifest", () => {
 
         // then
         await expect(attempt).rejects.toThrow("offline");
-    });
-});
-
-describe("otaBundleUrl", () => {
-    it("resolves a manifest bundle path against the api origin", () => {
-        // given
-        const path = "/app-bundles/1.1.0.zip";
-
-        // when
-        const got = otaBundleUrl(path);
-
-        // then
-        expect(got).toBe("https://api.test/app-bundles/1.1.0.zip");
     });
 });

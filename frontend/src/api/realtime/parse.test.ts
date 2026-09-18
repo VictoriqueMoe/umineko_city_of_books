@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { isRealtimeEventName, isSimulationFrame, parseServerEvent } from "./parse";
+import { isSimulationFrame, parseServerEvent } from "./parse";
 import type * as ParseModule from "./parse";
 
 const API_ORIGIN = "https://whentheycry.social";
@@ -235,14 +235,14 @@ describe("the *_frame fast path", () => {
     });
 });
 
-describe("isRealtimeEventName", () => {
+describe("parseServerEvent weighs the declared type against the known event names", () => {
     it("accepts a declared event name and rejects anything else", () => {
         // then
-        expect(isRealtimeEventName("game_pong_frame")).toBe(true);
-        expect(isRealtimeEventName("chat_message")).toBe(true);
-        expect(isRealtimeEventName("mystery_solved")).toBe(true);
-        expect(isRealtimeEventName("not_an_event")).toBe(false);
-        expect(isRealtimeEventName("toString")).toBe(false);
-        expect(isRealtimeEventName("")).toBe(false);
+        expect(parseServerEvent('{"type":"game_pong_frame","data":{}}').ok).toBe(true);
+        expect(parseServerEvent('{"type":"chat_message","data":{}}').ok).toBe(true);
+        expect(parseServerEvent('{"type":"mystery_solved","data":{}}').ok).toBe(true);
+        expect(parseServerEvent('{"type":"not_an_event","data":{}}')).toEqual({ ok: false, reason: "unknown-type" });
+        expect(parseServerEvent('{"type":"toString","data":{}}')).toEqual({ ok: false, reason: "unknown-type" });
+        expect(parseServerEvent('{"type":"","data":{}}')).toEqual({ ok: false, reason: "unknown-type" });
     });
 });

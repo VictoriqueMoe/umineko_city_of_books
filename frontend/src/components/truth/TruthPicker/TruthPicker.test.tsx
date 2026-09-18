@@ -50,14 +50,6 @@ function lastCall(calls: unknown[][]): [Record<string, unknown>, boolean] {
     return calls[calls.length - 1] as [Record<string, unknown>, boolean];
 }
 
-function lastBrowseCall(): [Record<string, unknown>, boolean] {
-    return lastCall(mocks.useBrowseQuotes.mock.calls);
-}
-
-function lastSearchCall(): [Record<string, unknown>, boolean] {
-    return lastCall(mocks.useSearchQuotes.mock.calls);
-}
-
 function selectOwning(optionLabel: string): HTMLSelectElement {
     const select = screen.getByRole("option", { name: optionLabel }).closest("select");
     if (!select) {
@@ -65,12 +57,6 @@ function selectOwning(optionLabel: string): HTMLSelectElement {
     }
     return select;
 }
-
-function dialog() {
-    return screen.getByRole("dialog");
-}
-
-function noop() {}
 
 interface PickerOverrides {
     onClose?: () => void;
@@ -84,8 +70,8 @@ function renderPicker(overrides: PickerOverrides = {}) {
     return renderWithProviders(
         <TruthPicker
             isOpen={overrides.isOpen ?? true}
-            onClose={overrides.onClose ?? noop}
-            onSelect={overrides.onSelect ?? noop}
+            onClose={overrides.onClose ?? vi.fn()}
+            onSelect={overrides.onSelect ?? vi.fn()}
             selectedKeys={overrides.selectedKeys ?? []}
             series={overrides.series}
         />,
@@ -127,8 +113,8 @@ describe("TruthPicker", () => {
         // then
         expect(screen.getByText("First truth")).toBeInTheDocument();
         expect(screen.getByText("Second truth")).toBeInTheDocument();
-        expect(lastBrowseCall()[1]).toBe(true);
-        expect(lastSearchCall()[1]).toBe(false);
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[1]).toBe(true);
+        expect(lastCall(mocks.useSearchQuotes.mock.calls)[1]).toBe(false);
     });
 
     it("shows an empty state when the browse comes back with nothing", () => {
@@ -166,9 +152,9 @@ describe("TruthPicker", () => {
         await user.click(screen.getByRole("button", { name: "Search" }));
 
         // then
-        expect(lastSearchCall()[0].query).toBe("the epitaph");
-        expect(lastSearchCall()[1]).toBe(true);
-        expect(lastBrowseCall()[1]).toBe(false);
+        expect(lastCall(mocks.useSearchQuotes.mock.calls)[0].query).toBe("the epitaph");
+        expect(lastCall(mocks.useSearchQuotes.mock.calls)[1]).toBe(true);
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[1]).toBe(false);
         expect(screen.getByText("A found truth")).toBeInTheDocument();
     });
 
@@ -181,8 +167,8 @@ describe("TruthPicker", () => {
         await user.type(screen.getByPlaceholderText("Search quotes..."), "epitaph");
 
         // then
-        expect(lastSearchCall()[1]).toBe(false);
-        expect(lastBrowseCall()[1]).toBe(true);
+        expect(lastCall(mocks.useSearchQuotes.mock.calls)[1]).toBe(false);
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[1]).toBe(true);
     });
 
     it("passes the chosen filters through to the browse query", async () => {
@@ -201,7 +187,7 @@ describe("TruthPicker", () => {
         await user.selectOptions(selectOwning("All Episodes"), "4");
 
         // then
-        expect(lastBrowseCall()[0]).toMatchObject({
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[0]).toMatchObject({
             character: "beatrice",
             truth: "red",
             lang: "ja",
@@ -220,7 +206,7 @@ describe("TruthPicker", () => {
         renderPicker({ series });
 
         // then
-        expect(lastBrowseCall()[0]).toMatchObject({
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[0]).toMatchObject({
             character: undefined,
             episode: undefined,
             arc: undefined,
@@ -283,7 +269,11 @@ describe("TruthPicker", () => {
         await user.selectOptions(selectOwning("All Arcs"), "meakashi");
 
         // then
-        expect(lastBrowseCall()[0]).toMatchObject({ arc: "meakashi", episode: undefined, chapter: undefined });
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[0]).toMatchObject({
+            arc: "meakashi",
+            episode: undefined,
+            chapter: undefined,
+        });
     });
 
     it("offers chapters for ciconia", async () => {
@@ -296,7 +286,11 @@ describe("TruthPicker", () => {
 
         // then
         expect(screen.getByRole("option", { name: "Prologue" })).toBeInTheDocument();
-        expect(lastBrowseCall()[0]).toMatchObject({ chapter: "00", arc: undefined, episode: undefined });
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[0]).toMatchObject({
+            chapter: "00",
+            arc: undefined,
+            episode: undefined,
+        });
     });
 
     it("groups the characters into main cast and additional when there are both", () => {
@@ -310,7 +304,9 @@ describe("TruthPicker", () => {
         renderPicker();
 
         // then
-        const labels = Array.from(dialog().querySelectorAll("optgroup")).map(group => group.getAttribute("label"));
+        const labels = Array.from(screen.getByRole("dialog").querySelectorAll("optgroup")).map(group =>
+            group.getAttribute("label"),
+        );
         expect(labels).toEqual(["Main cast", "Additional"]);
     });
 
@@ -325,7 +321,7 @@ describe("TruthPicker", () => {
         renderPicker();
 
         // then
-        expect(dialog().querySelectorAll("optgroup")).toHaveLength(0);
+        expect(screen.getByRole("dialog").querySelectorAll("optgroup")).toHaveLength(0);
         expect(screen.getByRole("option", { name: "Beatrice" })).toBeInTheDocument();
     });
 
@@ -391,7 +387,7 @@ describe("TruthPicker", () => {
         await user.click(screen.getByRole("button", { name: "Next" }));
 
         // then
-        expect(lastBrowseCall()[0]).toMatchObject({ offset: 20 });
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[0]).toMatchObject({ offset: 20 });
         expect(screen.getByText("21-40 of 45")).toBeInTheDocument();
     });
 
@@ -406,7 +402,7 @@ describe("TruthPicker", () => {
         await user.selectOptions(selectOwning("All Types"), "blue");
 
         // then
-        expect(lastBrowseCall()[0]).toMatchObject({ offset: 0, truth: "blue" });
+        expect(lastCall(mocks.useBrowseQuotes.mock.calls)[0]).toMatchObject({ offset: 0, truth: "blue" });
     });
 
     it("closes when the modal close control is pressed", async () => {

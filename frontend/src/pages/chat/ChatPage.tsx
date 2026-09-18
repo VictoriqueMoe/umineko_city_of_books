@@ -31,8 +31,6 @@ const MESSAGE_LIST_CLASSES = {
 const NO_MENTION_POOL: User[] = [];
 const TIMEOUT_TICK_MS = 30_000;
 
-function ignoreMemberCount(): void {}
-
 export function ChatPage() {
     const controller = useDmController();
     const isMobile = useIsMobile();
@@ -99,7 +97,7 @@ export function ChatPage() {
         enabled: !!activeRoomId,
         viewerId: user?.id,
         voiceParticipantIds: voice.participantIds,
-        onMemberCountDelta: ignoreMemberCount,
+        onMemberCountDelta: () => {},
     });
     const viewerTimeoutUntil = currentMember?.timeout_until;
 

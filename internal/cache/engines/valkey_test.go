@@ -24,10 +24,6 @@ func newMockValkey(t *testing.T) (*Valkey, *mock.Client) {
 	return NewValkeyWithClient(client), client
 }
 
-func expired() int64 {
-	return time.Now().Add(-recoveryInterval - time.Second).UnixNano()
-}
-
 func TestValkeyDisabledWithoutClient(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -145,7 +141,7 @@ func TestValkeyAllowsOneProbeAfterCooldown(t *testing.T) {
 	v, _ := newMockValkey(t)
 
 	v.observe(errors.New("connection refused"))
-	v.downAt.Store(expired())
+	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
 
 	assert.True(t, v.Enabled())
 	assert.False(t, v.Enabled())
@@ -157,7 +153,7 @@ func TestValkeyRecoversAfterSuccessfulProbe(t *testing.T) {
 	v.observe(errors.New("connection refused"))
 	require.False(t, v.Enabled())
 
-	v.downAt.Store(expired())
+	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
 	require.True(t, v.Enabled())
 
 	client.EXPECT().
@@ -177,7 +173,7 @@ func TestValkeyFailedProbeRestartsCooldown(t *testing.T) {
 	v, client := newMockValkey(t)
 
 	v.observe(errors.New("connection refused"))
-	v.downAt.Store(expired())
+	v.downAt.Store(time.Now().Add(-recoveryInterval - time.Second).UnixNano())
 	require.True(t, v.Enabled())
 
 	client.EXPECT().

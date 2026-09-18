@@ -12,11 +12,6 @@ import {
     type RequestCase,
 } from "./testHarness";
 
-vi.mock("../../platform/capabilities", () => ({
-    isNativeApp: () => false,
-    clientPlatform: () => "web",
-}));
-
 vi.mock("../client", async importOriginal => {
     const actual = await importOriginal<typeof import("../client")>();
     return {

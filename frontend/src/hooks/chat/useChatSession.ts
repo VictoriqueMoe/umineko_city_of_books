@@ -11,7 +11,7 @@ import {
     applySiteRoleChangeToMessages,
 } from "../../domain/chat/messagePatches";
 import { appendIfUnknown } from "../../domain/chat/messageStore";
-import { playMessageSound, playRemoteAudio } from "../../platform/sound";
+import { playAudio, playMessageSound } from "../../platform/sound";
 import type { ChatMessage, UserProfile } from "../../types/api";
 import { useChatMessageHandlers } from "../useChatMessageHandlers";
 import { useMessageHistory } from "../useMessageHistory";
@@ -270,7 +270,7 @@ export function useChatSession(options: UseChatSessionOptions): ChatSession {
                     return;
                 }
 
-                playRemoteAudio(event.data.url, event.data.volume ?? DEFAULT_AUDIO_VOLUME);
+                playAudio(event.data.url, event.data.volume ?? DEFAULT_AUDIO_VOLUME);
 
                 return;
             }

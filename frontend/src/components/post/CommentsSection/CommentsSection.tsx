@@ -3,8 +3,6 @@ import { CommentItem } from "../CommentItem/CommentItem";
 import { CommentComposer } from "../CommentComposer/CommentComposer";
 import styles from "./CommentsSection.module.css";
 
-const noChangeHandler = () => {};
-
 type CreateCommentFn = (targetId: string, body: string, parentId?: string) => Promise<{ id: string }>;
 type UploadMediaFn = (commentId: string, file: File) => Promise<unknown>;
 
@@ -34,7 +32,7 @@ export function CommentsSection({
     comments,
     targetId,
     user,
-    onChanged = noChangeHandler,
+    onChanged = () => {},
     title = "Comments",
     emptyText = "No comments yet.",
     blockedText = "You cannot interact with this post.",

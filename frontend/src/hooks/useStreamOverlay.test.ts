@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
     resetOverlayToken: vi.fn(),
     testOverlay: vi.fn(),
     downloadBlob: vi.fn(),
+    reportClientError: vi.fn(),
+}));
+
+vi.mock("../api/telemetry", () => ({
+    reportClientError: mocks.reportClientError,
 }));
 
 vi.mock("./queries/overlay", () => ({
@@ -36,6 +41,7 @@ function makeConnection(overrides: Partial<OverlayConnection> = {}): OverlayConn
 }
 
 beforeEach(() => {
+    mocks.reportClientError.mockClear();
     mocks.useOverlayConnection.mockReturnValue({ connection: makeConnection(), loading: false, error: "" });
     mocks.fetchConnector.mockResolvedValue(new Blob(["sef-file-body"], { type: "text/plain" }));
     mocks.resetOverlayToken.mockResolvedValue(makeConnection({ token: "rotated-token" }));
@@ -229,9 +235,10 @@ describe("useStreamOverlay", () => {
         expect(result.current.copied).toBe(false);
     });
 
-    it("stays quiet when a clipboard write is refused", async () => {
+    it("reports a refused clipboard write without troubling the streamer with it", async () => {
         // given
-        vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("clipboard blocked"));
+        const refusal = new Error("clipboard blocked");
+        vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(refusal);
         const { result } = renderHook(() => useStreamOverlay());
 
         // when
@@ -243,6 +250,7 @@ describe("useStreamOverlay", () => {
         // then
         expect(result.current.copied).toBe(false);
         expect(result.current.actionError).toBe("");
+        expect(mocks.reportClientError).toHaveBeenCalledExactlyOnceWith(refusal, { source: "caught" });
     });
 
     it("does not reach for the clipboard when there is no token yet", () => {

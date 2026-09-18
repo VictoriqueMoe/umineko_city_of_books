@@ -114,9 +114,13 @@
         gap: 0.5rem;
     }
 
+    .actions {
+        flex-wrap: nowrap;
+    }
+
     .send {
-        margin-left: 0;
-        flex: 1 0 100%;
+        margin-left: auto;
+        flex: 0 0 auto;
     }
 }
 
@@ -127,8 +131,12 @@
         min-height: 0;
     }
 
+    .actions {
+        flex-wrap: nowrap;
+    }
+
     .send {
-        margin-left: 0;
-        flex: 1 0 100%;
+        margin-left: auto;
+        flex: 0 0 auto;
     }
 }

@@ -40,14 +40,6 @@ const THEME_REQUIRES_SECRET: Partial<Record<ThemeType, string>> = {
 
 const VALID_FONTS: Set<string> = new Set(["default", "im-fell"]);
 
-function isValidTheme(value: string): value is ThemeType {
-    return VALID_THEMES.has(value);
-}
-
-function isValidFont(value: string): value is FontType {
-    return VALID_FONTS.has(value);
-}
-
 function dataThemeAttr(t: ThemeType): string {
     return THEME_CSS_KEYS[t] ?? t;
 }
@@ -55,7 +47,7 @@ function dataThemeAttr(t: ThemeType): string {
 function hasStoredTheme(): boolean {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        return stored !== null && isValidTheme(stored);
+        return stored !== null && VALID_THEMES.has(stored);
     } catch {
         return false;
     }
@@ -64,8 +56,8 @@ function hasStoredTheme(): boolean {
 function getStoredTheme(): ThemeType {
     try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored !== null && isValidTheme(stored)) {
-            return stored;
+        if (stored !== null && VALID_THEMES.has(stored)) {
+            return stored as ThemeType;
         }
     } catch {}
     return FALLBACK_THEME;
@@ -74,8 +66,8 @@ function getStoredTheme(): ThemeType {
 function getStoredFont(): FontType {
     try {
         const stored = localStorage.getItem(FONT_KEY);
-        if (stored !== null && isValidFont(stored)) {
-            return stored;
+        if (stored !== null && VALID_FONTS.has(stored)) {
+            return stored as FontType;
         }
     } catch {}
     return FALLBACK_FONT;
@@ -133,8 +125,8 @@ export function ThemeProvider({ children }: PropsWithChildren) {
         userId: null,
         theme: hasStoredTheme()
             ? getStoredTheme()
-            : siteInfo.default_theme && isValidTheme(siteInfo.default_theme)
-              ? siteInfo.default_theme
+            : siteInfo.default_theme && VALID_THEMES.has(siteInfo.default_theme)
+              ? (siteInfo.default_theme as ThemeType)
               : null,
         font: getStoredFont(),
         wideLayout: getStoredWideLayout(),
@@ -146,10 +138,13 @@ export function ThemeProvider({ children }: PropsWithChildren) {
     const activeOverrides = overrides.userId === activeUserId ? overrides : null;
 
     const fallbackTheme: ThemeType =
-        siteInfo.default_theme && isValidTheme(siteInfo.default_theme) ? siteInfo.default_theme : FALLBACK_THEME;
+        siteInfo.default_theme && VALID_THEMES.has(siteInfo.default_theme)
+            ? (siteInfo.default_theme as ThemeType)
+            : FALLBACK_THEME;
 
-    const userTheme = user?.private?.theme && isValidTheme(user.private.theme) ? user.private.theme : null;
-    const userFont = user?.private?.font && isValidFont(user.private.font) ? user.private.font : null;
+    const userTheme =
+        user?.private?.theme && VALID_THEMES.has(user.private.theme) ? (user.private.theme as ThemeType) : null;
+    const userFont = user?.private?.font && VALID_FONTS.has(user.private.font) ? (user.private.font as FontType) : null;
     const userWideLayout = typeof user?.private?.wide_layout === "boolean" ? user.private.wide_layout : null;
     const userSecretList = user && Array.isArray(user.secrets) ? user.secrets : null;
 

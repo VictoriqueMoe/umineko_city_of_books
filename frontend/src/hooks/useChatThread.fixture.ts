@@ -1,24 +1,14 @@
 import { roomCapabilities } from "../domain/chat/roomPolicy";
 import type { ChatThread } from "./useChatThread";
 
-function noop(): void {}
-
-function never(): Promise<void> {
-    return Promise.resolve();
-}
-
-function neverFound(): Promise<boolean> {
-    return Promise.resolve(false);
-}
-
 export function makeChatThread(overrides: Partial<ChatThread> = {}): ChatThread {
     return {
         thread: {
             data: null,
             id: "room-1",
             loading: false,
-            set: noop,
-            toggleMute: never,
+            set: () => {},
+            toggleMute: () => Promise.resolve(),
             mutePending: false,
             voice: {
                 status: "idle",
@@ -26,9 +16,9 @@ export function makeChatThread(overrides: Partial<ChatThread> = {}): ChatThread 
                 participantIds: [],
                 presenceCount: 0,
                 error: "",
-                join: noop,
-                leave: noop,
-                clearError: noop,
+                join: () => {},
+                leave: () => {},
+                clearError: () => {},
                 enabled: true,
             },
         },
@@ -38,40 +28,40 @@ export function makeChatThread(overrides: Partial<ChatThread> = {}): ChatThread 
             messages: [],
             hasMore: false,
             loadingMore: false,
-            containerRef: noop,
-            contentRef: noop,
+            containerRef: () => {},
+            contentRef: () => {},
             endRef: { current: null },
-            onScroll: noop,
-            toBottom: noop,
+            onScroll: () => {},
+            toBottom: () => {},
             editingMessageId: null,
-            startEditing: noop,
-            cancelEditing: noop,
-            deleteMessage: never,
-            editMessage: never,
-            editLast: noop,
+            startEditing: () => {},
+            cancelEditing: () => {},
+            deleteMessage: () => Promise.resolve(),
+            editMessage: () => Promise.resolve(),
+            editLast: () => {},
             replyingTo: null,
-            setReplyingTo: noop,
+            setReplyingTo: () => {},
             typingUserIds: [],
-            notifyTyping: noop,
+            notifyTyping: () => {},
             matchesViewerMention: null,
             readReceipts: {},
-            onSent: noop,
-            toggleReaction: never,
-            togglePin: never,
+            onSent: () => {},
+            toggleReaction: () => Promise.resolve(),
+            togglePin: () => Promise.resolve(),
             history: {
                 hasMore: false,
                 loadingMore: false,
-                setMessages: noop,
-                addMessage: noop,
-                seedMessages: noop,
-                loadUntilMessage: neverFound,
-                resync: never,
+                setMessages: () => {},
+                addMessage: () => {},
+                seedMessages: () => {},
+                loadUntilMessage: () => Promise.resolve(false),
+                resync: () => Promise.resolve(),
             },
         },
         capabilities: roomCapabilities(null, null),
         toast: {
             message: null,
-            show: noop,
+            show: () => {},
         },
         ...overrides,
     };

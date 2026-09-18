@@ -18,11 +18,6 @@ vi.mock("../authToken", () => ({
     loadAuthToken: vi.fn(),
 }));
 
-vi.mock("../../platform/capabilities", () => ({
-    isNativeApp: () => false,
-    clientPlatform: () => "web",
-}));
-
 vi.mock("../client", async importOriginal => {
     const actual = await importOriginal<typeof import("../client")>();
     return {

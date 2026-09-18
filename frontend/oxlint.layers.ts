@@ -35,12 +35,7 @@ const apiTransport = ["**/api/client", "**/api/client.ts", "**/api/queryClient",
 const reactRuntime = ["react", "react-dom", "@tanstack/react-query"];
 const reactQuery = ["@tanstack/react-query"];
 const upward = ["**/components/**", "**/pages/**", "**/hooks/**", "**/context/**"];
-const platformBeyondPredicates = [
-    "**/platform/*",
-    "**/platform/**",
-    "!**/platform/capabilities",
-    "!**/platform/capabilities.ts",
-];
+const platformAny = ["**/platform/*", "**/platform/**"];
 
 const renderApiMessage =
     "The render layer may not import src/api. Read the data from a hook in src/hooks and destructure it.";
@@ -56,7 +51,7 @@ const adapterUpwardMessage =
 const platformApiMessage =
     "src/platform may not import src/api. The server call is passed in as a parameter by the caller.";
 const apiPlatformMessage =
-    "src/api may import platform/capabilities only, which answers a device question with no effect. Anything else from src/platform is injected.";
+    "src/api may not import src/platform. Ask the device library directly, or have the caller inject what the adapter needs.";
 
 export const layerRules: OxlintOverride[] = [
     {
@@ -114,7 +109,7 @@ export const layerRules: OxlintOverride[] = [
                 {
                     patterns: [
                         { group: upward, message: adapterUpwardMessage },
-                        { group: platformBeyondPredicates, message: apiPlatformMessage },
+                        { group: platformAny, message: apiPlatformMessage },
                     ],
                 },
             ],

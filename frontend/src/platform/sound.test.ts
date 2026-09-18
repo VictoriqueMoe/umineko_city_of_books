@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-    playMessageSound,
-    playNotificationSound,
-    playRemoteAudio,
-    playVoiceJoinSound,
-    playVoiceLeaveSound,
-} from "./sound";
+import { playAudio, playMessageSound, playNotificationSound, playVoiceJoinSound, playVoiceLeaveSound } from "./sound";
 
 function spyOnPlay() {
     return vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
@@ -131,10 +125,10 @@ describe("playVoiceLeaveSound", () => {
     });
 });
 
-describe("playRemoteAudio", () => {
+describe("playAudio", () => {
     it("plays an arbitrary url at the default volume", () => {
         // when
-        playRemoteAudio("https://cdn.example.test/alert.mp3");
+        playAudio("https://cdn.example.test/alert.mp3");
 
         // then
         expect(playedAudio(0).src).toBe("https://cdn.example.test/alert.mp3");
@@ -143,7 +137,7 @@ describe("playRemoteAudio", () => {
 
     it("honours a louder volume when one is asked for", () => {
         // when
-        playRemoteAudio("https://cdn.example.test/loud.mp3", 0.75);
+        playAudio("https://cdn.example.test/loud.mp3", 0.75);
 
         // then
         expect(playedAudio(0).volume).toBe(0.75);
@@ -151,9 +145,9 @@ describe("playRemoteAudio", () => {
 
     it("caches one audio element per url", () => {
         // when
-        playRemoteAudio("https://cdn.example.test/cached.mp3");
-        playRemoteAudio("https://cdn.example.test/cached.mp3");
-        playRemoteAudio("https://cdn.example.test/other.mp3");
+        playAudio("https://cdn.example.test/cached.mp3");
+        playAudio("https://cdn.example.test/cached.mp3");
+        playAudio("https://cdn.example.test/other.mp3");
 
         // then
         expect(playedAudio(0)).toBe(playedAudio(1));
@@ -162,14 +156,14 @@ describe("playRemoteAudio", () => {
 
     it("lets go of an old url once a flood of new ones has arrived", () => {
         // given
-        playRemoteAudio("https://cdn.example.test/oldest.mp3");
+        playAudio("https://cdn.example.test/oldest.mp3");
         const oldest = playedAudio(0);
 
         // when
         for (let i = 0; i < 20; i++) {
-            playRemoteAudio(`https://cdn.example.test/flood-${i}.mp3`);
+            playAudio(`https://cdn.example.test/flood-${i}.mp3`);
         }
-        playRemoteAudio("https://cdn.example.test/oldest.mp3");
+        playAudio("https://cdn.example.test/oldest.mp3");
 
         // then
         expect(playedAudio(playSpy.mock.contexts.length - 1)).not.toBe(oldest);
@@ -182,7 +176,7 @@ describe("playRemoteAudio", () => {
 
         // when
         for (let i = 0; i < 20; i++) {
-            playRemoteAudio(`https://cdn.example.test/deluge-${i}.mp3`);
+            playAudio(`https://cdn.example.test/deluge-${i}.mp3`);
         }
         playMessageSound();
 

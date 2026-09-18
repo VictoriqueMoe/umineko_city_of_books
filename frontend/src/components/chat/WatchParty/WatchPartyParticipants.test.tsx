@@ -30,6 +30,7 @@ interface StripOptions {
     viewerHasControl?: boolean;
     ownerUserId?: string;
     onTransferControl?: (userId: string) => Promise<void>;
+    layout?: "strip" | "list";
 }
 
 function renderStrip(options: StripOptions = {}) {
@@ -45,6 +46,7 @@ function renderStrip(options: StripOptions = {}) {
             ownerUserId={options.ownerUserId ?? ownerId}
             onTransferControl={onTransferControl}
             onKick={onKick}
+            layout={options.layout}
         />,
     );
 
@@ -87,6 +89,38 @@ describe("WatchPartyParticipants roster", () => {
         // then
         expect(screen.getByText("owner")).toBeInTheDocument();
         expect(screen.getByText("control")).toBeInTheDocument();
+    });
+});
+
+describe("WatchPartyParticipants as a phone list", () => {
+    it("still names every watcher and marks who is driving", () => {
+        // given
+        const participants = [makeParticipant({ user: owner }), makeParticipant({ user: battler, has_control: true })];
+
+        // when
+        renderStrip({ participants, layout: "list" });
+
+        // then
+        expect(screen.getByText("2 watchers")).toBeInTheDocument();
+        expect(screen.getByText("Battler")).toBeInTheDocument();
+        expect(screen.getByText("owner")).toBeInTheDocument();
+        expect(screen.getByText("control")).toBeInTheDocument();
+    });
+
+    it("keeps the row actions working when the roster is a list", async () => {
+        // given
+        const user = userEvent.setup();
+        const participants = [
+            makeParticipant({ user: makeChatUser({ role: "moderator" }) }),
+            makeParticipant({ user: battler }),
+        ];
+        const { onKick } = renderStrip({ participants, viewerRole: "moderator", layout: "list" });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Kick" }));
+
+        // then
+        expect(onKick).toHaveBeenCalledWith("user-battler");
     });
 });
 

@@ -3,19 +3,18 @@ import { useState } from "react";
 import { queryKeys } from "../api/queryKeys";
 import { REALTIME_EVENTS } from "../api/realtime/events";
 import { useRealtimeEvent } from "../api/realtime/useRealtime";
+import { reportClientError } from "../api/telemetry";
 import {
     BITRATE_STORAGE_KEY,
     DEFAULT_CALCULATOR_FPS,
     DEFAULT_RESOLUTION_INDEX,
     isBitrateValid,
-    parseBitrate,
     recommendedBitrateForResolution,
     type BitrateRecommendation,
 } from "../domain/live/bitrate";
 import { LIVE_STATUS } from "../domain/live/playback";
 import type { LiveStream, StreamCredentials, StreamDefaultMode, StreamOwner } from "../types/api";
 import { errorMessage } from "../utils/errorMessage";
-import { nonFatal } from "../utils/nonFatal";
 import { useResetStreamCredentials, useStartStream, useStopStream, useUpdateStreamTitle } from "./mutations/stream";
 import { useMyStream, useStreamCredentials } from "./queries/stream";
 
@@ -147,7 +146,7 @@ export function useGoLive(): UseGoLiveResult {
         setError("");
 
         try {
-            const kbps = smoothAvailable ? Math.round(parseBitrate(bitrate)) : 0;
+            const kbps = smoothAvailable ? Math.round(Number(bitrate)) : 0;
             const mode: StreamDefaultMode = smoothAvailable ? defaultMode : "webrtc";
 
             if (smoothAvailable) {
@@ -247,19 +246,27 @@ export function useGoLive(): UseGoLiveResult {
             },
             cancel: () => setEditingTitle(false),
             save: () => {
-                runSaveTitle().catch(nonFatal);
+                runSaveTitle().catch((thrown: unknown) => {
+                    reportClientError(thrown, { source: "caught" });
+                });
             },
             saving: savingTitle,
             canSave: !savingTitle && trimmedDraft !== "" && trimmedDraft !== owner?.stream.title,
         },
         start: () => {
-            runStart().catch(nonFatal);
+            runStart().catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
         },
         stop: () => {
-            runStop().catch(nonFatal);
+            runStop().catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
         },
         resetCredentials: () => {
-            runResetCredentials().catch(nonFatal);
+            runResetCredentials().catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
         },
         canStart: !busy && title.trim() !== "" && (!smoothAvailable || bitrateValid),
         busy,
@@ -272,7 +279,9 @@ export function useGoLive(): UseGoLiveResult {
             navigator.clipboard
                 .writeText(value)
                 .then(() => setCopied(label))
-                .catch(nonFatal);
+                .catch((thrown: unknown) => {
+                    reportClientError(thrown, { source: "caught" });
+                });
         },
     };
 }

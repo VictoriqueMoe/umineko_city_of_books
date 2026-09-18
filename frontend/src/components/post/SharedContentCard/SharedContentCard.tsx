@@ -18,10 +18,6 @@ const typeLabels: Record<string, string> = {
     fanfic: "Fanfiction",
 };
 
-function truncate(text: string, maxLength: number): string {
-    return ellipsise(text, maxLength);
-}
-
 function formatNumber(n: number): string {
     if (n >= 1000) {
         return (n / 1000).toFixed(1) + "k";
@@ -68,7 +64,7 @@ function PostContent({ content }: { content: SharedContentPreview }) {
             {content.author && <ProfileLink user={content.author} size="small" clickable={false} />}
             {content.body && (
                 <p dir="auto" className={styles.body}>
-                    {truncate(content.body, 200)}
+                    {ellipsise(content.body, 200)}
                 </p>
             )}
             <SharedMediaGrid content={content} />

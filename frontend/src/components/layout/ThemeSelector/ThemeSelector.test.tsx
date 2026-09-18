@@ -4,10 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test-utils/render";
 import { ThemeSelector } from "./ThemeSelector";
 
-function openSelector() {
-    return userEvent.setup();
-}
-
 describe("ThemeSelector trigger", () => {
     it("names the theme that is currently in use", () => {
         // given
@@ -34,7 +30,7 @@ describe("ThemeSelector trigger", () => {
 
     it("opens the list of themes when the trigger is pressed", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />);
 
         // when
@@ -47,7 +43,7 @@ describe("ThemeSelector trigger", () => {
 
     it("closes the list again when the trigger is pressed a second time", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />);
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 
@@ -60,7 +56,7 @@ describe("ThemeSelector trigger", () => {
 
     it("closes the list when a press lands outside it", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />);
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 
@@ -75,7 +71,7 @@ describe("ThemeSelector trigger", () => {
 describe("ThemeSelector themes", () => {
     it("groups the themes under each series", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />);
 
         // when
@@ -89,7 +85,7 @@ describe("ThemeSelector themes", () => {
 
     it("marks the theme in use as the selected option", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { theme: "erika" } });
 
         // when
@@ -103,7 +99,7 @@ describe("ThemeSelector themes", () => {
     it("hands the chosen theme to the theme context and closes the list", async () => {
         // given
         const setTheme = vi.fn();
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { setTheme } });
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 
@@ -117,7 +113,7 @@ describe("ThemeSelector themes", () => {
 
     it("hides the Maria theme from anyone who has not unlocked the witch hunter secret", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { hasSecret: () => false } });
 
         // when
@@ -130,7 +126,7 @@ describe("ThemeSelector themes", () => {
     it("offers the Maria theme once the witch hunter secret is unlocked", async () => {
         // given
         const setTheme = vi.fn();
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { setTheme, hasSecret: id => id === "witchHunter" } });
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 
@@ -143,7 +139,7 @@ describe("ThemeSelector themes", () => {
 
     it("still names a secret theme on the trigger while it is hidden from the list", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { theme: "maria", hasSecret: () => false } });
 
         // when
@@ -158,7 +154,7 @@ describe("ThemeSelector themes", () => {
 describe("ThemeSelector fonts", () => {
     it("marks the font in use as the selected option", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { font: "im-fell" } });
 
         // when
@@ -172,7 +168,7 @@ describe("ThemeSelector fonts", () => {
     it("hands the chosen font to the theme context and closes the list", async () => {
         // given
         const setFont = vi.fn();
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { setFont } });
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 
@@ -188,7 +184,7 @@ describe("ThemeSelector fonts", () => {
 describe("ThemeSelector layout preferences", () => {
     it("reflects the current layout and particle preferences on the switches", async () => {
         // given
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { wideLayout: true, particlesEnabled: false } });
 
         // when
@@ -202,7 +198,7 @@ describe("ThemeSelector layout preferences", () => {
     it("turns the wide layout on through its switch", async () => {
         // given
         const setWideLayout = vi.fn();
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { wideLayout: false, setWideLayout } });
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 
@@ -216,7 +212,7 @@ describe("ThemeSelector layout preferences", () => {
     it("turns the particles off through their switch and leaves the list open", async () => {
         // given
         const setParticlesEnabled = vi.fn();
-        const user = openSelector();
+        const user = userEvent.setup();
         renderWithProviders(<ThemeSelector />, { theme: { particlesEnabled: true, setParticlesEnabled } });
         await user.click(screen.getByRole("button", { name: /Theme/ }));
 

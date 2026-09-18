@@ -189,7 +189,7 @@ The payoff is that a query is checked against the schema at build time. Renaming
 
 ### 3.6 Transactions, and who may open one
 
-**Every DAO and repository method takes a trailing `tx ...*sql.Tx`.** The variadic is the whole mechanism: a caller with a transaction in hand passes it, a caller without one passes nothing, and no method needs two versions of itself. `txOrDB(db, tx)` (`internal/dao/tx.go:16-22`) returns `tx[0]` when one was supplied and the pool otherwise, typed as a three-method `dbtx` interface that `*sql.DB` and `*sql.Tx` both satisfy. It has 672 call sites, which is very close to "every statement in the codebase", and it is the reason a statement does not have to know whether it is inside a transaction. The variadic survived the spec refactor untouched: `tx ...*sql.Tx` stays last on every signature, and the spec struct slots in ahead of it.
+**Every DAO and repository method takes a trailing `tx ...*sql.Tx`.** The variadic is the whole mechanism: a caller with a transaction in hand passes it, a caller without one passes nothing, and no method needs two versions of itself. `db.TxOrDB(handle, tx)` (`internal/db/tx.go:26-32`) returns `tx[0]` when one was supplied and the pool otherwise, typed as a four-method `DBTX` interface that `*sql.DB` and `*sql.Tx` both satisfy. Almost every statement in the codebase reaches it: 562 call sites go through `genQueries(handle, tx)` (`internal/dao/tx.go:10-12`), which hands it to the sqlc queries, and ten hand-written statements call `db.TxOrDB` themselves. That is the reason a statement does not have to know whether it is inside a transaction. The variadic survived the spec refactor untouched: `tx ...*sql.Tx` stays last on every signature, and the spec struct slots in ahead of it.
 
 **A repository that needs several writes to be atomic opens the transaction.** `db.WithTx(ctx, r.db, tx, func(tx *sql.Tx) error)` (`internal/db/tx.go:26-32`) is used 75 times under `internal/repository` and 4 times under `internal/dao`. `artRepository.CreateWithTags` is the canonical shape: open once, call `r.ArtDAO.CreateArt(ctx, s.NewArt, tx)` then `r.ArtDAO.InsertTags(ctx, created.ID, s.Tags, tx)`, and let the deferred rollback undo both if the second fails.
 
@@ -217,7 +217,7 @@ The payoff is that a query is checked against the schema at build time. Renaming
                                   (*model.ArtRow, error)
 
   one transaction, two tables, one method name the service can read.
-  each dao method still runs on txOrDB(db, tx): the tx it was handed,
+  each dao method still runs on db.TxOrDB(db, tx): the tx it was handed,
   or the pool when it was handed none.
 ```
 
@@ -417,20 +417,20 @@ Four layers and one named sub-layer, described here as the tree stands after the
  └───────────────────────────────────┬────────────────────────────────────┘
                                      ▼
  ┌──────────────────────────────────┐ ┌───────────────────────────────────┐
- │ 4 api      src/api/** (65)       │ │ 4 platform  src/platform/** (11)  │
- │   adapts to the server: client,  │ │   adapts to the device:           │
- │   endpoints/ (29 modules),       │ │   capabilities, sound, install    │
- │   queryKeys, queryClient,        │ │   prompt, OTA mechanics, native   │
- │   authToken, telemetry, ota,     │ │   and web push, desktop           │
- │   realtime/ (transport, typed    │ │   notifications, site origin,     │
- │   event contract, sync/), cache/,│ │   popout windows, last location.  │
+ │ 4 api      src/api/** (65)       │ │ 4 platform  src/platform/** (10)  │
+ │   adapts to the server: client,  │ │   adapts to the device: sound,    │
+ │   endpoints/ (29 modules),       │ │   install prompt, OTA mechanics,  │
+ │   queryKeys, queryClient,        │ │   native and web push, desktop    │
+ │   authToken, telemetry, ota,     │ │   notifications, site origin,     │
+ │   realtime/ (transport, typed    │ │   popout windows, last location,  │
+ │   event contract, sync/), cache/,│ │   error reporting.                │
  │   beacons/, livekit/, hyperbeam/ │ │   Never imports api.              │
  └──────────────────────────────────┘ └───────────────────────────────────┘
 ```
 
 `src/types/api.ts` holds the wire DTOs and is importable from any layer, because a type is not a dependency. `src/main.tsx` is the module-graph composition root and is exempt from the import rule by design, the same way `App.tsx` is the React composition root. `src/test-utils/**` belongs to no layer and is covered by the catch-all described below.
 
-The pure layer is the one that pays for itself: `src/domain/**` is eight subdirectories (`art`, `chat`, `fanfic`, `games`, `live`, `mystery`, `user`, `watchParty`) plus flat modules such as `permissions.ts`, `mentions.ts` and `notifications.ts`, and every one of them is testable with no renderer and no mocked transport. `src/utils/**` survives shrunk to seven app-agnostic helpers (`download`, `errorMessage`, `fileValidation`, `gif`, `nonFatal`, `time`, `youtube`); anything with domain vocabulary in it moved to `domain/`.
+The pure layer is the one that pays for itself: `src/domain/**` is eight subdirectories (`art`, `chat`, `fanfic`, `games`, `live`, `mystery`, `user`, `watchParty`) plus flat modules such as `permissions.ts`, `mentions.ts` and `notifications.ts`, and every one of them is testable with no renderer and no mocked transport. `src/utils/**` survives shrunk to seven app-agnostic helpers (`download`, `errorMessage`, `fileValidation`, `gif`, `text`, `time`, `youtube`); anything with domain vocabulary in it moved to `domain/`.
 
 ### 4.2 Allowed import directions
 
@@ -440,14 +440,14 @@ The pure layer is the one that pays for itself: `src/domain/**` is eight subdire
 | orchestration               | no     | yes           | yes        | yes  | yes                 | **no**                         | yes                          | yes   |
 | data hooks                  | no     | no            | yes        | yes  | yes                 | yes                            | no                           | yes   |
 | pure (domain, utils, games) | no     | no            | no         | yes  | **no**              | **no**                         | no                           | yes   |
-| api                         | no     | **no**        | no         | yes  | yes                 | yes                            | `platform/capabilities` only | yes   |
+| api                         | no     | **no**        | no         | yes  | yes                 | yes                            | **no**                       | yes   |
 | platform                    | no     | **no**        | no         | yes  | **no**              | **no**                         | yes                          | yes   |
 | test-utils                  | yes    | yes           | yes        | yes  | yes                 | **no**                         | yes                          | yes   |
 | main.tsx                    | yes    | yes           | yes        | yes  | yes                 | yes                            | yes                          | yes   |
 
 "api (non-transport)" means `api/queryKeys`, `api/realtime`, `api/cache`, `api/livekit`, `api/beacons`, `api/telemetry`. Two cells differ from the plan's version of this table and are written here as the tree is:
 
-- **render to platform is not restricted.** The plan reserved "predicates only" for render, meaning `platform/capabilities` and nothing else. No rule was ever written for it and the tree does not obey it: render files import `platform/siteOrigin` seven times, `platform/lastLocation` twice, and `platform/installPrompt` and `platform/appUpdate` once each, against three imports of `platform/capabilities`. The restriction that does exist and is enforced is the one on `api`, where the whole adapter imports `platform` exactly twice and both are the permitted predicate module: `api/client.ts:2` takes `clientPlatform` and `isNativeApp`, and `api/realtime/socket.ts:2` takes `isNativeApp`.
+- **render to platform is not restricted.** The plan reserved "predicates only" for render, meaning a device predicate module and nothing else. No rule was ever written for it and the tree does not obey it: render files import `platform/siteOrigin` seven times, `platform/lastLocation` twice, and `platform/installPrompt` and `platform/appUpdate` once each. The restriction that does exist and is enforced is the one on `api`, and it is now absolute: the adapter imports `src/platform` nowhere at all. The predicate module it used to be allowed, `platform/capabilities`, was two one-line renames of `Capacitor.isNativePlatform()` and `Capacitor.getPlatform()`, so it is gone and `api/client.ts` and `api/realtime/socket.ts` ask `@capacitor/core` themselves.
 - **test-utils is a row of its own.** It is not a layer, but the catch-all block gives it the same transport ban the orchestration layer has, so a fixture cannot reach `api/endpoints` or `api/queryClient` either.
 
 The hard rules behind the table are unchanged: no layer skipping, render never touches cache internals or fetches, pure never imports React, query keys are built in `src/api/queryKeys.ts` alone, and the adapters never import upward.
@@ -465,7 +465,7 @@ One built-in oxlint rule id and five rules from a local oxlint plugin do all of 
 | pure may not import `src/api`                      | `no-restricted-imports`                   | `PURE` block, group `**/api/*`, `**/api/**`                                                                |
 | pure may not import React or react-query           | `no-restricted-imports`                   | `PURE` block, group `react`, `react-dom`, `@tanstack/react-query`                                          |
 | adapters may not import upward                     | `no-restricted-imports`                   | `API` and `PLATFORM` blocks, group `**/components/**`, `**/pages/**`, `**/hooks/**`, `**/context/**`       |
-| `src/api` may import `platform/capabilities` only  | `no-restricted-imports`                   | `API` block, group `**/platform/*`, `**/platform/**` with `!**/platform/capabilities`                      |
+| `src/api` may not import `src/platform`            | `no-restricted-imports`                   | `API` block, group `**/platform/*`, `**/platform/**`                                                       |
 | `src/platform` may not import `src/api`            | `no-restricted-imports`                   | `PLATFORM` block, group `**/api/*`, `**/api/**`                                                            |
 | everything unclaimed may not reach the transport   | `no-restricted-imports`                   | `EVERY_SOURCE_FILE` block, `excludeFiles` the five layers plus `src/main.tsx`                              |
 | query keys are built in one file                   | `layers/no-raw-query-key`                 | armed on every source file, switched `off` for `CACHE_KEY_ASSERTING_TESTS` and for `src/api/queryKeys.ts`  |
@@ -519,7 +519,7 @@ The mobile app adds no fourth surface. It is the same SPA (section 7.2), crossin
 - **The cache seam is a method that shadows the promoted one.** Because the repository embeds the DAO interface, writing a method on the repository overrides it: read-through on gets, explicit `Del` on writes, and nothing at all written for the methods that are not cached. `internal/repository/permission.go` is the canonical example, with `r.cache.Load(ctx, ns, load)` on the gets and `r.cache.Del(ctx, ns.Key())` on `SetRolePermissions` and `SetVanityRolePermissions`. Section 3.7 sets out why this layer and not one either side of it.
 - **`internal/cache` is a hot-reloadable manager over an ordered list of engines.** The `valkey_url` site setting swaps the Valkey client at runtime; a byte-capped in-memory LRU sits behind it and is always enabled, so clearing the URL degrades the cache to process-local rather than switching it off. The typed surface is four generic methods on `*Manager` (`m.Get[T]`, `m.Set[T]`, `m.SetMany[T]` and `m.Load[T]`), which JSON round-trip any value and pass `string` and `[]byte` through untouched, and namespaces with their TTLs are declared in `internal/cache/keys.go`. A nil `*Manager` is a valid receiver on all four, so a caller never has to know whether caching is switched on. Hits, misses, command latency, and Valkey server stats are exported to Prometheus on `/metrics`. Ten repositories currently take the manager: user, role, settings, mystery, vanity role, permission, user secret, game room, chatbot, and chatbot base prompt.
 - **Shared DAOs for repeated shapes**: comments, likes, media, and view counters are generic over the parent key (`newCommentDAO[K]`, `newLikeDAO`, `newMediaDAO`, `newViewDAO`) and embedded into each domain DAO by promotion, so nine comment systems share one implementation parameterised by table and foreign-key name.
-- **Transactions are owned by the repository, never by the DAO.** Every DAO and repository method takes an optional trailing `tx ...*sql.Tx`; `txOrDB(db, tx)` in `internal/dao/tx.go` runs the statement on that transaction when one is supplied and on the pool otherwise. A repository that needs several writes to be atomic opens the transaction with `db.WithTx(ctx, db, tx, fn)` from `internal/db/tx.go` and threads it through each DAO call, which is how one unit of work can span several DAOs (e.g. `CreateWithCharacters`, `UpdateWithTags`, `MarkSolved`, `CreateBotWithAccount` writing `users`, `user_vanity_roles` and `chatbots` together). `WithTx` joins an inbound transaction rather than nesting, since `database/sql` has no savepoints. **A DAO may only open a transaction whose every statement hits its own table**, which is why only four remain in `internal/dao` (`settings.SetMultiple`, both `permission.Set*Permissions`, and `oc.Update`). Services still do not handle transactions directly.
+- **Transactions are owned by the repository, never by the DAO.** Every DAO and repository method takes an optional trailing `tx ...*sql.Tx`; `db.TxOrDB(db, tx)` in `internal/db/tx.go` runs the statement on that transaction when one is supplied and on the pool otherwise. A repository that needs several writes to be atomic opens the transaction with `db.WithTx(ctx, db, tx, fn)` from `internal/db/tx.go` and threads it through each DAO call, which is how one unit of work can span several DAOs (e.g. `CreateWithCharacters`, `UpdateWithTags`, `MarkSolved`, `CreateBotWithAccount` writing `users`, `user_vanity_roles` and `chatbots` together). `WithTx` joins an inbound transaction rather than nesting, since `database/sql` has no savepoints. **A DAO may only open a transaction whose every statement hits its own table**, which is why only four remain in `internal/dao` (`settings.SetMultiple`, both `permission.Set*Permissions`, and `oc.Update`). Services still do not handle transactions directly.
 - **DAO and repository interfaces are always split.** Every domain declares `XDAO` in `internal/dao` (the database methods) and `XRepository interface { dao.XDAO; ...composites... }` in `internal/repository`, so the type system prevents a DAO from ever implementing an orchestration method. `dao.NewX` returns `dao.XDAO`, never a repository interface, so a DAO physically cannot be handed to a service.
 - **Native Postgres types** throughout the schema: `UUID` for primary and foreign keys, `BIGINT GENERATED BY DEFAULT AS IDENTITY` for auto-increment columns, `BOOLEAN` for flags (no more `INTEGER 0/1`), `TIMESTAMPTZ` for time columns, `JSONB` for `state_json` / `action_json`, and `CITEXT` (case-insensitive text) for unique-by-name lookups like fanfic series, languages, and OC characters.
 - **Foreign keys** are enforced by Postgres. Most deletes cascade through `ON DELETE CASCADE`; `galleries -> art.gallery_id` is `ON DELETE SET NULL`, so `artRepository.DeleteGallery` explicitly removes child art and the gallery row inside one transaction.
@@ -528,7 +528,7 @@ The mobile app adds no fourth surface. It is the same SPA (section 7.2), crossin
 - **DAO tests** boot a real `postgres:18` container per test binary via testcontainers-go, then create a per-test database from a pre-migrated template. Public test API: `daotest.NewRepos(t)`, `daotest.CreateUser(t, repos, opts...)`, `daotest.CreateSession(t, repos, userID)`. Tests need Docker on the host.
 
 ```
-  controller ──▶ service ──▶ repository ──▶ dao ──▶ txOrDB(db, tx).ExecContext(...)
+  controller ──▶ service ──▶ repository ──▶ dao ──▶ db.TxOrDB(db, tx).ExecContext(...)
                                  │           ▲        one table per method
                                  │           │
                                  ▼           │      the tx the repository passed in,
@@ -812,7 +812,7 @@ The README lists the stack. This section holds the reasons, because a version nu
 
 - **Go 1.27** (`go.mod:3`). The generic methods in `internal/cache/typed.go` (`m.Get[T]`, `m.Load[T]`) are a 1.27 feature and do not compile on an earlier toolchain, so the version floor is load-bearing rather than aspirational.
 - **Fiber v3** (`gofiber/fiber/v3 v3.5.0`) as the HTTP router. Routes are registered through the `FSetupRoute` indirection described in section 3.2 rather than against the app directly, so the router is reachable from one file if it ever has to be swapped.
-- **PostgreSQL via `jackc/pgx/v5`** (`v5.10.0`), used through the `pgx/v5/stdlib` adapter rather than the native pgx interface. That is the one dependency choice worth stating outright: going through `database/sql` keeps `*sql.DB` and `*sql.Tx` as the currency of the whole data layer, which is what lets `txOrDB` and `db.WithTx` be seven lines each, and it keeps `XSAM/otelsql` (`v0.43.0`) able to wrap the driver for a span per statement. The native interface would be marginally faster and would cost both.
+- **PostgreSQL via `jackc/pgx/v5`** (`v5.10.0`), used through the `pgx/v5/stdlib` adapter rather than the native pgx interface. That is the one dependency choice worth stating outright: going through `database/sql` keeps `*sql.DB` and `*sql.Tx` as the currency of the whole data layer, which is what lets `db.TxOrDB` and `db.WithTx` be seven lines each, and it keeps `XSAM/otelsql` (`v0.43.0`) able to wrap the driver for a span per statement. The native interface would be marginally faster and would cost both.
 - **Goose** (`pressly/goose/v3 v3.27.3`) for migrations, run in-process at boot from `internal/db/migrations`. Migration files are always created through the goose CLI, never by hand.
 - **testcontainers-go** (`v0.44.0`, plus the `modules/postgres` helper) for the DAO tests of section 3.5. Running the bottom layer against a real `postgres:18` is what licenses the layers above to be tested entirely against mocks: the SQL is checked once, for real, rather than asserted about in a mock expectation that can only ever restate what the test already assumed.
 - **`gofiber/contrib/v3/websocket`** (`v1.2.3`) for the hub in `internal/ws`. `fasthttp/websocket` (`v1.5.12`) is a direct dependency but a client-side one, used only by tests that dial a socket (`internal/overlay/handler_test.go`).
@@ -874,7 +874,7 @@ A test belongs to the layer its subject sits in, and it may reach exactly one la
 | render        | `renderWithProviders` and Testing Library queries, with the data hook mocked          | `vi.mock` `api/endpoints`, `api/queryKeys`, `api/client` or `api/queryClient` |
 | platform      | stubs the device API, re-importing under `vi.resetModules()` where module scope reads | import `src/api`                                                              |
 
-`endpoints/testHarness.ts` exports eight typed transport mocks, one per `api/client` primitive, plus `runRequestCases` and the `beforeEach` reset. `vi.mock` is hoisted per file and does not travel through an import, so the `vi.mock` calls stay literally in each of the 27 endpoint test files and only the type, the handles and the runner come from the harness. Twenty-six of them mock `../client` and `../../platform/capabilities`, `auth.test.ts` adds `../authToken` as a third, and `quote.test.ts` mocks nothing because the quote family never touches the app transport. Seven of the ten `src/platform` tests use the `vi.resetModules()` re-import, because their subject reads the environment at module scope.
+`endpoints/testHarness.ts` exports eight typed transport mocks, one per `api/client` primitive, plus `runRequestCases` and the `beforeEach` reset. `vi.mock` is hoisted per file and does not travel through an import, so the `vi.mock` calls stay literally in each of the 27 endpoint test files and only the type, the handles and the runner come from the harness. Twenty-six of them mock `../client` alone, `auth.test.ts` adds `../authToken` as a second, and `quote.test.ts` mocks nothing because the quote family never touches the app transport. Six of the nine `src/platform` tests use the `vi.resetModules()` re-import, because their subject reads the environment at module scope.
 
 Shared machinery lives in `src/test-utils`: `render.tsx` for `renderWithProviders`, `providerWrapper` and `createTestQueryClient`, `query.ts` for cache assertions such as `expectInvalidated`, `ws.ts` for the `FakeWebSocket` and `emitRealtimeEvent`, and `fixtures/` for the entity factories. A fixture whose type is part of a hook's published contract lives next to that hook as `*.fixture.ts` instead, so `tsc -b` fails when the contract changes; `useRoomController.fixture.ts` and `useDmController.fixture.ts` are the two.
 
@@ -957,7 +957,7 @@ The frontend, rooted at `frontend/`. Every directory below `src/` carries the la
   src/api/cache         the cache writers a patch reaches for, such as patchUser
   src/api/beacons       the unload-time keepalive posts api/client cannot express
   src/api/livekit       the LiveKit room and track plumbing; hyperbeam/ is the watch-party frame
-  src/platform          device adapter: capabilities, sound, push, OTA, popouts, last location
+  src/platform          device adapter: sound, push, OTA, popouts, last location, error reports
   src/styles            the global stylesheet and the theme token definitions
   src/test-utils        render and query harnesses, the websocket fake, and fixtures/
 ```

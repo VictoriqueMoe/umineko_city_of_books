@@ -28,7 +28,7 @@ func modRuleID() uuid.UUID {
 }
 
 func TestListRoomBans_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/rooms/"+modRoomID().String()+"/bans", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/rooms/"+modRoomID().String()+"/bans", nil)
 }
 
 func TestListRoomBans_OK(t *testing.T) {
@@ -61,7 +61,7 @@ func TestListRoomBans_InvalidRoomID(t *testing.T) {
 }
 
 func TestBanMember_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/rooms/"+modRoomID().String()+"/bans/"+modTargetID().String(),
 		dto.BanMemberRequest{Reason: "spam"})
 }
@@ -134,7 +134,7 @@ func TestBanMember_ServiceErrors(t *testing.T) {
 }
 
 func TestUnbanMember_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/rooms/"+modRoomID().String()+"/bans/"+modTargetID().String(), nil)
 }
 
@@ -173,7 +173,7 @@ func TestUnbanMember_NotHost(t *testing.T) {
 }
 
 func TestListRoomBannedWords_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET",
 		"/chat/rooms/"+modRoomID().String()+"/banned-words", nil)
 }
 
@@ -213,7 +213,7 @@ func TestListRoomBannedWords_NotHost(t *testing.T) {
 }
 
 func TestCreateRoomBannedWord_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/rooms/"+modRoomID().String()+"/banned-words",
 		dto.CreateBannedWordRequest{Pattern: "spam", MatchMode: "substring", Action: "delete"})
 }
@@ -277,7 +277,7 @@ func TestCreateRoomBannedWord_ServiceErrors(t *testing.T) {
 }
 
 func TestUpdateRoomBannedWord_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PUT",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PUT",
 		"/chat/rooms/"+modRoomID().String()+"/banned-words/"+modRuleID().String(),
 		dto.UpdateBannedWordRequest{})
 }
@@ -322,7 +322,7 @@ func TestUpdateRoomBannedWord_RuleNotInScope(t *testing.T) {
 }
 
 func TestDeleteRoomBannedWord_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/rooms/"+modRoomID().String()+"/banned-words/"+modRuleID().String(), nil)
 }
 

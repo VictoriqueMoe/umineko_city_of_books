@@ -82,42 +82,17 @@ beforeEach(() => {
     endpoints.resolveDMRoom.mockResolvedValue({ room: { id: "r-1" }, recipient: { id: "u-2" } });
 });
 
-describe("fetchRoomMessages", () => {
-    it("passes the room and the page window straight through", async () => {
+describe("the message history seam", () => {
+    it("is the transport call itself, so nothing is renamed on the way through", () => {
         // given
-        endpoints.getRoomMessages.mockResolvedValue({ messages: [{ id: "m-1" }], total: 1 });
+        const { getRoomMessages, getRoomMessagesBefore } = endpoints;
 
         // when
-        const result = await fetchRoomMessages("room-1", 30, 60);
+        const seam = { fetchRoomMessages, fetchRoomMessagesBefore };
 
         // then
-        expect(endpoints.getRoomMessages).toHaveBeenCalledWith("room-1", 30, 60);
-        expect(result).toEqual({ messages: [{ id: "m-1" }], total: 1 });
-    });
-
-    it("leaves the page window unset when the caller gives none", async () => {
-        // given
-        await fetchRoomMessages("room-1");
-
-        // when
-        const call = endpoints.getRoomMessages.mock.calls[0];
-
-        // then
-        expect(call).toEqual(["room-1", undefined, undefined]);
-    });
-});
-
-describe("fetchRoomMessagesBefore", () => {
-    it("passes the room, the cursor and the limit straight through", async () => {
-        // given
-        endpoints.getRoomMessagesBefore.mockResolvedValue({ messages: [{ id: "m-0" }] });
-
-        // when
-        const result = await fetchRoomMessagesBefore("room-1", "2026-01-01T00:00:00Z", 10);
-
-        // then
-        expect(endpoints.getRoomMessagesBefore).toHaveBeenCalledWith("room-1", "2026-01-01T00:00:00Z", 10);
-        expect(result).toEqual({ messages: [{ id: "m-0" }] });
+        expect(seam.fetchRoomMessages).toBe(getRoomMessages);
+        expect(seam.fetchRoomMessagesBefore).toBe(getRoomMessagesBefore);
     });
 });
 

@@ -1,4 +1,4 @@
-import { apiUrl } from "./client";
+import { apiUrl } from "./origin";
 import type { OtaManifest } from "../types/api";
 
 const MANIFEST_PATH = "/app-bundles/latest.json";
@@ -11,8 +11,4 @@ export async function getOtaManifest(): Promise<OtaManifest | null> {
     }
 
     return (await response.json()) as OtaManifest;
-}
-
-export function otaBundleUrl(path: string): string {
-    return apiUrl(path);
 }

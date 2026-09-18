@@ -14,7 +14,10 @@ const mocks = vi.hoisted(() => ({
     rooms: [] as FakeRoom[],
     connectImpl: (): Promise<void> => Promise.resolve(),
     disconnectImpl: (): Promise<void> => Promise.resolve(),
+    reportClientError: vi.fn(),
 }));
+
+vi.mock("../telemetry", () => ({ reportClientError: mocks.reportClientError }));
 
 vi.mock("livekit-client", () => {
     class Room {
@@ -52,6 +55,7 @@ beforeEach(() => {
     mocks.rooms.length = 0;
     mocks.connectImpl = () => Promise.resolve();
     mocks.disconnectImpl = () => Promise.resolve();
+    mocks.reportClientError.mockClear();
 });
 
 describe("connectRoom", () => {
@@ -210,10 +214,11 @@ describe("disconnectRoom", () => {
         expect(() => disconnectRoom(undefined)).not.toThrow();
     });
 
-    it("catches a hang-up that fails, because a teardown has nowhere to report it", async () => {
+    it("reports a hang-up that fails instead of swallowing it", async () => {
         // given
         const room = await connectRoom({ url: "wss://livekit.test", token: "t" });
-        mocks.disconnectImpl = () => Promise.reject(new Error("socket already gone"));
+        const thrown = new Error("socket already gone");
+        mocks.disconnectImpl = () => Promise.reject(thrown);
 
         // when
         disconnectRoom(room);
@@ -221,5 +226,6 @@ describe("disconnectRoom", () => {
 
         // then
         expect(lastRoom().disconnect).toHaveBeenCalledOnce();
+        expect(mocks.reportClientError).toHaveBeenCalledExactlyOnceWith(thrown, { source: "caught" });
     });
 });

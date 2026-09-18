@@ -2,7 +2,6 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../api/queryKeys";
-import type { RealtimeEvent } from "../api/realtime/events";
 import { makeStream as makeLiveStream } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
 import { emitSettledRealtimeEvent } from "../test-utils/ws";
@@ -23,7 +22,11 @@ const mocks = vi.hoisted(() => ({
     uploadStreamThumbnail: vi.fn(),
 }));
 
+const telemetry = vi.hoisted(() => ({ reportClientError: vi.fn() }));
+
 vi.mock("../api/endpoints/stream", () => mocks);
+
+vi.mock("../api/telemetry", () => telemetry);
 
 const STREAM_ID = "stream-1";
 const WHIP_URL = "https://ingest.example/whip";
@@ -43,10 +46,6 @@ function makeCredentials(overrides: Partial<StreamCredentials> = {}): StreamCred
 let queryClient: QueryClient;
 let serverOwner: StreamOwner | null;
 let serverCredentials: StreamCredentials;
-
-async function emit(event: RealtimeEvent): Promise<void> {
-    await emitSettledRealtimeEvent(event);
-}
 
 function mount() {
     return renderHook(() => useGoLive(), { wrapper: providerWrapper({ queryClient }) });
@@ -69,6 +68,7 @@ function invalidationsOf(calls: unknown[][], key: readonly unknown[]): number {
 
 beforeEach(() => {
     localStorage.clear();
+    telemetry.reportClientError.mockClear();
     queryClient = createTestQueryClient();
     serverOwner = null;
     serverCredentials = makeCredentials();
@@ -428,7 +428,7 @@ describe("useGoLive live updates", () => {
         const view = await mountLoaded();
 
         // when
-        await emit({ type: "stream_live", data: makeStream({ status: "live" }) });
+        await emitSettledRealtimeEvent({ type: "stream_live", data: makeStream({ status: "live" }) });
 
         // then
         expect(view.result.current.owner?.stream.status).toBe("live");
@@ -440,7 +440,10 @@ describe("useGoLive live updates", () => {
         const view = await mountLoaded();
 
         // when
-        await emit({ type: "stream_title", data: { streamId: STREAM_ID, title: "Cake with the witch" } });
+        await emitSettledRealtimeEvent({
+            type: "stream_title",
+            data: { streamId: STREAM_ID, title: "Cake with the witch" },
+        });
 
         // then
         expect(view.result.current.owner?.stream.title).toBe("Cake with the witch");
@@ -453,7 +456,7 @@ describe("useGoLive live updates", () => {
         act(() => view.result.current.setTitle("left over"));
 
         // when
-        await emit({ type: "stream_offline", data: { streamId: STREAM_ID } });
+        await emitSettledRealtimeEvent({ type: "stream_offline", data: { streamId: STREAM_ID } });
 
         // then
         expect(view.result.current.owner).toBeNull();
@@ -467,7 +470,7 @@ describe("useGoLive live updates", () => {
         const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
         // when
-        await emit({ type: "stream_offline", data: { streamId: STREAM_ID } });
+        await emitSettledRealtimeEvent({ type: "stream_offline", data: { streamId: STREAM_ID } });
 
         // then
         expect(invalidationsOf(invalidateQueries.mock.calls, queryKeys.streams.live())).toBe(0);
@@ -479,8 +482,11 @@ describe("useGoLive live updates", () => {
         const view = await mountLoaded();
 
         // when
-        await emit({ type: "stream_title", data: { streamId: "stream-other", title: "Not mine" } });
-        await emit({ type: "stream_offline", data: { streamId: "stream-other" } });
+        await emitSettledRealtimeEvent({
+            type: "stream_title",
+            data: { streamId: "stream-other", title: "Not mine" },
+        });
+        await emitSettledRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-other" } });
 
         // then
         expect(view.result.current.owner?.stream.title).toBe("Tea with the witch");
@@ -502,9 +508,10 @@ describe("useGoLive clipboard", () => {
         expect(view.result.current.copied).toBe("url");
     });
 
-    it("says nothing was copied when the clipboard refuses", async () => {
+    it("says nothing was copied when the clipboard refuses, and reports the refusal", async () => {
         // given
-        vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(new Error("denied"));
+        const refusal = new Error("denied");
+        vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(refusal);
         const view = await mountLoaded();
 
         // when
@@ -514,5 +521,6 @@ describe("useGoLive clipboard", () => {
 
         // then
         expect(view.result.current.copied).toBeNull();
+        expect(telemetry.reportClientError).toHaveBeenCalledExactlyOnceWith(refusal, { source: "caught" });
     });
 });

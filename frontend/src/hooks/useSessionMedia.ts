@@ -6,7 +6,6 @@ import { setScreenShareEnabled, type ScreenShareMode } from "../api/livekit/scre
 import { reportClientError } from "../api/telemetry";
 import { useWatchPartyVoiceToken } from "./mutations/watchParty";
 import { errorMessage } from "../utils/errorMessage";
-import { nonFatal } from "../utils/nonFatal";
 import type { WatchPartyType } from "../types/api";
 
 export type SessionMediaStatus = "idle" | "connecting" | "connected";
@@ -90,7 +89,9 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                         joined.localParticipant
                             .setMicrophoneEnabled(true)
                             .then(() => setInVoice(true))
-                            .catch(nonFatal);
+                            .catch((thrown: unknown) => {
+                                reportClientError(thrown, { source: "caught" });
+                            });
                     },
                 },
             });
@@ -109,7 +110,9 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
 
     useEffect(() => {
         if (type === "screenshare") {
-            ensureConnected().catch(nonFatal);
+            ensureConnected().catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
         }
 
         return () => {
@@ -196,7 +199,9 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
             lkRoom.localParticipant
                 .setMicrophoneEnabled(true)
                 .then(() => setInVoice(true))
-                .catch(nonFatal);
+                .catch((thrown: unknown) => {
+                    reportClientError(thrown, { source: "caught" });
+                });
         }
     }, [ensureConnected]);
 

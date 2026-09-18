@@ -21,30 +21,20 @@ vi.mock("@livekit/components-react", () => ({
     VideoTrack: ({ trackRef }: { trackRef: { sid: string } }) => <div data-testid="video-track">{trackRef.sid}</div>,
 }));
 
-interface FakeParticipant {
-    identity: string;
-    name?: string;
-    metadata?: string;
-}
-
-function stubParticipants(participants: FakeParticipant[]): void {
-    mocks.useParticipants.mockReturnValue(participants);
-}
-
-function stubTracks(tracks: unknown[]): void {
-    mocks.useTracks.mockReturnValue(tracks);
-}
-
 beforeEach(() => {
-    stubParticipants([]);
-    stubTracks([]);
+    mocks.useParticipants.mockReturnValue([]);
+    mocks.useTracks.mockReturnValue([]);
 });
 
 describe("ViewerCountReporter", () => {
     it("reports only the participants who are watching", () => {
         // given
         const onChange = vi.fn();
-        stubParticipants([{ identity: "viewer_1" }, { identity: "viewer_2" }, { identity: "streamer_1" }]);
+        mocks.useParticipants.mockReturnValue([
+            { identity: "viewer_1" },
+            { identity: "viewer_2" },
+            { identity: "streamer_1" },
+        ]);
 
         // when
         renderWithProviders(<ViewerCountReporter onChange={onChange} />);
@@ -56,7 +46,7 @@ describe("ViewerCountReporter", () => {
     it("reports nobody watching when the room is empty", () => {
         // given
         const onChange = vi.fn();
-        stubParticipants([]);
+        mocks.useParticipants.mockReturnValue([]);
 
         // when
         renderWithProviders(<ViewerCountReporter onChange={onChange} />);
@@ -67,7 +57,7 @@ describe("ViewerCountReporter", () => {
 
     it("draws nothing of its own", () => {
         // given
-        stubParticipants([{ identity: "viewer_1" }]);
+        mocks.useParticipants.mockReturnValue([{ identity: "viewer_1" }]);
 
         // when
         const { container } = renderWithProviders(<ViewerCountReporter onChange={vi.fn()} />);
@@ -155,8 +145,8 @@ describe("StreamUptime", () => {
 describe("StreamStage", () => {
     it("waits politely while no video has been published", () => {
         // given
-        stubTracks([]);
-        stubParticipants([{ identity: "viewer_1" }]);
+        mocks.useTracks.mockReturnValue([]);
+        mocks.useParticipants.mockReturnValue([{ identity: "viewer_1" }]);
 
         // when
         renderWithProviders(<StreamStage />);
@@ -168,7 +158,7 @@ describe("StreamStage", () => {
 
     it("shows the video once a video track is published", () => {
         // given
-        stubTracks([{ sid: "track-9", publication: { kind: "video" } }]);
+        mocks.useTracks.mockReturnValue([{ sid: "track-9", publication: { kind: "video" } }]);
 
         // when
         renderWithProviders(<StreamStage />);
@@ -180,7 +170,7 @@ describe("StreamStage", () => {
 
     it("ignores an audio only publication", () => {
         // given
-        stubTracks([{ sid: "track-audio", publication: { kind: "audio" } }]);
+        mocks.useTracks.mockReturnValue([{ sid: "track-audio", publication: { kind: "audio" } }]);
 
         // when
         renderWithProviders(<StreamStage />);
@@ -191,7 +181,11 @@ describe("StreamStage", () => {
 
     it("counts the watchers over the stage", () => {
         // given
-        stubParticipants([{ identity: "viewer_a" }, { identity: "viewer_b" }, { identity: "publisher" }]);
+        mocks.useParticipants.mockReturnValue([
+            { identity: "viewer_a" },
+            { identity: "viewer_b" },
+            { identity: "publisher" },
+        ]);
 
         // when
         renderWithProviders(<StreamStage />);
@@ -202,7 +196,7 @@ describe("StreamStage", () => {
 
     it("asks the room for the sources a stream can arrive on", () => {
         // given
-        stubTracks([]);
+        mocks.useTracks.mockReturnValue([]);
 
         // when
         renderWithProviders(<StreamStage />);
@@ -215,7 +209,7 @@ describe("StreamStage", () => {
 describe("StreamViewers", () => {
     it("names the signed in watchers", () => {
         // given
-        stubParticipants([
+        mocks.useParticipants.mockReturnValue([
             {
                 identity: "viewer_1",
                 name: "Beatrice",
@@ -233,7 +227,7 @@ describe("StreamViewers", () => {
 
     it("falls back to the metadata username when the participant has no name", () => {
         // given
-        stubParticipants([
+        mocks.useParticipants.mockReturnValue([
             { identity: "viewer_1", metadata: JSON.stringify({ userId: "u1", username: "battler" }) },
             { identity: "viewer_2", metadata: JSON.stringify({ userId: "u2" }) },
         ]);
@@ -248,7 +242,7 @@ describe("StreamViewers", () => {
 
     it("counts a watcher with no metadata as a guest", () => {
         // given
-        stubParticipants([{ identity: "viewer_1" }, { identity: "viewer_2" }]);
+        mocks.useParticipants.mockReturnValue([{ identity: "viewer_1" }, { identity: "viewer_2" }]);
 
         // when
         renderWithProviders(<StreamViewers />);
@@ -259,7 +253,7 @@ describe("StreamViewers", () => {
 
     it("keeps the guest wording singular for a lone guest", () => {
         // given
-        stubParticipants([{ identity: "viewer_1" }]);
+        mocks.useParticipants.mockReturnValue([{ identity: "viewer_1" }]);
 
         // when
         renderWithProviders(<StreamViewers />);
@@ -270,7 +264,7 @@ describe("StreamViewers", () => {
 
     it("treats a watcher with unreadable metadata as a guest", () => {
         // given
-        stubParticipants([{ identity: "viewer_1", metadata: "{not json" }]);
+        mocks.useParticipants.mockReturnValue([{ identity: "viewer_1", metadata: "{not json" }]);
 
         // when
         renderWithProviders(<StreamViewers />);
@@ -281,7 +275,7 @@ describe("StreamViewers", () => {
 
     it("shows a watcher's avatar when their metadata carries one", () => {
         // given
-        stubParticipants([
+        mocks.useParticipants.mockReturnValue([
             {
                 identity: "viewer_1",
                 name: "Ange",
@@ -299,7 +293,7 @@ describe("StreamViewers", () => {
     it("lists a watcher who joined twice only once", () => {
         // given
         const metadata = JSON.stringify({ userId: "u1", username: "beatrice" });
-        stubParticipants([
+        mocks.useParticipants.mockReturnValue([
             { identity: "viewer_1", name: "Beatrice", metadata },
             { identity: "viewer_2", name: "Beatrice", metadata },
         ]);
@@ -314,7 +308,7 @@ describe("StreamViewers", () => {
 
     it("ignores participants who are not watching", () => {
         // given
-        stubParticipants([{ identity: "publisher_1", name: "Streamer" }]);
+        mocks.useParticipants.mockReturnValue([{ identity: "publisher_1", name: "Streamer" }]);
 
         // when
         renderWithProviders(<StreamViewers />);

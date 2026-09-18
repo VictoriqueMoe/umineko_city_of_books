@@ -13,10 +13,10 @@ import { NotificationProvider } from "./context/NotificationContext";
 import { GifFavouritesProvider } from "./context/GifFavouritesContext";
 import { MentionResolverProvider } from "./context/MentionResolverContext";
 import { loadAuthToken } from "./api/authToken";
-import { getOtaManifest, otaBundleUrl } from "./api/ota";
+import { apiUrl } from "./api/origin";
+import { getOtaManifest } from "./api/ota";
 import { initAppUpdates } from "./platform/appUpdate";
 import { setPlatformErrorReporter } from "./platform/errorReporter";
-import { nonFatal } from "./utils/nonFatal";
 import "./styles/variables.css";
 import "./styles/global.css";
 import { watchInstallPrompt } from "./platform/installPrompt";
@@ -25,7 +25,7 @@ setPlatformErrorReporter(reportClientError);
 watchInstallPrompt();
 
 function startAppUpdates(): void {
-    initAppUpdates({ getManifest: getOtaManifest, bundleUrl: otaBundleUrl });
+    initAppUpdates({ getManifest: getOtaManifest, bundleUrl: apiUrl });
 }
 
 function reportBoundaryError(error: unknown, componentStack: string | null): void {
@@ -67,7 +67,9 @@ function renderApp() {
 }
 
 loadAuthToken()
-    .catch(nonFatal)
+    .catch(error => {
+        reportClientError(error, { source: "boot" });
+    })
     .then(renderApp)
     .then(startAppUpdates)
     .catch(error => {

@@ -27,7 +27,6 @@ interface MobileLiveViewProps {
     thumbnailError?: string;
 }
 
-const noop = () => {};
 const MIN_STAGE_HEIGHT = 96;
 
 export function MobileLiveView({
@@ -51,7 +50,7 @@ export function MobileLiveView({
     const [viewerCount, setViewerCount] = useState(0);
     const [stageHeight, setStageHeight] = useState<number | null>(null);
     const dragRef = useRef<{ startY: number; startHeight: number } | null>(null);
-    useChatViewport({ scrollToBottom: noop });
+    useChatViewport({ scrollToBottom: () => {} });
 
     useEffect(() => {
         const vv = window.visualViewport;

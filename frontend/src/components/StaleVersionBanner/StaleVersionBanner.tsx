@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import { isNativeApp } from "../../platform/capabilities";
 import { applyOtaUpdate, hasOtaUpdate, subscribeOtaReady } from "../../platform/appUpdate";
-import { reloadPage } from "../../platform/pageReload";
 import { Banner, BannerButton } from "../Banner/Banner";
 
 export function StaleVersionBanner() {
     const siteInfo = useSiteInfo();
     const bundleVersion = __APP_VERSION__;
-    const native = isNativeApp();
+    const native = Capacitor.isNativePlatform();
     const [otaReady, setOtaReady] = useState(() => native && hasOtaUpdate());
 
     useEffect(() => {
@@ -23,10 +22,6 @@ export function StaleVersionBanner() {
 
     function handleApply() {
         applyOtaUpdate().catch(() => {});
-    }
-
-    function handleReload() {
-        reloadPage();
     }
 
     if (native) {
@@ -50,7 +45,19 @@ export function StaleVersionBanner() {
     }
 
     return (
-        <Banner colour="red" role="alert" actions={<BannerButton onClick={handleReload}>Reload now</BannerButton>}>
+        <Banner
+            colour="red"
+            role="alert"
+            actions={
+                <BannerButton
+                    onClick={() => {
+                        window.location.reload();
+                    }}
+                >
+                    Reload now
+                </BannerButton>
+            }
+        >
             A new version of the site is available. Please reload to update.
         </Banner>
     );

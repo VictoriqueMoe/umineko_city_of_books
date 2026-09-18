@@ -58,14 +58,6 @@ func recordInbound(msgType string, tokens float64) {
 	wsInboundTokens.Observe(tokens)
 }
 
-func recordInputFrame() {
-	wsInputFrames.Inc()
-}
-
-func recordFrameDropped() {
-	wsOutboundFramesDropped.Inc()
-}
-
 func recordDropped(authed bool) {
 	wsInboundDropped.WithLabelValues(authedLabel(authed)).Inc()
 }

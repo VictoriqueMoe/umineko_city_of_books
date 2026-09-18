@@ -36,12 +36,8 @@ export const DEFAULT_RESOLUTION_INDEX = 1;
 
 export const DEFAULT_CALCULATOR_FPS = 60;
 
-export function parseBitrate(raw: string): number {
-    return Number(raw);
-}
-
 export function isBitrateValid(raw: string): boolean {
-    const value = parseBitrate(raw);
+    const value = Number(raw);
 
     return Number.isFinite(value) && value >= MIN_BITRATE && value <= MAX_BITRATE;
 }

@@ -15,8 +15,6 @@ import {
 import type { GameType, SpectatorChatResponse, SpectatorMessage } from "../../types/api";
 import { queryKeys } from "../../api/queryKeys";
 
-const detail = (id: string) => queryKeys.gameRoom.detail(id);
-
 const LIST_KEY = ["gameRoom", "list"] as const;
 
 function withMessage(prev: SpectatorChatResponse | undefined, message: SpectatorMessage): SpectatorChatResponse {
@@ -46,7 +44,7 @@ export function useAcceptGameInvite() {
     return useMutation({
         mutationFn: (id: string) => acceptGameInvite(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(detail(id), room);
+            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
             qc.invalidateQueries({ queryKey: LIST_KEY });
         },
     });
@@ -73,7 +71,7 @@ export function useSubmitGameAction(id: string) {
     return useMutation({
         mutationFn: (action: Record<string, unknown>) => submitGameAction(id, action),
         onSuccess: room => {
-            qc.setQueryData(detail(id), room);
+            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
             qc.invalidateQueries({ queryKey: LIST_KEY });
         },
     });
@@ -84,7 +82,7 @@ export function useResignGame() {
     return useMutation({
         mutationFn: (id: string) => resignGame(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(detail(id), room);
+            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
             qc.invalidateQueries({ queryKey: LIST_KEY });
         },
     });
@@ -95,7 +93,7 @@ export function useOfferDraw() {
     return useMutation({
         mutationFn: (id: string) => offerDraw(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(detail(id), room);
+            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
             qc.invalidateQueries({ queryKey: LIST_KEY });
         },
     });
@@ -106,7 +104,7 @@ export function useAcceptDraw() {
     return useMutation({
         mutationFn: (id: string) => acceptDraw(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(detail(id), room);
+            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
             qc.invalidateQueries({ queryKey: LIST_KEY });
         },
     });
@@ -117,7 +115,7 @@ export function useDeclineDraw() {
     return useMutation({
         mutationFn: (id: string) => declineDraw(id),
         onSuccess: (room, id) => {
-            qc.setQueryData(detail(id), room);
+            qc.setQueryData(queryKeys.gameRoom.detail(id), room);
             qc.invalidateQueries({ queryKey: LIST_KEY });
         },
     });

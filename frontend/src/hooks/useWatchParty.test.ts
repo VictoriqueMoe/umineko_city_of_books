@@ -94,10 +94,6 @@ function setup(options: SetupOptions = {}) {
     );
 }
 
-function emit(event: RealtimeEvent): void {
-    emitRealtimeEvent(event);
-}
-
 async function setupLoaded(options: SetupOptions = {}) {
     const view = setup(options);
     await waitFor(() => {
@@ -225,7 +221,7 @@ describe("useWatchParty loading", () => {
         const withoutRoom = setup({ roomId: null });
 
         // when
-        emit({ type: "watch_party_started", data: { session: makeSession({ id: "session-2" }) } });
+        emitRealtimeEvent({ type: "watch_party_started", data: { session: makeSession({ id: "session-2" }) } });
 
         // then
         expect(withRoom.result.current.sessions.map(s => s.id)).toEqual(["session-2"]);
@@ -657,7 +653,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupLoaded();
 
         // when
-        emit({ type: "watch_party_started", data: { session: makeSession({ id: "session-2" }) } });
+        emitRealtimeEvent({ type: "watch_party_started", data: { session: makeSession({ id: "session-2" }) } });
 
         // then
         expect(result.current.sessions.map(s => s.id)).toEqual(["session-2"]);
@@ -668,7 +664,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupLoaded();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_started",
             data: { session: makeSession({ id: "session-2", room_id: "room-other" }) },
         });
@@ -683,7 +679,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupLoaded();
 
         // when
-        emit({ type: "watch_party_started", data: { session: makeSession({ title: "new title" }) } });
+        emitRealtimeEvent({ type: "watch_party_started", data: { session: makeSession({ title: "new title" }) } });
 
         // then
         expect(result.current.sessions).toHaveLength(1);
@@ -695,7 +691,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_ended",
             data: { session_id: "session-1", room_id: roomId, reason: "host left" },
         });
@@ -710,7 +706,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_ended",
             data: { session_id: "session-1", room_id: "room-other", reason: "host left" },
         });
@@ -724,7 +720,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_participant_joined",
             data: {
                 session_id: "session-1",
@@ -742,7 +738,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_participant_joined",
             data: {
                 session_id: "session-1",
@@ -764,7 +760,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive(session);
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_participant_left",
             data: { session_id: "session-1", room_id: roomId, user_id: "user-battler" },
         });
@@ -779,7 +775,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_participant_left",
             data: { session_id: "session-1", room_id: roomId, user_id: viewerId },
         });
@@ -794,7 +790,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_control_changed",
             data: { session_id: "session-1", room_id: roomId, user_id: viewerId, has_control: true },
         });
@@ -808,7 +804,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_kicked",
             data: { session_id: "session-1", room_id: roomId, actor_id: "user-ronove" },
         });
@@ -823,7 +819,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_kicked",
             data: { session_id: "session-1", room_id: "room-other", actor_id: "user-ronove" },
         });
@@ -838,7 +834,7 @@ describe("useWatchParty socket events", () => {
         const { result } = await setupActive();
 
         // when
-        emit({ type: "chat_message", data: { body: "unrelated" } } as unknown as RealtimeEvent);
+        emitRealtimeEvent({ type: "chat_message", data: { body: "unrelated" } } as unknown as RealtimeEvent);
 
         // then
         expect(result.current.openSessionId).toBe("session-1");
@@ -851,7 +847,7 @@ describe("useWatchParty socket events", () => {
 
         // when
         unmount();
-        emit({
+        emitRealtimeEvent({
             type: "watch_party_kicked",
             data: { session_id: "session-1", room_id: roomId, actor_id: "user-ronove" },
         });

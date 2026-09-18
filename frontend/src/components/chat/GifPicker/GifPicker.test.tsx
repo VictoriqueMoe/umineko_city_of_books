@@ -61,8 +61,6 @@ function setTrending(result: QueryResult) {
     });
 }
 
-function noop() {}
-
 beforeEach(() => {
     setTrending({});
     mocks.useGiphySearch.mockReturnValue({
@@ -80,7 +78,7 @@ describe("GifPicker", () => {
         setTrending({ data: { data: [makeGif()] } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.queryByRole("button", { name: "Trending" })).not.toBeInTheDocument();
@@ -93,7 +91,7 @@ describe("GifPicker", () => {
         setTrending({ data: { data: [makeGif()] } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: makeUser() });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: makeUser() });
 
         // then
         expect(screen.getByRole("button", { name: "Trending" })).toBeInTheDocument();
@@ -105,7 +103,7 @@ describe("GifPicker", () => {
         setTrending({ data: { data: [makeGif(), makeGif({ id: "gif-2", title: "Broken", images: {} })] } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.getByRole("button", { name: "Beato laughing" })).toBeInTheDocument();
@@ -117,7 +115,7 @@ describe("GifPicker", () => {
         setTrending({ data: { data: [makeGif({ title: "" })] } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.getByRole("button", { name: "GIF" })).toBeInTheDocument();
@@ -128,7 +126,7 @@ describe("GifPicker", () => {
         const onPick = vi.fn();
         setTrending({ data: { data: [makeGif()] } });
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={onPick} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={onPick} onClose={vi.fn()} />, { user: null });
 
         // when
         await user.click(screen.getByRole("button", { name: "Beato laughing" }));
@@ -157,7 +155,7 @@ describe("GifPicker", () => {
             },
         });
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={onPick} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={onPick} onClose={vi.fn()} />, { user: null });
 
         // when
         await user.click(screen.getByRole("button", { name: "Beato laughing" }));
@@ -171,7 +169,7 @@ describe("GifPicker", () => {
         // given
         vi.useFakeTimers();
         setTrending({});
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // when
         fireEvent.change(screen.getByPlaceholderText("Search GIPHY"), { target: { value: "beato" } });
@@ -187,7 +185,7 @@ describe("GifPicker", () => {
     it("does not search for a single character", () => {
         // given
         vi.useFakeTimers();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // when
         fireEvent.change(screen.getByPlaceholderText("Search GIPHY"), { target: { value: "b" } });
@@ -203,7 +201,7 @@ describe("GifPicker", () => {
     it("goes back to trending when the search is cleared", () => {
         // given
         vi.useFakeTimers();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
         const field = screen.getByPlaceholderText("Search GIPHY");
         fireEvent.change(field, { target: { value: "beato" } });
         act(() => {
@@ -225,7 +223,7 @@ describe("GifPicker", () => {
     it("stops asking giphy for anything while the favourites tab is open", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: makeUser() });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: makeUser() });
 
         // when
         await user.click(screen.getByRole("button", { name: /Favourites/ }));
@@ -240,7 +238,7 @@ describe("GifPicker", () => {
         setTrending({ loading: true });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.getByText("Loading...")).toBeInTheDocument();
@@ -252,7 +250,7 @@ describe("GifPicker", () => {
         setTrending({ error: new Error("giphy is unreachable") });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.getByText("giphy is unreachable")).toBeInTheDocument();
@@ -263,7 +261,7 @@ describe("GifPicker", () => {
         setTrending({ data: { data: [] } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.getByText("No GIFs found")).toBeInTheDocument();
@@ -272,7 +270,7 @@ describe("GifPicker", () => {
     it("invites a signed in user to save their first favourite", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: makeUser() });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: makeUser() });
 
         // when
         await user.click(screen.getByRole("button", { name: /Favourites/ }));
@@ -284,7 +282,7 @@ describe("GifPicker", () => {
     it("lists the saved favourites on the favourites tab", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, {
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, {
             user: makeUser(),
             gifFavourites: { favourites: [makeFavourite()], ids: new Set(["fav-1"]) },
         });
@@ -300,7 +298,7 @@ describe("GifPicker", () => {
     it("uses the full size favourite when it has no stored preview", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, {
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, {
             user: makeUser(),
             gifFavourites: { favourites: [makeFavourite({ preview_url: "", title: "" })], ids: new Set(["fav-1"]) },
         });
@@ -317,7 +315,7 @@ describe("GifPicker", () => {
         const toggle = vi.fn(() => Promise.resolve());
         setTrending({ data: { data: [makeGif()] } });
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, {
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, {
             user: makeUser(),
             gifFavourites: { toggle },
         });
@@ -356,7 +354,7 @@ describe("GifPicker", () => {
             },
         });
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, {
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, {
             user: makeUser(),
             gifFavourites: { toggle },
         });
@@ -373,7 +371,7 @@ describe("GifPicker", () => {
         const onPick = vi.fn();
         setTrending({ data: { data: [makeGif()] } });
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={onPick} onClose={noop} />, {
+        renderWithProviders(<GifPicker onPick={onPick} onClose={vi.fn()} />, {
             user: makeUser(),
             gifFavourites: { toggle: () => Promise.resolve() },
         });
@@ -390,7 +388,7 @@ describe("GifPicker", () => {
         setTrending({ data: { data: [makeGif()] } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, {
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, {
             user: makeUser(),
             gifFavourites: { ids: new Set(["gif-1"]) },
         });
@@ -411,7 +409,7 @@ describe("GifPicker", () => {
         });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         const clock = resetAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -425,7 +423,7 @@ describe("GifPicker", () => {
         setTrending({ error: new Error("too many requests"), rateLimit: { resetAt: null } });
 
         // when
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // then
         expect(screen.getByText("GIF search is paused. Try again shortly.")).toBeInTheDocument();
@@ -446,7 +444,7 @@ describe("GifPicker", () => {
             rateLimit: currentRateLimit,
             refresh: mocks.trendingRefresh,
         }));
-        renderWithProviders(<GifPicker onPick={noop} onClose={noop} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={vi.fn()} />, { user: null });
 
         // when
         currentRateLimit = null;
@@ -463,7 +461,7 @@ describe("GifPicker", () => {
         // given
         const onClose = vi.fn();
         const user = userEvent.setup();
-        renderWithProviders(<GifPicker onPick={noop} onClose={onClose} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={onClose} />, { user: null });
 
         // when
         await user.keyboard("{Escape}");
@@ -475,7 +473,7 @@ describe("GifPicker", () => {
     it("closes when a press lands outside the picker", () => {
         // given
         const onClose = vi.fn();
-        renderWithProviders(<GifPicker onPick={noop} onClose={onClose} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={onClose} />, { user: null });
 
         // when
         fireEvent.mouseDown(document.body);
@@ -488,7 +486,7 @@ describe("GifPicker", () => {
         // given
         const onClose = vi.fn();
         setTrending({ data: { data: [makeGif()] } });
-        renderWithProviders(<GifPicker onPick={noop} onClose={onClose} />, { user: null });
+        renderWithProviders(<GifPicker onPick={vi.fn()} onClose={onClose} />, { user: null });
 
         // when
         fireEvent.mouseDown(screen.getByRole("button", { name: "Beato laughing" }));
@@ -500,7 +498,7 @@ describe("GifPicker", () => {
     it("stops listening to the document once it is unmounted", () => {
         // given
         const onClose = vi.fn();
-        const { unmount } = renderWithProviders(<GifPicker onPick={noop} onClose={onClose} />, { user: null });
+        const { unmount } = renderWithProviders(<GifPicker onPick={vi.fn()} onClose={onClose} />, { user: null });
 
         // when
         unmount();

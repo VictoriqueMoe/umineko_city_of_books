@@ -6,9 +6,9 @@ import {
     useTestOverlay,
 } from "./mutations/overlay";
 import { useOverlayConnection } from "./queries/overlay";
+import { reportClientError } from "../api/telemetry";
 import { downloadBlob } from "../utils/download";
 import { errorMessage } from "../utils/errorMessage";
-import { nonFatal } from "../utils/nonFatal";
 import type { OverlayConnection } from "../types/api";
 
 const COPIED_NOTICE_MS = 2000;
@@ -110,7 +110,9 @@ export function useStreamOverlay(): StreamOverlay {
             .then(() => {
                 setCopied(true);
             })
-            .catch(nonFatal);
+            .catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
     }, [token]);
 
     return {

@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { App } from "@capacitor/app";
+import { Capacitor } from "@capacitor/core";
 import { CapacitorUpdater } from "@capgo/capacitor-updater";
-import { isNativeApp } from "../../platform/capabilities";
 import styles from "./AppVersionInfo.module.css";
 
 export function AppVersionInfo() {
     const [info, setInfo] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!isNativeApp()) {
+        if (!Capacitor.isNativePlatform()) {
             return;
         }
 

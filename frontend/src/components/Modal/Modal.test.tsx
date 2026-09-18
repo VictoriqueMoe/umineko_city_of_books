@@ -6,8 +6,6 @@ import { Modal } from "./Modal";
 
 const closeLabel = "✕";
 
-function noop() {}
-
 describe("Modal", () => {
     it("renders nothing at all while it is closed", () => {
         // given
@@ -15,7 +13,7 @@ describe("Modal", () => {
 
         // when
         const { container } = renderWithProviders(
-            <Modal isOpen={isOpen} onClose={noop} title="Seal the letter">
+            <Modal isOpen={isOpen} onClose={vi.fn()} title="Seal the letter">
                 <p>hidden body</p>
             </Modal>,
         );
@@ -31,7 +29,7 @@ describe("Modal", () => {
 
         // when
         renderWithProviders(
-            <Modal isOpen={isOpen} onClose={noop} title="Seal the letter">
+            <Modal isOpen={isOpen} onClose={vi.fn()} title="Seal the letter">
                 <p>the witch is waiting</p>
             </Modal>,
         );
@@ -117,7 +115,7 @@ describe("Modal", () => {
         // given
         const user = userEvent.setup();
         renderWithProviders(
-            <Modal isOpen onClose={noop} title="Seal the letter">
+            <Modal isOpen onClose={vi.fn()} title="Seal the letter">
                 <button type="button">Confirm</button>
             </Modal>,
         );
@@ -135,7 +133,7 @@ describe("Modal", () => {
 
         // when
         renderWithProviders(
-            <Modal isOpen onClose={noop} title={title}>
+            <Modal isOpen onClose={vi.fn()} title={title}>
                 <p>the witch is waiting</p>
             </Modal>,
         );
@@ -254,7 +252,7 @@ describe("Modal", () => {
         const user = userEvent.setup();
         renderWithProviders(
             <form onSubmit={onSubmit}>
-                <Modal isOpen onClose={noop} title="Seal the letter">
+                <Modal isOpen onClose={vi.fn()} title="Seal the letter">
                     <p>the witch is waiting</p>
                 </Modal>
             </form>,

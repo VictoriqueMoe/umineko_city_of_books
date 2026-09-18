@@ -2,7 +2,6 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { queryKeys } from "../api/queryKeys";
-import type { RealtimeEvent } from "../api/realtime/events";
 import { useStreamDirectorySync } from "../api/realtime/sync/useStreamDirectorySync";
 import { makeStream } from "../test-utils/fixtures";
 import { createTestQueryClient, providerWrapper } from "../test-utils/render";
@@ -18,10 +17,6 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../api/endpoints/stream", () => mocks);
-
-async function emit(event: RealtimeEvent): Promise<void> {
-    await emitSettledRealtimeEvent(event);
-}
 
 let queryClient: QueryClient;
 
@@ -87,8 +82,8 @@ describe("useLiveDirectory", () => {
         const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
         // when
-        await emit({ type: "stream_live", data: makeStream() });
-        await emit({ type: "stream_offline", data: { streamId: "stream-1" } });
+        await emitSettledRealtimeEvent({ type: "stream_live", data: makeStream() });
+        await emitSettledRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-1" } });
 
         // then
         expect(liveInvalidations(invalidateQueries.mock.calls)).toBe(0);
@@ -100,8 +95,11 @@ describe("useLiveDirectory", () => {
         await waitFor(() => expect(view.result.current.loading).toBe(false));
 
         // when
-        await emit({ type: "stream_viewers", data: { streamId: "stream-1", viewerCount: 44 } });
-        await emit({ type: "stream_title", data: { streamId: "stream-1", title: "Now solving the epitaph" } });
+        await emitSettledRealtimeEvent({ type: "stream_viewers", data: { streamId: "stream-1", viewerCount: 44 } });
+        await emitSettledRealtimeEvent({
+            type: "stream_title",
+            data: { streamId: "stream-1", title: "Now solving the epitaph" },
+        });
 
         // then
         expect(readDirectory()?.streams[0].viewerCount).toBe(3);
@@ -115,7 +113,7 @@ describe("useLiveDirectory", () => {
         const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
         // when
-        await emit({ type: "stream_live", data: makeStream() });
+        await emitSettledRealtimeEvent({ type: "stream_live", data: makeStream() });
 
         // then
         expect(liveInvalidations(invalidateQueries.mock.calls)).toBe(1);
@@ -128,7 +126,7 @@ describe("useLiveDirectory", () => {
         const invalidateQueries = vi.spyOn(queryClient, "invalidateQueries");
 
         // when
-        await emit({ type: "stream_offline", data: { streamId: "stream-1" } });
+        await emitSettledRealtimeEvent({ type: "stream_offline", data: { streamId: "stream-1" } });
 
         // then
         expect(liveInvalidations(invalidateQueries.mock.calls)).toBe(1);
@@ -141,7 +139,7 @@ describe("useLiveDirectory", () => {
         const setQueryData = vi.spyOn(queryClient, "setQueryData");
 
         // when
-        await emit({ type: "stream_viewers", data: { streamId: "stream-1", viewerCount: 44 } });
+        await emitSettledRealtimeEvent({ type: "stream_viewers", data: { streamId: "stream-1", viewerCount: 44 } });
 
         // then
         expect(setQueryData).toHaveBeenCalledTimes(1);
@@ -155,7 +153,10 @@ describe("useLiveDirectory", () => {
         const setQueryData = vi.spyOn(queryClient, "setQueryData");
 
         // when
-        await emit({ type: "stream_title", data: { streamId: "stream-1", title: "Now solving the epitaph" } });
+        await emitSettledRealtimeEvent({
+            type: "stream_title",
+            data: { streamId: "stream-1", title: "Now solving the epitaph" },
+        });
 
         // then
         expect(setQueryData).toHaveBeenCalledTimes(1);
@@ -172,7 +173,10 @@ describe("useLiveDirectory", () => {
         await waitFor(() => expect(view.result.current.loading).toBe(false));
 
         // when
-        await emit({ type: "stream_title", data: { streamId: "stream-1", title: "Now solving the epitaph" } });
+        await emitSettledRealtimeEvent({
+            type: "stream_title",
+            data: { streamId: "stream-1", title: "Now solving the epitaph" },
+        });
 
         // then
         expect(readDirectory()?.streams[0].title).toBe("Now solving the epitaph");

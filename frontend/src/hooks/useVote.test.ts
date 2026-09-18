@@ -12,14 +12,10 @@ function setup(props: VoteProps) {
     return renderHook(p => useVote(p.score, p.userVote, p.voteFn), { initialProps: props });
 }
 
-function noopVote() {
-    return Promise.resolve();
-}
-
 describe("useVote", () => {
     it("starts from the score and vote it was given", () => {
         // given
-        const props = { score: 12, userVote: -1, voteFn: vi.fn(noopVote) };
+        const props = { score: 12, userVote: -1, voteFn: vi.fn(() => Promise.resolve()) };
 
         // when
         const { result } = setup(props);
@@ -59,7 +55,7 @@ describe("useVote", () => {
 
     it("sends zero and removes the contribution when the same vote is cast again", async () => {
         // given
-        const voteFn = vi.fn(noopVote);
+        const voteFn = vi.fn(() => Promise.resolve());
         const { result } = setup({ score: 5, userVote: 1, voteFn });
 
         // when
@@ -75,7 +71,7 @@ describe("useVote", () => {
 
     it("swings the score by two when a downvote is changed to an upvote", async () => {
         // given
-        const voteFn = vi.fn(noopVote);
+        const voteFn = vi.fn(() => Promise.resolve());
         const { result } = setup({ score: 3, userVote: -1, voteFn });
 
         // when
@@ -91,7 +87,7 @@ describe("useVote", () => {
 
     it("subtracts a downvote from an untouched score", async () => {
         // given
-        const voteFn = vi.fn(noopVote);
+        const voteFn = vi.fn(() => Promise.resolve());
         const { result } = setup({ score: 0, userVote: 0, voteFn });
 
         // when
@@ -122,7 +118,7 @@ describe("useVote", () => {
     it("keeps the newer vote when an older request fails after it", async () => {
         // given
         let failFirst: (reason?: unknown) => void = () => {};
-        const voteFn = vi.fn(noopVote);
+        const voteFn = vi.fn(() => Promise.resolve());
         voteFn.mockImplementationOnce(
             () =>
                 new Promise<void>((_resolve, reject) => {
@@ -152,7 +148,7 @@ describe("useVote", () => {
 
     it("resyncs when the incoming score or vote changes", () => {
         // given
-        const voteFn = vi.fn(noopVote);
+        const voteFn = vi.fn(() => Promise.resolve());
         const { result, rerender } = setup({ score: 4, userVote: 0, voteFn });
 
         // when
@@ -165,7 +161,7 @@ describe("useVote", () => {
 
     it("keeps the optimistic state when the incoming props are unchanged", async () => {
         // given
-        const voteFn = vi.fn(noopVote);
+        const voteFn = vi.fn(() => Promise.resolve());
         const { result, rerender } = setup({ score: 4, userVote: 0, voteFn });
         await act(async () => {
             await result.current.vote(1);

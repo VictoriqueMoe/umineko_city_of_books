@@ -21,15 +21,13 @@ vi.mock("emoji-picker-react", () => ({
     ),
 }));
 
-function noop() {}
-
 describe("EmojiPicker", () => {
     it("shows a loading placeholder until the picker bundle arrives", () => {
         // given
         const onPick = vi.fn();
 
         // when
-        renderWithProviders(<EmojiPicker onPick={onPick} onClose={noop} />);
+        renderWithProviders(<EmojiPicker onPick={onPick} onClose={vi.fn()} />);
 
         // then
         expect(screen.getByText("Loading...")).toBeInTheDocument();
@@ -40,7 +38,7 @@ describe("EmojiPicker", () => {
         const onPick = vi.fn();
 
         // when
-        renderWithProviders(<EmojiPicker onPick={onPick} onClose={noop} />);
+        renderWithProviders(<EmojiPicker onPick={onPick} onClose={vi.fn()} />);
 
         // then
         expect(await screen.findByText("Search emoji")).toBeInTheDocument();
@@ -51,7 +49,7 @@ describe("EmojiPicker", () => {
         // given
         const onPick = vi.fn();
         const user = userEvent.setup();
-        renderWithProviders(<EmojiPicker onPick={onPick} onClose={noop} />);
+        renderWithProviders(<EmojiPicker onPick={onPick} onClose={vi.fn()} />);
         const pick = await screen.findByRole("button", { name: "pick a rose" });
 
         // when
@@ -65,7 +63,7 @@ describe("EmojiPicker", () => {
         // given
         const onClose = vi.fn();
         const user = userEvent.setup();
-        renderWithProviders(<EmojiPicker onPick={noop} onClose={onClose} />);
+        renderWithProviders(<EmojiPicker onPick={vi.fn()} onClose={onClose} />);
 
         // when
         await user.keyboard("{Escape}");
@@ -78,7 +76,7 @@ describe("EmojiPicker", () => {
         // given
         const onClose = vi.fn();
         const user = userEvent.setup();
-        renderWithProviders(<EmojiPicker onPick={noop} onClose={onClose} />);
+        renderWithProviders(<EmojiPicker onPick={vi.fn()} onClose={onClose} />);
 
         // when
         await user.keyboard("{Enter}");
@@ -90,7 +88,7 @@ describe("EmojiPicker", () => {
     it("closes when a press lands outside the picker", () => {
         // given
         const onClose = vi.fn();
-        renderWithProviders(<EmojiPicker onPick={noop} onClose={onClose} />);
+        renderWithProviders(<EmojiPicker onPick={vi.fn()} onClose={onClose} />);
 
         // when
         fireEvent.mouseDown(document.body);
@@ -102,7 +100,7 @@ describe("EmojiPicker", () => {
     it("stays open when a press lands inside the picker", async () => {
         // given
         const onClose = vi.fn();
-        renderWithProviders(<EmojiPicker onPick={noop} onClose={onClose} />);
+        renderWithProviders(<EmojiPicker onPick={vi.fn()} onClose={onClose} />);
         const pick = await screen.findByRole("button", { name: "pick a rose" });
 
         // when
@@ -115,7 +113,7 @@ describe("EmojiPicker", () => {
     it("stops listening to the document once it is unmounted", () => {
         // given
         const onClose = vi.fn();
-        const { unmount } = renderWithProviders(<EmojiPicker onPick={noop} onClose={onClose} />);
+        const { unmount } = renderWithProviders(<EmojiPicker onPick={vi.fn()} onClose={onClose} />);
 
         // when
         unmount();

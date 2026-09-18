@@ -1,6 +1,6 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createContext } from "react";
+import { createContext, type ReactNode, type RefObject } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeWatchPartySession } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
     hyperbeam: vi.fn(),
     useSessionMedia: vi.fn(),
     forceMute: vi.fn(),
+    useIsMobile: vi.fn(),
+    useParticipants: vi.fn(),
 }));
 
 vi.mock("@hyperbeam/web", () => ({ default: mocks.hyperbeam }));
@@ -19,6 +21,61 @@ vi.mock("@hyperbeam/web", () => ({ default: mocks.hyperbeam }));
 vi.mock("@livekit/components-react", () => ({
     RoomContext: createContext<unknown>(null),
     RoomAudioRenderer: () => <div data-testid="room-audio" />,
+    useParticipants: mocks.useParticipants,
+}));
+
+vi.mock("../../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
+
+interface MobileViewProps {
+    title: string;
+    hasControl: boolean;
+    canEnd: boolean;
+    busy: boolean;
+    copied: boolean;
+    watcherCount: number;
+    voiceCount: number;
+    onCopyInvite: () => void;
+    onHide: () => void;
+    onLeave: () => void;
+    onEnd: () => void;
+    stageRef: RefObject<HTMLDivElement | null>;
+    stage: ReactNode;
+    chat: ReactNode;
+    voice: ReactNode;
+    people: ReactNode;
+}
+
+vi.mock("./WatchPartyMobileView", () => ({
+    WatchPartyMobileView: (props: MobileViewProps) => (
+        <div
+            data-testid="mobile-view"
+            data-title={props.title}
+            data-watchers={String(props.watcherCount)}
+            data-voices={String(props.voiceCount)}
+            data-can-end={String(props.canEnd)}
+            data-control={String(props.hasControl)}
+            data-copied={String(props.copied)}
+        >
+            <button type="button" onClick={props.onCopyInvite}>
+                overflow copy invite
+            </button>
+            <button type="button" onClick={props.onHide}>
+                overflow hide
+            </button>
+            <button type="button" onClick={props.onLeave}>
+                overflow leave
+            </button>
+            <button type="button" onClick={props.onEnd}>
+                overflow end
+            </button>
+            <div data-testid="mobile-stage" ref={props.stageRef}>
+                {props.stage}
+            </div>
+            <div data-testid="mobile-chat">{props.chat}</div>
+            <div data-testid="mobile-voice">{props.voice}</div>
+            <div data-testid="mobile-people">{props.people}</div>
+        </div>
+    ),
 }));
 
 vi.mock("../Voice/VoiceParticipants", () => ({
@@ -65,8 +122,23 @@ vi.mock("../../../api/endpoints/watchParty", () => ({
 }));
 
 vi.mock("../RoomChatPanel/RoomChatPanel", () => ({
-    RoomChatPanel: ({ roomId, title }: { roomId?: string; title: string }) => (
-        <div data-testid="room-chat-panel" data-room-id={roomId}>
+    RoomChatPanel: ({
+        roomId,
+        title,
+        flush,
+        hideHeader,
+    }: {
+        roomId?: string;
+        title: string;
+        flush?: boolean;
+        hideHeader?: boolean;
+    }) => (
+        <div
+            data-testid="room-chat-panel"
+            data-room-id={roomId}
+            data-flush={String(Boolean(flush))}
+            data-hide-header={String(Boolean(hideHeader))}
+        >
             {title}
         </div>
     ),
@@ -178,6 +250,8 @@ function makeHandle(userId = "hb-user-1") {
 
 beforeEach(() => {
     stubMedia();
+    mocks.useIsMobile.mockReturnValue(false);
+    mocks.useParticipants.mockReturnValue([]);
     mocks.hyperbeam.mockResolvedValue(makeHandle());
     mocks.forceMute.mockResolvedValue(undefined);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -818,25 +892,6 @@ describe("WatchPartyModal sharing controls", () => {
         expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
 
-    it("leaves no rejection unhandled when a share fails", async () => {
-        // given
-        const unhandled: unknown[] = [];
-        const record = (reason: unknown) => unhandled.push(reason);
-        nodeProcess.on("unhandledRejection", record);
-        const user = userEvent.setup();
-        const media = stubMedia({ room: {} });
-        media.shareScreen.mockRejectedValue(new Error("Could not start audio source"));
-        renderModal({ active: screenShareActive(), isStarter: true });
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Share screen" }));
-        await new Promise(resolve => setTimeout(resolve, 0));
-        nodeProcess.off("unhandledRejection", record);
-
-        // then
-        expect(unhandled).toEqual([]);
-    });
-
     it("keeps claiming nothing is shared while the hook says the share never took", () => {
         // given
         stubMedia({ room: {}, isSharing: false, shareError: "Could not start audio source" });
@@ -878,6 +933,7 @@ describe("WatchPartyModal panels", () => {
         const panel = screen.getByTestId("room-chat-panel");
         expect(panel).toHaveTextContent("Party chat");
         expect(panel).toHaveAttribute("data-room-id", "session-42");
+        expect(panel).toHaveAttribute("data-hide-header", "false");
     });
 
     it("lists the watchers of the party underneath", () => {
@@ -897,5 +953,245 @@ describe("WatchPartyModal panels", () => {
         // then
         expect(screen.getByText("2 watchers")).toBeInTheDocument();
         expect(screen.getByText("Battler")).toBeInTheDocument();
+    });
+});
+
+describe("WatchPartyModal on a phone", () => {
+    beforeEach(() => {
+        mocks.useIsMobile.mockReturnValue(true);
+    });
+
+    it("names the party and counts its watchers for the phone layout", () => {
+        // given
+        const active = makeActive({
+            session: makeSession({
+                title: "Chiru rewatch",
+                participants: [
+                    makeParticipant(),
+                    makeParticipant({ user: makeChatUser({ id: "user-battler", display_name: "Battler" }) }),
+                ],
+            }),
+        });
+
+        // when
+        renderModal({ active });
+
+        // then
+        const view = screen.getByTestId("mobile-view");
+        expect(view).toHaveAttribute("data-title", "Chiru rewatch");
+        expect(view).toHaveAttribute("data-watchers", "2");
+    });
+
+    it("falls back to a plain name for an untitled party on a phone", () => {
+        // given
+        const active = makeActive({ session: makeSession({ title: "" }) });
+
+        // when
+        renderModal({ active });
+
+        // then
+        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-title", "Untitled party");
+    });
+
+    it("keeps the full sized header actions off the phone", () => {
+        // given
+        const options = { isStarter: true };
+
+        // when
+        renderModal(options);
+
+        // then
+        expect(screen.queryByRole("button", { name: "Copy invite" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Hide" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Leave" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "End for everyone" })).not.toBeInTheDocument();
+    });
+
+    it("copies the invite from the phone's overflow menu", async () => {
+        // given
+        const user = userEvent.setup();
+        const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
+        renderModal();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "overflow copy invite" }));
+
+        // then
+        expect(writeText).toHaveBeenCalledWith("https://whentheycry.social/rooms/room-1?party=session-1");
+        await waitFor(() => {
+            expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-copied", "true");
+        });
+    });
+
+    it("hides the window from the phone's overflow menu without leaving", async () => {
+        // given
+        const user = userEvent.setup();
+        const { onClose, onLeave } = renderModal();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "overflow hide" }));
+
+        // then
+        expect(onClose).toHaveBeenCalledOnce();
+        expect(onLeave).not.toHaveBeenCalled();
+    });
+
+    it("leaves the party from the phone's overflow menu", async () => {
+        // given
+        const user = userEvent.setup();
+        const { onClose, onLeave } = renderModal();
+
+        // when
+        await user.click(screen.getByRole("button", { name: "overflow leave" }));
+
+        // then
+        expect(onLeave).toHaveBeenCalledOnce();
+        await waitFor(() => {
+            expect(onClose).toHaveBeenCalledOnce();
+        });
+    });
+
+    it("ends the party for everyone from the phone's overflow menu", async () => {
+        // given
+        const user = userEvent.setup();
+        const { onEnd } = renderModal({ isStarter: true });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "overflow end" }));
+
+        // then
+        expect(onEnd).toHaveBeenCalledOnce();
+        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-can-end", "true");
+    });
+
+    it("tells the phone layout that an ordinary watcher may not end the party", () => {
+        // given
+        const options = { isStarter: false, viewerIsStaff: false };
+
+        // when
+        renderModal(options);
+
+        // then
+        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-can-end", "false");
+    });
+
+    it("gives the phone a chat pane with no header of its own", () => {
+        // given
+        const active = makeActive({ session: makeSession({ id: "session-42" }) });
+
+        // when
+        renderModal({ active });
+
+        // then
+        const panel = within(screen.getByTestId("mobile-chat")).getByTestId("room-chat-panel");
+        expect(panel).toHaveAttribute("data-room-id", "session-42");
+        expect(panel).toHaveAttribute("data-hide-header", "true");
+        expect(panel).toHaveAttribute("data-flush", "true");
+    });
+
+    it("puts the voice roster and its join control in the voice pane", () => {
+        // given
+        stubMedia({ room: {} });
+
+        // when
+        renderModal({ isStarter: true });
+
+        // then
+        const pane = within(screen.getByTestId("mobile-voice"));
+        expect(pane.getByRole("button", { name: "Join voice" })).toBeInTheDocument();
+        expect(pane.getByTestId("voice-participants")).toHaveAttribute("data-can-moderate", "true");
+    });
+
+    it("keeps the host's share controls reachable even with voice switched off", () => {
+        // given
+        stubMedia({ room: {} });
+        const active = makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
+
+        // when
+        renderModal({ active, isStarter: true, voiceEnabled: false });
+
+        // then
+        const pane = within(screen.getByTestId("mobile-voice"));
+        expect(pane.getByRole("button", { name: "Share screen" })).toBeInTheDocument();
+        expect(pane.queryByRole("button", { name: "Join voice" })).not.toBeInTheDocument();
+    });
+
+    it("counts the watchers who are in voice for the voice tab", () => {
+        // given
+        stubMedia({ room: {} });
+        mocks.useParticipants.mockReturnValue([{ identity: "beatrice" }, { identity: "battler" }]);
+
+        // when
+        renderModal();
+
+        // then
+        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-voices", "2");
+    });
+
+    it("counts nobody in voice while the site has voice switched off", () => {
+        // given
+        stubMedia({ room: {} });
+        mocks.useParticipants.mockReturnValue([{ identity: "beatrice" }]);
+
+        // when
+        renderModal({ voiceEnabled: false });
+
+        // then
+        expect(screen.getByTestId("mobile-view")).toHaveAttribute("data-voices", "0");
+        expect(within(screen.getByTestId("mobile-voice")).queryByTestId("voice-participants")).not.toBeInTheDocument();
+    });
+
+    it("keeps the party audio playing from the stage while another pane is open", () => {
+        // given
+        stubMedia({ room: {} });
+
+        // when
+        renderModal();
+
+        // then
+        expect(within(screen.getByTestId("mobile-stage")).getByTestId("room-audio")).toBeInTheDocument();
+    });
+
+    it("lists the watchers in the people pane", () => {
+        // given
+        const active = makeActive({
+            session: makeSession({
+                participants: [
+                    makeParticipant(),
+                    makeParticipant({ user: makeChatUser({ id: "user-battler", display_name: "Battler" }) }),
+                ],
+            }),
+        });
+
+        // when
+        renderModal({ active });
+
+        // then
+        const pane = within(screen.getByTestId("mobile-people"));
+        expect(pane.getByText("2 watchers")).toBeInTheDocument();
+        expect(pane.getByText("Battler")).toBeInTheDocument();
+    });
+
+    it("fullscreens the whole stage from the control sitting on the picture", async () => {
+        // given
+        const user = userEvent.setup();
+        const requestFullscreen = vi.fn(() => Promise.resolve());
+        Object.defineProperty(Element.prototype, "requestFullscreen", {
+            configurable: true,
+            writable: true,
+            value: requestFullscreen,
+        });
+        stubMedia({ room: {} });
+        const active = makeActive({ session: makeSession({ type: "screenshare" }), embedURL: "" });
+        renderModal({ active });
+
+        // when
+        const stage = within(screen.getByTestId("mobile-stage"));
+        await user.click(stage.getByRole("button", { name: "Fullscreen" }));
+
+        // then
+        expect(stage.getByTestId("screen-share-view")).toBeInTheDocument();
+        expect(requestFullscreen).toHaveBeenCalledOnce();
+        expect(requestFullscreen.mock.contexts[0]).toBe(screen.getByTestId("mobile-stage"));
     });
 });

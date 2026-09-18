@@ -13,7 +13,6 @@ const mocks = vi.hoisted(() => ({
     deleteArt: vi.fn(),
     updateArt: vi.fn(),
     navigate: vi.fn(),
-    noop: vi.fn(),
 }));
 
 vi.mock("../../hooks/queries/art", () => ({ useArt: mocks.useArt }));
@@ -23,12 +22,12 @@ vi.mock("../../hooks/mutations/art", () => ({
     useUnlikeArt: () => ({ mutateAsync: mocks.unlikeArt }),
     useDeleteArt: () => ({ mutateAsync: mocks.deleteArt }),
     useUpdateArt: () => ({ mutateAsync: mocks.updateArt }),
-    useCreateArtComment: () => ({ mutateAsync: mocks.noop }),
-    useUpdateArtComment: () => ({ mutateAsync: mocks.noop }),
-    useDeleteArtComment: () => ({ mutateAsync: mocks.noop }),
-    useLikeArtComment: () => ({ mutateAsync: mocks.noop }),
-    useUnlikeArtComment: () => ({ mutateAsync: mocks.noop }),
-    useUploadArtCommentMedia: () => ({ mutateAsync: mocks.noop }),
+    useCreateArtComment: () => ({ mutateAsync: vi.fn() }),
+    useUpdateArtComment: () => ({ mutateAsync: vi.fn() }),
+    useDeleteArtComment: () => ({ mutateAsync: vi.fn() }),
+    useLikeArtComment: () => ({ mutateAsync: vi.fn() }),
+    useUnlikeArtComment: () => ({ mutateAsync: vi.fn() }),
+    useUploadArtCommentMedia: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("react-router", async importOriginal => {

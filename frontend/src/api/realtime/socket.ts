@@ -1,5 +1,5 @@
+import { Capacitor } from "@capacitor/core";
 import { getAuthToken } from "../authToken";
-import { isNativeApp } from "../../platform/capabilities";
 import { afterDebugLag } from "./debugLag";
 
 type FrameHandler = (raw: string) => void;
@@ -45,7 +45,7 @@ function buildSocketUrl(): string {
     const wsUrl = `${wsOrigin}/api/v1/ws`;
 
     const token = getAuthToken();
-    const cookieWillBeSent = !isNativeApp() && httpOrigin === window.location.origin;
+    const cookieWillBeSent = !Capacitor.isNativePlatform() && httpOrigin === window.location.origin;
 
     if (token && !cookieWillBeSent) {
         return `${wsUrl}?token=${encodeURIComponent(token)}`;

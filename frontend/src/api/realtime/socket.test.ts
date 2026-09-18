@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FakeWebSocket } from "../../test-utils/ws";
 import type * as SocketModule from "./socket";
 
-const { getAuthToken, isNativeApp } = vi.hoisted(() => ({
+const { getAuthToken, isNativePlatform } = vi.hoisted(() => ({
     getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
+    isNativePlatform: vi.fn(),
 }));
 
 vi.mock("../authToken", () => ({ getAuthToken }));
-vi.mock("../../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform, getPlatform: () => "web" } }));
 
 let socket: typeof SocketModule;
 
@@ -294,7 +294,7 @@ describe("realtime socket url", () => {
     it("carries the native session token on the socket url", () => {
         // given the app has no cookie to fall back on
         getAuthToken.mockReturnValue("tok en&1");
-        isNativeApp.mockReturnValue(true);
+        isNativePlatform.mockReturnValue(true);
 
         // when
         socket.openRealtimeSocket("user-1");
@@ -306,7 +306,7 @@ describe("realtime socket url", () => {
     it("keeps the session token out of the socket url in a browser", () => {
         // given a same-origin browser session, where the cookie already authenticates
         getAuthToken.mockReturnValue("tok en&1");
-        isNativeApp.mockReturnValue(false);
+        isNativePlatform.mockReturnValue(false);
 
         // when
         socket.openRealtimeSocket("user-1");

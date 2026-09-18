@@ -5,6 +5,7 @@ import (
 
 	"umineko_city_of_books/internal/cache"
 	"umineko_city_of_books/internal/dao"
+	"umineko_city_of_books/internal/dao/dynamicsql"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/repository"
 
@@ -35,7 +36,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	artDAO, artComments := dao.NewArt(db)
 	repos.Art = repository.NewArtRepo(db, artDAO, repos.Post, repos.AuditLog)
 
-	repos.Upload = repository.NewUploadRepo(dao.NewUpload(db))
+	repos.Upload = repository.NewUploadRepo(dynamicsql.NewUpload(db))
 	repos.Block = repository.NewBlockRepo(dao.NewBlock(db))
 
 	announcementDAO, announcementComments := dao.NewAnnouncement(db)
@@ -72,7 +73,7 @@ func New(db *sql.DB, c *cache.Manager) *repository.Repositories {
 	repos.GameRoom = repository.NewGameRoomRepo(db, dao.NewGameRoom(db), c)
 	repos.HomeFeed = repository.NewHomeFeedRepo(dao.NewHomeFeed(db))
 	repos.SidebarVisited = repository.NewSidebarLastVisitedRepo(dao.NewSidebarVisited(db))
-	repos.Search = repository.NewSearchRepo(dao.NewSearch(db))
+	repos.Search = repository.NewSearchRepo(dynamicsql.NewSearch(db))
 	repos.Sitemap = repository.NewSitemapRepo(dao.NewSitemap(db))
 	repos.DeviceToken = repository.NewDeviceTokenRepo(dao.NewDeviceToken(db))
 	repos.OverlayToken = repository.NewOverlayTokenRepo(dao.NewOverlayToken(db))

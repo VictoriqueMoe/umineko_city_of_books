@@ -1,5 +1,5 @@
 import type { Room } from "livekit-client";
-import { nonFatal } from "../../utils/nonFatal";
+import { reportClientError } from "../telemetry";
 
 export interface RoomEventHandlers {
     onConnected?: (room: Room) => void;
@@ -88,5 +88,7 @@ export function disconnectRoom(room: Room | null | undefined): void {
         return;
     }
 
-    room.disconnect().catch(nonFatal);
+    room.disconnect().catch((thrown: unknown) => {
+        reportClientError(thrown, { source: "caught" });
+    });
 }

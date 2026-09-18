@@ -107,12 +107,10 @@ function editor(): FakeEditor {
     return tiptap.editor;
 }
 
-function chainSince(from: number): ChainCall[] {
-    return editor().calls.slice(from);
-}
-
 function methodsSince(from: number): string[] {
-    return chainSince(from).map(call => call.method);
+    return editor()
+        .calls.slice(from)
+        .map(call => call.method);
 }
 
 function press(label: string) {
@@ -122,8 +120,6 @@ function press(label: string) {
 function colourButtons(): HTMLElement[] {
     return screen.getAllByRole("button").filter(button => button.textContent === "");
 }
-
-function noop() {}
 
 describe("RichTextEditor", () => {
     beforeEach(() => {
@@ -140,7 +136,7 @@ describe("RichTextEditor", () => {
         tiptap.editor = null;
 
         // when
-        const { container } = render(<RichTextEditor content="<p>hi</p>" onChange={noop} />);
+        const { container } = render(<RichTextEditor content="<p>hi</p>" onChange={vi.fn()} />);
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -151,7 +147,7 @@ describe("RichTextEditor", () => {
         const content = "<p>hi</p>";
 
         // when
-        render(<RichTextEditor content={content} onChange={noop} />);
+        render(<RichTextEditor content={content} onChange={vi.fn()} />);
 
         // then
         expect(screen.getByTestId("editor-surface")).toBeInTheDocument();
@@ -162,7 +158,7 @@ describe("RichTextEditor", () => {
         const content = "<p>without love it cannot be seen</p>";
 
         // when
-        render(<RichTextEditor content={content} onChange={noop} />);
+        render(<RichTextEditor content={content} onChange={vi.fn()} />);
 
         // then
         expect(options().content).toBe(content);
@@ -174,7 +170,7 @@ describe("RichTextEditor", () => {
         const content = "";
 
         // when
-        render(<RichTextEditor content={content} onChange={noop} />);
+        render(<RichTextEditor content={content} onChange={vi.fn()} />);
 
         // then
         expect(extension("placeholder").options).toEqual({ placeholder: "Write your story..." });
@@ -185,7 +181,7 @@ describe("RichTextEditor", () => {
         const placeholder = "Set out your theory";
 
         // when
-        render(<RichTextEditor content="" onChange={noop} placeholder={placeholder} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} placeholder={placeholder} />);
 
         // then
         expect(extension("placeholder").options).toEqual({ placeholder });
@@ -196,7 +192,7 @@ describe("RichTextEditor", () => {
         const content = "";
 
         // when
-        render(<RichTextEditor content={content} onChange={noop} />);
+        render(<RichTextEditor content={content} onChange={vi.fn()} />);
 
         // then
         expect(extension("starter-kit").options).toMatchObject({ heading: { levels: [2, 3] } });
@@ -207,7 +203,7 @@ describe("RichTextEditor", () => {
         const content = "";
 
         // when
-        render(<RichTextEditor content={content} onChange={noop} />);
+        render(<RichTextEditor content={content} onChange={vi.fn()} />);
 
         // then
         expect(extension("starter-kit").options).toMatchObject({
@@ -223,7 +219,7 @@ describe("RichTextEditor", () => {
         const content = "";
 
         // when
-        render(<RichTextEditor content={content} onChange={noop} />);
+        render(<RichTextEditor content={content} onChange={vi.fn()} />);
 
         // then
         expect(extension("text-align").options).toEqual({ types: ["heading", "paragraph"] });
@@ -243,7 +239,7 @@ describe("RichTextEditor", () => {
 
     it("toggles bold on the current selection", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
@@ -255,7 +251,7 @@ describe("RichTextEditor", () => {
 
     it("toggles italics on the current selection", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
@@ -267,14 +263,14 @@ describe("RichTextEditor", () => {
 
     it("turns the current block into a second level heading", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
         press("H2");
 
         // then
-        expect(chainSince(before)).toEqual([
+        expect(editor().calls.slice(before)).toEqual([
             { method: "focus", args: [] },
             { method: "toggleHeading", args: [{ level: 2 }] },
             { method: "run", args: [] },
@@ -283,31 +279,31 @@ describe("RichTextEditor", () => {
 
     it("turns the current block into a third level heading", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
         press("H3");
 
         // then
-        expect(chainSince(before)).toContainEqual({ method: "toggleHeading", args: [{ level: 3 }] });
+        expect(editor().calls.slice(before)).toContainEqual({ method: "toggleHeading", args: [{ level: 3 }] });
     });
 
     it("centres the current block", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
         press("Centre");
 
         // then
-        expect(chainSince(before)).toContainEqual({ method: "setTextAlign", args: ["center"] });
+        expect(editor().calls.slice(before)).toContainEqual({ method: "setTextAlign", args: ["center"] });
     });
 
     it("drops in a horizontal rule", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
@@ -319,19 +315,19 @@ describe("RichTextEditor", () => {
 
     it("paints the selection in the colour that was pressed", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
         fireEvent.mouseDown(colourButtons()[0]);
 
         // then
-        expect(chainSince(before)).toContainEqual({ method: "setColor", args: ["#e53935"] });
+        expect(editor().calls.slice(before)).toContainEqual({ method: "setColor", args: ["#e53935"] });
     });
 
     it("offers a colour for each of the four truths", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
@@ -340,13 +336,17 @@ describe("RichTextEditor", () => {
         }
 
         // then
-        expect(chainSince(before).filter(call => call.method === "setColor").length).toBe(4);
-        expect(chainSince(before)).toContainEqual({ method: "setColor", args: ["#ab47bc"] });
+        expect(
+            editor()
+                .calls.slice(before)
+                .filter(call => call.method === "setColor").length,
+        ).toBe(4);
+        expect(editor().calls.slice(before)).toContainEqual({ method: "setColor", args: ["#ab47bc"] });
     });
 
     it("strips the colour back off again", () => {
         // given
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
@@ -362,7 +362,7 @@ describe("RichTextEditor", () => {
         fake.isActive = (...args: unknown[]) => args[0] === "bold";
 
         // when
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
 
         // then
         expect(screen.getByRole("button", { name: "B" }).className).toContain("toolbarBtnActive");
@@ -372,7 +372,7 @@ describe("RichTextEditor", () => {
     it("re-reads the selection whenever the editor reports a transaction", () => {
         // given
         const fake = editor();
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         expect(screen.getByRole("button", { name: "Quote" }).className).not.toContain("toolbarBtnActive");
 
         // when
@@ -387,7 +387,7 @@ describe("RichTextEditor", () => {
         // given
         const prompt = vi.spyOn(window, "prompt").mockReturnValue(null);
         editor().getAttributes = () => ({ href: "https://witch.example" });
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
 
         // when
         press("Link");
@@ -399,7 +399,7 @@ describe("RichTextEditor", () => {
     it("starts a new link from a bare https when there is nothing to edit", () => {
         // given
         const prompt = vi.spyOn(window, "prompt").mockReturnValue(null);
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
 
         // when
         press("Link");
@@ -411,27 +411,27 @@ describe("RichTextEditor", () => {
     it("leaves the document untouched when the link prompt is dismissed", () => {
         // given
         vi.spyOn(window, "prompt").mockReturnValue(null);
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
         press("Link");
 
         // then
-        expect(chainSince(before)).toEqual([]);
+        expect(editor().calls.slice(before)).toEqual([]);
     });
 
     it("applies the link across the whole mark once a url is given", () => {
         // given
         vi.spyOn(window, "prompt").mockReturnValue("https://witch.example/tea");
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when
         press("Link");
 
         // then
-        expect(chainSince(before)).toEqual([
+        expect(editor().calls.slice(before)).toEqual([
             { method: "focus", args: [] },
             { method: "extendMarkRange", args: ["link"] },
             { method: "setLink", args: [{ href: "https://witch.example/tea" }] },
@@ -442,7 +442,7 @@ describe("RichTextEditor", () => {
     it("removes the link when the prompt is emptied out", () => {
         // given
         vi.spyOn(window, "prompt").mockReturnValue("");
-        render(<RichTextEditor content="" onChange={noop} />);
+        render(<RichTextEditor content="" onChange={vi.fn()} />);
         const before = editor().calls.length;
 
         // when

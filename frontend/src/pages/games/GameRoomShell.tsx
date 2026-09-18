@@ -8,7 +8,7 @@ import { GameChat } from "../../components/games/chat/GameChat";
 import { LatencyBanner } from "../../components/games/LatencyBanner";
 import { Button } from "../../components/Button/Button";
 import { ConfirmDialog } from "../../components/ConfirmDialog/ConfirmDialog";
-import { isRealtimeGame } from "../../domain/games/latency";
+import { REALTIME_GAME_TYPES } from "../../domain/games/latency";
 import { useServerPing } from "../../hooks/useServerPing";
 import type { GameRoom, User } from "../../types/api";
 import styles from "./GamesPages.module.css";
@@ -39,7 +39,7 @@ export function GameRoomShell<TState, TStats>({ gameName, inviteCopy, Board }: G
 
     const isParticipant = user && room ? room.players.some(p => p.user_id === user.id) : false;
     const isInvitee = user && room ? room.created_by !== user.id && isParticipant : false;
-    const awaitingAccept = room?.status === "pending" && isInvitee && isRealtimeGame(room.game_type);
+    const awaitingAccept = room?.status === "pending" && isInvitee && REALTIME_GAME_TYPES.has(room.game_type);
 
     const ping = useServerPing(awaitingAccept);
 

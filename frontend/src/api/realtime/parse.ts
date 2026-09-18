@@ -1,4 +1,4 @@
-import { absolutizeMedia } from "../client";
+import { absolutizeMedia } from "../origin";
 import { REALTIME_EVENTS, type RealtimeEvent, type RealtimeEventName } from "./events";
 
 export const FRAME_TYPE_SUFFIX = "_frame";
@@ -14,10 +14,6 @@ type DecodedJson = { ok: true; value: unknown };
 type Envelope = { ok: true; type: RealtimeEventName; data: unknown };
 
 const KNOWN_EVENT_NAMES: ReadonlySet<string> = new Set<string>(Object.values(REALTIME_EVENTS));
-
-export function isRealtimeEventName(type: string): type is RealtimeEventName {
-    return KNOWN_EVENT_NAMES.has(type);
-}
 
 export function isSimulationFrame(type: string): boolean {
     return type.endsWith(FRAME_TYPE_SUFFIX);
@@ -42,19 +38,15 @@ function readEnvelope(value: unknown): Envelope | ParseFailure {
         return { ok: false, reason: "missing-type" };
     }
 
-    if (!isRealtimeEventName(type)) {
+    if (!KNOWN_EVENT_NAMES.has(type)) {
         return { ok: false, reason: "unknown-type" };
     }
 
-    return { ok: true, type, data };
+    return { ok: true, type: type as RealtimeEventName, data };
 }
 
 function asRealtimeEvent(type: RealtimeEventName, data: unknown): RealtimeEvent {
     return { type, data } as RealtimeEvent;
-}
-
-function normaliseNonFrameEvent(event: RealtimeEvent): RealtimeEvent {
-    return absolutizeMedia(event);
 }
 
 export function parseServerEvent(raw: string): ParseServerEventResult {
@@ -74,5 +66,5 @@ export function parseServerEvent(raw: string): ParseServerEventResult {
         return { ok: true, event };
     }
 
-    return { ok: true, event: normaliseNonFrameEvent(event) };
+    return { ok: true, event: absolutizeMedia(event) };
 }

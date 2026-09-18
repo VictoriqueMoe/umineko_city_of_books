@@ -5,10 +5,6 @@ import { renderWithProviders } from "../../test-utils/render";
 import { emitRealtimeEvent, type RealtimeTestEvent } from "../../test-utils/ws";
 import { GameForfeitWarning } from "./GameForfeitWarning";
 
-function emit(event: RealtimeTestEvent): void {
-    emitRealtimeEvent(event);
-}
-
 const player = makeUser({ id: "user-1", username: "battler", display_name: "Battler" });
 
 function renderWarning(user = player) {
@@ -41,7 +37,7 @@ describe("GameForfeitWarning", () => {
         // when
         const { container } = renderWarning();
         for (const msg of noMessages) {
-            emit(msg);
+            emitRealtimeEvent(msg);
         }
 
         // then
@@ -53,7 +49,7 @@ describe("GameForfeitWarning", () => {
         renderWarning();
 
         // when
-        emit(warning({ grace_seconds: 8 }));
+        emitRealtimeEvent(warning({ grace_seconds: 8 }));
 
         // then
         expect(screen.getByRole("status")).toHaveTextContent("Forfeiting your chess game in 8s.");
@@ -63,7 +59,7 @@ describe("GameForfeitWarning", () => {
     it("stays quiet while the forfeit is still far away and speaks up as it approaches", () => {
         // given
         const { container } = renderWarning();
-        emit(warning({ grace_seconds: 60 }));
+        emitRealtimeEvent(warning({ grace_seconds: 60 }));
         expect(container).toBeEmptyDOMElement();
 
         // when
@@ -80,7 +76,7 @@ describe("GameForfeitWarning", () => {
         renderWarning();
 
         // when
-        emit(warning({ game_type: "checkers" }));
+        emitRealtimeEvent(warning({ game_type: "checkers" }));
 
         // then
         expect(screen.getByRole("status")).toHaveTextContent("Forfeiting your checkers game in 8s.");
@@ -91,7 +87,7 @@ describe("GameForfeitWarning", () => {
         renderWarning();
 
         // when
-        emit(warning({ game_type: undefined }));
+        emitRealtimeEvent(warning({ game_type: undefined }));
 
         // then
         expect(screen.getByRole("status")).toHaveTextContent("Forfeiting your chess game in 8s.");
@@ -102,7 +98,7 @@ describe("GameForfeitWarning", () => {
         const { container } = renderWarning();
 
         // when
-        emit(warning({ room_id: undefined }));
+        emitRealtimeEvent(warning({ room_id: undefined }));
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -113,7 +109,7 @@ describe("GameForfeitWarning", () => {
         const { container } = renderWarning();
 
         // when
-        emit(warning({ grace_seconds: undefined }));
+        emitRealtimeEvent(warning({ grace_seconds: undefined }));
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -124,7 +120,7 @@ describe("GameForfeitWarning", () => {
         const { container } = renderWarning();
 
         // when
-        emit(warning({ disconnected_at: "the golden land" }));
+        emitRealtimeEvent(warning({ disconnected_at: "the golden land" }));
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -133,11 +129,11 @@ describe("GameForfeitWarning", () => {
     it("drops the countdown when the warning is withdrawn for that room", () => {
         // given
         const { container } = renderWarning();
-        emit(warning());
+        emitRealtimeEvent(warning());
         expect(screen.getByRole("status")).toBeInTheDocument();
 
         // when
-        emit({ type: "game_forfeit_cleared", data: { room_id: "room-7" } });
+        emitRealtimeEvent({ type: "game_forfeit_cleared", data: { room_id: "room-7" } });
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -146,10 +142,10 @@ describe("GameForfeitWarning", () => {
     it("keeps the countdown when a different room is cleared", () => {
         // given
         renderWarning();
-        emit(warning());
+        emitRealtimeEvent(warning());
 
         // when
-        emit({ type: "game_forfeit_cleared", data: { room_id: "room-99" } });
+        emitRealtimeEvent({ type: "game_forfeit_cleared", data: { room_id: "room-99" } });
 
         // then
         expect(screen.getByRole("status")).toHaveTextContent("Forfeiting your chess game in 8s.");
@@ -158,10 +154,10 @@ describe("GameForfeitWarning", () => {
     it("announces the forfeit when the signed in player is the one who abandoned the game", () => {
         // given
         renderWarning();
-        emit(warning({ game_type: "checkers" }));
+        emitRealtimeEvent(warning({ game_type: "checkers" }));
 
         // when
-        emit({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: player.id } });
+        emitRealtimeEvent({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: player.id } });
 
         // then
         expect(screen.getByRole("status")).toHaveTextContent("You forfeited the checkers game by disconnecting.");
@@ -173,7 +169,7 @@ describe("GameForfeitWarning", () => {
         renderWarning();
 
         // when
-        emit({ type: "game_room_finished", data: { room_id: "room-3", abandoned_by: player.id } });
+        emitRealtimeEvent({ type: "game_room_finished", data: { room_id: "room-3", abandoned_by: player.id } });
 
         // then
         expect(screen.getByRole("link", { name: "View game" })).toHaveAttribute("href", "/games/chess/room-3");
@@ -184,7 +180,7 @@ describe("GameForfeitWarning", () => {
         const { container } = renderWarning();
 
         // when
-        emit({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: "user-2" } });
+        emitRealtimeEvent({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: "user-2" } });
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -195,7 +191,7 @@ describe("GameForfeitWarning", () => {
         const { container } = renderWithProviders(<GameForfeitWarning />, { user: null });
 
         // when
-        emit({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: "user-1" } });
+        emitRealtimeEvent({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: "user-1" } });
 
         // then
         expect(container).toBeEmptyDOMElement();
@@ -204,7 +200,7 @@ describe("GameForfeitWarning", () => {
     it("dismisses the forfeit notice once its time is up", () => {
         // given
         const { container } = renderWarning();
-        emit({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: player.id } });
+        emitRealtimeEvent({ type: "game_room_finished", data: { room_id: "room-7", abandoned_by: player.id } });
         expect(screen.getByRole("status")).toBeInTheDocument();
 
         // when

@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
     deleteShip: vi.fn(),
     updateShip: vi.fn(),
     navigate: vi.fn(),
-    noop: vi.fn(),
 }));
 
 vi.mock("../../hooks/queries/ship", () => ({ useShip: mocks.useShip }));
@@ -21,12 +20,12 @@ vi.mock("../../hooks/mutations/ship", () => ({
     useVoteShip: () => ({ mutateAsync: mocks.vote }),
     useDeleteShip: () => ({ mutateAsync: mocks.deleteShip }),
     useUpdateShip: () => ({ mutateAsync: mocks.updateShip }),
-    useLikeShipComment: () => ({ mutateAsync: mocks.noop }),
-    useUnlikeShipComment: () => ({ mutateAsync: mocks.noop }),
-    useDeleteShipComment: () => ({ mutateAsync: mocks.noop }),
-    useUpdateShipComment: () => ({ mutateAsync: mocks.noop }),
-    useCreateShipComment: () => ({ mutateAsync: mocks.noop }),
-    useUploadShipCommentMedia: () => ({ mutateAsync: mocks.noop }),
+    useLikeShipComment: () => ({ mutateAsync: vi.fn() }),
+    useUnlikeShipComment: () => ({ mutateAsync: vi.fn() }),
+    useDeleteShipComment: () => ({ mutateAsync: vi.fn() }),
+    useUpdateShipComment: () => ({ mutateAsync: vi.fn() }),
+    useCreateShipComment: () => ({ mutateAsync: vi.fn() }),
+    useUploadShipCommentMedia: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("react-router", async importOriginal => {

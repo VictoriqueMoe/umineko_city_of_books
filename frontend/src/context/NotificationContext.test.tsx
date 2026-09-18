@@ -20,7 +20,6 @@ const {
     showDesktopNotification,
     playNotificationSound,
     getAuthToken,
-    isNativeApp,
 } = vi.hoisted(() => ({
     useUnreadCount: vi.fn(),
     useChatUnreadCount: vi.fn(),
@@ -32,7 +31,6 @@ const {
     showDesktopNotification: vi.fn(),
     playNotificationSound: vi.fn(),
     getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
 }));
 
 vi.mock("../hooks/queries/notification", () => ({ useUnreadCount }));
@@ -46,7 +44,7 @@ vi.mock("../hooks/mutations/notification", () => ({
 vi.mock("../platform/desktopNotifications", () => ({ showDesktopNotification }));
 vi.mock("../platform/sound", () => ({ playNotificationSound }));
 vi.mock("../api/authToken", () => ({ getAuthToken }));
-vi.mock("../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" } }));
 
 let captured: NotificationContextValue | null = null;
 

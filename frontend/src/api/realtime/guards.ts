@@ -101,16 +101,12 @@ export type GuardedRealtimeEventName = keyof typeof REALTIME_EVENT_GUARDS;
 
 const GUARDED_EVENT_NAMES: ReadonlySet<string> = new Set<string>(Object.keys(REALTIME_EVENT_GUARDS));
 
-export function hasRealtimeGuard(name: RealtimeEventName): name is GuardedRealtimeEventName {
-    return GUARDED_EVENT_NAMES.has(name);
-}
-
 export function passesRealtimeGuard(event: RealtimeEvent): boolean {
-    if (!hasRealtimeGuard(event.type)) {
+    if (!GUARDED_EVENT_NAMES.has(event.type)) {
         return true;
     }
 
-    const guard: (data: unknown) => boolean = REALTIME_EVENT_GUARDS[event.type];
+    const guard: (data: unknown) => boolean = REALTIME_EVENT_GUARDS[event.type as GuardedRealtimeEventName];
 
     return guard(event.data);
 }

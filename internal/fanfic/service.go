@@ -598,7 +598,7 @@ func (s *service) CreateChapter(ctx context.Context, fanficID, userID uuid.UUID,
 		return uuid.Nil, err
 	}
 
-	body := strings.TrimSpace(sanitizeBody(req.Body))
+	body := strings.TrimSpace(htmlPolicy().Sanitize(req.Body))
 	if body == "" {
 		return uuid.Nil, ErrEmptyBody
 	}
@@ -685,7 +685,7 @@ func (s *service) UpdateChapter(ctx context.Context, chapterID, userID uuid.UUID
 		return err
 	}
 
-	body := strings.TrimSpace(sanitizeBody(req.Body))
+	body := strings.TrimSpace(htmlPolicy().Sanitize(req.Body))
 	if body == "" {
 		return ErrEmptyBody
 	}

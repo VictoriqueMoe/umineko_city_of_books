@@ -23,7 +23,3 @@ func htmlPolicy() *bluemonday.Policy {
 	})
 	return bodyPolicy
 }
-
-func sanitizeBody(html string) string {
-	return htmlPolicy().Sanitize(html)
-}

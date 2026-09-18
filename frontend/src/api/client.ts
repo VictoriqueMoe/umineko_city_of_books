@@ -1,63 +1,20 @@
+import { Capacitor } from "@capacitor/core";
 import { getAuthToken, setAuthToken } from "./authToken";
 import { markSessionLost } from "./sessionLost";
-import { clientPlatform, isNativeApp } from "../platform/capabilities";
+import { absolutizeMedia, apiUrl } from "./origin";
 
-const API_ORIGIN = import.meta.env.VITE_API_BASE ?? "";
 const API_PREFIX = "/api/v1";
-
-export function apiUrl(path: string): string {
-    return `${API_ORIGIN}${path}`;
-}
-
-function isMediaUrlKey(key: string): boolean {
-    const lower = key.toLowerCase();
-    return lower.endsWith("url") && lower !== "url";
-}
-
-function absolutizeValue(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        const out: unknown[] = [];
-        for (let i = 0; i < value.length; i++) {
-            out.push(absolutizeValue(value[i]));
-        }
-        return out;
-    }
-
-    if (value !== null && typeof value === "object") {
-        const obj = value as Record<string, unknown>;
-        const out: Record<string, unknown> = {};
-        for (const key of Object.keys(obj)) {
-            const child = obj[key];
-            if (typeof child === "string" && child.startsWith("/") && !child.startsWith("//") && isMediaUrlKey(key)) {
-                out[key] = `${API_ORIGIN}${child}`;
-            } else {
-                out[key] = absolutizeValue(child);
-            }
-        }
-        return out;
-    }
-
-    return value;
-}
-
-export function absolutizeMedia<T>(data: T): T {
-    if (!API_ORIGIN) {
-        return data;
-    }
-
-    return absolutizeValue(data) as T;
-}
 
 function endpoint(path: string): string {
     return apiUrl(`${API_PREFIX}${path}`);
 }
 
 export function authHeaders(): Record<string, string> {
-    if (!isNativeApp()) {
+    if (!Capacitor.isNativePlatform()) {
         return {};
     }
 
-    const headers: Record<string, string> = { "X-Client-Platform": clientPlatform() };
+    const headers: Record<string, string> = { "X-Client-Platform": Capacitor.getPlatform() };
     const token = getAuthToken();
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;

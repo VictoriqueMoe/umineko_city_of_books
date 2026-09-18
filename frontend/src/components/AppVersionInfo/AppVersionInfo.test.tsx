@@ -2,18 +2,18 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppVersionInfo } from "./AppVersionInfo";
 
-const { isNativeApp, getInfo, current } = vi.hoisted(() => ({
-    isNativeApp: vi.fn(),
+const { isNativePlatform, getInfo, current } = vi.hoisted(() => ({
+    isNativePlatform: vi.fn(),
     getInfo: vi.fn(),
     current: vi.fn(),
 }));
 
-vi.mock("../../platform/capabilities", () => ({ isNativeApp }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform, getPlatform: () => "web" } }));
 vi.mock("@capacitor/app", () => ({ App: { getInfo } }));
 vi.mock("@capgo/capacitor-updater", () => ({ CapacitorUpdater: { current } }));
 
 beforeEach(() => {
-    isNativeApp.mockReturnValue(true);
+    isNativePlatform.mockReturnValue(true);
     getInfo.mockResolvedValue({ version: "1.4.0", build: "42" });
     current.mockResolvedValue({ bundle: { version: "2026.07.01" } });
 });
@@ -21,7 +21,7 @@ beforeEach(() => {
 describe("AppVersionInfo", () => {
     it("stays out of the way in a browser session", async () => {
         // given
-        isNativeApp.mockReturnValue(false);
+        isNativePlatform.mockReturnValue(false);
 
         // when
         const { container } = render(<AppVersionInfo />);

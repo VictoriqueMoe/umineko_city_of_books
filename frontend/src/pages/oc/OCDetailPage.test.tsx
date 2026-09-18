@@ -11,7 +11,6 @@ const mocks = vi.hoisted(() => ({
     vote: vi.fn(),
     favourite: vi.fn(),
     navigate: vi.fn(),
-    noop: vi.fn(),
 }));
 
 vi.mock("../../hooks/queries/oc", () => ({ useOC: mocks.useOC }));
@@ -19,12 +18,12 @@ vi.mock("../../hooks/queries/oc", () => ({ useOC: mocks.useOC }));
 vi.mock("../../hooks/mutations/oc", () => ({
     useVoteOC: () => ({ mutateAsync: mocks.vote }),
     useFavouriteOC: () => ({ mutateAsync: mocks.favourite }),
-    useCreateOCComment: () => ({ mutateAsync: mocks.noop }),
-    useUpdateOCComment: () => ({ mutateAsync: mocks.noop }),
-    useDeleteOCComment: () => ({ mutateAsync: mocks.noop }),
-    useLikeOCComment: () => ({ mutateAsync: mocks.noop }),
-    useUnlikeOCComment: () => ({ mutateAsync: mocks.noop }),
-    useUploadOCCommentMedia: () => ({ mutateAsync: mocks.noop }),
+    useCreateOCComment: () => ({ mutateAsync: vi.fn() }),
+    useUpdateOCComment: () => ({ mutateAsync: vi.fn() }),
+    useDeleteOCComment: () => ({ mutateAsync: vi.fn() }),
+    useLikeOCComment: () => ({ mutateAsync: vi.fn() }),
+    useUnlikeOCComment: () => ({ mutateAsync: vi.fn() }),
+    useUploadOCCommentMedia: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("react-router", async importOriginal => {

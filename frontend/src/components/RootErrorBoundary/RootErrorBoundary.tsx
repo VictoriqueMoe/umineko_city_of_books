@@ -1,5 +1,4 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { reloadPage } from "../../platform/pageReload";
 import styles from "./RootErrorBoundary.module.css";
 
 interface RootErrorBoundaryProps {
@@ -45,10 +44,6 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
         this.setState(INTACT);
     };
 
-    handleReload = (): void => {
-        reloadPage();
-    };
-
     render(): ReactNode {
         if (!this.state.failed) {
             return this.props.children;
@@ -76,7 +71,13 @@ export class RootErrorBoundary extends Component<RootErrorBoundaryProps, RootErr
                         >
                             Try again
                         </button>
-                        <button type="button" className={styles.action} onClick={this.handleReload}>
+                        <button
+                            type="button"
+                            className={styles.action}
+                            onClick={() => {
+                                window.location.reload();
+                            }}
+                        >
                             Reload the page
                         </button>
                         <a href="/" className={styles.action}>

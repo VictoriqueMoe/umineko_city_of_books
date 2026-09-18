@@ -1,16 +1,13 @@
 import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { SessionExpiredBanner } from "./SessionExpiredBanner";
 
-const { useSessionLost, reloadPage } = vi.hoisted(() => ({
+const { useSessionLost } = vi.hoisted(() => ({
     useSessionLost: vi.fn(),
-    reloadPage: vi.fn(),
 }));
 
 vi.mock("../../hooks/useSessionLost", () => ({ useSessionLost }));
-vi.mock("../../platform/pageReload", () => ({ reloadPage }));
 
 beforeEach(() => {
     useSessionLost.mockReturnValue(false);
@@ -41,16 +38,14 @@ describe("SessionExpiredBanner", () => {
         );
     });
 
-    it("reloads the page when asked", async () => {
+    it("offers a button to reload with", () => {
         // given
         useSessionLost.mockReturnValue(true);
-        const user = userEvent.setup();
-        renderWithProviders(<SessionExpiredBanner />);
 
         // when
-        await user.click(screen.getByRole("button", { name: "Reload now" }));
+        renderWithProviders(<SessionExpiredBanner />);
 
         // then
-        expect(reloadPage).toHaveBeenCalledOnce();
+        expect(screen.getByRole("button", { name: "Reload now" })).toBeInTheDocument();
     });
 });

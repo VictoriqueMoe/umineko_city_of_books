@@ -6,14 +6,13 @@ import type { RealtimeEventName } from "./events";
 import type * as SocketModule from "./socket";
 import type * as UseRealtimeModule from "./useRealtime";
 
-const { getAuthToken, isNativeApp, subscribeCalls } = vi.hoisted(() => ({
+const { getAuthToken, subscribeCalls } = vi.hoisted(() => ({
     getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
     subscribeCalls: { count: 0 },
 }));
 
 vi.mock("../authToken", () => ({ getAuthToken }));
-vi.mock("../../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" } }));
 
 vi.mock("./bus", async importOriginal => {
     const actual = await importOriginal<typeof BusModule>();
@@ -68,7 +67,6 @@ beforeEach(async () => {
     subscribeCalls.count = 0;
     vi.stubGlobal("WebSocket", FakeWebSocket);
     getAuthToken.mockReturnValue(null);
-    isNativeApp.mockReturnValue(false);
     vi.resetModules();
     socket = await import("./socket");
     hooks = await import("./useRealtime");

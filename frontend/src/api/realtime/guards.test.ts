@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
     REALTIME_EVENT_GUARDS,
-    hasRealtimeGuard,
     isBanChangedPayload,
     isChatUnreadBumpedPayload,
     isLiveGamesCountPayload,
@@ -189,12 +188,6 @@ describe("the guard table is opt-in", () => {
             "profile_changed",
             "role_changed",
         ]);
-    });
-
-    it("reports which names carry a guard", () => {
-        // then
-        expect(hasRealtimeGuard("role_changed")).toBe(true);
-        expect(hasRealtimeGuard("chat_message")).toBe(false);
     });
 
     it("passes an unguarded event through untouched, which is exactly today's trust level", () => {

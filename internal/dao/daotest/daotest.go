@@ -84,9 +84,6 @@ func ensureTemplate() {
 	})
 }
 
-func CleanupTemplate() {
-}
-
 func NewDB(t *testing.T) *sql.DB {
 	t.Helper()
 	ensureTemplate()

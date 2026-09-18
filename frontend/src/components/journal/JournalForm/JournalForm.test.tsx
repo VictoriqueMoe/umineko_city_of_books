@@ -6,10 +6,6 @@ import { JournalForm } from "./JournalForm";
 
 const TITLE_PLACEHOLDER = "e.g. My first Umineko read-through";
 
-function noSubmit() {
-    return Promise.resolve();
-}
-
 function formOf(container: HTMLElement): HTMLFormElement {
     const form = container.querySelector("form");
     if (!form) {
@@ -21,7 +17,7 @@ function formOf(container: HTMLElement): HTMLFormElement {
 describe("JournalForm", () => {
     it("starts blank on the general work", () => {
         // given
-        const onSubmit = vi.fn(noSubmit);
+        const onSubmit = vi.fn(() => Promise.resolve());
 
         // when
         renderWithProviders(<JournalForm submitLabel="Create" submittingLabel="Creating..." onSubmit={onSubmit} />);
@@ -33,7 +29,7 @@ describe("JournalForm", () => {
 
     it("starts from the title and work it was given", () => {
         // given
-        const onSubmit = vi.fn(noSubmit);
+        const onSubmit = vi.fn(() => Promise.resolve());
 
         // when
         renderWithProviders(
@@ -53,7 +49,7 @@ describe("JournalForm", () => {
 
     it("offers every journal work to choose from", () => {
         // given
-        const onSubmit = vi.fn(noSubmit);
+        const onSubmit = vi.fn(() => Promise.resolve());
 
         // when
         renderWithProviders(<JournalForm submitLabel="Save" submittingLabel="Saving..." onSubmit={onSubmit} />);
@@ -66,7 +62,9 @@ describe("JournalForm", () => {
     it("keeps the submit disabled until a real title is typed", async () => {
         // given
         const user = userEvent.setup();
-        renderWithProviders(<JournalForm submitLabel="Save" submittingLabel="Saving..." onSubmit={vi.fn(noSubmit)} />);
+        renderWithProviders(
+            <JournalForm submitLabel="Save" submittingLabel="Saving..." onSubmit={vi.fn(() => Promise.resolve())} />,
+        );
 
         // when
         await user.type(screen.getByPlaceholderText(TITLE_PLACEHOLDER), "   ");
@@ -79,7 +77,7 @@ describe("JournalForm", () => {
 
     it("submits the trimmed title together with the chosen work", async () => {
         // given
-        const onSubmit = vi.fn(noSubmit);
+        const onSubmit = vi.fn(() => Promise.resolve());
         const user = userEvent.setup();
         renderWithProviders(<JournalForm submitLabel="Save" submittingLabel="Saving..." onSubmit={onSubmit} />);
 
@@ -94,7 +92,7 @@ describe("JournalForm", () => {
 
     it("refuses to submit a title made only of spaces", async () => {
         // given
-        const onSubmit = vi.fn(noSubmit);
+        const onSubmit = vi.fn(() => Promise.resolve());
         const user = userEvent.setup();
         const { container } = renderWithProviders(
             <JournalForm submitLabel="Save" submittingLabel="Saving..." onSubmit={onSubmit} />,
