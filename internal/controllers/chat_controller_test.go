@@ -67,12 +67,8 @@ func newChatHarness(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
 	return h, chatMock
 }
 
-func chatFactory(t *testing.T) (*testutil.Harness, *chatsvc.MockService) {
-	return newChatHarness(t)
-}
-
 func TestResolveDM_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/dm/"+uuid.NewString()+"/resolve", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/dm/"+uuid.NewString()+"/resolve", nil)
 }
 
 func TestResolveDM_OK(t *testing.T) {
@@ -140,7 +136,7 @@ func TestResolveDM_ServiceErrors(t *testing.T) {
 }
 
 func TestSendFirstDM_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/dm/"+uuid.NewString()+"/messages",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/dm/"+uuid.NewString()+"/messages",
 		dto.SendMessageRequest{Body: "hi"})
 }
 
@@ -213,7 +209,7 @@ func TestSendFirstDM_ServiceErrors(t *testing.T) {
 }
 
 func TestCreateGroupRoom_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms",
 		dto.CreateGroupRoomRequest{Name: "room"})
 }
 
@@ -299,7 +295,7 @@ func TestUpdateRoom_RouteIsRegistered(t *testing.T) {
 }
 
 func TestUpdateRoom_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PUT", "/chat/rooms/"+uuid.NewString(),
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PUT", "/chat/rooms/"+uuid.NewString(),
 		dto.UpdateGroupRoomRequest{Name: "room"})
 }
 
@@ -442,7 +438,7 @@ func TestUpdateRoom_BotsWillBeKickedIs409WithTheBotList(t *testing.T) {
 }
 
 func TestListRooms_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/rooms", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/rooms", nil)
 }
 
 func TestListRooms_OK(t *testing.T) {
@@ -478,7 +474,7 @@ func TestListRooms_InternalError(t *testing.T) {
 }
 
 func TestListMyGroupRooms_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/rooms/mine", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/rooms/mine", nil)
 }
 
 func TestListMyGroupRooms_OK(t *testing.T) {
@@ -558,7 +554,7 @@ func TestListPublicRooms_InternalError(t *testing.T) {
 }
 
 func TestJoinRoom_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms/"+uuid.NewString()+"/join", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms/"+uuid.NewString()+"/join", nil)
 }
 
 func TestJoinRoom_OK(t *testing.T) {
@@ -627,7 +623,7 @@ func TestJoinRoom_ServiceErrors(t *testing.T) {
 }
 
 func TestLeaveRoom_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms/"+uuid.NewString()+"/leave", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms/"+uuid.NewString()+"/leave", nil)
 }
 
 func TestLeaveRoom_OK(t *testing.T) {
@@ -692,7 +688,7 @@ func TestLeaveRoom_ServiceErrors(t *testing.T) {
 }
 
 func TestGetRoomMembers_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/rooms/"+uuid.NewString()+"/members", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/rooms/"+uuid.NewString()+"/members", nil)
 }
 
 func TestGetRoomMembers_OK(t *testing.T) {
@@ -757,7 +753,7 @@ func TestGetRoomMembers_ServiceErrors(t *testing.T) {
 }
 
 func TestKickMember_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString(), nil)
 }
 
@@ -840,7 +836,7 @@ func TestKickMember_ServiceErrors(t *testing.T) {
 }
 
 func TestInviteMembers_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/rooms/"+uuid.NewString()+"/members",
 		dto.InviteMembersRequest{UserIDs: []uuid.UUID{uuid.New()}})
 }
@@ -934,7 +930,7 @@ func TestInviteMembers_ServiceErrors(t *testing.T) {
 }
 
 func TestSetMemberTimeout_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PUT",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PUT",
 		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/timeout",
 		dto.SetMemberTimeoutRequest{Amount: 1, Unit: "hours"})
 }
@@ -1012,7 +1008,7 @@ func TestSetMemberTimeout_ServiceErrors(t *testing.T) {
 }
 
 func TestClearMemberTimeout_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/timeout", nil)
 }
 
@@ -1081,7 +1077,7 @@ func TestClearMemberTimeout_ServiceErrors(t *testing.T) {
 }
 
 func TestSetRoomMute_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PUT", "/chat/rooms/"+uuid.NewString()+"/mute",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PUT", "/chat/rooms/"+uuid.NewString()+"/mute",
 		map[string]bool{"muted": true})
 }
 
@@ -1166,7 +1162,7 @@ func TestSetRoomMute_ServiceErrors(t *testing.T) {
 }
 
 func TestGetMessages_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/rooms/"+uuid.NewString()+"/messages", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/rooms/"+uuid.NewString()+"/messages", nil)
 }
 
 func TestGetMessages_OK_Default(t *testing.T) {
@@ -1265,7 +1261,7 @@ func TestGetMessages_ServiceErrors(t *testing.T) {
 }
 
 func TestSendMessage_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms/"+uuid.NewString()+"/messages",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms/"+uuid.NewString()+"/messages",
 		dto.SendMessageRequest{Body: "hi"})
 }
 
@@ -1343,7 +1339,7 @@ func TestSendMessage_ServiceErrors(t *testing.T) {
 }
 
 func TestDeleteChat_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE", "/chat/rooms/"+uuid.NewString(), nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE", "/chat/rooms/"+uuid.NewString(), nil)
 }
 
 func TestDeleteChat_OK(t *testing.T) {
@@ -1407,7 +1403,7 @@ func TestDeleteChat_ServiceErrors(t *testing.T) {
 }
 
 func TestChatUnreadCount_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/unread-count", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/unread-count", nil)
 }
 
 func TestChatUnreadCount_OK(t *testing.T) {
@@ -1444,7 +1440,7 @@ func TestChatUnreadCount_InternalError(t *testing.T) {
 }
 
 func TestMarkRoomRead_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms/"+uuid.NewString()+"/read", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms/"+uuid.NewString()+"/read", nil)
 }
 
 func TestMarkRoomRead_OK(t *testing.T) {
@@ -1508,7 +1504,7 @@ func TestMarkRoomRead_ServiceErrors(t *testing.T) {
 }
 
 func TestSetRoomNickname_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PUT", "/chat/rooms/"+uuid.NewString()+"/me",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PUT", "/chat/rooms/"+uuid.NewString()+"/me",
 		dto.UpdateMemberProfileRequest{Nickname: "nick"})
 }
 
@@ -1596,7 +1592,7 @@ func TestSetRoomNickname_ServiceErrors(t *testing.T) {
 }
 
 func TestSetRoomAvatar_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/rooms/"+uuid.NewString()+"/me/avatar", nil)
 }
 
@@ -1689,7 +1685,7 @@ func TestSetRoomAvatar_ServiceErrors(t *testing.T) {
 }
 
 func TestClearRoomAvatar_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/rooms/"+uuid.NewString()+"/me/avatar", nil)
 }
 
@@ -1759,7 +1755,7 @@ func TestClearRoomAvatar_ServiceErrors(t *testing.T) {
 }
 
 func TestPinMessage_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/messages/"+uuid.NewString()+"/pin", nil)
 }
 
@@ -1825,7 +1821,7 @@ func TestPinMessage_ServiceErrors(t *testing.T) {
 }
 
 func TestUnpinMessage_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/messages/"+uuid.NewString()+"/pin", nil)
 }
 
@@ -1892,7 +1888,7 @@ func TestUnpinMessage_ServiceErrors(t *testing.T) {
 }
 
 func TestListPinnedMessages_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET",
 		"/chat/rooms/"+uuid.NewString()+"/pins", nil)
 }
 
@@ -1958,7 +1954,7 @@ func TestListPinnedMessages_ServiceErrors(t *testing.T) {
 }
 
 func TestAddReaction_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/messages/"+uuid.NewString()+"/reactions",
 		dto.AddReactionRequest{Emoji: "heart"})
 }
@@ -2044,7 +2040,7 @@ func TestAddReaction_ServiceErrors(t *testing.T) {
 }
 
 func TestRemoveReaction_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/messages/"+uuid.NewString()+"/reactions/heart", nil)
 }
 
@@ -2129,7 +2125,7 @@ func TestRemoveReaction_ServiceErrors(t *testing.T) {
 }
 
 func TestSetMemberNicknameAsMod_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PUT",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PUT",
 		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/nickname",
 		dto.UpdateMemberProfileRequest{Nickname: "x"})
 }
@@ -2240,7 +2236,7 @@ func TestSetMemberNicknameAsMod_ServiceErrors(t *testing.T) {
 }
 
 func TestUnlockMemberNickname_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/rooms/"+uuid.NewString()+"/members/"+uuid.NewString()+"/nickname", nil)
 }
 
@@ -2329,7 +2325,7 @@ func TestUnlockMemberNickname_ServiceErrors(t *testing.T) {
 }
 
 func TestDeleteMessage_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE",
 		"/chat/messages/"+uuid.NewString(), nil)
 }
 
@@ -2395,7 +2391,7 @@ func TestDeleteMessage_ServiceErrors(t *testing.T) {
 }
 
 func TestEditMessage_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PATCH",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PATCH",
 		"/chat/messages/"+uuid.NewString(), dto.EditMessageRequest{Body: "hi"})
 }
 

@@ -23,7 +23,7 @@ const typescriptCoveredByTsc = [
 export default defineConfig({
     ignorePatterns: ["dist/**", "dist-app/**", "android/**", "ios/**", "scripts/**", "node_modules/**"],
     plugins: ["eslint", "typescript", "react", "vitest"],
-    jsPlugins: ["./oxlint-plugin-layers.mjs"],
+    jsPlugins: ["./oxlint-plugin-layers.mjs", "./oxlint-plugin-wrappers.mjs"],
     categories: { correctness: "off" },
     rules: {
         "eslint/constructor-super": "error",
@@ -137,6 +137,7 @@ export default defineConfig({
         "react/static-components": "error",
         "react/unsupported-syntax": "warn",
         "react/use-memo": "error",
+        "wrappers/no-forwarder": "error",
     },
     overrides: [
         {

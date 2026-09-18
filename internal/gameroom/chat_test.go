@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/model/spec"
 	"unicode/utf8"
@@ -69,6 +70,28 @@ func TestPostSpectatorChat_ClampsByRunesNotBytes(t *testing.T) {
 			assert.LessOrEqual(t, utf8.RuneCountInString(msg.Body), maxChatBodyLen)
 		})
 	}
+}
+
+func TestPostSpectatorChat_StampsMillisecondsSoOneSecondOfChatStillOrders(t *testing.T) {
+	// given
+	m := newTestService(t)
+	roomID := uuid.New()
+	creator := uuid.New()
+	spectator := uuid.New()
+
+	m.roomRepo.EXPECT().GetRoom(mock.Anything, roomID).Return(activeRoomRow(roomID, creator), nil)
+	m.roomRepo.EXPECT().IsParticipant(mock.Anything, spec.GameRoomPlayerRef{RoomID: roomID, UserID: spectator}).Return(false, nil)
+	seedUser(t, m, spectator, "Spectator")
+
+	// when
+	msg, err := m.svc.PostSpectatorChat(context.Background(), roomID, spectator, "nice move")
+
+	// then
+	require.NoError(t, err)
+	assert.Regexp(t, `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$`, msg.CreatedAt)
+
+	_, err = time.Parse(chatTimestampLayout, msg.CreatedAt)
+	require.NoError(t, err)
 }
 
 func TestPostChat_RejectsAnEmptyBody(t *testing.T) {

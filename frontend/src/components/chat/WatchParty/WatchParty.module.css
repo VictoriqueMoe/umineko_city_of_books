@@ -43,6 +43,23 @@
     }
 }
 
+.overlayMobile {
+    padding: 0;
+    background: var(--bg-void);
+}
+
+.shellMobile {
+    position: fixed;
+    inset: 0;
+    height: var(--chat-vh, 100dvh);
+    max-height: none;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    grid-template-rows: minmax(0, 1fr);
+    box-sizing: border-box;
+}
+
 .header {
     display: flex;
     justify-content: space-between;
@@ -52,18 +69,6 @@
     border-bottom: 1px solid rgba(var(--gold-rgb), 0.15);
     background: rgba(0, 0, 0, 0.25);
     flex-wrap: wrap;
-}
-
-@media (max-width: 600px) {
-    .header {
-        padding: 0.5rem 0.75rem;
-        flex-direction: column;
-        align-items: stretch;
-    }
-    .headerActions {
-        justify-content: flex-start;
-        flex-wrap: wrap;
-    }
 }
 
 .headerTitle {
@@ -587,4 +592,172 @@
     font-size: 0.78rem;
     line-height: 1.35;
     word-break: break-word;
+}
+
+.iconBtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 1.15rem;
+    line-height: 1;
+    border-radius: 8px;
+}
+
+.volumeControl.volumeCompact {
+    gap: 0.25rem;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+}
+
+.volumeControl.volumeCompact input[type="range"] {
+    width: 64px;
+}
+
+.mobileMedia {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: var(--bg-void);
+    overflow: hidden;
+}
+
+.mobileVoice {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 100%;
+    min-height: 0;
+    padding: 0.6rem 0.75rem;
+    box-sizing: border-box;
+}
+
+.mobileVoiceActions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.mobileVoiceActions button {
+    min-height: 44px;
+}
+
+.mobileNotice {
+    padding: 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.voiceRoster {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.voiceRoster > div {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.3rem;
+}
+
+.voiceRoster > div > * {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.3rem 0.5rem;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.voiceRoster > div > span > [dir="auto"] {
+    flex: 1;
+    min-width: 0;
+    max-width: none;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.voiceRoster > div > span > button {
+    flex-shrink: 0;
+    min-height: 44px;
+    min-width: 44px;
+}
+
+.participantPillMain {
+    display: contents;
+}
+
+.participantList {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    box-sizing: border-box;
+}
+
+.participantListLabel {
+    flex-shrink: 0;
+    padding: 0.55rem 0.75rem;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.participantListItems {
+    list-style: none;
+    margin: 0;
+    padding: 0 0.5rem 0.5rem;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.participantRow {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 52px;
+    padding: 0.3rem 0.5rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(var(--gold-rgb), 0.12);
+    border-radius: 8px;
+}
+
+.participantRowMain {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+}
+
+.participantRowMain > * {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.participantRowMain span + span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rowAction {
+    flex-shrink: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.4rem 0.7rem;
 }

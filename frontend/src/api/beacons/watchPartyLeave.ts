@@ -1,5 +1,6 @@
-import { apiUrl, authHeaders } from "../client";
-import { nonFatal } from "../../utils/nonFatal";
+import { authHeaders } from "../client";
+import { apiUrl } from "../origin";
+import { reportClientError } from "../telemetry";
 
 export function sendWatchPartyLeaveBeacon(roomId: string, sessionId: string): void {
     const url = apiUrl(`/api/v1/chat/rooms/${roomId}/watch-parties/${sessionId}/participants/me`);
@@ -10,8 +11,10 @@ export function sendWatchPartyLeaveBeacon(roomId: string, sessionId: string): vo
             credentials: "include",
             keepalive: true,
             headers: authHeaders(),
-        }).catch(nonFatal);
-    } catch {
-        nonFatal();
+        }).catch((thrown: unknown) => {
+            reportClientError(thrown, { source: "caught" });
+        });
+    } catch (thrown) {
+        reportClientError(thrown, { source: "caught" });
     }
 }

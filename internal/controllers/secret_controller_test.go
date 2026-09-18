@@ -189,7 +189,7 @@ func TestUnlikeSecretComment_OK(t *testing.T) {
 }
 
 func TestListSecrets_Unauthenticated_StillOK(t *testing.T) {
-	// given — OptionalAuth should not require a cookie.
+	// given: OptionalAuth should not require a cookie.
 	h, ms := newSecretHarness(t)
 	ms.EXPECT().List(mock.Anything, uuid.Nil).Return(&dto.SecretListResponse{}, nil)
 

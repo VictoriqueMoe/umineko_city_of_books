@@ -37,7 +37,3 @@ export function addRoomTags(existing: string[], raw: string): string[] {
 export function removeRoomTag(existing: string[], tag: string): string[] {
     return existing.filter(t => t !== tag);
 }
-
-export function finaliseRoomTags(tags: string[], pendingInput: string): string[] {
-    return addRoomTags(tags, pendingInput);
-}

@@ -22,13 +22,7 @@ import {
     useUpdateChatRoom,
     useUpdateChatRoomBannedWord,
 } from "../../../hooks/mutations/chat";
-import {
-    addRoomTags,
-    finaliseRoomTags,
-    isRoomTagCommitKey,
-    MAX_ROOM_TAGS,
-    removeRoomTag,
-} from "../../../domain/chat/roomTags";
+import { addRoomTags, isRoomTagCommitKey, MAX_ROOM_TAGS, removeRoomTag } from "../../../domain/chat/roomTags";
 import { formatFullDateTime } from "../../../utils/time";
 import styles from "./RoomModerationDialog.module.css";
 
@@ -150,7 +144,7 @@ export function RoomModerationDialog({ isOpen, room, onClose, onSaved }: RoomMod
         const payload: UpdateGroupRoomRequest = {
             name: roomName.trim(),
             description: roomDescription.trim(),
-            tags: finaliseRoomTags(roomTags, roomTagInput),
+            tags: addRoomTags(roomTags, roomTagInput),
             is_public: roomIsPublic,
             is_rp: roomIsRP,
             confirm_bot_removal: confirmBotRemoval,

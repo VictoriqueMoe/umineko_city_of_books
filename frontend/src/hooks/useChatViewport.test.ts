@@ -67,10 +67,6 @@ function removeVisualViewport(): void {
     Object.defineProperty(window, "visualViewport", { configurable: true, writable: true, value: undefined });
 }
 
-function cssVar(name: string): string {
-    return document.documentElement.style.getPropertyValue(name);
-}
-
 describe("useChatViewport", () => {
     afterEach(() => {
         restore("visualViewport", viewportDescriptor);
@@ -88,8 +84,8 @@ describe("useChatViewport", () => {
         renderHook(() => useChatViewport({ scrollToBottom }));
 
         // then
-        expect(cssVar("--chat-vh")).toBe("");
-        expect(cssVar("--kb-inset")).toBe("");
+        expect(document.documentElement.style.getPropertyValue("--chat-vh")).toBe("");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("");
         expect(scrollToBottom).not.toHaveBeenCalled();
     });
 
@@ -102,8 +98,8 @@ describe("useChatViewport", () => {
         renderHook(() => useChatViewport({ scrollToBottom: vi.fn() }));
 
         // then
-        expect(cssVar("--chat-vh")).toBe("600px");
-        expect(cssVar("--kb-inset")).toBe("300px");
+        expect(document.documentElement.style.getPropertyValue("--chat-vh")).toBe("600px");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("300px");
     });
 
     it("subtracts the viewport offset from the keyboard inset", () => {
@@ -115,7 +111,7 @@ describe("useChatViewport", () => {
         renderHook(() => useChatViewport({ scrollToBottom: vi.fn() }));
 
         // then
-        expect(cssVar("--kb-inset")).toBe("200px");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("200px");
     });
 
     it("clamps the keyboard inset at zero when the viewport is taller than the window", () => {
@@ -127,7 +123,7 @@ describe("useChatViewport", () => {
         renderHook(() => useChatViewport({ scrollToBottom: vi.fn() }));
 
         // then
-        expect(cssVar("--kb-inset")).toBe("0px");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("0px");
     });
 
     it("refreshes the variables and pins the chat to the bottom when the viewport resizes", () => {
@@ -142,8 +138,8 @@ describe("useChatViewport", () => {
         viewport.emit("resize");
 
         // then
-        expect(cssVar("--chat-vh")).toBe("500px");
-        expect(cssVar("--kb-inset")).toBe("400px");
+        expect(document.documentElement.style.getPropertyValue("--chat-vh")).toBe("500px");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("400px");
         expect(scrollToBottom).toHaveBeenCalledOnce();
     });
 
@@ -159,7 +155,7 @@ describe("useChatViewport", () => {
         viewport.emit("scroll");
 
         // then
-        expect(cssVar("--kb-inset")).toBe("280px");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("280px");
         expect(scrollToBottom).not.toHaveBeenCalled();
     });
 
@@ -175,8 +171,8 @@ describe("useChatViewport", () => {
         // then
         expect(viewport.listenerCount("resize")).toBe(0);
         expect(viewport.listenerCount("scroll")).toBe(0);
-        expect(cssVar("--chat-vh")).toBe("");
-        expect(cssVar("--kb-inset")).toBe("");
+        expect(document.documentElement.style.getPropertyValue("--chat-vh")).toBe("");
+        expect(document.documentElement.style.getPropertyValue("--kb-inset")).toBe("");
     });
 
     it("resubscribes with the latest scroll callback when it changes", () => {

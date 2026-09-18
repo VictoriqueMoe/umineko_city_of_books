@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { App } from "@capacitor/app";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import styles from "./NativeUpdateBanner.module.css";
+import { Banner, BannerButton } from "../Banner/Banner";
 
 function versionPart(part: string): number {
     const value = parseInt(part, 10);
@@ -56,11 +56,12 @@ export function NativeUpdateBanner() {
     }
 
     return (
-        <div className={styles.banner} role="alert">
-            <span className={styles.text}>A new version of the app is available.</span>
-            <button type="button" onClick={handleDownload} className={styles.button}>
-                Download update
-            </button>
-        </div>
+        <Banner
+            colour="purple"
+            role="alert"
+            actions={<BannerButton onClick={handleDownload}>Download update</BannerButton>}
+        >
+            A new version of the app is available.
+        </Banner>
     );
 }

@@ -823,7 +823,7 @@ func TestUploadArtCommentMedia_InvalidID(t *testing.T) {
 }
 
 func TestUploadArtCommentMedia_NoFile_BadRequest(t *testing.T) {
-	// given — skip happy-path multipart test; cover auth/UUID/no-file branches only.
+	// given: skip happy-path multipart test; cover auth/UUID/no-file branches only.
 	h, _ := newArtHarness(t)
 	h.ExpectValidSession("valid-cookie", uuid.New())
 

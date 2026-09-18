@@ -73,7 +73,7 @@ for (let i = 0; i < UNLOCK_EVENTS.length; i++) {
     document.addEventListener(UNLOCK_EVENTS[i], unlockAudio, { once: true, passive: true });
 }
 
-function play(src: string, volume = DEFAULT_VOLUME): void {
+export function playAudio(src: string, volume = DEFAULT_VOLUME): void {
     const audio = ensureAudio(src);
     priming.delete(audio);
     audio.muted = false;
@@ -91,24 +91,20 @@ ensureAudio(VOICE_LEAVE_SOUND);
 
 export function playMessageSound(): void {
     lastMessageSoundAt = Date.now();
-    play(MESSAGE_SOUND);
+    playAudio(MESSAGE_SOUND);
 }
 
 export function playNotificationSound(): void {
     if (Date.now() - lastMessageSoundAt < NOTIFICATION_SUPPRESS_MS) {
         return;
     }
-    play(NOTIFICATION_SOUND);
-}
-
-export function playRemoteAudio(url: string, volume = DEFAULT_VOLUME): void {
-    play(url, volume);
+    playAudio(NOTIFICATION_SOUND);
 }
 
 export function playVoiceJoinSound(): void {
-    play(VOICE_JOIN_SOUND, 0.3);
+    playAudio(VOICE_JOIN_SOUND, 0.3);
 }
 
 export function playVoiceLeaveSound(): void {
-    play(VOICE_LEAVE_SOUND, 0.3);
+    playAudio(VOICE_LEAVE_SOUND, 0.3);
 }

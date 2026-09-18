@@ -7,13 +7,7 @@ import { Input } from "../../Input/Input";
 import { Button } from "../../Button/Button";
 import { ToggleSwitch } from "../../ToggleSwitch/ToggleSwitch";
 import { ProfileLink } from "../../ProfileLink/ProfileLink";
-import {
-    addRoomTags,
-    finaliseRoomTags,
-    isRoomTagCommitKey,
-    MAX_ROOM_TAGS,
-    removeRoomTag,
-} from "../../../domain/chat/roomTags";
+import { addRoomTags, isRoomTagCommitKey, MAX_ROOM_TAGS, removeRoomTag } from "../../../domain/chat/roomTags";
 import styles from "./CreateRoomModal.module.css";
 
 interface CreateRoomModalProps {
@@ -103,7 +97,7 @@ export function CreateRoomModal({ isOpen, onClose, onCreated }: CreateRoomModalP
         if (!name.trim() || submitting) {
             return;
         }
-        const finalTags = finaliseRoomTags(tags, tagInput);
+        const finalTags = addRoomTags(tags, tagInput);
 
         setSubmitting(true);
         setError("");

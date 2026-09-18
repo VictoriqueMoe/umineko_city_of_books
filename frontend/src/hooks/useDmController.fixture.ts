@@ -1,12 +1,6 @@
 import { makeChatThread } from "./useChatThread.fixture";
 import type { DmController } from "./useDmController";
 
-function noop(): void {}
-
-function never(): Promise<void> {
-    return Promise.resolve();
-}
-
 export function makeDmController(overrides: Partial<DmController> = {}): DmController {
     const { thread, session, capabilities, toast } = makeChatThread();
 
@@ -19,7 +13,7 @@ export function makeDmController(overrides: Partial<DmController> = {}): DmContr
         activeRoom: undefined,
         capabilities,
         draftRecipient: null,
-        setDraftRecipient: noop,
+        setDraftRecipient: () => {},
         messages: session.messages,
         hasMore: session.hasMore,
         loadingMore: session.loadingMore,
@@ -40,26 +34,26 @@ export function makeDmController(overrides: Partial<DmController> = {}): DmContr
         startEditing: session.startEditing,
         cancelEditing: session.cancelEditing,
         lightboxSrc: null,
-        setLightboxSrc: noop,
+        setLightboxSrc: () => {},
         showNewDm: false,
-        setShowNewDm: noop,
+        setShowNewDm: () => {},
         dmSearch: "",
-        setDmSearch: noop,
+        setDmSearch: () => {},
         dmResults: [],
         dmMutuals: [],
         dmError: "",
         dmCreating: false,
         toast: toast.message,
         showToast: toast.show,
-        handleRoomSelect: noop,
-        handleMobileBack: noop,
+        handleRoomSelect: () => {},
+        handleMobileBack: () => {},
         handleSentMessage: session.onSent,
-        handleSelectUser: never,
+        handleSelectUser: () => Promise.resolve(),
         handleDeleteMessage: session.deleteMessage,
         handleEditMessage: session.editMessage,
         handleReactionToggle: session.toggleReaction,
         handleEditLast: session.editLast,
-        handleDeleteChat: never,
+        handleDeleteChat: () => Promise.resolve(),
         handleToggleMute: thread.toggleMute,
         mutePending: thread.mutePending,
         notifyTyping: session.notifyTyping,

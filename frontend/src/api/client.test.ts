@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearAuthToken, getAuthToken, setAuthToken } from "./authToken";
 import {
     ApiError,
-    absolutizeMedia,
     apiDelete,
     apiDeleteWithBody,
     apiFetch,
@@ -11,11 +10,11 @@ import {
     apiPost,
     apiPostFormData,
     apiPut,
-    apiUrl,
     authHeaders,
     buildQueryString,
     postFile,
 } from "./client";
+import { clearSessionLost, isSessionLost } from "./sessionLost";
 
 const capacitor = vi.hoisted(() => ({ native: false, platform: "web" }));
 
@@ -56,12 +55,7 @@ beforeEach(() => {
     capacitor.native = false;
     capacitor.platform = "web";
     clearAuthToken();
-});
-
-describe("apiUrl", () => {
-    it("prefixes the api origin (empty on web, so same-origin relative)", () => {
-        expect(apiUrl("/api/v1/site-info")).toBe("/api/v1/site-info");
-    });
+    clearSessionLost();
 });
 
 describe("authHeaders", () => {
@@ -174,6 +168,30 @@ describe("apiFetch", () => {
             message: "you are not the golden witch",
             body: { error: "you are not the golden witch" },
         });
+    });
+
+    it("marks the session lost when the server no longer accepts it", async () => {
+        // given
+        stubFetch(jsonResponse({ error: "authentication required" }, 401));
+
+        // when
+        const failure = apiPost("/theories/t-1/responses", { body: "without love, it cannot be seen" });
+
+        // then
+        await expect(failure).rejects.toMatchObject({ status: 401 });
+        expect(isSessionLost()).toBe(true);
+    });
+
+    it("leaves the session alone when a request fails for any other reason", async () => {
+        // given
+        stubFetch(jsonResponse({ error: "you are not the golden witch" }, 403));
+
+        // when
+        const failure = apiFetch("/admin/users");
+
+        // then
+        await expect(failure).rejects.toMatchObject({ status: 403 });
+        expect(isSessionLost()).toBe(false);
     });
 
     it("falls back to a generic message when the error body is not json", async () => {
@@ -579,134 +597,10 @@ describe("buildQueryString", () => {
     });
 });
 
-describe("absolutizeMedia (web, no configured API origin)", () => {
-    it("returns the data untouched because urls are already same-origin", () => {
-        // given
-        const data = { avatar_url: "/uploads/a.png" };
-
-        // when
-        const result = absolutizeMedia(data);
-
-        // then
-        expect(result).toBe(data);
-    });
-});
-
-describe("absolutizeMedia (native app with a configured API origin)", () => {
+describe("apiFetch (with a configured API origin)", () => {
     afterEach(() => {
         vi.unstubAllEnvs();
         vi.resetModules();
-    });
-
-    async function loadWithOrigin(origin: string) {
-        vi.stubEnv("VITE_API_BASE", origin);
-        vi.resetModules();
-        return import("./client");
-    }
-
-    it("absolutizes media `*_url` fields but leaves navigation `url` paths relative", async () => {
-        // given
-        vi.stubEnv("VITE_API_BASE", "https://whentheycry.social");
-        vi.resetModules();
-        const { absolutizeMedia } = await import("./client");
-
-        // when
-        const result = absolutizeMedia({
-            avatar_url: "/uploads/a.png",
-            thumbnail_url: "/uploads/t.png",
-            url: "/theories/1",
-        });
-
-        // then
-        expect(result).toEqual({
-            avatar_url: "https://whentheycry.social/uploads/a.png",
-            thumbnail_url: "https://whentheycry.social/uploads/t.png",
-            url: "/theories/1",
-        });
-    });
-
-    it("absolutizes media urls nested inside arrays and child objects", async () => {
-        // given
-        const { absolutizeMedia } = await loadWithOrigin("https://whentheycry.social");
-
-        // when
-        const result = absolutizeMedia({
-            items: [{ author: { avatar_url: "/uploads/a.png" } }, { author: { avatar_url: "/uploads/b.png" } }],
-        });
-
-        // then
-        expect(result).toEqual({
-            items: [
-                { author: { avatar_url: "https://whentheycry.social/uploads/a.png" } },
-                { author: { avatar_url: "https://whentheycry.social/uploads/b.png" } },
-            ],
-        });
-    });
-
-    it("leaves already absolute and protocol relative media urls alone", async () => {
-        // given
-        const { absolutizeMedia } = await loadWithOrigin("https://whentheycry.social");
-
-        // when
-        const result = absolutizeMedia({
-            avatar_url: "https://cdn.example.com/a.png",
-            banner_url: "//cdn.example.com/b.png",
-            icon_url: "uploads/c.png",
-        });
-
-        // then
-        expect(result).toEqual({
-            avatar_url: "https://cdn.example.com/a.png",
-            banner_url: "//cdn.example.com/b.png",
-            icon_url: "uploads/c.png",
-        });
-    });
-
-    it("leaves values that are not media url strings alone", async () => {
-        // given
-        const { absolutizeMedia } = await loadWithOrigin("https://whentheycry.social");
-
-        // when
-        const result = absolutizeMedia({
-            avatar_url: null,
-            count: 3,
-            title: "/not/a/url",
-            nested_url_count: 0,
-        });
-
-        // then
-        expect(result).toEqual({ avatar_url: null, count: 3, title: "/not/a/url", nested_url_count: 0 });
-    });
-
-    it("absolutizes media urls in a top level array", async () => {
-        // given
-        const { absolutizeMedia } = await loadWithOrigin("https://whentheycry.social");
-
-        // when
-        const result = absolutizeMedia([{ image_url: "/uploads/a.png" }]);
-
-        // then
-        expect(result).toEqual([{ image_url: "https://whentheycry.social/uploads/a.png" }]);
-    });
-});
-
-describe("apiUrl (with a configured API origin)", () => {
-    afterEach(() => {
-        vi.unstubAllEnvs();
-        vi.resetModules();
-    });
-
-    it("prefixes every path with the configured origin", async () => {
-        // given
-        vi.stubEnv("VITE_API_BASE", "https://whentheycry.social");
-        vi.resetModules();
-        const { apiUrl: prefixedApiUrl } = await import("./client");
-
-        // when
-        const result = prefixedApiUrl("/api/v1/site-info");
-
-        // then
-        expect(result).toBe("https://whentheycry.social/api/v1/site-info");
     });
 
     it("targets the configured origin when fetching", async () => {

@@ -33,12 +33,8 @@ func newUserPrefsHarness(t *testing.T) (*testutil.Harness, userPrefsDeps) {
 	return h, userPrefsDeps{UserSvc: us}
 }
 
-func userPrefsFactory(t *testing.T) (*testutil.Harness, userPrefsDeps) {
-	return newUserPrefsHarness(t)
-}
-
 func TestUpdateGameBoardSort_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, userPrefsFactory, "PUT", "/preferences/game-board-sort", map[string]string{"sort": "newest"})
+	testutil.RunAuthFailureSuite(t, newUserPrefsHarness, "PUT", "/preferences/game-board-sort", map[string]string{"sort": "newest"})
 }
 
 func TestUpdateGameBoardSort_OK(t *testing.T) {
@@ -108,7 +104,7 @@ func TestUpdateGameBoardSort_ServiceErrors(t *testing.T) {
 
 func TestUpdateAppearance_AuthFailures(t *testing.T) {
 	body := map[string]any{"theme": "dark", "font": "serif", "wide_layout": true}
-	testutil.RunAuthFailureSuite(t, userPrefsFactory, "PUT", "/preferences/appearance", body)
+	testutil.RunAuthFailureSuite(t, newUserPrefsHarness, "PUT", "/preferences/appearance", body)
 }
 
 func TestUpdateAppearance_OK(t *testing.T) {
@@ -200,7 +196,7 @@ func TestUpdateAppearance_ServiceErrors(t *testing.T) {
 }
 
 func TestUpdateChatbotOptIn_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, userPrefsFactory, "PUT", "/preferences/chatbot-opt-in", map[string]any{"opted_in": true})
+	testutil.RunAuthFailureSuite(t, newUserPrefsHarness, "PUT", "/preferences/chatbot-opt-in", map[string]any{"opted_in": true})
 }
 
 func TestUpdateChatbotOptIn_OK(t *testing.T) {

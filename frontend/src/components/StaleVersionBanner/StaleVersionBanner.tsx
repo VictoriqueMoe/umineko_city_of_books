@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useSiteInfo } from "../../hooks/useSiteInfo";
-import { isNativeApp } from "../../platform/capabilities";
 import { applyOtaUpdate, hasOtaUpdate, subscribeOtaReady } from "../../platform/appUpdate";
-import { reloadPage } from "../../platform/pageReload";
-import styles from "./StaleVersionBanner.module.css";
+import { Banner, BannerButton } from "../Banner/Banner";
 
 export function StaleVersionBanner() {
     const siteInfo = useSiteInfo();
     const bundleVersion = __APP_VERSION__;
-    const native = isNativeApp();
+    const native = Capacitor.isNativePlatform();
     const [otaReady, setOtaReady] = useState(() => native && hasOtaUpdate());
 
     useEffect(() => {
@@ -25,22 +24,15 @@ export function StaleVersionBanner() {
         applyOtaUpdate().catch(() => {});
     }
 
-    function handleReload() {
-        reloadPage();
-    }
-
     if (native) {
         if (!otaReady) {
             return null;
         }
 
         return (
-            <div className={styles.banner} role="alert">
-                <span className={styles.text}>A new version is available. Tap to update now.</span>
-                <button type="button" onClick={handleApply} className={styles.button}>
-                    Update now
-                </button>
-            </div>
+            <Banner colour="red" role="alert" actions={<BannerButton onClick={handleApply}>Update now</BannerButton>}>
+                A new version is available. Tap to update now.
+            </Banner>
         );
     }
 
@@ -53,11 +45,20 @@ export function StaleVersionBanner() {
     }
 
     return (
-        <div className={styles.banner} role="alert">
-            <span className={styles.text}>A new version of the site is available. Please reload to update.</span>
-            <button type="button" onClick={handleReload} className={styles.button}>
-                Reload now
-            </button>
-        </div>
+        <Banner
+            colour="red"
+            role="alert"
+            actions={
+                <BannerButton
+                    onClick={() => {
+                        window.location.reload();
+                    }}
+                >
+                    Reload now
+                </BannerButton>
+            }
+        >
+            A new version of the site is available. Please reload to update.
+        </Banner>
     );
 }

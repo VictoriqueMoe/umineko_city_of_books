@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Link } from "react-router";
 import { useAuth } from "../../hooks/useAuth";
 import { useResendVerification } from "../../hooks/mutations/auth";
-import styles from "./VerifyEmailBanner.module.css";
+import { Banner, BannerButton, BannerLink, BannerNote } from "../Banner/Banner";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -45,21 +44,24 @@ export function VerifyEmailBanner() {
         }
     }
 
-    return (
-        <div className={styles.banner}>
-            <span className={styles.text}>{message}</span>
+    const actions = (
+        <>
             {noEmail ? (
-                <Link to="/set-email" className={styles.button}>
-                    Add email
-                </Link>
+                <BannerLink to="/set-email">Add email</BannerLink>
             ) : sent ? (
-                <span className={styles.sent}>Sent. Check your inbox.</span>
+                <BannerNote>Sent. Check your inbox.</BannerNote>
             ) : (
-                <button className={styles.button} onClick={handleResend} disabled={resend.isPending}>
+                <BannerButton onClick={handleResend} disabled={resend.isPending}>
                     {resend.isPending ? "Sending..." : "Resend email"}
-                </button>
+                </BannerButton>
             )}
-            {error && <span className={styles.sent}>{error}</span>}
-        </div>
+            {error && <BannerNote>{error}</BannerNote>}
+        </>
+    );
+
+    return (
+        <Banner colour="blue" actions={actions}>
+            {message}
+        </Banner>
     );
 }

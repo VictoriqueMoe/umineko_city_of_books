@@ -8,8 +8,6 @@ import { ConfirmDialog } from "./ConfirmDialog";
 
 const closeLabel = "✕";
 
-function noop() {}
-
 describe("ConfirmDialog", () => {
     it("renders nothing at all while it is closed", () => {
         // given
@@ -21,8 +19,8 @@ describe("ConfirmDialog", () => {
                 open={open}
                 title="Confirm Delete"
                 body="This action cannot be undone."
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -44,8 +42,8 @@ describe("ConfirmDialog", () => {
                         Are you sure you want to delete <strong>Beatrice</strong>? This action cannot be undone.
                     </>
                 }
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -61,7 +59,7 @@ describe("ConfirmDialog", () => {
 
         // when
         renderWithProviders(
-            <ConfirmDialog open={open} title="Confirm Delete" body="body" onConfirm={noop} onCancel={noop} />,
+            <ConfirmDialog open={open} title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={vi.fn()} />,
         );
 
         // then
@@ -82,8 +80,8 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel={confirmLabel}
                 cancelLabel={cancelLabel}
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -104,8 +102,8 @@ describe("ConfirmDialog", () => {
                 title="Confirm Delete"
                 body="body"
                 confirmLabel="Delete"
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -127,7 +125,7 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel="Delete"
                 onConfirm={onConfirm}
-                onCancel={noop}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -143,7 +141,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -158,7 +156,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -173,7 +171,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -188,7 +186,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -212,8 +210,8 @@ describe("ConfirmDialog", () => {
                     body="body"
                     confirmLabel="Delete"
                     destructive={destructive}
-                    onConfirm={noop}
-                    onCancel={noop}
+                    onConfirm={vi.fn()}
+                    onCancel={vi.fn()}
                 />
             </>,
         );
@@ -238,8 +236,8 @@ describe("ConfirmDialog", () => {
                     body="body"
                     confirmLabel="Leave"
                     destructive={destructive}
-                    onConfirm={noop}
-                    onCancel={noop}
+                    onConfirm={vi.fn()}
+                    onCancel={vi.fn()}
                 />
             </>,
         );
@@ -262,8 +260,8 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel="Delete"
                 destructive={destructive}
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -283,8 +281,8 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel="Leave"
                 destructive={destructive}
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -297,7 +295,7 @@ describe("ConfirmDialog", () => {
         const { rerender } = renderWithProviders(
             <>
                 <button type="button">Delete User</button>
-                <ConfirmDialog open={false} title="Confirm Delete" body="body" onConfirm={noop} onCancel={noop} />
+                <ConfirmDialog open={false} title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={vi.fn()} />
             </>,
         );
         const trigger = screen.getByRole("button", { name: "Delete User" });
@@ -305,7 +303,7 @@ describe("ConfirmDialog", () => {
         rerender(
             <>
                 <button type="button">Delete User</button>
-                <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={noop} onCancel={noop} />
+                <ConfirmDialog open title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={vi.fn()} />
             </>,
         );
 
@@ -313,7 +311,7 @@ describe("ConfirmDialog", () => {
         rerender(
             <>
                 <button type="button">Delete User</button>
-                <ConfirmDialog open={false} title="Confirm Delete" body="body" onConfirm={noop} onCancel={noop} />
+                <ConfirmDialog open={false} title="Confirm Delete" body="body" onConfirm={vi.fn()} onCancel={vi.fn()} />
             </>,
         );
 
@@ -332,8 +330,8 @@ describe("ConfirmDialog", () => {
                     title="Confirm Delete"
                     body="body"
                     confirmLabel="Delete"
-                    onConfirm={noop}
-                    onCancel={noop}
+                    onConfirm={vi.fn()}
+                    onCancel={vi.fn()}
                 />
             </>,
         );
@@ -357,8 +355,8 @@ describe("ConfirmDialog", () => {
                     title="Confirm Delete"
                     body="body"
                     confirmLabel="Delete"
-                    onConfirm={noop}
-                    onCancel={noop}
+                    onConfirm={vi.fn()}
+                    onCancel={vi.fn()}
                 />
             </>,
         );
@@ -383,8 +381,8 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel="Delete"
                 busy={busy}
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -405,8 +403,8 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel="Delete"
                 busy={busy}
-                onConfirm={noop}
-                onCancel={noop}
+                onConfirm={vi.fn()}
+                onCancel={vi.fn()}
             />,
         );
 
@@ -425,7 +423,7 @@ describe("ConfirmDialog", () => {
                 body="body"
                 confirmLabel="Delete"
                 onConfirm={onConfirm}
-                onCancel={noop}
+                onCancel={vi.fn()}
             />,
         );
         await user.click(screen.getByRole("button", { name: "Delete" }));
@@ -439,7 +437,7 @@ describe("ConfirmDialog", () => {
                 confirmLabel="Delete"
                 busy
                 onConfirm={onConfirm}
-                onCancel={noop}
+                onCancel={vi.fn()}
             />,
         );
         await user.click(screen.getByRole("button", { name: "Delete" }));
@@ -453,7 +451,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -468,7 +466,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -483,7 +481,7 @@ describe("ConfirmDialog", () => {
         const onCancel = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={noop} onCancel={onCancel} />,
+            <ConfirmDialog open title="Confirm Delete" body="body" busy onConfirm={vi.fn()} onCancel={onCancel} />,
         );
 
         // when
@@ -504,8 +502,8 @@ describe("ConfirmDialog", () => {
                     title="Confirm Delete"
                     body="body"
                     confirmLabel="Delete"
-                    onConfirm={noop}
-                    onCancel={noop}
+                    onConfirm={vi.fn()}
+                    onCancel={vi.fn()}
                 />
             </form>,
         );

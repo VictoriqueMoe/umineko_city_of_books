@@ -102,7 +102,7 @@ func (s *service) postChat(ctx context.Context, roomID, userID uuid.UUID, body s
 		UserID:    userID,
 		User:      *u.ToResponse(),
 		Body:      body,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
+		CreatedAt: time.Now().UTC().Format(chatTimestampLayout),
 	}
 
 	s.mu.Lock()

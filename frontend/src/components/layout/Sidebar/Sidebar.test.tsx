@@ -48,14 +48,12 @@ interface SidebarHandlers {
     onCollapse?: () => void;
 }
 
-function noop() {}
-
 function renderSidebar(options: ProviderOptions = {}, handlers: SidebarHandlers = {}) {
     return renderWithProviders(
         <Sidebar
             open={handlers.open ?? false}
-            onClose={handlers.onClose ?? noop}
-            onCollapse={handlers.onCollapse ?? noop}
+            onClose={handlers.onClose ?? vi.fn()}
+            onCollapse={handlers.onCollapse ?? vi.fn()}
         />,
         options,
     );

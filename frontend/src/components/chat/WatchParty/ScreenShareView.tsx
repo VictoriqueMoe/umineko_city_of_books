@@ -8,9 +8,10 @@ import styles from "./WatchParty.module.css";
 interface ScreenShareViewProps {
     placeholder: string;
     onReload?: () => void;
+    compact?: boolean;
 }
 
-export function ScreenShareView({ placeholder, onReload }: ScreenShareViewProps) {
+export function ScreenShareView({ placeholder, onReload, compact = false }: ScreenShareViewProps) {
     const videoTracks = useTracks([Track.Source.ScreenShare]);
     const audioTracks = useTracks([Track.Source.ScreenShareAudio]);
     const screen = videoTracks.length > 0 ? videoTracks[0] : null;
@@ -28,17 +29,21 @@ export function ScreenShareView({ placeholder, onReload }: ScreenShareViewProps)
         return <div className={styles.empty}>{placeholder}</div>;
     }
 
+    const reloadClass = compact ? `${styles.reloadBtn} ${styles.iconBtn}` : styles.reloadBtn;
+    const volumeClass = compact ? `${styles.volumeControl} ${styles.volumeCompact}` : styles.volumeControl;
+
     return (
         <>
             <VideoTrack trackRef={screen} className={styles.screenVideo} />
             {!screen.participant.isLocal && onReload && (
                 <button
                     type="button"
-                    className={styles.reloadBtn}
+                    className={reloadClass}
                     onClick={onReload}
                     title="Reload if the screen is black"
+                    aria-label="Reload stream"
                 >
-                    {"↻"} Reload stream
+                    {compact ? "↻" : "↻ Reload stream"}
                 </button>
             )}
             {audioTrack && (
@@ -46,7 +51,7 @@ export function ScreenShareView({ placeholder, onReload }: ScreenShareViewProps)
                     value={volume}
                     onChange={setVolume}
                     ariaLabel="Screen share volume"
-                    className={styles.volumeControl}
+                    className={volumeClass}
                 />
             )}
         </>

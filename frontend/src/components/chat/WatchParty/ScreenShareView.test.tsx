@@ -26,6 +26,7 @@ interface ViewOptions {
     screen?: { sid: string; isLocal?: boolean } | null;
     audioTrack?: unknown;
     onReload?: (() => void) | undefined;
+    compact?: boolean;
 }
 
 function stubTracks(options: ViewOptions) {
@@ -42,7 +43,9 @@ function stubTracks(options: ViewOptions) {
 function renderView(options: ViewOptions = {}) {
     stubTracks(options);
 
-    return renderWithProviders(<ScreenShareView placeholder="Waiting for the host." onReload={options.onReload} />);
+    return renderWithProviders(
+        <ScreenShareView placeholder="Waiting for the host." onReload={options.onReload} compact={options.compact} />,
+    );
 }
 
 beforeEach(() => {
@@ -156,6 +159,42 @@ describe("ScreenShareView", () => {
 
         // then
         expect(audioTrack.setVolume).toHaveBeenLastCalledWith(0);
+    });
+
+    it("shrinks the reload down to an icon on a phone but keeps its name", async () => {
+        // given
+        const onReload = vi.fn();
+        const user = userEvent.setup();
+        renderView({ screen: { sid: "track-1", isLocal: false }, onReload, compact: true });
+
+        // when
+        await user.click(screen.getByRole("button", { name: "Reload stream" }));
+
+        // then
+        expect(onReload).toHaveBeenCalledOnce();
+        expect(screen.queryByText(/Reload stream/)).not.toBeInTheDocument();
+    });
+
+    it("spells the reload out in full on a desktop", () => {
+        // given
+        const onReload = vi.fn();
+
+        // when
+        renderView({ screen: { sid: "track-1", isLocal: false }, onReload });
+
+        // then
+        expect(screen.getByText(/Reload stream/)).toBeInTheDocument();
+    });
+
+    it("keeps the volume control usable on a phone", () => {
+        // given
+        const audioTrack = new mocks.FakeRemoteAudioTrack();
+
+        // when
+        renderView({ screen: { sid: "track-1" }, audioTrack, compact: true });
+
+        // then
+        expect(screen.getByLabelText("Screen share volume")).toHaveValue("1");
     });
 
     it("leaves a track that is not a remote one alone", () => {

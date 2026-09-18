@@ -48,7 +48,7 @@ function setup(options: SetupOptions = {}) {
         <HuntPanel
             secretId={options.id ?? secretId}
             isOpen={options.isOpen ?? true}
-            onClose={options.onClose ?? noop}
+            onClose={options.onClose ?? vi.fn()}
         />,
         {
             user: makeUser(),
@@ -57,8 +57,6 @@ function setup(options: SetupOptions = {}) {
         },
     );
 }
-
-function noop() {}
 
 beforeEach(() => {
     mocks.unlock.mockResolvedValue(undefined);

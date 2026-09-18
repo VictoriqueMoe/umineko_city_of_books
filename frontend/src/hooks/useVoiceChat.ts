@@ -8,7 +8,6 @@ import { reportClientError } from "../api/telemetry";
 import { useVoiceToken } from "./mutations/voice";
 import { playVoiceJoinSound, playVoiceLeaveSound } from "../platform/sound";
 import { errorMessage } from "../utils/errorMessage";
-import { nonFatal } from "../utils/nonFatal";
 
 export type VoiceStatus = "idle" | "connecting" | "connected";
 
@@ -97,7 +96,9 @@ export function useVoiceChat(roomId: string, initialParticipants: string[] = [])
             setStatus("connected");
             playVoiceJoinSound();
 
-            livekitRoom.localParticipant.setMicrophoneEnabled(true).catch(nonFatal);
+            livekitRoom.localParticipant.setMicrophoneEnabled(true).catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
         };
 
         connect()

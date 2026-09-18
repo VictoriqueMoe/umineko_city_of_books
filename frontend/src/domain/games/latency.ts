@@ -6,11 +6,7 @@ export const LATENCY_SAMPLES = 5;
 
 export type LatencyGrade = "good" | "fair" | "poor";
 
-const REALTIME_GAME_TYPES = new Set<GameType>(["pong"]);
-
-export function isRealtimeGame(gameType: GameType): boolean {
-    return REALTIME_GAME_TYPES.has(gameType);
-}
+export const REALTIME_GAME_TYPES = new Set<GameType>(["pong"]);
 
 export function latencyGrade(roundTripMs: number): LatencyGrade {
     if (roundTripMs >= LATENCY_POOR_MS) {

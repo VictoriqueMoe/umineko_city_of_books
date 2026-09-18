@@ -4,8 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test-utils/render";
 import { PollCreator } from "./PollCreator";
 
-function noop() {}
-
 interface SetupOptions {
     options?: string[];
     duration?: number;
@@ -19,9 +17,9 @@ function setup(overrides: SetupOptions = {}) {
         <PollCreator
             options={overrides.options ?? ["Beatrice", "Battler"]}
             duration={overrides.duration ?? 86400}
-            onOptionsChange={overrides.onOptionsChange ?? noop}
-            onDurationChange={overrides.onDurationChange ?? noop}
-            onRemove={overrides.onRemove ?? noop}
+            onOptionsChange={overrides.onOptionsChange ?? vi.fn()}
+            onDurationChange={overrides.onDurationChange ?? vi.fn()}
+            onRemove={overrides.onRemove ?? vi.fn()}
         />,
     );
 }

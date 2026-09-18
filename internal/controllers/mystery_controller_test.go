@@ -68,7 +68,7 @@ func TestGetMystery_AuthenticatedUser_OK(t *testing.T) {
 }
 
 func TestGetMystery_InvalidCookie_TreatedAsAnonymous(t *testing.T) {
-	// given — OptionalAuth should fall through to uuid.Nil when the cookie is junk.
+	// given: OptionalAuth should fall through to uuid.Nil when the cookie is junk.
 	h, ms := newMysteryHarness(t)
 	mysteryID := uuid.New()
 	h.ExpectInvalidSession("bogus")
@@ -1310,7 +1310,7 @@ func TestUploadMysteryCommentMedia_InvalidID(t *testing.T) {
 }
 
 func TestUploadMysteryCommentMedia_NoFile_BadRequest(t *testing.T) {
-	// given — skip happy-path multipart test; only cover auth/UUID/no-file branches.
+	// given :  skip happy-path multipart test; only cover auth/UUID/no-file branches.
 	h, _ := newMysteryHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)
@@ -1376,7 +1376,7 @@ func TestUploadMysteryAttachment_InvalidID(t *testing.T) {
 }
 
 func TestUploadMysteryAttachment_NoFile_BadRequest(t *testing.T) {
-	// given — skip happy-path multipart test; cover auth/UUID/no-file branches only.
+	// given :  skip happy-path multipart test; cover auth/UUID/no-file branches only.
 	h, _ := newMysteryHarness(t)
 	userID := uuid.New()
 	h.ExpectValidSession("valid-cookie", userID)

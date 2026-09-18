@@ -6,8 +6,6 @@ import {
     getChatRoomAttachments,
     getChatRoomPinnedMessages,
     getChatUnreadCount,
-    getRoomMessages,
-    getRoomMessagesBefore,
     getUserRooms,
     listChatRoomBans,
     listChatRoomBannedWords,
@@ -52,13 +50,10 @@ function roomsListRequest(params: RoomsListParams) {
     };
 }
 
-export function fetchRoomMessages(roomId: string, limit?: number, offset?: number) {
-    return getRoomMessages(roomId, limit, offset);
-}
-
-export function fetchRoomMessagesBefore(roomId: string, beforeCursor: string, limit?: number) {
-    return getRoomMessagesBefore(roomId, beforeCursor, limit);
-}
+export {
+    getRoomMessages as fetchRoomMessages,
+    getRoomMessagesBefore as fetchRoomMessagesBefore,
+} from "../../api/endpoints/chat";
 
 export function fetchResolveDMRoom(recipientId: string) {
     return queryClient.fetchQuery({

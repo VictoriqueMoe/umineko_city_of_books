@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
 import { useRefreshAll } from "../../hooks/useRefreshAll";
-import { isNativeApp } from "../../platform/capabilities";
 import styles from "./PullToRefresh.module.css";
 
 const MAX_PULL = 110;
@@ -19,7 +19,7 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
     const activeRef = useRef(false);
 
     useEffect(() => {
-        if (!isNativeApp()) {
+        if (!Capacitor.isNativePlatform()) {
             return;
         }
 

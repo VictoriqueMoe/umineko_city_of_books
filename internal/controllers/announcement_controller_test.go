@@ -38,10 +38,6 @@ func newAnnouncementHarness(t *testing.T) (*testutil.Harness, announcementDeps) 
 	return h, deps
 }
 
-func announcementFactory(t *testing.T) (*testutil.Harness, announcementDeps) {
-	return newAnnouncementHarness(t)
-}
-
 func TestListAnnouncements_OK(t *testing.T) {
 	// given
 	h, deps := newAnnouncementHarness(t)
@@ -185,7 +181,7 @@ func TestGetLatestAnnouncement_InternalError(t *testing.T) {
 }
 
 func TestCreateAnnouncement_PermissionFailures(t *testing.T) {
-	testutil.RunPermissionFailureSuite(t, announcementFactory, "POST", "/admin/announcements",
+	testutil.RunPermissionFailureSuite(t, newAnnouncementHarness, "POST", "/admin/announcements",
 		map[string]string{"title": "t", "body": "b"}, authz.PermManageSettings)
 }
 
@@ -267,7 +263,7 @@ func TestCreateAnnouncement_InternalError(t *testing.T) {
 }
 
 func TestUpdateAnnouncement_PermissionFailures(t *testing.T) {
-	testutil.RunPermissionFailureSuite(t, announcementFactory, "PUT", "/admin/announcements/"+uuid.NewString(),
+	testutil.RunPermissionFailureSuite(t, newAnnouncementHarness, "PUT", "/admin/announcements/"+uuid.NewString(),
 		map[string]string{"title": "t", "body": "b"}, authz.PermManageSettings)
 }
 
@@ -331,7 +327,7 @@ func TestUpdateAnnouncement_InternalError(t *testing.T) {
 }
 
 func TestDeleteAnnouncement_PermissionFailures(t *testing.T) {
-	testutil.RunPermissionFailureSuite(t, announcementFactory, "DELETE", "/admin/announcements/"+uuid.NewString(),
+	testutil.RunPermissionFailureSuite(t, newAnnouncementHarness, "DELETE", "/admin/announcements/"+uuid.NewString(),
 		nil, authz.PermManageSettings)
 }
 
@@ -371,7 +367,7 @@ func TestDeleteAnnouncement_InternalError(t *testing.T) {
 }
 
 func TestPinAnnouncement_PermissionFailures(t *testing.T) {
-	testutil.RunPermissionFailureSuite(t, announcementFactory, "POST", "/admin/announcements/"+uuid.NewString()+"/pin",
+	testutil.RunPermissionFailureSuite(t, newAnnouncementHarness, "POST", "/admin/announcements/"+uuid.NewString()+"/pin",
 		map[string]bool{"pinned": true}, authz.PermManageSettings)
 }
 
@@ -415,7 +411,7 @@ func TestPinAnnouncement_InternalError(t *testing.T) {
 }
 
 func TestCreateAnnouncementComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, announcementFactory, "POST", "/announcements/"+uuid.NewString()+"/comments",
+	testutil.RunAuthFailureSuite(t, newAnnouncementHarness, "POST", "/announcements/"+uuid.NewString()+"/comments",
 		dto.CreateCommentRequest{Body: "hi"})
 }
 
@@ -475,7 +471,7 @@ func TestCreateAnnouncementComment_ServiceErrors(t *testing.T) {
 }
 
 func TestUpdateAnnouncementComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, announcementFactory, "PUT", "/announcement-comments/"+uuid.NewString(),
+	testutil.RunAuthFailureSuite(t, newAnnouncementHarness, "PUT", "/announcement-comments/"+uuid.NewString(),
 		dto.UpdateCommentRequest{Body: "x"})
 }
 
@@ -531,7 +527,7 @@ func TestUpdateAnnouncementComment_ServiceErrors(t *testing.T) {
 }
 
 func TestDeleteAnnouncementComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, announcementFactory, "DELETE", "/announcement-comments/"+uuid.NewString(), nil)
+	testutil.RunAuthFailureSuite(t, newAnnouncementHarness, "DELETE", "/announcement-comments/"+uuid.NewString(), nil)
 }
 
 func TestDeleteAnnouncementComment_OK(t *testing.T) {
@@ -568,7 +564,7 @@ func TestDeleteAnnouncementComment_Forbidden(t *testing.T) {
 }
 
 func TestLikeAnnouncementComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, announcementFactory, "POST", "/announcement-comments/"+uuid.NewString()+"/like", nil)
+	testutil.RunAuthFailureSuite(t, newAnnouncementHarness, "POST", "/announcement-comments/"+uuid.NewString()+"/like", nil)
 }
 
 func TestLikeAnnouncementComment_OK(t *testing.T) {
@@ -619,7 +615,7 @@ func TestLikeAnnouncementComment_ServiceErrors(t *testing.T) {
 }
 
 func TestUnlikeAnnouncementComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, announcementFactory, "DELETE", "/announcement-comments/"+uuid.NewString()+"/like", nil)
+	testutil.RunAuthFailureSuite(t, newAnnouncementHarness, "DELETE", "/announcement-comments/"+uuid.NewString()+"/like", nil)
 }
 
 func TestUnlikeAnnouncementComment_OK(t *testing.T) {
@@ -656,7 +652,7 @@ func TestUnlikeAnnouncementComment_InternalError(t *testing.T) {
 }
 
 func TestUploadAnnouncementCommentMedia_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, announcementFactory, "POST", "/announcement-comments/"+uuid.NewString()+"/media", nil)
+	testutil.RunAuthFailureSuite(t, newAnnouncementHarness, "POST", "/announcement-comments/"+uuid.NewString()+"/media", nil)
 }
 
 func TestUploadAnnouncementCommentMedia_MissingFile(t *testing.T) {

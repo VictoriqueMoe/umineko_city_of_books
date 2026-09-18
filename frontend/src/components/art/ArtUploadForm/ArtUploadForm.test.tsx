@@ -50,14 +50,12 @@ interface FormOverrides {
     siteInfo?: Partial<SiteInfo>;
 }
 
-function noop() {}
-
 function renderForm(overrides: FormOverrides = {}) {
     return renderWithProviders(
         <ArtUploadForm
             galleryId={galleryId}
             corner={overrides.corner}
-            onCreated={overrides.onCreated ?? noop}
+            onCreated={overrides.onCreated ?? vi.fn()}
             inline={overrides.inline ?? true}
             galleries={overrides.galleries}
             selectedGallery={overrides.selectedGallery}

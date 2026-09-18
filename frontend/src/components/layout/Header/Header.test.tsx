@@ -5,15 +5,13 @@ import { makeUser } from "../../../test-utils/fixtures";
 import { renderWithProviders } from "../../../test-utils/render";
 import { Header } from "./Header";
 
-function noop() {}
-
 describe("Header", () => {
     it("offers the sign in control and no bells to a signed out visitor", () => {
         // given
         const user = null;
 
         // when
-        renderWithProviders(<Header onToggleSidebar={noop} />, { user });
+        renderWithProviders(<Header onToggleSidebar={vi.fn()} />, { user });
 
         // then
         expect(screen.getByRole("button", { name: "Sign In" })).toBeInTheDocument();
@@ -26,7 +24,7 @@ describe("Header", () => {
         const account = makeUser({ display_name: "Bernkastel" });
 
         // when
-        renderWithProviders(<Header onToggleSidebar={noop} />, { user: account });
+        renderWithProviders(<Header onToggleSidebar={vi.fn()} />, { user: account });
 
         // then
         expect(screen.queryByRole("button", { name: "Sign In" })).not.toBeInTheDocument();
@@ -38,7 +36,7 @@ describe("Header", () => {
         const account = makeUser();
 
         // when
-        renderWithProviders(<Header onToggleSidebar={noop} />, {
+        renderWithProviders(<Header onToggleSidebar={vi.fn()} />, {
             user: account,
             notification: { unreadCount: 2, chatUnreadCount: 5 },
         });
@@ -55,7 +53,7 @@ describe("Header", () => {
         const auth = { loading: true };
 
         // when
-        renderWithProviders(<Header onToggleSidebar={noop} />, { user: null, auth });
+        renderWithProviders(<Header onToggleSidebar={vi.fn()} />, { user: null, auth });
 
         // then
         expect(screen.queryByRole("button", { name: "Sign In" })).not.toBeInTheDocument();
@@ -67,7 +65,7 @@ describe("Header", () => {
         const account = makeUser({ display_name: "Bernkastel" });
 
         // when
-        renderWithProviders(<Header onToggleSidebar={noop} />, { user: account, auth: { loading: true } });
+        renderWithProviders(<Header onToggleSidebar={vi.fn()} />, { user: account, auth: { loading: true } });
 
         // then
         expect(screen.queryByRole("button", { name: /Bernkastel/ })).not.toBeInTheDocument();
@@ -79,7 +77,7 @@ describe("Header", () => {
         const user = null;
 
         // when
-        renderWithProviders(<Header onToggleSidebar={noop} />, { user, auth: { loading: true } });
+        renderWithProviders(<Header onToggleSidebar={vi.fn()} />, { user, auth: { loading: true } });
 
         // then
         expect(screen.getByPlaceholderText("Search the site...")).toBeInTheDocument();

@@ -5,10 +5,20 @@ import { connectRoom, disconnectRoom } from "../api/livekit/connect";
 import { setScreenShareEnabled, type ScreenShareMode } from "../api/livekit/screenShare";
 import { reportClientError } from "../api/telemetry";
 import { useWatchPartyVoiceToken } from "./mutations/watchParty";
-import { nonFatal } from "../utils/nonFatal";
+import { errorMessage } from "../utils/errorMessage";
 import type { WatchPartyType } from "../types/api";
 
 export type SessionMediaStatus = "idle" | "connecting" | "connected";
+
+export const SHARE_SCREEN_FAILED = "Screen share could not start. Try again, or share without audio.";
+
+function isPickerDismissal(thrown: unknown): boolean {
+    if (!(thrown instanceof Error) || thrown.name !== "NotAllowedError") {
+        return false;
+    }
+
+    return !thrown.message.includes("by system");
+}
 
 export type { ScreenShareMode };
 
@@ -24,6 +34,7 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
     const [status, setStatus] = useState<SessionMediaStatus>("idle");
     const [inVoice, setInVoice] = useState(false);
     const [isSharing, setIsSharing] = useState(false);
+    const [shareError, setShareError] = useState<string | null>(null);
     const roomRef = useRef<Room | null>(null);
     const connectingRef = useRef(false);
     const wantMicRef = useRef(false);
@@ -63,6 +74,13 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                         setInVoice(false);
                         setIsSharing(false);
                     },
+                    onLocalPublicationsChanged: joined => {
+                        setIsSharing(joined.localParticipant.isScreenShareEnabled);
+                    },
+                    onMediaDevicesError: (_joined, error) => {
+                        reportClientError(error, { source: "caught" });
+                        setShareError(errorMessage(error, SHARE_SCREEN_FAILED));
+                    },
                     onLocalPermissionsChanged: joined => {
                         if (!wantMicRef.current || joined.localParticipant.isMicrophoneEnabled) {
                             return;
@@ -71,7 +89,9 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                         joined.localParticipant
                             .setMicrophoneEnabled(true)
                             .then(() => setInVoice(true))
-                            .catch(nonFatal);
+                            .catch((thrown: unknown) => {
+                                reportClientError(thrown, { source: "caught" });
+                            });
                     },
                 },
             });
@@ -90,7 +110,9 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
 
     useEffect(() => {
         if (type === "screenshare") {
-            ensureConnected().catch(nonFatal);
+            ensureConnected().catch((thrown: unknown) => {
+                reportClientError(thrown, { source: "caught" });
+            });
         }
 
         return () => {
@@ -143,13 +165,24 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
                 return;
             }
 
+            setShareError(null);
+
             const lkRoom = await ensureConnected();
             if (!lkRoom) {
+                setShareError(SHARE_SCREEN_FAILED);
                 return;
             }
 
-            await setScreenShareEnabled(lkRoom, on, mode);
-            setIsSharing(on);
+            try {
+                await setScreenShareEnabled(lkRoom, on, mode);
+            } catch (thrown: unknown) {
+                if (!isPickerDismissal(thrown)) {
+                    reportClientError(thrown, { source: "caught" });
+                    setShareError(errorMessage(thrown, SHARE_SCREEN_FAILED));
+                }
+            }
+
+            setIsSharing(lkRoom.localParticipant.isScreenShareEnabled);
         },
         [ensureConnected, isStarter],
     );
@@ -166,9 +199,11 @@ export function useSessionMedia({ roomId, sessionId, type, isStarter }: UseSessi
             lkRoom.localParticipant
                 .setMicrophoneEnabled(true)
                 .then(() => setInVoice(true))
-                .catch(nonFatal);
+                .catch((thrown: unknown) => {
+                    reportClientError(thrown, { source: "caught" });
+                });
         }
     }, [ensureConnected]);
 
-    return { room, status, inVoice, isSharing, joinVoice, leaveVoice, shareScreen, reload };
+    return { room, status, inVoice, isSharing, shareError, joinVoice, leaveVoice, shareScreen, reload };
 }

@@ -298,7 +298,7 @@ func Handler(hub *Hub, sessionMgr *session.Manager, banChecker BanChecker, roomL
 					}
 				}
 
-				recordInputFrame()
+				wsInputFrames.Inc()
 
 				continue
 			}

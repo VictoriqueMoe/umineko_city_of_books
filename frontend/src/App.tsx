@@ -14,6 +14,8 @@ import { Sidebar } from "./components/layout/Sidebar/Sidebar";
 import { Butterflies } from "./components/layout/Butterflies/Butterflies";
 import { CanonicalTag } from "./components/CanonicalTag/CanonicalTag";
 import { ProtectedRoute } from "./components/ProtectedRoute/ProtectedRoute";
+import { Banner } from "./components/Banner/Banner";
+import { SessionExpiredBanner } from "./components/SessionExpiredBanner/SessionExpiredBanner";
 import { StaleVersionBanner } from "./components/StaleVersionBanner/StaleVersionBanner";
 import { NativeUpdateBanner } from "./components/NativeUpdateBanner/NativeUpdateBanner";
 import { NativeLinkInterceptor } from "./components/NativeLinkInterceptor/NativeLinkInterceptor";
@@ -133,9 +135,9 @@ function AnnouncementBanner() {
     }
 
     return (
-        <div dir="auto" className="announcement-banner">
+        <Banner colour="gold" role="region" label="Site announcement">
             {renderRich(banner)}
-        </div>
+        </Banner>
     );
 }
 
@@ -248,6 +250,7 @@ function AppLayout() {
             />
             <div className="app-main">
                 <Header onToggleSidebar={toggleSidebar} />
+                <SessionExpiredBanner />
                 <StaleVersionBanner />
                 <NativeUpdateBanner />
                 <LockBanner />

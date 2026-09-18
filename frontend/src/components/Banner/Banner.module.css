@@ -1,0 +1,127 @@
+.banner {
+    background: linear-gradient(90deg, var(--banner-edge), var(--banner-centre), var(--banner-edge));
+    color: var(--banner-text);
+    padding: 0.6rem 1rem;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.95rem;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.red {
+    --banner-edge: #b91c1c;
+    --banner-centre: #ef4444;
+    --banner-accent: #b91c1c;
+    --banner-text: #fff;
+}
+
+.amber {
+    --banner-edge: #92400e;
+    --banner-centre: #d97706;
+    --banner-accent: #92400e;
+    --banner-text: #fff;
+}
+
+.blue {
+    --banner-edge: #1e3a5f;
+    --banner-centre: #2563eb;
+    --banner-accent: #1e3a5f;
+    --banner-text: #fff;
+}
+
+.teal {
+    --banner-edge: #134e4a;
+    --banner-centre: #0d9488;
+    --banner-accent: #0d9488;
+    --banner-text: #fff;
+}
+
+.purple {
+    --banner-edge: #3d2a5c;
+    --banner-centre: #6b4c9a;
+    --banner-accent: #6b4c9a;
+    --banner-text: #fff;
+}
+
+.gold {
+    --banner-edge: var(--gold-dark);
+    --banner-centre: var(--gold);
+    --banner-accent: var(--gold-dark);
+    --banner-text: var(--bg-void);
+}
+
+:global([data-theme="battler"]) .gold {
+    --banner-text: var(--text);
+}
+
+.text {
+    overflow-wrap: anywhere;
+}
+
+.text a,
+.text a:hover {
+    color: inherit;
+}
+
+.text a {
+    font-weight: 800;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.text a:hover {
+    opacity: 0.75;
+}
+
+.button,
+.button:hover {
+    color: var(--banner-accent);
+}
+
+.button {
+    background: #fff;
+    border: none;
+    padding: 0.3rem 0.9rem;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-size: 0.9rem;
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+}
+
+.button:hover:not(:disabled) {
+    opacity: 0.85;
+}
+
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.dismiss {
+    background: none;
+    color: inherit;
+    border: none;
+    padding: 0 0.25rem;
+    font-size: 1.35rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+}
+
+.dismiss:hover {
+    opacity: 0.7;
+}
+
+.note {
+    font-weight: 500;
+    font-size: 0.9rem;
+    opacity: 0.95;
+}

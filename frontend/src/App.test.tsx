@@ -421,8 +421,8 @@ describe("App", () => {
         renderApp("/welcome", { siteInfo: announcing });
 
         // then
-        expect(screen.getByText("Beware")).toBeInTheDocument();
-        expect(screen.getByText(/the witch/)).toBeInTheDocument();
+        const banner = screen.getByRole("region", { name: "Site announcement" });
+        expect(banner).toHaveTextContent("Beware the witch");
     });
 
     it("keeps the announcement banner away when there is nothing to say", () => {
@@ -430,10 +430,10 @@ describe("App", () => {
         const quiet = { announcement_banner: "" };
 
         // when
-        const { container } = renderApp("/welcome", { siteInfo: quiet });
+        renderApp("/welcome", { siteInfo: quiet });
 
         // then
-        expect(container.querySelector(".announcement-banner")).toBeNull();
+        expect(screen.queryByRole("region", { name: "Site announcement" })).not.toBeInTheDocument();
     });
 
     it("mounts the secret announcement toast in the shell, where it can be seen from any page", () => {

@@ -4,15 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { ToggleSwitch } from "./ToggleSwitch";
 
-function noop() {}
-
 describe("ToggleSwitch", () => {
     it("exposes itself as a switch named after its label", () => {
         // given
         const label = "Show spoilers";
 
         // when
-        renderWithProviders(<ToggleSwitch enabled={false} onChange={noop} label={label} />);
+        renderWithProviders(<ToggleSwitch enabled={false} onChange={vi.fn()} label={label} />);
 
         // then
         expect(screen.getByRole("switch", { name: label })).toBeInTheDocument();
@@ -23,7 +21,7 @@ describe("ToggleSwitch", () => {
         const enabled = false;
 
         // when
-        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={noop} label="Show spoilers" />);
+        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={vi.fn()} label="Show spoilers" />);
 
         // then
         expect(screen.getByRole("switch", { name: "Show spoilers" })).toHaveAttribute("aria-checked", "false");
@@ -34,7 +32,7 @@ describe("ToggleSwitch", () => {
         const enabled = true;
 
         // when
-        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={noop} label="Show spoilers" />);
+        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={vi.fn()} label="Show spoilers" />);
 
         // then
         expect(screen.getByRole("switch", { name: "Show spoilers" })).toHaveAttribute("aria-checked", "true");
@@ -89,7 +87,7 @@ describe("ToggleSwitch", () => {
 
         // when
         renderWithProviders(
-            <ToggleSwitch enabled={false} onChange={noop} label="Show spoilers" description={description} />,
+            <ToggleSwitch enabled={false} onChange={vi.fn()} label="Show spoilers" description={description} />,
         );
 
         // then
@@ -103,7 +101,7 @@ describe("ToggleSwitch", () => {
 
         // when
         renderWithProviders(
-            <ToggleSwitch enabled={false} onChange={noop} label="Show spoilers" description={description} />,
+            <ToggleSwitch enabled={false} onChange={vi.fn()} label="Show spoilers" description={description} />,
         );
 
         // then
@@ -115,7 +113,9 @@ describe("ToggleSwitch", () => {
         const disabled = undefined;
 
         // when
-        renderWithProviders(<ToggleSwitch enabled={false} onChange={noop} label="Show spoilers" disabled={disabled} />);
+        renderWithProviders(
+            <ToggleSwitch enabled={false} onChange={vi.fn()} label="Show spoilers" disabled={disabled} />,
+        );
 
         // then
         expect(screen.getByRole("switch", { name: "Show spoilers" })).toBeEnabled();
@@ -140,7 +140,7 @@ describe("ToggleSwitch", () => {
         const enabled = true;
 
         // when
-        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={noop} label="Show spoilers" disabled />);
+        renderWithProviders(<ToggleSwitch enabled={enabled} onChange={vi.fn()} label="Show spoilers" disabled />);
 
         // then
         expect(screen.getByRole("switch", { name: "Show spoilers" })).toHaveAttribute("aria-checked", "true");
@@ -152,7 +152,7 @@ describe("ToggleSwitch", () => {
         const user = userEvent.setup();
         renderWithProviders(
             <form onSubmit={onSubmit}>
-                <ToggleSwitch enabled={false} onChange={noop} label="Show spoilers" />
+                <ToggleSwitch enabled={false} onChange={vi.fn()} label="Show spoilers" />
             </form>,
         );
 

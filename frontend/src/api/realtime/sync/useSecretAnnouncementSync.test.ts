@@ -4,13 +4,10 @@ import { FakeWebSocket } from "../../../test-utils/ws";
 import type * as SocketModule from "../socket";
 import type * as SyncModule from "./useSecretAnnouncementSync";
 
-const { getAuthToken, isNativeApp } = vi.hoisted(() => ({
-    getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
-}));
+const { getAuthToken } = vi.hoisted(() => ({ getAuthToken: vi.fn() }));
 
 vi.mock("../../authToken", () => ({ getAuthToken }));
-vi.mock("../../../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" } }));
 
 const beatrice = { id: "user-1", username: "beato", display_name: "Beatrice" };
 
@@ -43,7 +40,6 @@ beforeEach(async () => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket);
     getAuthToken.mockReturnValue(null);
-    isNativeApp.mockReturnValue(false);
     vi.resetModules();
     socket = await import("../socket");
     sync = await import("./useSecretAnnouncementSync");

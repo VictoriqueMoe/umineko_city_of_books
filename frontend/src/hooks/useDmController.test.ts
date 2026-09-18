@@ -29,7 +29,7 @@ const mocks = vi.hoisted(() => ({
     removeChatMessageReaction: vi.fn(),
     useVoiceChat: vi.fn(),
     playMessageSound: vi.fn(),
-    playRemoteAudio: vi.fn(),
+    playAudio: vi.fn(),
 }));
 
 const holder = vi.hoisted(() => ({ ws: null as unknown as WSHarness }));
@@ -106,7 +106,7 @@ vi.mock("./useVoiceChat", () => ({
 
 vi.mock("../platform/sound", () => ({
     playMessageSound: mocks.playMessageSound,
-    playRemoteAudio: mocks.playRemoteAudio,
+    playAudio: mocks.playAudio,
 }));
 
 const viewer = makeUser({ id: "u1", username: "beatrice", display_name: "Beatrice" });

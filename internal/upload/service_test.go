@@ -210,17 +210,13 @@ func mustGIFBytes() []byte {
 	return buf.Bytes()
 }
 
-func bytesReader(b []byte) *bytes.Reader {
-	return bytes.NewReader(b)
-}
-
 func TestSaveImage_TooLarge(t *testing.T) {
 	// given
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
 	// when
-	_, err := svc.SaveImage(context.Background(), "images", id, 200, 100, bytesReader(pngMagic))
+	_, err := svc.SaveImage(context.Background(), "images", id, 200, 100, bytes.NewReader(pngMagic))
 
 	// then
 	require.Error(t, err)
@@ -232,21 +228,21 @@ func TestSaveImage_InvalidType(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
-	// when — PDF bytes should be rejected from image flow
-	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytesReader(pdfMagic))
+	// when: PDF bytes should be rejected from image flow
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytes.NewReader(pdfMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidFileType)
 }
 
 func TestSaveImage_RejectsSpoofedContentType(t *testing.T) {
-	// given — the caller used to pass "image/png" which we trusted.
+	// given: the caller used to pass "image/png" which we trusted.
 	// Now the bytes are what count, and these bytes are PDF.
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
 	// when
-	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytesReader(pdfMagic))
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pdfMagic)), 1024, bytes.NewReader(pdfMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidFileType)
@@ -271,7 +267,7 @@ func TestSaveImage_AllAllowedTypes(t *testing.T) {
 			id := uuid.New()
 
 			// when
-			url, err := svc.SaveImage(context.Background(), "images", id, int64(len(tc.body)), 1024, bytesReader(tc.body))
+			url, err := svc.SaveImage(context.Background(), "images", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
 
 			// then
 			require.NoError(t, err)
@@ -297,7 +293,7 @@ func TestSaveImage_ReplacesExistingFileWithSameIDPrefix(t *testing.T) {
 	require.NoError(t, os.WriteFile(oldFile, []byte("old"), 0644))
 
 	// when
-	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pngMagic)), 1024, bytesReader(pngMagic))
+	_, err := svc.SaveImage(context.Background(), "images", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
 
 	// then
 	require.NoError(t, err)
@@ -314,7 +310,7 @@ func TestSaveVideo_TooLarge(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	_, err := svc.SaveVideo(context.Background(), "videos", id, 200, 100, bytesReader(mp4Magic))
+	_, err := svc.SaveVideo(context.Background(), "videos", id, 200, 100, bytes.NewReader(mp4Magic))
 
 	// then
 	require.Error(t, err)
@@ -326,8 +322,8 @@ func TestSaveVideo_InvalidType(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
-	// when — image bytes in the video flow
-	_, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(pngMagic)), 1024, bytesReader(pngMagic))
+	// when: image bytes in the video flow
+	_, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(pngMagic)), 1024, bytes.NewReader(pngMagic))
 
 	// then
 	require.ErrorIs(t, err, ErrInvalidVideoType)
@@ -353,7 +349,7 @@ func TestSaveVideo_AllAllowedTypes(t *testing.T) {
 			id := uuid.New()
 
 			// when
-			url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(tc.body)), 1024, bytesReader(tc.body))
+			url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(tc.body)), 1024, bytes.NewReader(tc.body))
 
 			// then
 			require.NoError(t, err)
@@ -381,7 +377,7 @@ func TestDetectContentType_SniffsKnownFormats(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got, _, err := DetectContentType(bytesReader(tc.body))
+			got, _, err := DetectContentType(bytes.NewReader(tc.body))
 			require.NoError(t, err)
 			assert.Equal(t, tc.want, got)
 		})
@@ -392,7 +388,7 @@ func TestDetectContentType_WrappedReaderReplaysFullStream(t *testing.T) {
 	body := append([]byte{}, pngMagic...)
 	body = append(body, []byte("trailing-content-past-512-byte-sniff")...)
 
-	_, wrapped, err := DetectContentType(bytesReader(body))
+	_, wrapped, err := DetectContentType(bytes.NewReader(body))
 	require.NoError(t, err)
 
 	got, err := io.ReadAll(wrapped)
@@ -401,7 +397,7 @@ func TestDetectContentType_WrappedReaderReplaysFullStream(t *testing.T) {
 }
 
 func TestDetectContentType_StripsCharsetSuffix(t *testing.T) {
-	// text/plain sniff returns "text/plain; charset=utf-8" — we strip the charset.
+	// text/plain sniff returns "text/plain; charset=utf-8": we strip the charset.
 	got, _, err := DetectContentType(strings.NewReader("just plain text here"))
 	require.NoError(t, err)
 	assert.Equal(t, "text/plain", got)
@@ -413,7 +409,7 @@ func TestSaveImage_AviAliasNormalizedForVideo(t *testing.T) {
 	svc, _, _ := newTestService(t)
 	id := uuid.New()
 
-	url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(aviMagic)), 1024, bytesReader(aviMagic))
+	url, err := svc.SaveVideo(context.Background(), "videos", id, int64(len(aviMagic)), 1024, bytes.NewReader(aviMagic))
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(url, ".avi"))
 }
@@ -564,7 +560,7 @@ func TestSaveImage_WebPAvatarIsResizedNotSkipped(t *testing.T) {
 	id := uuid.New()
 
 	// when
-	urlPath, err := svc.SaveImage(context.Background(), "avatars", id, int64(len(body)), 10<<20, bytesReader(body))
+	urlPath, err := svc.SaveImage(context.Background(), "avatars", id, int64(len(body)), 10<<20, bytes.NewReader(body))
 
 	// then
 	require.NoError(t, err)
@@ -618,7 +614,7 @@ func TestSaveImage_AnimatedWebPIsAcceptedNotRejected(t *testing.T) {
 	svc := NewService(settingsSvc, media.NewProcessor(1)).(*service)
 
 	// when
-	urlPath, err := svc.SaveImage(context.Background(), "avatars", uuid.New(), int64(len(body)), 10<<20, bytesReader(body))
+	urlPath, err := svc.SaveImage(context.Background(), "avatars", uuid.New(), int64(len(body)), 10<<20, bytes.NewReader(body))
 
 	// then
 	require.NoError(t, err, "animated webp upload must not fail")

@@ -36,12 +36,8 @@ func newReportHarness(t *testing.T) (*testutil.Harness, reportDeps) {
 	return h, reportDeps{ReportService: rs}
 }
 
-func reportFactory(t *testing.T) (*testutil.Harness, reportDeps) {
-	return newReportHarness(t)
-}
-
 func TestCreateReport_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, reportFactory, "POST", "/report", report.CreateReportRequest{
+	testutil.RunAuthFailureSuite(t, newReportHarness, "POST", "/report", report.CreateReportRequest{
 		TargetType: "mystery",
 		TargetID:   uuid.NewString(),
 		Reason:     "spam",
@@ -137,7 +133,7 @@ func TestCreateReport_ServiceErrors(t *testing.T) {
 }
 
 func TestListReports_PermissionFailures(t *testing.T) {
-	testutil.RunPermissionFailureSuite(t, reportFactory, "GET", "/admin/reports", nil, authz.PermViewUsers)
+	testutil.RunPermissionFailureSuite(t, newReportHarness, "GET", "/admin/reports", nil, authz.PermViewUsers)
 }
 
 func TestListReports_OK(t *testing.T) {
@@ -198,7 +194,7 @@ func TestListReports_InternalError(t *testing.T) {
 }
 
 func TestResolveReport_PermissionFailures(t *testing.T) {
-	testutil.RunPermissionFailureSuite(t, reportFactory, "POST", "/admin/reports/42/resolve", nil, authz.PermViewUsers)
+	testutil.RunPermissionFailureSuite(t, newReportHarness, "POST", "/admin/reports/42/resolve", nil, authz.PermViewUsers)
 }
 
 func TestResolveReport_OK(t *testing.T) {

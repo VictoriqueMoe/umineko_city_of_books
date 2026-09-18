@@ -161,7 +161,7 @@ func TestGameRoomDAO_Scoreboard_OrdersByWinsThenWinDifferential(t *testing.T) {
 	// then
 	require.NoError(t, err)
 	require.Len(t, rows, 3)
-	assert.Equal(t, alice.ID, rows[0].UserID, "alice has 3 wins, 0 losses (diff=+3) — should rank first over carol's 3 wins, 0 losses (diff=+3) only by tiebreak; instead carol has 3 wins, 2 losses (diff=+1), so alice wins outright")
+	assert.Equal(t, alice.ID, rows[0].UserID, "alice has 3 wins, 0 losses (diff=+3) :  should rank first over carol's 3 wins, 0 losses (diff=+3) only by tiebreak; instead carol has 3 wins, 2 losses (diff=+1), so alice wins outright")
 	assert.Equal(t, carol.ID, rows[1].UserID)
 	assert.Equal(t, bob.ID, rows[2].UserID)
 }

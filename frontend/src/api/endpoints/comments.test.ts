@@ -17,11 +17,6 @@ interface CommentFamily {
     uploadMedia: (commentId: string, file: File) => Promise<unknown>;
 }
 
-vi.mock("../../platform/capabilities", () => ({
-    isNativeApp: () => false,
-    clientPlatform: () => "web",
-}));
-
 vi.mock("../client", async importOriginal => {
     const actual = await importOriginal<typeof import("../client")>();
     return {

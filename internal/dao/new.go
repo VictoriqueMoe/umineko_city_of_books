@@ -73,8 +73,6 @@ func NewArt(db *sql.DB) (ArtDAO, CommentDAO[uuid.UUID]) {
 	return d, d.commentDAO
 }
 
-func NewUpload(db *sql.DB) UploadDAO { return dynamicsql.NewUpload(db) }
-
 func NewBlock(db *sql.DB) BlockDAO { return &blockDAO{db: db} }
 
 func NewAnnouncement(db *sql.DB) (AnnouncementDAO, CommentDAO[uuid.UUID]) {
@@ -184,8 +182,6 @@ func NewHomeFeed(db *sql.DB) HomeFeedDAO { return &homeFeedDAO{db: db} }
 func NewSidebarVisited(db *sql.DB) SidebarLastVisitedDAO {
 	return &sidebarLastVisitedDAO{db: db}
 }
-
-func NewSearch(db *sql.DB) SearchDAO { return dynamicsql.NewSearch(db) }
 
 func NewSitemap(db *sql.DB) SitemapDAO { return &sitemapDAO{db: db} }
 

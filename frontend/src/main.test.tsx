@@ -11,7 +11,7 @@ const {
     initAppUpdates,
     watchInstallPrompt,
     getOtaManifest,
-    otaBundleUrl,
+    apiUrl,
     setPlatformErrorReporter,
 } = vi.hoisted(() => ({
     createRoot: vi.fn(),
@@ -21,14 +21,15 @@ const {
     initAppUpdates: vi.fn(),
     watchInstallPrompt: vi.fn(),
     getOtaManifest: vi.fn(),
-    otaBundleUrl: vi.fn(),
+    apiUrl: vi.fn(),
     setPlatformErrorReporter: vi.fn(),
 }));
 
 vi.mock("react-dom/client", () => ({ createRoot }));
 vi.mock("./api/telemetry", () => ({ reportClientError }));
 vi.mock("./api/authToken", () => ({ loadAuthToken }));
-vi.mock("./api/ota", () => ({ getOtaManifest, otaBundleUrl }));
+vi.mock("./api/origin", () => ({ apiUrl }));
+vi.mock("./api/ota", () => ({ getOtaManifest }));
 vi.mock("./platform/appUpdate", () => ({ initAppUpdates }));
 vi.mock("./platform/errorReporter", () => ({ setPlatformErrorReporter }));
 vi.mock("./platform/installPrompt", () => ({ watchInstallPrompt }));
@@ -156,7 +157,7 @@ describe("main", () => {
         await bootMain();
 
         // then
-        expect(initAppUpdates).toHaveBeenCalledWith({ getManifest: getOtaManifest, bundleUrl: otaBundleUrl });
+        expect(initAppUpdates).toHaveBeenCalledWith({ getManifest: getOtaManifest, bundleUrl: apiUrl });
     });
 
     it("points the platform layer at the same reporter as everything else", async () => {
@@ -170,16 +171,17 @@ describe("main", () => {
         expect(setPlatformErrorReporter).toHaveBeenCalledWith(reportClientError);
     });
 
-    it("boots anyway when the native token read fails, and does not report it", async () => {
+    it("boots anyway when the native token read fails, and reports it", async () => {
         // given
-        loadAuthToken.mockRejectedValue(new Error("preferences are unavailable"));
+        const failure = new Error("preferences are unavailable");
+        loadAuthToken.mockRejectedValue(failure);
 
         // when
         await bootMain();
 
         // then
         expect(renderRoot).toHaveBeenCalledTimes(1);
-        expect(reportClientError).not.toHaveBeenCalled();
+        expect(reportClientError).toHaveBeenCalledWith(failure, { source: "boot" });
     });
 
     it("reports a failure that stopped the boot chain", async () => {

@@ -94,7 +94,7 @@ func TestRecalculate_HappyPath(t *testing.T) {
 	// when
 	svc.Recalculate(context.Background(), theoryID)
 
-	// then — mock expectations asserted by cleanup
+	// then: mock expectations asserted by cleanup
 }
 
 func TestRecalculate_WeightsLookupErrorAborts(t *testing.T) {
@@ -106,7 +106,7 @@ func TestRecalculate_WeightsLookupErrorAborts(t *testing.T) {
 	// when
 	svc.Recalculate(context.Background(), theoryID)
 
-	// then — no UpdateCredibilityScore call expected
+	// then: no UpdateCredibilityScore call expected
 }
 
 func TestRecalculate_UpdateErrorSwallowed(t *testing.T) {
@@ -121,5 +121,5 @@ func TestRecalculate_UpdateErrorSwallowed(t *testing.T) {
 	// when
 	svc.Recalculate(context.Background(), theoryID)
 
-	// then — no panic, error swallowed
+	// then :  no panic, error swallowed
 }

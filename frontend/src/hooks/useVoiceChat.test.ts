@@ -55,10 +55,6 @@ vi.mock("livekit-client", () => {
     };
 });
 
-function emit(event: RealtimeEvent): void {
-    emitRealtimeEvent(event);
-}
-
 function renderVoice(roomId = "room-1", initialParticipants: string[] = []) {
     return renderHook(() => useVoiceChat(roomId, initialParticipants), { wrapper: providerWrapper() });
 }
@@ -98,7 +94,10 @@ describe("useVoiceChat", () => {
         const { result } = renderVoice("room-1", ["battler"]);
 
         // when
-        emit({ type: "voice_presence", data: { room_id: "room-1", participants: ["beatrice", "ronove"], count: 2 } });
+        emitRealtimeEvent({
+            type: "voice_presence",
+            data: { room_id: "room-1", participants: ["beatrice", "ronove"], count: 2 },
+        });
 
         // then
         expect(result.current.participantIds).toEqual(["beatrice", "ronove"]);
@@ -110,7 +109,10 @@ describe("useVoiceChat", () => {
         const { result } = renderVoice("room-1", ["battler"]);
 
         // when
-        emit({ type: "voice_presence", data: { room_id: "room-2", participants: ["beatrice"], count: 1 } });
+        emitRealtimeEvent({
+            type: "voice_presence",
+            data: { room_id: "room-2", participants: ["beatrice"], count: 1 },
+        });
 
         // then
         expect(result.current.participantIds).toEqual(["battler"]);
@@ -121,7 +123,7 @@ describe("useVoiceChat", () => {
         const { result } = renderVoice("room-1", ["battler"]);
 
         // when
-        emit({
+        emitRealtimeEvent({
             type: "chat_message",
             data: { room_id: "room-1", participants: [], count: 0 },
         } as unknown as RealtimeEvent);
@@ -135,7 +137,10 @@ describe("useVoiceChat", () => {
         const { result } = renderVoice("room-1", ["battler"]);
 
         // when
-        emit({ type: "voice_presence", data: { room_id: "room-1", count: 0 } } as unknown as RealtimeEvent);
+        emitRealtimeEvent({
+            type: "voice_presence",
+            data: { room_id: "room-1", count: 0 },
+        } as unknown as RealtimeEvent);
 
         // then
         expect(result.current.participantIds).toEqual([]);

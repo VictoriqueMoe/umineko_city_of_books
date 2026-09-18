@@ -38,27 +38,22 @@ interface FakeParticipant {
     setVolume: ReturnType<typeof vi.fn>;
 }
 
-function makeRemote(identity: string, name = ""): FakeParticipant {
-    return new mocks.RemoteParticipant(identity, name) as unknown as FakeParticipant;
-}
-
 function makeLocal(identity: string, name = ""): FakeParticipant {
     return { identity, name, isLocal: true, setVolume: vi.fn() };
 }
 
-function stubParticipants(participants: FakeParticipant[]): void {
-    mocks.useParticipants.mockReturnValue(participants);
-}
-
 beforeEach(() => {
     mocks.useIsSpeaking.mockReturnValue(false);
-    stubParticipants([]);
+    mocks.useParticipants.mockReturnValue([]);
 });
 
 describe("VoiceParticipantList", () => {
     it("names each person in the call, falling back to the identity when they have no name", () => {
         // given
-        stubParticipants([makeRemote("battler", "Battler"), makeRemote("ronove")]);
+        mocks.useParticipants.mockReturnValue([
+            new mocks.RemoteParticipant("battler", "Battler"),
+            new mocks.RemoteParticipant("ronove"),
+        ]);
 
         // when
         renderWithProviders(<VoiceParticipantList />);
@@ -70,7 +65,10 @@ describe("VoiceParticipantList", () => {
 
     it("offers no personal mute control on the viewer's own tile", () => {
         // given
-        stubParticipants([makeLocal("beatrice", "Beatrice"), makeRemote("battler", "Battler")]);
+        mocks.useParticipants.mockReturnValue([
+            makeLocal("beatrice", "Beatrice"),
+            new mocks.RemoteParticipant("battler", "Battler"),
+        ]);
 
         // when
         renderWithProviders(<VoiceParticipantList />);
@@ -81,8 +79,8 @@ describe("VoiceParticipantList", () => {
 
     it("silences a single person for the viewer alone", async () => {
         // given
-        const battler = makeRemote("battler", "Battler");
-        stubParticipants([battler]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        mocks.useParticipants.mockReturnValue([battler]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList />);
 
@@ -96,8 +94,8 @@ describe("VoiceParticipantList", () => {
 
     it("gives a personally muted person their volume back", async () => {
         // given
-        const battler = makeRemote("battler", "Battler");
-        stubParticipants([battler]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        mocks.useParticipants.mockReturnValue([battler]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList />);
         await user.click(screen.getByTitle("Mute them just for you"));
@@ -113,9 +111,9 @@ describe("VoiceParticipantList", () => {
     it("deafens every remote person and leaves the viewer's own tile alone", async () => {
         // given
         const local = makeLocal("beatrice", "Beatrice");
-        const battler = makeRemote("battler", "Battler");
-        const ronove = makeRemote("ronove", "Ronove");
-        stubParticipants([local, battler, ronove]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        const ronove = new mocks.RemoteParticipant("ronove", "Ronove");
+        mocks.useParticipants.mockReturnValue([local, battler, ronove]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList />);
 
@@ -131,9 +129,9 @@ describe("VoiceParticipantList", () => {
 
     it("keeps an individually muted person silent after undeafening", async () => {
         // given
-        const battler = makeRemote("battler", "Battler");
-        const ronove = makeRemote("ronove", "Ronove");
-        stubParticipants([battler, ronove]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        const ronove = new mocks.RemoteParticipant("ronove", "Ronove");
+        mocks.useParticipants.mockReturnValue([battler, ronove]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList />);
         await user.click(screen.getAllByTitle("Mute them just for you")[0]);
@@ -149,7 +147,10 @@ describe("VoiceParticipantList", () => {
 
     it("shows everyone as muted while deafened, whoever was muted individually", async () => {
         // given
-        stubParticipants([makeRemote("battler", "Battler"), makeRemote("ronove", "Ronove")]);
+        mocks.useParticipants.mockReturnValue([
+            new mocks.RemoteParticipant("battler", "Battler"),
+            new mocks.RemoteParticipant("ronove", "Ronove"),
+        ]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList />);
 
@@ -162,7 +163,7 @@ describe("VoiceParticipantList", () => {
 
     it("withholds the moderator mute from an ordinary member", () => {
         // given
-        stubParticipants([makeRemote("battler", "Battler")]);
+        mocks.useParticipants.mockReturnValue([new mocks.RemoteParticipant("battler", "Battler")]);
         const canModerate = false;
 
         // when
@@ -175,7 +176,7 @@ describe("VoiceParticipantList", () => {
 
     it("withholds the moderator mute when the parent supplied no handler", () => {
         // given
-        stubParticipants([makeRemote("battler", "Battler")]);
+        mocks.useParticipants.mockReturnValue([new mocks.RemoteParticipant("battler", "Battler")]);
 
         // when
         renderWithProviders(<VoiceParticipantList canModerate />);
@@ -186,7 +187,10 @@ describe("VoiceParticipantList", () => {
 
     it("never lets a moderator server mute their own tile", () => {
         // given
-        stubParticipants([makeLocal("beatrice", "Beatrice"), makeRemote("battler", "Battler")]);
+        mocks.useParticipants.mockReturnValue([
+            makeLocal("beatrice", "Beatrice"),
+            new mocks.RemoteParticipant("battler", "Battler"),
+        ]);
 
         // when
         renderWithProviders(<VoiceParticipantList canModerate onForceMute={vi.fn()} />);
@@ -198,7 +202,7 @@ describe("VoiceParticipantList", () => {
     it("asks the server to mute a person for everyone and then to unmute them", async () => {
         // given
         const onForceMute = vi.fn();
-        stubParticipants([makeRemote("battler", "Battler")]);
+        mocks.useParticipants.mockReturnValue([new mocks.RemoteParticipant("battler", "Battler")]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList canModerate onForceMute={onForceMute} />);
 
@@ -214,7 +218,10 @@ describe("VoiceParticipantList", () => {
     it("leaves the server mute of one person untouched when another is muted", async () => {
         // given
         const onForceMute = vi.fn();
-        stubParticipants([makeRemote("battler", "Battler"), makeRemote("ronove", "Ronove")]);
+        mocks.useParticipants.mockReturnValue([
+            new mocks.RemoteParticipant("battler", "Battler"),
+            new mocks.RemoteParticipant("ronove", "Ronove"),
+        ]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList canModerate onForceMute={onForceMute} />);
 
@@ -228,8 +235,8 @@ describe("VoiceParticipantList", () => {
 
     it("does not silence anybody for the viewer when a person is server muted", async () => {
         // given
-        const battler = makeRemote("battler", "Battler");
-        stubParticipants([battler]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        mocks.useParticipants.mockReturnValue([battler]);
         const user = userEvent.setup();
         renderWithProviders(<VoiceParticipantList canModerate onForceMute={vi.fn()} />);
 
@@ -242,15 +249,15 @@ describe("VoiceParticipantList", () => {
 
     it("silences somebody who arrives after everyone was already deafened", async () => {
         // given
-        const battler = makeRemote("battler", "Battler");
-        stubParticipants([battler]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        mocks.useParticipants.mockReturnValue([battler]);
         const user = userEvent.setup();
         const { rerender } = renderWithProviders(<VoiceParticipantList />);
         await user.click(screen.getByRole("button", { name: "Mute all" }));
 
         // when
-        const ronove = makeRemote("ronove", "Ronove");
-        stubParticipants([battler, ronove]);
+        const ronove = new mocks.RemoteParticipant("ronove", "Ronove");
+        mocks.useParticipants.mockReturnValue([battler, ronove]);
         rerender(<VoiceParticipantList />);
 
         // then
@@ -260,15 +267,15 @@ describe("VoiceParticipantList", () => {
 
     it("keeps an individually muted person silent when their tile is replaced", async () => {
         // given
-        const battler = makeRemote("battler", "Battler");
-        stubParticipants([battler]);
+        const battler = new mocks.RemoteParticipant("battler", "Battler");
+        mocks.useParticipants.mockReturnValue([battler]);
         const user = userEvent.setup();
         const { rerender } = renderWithProviders(<VoiceParticipantList />);
         await user.click(screen.getByTitle("Mute them just for you"));
 
         // when
-        const rejoined = makeRemote("battler", "Battler");
-        stubParticipants([rejoined]);
+        const rejoined = new mocks.RemoteParticipant("battler", "Battler");
+        mocks.useParticipants.mockReturnValue([rejoined]);
         rerender(<VoiceParticipantList />);
 
         // then

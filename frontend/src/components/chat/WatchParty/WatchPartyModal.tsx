@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { RoomAudioRenderer, RoomContext } from "@livekit/components-react";
+import { RoomAudioRenderer, RoomContext, useParticipants } from "@livekit/components-react";
 import { Button } from "../../Button/Button";
 import type { SiteRole } from "../../../types/api";
 import { siteUrl } from "../../../platform/siteOrigin";
@@ -8,8 +8,10 @@ import { errorMessage } from "../../../utils/errorMessage";
 import { VoiceParticipantList } from "../Voice/VoiceParticipants";
 import type { ActiveWatchPartySession } from "../../../hooks/useWatchParty";
 import { ScreenShareView } from "./ScreenShareView";
+import { WatchPartyMobileView } from "./WatchPartyMobileView";
 import { useAudioPlaybackGuard } from "./useAudioPlaybackGuard";
 import { useHyperbeamEmbed } from "../../../hooks/useHyperbeamEmbed";
+import { useIsMobile } from "../../../hooks/useIsMobile";
 import { useForceMuteWatchPartyVoiceParticipant } from "../../../hooks/mutations/watchParty";
 import { FORCE_MUTE_FAILED } from "../../../hooks/mutations/chat";
 import { useSessionMedia, type ScreenShareMode } from "../../../hooks/useSessionMedia";
@@ -18,6 +20,21 @@ import { WatchPartyParticipants } from "./WatchPartyParticipants";
 import styles from "./WatchParty.module.css";
 
 export { FORCE_MUTE_FAILED };
+
+interface VoiceCountReporterProps {
+    onChange: (count: number) => void;
+}
+
+function VoiceCountReporter({ onChange }: VoiceCountReporterProps) {
+    const participants = useParticipants();
+    const count = participants.length;
+
+    useEffect(() => {
+        onChange(count);
+    }, [count, onChange]);
+
+    return null;
+}
 
 interface WatchPartyModalProps {
     isOpen: boolean;
@@ -53,6 +70,8 @@ export function WatchPartyModal({
     const [busy, setBusy] = useState(false);
     const [copied, setCopied] = useState(false);
     const [shareMode, setShareMode] = useState<ScreenShareMode>("gaming");
+    const [voiceCount, setVoiceCount] = useState(0);
+    const isMobile = useIsMobile();
     const { session, embedURL, hasControl } = active;
 
     const { wrapRef, mountError } = useHyperbeamEmbed({ embedURL, isOpen, hasControl, onIdentify });
@@ -85,7 +104,7 @@ export function WatchPartyModal({
         forceMute.mutate({ sessionId: session.id, userId: identity, muted });
     };
 
-    const mediaRef = useRef<HTMLElement | null>(null);
+    const mediaRef = useRef<HTMLDivElement | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
     useEffect(() => {
@@ -130,6 +149,232 @@ export function WatchPartyModal({
         }
     };
 
+    const title = session.title || "Untitled party";
+    const canEnd = isStarter || viewerIsStaff;
+    const fullscreenLabel = isFullscreen ? "Exit fullscreen" : "Fullscreen";
+
+    const fullscreenControl = (
+        <button
+            type="button"
+            className={isMobile ? `${styles.fullscreenBtn} ${styles.iconBtn}` : styles.fullscreenBtn}
+            onClick={toggleFullscreen}
+            title={fullscreenLabel}
+            aria-label={fullscreenLabel}
+        >
+            {isMobile ? "⛶" : fullscreenLabel}
+        </button>
+    );
+
+    const screenBody = media.room ? (
+        <RoomContext.Provider value={media.room}>
+            <ScreenShareView
+                compact={isMobile}
+                placeholder={
+                    isStarter ? "Click Share screen to start sharing." : "Waiting for the host to share their screen."
+                }
+                onReload={() => {
+                    media.reload().catch(() => {});
+                }}
+            />
+        </RoomContext.Provider>
+    ) : (
+        <div className={styles.empty}>Connecting...</div>
+    );
+
+    const browserBody = (
+        <>
+            {!embedURL && <div className={styles.empty}>Loading virtual browser...</div>}
+            {mountError && (
+                <div className={styles.mountError}>
+                    <div className={styles.mountErrorTitle}>Virtual browser failed to connect</div>
+                    <div className={styles.mountErrorBody}>{mountError}</div>
+                    <div className={styles.mountErrorHint}>
+                        The VM may have expired. Try ending this party and starting a fresh one.
+                    </div>
+                </div>
+            )}
+        </>
+    );
+
+    const voiceToggle = media.inVoice ? (
+        <Button
+            variant="secondary"
+            size="small"
+            onClick={() => {
+                media.leaveVoice().catch(() => {});
+            }}
+        >
+            Leave voice
+        </Button>
+    ) : (
+        <Button
+            variant="primary"
+            size="small"
+            disabled={media.status === "connecting"}
+            onClick={() => {
+                media.joinVoice().catch(() => {});
+            }}
+        >
+            Join voice
+        </Button>
+    );
+
+    const shareControls =
+        isScreenShare && isStarter ? (
+            media.isSharing ? (
+                <Button
+                    variant="ghost"
+                    size="small"
+                    onClick={() => {
+                        media.shareScreen(false, shareMode);
+                    }}
+                >
+                    Stop sharing
+                </Button>
+            ) : (
+                <div className={styles.shareControls}>
+                    <div className={styles.shareModeToggle} role="group" aria-label="Stream mode">
+                        <button
+                            type="button"
+                            className={`${styles.shareMode} ${shareMode === "gaming" ? styles.shareModeActive : ""}`}
+                            onClick={() => setShareMode("gaming")}
+                            title="Smoother video, 1080p 60fps. Best for games and video."
+                        >
+                            Gaming
+                        </button>
+                        <button
+                            type="button"
+                            className={`${styles.shareMode} ${shareMode === "screenshare" ? styles.shareModeActive : ""}`}
+                            onClick={() => setShareMode("screenshare")}
+                            title="Clearer text, 1080p 15fps. Best for documents or code."
+                        >
+                            Screenshare
+                        </button>
+                    </div>
+                    <Button
+                        variant="ghost"
+                        size="small"
+                        onClick={() => {
+                            media.shareScreen(true, shareMode);
+                        }}
+                    >
+                        Share screen
+                    </Button>
+                </div>
+            )
+        ) : null;
+
+    const audioSink =
+        voiceEnabled && media.room ? (
+            <RoomContext.Provider value={media.room}>
+                <RoomAudioRenderer />
+                <VoiceCountReporter onChange={setVoiceCount} />
+            </RoomContext.Provider>
+        ) : null;
+
+    const voiceRoster =
+        voiceEnabled && media.room ? (
+            <RoomContext.Provider value={media.room}>
+                <VoiceParticipantList canModerate={canModerate} onForceMute={forceMuteVoice} />
+            </RoomContext.Provider>
+        ) : null;
+
+    const shareAlert = media.shareError ? (
+        <span className={styles.voiceError} role="alert">
+            {media.shareError}
+        </span>
+    ) : null;
+
+    const muteAlert = forceMute.error ? (
+        <span className={styles.voiceError} role="alert">
+            {errorMessage(forceMute.error, FORCE_MUTE_FAILED)}
+        </span>
+    ) : null;
+
+    if (isMobile) {
+        const stage = (
+            <>
+                {isScreenShare ? (
+                    <div className={styles.mobileMedia}>
+                        {screenBody}
+                        {fullscreenControl}
+                    </div>
+                ) : (
+                    <div className={styles.mobileMedia} ref={wrapRef}>
+                        {browserBody}
+                    </div>
+                )}
+                {audioSink}
+            </>
+        );
+
+        const chat = (
+            <RoomChatPanel
+                roomId={session.id}
+                title="Party chat"
+                canSend
+                loginPrompt="to join the party chat."
+                flush
+                hideHeader
+            />
+        );
+
+        const voice = (
+            <div className={styles.mobileVoice}>
+                <div className={styles.mobileVoiceActions}>
+                    {voiceEnabled && voiceToggle}
+                    {shareControls}
+                </div>
+                {shareAlert}
+                {muteAlert}
+                {voiceEnabled ? (
+                    <div className={styles.voiceRoster}>{voiceRoster}</div>
+                ) : (
+                    <div className={styles.mobileNotice}>Voice chat is switched off for this site.</div>
+                )}
+            </div>
+        );
+
+        const people = (
+            <WatchPartyParticipants
+                layout="list"
+                participants={session.participants}
+                viewerUserId={viewerUserId}
+                viewerRole={viewerRole}
+                viewerHasControl={hasControl}
+                ownerUserId={session.started_by}
+                onTransferControl={onTransferControl}
+                onKick={onKick}
+            />
+        );
+
+        return createPortal(
+            <div className={`${styles.overlay} ${styles.overlayMobile}`}>
+                <div className={`${styles.shell} ${styles.shellMobile}`}>
+                    <WatchPartyMobileView
+                        title={title}
+                        hasControl={hasControl}
+                        canEnd={canEnd}
+                        busy={busy}
+                        copied={copied}
+                        watcherCount={session.participants.length}
+                        voiceCount={voiceCount}
+                        onCopyInvite={handleCopyInvite}
+                        onHide={onClose}
+                        onLeave={handleLeave}
+                        onEnd={handleEnd}
+                        stageRef={mediaRef}
+                        stage={stage}
+                        chat={chat}
+                        voice={voice}
+                        people={people}
+                    />
+                </div>
+            </div>,
+            document.body,
+        );
+    }
+
     return createPortal(
         <div className={styles.overlay}>
             <div className={styles.shell}>
@@ -137,7 +382,7 @@ export function WatchPartyModal({
                     <div className={styles.headerTitle}>
                         <span className={styles.headerLabel}>Watch party</span>
                         <span dir="auto" className={styles.headerName}>
-                            {session.title || "Untitled party"}
+                            {title}
                         </span>
                     </div>
                     <div className={styles.headerActions}>
@@ -165,7 +410,7 @@ export function WatchPartyModal({
                         <Button variant="secondary" size="small" onClick={handleLeave} disabled={busy}>
                             Leave
                         </Button>
-                        {(isStarter || viewerIsStaff) && (
+                        {canEnd && (
                             <Button variant="danger" size="small" onClick={handleEnd} disabled={busy}>
                                 End for everyone
                             </Button>
@@ -174,45 +419,14 @@ export function WatchPartyModal({
                 </header>
                 <div className={styles.body}>
                     {isScreenShare ? (
-                        <section className={styles.iframeWrap} ref={mediaRef}>
-                            {media.room ? (
-                                <RoomContext.Provider value={media.room}>
-                                    <ScreenShareView
-                                        placeholder={
-                                            isStarter
-                                                ? "Click Share screen to start sharing."
-                                                : "Waiting for the host to share their screen."
-                                        }
-                                        onReload={() => {
-                                            media.reload().catch(() => {});
-                                        }}
-                                    />
-                                </RoomContext.Provider>
-                            ) : (
-                                <div className={styles.empty}>Connecting...</div>
-                            )}
-                            <button
-                                type="button"
-                                className={styles.fullscreenBtn}
-                                onClick={toggleFullscreen}
-                                title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                            >
-                                {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-                            </button>
-                        </section>
+                        <div className={styles.iframeWrap} ref={mediaRef}>
+                            {screenBody}
+                            {fullscreenControl}
+                        </div>
                     ) : (
-                        <section className={styles.iframeWrap} ref={wrapRef}>
-                            {!embedURL && <div className={styles.empty}>Loading virtual browser...</div>}
-                            {mountError && (
-                                <div className={styles.mountError}>
-                                    <div className={styles.mountErrorTitle}>Virtual browser failed to connect</div>
-                                    <div className={styles.mountErrorBody}>{mountError}</div>
-                                    <div className={styles.mountErrorHint}>
-                                        The VM may have expired. Try ending this party and starting a fresh one.
-                                    </div>
-                                </div>
-                            )}
-                        </section>
+                        <div className={styles.iframeWrap} ref={wrapRef}>
+                            {browserBody}
+                        </div>
                     )}
                     <div className={styles.chatPanel}>
                         <RoomChatPanel
@@ -228,87 +442,13 @@ export function WatchPartyModal({
                         <div className={styles.voiceStrip}>
                             <div className={styles.voiceControls}>
                                 <span className={styles.voiceStripLabel}>{"\u{1F50A}"} Voice</span>
-                                {media.inVoice ? (
-                                    <Button
-                                        variant="secondary"
-                                        size="small"
-                                        onClick={() => {
-                                            media.leaveVoice().catch(() => {});
-                                        }}
-                                    >
-                                        Leave voice
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        variant="primary"
-                                        size="small"
-                                        disabled={media.status === "connecting"}
-                                        onClick={() => {
-                                            media.joinVoice().catch(() => {});
-                                        }}
-                                    >
-                                        Join voice
-                                    </Button>
-                                )}
-                                {isScreenShare &&
-                                    isStarter &&
-                                    (media.isSharing ? (
-                                        <Button
-                                            variant="ghost"
-                                            size="small"
-                                            onClick={() => {
-                                                media.shareScreen(false, shareMode).catch(() => {});
-                                            }}
-                                        >
-                                            Stop sharing
-                                        </Button>
-                                    ) : (
-                                        <div className={styles.shareControls}>
-                                            <div
-                                                className={styles.shareModeToggle}
-                                                role="group"
-                                                aria-label="Stream mode"
-                                            >
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.shareMode} ${shareMode === "gaming" ? styles.shareModeActive : ""}`}
-                                                    onClick={() => setShareMode("gaming")}
-                                                    title="Smoother video, 1080p 60fps. Best for games and video."
-                                                >
-                                                    Gaming
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    className={`${styles.shareMode} ${shareMode === "screenshare" ? styles.shareModeActive : ""}`}
-                                                    onClick={() => setShareMode("screenshare")}
-                                                    title="Clearer text, 1080p 15fps. Best for documents or code."
-                                                >
-                                                    Screenshare
-                                                </button>
-                                            </div>
-                                            <Button
-                                                variant="ghost"
-                                                size="small"
-                                                onClick={() => {
-                                                    media.shareScreen(true, shareMode).catch(() => {});
-                                                }}
-                                            >
-                                                Share screen
-                                            </Button>
-                                        </div>
-                                    ))}
+                                {voiceToggle}
+                                {shareControls}
                             </div>
-                            {media.room && (
-                                <RoomContext.Provider value={media.room}>
-                                    <RoomAudioRenderer />
-                                    <VoiceParticipantList canModerate={canModerate} onForceMute={forceMuteVoice} />
-                                </RoomContext.Provider>
-                            )}
-                            {forceMute.error && (
-                                <span className={styles.voiceError} role="alert">
-                                    {errorMessage(forceMute.error, FORCE_MUTE_FAILED)}
-                                </span>
-                            )}
+                            {shareAlert}
+                            {audioSink}
+                            {voiceRoster}
+                            {muteAlert}
                         </div>
                     )}
                     <WatchPartyParticipants

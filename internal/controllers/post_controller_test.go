@@ -42,10 +42,6 @@ func newPostHarness(t *testing.T) (*testutil.Harness, postDeps) {
 	return h, deps
 }
 
-func postFactory(t *testing.T) (*testutil.Harness, postDeps) {
-	return newPostHarness(t)
-}
-
 func TestListPostFeed_Anonymous_OK(t *testing.T) {
 	// given
 	h, deps := newPostHarness(t)
@@ -136,7 +132,7 @@ func TestGetCornerCounts_InternalError(t *testing.T) {
 }
 
 func TestCreatePost_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/posts", dto.CreatePostRequest{Body: "hi"})
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/posts", dto.CreatePostRequest{Body: "hi"})
 }
 
 func TestCreatePost_OK(t *testing.T) {
@@ -287,7 +283,7 @@ func TestGetPost_InternalError(t *testing.T) {
 }
 
 func TestUpdatePost_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "PUT", "/posts/"+uuid.NewString(), dto.UpdatePostRequest{Body: "x"})
+	testutil.RunAuthFailureSuite(t, newPostHarness, "PUT", "/posts/"+uuid.NewString(), dto.UpdatePostRequest{Body: "x"})
 }
 
 func TestUpdatePost_OK(t *testing.T) {
@@ -374,7 +370,7 @@ func TestUpdatePost_ServiceErrors(t *testing.T) {
 }
 
 func TestDeletePost_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/posts/"+uuid.NewString(), nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/posts/"+uuid.NewString(), nil)
 }
 
 func TestDeletePost_OK(t *testing.T) {
@@ -422,7 +418,7 @@ func TestDeletePost_InternalError(t *testing.T) {
 }
 
 func TestUploadPostMedia_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/posts/"+uuid.NewString()+"/media", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/posts/"+uuid.NewString()+"/media", nil)
 }
 
 func TestUploadPostMedia_InvalidID(t *testing.T) {
@@ -455,7 +451,7 @@ func TestUploadPostMedia_NoFile(t *testing.T) {
 }
 
 func TestDeletePostMedia_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/posts/"+uuid.NewString()+"/media/42", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/posts/"+uuid.NewString()+"/media/42", nil)
 }
 
 func TestDeletePostMedia_OK(t *testing.T) {
@@ -517,7 +513,7 @@ func TestDeletePostMedia_InternalError(t *testing.T) {
 }
 
 func TestLikePost_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/posts/"+uuid.NewString()+"/like", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/posts/"+uuid.NewString()+"/like", nil)
 }
 
 func TestLikePost_OK(t *testing.T) {
@@ -579,7 +575,7 @@ func TestLikePost_ServiceErrors(t *testing.T) {
 }
 
 func TestUnlikePost_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/posts/"+uuid.NewString()+"/like", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/posts/"+uuid.NewString()+"/like", nil)
 }
 
 func TestUnlikePost_OK(t *testing.T) {
@@ -627,7 +623,7 @@ func TestUnlikePost_InternalError(t *testing.T) {
 }
 
 func TestCreateComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/posts/"+uuid.NewString()+"/comments",
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/posts/"+uuid.NewString()+"/comments",
 		dto.CreateCommentRequest{Body: "hi"})
 }
 
@@ -719,7 +715,7 @@ func TestCreateComment_ServiceErrors(t *testing.T) {
 }
 
 func TestUpdateComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "PUT", "/comments/"+uuid.NewString(),
+	testutil.RunAuthFailureSuite(t, newPostHarness, "PUT", "/comments/"+uuid.NewString(),
 		dto.UpdateCommentRequest{Body: "x"})
 }
 
@@ -807,7 +803,7 @@ func TestUpdateComment_ServiceErrors(t *testing.T) {
 }
 
 func TestDeleteComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/comments/"+uuid.NewString(), nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/comments/"+uuid.NewString(), nil)
 }
 
 func TestDeleteComment_OK(t *testing.T) {
@@ -855,7 +851,7 @@ func TestDeleteComment_InternalError(t *testing.T) {
 }
 
 func TestUploadCommentMedia_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/comments/"+uuid.NewString()+"/media", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/comments/"+uuid.NewString()+"/media", nil)
 }
 
 func TestUploadCommentMedia_InvalidID(t *testing.T) {
@@ -888,7 +884,7 @@ func TestUploadCommentMedia_NoFile(t *testing.T) {
 }
 
 func TestLikeComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/comments/"+uuid.NewString()+"/like", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/comments/"+uuid.NewString()+"/like", nil)
 }
 
 func TestLikeComment_OK(t *testing.T) {
@@ -950,7 +946,7 @@ func TestLikeComment_ServiceErrors(t *testing.T) {
 }
 
 func TestUnlikeComment_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/comments/"+uuid.NewString()+"/like", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/comments/"+uuid.NewString()+"/like", nil)
 }
 
 func TestUnlikeComment_OK(t *testing.T) {
@@ -1053,7 +1049,7 @@ func TestListUserPosts_InternalError(t *testing.T) {
 }
 
 func TestFollowUser_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/users/"+uuid.NewString()+"/follow", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/users/"+uuid.NewString()+"/follow", nil)
 }
 
 func TestFollowUser_OK(t *testing.T) {
@@ -1116,7 +1112,7 @@ func TestFollowUser_ServiceErrors(t *testing.T) {
 }
 
 func TestUnfollowUser_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/users/"+uuid.NewString()+"/follow", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/users/"+uuid.NewString()+"/follow", nil)
 }
 
 func TestUnfollowUser_OK(t *testing.T) {
@@ -1323,7 +1319,7 @@ func TestGetFollowing_InternalError(t *testing.T) {
 }
 
 func TestVotePoll_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/posts/"+uuid.NewString()+"/poll/vote",
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/posts/"+uuid.NewString()+"/poll/vote",
 		dto.VotePollRequest{OptionID: 1})
 }
 
@@ -1415,7 +1411,7 @@ func TestVotePoll_ServiceErrors(t *testing.T) {
 }
 
 func TestResolveSuggestion_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "POST", "/posts/"+uuid.NewString()+"/resolve", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "POST", "/posts/"+uuid.NewString()+"/resolve", nil)
 }
 
 func TestResolveSuggestion_OK_DefaultStatus(t *testing.T) {
@@ -1488,7 +1484,7 @@ func TestResolveSuggestion_ServiceError(t *testing.T) {
 }
 
 func TestUnresolveSuggestion_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, postFactory, "DELETE", "/posts/"+uuid.NewString()+"/resolve", nil)
+	testutil.RunAuthFailureSuite(t, newPostHarness, "DELETE", "/posts/"+uuid.NewString()+"/resolve", nil)
 }
 
 func TestUnresolveSuggestion_OK(t *testing.T) {

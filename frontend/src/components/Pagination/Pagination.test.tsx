@@ -4,8 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { Pagination } from "./Pagination";
 
-function noop() {}
-
 describe("Pagination", () => {
     it("renders nothing when there is nothing to page through", () => {
         // given
@@ -19,8 +17,8 @@ describe("Pagination", () => {
                 total={total}
                 hasNext={false}
                 hasPrev={false}
-                onNext={noop}
-                onPrev={noop}
+                onNext={vi.fn()}
+                onPrev={vi.fn()}
             />,
         );
 
@@ -34,7 +32,7 @@ describe("Pagination", () => {
 
         // when
         renderWithProviders(
-            <Pagination offset={offset} limit={10} total={57} hasNext hasPrev onNext={noop} onPrev={noop} />,
+            <Pagination offset={offset} limit={10} total={57} hasNext hasPrev onNext={vi.fn()} onPrev={vi.fn()} />,
         );
 
         // then
@@ -47,7 +45,15 @@ describe("Pagination", () => {
 
         // when
         renderWithProviders(
-            <Pagination offset={offset} limit={10} total={57} hasNext={false} hasPrev onNext={noop} onPrev={noop} />,
+            <Pagination
+                offset={offset}
+                limit={10}
+                total={57}
+                hasNext={false}
+                hasPrev
+                onNext={vi.fn()}
+                onPrev={vi.fn()}
+            />,
         );
 
         // then
@@ -60,7 +66,7 @@ describe("Pagination", () => {
 
         // when
         renderWithProviders(
-            <Pagination offset={0} limit={10} total={57} hasNext hasPrev={hasPrev} onNext={noop} onPrev={noop} />,
+            <Pagination offset={0} limit={10} total={57} hasNext hasPrev={hasPrev} onNext={vi.fn()} onPrev={vi.fn()} />,
         );
 
         // then
@@ -73,7 +79,7 @@ describe("Pagination", () => {
         const onNext = vi.fn();
         const user = userEvent.setup();
         renderWithProviders(
-            <Pagination offset={0} limit={10} total={57} hasNext hasPrev={false} onNext={onNext} onPrev={noop} />,
+            <Pagination offset={0} limit={10} total={57} hasNext hasPrev={false} onNext={onNext} onPrev={vi.fn()} />,
         );
 
         // when
@@ -95,8 +101,8 @@ describe("Pagination", () => {
                 total={57}
                 hasNext
                 hasPrev
-                onNext={noop}
-                onPrev={noop}
+                onNext={vi.fn()}
+                onPrev={vi.fn()}
                 onFirst={onFirst}
             />,
         );

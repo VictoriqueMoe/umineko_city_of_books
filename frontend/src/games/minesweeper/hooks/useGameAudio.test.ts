@@ -10,7 +10,7 @@ const DLANOR_LOSE_TO_ERIKA = `${VOICE}/47/64600077`;
 const BERN_LOSE = `${VOICE}/28/82100692`;
 
 const created: FakeAudio[] = [];
-let playResult: () => Promise<void> = () => Promise.resolve();
+const playResult = vi.fn<() => Promise<void>>();
 
 class FakeAudio {
     src: string;
@@ -64,7 +64,8 @@ function setup(props: Partial<HookProps> = {}) {
 
 beforeEach(() => {
     created.length = 0;
-    playResult = () => Promise.resolve();
+    playResult.mockReset();
+    playResult.mockResolvedValue(undefined);
     vi.stubGlobal("Audio", FakeAudio);
 });
 
@@ -169,7 +170,7 @@ describe("useGameAudio", () => {
 
     it("reports nothing playing when the browser refuses to start the clip", async () => {
         // given
-        playResult = () => Promise.reject(new Error("autoplay is blocked"));
+        playResult.mockRejectedValue(new Error("autoplay is blocked"));
         const { result } = setup();
 
         // when

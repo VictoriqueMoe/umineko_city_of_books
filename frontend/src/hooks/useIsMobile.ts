@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { isNativeApp } from "../platform/capabilities";
+import { Capacitor } from "@capacitor/core";
 
 export const MOBILE_QUERY = "(max-width: 960px)";
 
 function readIsMobile(): boolean {
-    if (isNativeApp()) {
+    if (Capacitor.isNativePlatform()) {
         return true;
     }
 
@@ -16,7 +16,7 @@ function readIsMobile(): boolean {
 }
 
 export function useIsMobile(): boolean {
-    const native = isNativeApp();
+    const native = Capacitor.isNativePlatform();
     const [isMobile, setIsMobile] = useState(readIsMobile);
 
     useEffect(() => {

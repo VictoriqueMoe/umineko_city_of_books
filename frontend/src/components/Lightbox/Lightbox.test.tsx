@@ -6,8 +6,6 @@ import { Lightbox } from "./Lightbox";
 
 const SRC = "https://waifuvault.moe/f/beatrice.png";
 
-function noop() {}
-
 afterEach(() => {
     document.body.style.overflow = "";
 });
@@ -18,7 +16,7 @@ describe("Lightbox", () => {
         const alt = "the golden truth";
 
         // when
-        renderWithProviders(<Lightbox src={SRC} alt={alt} onClose={noop} />);
+        renderWithProviders(<Lightbox src={SRC} alt={alt} onClose={vi.fn()} />);
 
         // then
         const dialog = screen.getByRole("dialog");
@@ -97,7 +95,7 @@ describe("Lightbox", () => {
         const user = userEvent.setup();
         renderWithProviders(
             <div onClick={onBackdropClick}>
-                <Lightbox src={SRC} onClose={noop} />
+                <Lightbox src={SRC} onClose={vi.fn()} />
             </div>,
         );
 
@@ -111,7 +109,7 @@ describe("Lightbox", () => {
     it("locks the page behind it and restores the previous scrolling on close", () => {
         // given
         document.body.style.overflow = "scroll";
-        const { unmount } = renderWithProviders(<Lightbox src={SRC} onClose={noop} />);
+        const { unmount } = renderWithProviders(<Lightbox src={SRC} onClose={vi.fn()} />);
         expect(document.body.style.overflow).toBe("hidden");
 
         // when

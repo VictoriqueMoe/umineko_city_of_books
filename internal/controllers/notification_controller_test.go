@@ -129,7 +129,7 @@ func TestMarkNotificationRead_OK(t *testing.T) {
 }
 
 func TestMarkNotificationRead_InvalidID(t *testing.T) {
-	// given — non-int id should not match the :id<int> route constraint.
+	// given: non-int id should not match the :id<int> route constraint.
 	h, _ := newNotificationHarness(t)
 	h.ExpectValidSession("valid-cookie", uuid.New())
 

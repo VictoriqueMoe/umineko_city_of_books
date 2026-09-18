@@ -4,10 +4,12 @@ import { createTestQueryClient, renderWithProviders } from "../../test-utils/ren
 import { PullToRefresh } from "./PullToRefresh";
 
 const mocks = vi.hoisted(() => ({
-    isNativeApp: vi.fn(),
+    isNativePlatform: vi.fn(),
 }));
 
-vi.mock("../../platform/capabilities", () => ({ isNativeApp: mocks.isNativeApp }));
+vi.mock("@capacitor/core", () => ({
+    Capacitor: { isNativePlatform: mocks.isNativePlatform, getPlatform: () => "web" },
+}));
 
 function touches(...ys: number[]) {
     return ys.map(clientY => ({ clientX: 0, clientY }));
@@ -40,7 +42,7 @@ async function settleRefresh(): Promise<void> {
 describe("PullToRefresh", () => {
     beforeEach(() => {
         vi.useFakeTimers();
-        mocks.isNativeApp.mockReturnValue(true);
+        mocks.isNativePlatform.mockReturnValue(true);
         setScrollY(0);
     });
 
@@ -159,7 +161,7 @@ describe("PullToRefresh", () => {
 
     it("ignores touches entirely outside the native app", () => {
         // given
-        mocks.isNativeApp.mockReturnValue(false);
+        mocks.isNativePlatform.mockReturnValue(false);
         const { indicator, refetchQueries } = renderPullToRefresh();
 
         // when

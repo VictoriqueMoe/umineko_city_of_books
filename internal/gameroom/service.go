@@ -24,6 +24,7 @@ const (
 	idleGameTimeout       = 10 * time.Minute
 	maxChatMessages       = 200
 	maxChatBodyLen        = 500
+	chatTimestampLayout   = "2006-01-02T15:04:05.000Z07:00"
 )
 
 type (

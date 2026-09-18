@@ -4,6 +4,8 @@ import { sendWatchPartyLeaveBeacon } from "./watchPartyLeave";
 
 const capacitor = vi.hoisted(() => ({ native: false, platform: "web" }));
 
+const { reportClientError } = vi.hoisted(() => ({ reportClientError: vi.fn() }));
+
 vi.mock("@capacitor/core", () => ({
     Capacitor: {
         isNativePlatform: () => capacitor.native,
@@ -19,6 +21,8 @@ vi.mock("@capacitor/preferences", () => ({
     },
 }));
 
+vi.mock("../telemetry", () => ({ reportClientError }));
+
 function stubFetch(): ReturnType<typeof vi.fn<typeof fetch>> {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -28,6 +32,7 @@ function stubFetch(): ReturnType<typeof vi.fn<typeof fetch>> {
 beforeEach(() => {
     capacitor.native = false;
     capacitor.platform = "web";
+    reportClientError.mockReset();
 });
 
 describe("sendWatchPartyLeaveBeacon", () => {
@@ -83,9 +88,10 @@ describe("sendWatchPartyLeaveBeacon", () => {
         });
     });
 
-    it("catches a rejected beacon, because an unloading page has nowhere to report it", async () => {
+    it("reports a rejected beacon rather than swallowing it", async () => {
         // given
-        const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(new Error("network gone"));
+        const failure = new Error("network gone");
+        const fetchMock = vi.fn<typeof fetch>().mockRejectedValue(failure);
         vi.stubGlobal("fetch", fetchMock);
 
         // when
@@ -94,18 +100,21 @@ describe("sendWatchPartyLeaveBeacon", () => {
 
         // then
         expect(fetchMock).toHaveBeenCalledOnce();
+        expect(reportClientError).toHaveBeenCalledWith(failure, { source: "caught" });
     });
 
-    it("survives a transport that throws before it ever returns a promise", () => {
+    it("survives a transport that throws before it ever returns a promise, and reports that too", () => {
         // given
+        const failure = new Error("fetch is gone");
         vi.stubGlobal(
             "fetch",
             vi.fn(() => {
-                throw new Error("fetch is gone");
+                throw failure;
             }),
         );
 
         // then
         expect(() => sendWatchPartyLeaveBeacon("room-1", "session-9")).not.toThrow();
+        expect(reportClientError).toHaveBeenCalledWith(failure, { source: "caught" });
     });
 });

@@ -151,16 +151,18 @@ function RoomChatPanelInner({
                 </div>
             </div>
             {canSend && roomId && status === "live" && (
-                <ChatComposer
-                    ref={composerRef}
-                    roomId={roomId}
-                    draftRecipientId={null}
-                    onSent={handleSent}
-                    replyingTo={replyingTo}
-                    onCancelReply={handleCancelReply}
-                    sendOnEnter
-                    compact
-                />
+                <div className={styles.composerSlot}>
+                    <ChatComposer
+                        ref={composerRef}
+                        roomId={roomId}
+                        draftRecipientId={null}
+                        onSent={handleSent}
+                        replyingTo={replyingTo}
+                        onCancelReply={handleCancelReply}
+                        sendOnEnter
+                        compact
+                    />
+                </div>
             )}
             {endedNotice && <div className={styles.chatEnded}>{endedNotice}</div>}
             {lightboxSrc && createPortal(<Lightbox src={lightboxSrc} onClose={handleLightboxClose} />, document.body)}

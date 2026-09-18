@@ -28,7 +28,7 @@ func wpTargetID() uuid.UUID {
 }
 
 func TestListWatchParties_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "GET", "/chat/rooms/"+wpRoomID().String()+"/watch-parties", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "GET", "/chat/rooms/"+wpRoomID().String()+"/watch-parties", nil)
 }
 
 func TestListWatchParties_InvalidRoomID(t *testing.T) {
@@ -63,7 +63,7 @@ func TestListWatchParties_OK(t *testing.T) {
 }
 
 func TestStartWatchParty_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms/"+wpRoomID().String()+"/watch-parties", dto.StartWatchPartyRequest{})
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms/"+wpRoomID().String()+"/watch-parties", dto.StartWatchPartyRequest{})
 }
 
 func TestStartWatchParty_OK(t *testing.T) {
@@ -118,7 +118,7 @@ func TestStartWatchParty_ServiceErrors(t *testing.T) {
 }
 
 func TestJoinWatchParty_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST", "/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String()+"/join", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST", "/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String()+"/join", nil)
 }
 
 func TestJoinWatchParty_OK(t *testing.T) {
@@ -155,7 +155,7 @@ func TestJoinWatchParty_NotActive(t *testing.T) {
 }
 
 func TestLeaveWatchParty_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE", "/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String()+"/participants/me", nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE", "/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String()+"/participants/me", nil)
 }
 
 func TestLeaveWatchParty_OK(t *testing.T) {
@@ -174,7 +174,7 @@ func TestLeaveWatchParty_OK(t *testing.T) {
 }
 
 func TestGrantWatchPartyControl_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "PATCH",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "PATCH",
 		"/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String()+"/participants/"+wpTargetID().String(),
 		nil)
 }
@@ -232,7 +232,7 @@ func TestGrantWatchPartyControl_NotParticipant(t *testing.T) {
 }
 
 func TestEndWatchParty_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "DELETE", "/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String(), nil)
+	testutil.RunAuthFailureSuite(t, newChatHarness, "DELETE", "/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String(), nil)
 }
 
 func TestEndWatchParty_OK(t *testing.T) {
@@ -270,7 +270,7 @@ func TestEndWatchParty_NotController(t *testing.T) {
 }
 
 func TestIdentifyWatchPartyParticipant_AuthFailures(t *testing.T) {
-	testutil.RunAuthFailureSuite(t, chatFactory, "POST",
+	testutil.RunAuthFailureSuite(t, newChatHarness, "POST",
 		"/chat/rooms/"+wpRoomID().String()+"/watch-parties/"+wpSessionID().String()+"/identify",
 		dto.IdentifyWatchPartyParticipantRequest{Identifier: "id-abc"})
 }

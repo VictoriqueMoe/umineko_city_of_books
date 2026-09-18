@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { providerWrapper } from "../test-utils/render";
 import type { WatchPartyType } from "../types/api";
-import { useSessionMedia } from "./useSessionMedia";
+import { SHARE_SCREEN_FAILED, useSessionMedia } from "./useSessionMedia";
 
 const mocks = vi.hoisted(() => {
     type Handler = (...args: unknown[]) => void;
@@ -11,8 +11,12 @@ const mocks = vi.hoisted(() => {
         handlers: Record<string, Handler[]> = {};
         localParticipant = {
             isMicrophoneEnabled: false,
+            isScreenShareEnabled: false,
             setMicrophoneEnabled: vi.fn((_enabled: boolean) => Promise.resolve()),
-            setScreenShareEnabled: vi.fn((_on: boolean, _capture?: unknown, _publish?: unknown) => Promise.resolve()),
+            setScreenShareEnabled: vi.fn((on: boolean, _capture?: unknown, _publish?: unknown) => {
+                this.localParticipant.isScreenShareEnabled = on;
+                return Promise.resolve();
+            }),
         };
         connect = vi.fn(() => Promise.resolve());
         disconnect = vi.fn(() => Promise.resolve());
@@ -51,6 +55,9 @@ vi.mock("livekit-client", () => ({
         Connected: "connected",
         Disconnected: "disconnected",
         ParticipantPermissionsChanged: "participantPermissionsChanged",
+        LocalTrackPublished: "localTrackPublished",
+        LocalTrackUnpublished: "localTrackUnpublished",
+        MediaDevicesError: "mediaDevicesError",
     },
     AudioPresets: { musicHighQualityStereo: { maxBitrate: 510_000 } },
 }));
@@ -458,6 +465,179 @@ describe("useSessionMedia screen share", () => {
         });
 
         // then
+        expect(result.current.isSharing).toBe(false);
+    });
+});
+
+function deviceError(name: string, message: string): Error {
+    const thrown = new Error(message);
+    thrown.name = name;
+
+    return thrown;
+}
+
+describe("useSessionMedia screen share failures", () => {
+    const failures = [
+        {
+            label: "a picker the host closed without picking anything",
+            thrown: () => deviceError("NotAllowedError", "Permission denied"),
+            surfaced: null,
+        },
+        {
+            label: "screen capture the operating system refuses",
+            thrown: () => deviceError("NotAllowedError", "Permission denied by system"),
+            surfaced: "Permission denied by system",
+        },
+        {
+            label: "an audio source the browser cannot open",
+            thrown: () => deviceError("NotReadableError", "Could not start audio source"),
+            surfaced: "Could not start audio source",
+        },
+        {
+            label: "capture constraints nothing on the machine satisfies",
+            thrown: () => deviceError("OverconstrainedError", "channelCount"),
+            surfaced: "channelCount",
+        },
+        {
+            label: "a track the server refused to accept",
+            thrown: () => new Error("failed to publish track, insufficient permissions"),
+            surfaced: "failed to publish track, insufficient permissions",
+        },
+        {
+            label: "a rejection carrying no message at all",
+            thrown: () => new Error(""),
+            surfaced: SHARE_SCREEN_FAILED,
+        },
+    ];
+
+    for (const failure of failures) {
+        it(`surfaces ${failure.label} as ${failure.surfaced === null ? "nothing" : "an error"}`, async () => {
+            // given
+            const { result } = setup({ type: "screenshare", isStarter: true });
+            const room = await connectLatest();
+            room.localParticipant.setScreenShareEnabled.mockReset();
+            vi.when(room.localParticipant.setScreenShareEnabled, { onUnmatched: "throw" })
+                .calledWith(true, expect.any(Object), expect.any(Object))
+                .thenReject(failure.thrown());
+
+            // when
+            await act(async () => {
+                await result.current.shareScreen(true, "gaming");
+            });
+
+            // then
+            expect(result.current.shareError).toBe(failure.surfaced);
+            expect(result.current.isSharing).toBe(false);
+        });
+    }
+
+    it("never rejects at the caller, so no call site has to swallow anything", async () => {
+        // given
+        const { result } = setup({ type: "screenshare", isStarter: true });
+        const room = await connectLatest();
+        room.localParticipant.setScreenShareEnabled.mockReset();
+        vi.when(room.localParticipant.setScreenShareEnabled, { onUnmatched: "throw" })
+            .calledWith(true, expect.any(Object), expect.any(Object))
+            .thenReject(deviceError("NotReadableError", "Could not start audio source"));
+
+        // when
+        const settled = await act(async () => result.current.shareScreen(true, "gaming").then(() => "resolved"));
+
+        // then
+        expect(settled).toBe("resolved");
+    });
+
+    it("clears a stale failure when the host tries again", async () => {
+        // given
+        const { result } = setup({ type: "screenshare", isStarter: true });
+        const room = await connectLatest();
+        room.localParticipant.setScreenShareEnabled.mockReset();
+        vi.when(room.localParticipant.setScreenShareEnabled, { onUnmatched: "throw" })
+            .calledWith(true, expect.any(Object), expect.any(Object))
+            .thenReject(deviceError("NotReadableError", "Could not start audio source"));
+        await act(async () => {
+            await result.current.shareScreen(true, "gaming");
+        });
+
+        // when
+        room.localParticipant.setScreenShareEnabled.mockReset();
+        room.localParticipant.setScreenShareEnabled.mockImplementation((on: boolean) => {
+            room.localParticipant.isScreenShareEnabled = on;
+            return Promise.resolve();
+        });
+        await act(async () => {
+            await result.current.shareScreen(true, "gaming");
+        });
+
+        // then
+        expect(result.current.shareError).toBeNull();
+        expect(result.current.isSharing).toBe(true);
+    });
+
+    it("stays out of the sharing state when the capture ends before it is ever published", async () => {
+        // given
+        const { result } = setup({ type: "screenshare", isStarter: true });
+        const room = await connectLatest();
+        room.localParticipant.setScreenShareEnabled.mockReset();
+        room.localParticipant.setScreenShareEnabled.mockImplementation(() => {
+            room.localParticipant.isScreenShareEnabled = false;
+            return Promise.resolve();
+        });
+
+        // when
+        await act(async () => {
+            await result.current.shareScreen(true, "gaming");
+        });
+
+        // then
+        expect(result.current.isSharing).toBe(false);
+    });
+
+    it("drops the sharing state when livekit unpublishes a share that ended on its own", async () => {
+        // given
+        const { result } = setup({ type: "screenshare", isStarter: true });
+        const room = await connectLatest();
+        await act(async () => {
+            await result.current.shareScreen(true, "gaming");
+        });
+        expect(result.current.isSharing).toBe(true);
+
+        // when
+        await act(async () => {
+            room.localParticipant.isScreenShareEnabled = false;
+            room.emit("localTrackUnpublished");
+        });
+
+        // then
+        expect(result.current.isSharing).toBe(false);
+    });
+
+    it("surfaces a capture error livekit reports through the room rather than the call", async () => {
+        // given
+        const { result } = setup({ type: "screenshare", isStarter: true });
+        const room = await connectLatest();
+
+        // when
+        await act(async () => {
+            room.emit("mediaDevicesError", deviceError("NotReadableError", "Could not start audio source"));
+        });
+
+        // then
+        expect(result.current.shareError).toBe("Could not start audio source");
+    });
+
+    it("says so when the room could not be reached at all", async () => {
+        // given
+        mocks.getWatchPartyVoiceToken.mockRejectedValue(new Error("no token for you"));
+        const { result } = setup({ type: "hyperbeam", isStarter: true });
+
+        // when
+        await act(async () => {
+            await result.current.shareScreen(true, "gaming");
+        });
+
+        // then
+        expect(result.current.shareError).toBe(SHARE_SCREEN_FAILED);
         expect(result.current.isSharing).toBe(false);
     });
 });

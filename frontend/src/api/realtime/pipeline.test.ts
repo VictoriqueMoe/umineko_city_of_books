@@ -4,13 +4,10 @@ import type * as BusModule from "./bus";
 import type * as PipelineModule from "./pipeline";
 import type * as SocketModule from "./socket";
 
-const { getAuthToken, isNativeApp } = vi.hoisted(() => ({
-    getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
-}));
+const { getAuthToken } = vi.hoisted(() => ({ getAuthToken: vi.fn() }));
 
 vi.mock("../authToken", () => ({ getAuthToken }));
-vi.mock("../../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" } }));
 
 const API_ORIGIN = "https://whentheycry.social";
 
@@ -53,7 +50,6 @@ beforeEach(async () => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket);
     getAuthToken.mockReturnValue(null);
-    isNativeApp.mockReturnValue(false);
     await loadRealtime();
 });
 

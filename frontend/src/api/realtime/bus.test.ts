@@ -29,10 +29,6 @@ function emulateBrowserErrorReporting(): void {
     });
 }
 
-async function flushMicrotasks(): Promise<void> {
-    await Promise.resolve();
-}
-
 function typingEvent(userId: string): RealtimeEvent {
     return { type: "typing", data: { room_id: "room-1", user_id: userId } };
 }
@@ -145,7 +141,7 @@ describe("realtime bus handler isolation", () => {
 
         // when
         bus.dispatch(event);
-        await flushMicrotasks();
+        await Promise.resolve();
 
         // then
         expect(throwing).toHaveBeenCalledTimes(1);
@@ -166,7 +162,7 @@ describe("realtime bus handler isolation", () => {
 
         // then
         expect(windowErrors).toEqual([]);
-        await flushMicrotasks();
+        await Promise.resolve();
         expect(windowErrors).toEqual([failure]);
     });
 
@@ -181,7 +177,7 @@ describe("realtime bus handler isolation", () => {
         // when
         bus.dispatch(typingEvent("user-1"));
         bus.dispatch(typingEvent("user-2"));
-        await flushMicrotasks();
+        await Promise.resolve();
 
         // then
         expect(throwing).toHaveBeenCalledTimes(2);

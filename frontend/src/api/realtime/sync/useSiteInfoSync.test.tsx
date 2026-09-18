@@ -7,13 +7,10 @@ import { queryKeys } from "../../queryKeys";
 import type * as SocketModule from "../socket";
 import type * as SyncModule from "./useSiteInfoSync";
 
-const { getAuthToken, isNativeApp } = vi.hoisted(() => ({
-    getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
-}));
+const { getAuthToken } = vi.hoisted(() => ({ getAuthToken: vi.fn() }));
 
 vi.mock("../../authToken", () => ({ getAuthToken }));
-vi.mock("../../../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" } }));
 
 const LEADERBOARD_EVENTS = [
     "top_detective_changed",
@@ -81,7 +78,6 @@ beforeEach(async () => {
     FakeWebSocket.instances = [];
     vi.stubGlobal("WebSocket", FakeWebSocket);
     getAuthToken.mockReturnValue(null);
-    isNativeApp.mockReturnValue(false);
     vi.useFakeTimers();
     vi.setSystemTime(START);
     vi.resetModules();

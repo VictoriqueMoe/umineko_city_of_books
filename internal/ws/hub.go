@@ -591,7 +591,7 @@ func (h *Hub) BroadcastFrameToRoom(roomID uuid.UUID, msg Message) int {
 			continue
 		}
 
-		recordFrameDropped()
+		wsOutboundFramesDropped.Inc()
 	}
 
 	return sent

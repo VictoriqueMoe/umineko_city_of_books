@@ -166,7 +166,7 @@ func TestHandler_Reveal_FirstClickFlow(t *testing.T) {
 	result, err := h.ValidateAction(stateJSON, 0, actionJSON(t, map[string]any{"type": actionReveal, "x": 3, "y": 4}))
 	require.NoError(t, err)
 
-	// then mines are NOT placed yet — waiting for slot 1
+	// then mines are NOT placed yet: waiting for slot 1
 	s := unmarshalState(t, result.NewStateJSON)
 	assert.False(t, s.MinesPlaced)
 	assert.False(t, result.Finished)

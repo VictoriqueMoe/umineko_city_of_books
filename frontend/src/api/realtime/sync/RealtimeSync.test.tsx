@@ -7,13 +7,10 @@ import type { UserProfile } from "../../../types/api";
 import { queryKeys } from "../../queryKeys";
 import { RealtimeSync } from "./RealtimeSync";
 
-const { getAuthToken, isNativeApp } = vi.hoisted(() => ({
-    getAuthToken: vi.fn(),
-    isNativeApp: vi.fn(),
-}));
+const { getAuthToken } = vi.hoisted(() => ({ getAuthToken: vi.fn() }));
 
 vi.mock("../../authToken", () => ({ getAuthToken }));
-vi.mock("../../../platform/capabilities", () => ({ isNativeApp, clientPlatform: () => "web" }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => false, getPlatform: () => "web" } }));
 
 const signedIn = makeUser({ id: "user-1", username: "beatrice" });
 

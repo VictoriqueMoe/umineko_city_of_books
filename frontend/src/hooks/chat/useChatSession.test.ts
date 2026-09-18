@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     deleteMessage: vi.fn(),
     editMessage: vi.fn(),
     playMessageSound: vi.fn(),
-    playRemoteAudio: vi.fn(),
+    playAudio: vi.fn(),
 }));
 
 vi.mock("../queries/chat", () => ({
@@ -32,7 +32,7 @@ vi.mock("./useDebouncedMarkChatRoomRead", () => ({
 
 vi.mock("../../platform/sound", () => ({
     playMessageSound: mocks.playMessageSound,
-    playRemoteAudio: mocks.playRemoteAudio,
+    playAudio: mocks.playAudio,
 }));
 
 const viewer = makeUser({ id: "viewer-1", username: "battler", display_name: "Battler" });
@@ -415,7 +415,7 @@ describe("useChatSession audio", () => {
         emitRealtimeEvent({ type: "chat_audio", data: { room_id: "room-1", url: "/uploads/a.mp3", volume: 0.2 } });
 
         // then
-        expect(mocks.playRemoteAudio).toHaveBeenCalledExactlyOnceWith("/uploads/a.mp3", 0.2);
+        expect(mocks.playAudio).toHaveBeenCalledExactlyOnceWith("/uploads/a.mp3", 0.2);
     });
 
     it("plays remote audio at half volume when none is given", async () => {
@@ -426,7 +426,7 @@ describe("useChatSession audio", () => {
         emitRealtimeEvent({ type: "chat_audio", data: { room_id: "room-1", url: "/uploads/a.mp3" } });
 
         // then
-        expect(mocks.playRemoteAudio).toHaveBeenCalledExactlyOnceWith("/uploads/a.mp3", 0.5);
+        expect(mocks.playAudio).toHaveBeenCalledExactlyOnceWith("/uploads/a.mp3", 0.5);
     });
 
     it("ignores remote audio for another room", async () => {
@@ -437,7 +437,7 @@ describe("useChatSession audio", () => {
         emitRealtimeEvent({ type: "chat_audio", data: { room_id: "room-2", url: "/uploads/a.mp3", volume: 0.2 } });
 
         // then
-        expect(mocks.playRemoteAudio).not.toHaveBeenCalled();
+        expect(mocks.playAudio).not.toHaveBeenCalled();
     });
 
     it("plays nothing for an audio event with no url", async () => {
@@ -448,7 +448,7 @@ describe("useChatSession audio", () => {
         emitRealtimeEvent({ type: "chat_audio", data: { room_id: "room-1", volume: 0.2 } });
 
         // then
-        expect(mocks.playRemoteAudio).not.toHaveBeenCalled();
+        expect(mocks.playAudio).not.toHaveBeenCalled();
     });
 
     it("stays silent by default when somebody else posts to a hidden tab", async () => {

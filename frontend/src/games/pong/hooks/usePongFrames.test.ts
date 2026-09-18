@@ -27,7 +27,7 @@ vi.mock("../../../api/realtime/bus", async importOriginal => {
     };
 });
 
-vi.mock("../../../api/client", async importOriginal => {
+vi.mock("../../../api/origin", async importOriginal => {
     const actual = await importOriginal<Record<string, unknown>>();
 
     return { ...actual, absolutizeMedia: (data: unknown) => holder.absolutizeMedia(data) };

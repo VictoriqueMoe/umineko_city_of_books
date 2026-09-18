@@ -6,7 +6,6 @@ import {
     STREAM_RESOLUTIONS,
     isBitrateValid,
     kbpsForBitsPerPixel,
-    parseBitrate,
     recommendedBitrate,
     recommendedBitrateForResolution,
 } from "./bitrate";
@@ -37,30 +36,6 @@ describe("STREAM_RESOLUTIONS", () => {
     });
 });
 
-describe("parseBitrate", () => {
-    it("reads a numeric string, treating blank input as zero", () => {
-        // given
-        const entries = ["6000", " 6000 ", ""];
-
-        // when
-        const values = entries.map(parseBitrate);
-
-        // then
-        expect(values).toEqual([6000, 6000, 0]);
-    });
-
-    it("reports unparseable input as not a number", () => {
-        // given
-        const entry = "not a bitrate";
-
-        // when
-        const value = parseBitrate(entry);
-
-        // then
-        expect(Number.isNaN(value)).toBe(true);
-    });
-});
-
 describe("isBitrateValid", () => {
     it("accepts the inclusive bounds and rejects either side of them", () => {
         // given
@@ -82,6 +57,17 @@ describe("isBitrateValid", () => {
 
         // then
         expect(results).toEqual([false, false, false]);
+    });
+
+    it("accepts a bitrate padded with whitespace", () => {
+        // given
+        const entry = " 6000 ";
+
+        // when
+        const valid = isBitrateValid(entry);
+
+        // then
+        expect(valid).toBe(true);
     });
 
     it("accepts a fractional bitrate inside the range", () => {

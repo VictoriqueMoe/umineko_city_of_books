@@ -3,6 +3,7 @@ import { Button } from "../../Button/Button";
 import { MediaPickerButton, MediaPreviews } from "../../MediaPicker/MediaPicker";
 import { MentionTextArea, type MentionTextAreaHandle } from "../../MentionTextArea/MentionTextArea";
 import { readChatSendRejection, useSendChatMessage, useSendFirstDMMessage } from "../../../hooks/mutations/chat";
+import { useIsMobile } from "../../../hooks/useIsMobile";
 import { useResetOnChange } from "../../../hooks/useResetOnChange";
 import { useSiteInfo } from "../../../hooks/useSiteInfo";
 import { validateFileSize } from "../../../utils/fileValidation";
@@ -94,6 +95,7 @@ export function ChatComposer({
     const [nowTick, setNowTick] = useState(() => Date.now());
     const [toolbarOpen, setToolbarOpen] = useState(false);
     const timedOut = isTimeoutActive(timeoutUntil, nowTick);
+    const isMobile = useIsMobile();
     const siteInfo = useSiteInfo();
     const [body, setBody] = useState("");
     const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
@@ -299,9 +301,8 @@ export function ChatComposer({
 
     const canSend = !submitting && (body.trim().length > 0 || files.length > 0);
     const showToolbarItems = !compact || toolbarOpen;
-    const placeholder = sendOnEnter
-        ? "Type a message... (Enter to send, Shift+Enter for newline)"
-        : "Type a message...";
+    const placeholder =
+        sendOnEnter && !isMobile ? "Type a message... (Enter to send, Shift+Enter for newline)" : "Type a message...";
 
     if (timedOut) {
         const until = formatFullDateTime(timeoutUntil);

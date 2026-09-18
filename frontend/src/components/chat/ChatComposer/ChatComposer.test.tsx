@@ -10,7 +10,10 @@ import { ChatComposer } from "./ChatComposer";
 const mocks = vi.hoisted(() => ({
     sendChatMessage: vi.fn(),
     sendFirstDM: vi.fn(),
+    useIsMobile: vi.fn(),
 }));
+
+vi.mock("../../../hooks/useIsMobile", () => ({ useIsMobile: mocks.useIsMobile }));
 
 vi.mock("../../../hooks/mutations/chat", () => ({
     useSendChatMessage: () => ({ mutateAsync: mocks.sendChatMessage }),
@@ -71,6 +74,7 @@ function renderComposer(options: ComposerOptions = {}) {
 
 describe("ChatComposer", () => {
     beforeEach(() => {
+        mocks.useIsMobile.mockReturnValue(false);
         mocks.sendChatMessage.mockResolvedValue(makeChatMessage());
         mocks.sendFirstDM.mockResolvedValue({ message: makeChatMessage(), room: { id: "room-9" } });
     });
@@ -165,6 +169,18 @@ describe("ChatComposer", () => {
         // then
         expect(mocks.sendChatMessage).not.toHaveBeenCalled();
         expect(input).toHaveValue("a note\n");
+    });
+
+    it("drops the keyboard hint from the placeholder on a phone", () => {
+        // given
+        mocks.useIsMobile.mockReturnValue(true);
+
+        // when
+        renderComposer();
+
+        // then
+        expect(screen.getByPlaceholderText("Type a message...")).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText(ENTER_PLACEHOLDER)).not.toBeInTheDocument();
     });
 
     it("attaches the reply target to the outgoing message and clears the reply", async () => {

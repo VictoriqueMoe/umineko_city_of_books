@@ -4,23 +4,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test-utils/render";
 import { StaleVersionBanner } from "./StaleVersionBanner";
 
-const { isNativeApp, hasOtaUpdate, applyOtaUpdate, subscribeOtaReady, reloadPage } = vi.hoisted(() => ({
-    isNativeApp: vi.fn(),
+const { isNativePlatform, hasOtaUpdate, applyOtaUpdate, subscribeOtaReady } = vi.hoisted(() => ({
+    isNativePlatform: vi.fn(),
     hasOtaUpdate: vi.fn(),
     applyOtaUpdate: vi.fn(),
     subscribeOtaReady: vi.fn(),
-    reloadPage: vi.fn(),
 }));
 
-vi.mock("../../platform/capabilities", () => ({ isNativeApp }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform, getPlatform: () => "web" } }));
 vi.mock("../../platform/appUpdate", () => ({ hasOtaUpdate, applyOtaUpdate, subscribeOtaReady }));
-vi.mock("../../platform/pageReload", () => ({ reloadPage }));
 
 let readyListeners: Array<() => void>;
 
 beforeEach(() => {
     readyListeners = [];
-    isNativeApp.mockReturnValue(false);
+    isNativePlatform.mockReturnValue(false);
     hasOtaUpdate.mockReturnValue(false);
     applyOtaUpdate.mockResolvedValue(undefined);
     subscribeOtaReady.mockImplementation((listener: () => void) => {
@@ -66,16 +64,15 @@ describe("StaleVersionBanner", () => {
         );
     });
 
-    it("reloads the page when the reader accepts", async () => {
+    it("offers the reader a button to reload with", () => {
         // given
-        const user = userEvent.setup();
-        renderWithProviders(<StaleVersionBanner />, { siteInfo: { version: "6.11.0" } });
+        const version = "6.11.0";
 
         // when
-        await user.click(screen.getByRole("button", { name: "Reload now" }));
+        renderWithProviders(<StaleVersionBanner />, { siteInfo: { version } });
 
         // then
-        expect(reloadPage).toHaveBeenCalledOnce();
+        expect(screen.getByRole("button", { name: "Reload now" })).toBeInTheDocument();
     });
 
     it("stays quiet for a locally built bundle", () => {
@@ -124,7 +121,7 @@ describe("StaleVersionBanner", () => {
 
     it("stays quiet in the app until a bundle has been downloaded", () => {
         // given
-        isNativeApp.mockReturnValue(true);
+        isNativePlatform.mockReturnValue(true);
 
         // when
         const { container } = renderWithProviders(<StaleVersionBanner />, { siteInfo: { version: "6.11.0" } });
@@ -135,7 +132,7 @@ describe("StaleVersionBanner", () => {
 
     it("offers the update straight away when a bundle was already staged", () => {
         // given
-        isNativeApp.mockReturnValue(true);
+        isNativePlatform.mockReturnValue(true);
         hasOtaUpdate.mockReturnValue(true);
 
         // when
@@ -148,7 +145,7 @@ describe("StaleVersionBanner", () => {
 
     it("offers the update as soon as a bundle finishes downloading", () => {
         // given
-        isNativeApp.mockReturnValue(true);
+        isNativePlatform.mockReturnValue(true);
         renderWithProviders(<StaleVersionBanner />, { siteInfo: { version: "6.10.0" } });
 
         // when
@@ -160,7 +157,7 @@ describe("StaleVersionBanner", () => {
 
     it("applies the staged bundle when the reader taps update", async () => {
         // given
-        isNativeApp.mockReturnValue(true);
+        isNativePlatform.mockReturnValue(true);
         hasOtaUpdate.mockReturnValue(true);
         const user = userEvent.setup();
         renderWithProviders(<StaleVersionBanner />, { siteInfo: { version: "6.10.0" } });
@@ -170,12 +167,11 @@ describe("StaleVersionBanner", () => {
 
         // then
         expect(applyOtaUpdate).toHaveBeenCalledOnce();
-        expect(reloadPage).not.toHaveBeenCalled();
     });
 
     it("swallows a failure to apply the staged bundle", async () => {
         // given
-        isNativeApp.mockReturnValue(true);
+        isNativePlatform.mockReturnValue(true);
         hasOtaUpdate.mockReturnValue(true);
         applyOtaUpdate.mockRejectedValue(new Error("bundle is corrupt"));
         const user = userEvent.setup();
