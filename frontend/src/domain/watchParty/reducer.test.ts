@@ -3,6 +3,7 @@ import { makeWatchPartySession } from "../../test-utils/fixtures";
 import type { User, WatchPartyParticipant, WatchPartySession } from "../../types/api";
 import {
     WATCH_PARTY_KICKED_MESSAGE,
+    watchPartyEndedMessage,
     watchPartyReducer,
     type WatchPartyEvent,
     type WatchPartyReducerContext,
@@ -133,6 +134,34 @@ const cases: TransitionCase[] = [
         }),
         event: { type: "watch_party_ended", data: { session_id: SESSION_ID, room_id: ROOM_ID, reason: "owner_left" } },
         expectedState: makeState({ sessions: [otherSession()] }),
+        expectedError: watchPartyEndedMessage("owner_left"),
+        keepsIdentity: false,
+    },
+    {
+        name: "watch_party_ended explains an idle reap instead of closing the party in silence",
+        state: makeState({
+            sessions: [makeSession()],
+            activeSessionId: SESSION_ID,
+            embedURL: EMBED_URL,
+        }),
+        event: {
+            type: "watch_party_ended",
+            data: { session_id: SESSION_ID, room_id: ROOM_ID, reason: "idle_reconcile" },
+        },
+        expectedState: makeState({ sessions: [] }),
+        expectedError: "The watch party ended because nobody was still connected to it.",
+        keepsIdentity: false,
+    },
+    {
+        name: "watch_party_ended still names an unrecognised reason rather than saying nothing",
+        state: makeState({
+            sessions: [makeSession()],
+            activeSessionId: SESSION_ID,
+            embedURL: EMBED_URL,
+        }),
+        event: { type: "watch_party_ended", data: { session_id: SESSION_ID, room_id: ROOM_ID, reason: "kaboom" } },
+        expectedState: makeState({ sessions: [] }),
+        expectedError: "The watch party ended (kaboom).",
         keepsIdentity: false,
     },
     {

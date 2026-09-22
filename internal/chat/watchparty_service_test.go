@@ -8,9 +8,12 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/hyperbeam"
+	"umineko_city_of_books/internal/livekit"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
+	"umineko_city_of_books/internal/repository"
 	"umineko_city_of_books/internal/role"
+	"umineko_city_of_books/internal/ws"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -782,7 +785,7 @@ func TestHandleClientDisconnect_OwnerDroppingDoesNotEndTheParty(t *testing.T) {
 	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: ownerID}).Return(nil)
 
 	// when
-	svc.HandleClientDisconnect(context.Background(), ownerID, []uuid.UUID{roomID})
+	svc.releaseDisconnectedParticipant(context.Background(), ownerID, []uuid.UUID{roomID})
 
 	// then the vm survives, the session stays active and the host keeps their party chat seat
 	m.hyperbeamSvc.AssertNotCalled(t, "TerminateVM", mock.Anything, mock.Anything)
@@ -808,9 +811,74 @@ func TestHandleClientDisconnect_MemberDroppingKeepsTheirPartyChatSeat(t *testing
 	m.watchPartyRepo.EXPECT().MarkParticipantLeft(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: memberID}).Return(nil)
 
 	// when
-	svc.HandleClientDisconnect(context.Background(), memberID, []uuid.UUID{roomID})
+	svc.releaseDisconnectedParticipant(context.Background(), memberID, []uuid.UUID{roomID})
 
 	// then they are not evicted, so a reconnecting tab can still post in the party chat
 	m.chatRepo.AssertNotCalled(t, "RemoveMember", mock.Anything, mock.Anything)
 	m.watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything)
+}
+
+func TestReleaseDisconnectedParticipant_KeepsSeatWhenTheSocketCameBack(t *testing.T) {
+	// given a user whose watch party tab dropped its socket and then reconnected inside the grace window
+	svc, m := newTestService(t)
+	roomID := uuid.New()
+	userID := uuid.New()
+
+	m.hub.SetAlwaysOnline([]uuid.UUID{userID})
+
+	// when the deferred release runs
+	svc.releaseDisconnectedParticipant(context.Background(), userID, []uuid.UUID{roomID})
+
+	// then it leaves them alone entirely, so a blip never empties a live party
+	m.watchPartyRepo.AssertNotCalled(t, "ListActiveByRoom", mock.Anything, mock.Anything)
+	m.watchPartyRepo.AssertNotCalled(t, "MarkParticipantLeft", mock.Anything, mock.Anything)
+}
+
+func TestReconcileWatchParties_KeepsSessionWithLiveMediaParticipants(t *testing.T) {
+	// given an idle-looking session whose livekit room still holds a connected viewer
+	watchPartyRepo := repository.NewMockChatWatchPartyRepository(t)
+	lk := livekit.NewMockService(t)
+	hub := ws.NewHub()
+	svc := &watchPartyService{core: &core{watchPartyRepo: watchPartyRepo, livekitSvc: lk, hub: hub}}
+
+	sessionID := uuid.New()
+	userID := uuid.New()
+
+	watchPartyRepo.EXPECT().ListIdleActiveSessions(mock.Anything, mock.Anything).Return([]model.ChatWatchPartySessionRow{
+		{ID: sessionID, RoomID: uuid.New(), Type: watchPartyTypeScreenShare, Status: "active"},
+	}, nil)
+	lk.EXPECT().Enabled().Return(true)
+	lk.EXPECT().ActiveRooms(mock.Anything).Return(map[string][]string{
+		voiceSessionRoomPrefix + sessionID.String(): {userID.String()},
+	}, nil)
+	watchPartyRepo.EXPECT().GetParticipant(mock.Anything, spec.WatchPartyParticipantRef{SessionID: sessionID, UserID: userID}).
+		Return(&model.ChatWatchPartyParticipantRow{SessionID: sessionID, UserID: userID, LeftAt: sql.NullString{String: "2026-09-20T01:16:12Z", Valid: true}}, nil)
+	watchPartyRepo.EXPECT().UpsertParticipant(mock.Anything, spec.WatchPartyParticipantUpsert{SessionID: sessionID, UserID: userID}).Return(nil)
+
+	// when the reaper runs
+	svc.ReconcileWatchPartiesOnce(context.Background())
+
+	// then the session survives and the stale participant row is restored
+	watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything)
+	require.True(t, hub.IsUserInRoom(sessionID, userID))
+}
+
+func TestReconcileWatchParties_KeepsEverySessionWhenPresenceIsUnknown(t *testing.T) {
+	// given livekit cannot be reached, so the reaper cannot tell who is still watching
+	watchPartyRepo := repository.NewMockChatWatchPartyRepository(t)
+	lk := livekit.NewMockService(t)
+	svc := &watchPartyService{core: &core{watchPartyRepo: watchPartyRepo, livekitSvc: lk, hub: ws.NewHub()}}
+
+	watchPartyRepo.EXPECT().ListIdleActiveSessions(mock.Anything, mock.Anything).Return([]model.ChatWatchPartySessionRow{
+		{ID: uuid.New(), RoomID: uuid.New(), Type: watchPartyTypeScreenShare, Status: "active"},
+	}, nil)
+	lk.EXPECT().Enabled().Return(true)
+	lk.EXPECT().ActiveRooms(mock.Anything).Return(nil, errors.New("livekit unreachable"))
+
+	// when the reaper runs
+	svc.ReconcileWatchPartiesOnce(context.Background())
+
+	// then it destroys nothing, because unknown presence must never be read as an empty party
+	watchPartyRepo.AssertNotCalled(t, "EndSession", mock.Anything, mock.Anything)
+	watchPartyRepo.AssertNotCalled(t, "MarkAllParticipantsLeft", mock.Anything, mock.Anything)
 }

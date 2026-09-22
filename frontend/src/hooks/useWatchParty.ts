@@ -128,6 +128,9 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
     const enabled = stateMatches ? data.enabled : false;
     const screenShareEnabled = stateMatches ? data.screenShareEnabled : false;
     const activeSessionId = stateMatches ? data.activeSessionId : null;
+    const hostsActiveSession = Boolean(
+        viewerUserId && sessions.some(s => s.id === activeSessionId && s.started_by === viewerUserId),
+    );
 
     useEffect(() => {
         activeIdRef.current = activeSessionId;
@@ -168,6 +171,9 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
 
         let hiddenTimer: ReturnType<typeof setTimeout> | null = null;
         const handleVisibility = () => {
+            if (hostsActiveSession) {
+                return;
+            }
             if (document.visibilityState === "hidden") {
                 if (hiddenTimer) {
                     return;
@@ -195,7 +201,7 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
                 clearTimeout(hiddenTimer);
             }
         };
-    }, [roomId, activeSessionId]);
+    }, [roomId, activeSessionId, hostsActiveSession]);
 
     useRealtimeEvent(WATCH_PARTY_EVENTS, event => {
         if (!roomId) {
@@ -322,7 +328,12 @@ export function useWatchParty(roomId: string | null, viewerUserId: string | null
             raiseError(errorMessage(thrown, "Failed to end watch party"));
             throw thrown;
         }
-    }, [roomId, activeSessionId, endParty, raiseError, clearError]);
+
+        const previous = dataRef.current;
+        if (previous.roomId === roomId) {
+            writeState({ ...previous, activeSessionId: null, embedURL: "" });
+        }
+    }, [roomId, activeSessionId, endParty, writeState, raiseError, clearError]);
 
     const transferControl = useCallback(
         async (userId: string) => {

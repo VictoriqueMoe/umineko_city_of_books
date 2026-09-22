@@ -871,9 +871,9 @@ describe("useWatchParty presence beacons", () => {
         expect(mocks.sendWatchPartyLeaveBeacon).toHaveBeenCalledWith("room-1", "session-1");
     });
 
-    it("leaves the party after the tab has been hidden for ten minutes", async () => {
+    it("leaves the party after a guest has had the tab hidden for ten minutes", async () => {
         // given
-        await setupActive();
+        await setupActive(makeSession({ started_by: "user-host", controller_id: "user-host" }));
         vi.useFakeTimers();
         Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
 
@@ -889,9 +889,46 @@ describe("useWatchParty presence beacons", () => {
         expect(mocks.sendWatchPartyLeaveBeacon).toHaveBeenCalledOnce();
     });
 
-    it("keeps the viewer in the party when the tab comes back before the deadline", async () => {
+    it("does not scold the host with an ended message for ending their own party", async () => {
+        // given
+        const view = await setupActive();
+
+        // when they end it themselves and the server announces the end to everyone
+        await act(async () => {
+            await view.result.current.end();
+        });
+        act(() => {
+            emitRealtimeEvent({
+                type: "watch_party_ended",
+                data: { session_id: "session-1", room_id: "room-1", reason: "controller_ended" },
+            });
+        });
+
+        // then
+        expect(view.result.current.error).toBeNull();
+    });
+
+    it("never auto-leaves the host, whose tab is hidden for as long as they screen share", async () => {
         // given
         await setupActive();
+        vi.useFakeTimers();
+        Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+
+        // when
+        act(() => {
+            document.dispatchEvent(new Event("visibilitychange"));
+        });
+        act(() => {
+            vi.advanceTimersByTime(4 * 60 * 60 * 1000);
+        });
+
+        // then the party they are hosting survives being in the background
+        expect(mocks.sendWatchPartyLeaveBeacon).not.toHaveBeenCalled();
+    });
+
+    it("keeps a guest in the party when the tab comes back before the deadline", async () => {
+        // given
+        await setupActive(makeSession({ started_by: "user-host", controller_id: "user-host" }));
         vi.useFakeTimers();
         let visibility = "hidden";
         Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visibility });

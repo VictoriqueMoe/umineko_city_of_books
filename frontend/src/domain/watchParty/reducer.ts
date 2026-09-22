@@ -11,6 +11,18 @@ import { appendOrReplaceParticipant, mapSession, upsertSession } from "./session
 
 export const WATCH_PARTY_KICKED_MESSAGE = "You were removed from the watch party.";
 
+const WATCH_PARTY_ENDED_MESSAGES: Record<string, string> = {
+    controller_ended: "The host ended the watch party.",
+    owner_left: "The watch party ended because the host left it.",
+    idle_reconcile: "The watch party ended because nobody was still connected to it.",
+    vm_gone: "The watch party ended because its shared browser stopped responding.",
+    room_deleted: "The watch party ended because the chat room was removed.",
+};
+
+export function watchPartyEndedMessage(reason: string): string {
+    return WATCH_PARTY_ENDED_MESSAGES[reason] ?? `The watch party ended (${reason || "reason unknown"}).`;
+}
+
 export interface WatchPartyState {
     roomId: string | null;
     sessions: WatchPartySession[];
@@ -77,6 +89,7 @@ export function watchPartyReducer(
                     activeSessionId: wasActive ? null : state.activeSessionId,
                     embedURL: wasActive ? "" : state.embedURL,
                 },
+                error: wasActive ? watchPartyEndedMessage(data.reason) : undefined,
             };
         }
 

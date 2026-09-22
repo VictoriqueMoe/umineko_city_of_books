@@ -31,6 +31,7 @@ const (
 
 	watchPartyReconcileEvery     = 5 * time.Minute
 	watchPartyReconcileIdleAfter = 6 * time.Minute
+	watchPartyDisconnectGrace    = 90 * time.Second
 
 	wsWatchPartyStarted         = "watch_party_started"
 	wsWatchPartyEnded           = "watch_party_ended"
@@ -393,6 +394,23 @@ func (s *watchPartyService) HandleClientDisconnect(ctx context.Context, userID u
 	if s.watchPartyRepo == nil {
 		return
 	}
+
+	detached := context.WithoutCancel(ctx)
+
+	time.AfterFunc(watchPartyDisconnectGrace, func() {
+		s.releaseDisconnectedParticipant(detached, userID, roomIDs)
+	})
+}
+
+func (s *watchPartyService) releaseDisconnectedParticipant(ctx context.Context, userID uuid.UUID, roomIDs []uuid.UUID) {
+	if s.watchPartyRepo == nil {
+		return
+	}
+
+	if s.hub != nil && s.hub.IsOnline(userID) {
+		return
+	}
+
 	for _, roomID := range roomIDs {
 		sessions, err := s.watchPartyRepo.ListActiveByRoom(ctx, roomID)
 		if err != nil {
@@ -799,14 +817,81 @@ func (s *watchPartyService) ReconcileWatchPartiesOnce(ctx context.Context) {
 		logger.Ctx(ctx).Warn().Err(err).Msg("reconcile watch parties: list failed")
 		return
 	}
+	if len(sessions) == 0 {
+		return
+	}
+
+	occupancy, err := s.watchPartyRoomOccupancy(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("reconcile watch parties: live presence unknown, keeping every session this pass")
+		return
+	}
+
 	for i := range sessions {
 		session := sessions[i]
+
+		if live := occupancy[voiceSessionRoomPrefix+session.ID.String()]; len(live) > 0 {
+			s.restoreLiveParticipants(ctx, &session, live)
+			continue
+		}
+
 		if s.hyperbeamSvc != nil && session.Type != watchPartyTypeScreenShare {
 			if err := s.hyperbeamSvc.TerminateVM(ctx, session.HyperbeamSessionID); err != nil {
 				logger.Ctx(ctx).Warn().Err(err).Str("hyperbeam_session_id", session.HyperbeamSessionID).Msg("reconcile: terminate vm failed")
 			}
 		}
 		s.cleanupDeadSession(&session, "idle_reconcile")
+	}
+}
+
+func (s *watchPartyService) watchPartyRoomOccupancy(ctx context.Context) (map[string][]string, error) {
+	if s.livekitSvc == nil || !s.livekitSvc.Enabled() {
+		return nil, nil
+	}
+
+	rooms, err := s.livekitSvc.ActiveRooms(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list livekit rooms: %w", err)
+	}
+
+	return rooms, nil
+}
+
+func (s *watchPartyService) restoreLiveParticipants(ctx context.Context, session *model.ChatWatchPartySessionRow, identities []string) {
+	logger.Ctx(ctx).Info().
+		Str("session_id", session.ID.String()).
+		Str("type", session.Type).
+		Int("live_participants", len(identities)).
+		Msg("reconcile: watch party still has live participants, restoring them instead of ending it")
+
+	for _, identity := range identities {
+		userID, err := uuid.Parse(identity)
+		if err != nil {
+			continue
+		}
+
+		participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: session.ID, UserID: userID})
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("session_id", session.ID.String()).Msg("reconcile: load participant failed")
+			continue
+		}
+		if participant == nil || !participant.LeftAt.Valid {
+			continue
+		}
+
+		if err := s.watchPartyRepo.UpsertParticipant(ctx, spec.WatchPartyParticipantUpsert{
+			SessionID:  session.ID,
+			UserID:     userID,
+			HasControl: participant.HasControl,
+			Identifier: participant.HyperbeamIdentifier,
+		}); err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("session_id", session.ID.String()).Msg("reconcile: restore participant failed")
+			continue
+		}
+
+		if s.hub != nil {
+			s.hub.JoinRoom(session.ID, userID)
+		}
 	}
 }
 
