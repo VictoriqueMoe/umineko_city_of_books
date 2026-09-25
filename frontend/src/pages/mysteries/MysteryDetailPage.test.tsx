@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi, type Mock } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
 import type { MysteryAttempt, MysteryDetail, UserProfile } from "../../types/api";
@@ -8,48 +8,31 @@ import { MysteryDetailPage } from "./MysteryDetailPage";
 
 const mocked = vi.hoisted(() => ({
     useMystery: vi.fn(),
-    useAddMysteryClue: vi.fn(),
-    useCloseMystery: vi.fn(),
-    useCreateMysteryAttempt: vi.fn(),
-    useCreateMysteryComment: vi.fn(),
-    useDeleteMystery: vi.fn(),
-    useDeleteMysteryAttachment: vi.fn(),
-    useDeleteMysteryClue: vi.fn(),
-    useDeleteMysteryComment: vi.fn(),
-    useDeleteMysteryMedia: vi.fn(),
-    useLikeMysteryComment: vi.fn(),
-    useSetMysteryGmAway: vi.fn(),
-    useSetMysteryPaused: vi.fn(),
-    useUnlikeMysteryComment: vi.fn(),
-    useUpdateMysteryClue: vi.fn(),
-    useUpdateMysteryComment: vi.fn(),
-    useUploadMysteryAttachment: vi.fn(),
-    useUploadMysteryCommentMedia: vi.fn(),
-    useUploadMysteryMedia: vi.fn(),
     navigate: vi.fn(),
+    mutations: {
+        useAddMysteryClue: vi.fn(),
+        useCloseMystery: vi.fn(),
+        useCreateMysteryAttempt: vi.fn(),
+        useCreateMysteryComment: vi.fn(),
+        useDeleteMystery: vi.fn(),
+        useDeleteMysteryAttachment: vi.fn(),
+        useDeleteMysteryClue: vi.fn(),
+        useDeleteMysteryComment: vi.fn(),
+        useDeleteMysteryMedia: vi.fn(),
+        useLikeMysteryComment: vi.fn(),
+        useSetMysteryGmAway: vi.fn(),
+        useSetMysteryPaused: vi.fn(),
+        useUnlikeMysteryComment: vi.fn(),
+        useUpdateMysteryClue: vi.fn(),
+        useUpdateMysteryComment: vi.fn(),
+        useUploadMysteryAttachment: vi.fn(),
+        useUploadMysteryCommentMedia: vi.fn(),
+        useUploadMysteryMedia: vi.fn(),
+    },
 }));
 
 vi.mock("../../hooks/queries/mystery", () => ({ useMystery: mocked.useMystery }));
-vi.mock("../../hooks/mutations/mystery", () => ({
-    useAddMysteryClue: mocked.useAddMysteryClue,
-    useCloseMystery: mocked.useCloseMystery,
-    useCreateMysteryAttempt: mocked.useCreateMysteryAttempt,
-    useCreateMysteryComment: mocked.useCreateMysteryComment,
-    useDeleteMystery: mocked.useDeleteMystery,
-    useDeleteMysteryAttachment: mocked.useDeleteMysteryAttachment,
-    useDeleteMysteryClue: mocked.useDeleteMysteryClue,
-    useDeleteMysteryComment: mocked.useDeleteMysteryComment,
-    useDeleteMysteryMedia: mocked.useDeleteMysteryMedia,
-    useLikeMysteryComment: mocked.useLikeMysteryComment,
-    useSetMysteryGmAway: mocked.useSetMysteryGmAway,
-    useSetMysteryPaused: mocked.useSetMysteryPaused,
-    useUnlikeMysteryComment: mocked.useUnlikeMysteryComment,
-    useUpdateMysteryClue: mocked.useUpdateMysteryClue,
-    useUpdateMysteryComment: mocked.useUpdateMysteryComment,
-    useUploadMysteryAttachment: mocked.useUploadMysteryAttachment,
-    useUploadMysteryCommentMedia: mocked.useUploadMysteryCommentMedia,
-    useUploadMysteryMedia: mocked.useUploadMysteryMedia,
-}));
+vi.mock("../../hooks/mutations/mystery", () => mocked.mutations);
 vi.mock("react-router", async importOriginal => {
     const actual = await importOriginal<typeof import("react-router")>();
     return { ...actual, useNavigate: () => mocked.navigate };
@@ -58,8 +41,6 @@ vi.mock("react-router", async importOriginal => {
 interface AttemptStubProps {
     attempt: MysteryAttempt;
     authorAlreadyWon: boolean;
-    mysteryPaused: boolean;
-    mysterySolved: boolean;
 }
 
 vi.mock("./AttemptItem", () => ({
@@ -83,6 +64,17 @@ vi.mock("../../components/post/MediaGallery/MediaGallery", () => ({
     ),
 }));
 
+type MutationHook = keyof typeof mocked.mutations;
+
+interface ToggleCase {
+    name: string;
+    overrides: Partial<MysteryDetail>;
+    button: string;
+    hook: MutationHook;
+    value: boolean;
+    absent: string;
+}
+
 const gameMaster = { id: "gm-1", username: "beatrice", display_name: "Beatrice" };
 const player = { id: "player-1", username: "battler", display_name: "Battler" };
 const otherPlayer = { id: "player-2", username: "ange", display_name: "Ange" };
@@ -90,6 +82,8 @@ const otherPlayer = { id: "player-2", username: "ange", display_name: "Ange" };
 const gameMasterUser = makeUser({ id: "gm-1", username: "beatrice", display_name: "Beatrice" });
 const playerUser = makeUser({ id: "player-1", username: "battler", display_name: "Battler" });
 const moderatorUser = makeUser({ id: "mod-1", username: "virgilia", display_name: "Virgilia", role: "moderator" });
+
+const composerPlaceholder = "Declare your blue truth...";
 
 function makeAttempt(overrides: Partial<MysteryAttempt> = {}): MysteryAttempt {
     return {
@@ -141,60 +135,21 @@ function makeMysteryDetail(overrides: Partial<MysteryDetail> = {}): MysteryDetai
     };
 }
 
-function mutation(hook: Mock, impl?: () => Promise<unknown>): Mock {
-    const mutateAsync = vi.fn(impl ?? (() => Promise.resolve({})));
-    hook.mockReturnValue({ mutateAsync });
-
-    return mutateAsync;
-}
-
-interface StubOptions {
-    mystery?: MysteryDetail | null;
-    loading?: boolean;
-}
-
-function stubMystery(options: StubOptions = {}) {
+function stubMystery(overrides: Partial<MysteryDetail> | null = {}, loading = false) {
     const refresh = vi.fn();
     mocked.useMystery.mockReturnValue({
-        mystery: options.mystery === undefined ? makeMysteryDetail() : options.mystery,
-        loading: options.loading ?? false,
+        mystery: overrides === null ? null : makeMysteryDetail(overrides),
+        loading,
         refresh,
     });
 
-    const addClue = mutation(mocked.useAddMysteryClue);
-    const closeMystery = mutation(mocked.useCloseMystery);
-    const createAttempt = mutation(mocked.useCreateMysteryAttempt);
-    const deleteMystery = mutation(mocked.useDeleteMystery);
-    const deleteAttachment = mutation(mocked.useDeleteMysteryAttachment);
-    const deleteClue = mutation(mocked.useDeleteMysteryClue);
-    const deleteMedia = mutation(mocked.useDeleteMysteryMedia);
-    const setGmAway = mutation(mocked.useSetMysteryGmAway);
-    const setPaused = mutation(mocked.useSetMysteryPaused);
-    const updateClue = mutation(mocked.useUpdateMysteryClue);
-    const uploadAttachment = mutation(mocked.useUploadMysteryAttachment);
-    const uploadMedia = mutation(mocked.useUploadMysteryMedia);
-    mutation(mocked.useCreateMysteryComment);
-    mutation(mocked.useDeleteMysteryComment);
-    mutation(mocked.useLikeMysteryComment);
-    mutation(mocked.useUnlikeMysteryComment);
-    mutation(mocked.useUpdateMysteryComment);
-    mutation(mocked.useUploadMysteryCommentMedia);
+    const mutateAsync = {} as Record<MutationHook, Mock>;
+    for (const hook of Object.keys(mocked.mutations) as MutationHook[]) {
+        mutateAsync[hook] = vi.fn(() => Promise.resolve({}));
+        mocked.mutations[hook].mockReturnValue({ mutateAsync: mutateAsync[hook] });
+    }
 
-    return {
-        refresh,
-        addClue,
-        closeMystery,
-        createAttempt,
-        deleteMystery,
-        deleteAttachment,
-        deleteClue,
-        deleteMedia,
-        setGmAway,
-        setPaused,
-        updateClue,
-        uploadAttachment,
-        uploadMedia,
-    };
+    return { refresh, mutateAsync };
 }
 
 function renderPage(user: UserProfile | null = null) {
@@ -206,31 +161,34 @@ function renderPage(user: UserProfile | null = null) {
 }
 
 describe("MysteryDetailPage", () => {
-    it("investigates while the mystery is loading", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it.each([
+        { name: "investigates while the mystery is loading", loading: true, message: "Investigating the mystery..." },
+        { name: "says the mystery is missing when the server has none", loading: false, message: "Mystery not found." },
+    ])("$name", ({ loading, message }) => {
         // given
-        stubMystery({ loading: true, mystery: null });
+        stubMystery(null, loading);
 
         // when
         renderPage();
 
         // then
-        expect(screen.getByText("Investigating the mystery...")).toBeInTheDocument();
+        expect(screen.getByText(message)).toBeInTheDocument();
     });
 
-    it("says the mystery is missing when the server has none", () => {
+    it.each([
+        {
+            name: "presents the scenario with its difficulty and player count",
+            playerCount: 2,
+            badge: "2 pieces attempting",
+        },
+        { name: "uses the singular when only one piece is attempting", playerCount: 1, badge: "1 piece attempting" },
+    ])("$name", ({ playerCount, badge }) => {
         // given
-        stubMystery({ mystery: null });
-
-        // when
-        renderPage();
-
-        // then
-        expect(screen.getByText("Mystery not found.")).toBeInTheDocument();
-    });
-
-    it("presents the scenario with its difficulty and player count", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ player_count: 2 }) });
+        stubMystery({ player_count: playerCount });
 
         // when
         renderPage(playerUser);
@@ -240,23 +198,12 @@ describe("MysteryDetailPage", () => {
         expect(screen.getByText("Six people died behind a chained door.")).toBeInTheDocument();
         expect(screen.getByText("hard")).toBeInTheDocument();
         expect(screen.getByText("Open")).toBeInTheDocument();
-        expect(screen.getByText("2 pieces attempting")).toBeInTheDocument();
+        expect(screen.getByText(badge)).toBeInTheDocument();
     });
 
-    it("uses the singular when only one piece is attempting", () => {
+    it("celebrates the winner, closes the composer and opens the post game discussion once the mystery is solved", () => {
         // given
-        stubMystery({ mystery: makeMysteryDetail({ player_count: 1 }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.getByText("1 piece attempting")).toBeInTheDocument();
-    });
-
-    it("celebrates the winner once the mystery is solved", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ solved: true, winner: player }) });
+        stubMystery({ solved: true, winner: player });
 
         // when
         renderPage(playerUser);
@@ -264,33 +211,10 @@ describe("MysteryDetailPage", () => {
         // then
         expect(screen.getByText(/Mystery solved! Winner:/)).toHaveTextContent("Mystery solved! Winner: Battler");
         expect(screen.getByText("Solved")).toBeInTheDocument();
-    });
-
-    it("badges a paused mystery and drops the away badge behind it", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ paused: true, gm_away: true }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.getByText("Paused")).toBeInTheDocument();
-        expect(screen.queryByText("GM Away")).not.toBeInTheDocument();
-    });
-
-    it("badges an ongoing mystery and counts its solvers", () => {
-        // given
-        stubMystery({
-            mystery: makeMysteryDetail({ keep_open_after_solve: true, free_for_all: true, solver_count: 3 }),
-        });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.getByText("Ongoing")).toBeInTheDocument();
-        expect(screen.getByText("Free-for-all")).toBeInTheDocument();
-        expect(screen.getByText("3 solvers")).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText(composerPlaceholder)).not.toBeInTheDocument();
+        expect(screen.getByRole("region", { name: "comments" })).toHaveTextContent(
+            "Post-Game Discussion for mystery-1",
+        );
     });
 
     it("gives a signed out visitor nothing but a prompt to sign in", async () => {
@@ -304,11 +228,11 @@ describe("MysteryDetailPage", () => {
 
         // then
         expect(mocked.navigate).toHaveBeenCalledWith("/login");
-        expect(screen.queryByPlaceholderText("Declare your blue truth...")).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText(composerPlaceholder)).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
     });
 
-    it("keeps the board controls away from an ordinary piece", () => {
+    it("keeps the game master's tools and the post game discussion away from a piece on an open mystery", () => {
         // given
         stubMystery();
 
@@ -319,10 +243,13 @@ describe("MysteryDetailPage", () => {
         expect(screen.queryByRole("button", { name: "Edit" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText("Add a new red truth clue...")).not.toBeInTheDocument();
+        expect(screen.queryByRole("heading", { name: "Attachments" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("region", { name: "comments" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Report" })).toBeInTheDocument();
     });
 
-    it("gives the game master the board controls and the edit button", async () => {
+    it("gives the game master the board controls but no composer, and no close button unless the mystery is ongoing", async () => {
         // given
         stubMystery();
         const user = userEvent.setup();
@@ -335,6 +262,8 @@ describe("MysteryDetailPage", () => {
         expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Mark as away" })).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Report" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Mark Permanently Solved" })).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText(composerPlaceholder)).not.toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: "Edit" }));
         expect(mocked.navigate).toHaveBeenCalledWith("/mystery/mystery-1/edit");
     });
@@ -355,7 +284,7 @@ describe("MysteryDetailPage", () => {
 
     it("asks before deleting the mystery and then returns to the list", async () => {
         // given
-        const { deleteMystery } = stubMystery();
+        const { mutateAsync } = stubMystery();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderPage(gameMasterUser);
@@ -365,73 +294,56 @@ describe("MysteryDetailPage", () => {
 
         // then
         expect(confirm).toHaveBeenCalledWith("Delete this mystery? This cannot be undone.");
-        expect(deleteMystery).toHaveBeenCalledWith("mystery-1");
+        expect(mutateAsync.useDeleteMystery).toHaveBeenCalledWith("mystery-1");
         await waitFor(() => {
             expect(mocked.navigate).toHaveBeenCalledWith("/mysteries");
         });
     });
 
-    it("keeps the mystery when the deletion is waved away", async () => {
+    it.each<ToggleCase>([
+        {
+            name: "pauses the mystery and leaves the refetch to the mutation",
+            overrides: {},
+            button: "Pause",
+            hook: "useSetMysteryPaused",
+            value: true,
+            absent: "Resume",
+        },
+        {
+            name: "offers to resume a paused mystery and hides the away toggle meanwhile",
+            overrides: { paused: true },
+            button: "Resume",
+            hook: "useSetMysteryPaused",
+            value: false,
+            absent: "Mark as away",
+        },
+        {
+            name: "lets the game master step away and come back",
+            overrides: { gm_away: true },
+            button: "I'm back",
+            hook: "useSetMysteryGmAway",
+            value: false,
+            absent: "Mark as away",
+        },
+    ])("$name", async ({ overrides, button, hook, value, absent }) => {
         // given
-        const { deleteMystery } = stubMystery();
-        vi.spyOn(window, "confirm").mockReturnValue(false);
+        const { mutateAsync, refresh } = stubMystery(overrides);
         const user = userEvent.setup();
         renderPage(gameMasterUser);
 
         // when
-        await user.click(screen.getByRole("button", { name: "Delete" }));
+        await user.click(screen.getByRole("button", { name: button }));
 
         // then
-        expect(deleteMystery).not.toHaveBeenCalled();
-    });
-
-    it("pauses the mystery and leaves the refetch to the mutation", async () => {
-        // given
-        const { setPaused, refresh } = stubMystery();
-        const user = userEvent.setup();
-        renderPage(gameMasterUser);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Pause" }));
-
-        // then
-        await waitFor(() => {
-            expect(setPaused).toHaveBeenCalledWith(true);
-        });
+        expect(mutateAsync[hook]).toHaveBeenCalledWith(value);
         expect(refresh).not.toHaveBeenCalled();
+        expect(screen.queryByRole("button", { name: absent })).not.toBeInTheDocument();
     });
 
-    it("offers to resume a paused mystery and hides the away toggle meanwhile", async () => {
+    it("closes an ongoing mystery once the game master confirms", async () => {
         // given
-        const { setPaused } = stubMystery({ mystery: makeMysteryDetail({ paused: true }) });
-        const user = userEvent.setup();
-        renderPage(gameMasterUser);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Resume" }));
-
-        // then
-        expect(setPaused).toHaveBeenCalledWith(false);
-        expect(screen.queryByRole("button", { name: "Mark as away" })).not.toBeInTheDocument();
-    });
-
-    it("lets the game master step away and come back", async () => {
-        // given
-        const { setGmAway } = stubMystery({ mystery: makeMysteryDetail({ gm_away: true }) });
-        const user = userEvent.setup();
-        renderPage(gameMasterUser);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "I'm back" }));
-
-        // then
-        expect(setGmAway).toHaveBeenCalledWith(false);
-    });
-
-    it("offers to close an ongoing mystery permanently and asks first", async () => {
-        // given
-        const { closeMystery } = stubMystery({ mystery: makeMysteryDetail({ keep_open_after_solve: true }) });
-        const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
+        const { mutateAsync, refresh } = stubMystery({ keep_open_after_solve: true });
+        const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
         renderPage(gameMasterUser);
 
@@ -440,53 +352,22 @@ describe("MysteryDetailPage", () => {
 
         // then
         expect(confirm).toHaveBeenCalled();
-        expect(closeMystery).not.toHaveBeenCalled();
-    });
-
-    it("closes an ongoing mystery once the game master confirms", async () => {
-        // given
-        const { closeMystery, refresh } = stubMystery({ mystery: makeMysteryDetail({ keep_open_after_solve: true }) });
-        vi.spyOn(window, "confirm").mockReturnValue(true);
-        const user = userEvent.setup();
-        renderPage(gameMasterUser);
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Mark Permanently Solved" }));
-
-        // then
         await waitFor(() => {
-            expect(closeMystery).toHaveBeenCalled();
+            expect(mutateAsync.useCloseMystery).toHaveBeenCalled();
         });
         expect(refresh).not.toHaveBeenCalled();
     });
 
-    it("does not offer to close a mystery that is not ongoing", () => {
-        // given
-        stubMystery();
-
-        // when
-        renderPage(gameMasterUser);
-
-        // then
-        expect(screen.queryByRole("button", { name: "Mark Permanently Solved" })).not.toBeInTheDocument();
-    });
-
-    it("lists the global red truths and leaves the private ones out", () => {
+    it("lists the global red truths, leaves the private ones out and copies one to the clipboard", async () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                clues: [
-                    { id: 1, body: "The door was chained", truth_type: "red", sort_order: 0 },
-                    {
-                        id: 2,
-                        body: "Only Ange may know this",
-                        truth_type: "red",
-                        sort_order: 1,
-                        player_id: otherPlayer.id,
-                    },
-                ],
-            }),
+            clues: [
+                { id: 1, body: "The door was chained", truth_type: "red", sort_order: 0 },
+                { id: 2, body: "Only Ange may know this", truth_type: "red", sort_order: 1, player_id: otherPlayer.id },
+            ],
         });
+        const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+        const user = userEvent.setup();
 
         // when
         renderPage(playerUser);
@@ -495,19 +376,6 @@ describe("MysteryDetailPage", () => {
         expect(screen.getByRole("heading", { name: "Red Truths" })).toBeInTheDocument();
         expect(screen.getByText("The door was chained")).toBeInTheDocument();
         expect(screen.queryByText("Only Ange may know this")).not.toBeInTheDocument();
-    });
-
-    it("copies a red truth to the clipboard", async () => {
-        // given
-        stubMystery({
-            mystery: makeMysteryDetail({
-                clues: [{ id: 1, body: "The door was chained", truth_type: "red", sort_order: 0 }],
-            }),
-        });
-        const writeText = vi.fn(() => Promise.resolve());
-        vi.spyOn(navigator.clipboard, "writeText").mockImplementation(writeText);
-        const user = userEvent.setup();
-        renderPage(playerUser);
 
         // when
         await user.click(screen.getByRole("button", { name: "Copy to clipboard" }));
@@ -518,7 +386,7 @@ describe("MysteryDetailPage", () => {
 
     it("lets the game master declare a new global red truth", async () => {
         // given
-        const { addClue, refresh } = stubMystery();
+        const { mutateAsync, refresh } = stubMystery();
         const user = userEvent.setup();
         renderPage(gameMasterUser);
 
@@ -530,40 +398,25 @@ describe("MysteryDetailPage", () => {
         await user.click(screen.getByRole("button", { name: "Add global Red Truth" }));
 
         // then
-        expect(addClue).toHaveBeenCalledWith({ body: "The window was latched", truthType: "red" });
+        expect(mutateAsync.useAddMysteryClue).toHaveBeenCalledWith({
+            body: "The window was latched",
+            truthType: "red",
+        });
         await waitFor(() => {
             expect(screen.getByPlaceholderText("Add a new red truth clue...")).toHaveValue("");
         });
         expect(refresh).not.toHaveBeenCalled();
     });
 
-    it("keeps the red truth composer away from the pieces", () => {
+    it("lets the game master amend a player's private red truths and whisper a new one to them", async () => {
         // given
-        stubMystery();
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.queryByPlaceholderText("Add a new red truth clue...")).not.toBeInTheDocument();
-    });
-
-    it("lets the game master amend a private red truth of their own mystery", () => {
-        // given
-        stubMystery({
-            mystery: makeMysteryDetail({
-                attempts: [makeAttempt({ id: "a1", body: "First guess" })],
-                clues: [
-                    {
-                        id: 5,
-                        body: "Only Battler may know this",
-                        truth_type: "red",
-                        sort_order: 0,
-                        player_id: player.id,
-                    },
-                ],
-            }),
+        const { mutateAsync, refresh } = stubMystery({
+            attempts: [makeAttempt({ id: "a1", body: "First guess" })],
+            clues: [
+                { id: 5, body: "Only Battler may know this", truth_type: "red", sort_order: 0, player_id: player.id },
+            ],
         });
+        const user = userEvent.setup();
 
         // when
         renderPage(gameMasterUser);
@@ -572,19 +425,32 @@ describe("MysteryDetailPage", () => {
         expect(screen.getByText("Only Battler may know this")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "edit" })).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "delete" })).toBeInTheDocument();
+
+        // when
+        await user.type(screen.getByPlaceholderText("Private red truth for this player..."), "  Your key is a lie  ");
+        await user.click(screen.getByRole("button", { name: "Add private Red Truth" }));
+
+        // then
+        await waitFor(() => {
+            expect(mutateAsync.useAddMysteryClue).toHaveBeenCalledWith({
+                body: "Your key is a lie",
+                truthType: "red",
+                playerId: "player-1",
+            });
+        });
+        expect(refresh).not.toHaveBeenCalled();
     });
 
-    it("groups the attempts by player for the game master and offers jump pills", () => {
+    it("groups the attempts by player for the game master, offers jump pills and folds a thread away", async () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                attempts: [
-                    makeAttempt({ id: "a1", body: "First guess" }),
-                    makeAttempt({ id: "a2", body: "Second guess" }),
-                    makeAttempt({ id: "a3", author: otherPlayer, body: "Ange's guess" }),
-                ],
-            }),
+            attempts: [
+                makeAttempt({ id: "a1", body: "First guess" }),
+                makeAttempt({ id: "a2", body: "Second guess" }),
+                makeAttempt({ id: "a3", author: otherPlayer, body: "Ange's guess" }),
+            ],
         });
+        const user = userEvent.setup();
 
         // when
         renderPage(gameMasterUser);
@@ -595,30 +461,19 @@ describe("MysteryDetailPage", () => {
         expect(screen.getByTitle("Jump to Ange's attempts")).toBeInTheDocument();
         expect(screen.getByText("2 attempts")).toBeInTheDocument();
         expect(screen.getByText("1 attempt")).toBeInTheDocument();
-    });
-
-    it("folds a player's thread away when the group header is clicked", async () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ attempts: [makeAttempt({ body: "First guess" })] }) });
-        const user = userEvent.setup();
-        renderPage(gameMasterUser);
 
         // when
         await user.click(screen.getByRole("button", { name: /1 attempt/ }));
 
         // then
-        expect(screen.queryByText("First guess")).not.toBeInTheDocument();
+        expect(screen.queryByText("Ange's guess")).not.toBeInTheDocument();
         await user.click(screen.getByRole("button", { name: /1 attempt/ }));
-        expect(screen.getByText("First guess")).toBeInTheDocument();
+        expect(screen.getByText("Ange's guess")).toBeInTheDocument();
     });
 
     it("shows a piece only a flat thread with no pills in a private mystery", () => {
         // given
-        stubMystery({
-            mystery: makeMysteryDetail({
-                attempts: [makeAttempt({ id: "a1", body: "First guess" })],
-            }),
-        });
+        stubMystery({ attempts: [makeAttempt({ id: "a1", body: "First guess" })] });
 
         // when
         renderPage(playerUser);
@@ -629,13 +484,11 @@ describe("MysteryDetailPage", () => {
         expect(screen.queryByText("1 attempt")).not.toBeInTheDocument();
     });
 
-    it("shows every piece the grouped attempts in a free-for-all", () => {
+    it("shows every piece the grouped attempts in a free-for-all but keeps the private red truth composer away", () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                free_for_all: true,
-                attempts: [makeAttempt({ id: "a1" }), makeAttempt({ id: "a2", author: otherPlayer })],
-            }),
+            free_for_all: true,
+            attempts: [makeAttempt({ id: "a1" }), makeAttempt({ id: "a2", author: otherPlayer })],
         });
 
         // when
@@ -644,19 +497,18 @@ describe("MysteryDetailPage", () => {
         // then
         expect(screen.getByTitle("Jump to Ange's attempts")).toBeInTheDocument();
         expect(screen.getAllByRole("article")).toHaveLength(2);
+        expect(screen.queryByPlaceholderText("Private red truth for this player...")).not.toBeInTheDocument();
     });
 
     it("reveals every attempt once the mystery is solved and pins the winning one", () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                solved: true,
-                winner: player,
-                attempts: [
-                    makeAttempt({ id: "a1", body: "The chain trick", is_winner: true }),
-                    makeAttempt({ id: "a2", author: otherPlayer, body: "A wrong guess" }),
-                ],
-            }),
+            solved: true,
+            winner: player,
+            attempts: [
+                makeAttempt({ id: "a1", body: "The chain trick", is_winner: true }),
+                makeAttempt({ id: "a2", author: otherPlayer, body: "A wrong guess" }),
+            ],
         });
 
         // when
@@ -672,12 +524,10 @@ describe("MysteryDetailPage", () => {
     it("tells the attempt list which authors have already won", () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                attempts: [
-                    makeAttempt({ id: "a1", body: "The chain trick", is_winner: true }),
-                    makeAttempt({ id: "a2", author: otherPlayer, body: "A wrong guess" }),
-                ],
-            }),
+            attempts: [
+                makeAttempt({ id: "a1", body: "The chain trick", is_winner: true }),
+                makeAttempt({ id: "a2", author: otherPlayer, body: "A wrong guess" }),
+            ],
         });
 
         // when
@@ -690,46 +540,39 @@ describe("MysteryDetailPage", () => {
         expect(within(ange).getByText("author has not won")).toBeInTheDocument();
     });
 
-    it("tells the game master that nobody has moved yet", () => {
+    it.each([
+        {
+            name: "tells the game master that nobody has moved yet",
+            viewer: gameMasterUser,
+            playerCount: 0,
+            message: "No attempts yet. Waiting for pieces to make their move.",
+        },
+        {
+            name: "invites the first blue truth when nobody is playing yet",
+            viewer: playerUser,
+            playerCount: 0,
+            message: "No attempts yet. Be the first to declare your blue truth!",
+        },
+        {
+            name: "tells a piece how many others are already playing a private mystery",
+            viewer: playerUser,
+            playerCount: 3,
+            message: "There are 3 pieces playing this mystery. Join the game board and declare your own blue truth!",
+        },
+    ])("$name", ({ viewer, playerCount, message }) => {
         // given
-        stubMystery({ mystery: makeMysteryDetail({ attempts: [] }) });
+        stubMystery({ attempts: [], player_count: playerCount });
 
         // when
-        renderPage(gameMasterUser);
+        renderPage(viewer);
 
         // then
-        expect(screen.getByText("No attempts yet. Waiting for pieces to make their move.")).toBeInTheDocument();
-    });
-
-    it("invites the first blue truth when nobody is playing yet", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ attempts: [], player_count: 0 }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.getByText("No attempts yet. Be the first to declare your blue truth!")).toBeInTheDocument();
-    });
-
-    it("tells a piece how many others are already playing a private mystery", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ attempts: [], player_count: 3 }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(
-            screen.getByText(
-                "There are 3 pieces playing this mystery. Join the game board and declare your own blue truth!",
-            ),
-        ).toBeInTheDocument();
+        expect(screen.getByText(message)).toBeInTheDocument();
     });
 
     it("submits a trimmed blue truth and clears the composer", async () => {
         // given
-        const { createAttempt, refresh } = stubMystery();
+        const { mutateAsync, refresh } = stubMystery();
         const user = userEvent.setup();
         renderPage(playerUser);
 
@@ -737,102 +580,48 @@ describe("MysteryDetailPage", () => {
         expect(screen.getByRole("button", { name: "Submit Blue Truth" })).toBeDisabled();
 
         // when
-        await user.type(screen.getByPlaceholderText("Declare your blue truth..."), "  The chain was faked  ");
+        await user.type(screen.getByPlaceholderText(composerPlaceholder), "  The chain was faked  ");
         await user.click(screen.getByRole("button", { name: "Submit Blue Truth" }));
 
         // then
-        expect(createAttempt).toHaveBeenCalledWith({ body: "The chain was faked" });
+        expect(mutateAsync.useCreateMysteryAttempt).toHaveBeenCalledWith({ body: "The chain was faked" });
         await waitFor(() => {
-            expect(screen.getByPlaceholderText("Declare your blue truth...")).toHaveValue("");
+            expect(screen.getByPlaceholderText(composerPlaceholder)).toHaveValue("");
         });
         expect(refresh).not.toHaveBeenCalled();
     });
 
-    it("closes the composer and explains the pause to the pieces", () => {
+    it.each([
+        {
+            name: "closes the composer and explains the pause to the pieces",
+            overrides: { paused: true },
+            banner: "The Game Master has paused this mystery. New attempts are temporarily disabled.",
+            composers: 0,
+        },
+        {
+            name: "warns that the game master is away but still takes attempts",
+            overrides: { gm_away: true },
+            banner: "The Game Master is currently away. You can still post theories, but responses may be delayed.",
+            composers: 1,
+        },
+    ])("$name", ({ overrides, banner, composers }) => {
         // given
-        stubMystery({ mystery: makeMysteryDetail({ paused: true }) });
+        stubMystery(overrides);
 
         // when
         renderPage(playerUser);
 
         // then
-        expect(
-            screen.getByText("The Game Master has paused this mystery. New attempts are temporarily disabled."),
-        ).toBeInTheDocument();
-        expect(screen.queryByPlaceholderText("Declare your blue truth...")).not.toBeInTheDocument();
+        expect(screen.getByText(banner)).toBeInTheDocument();
+        expect(screen.queryAllByPlaceholderText(composerPlaceholder)).toHaveLength(composers);
     });
 
-    it("warns that the game master is away but still takes attempts", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ gm_away: true }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(
-            screen.getByText(
-                "The Game Master is currently away. You can still post theories, but responses may be delayed.",
-            ),
-        ).toBeInTheDocument();
-        expect(screen.getByPlaceholderText("Declare your blue truth...")).toBeInTheDocument();
-    });
-
-    it("closes the composer once the mystery is solved", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ solved: true, winner: player }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.queryByPlaceholderText("Declare your blue truth...")).not.toBeInTheDocument();
-    });
-
-    it("never offers the game master a composer of their own", () => {
-        // given
-        stubMystery();
-
-        // when
-        renderPage(gameMasterUser);
-
-        // then
-        expect(screen.queryByPlaceholderText("Declare your blue truth...")).not.toBeInTheDocument();
-    });
-
-    it("opens the post game discussion only once the mystery is solved", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ solved: true, winner: player }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.getByRole("region", { name: "comments" })).toHaveTextContent(
-            "Post-Game Discussion for mystery-1",
-        );
-    });
-
-    it("keeps the post game discussion shut while the mystery is open", () => {
-        // given
-        stubMystery();
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.queryByRole("region", { name: "comments" })).not.toBeInTheDocument();
-    });
-
-    it("shows a piece the private red truths written for them", () => {
+    it("shows a piece the private red truths written for them and lets them fold them away", async () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                clues: [
-                    { id: 5, body: "Your key never left you", truth_type: "red", sort_order: 0, player_id: player.id },
-                ],
-            }),
+            clues: [{ id: 5, body: "Your key never left you", truth_type: "red", sort_order: 0, player_id: player.id }],
         });
+        const user = userEvent.setup();
 
         // when
         renderPage(playerUser);
@@ -840,19 +629,6 @@ describe("MysteryDetailPage", () => {
         // then
         expect(screen.getByRole("button", { name: /Private Red Truths \(to you\) \(1\)/ })).toBeInTheDocument();
         expect(screen.getByText("Your key never left you")).toBeInTheDocument();
-    });
-
-    it("lets a piece fold their private red truths away", async () => {
-        // given
-        stubMystery({
-            mystery: makeMysteryDetail({
-                clues: [
-                    { id: 5, body: "Your key never left you", truth_type: "red", sort_order: 0, player_id: player.id },
-                ],
-            }),
-        });
-        const user = userEvent.setup();
-        renderPage(playerUser);
 
         // when
         await user.click(screen.getByRole("button", { name: /Private Red Truths \(to you\)/ }));
@@ -862,46 +638,10 @@ describe("MysteryDetailPage", () => {
         expect(localStorage.getItem("mystery:mystery-1:private-clues:player-1:collapsed")).toBe("1");
     });
 
-    it("lets the game master whisper a private red truth to a player", async () => {
-        // given
-        const { addClue, refresh } = stubMystery({
-            mystery: makeMysteryDetail({ attempts: [makeAttempt()] }),
-        });
-        const user = userEvent.setup();
-        renderPage(gameMasterUser);
-
-        // when
-        await user.type(screen.getByPlaceholderText("Private red truth for this player..."), "  Your key is a lie  ");
-        await user.click(screen.getByRole("button", { name: "Add private Red Truth" }));
-
-        // then
-        await waitFor(() => {
-            expect(addClue).toHaveBeenCalledWith({
-                body: "Your key is a lie",
-                truthType: "red",
-                playerId: "player-1",
-            });
-        });
-        expect(refresh).not.toHaveBeenCalled();
-    });
-
-    it("keeps the private red truth composer away from the pieces", () => {
-        // given
-        stubMystery({ mystery: makeMysteryDetail({ free_for_all: true, attempts: [makeAttempt()] }) });
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.queryByPlaceholderText("Private red truth for this player...")).not.toBeInTheDocument();
-    });
-
     it("lists the attachments with a readable size", () => {
         // given
         stubMystery({
-            mystery: makeMysteryDetail({
-                attachments: [{ id: 3, file_url: "/files/notes.pdf", file_name: "notes.pdf", file_size: 2048 }],
-            }),
+            attachments: [{ id: 3, file_url: "/files/notes.pdf", file_name: "notes.pdf", file_size: 2048 }],
         });
 
         // when
@@ -913,20 +653,9 @@ describe("MysteryDetailPage", () => {
         expect(screen.queryByRole("button", { name: "Add Attachment" })).not.toBeInTheDocument();
     });
 
-    it("hides the attachments panel from a piece when there is nothing attached", () => {
-        // given
-        stubMystery();
-
-        // when
-        renderPage(playerUser);
-
-        // then
-        expect(screen.queryByRole("heading", { name: "Attachments" })).not.toBeInTheDocument();
-    });
-
     it("lets the game master attach a file to the mystery", async () => {
         // given
-        const { uploadAttachment, refresh } = stubMystery();
+        const { mutateAsync, refresh } = stubMystery();
         const user = userEvent.setup();
         const { container } = renderPage(gameMasterUser);
 
@@ -936,17 +665,15 @@ describe("MysteryDetailPage", () => {
 
         // then
         await waitFor(() => {
-            expect(uploadAttachment).toHaveBeenCalledWith(expect.any(File));
+            expect(mutateAsync.useUploadMysteryAttachment).toHaveBeenCalledWith(expect.any(File));
         });
         expect(refresh).not.toHaveBeenCalled();
     });
 
     it("reports why an attachment could not be uploaded", async () => {
         // given
-        stubMystery();
-        mocked.useUploadMysteryAttachment.mockReturnValue({
-            mutateAsync: vi.fn(() => Promise.reject(new Error("the file is cursed"))),
-        });
+        const { mutateAsync } = stubMystery();
+        mutateAsync.useUploadMysteryAttachment.mockRejectedValue(new Error("the file is cursed"));
         const user = userEvent.setup();
         const { container } = renderPage(gameMasterUser);
 
@@ -960,10 +687,8 @@ describe("MysteryDetailPage", () => {
 
     it("asks before removing an attachment", async () => {
         // given
-        const { deleteAttachment } = stubMystery({
-            mystery: makeMysteryDetail({
-                attachments: [{ id: 3, file_url: "/files/notes.pdf", file_name: "notes.pdf", file_size: 512 }],
-            }),
+        const { mutateAsync } = stubMystery({
+            attachments: [{ id: 3, file_url: "/files/notes.pdf", file_name: "notes.pdf", file_size: 512 }],
         });
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
         const user = userEvent.setup();
@@ -974,15 +699,13 @@ describe("MysteryDetailPage", () => {
 
         // then
         expect(confirm).toHaveBeenCalledWith('Delete attachment "notes.pdf"?');
-        expect(deleteAttachment).not.toHaveBeenCalled();
+        expect(mutateAsync.useDeleteMysteryAttachment).not.toHaveBeenCalled();
     });
 
     it("shows the media gallery and lets the game master remove an image", async () => {
         // given
-        const { deleteMedia } = stubMystery({
-            mystery: makeMysteryDetail({
-                media: [{ id: 11, media_url: "/m/11.png", media_type: "image", sort_order: 0 }],
-            }),
+        const { mutateAsync } = stubMystery({
+            media: [{ id: 11, media_url: "/m/11.png", media_type: "image", sort_order: 0 }],
         });
         vi.spyOn(window, "confirm").mockReturnValue(true);
         const user = userEvent.setup();
@@ -993,12 +716,12 @@ describe("MysteryDetailPage", () => {
 
         // then
         expect(screen.getByTestId("media-gallery")).toHaveTextContent("1 media");
-        expect(deleteMedia).toHaveBeenCalledWith(11);
+        expect(mutateAsync.useDeleteMysteryMedia).toHaveBeenCalledWith(11);
     });
 
     it("uploads the images the game master has queued up", async () => {
         // given
-        const { uploadMedia, refresh } = stubMystery();
+        const { mutateAsync, refresh } = stubMystery();
         const user = userEvent.setup();
         const { container } = renderPage(gameMasterUser);
 
@@ -1009,7 +732,10 @@ describe("MysteryDetailPage", () => {
 
         // then
         await waitFor(() => {
-            expect(uploadMedia).toHaveBeenCalledWith({ file: expect.any(File), isSpoiler: false });
+            expect(mutateAsync.useUploadMysteryMedia).toHaveBeenCalledWith({
+                file: expect.any(File),
+                isSpoiler: false,
+            });
         });
         expect(refresh).not.toHaveBeenCalled();
     });

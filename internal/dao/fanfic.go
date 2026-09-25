@@ -208,7 +208,7 @@ func (r *fanficDAO) Update(ctx context.Context, s spec.FanficUpdate, tx ...*sql.
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("fanfic not found or not owned")
+		return fmt.Errorf("fanfic not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -572,6 +572,9 @@ func (r *fanficDAO) GetChapterFanficID(ctx context.Context, chapterID uuid.UUID,
 
 func (r *fanficDAO) GetChapterAuthorID(ctx context.Context, chapterID uuid.UUID, tx ...*sql.Tx) (uuid.UUID, error) {
 	userID, err := genQueries(r.db, tx).GetFanficChapterAuthorID(ctx, chapterID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, fmt.Errorf("get chapter author: %w", ErrNotFound)
+	}
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("get chapter author: %w", err)
 	}
@@ -781,8 +784,11 @@ func (r *fanficDAO) GetReadingProgress(ctx context.Context, s spec.FanficUserRef
 		UserID:   s.UserID,
 		FanficID: s.FanficID,
 	})
-	if err != nil {
+	if errors.Is(err, sql.ErrNoRows) {
 		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("get reading progress: %w", err)
 	}
 
 	return int(chapter), nil
@@ -804,7 +810,10 @@ func (r *fanficDAO) SetReadingProgress(ctx context.Context, s spec.FanficReading
 func (r *fanficDAO) ListFavourites(ctx context.Context, q spec.FanficUserListFilter, tx ...*sql.Tx) ([]model.FanficRow, int, error) {
 	queries := genQueries(r.db, tx)
 
-	total, err := queries.CountFanficFavourites(ctx, q.UserID)
+	total, err := queries.CountFanficFavourites(ctx, sqlcgen.CountFanficFavouritesParams{
+		UserID:   q.UserID,
+		ViewerID: q.ViewerID,
+	})
 	if err != nil {
 		return nil, 0, fmt.Errorf("count favourites: %w", err)
 	}

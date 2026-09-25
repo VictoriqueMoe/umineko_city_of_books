@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/notification"
@@ -58,7 +59,11 @@ func (s *service) Follow(ctx context.Context, followerID uuid.UUID, followingID 
 		return ErrCannotFollowSelf
 	}
 
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, followerID, followingID); blocked {
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, followerID, followingID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -68,7 +73,12 @@ func (s *service) Follow(ctx context.Context, followerID uuid.UUID, followingID 
 
 	go func() {
 		follower, err := s.userRepo.GetByID(ctx, followerID)
-		if err != nil || follower == nil {
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", followerID.String()).Msg("new follower notification skipped, follower lookup failed")
+
+			return
+		}
+		if follower == nil {
 			return
 		}
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
@@ -108,8 +118,15 @@ func (s *service) GetFollowStats(ctx context.Context, userID uuid.UUID, viewerID
 	isFollowing := false
 	followsYou := false
 	if viewerID != uuid.Nil && viewerID != userID {
-		isFollowing, _ = s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: viewerID, FollowingID: userID})
-		followsYou, _ = s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: userID, FollowingID: viewerID})
+		isFollowing, err = s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: viewerID, FollowingID: userID})
+		if err != nil {
+			return nil, fmt.Errorf("viewer follows user: %w", err)
+		}
+
+		followsYou, err = s.followRepo.IsFollowing(ctx, spec.FollowSpec{FollowerID: userID, FollowingID: viewerID})
+		if err != nil {
+			return nil, fmt.Errorf("user follows viewer: %w", err)
+		}
 	}
 
 	return &dto.FollowStatsResponse{

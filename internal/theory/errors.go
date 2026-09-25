@@ -6,6 +6,7 @@ var (
 	ErrCannotRespondToOwnTheory = errors.New("you cannot respond to your own theory")
 	ErrRateLimited              = errors.New("daily limit reached")
 	ErrTheoryNotFound           = errors.New("theory not found")
+	ErrResponseNotFound         = errors.New("response not found")
 	ErrNotAuthor                = errors.New("only the theory author or a moderator can do this")
 	ErrAlreadyRefuted           = errors.New("this theory has already been refuted")
 	ErrResponseNotOnTheory      = errors.New("that response is not on this theory")

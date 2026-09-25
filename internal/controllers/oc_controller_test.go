@@ -2,19 +2,28 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/controllers/utils/testutil"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	ocsvc "umineko_city_of_books/internal/oc"
+	"umineko_city_of_books/internal/upload"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	ocCtlFilterRejection = &contentfilter.RejectedError{Rejection: contentfilter.Rejection{Rule: "slurs", Reason: "nope", Detail: "slur"}}
 )
 
 func newOCHarness(t *testing.T) (*testutil.Harness, *ocsvc.MockService) {
@@ -316,6 +325,191 @@ func TestFavouriteOC_NotFound(t *testing.T) {
 
 	// then
 	require.Equal(t, http.StatusNotFound, status)
+}
+
+func TestOCWriteRoutes_ServiceOutcomes(t *testing.T) {
+	type outcome struct {
+		name     string
+		err      error
+		wantCode int
+		wantBody string
+	}
+
+	notOwned := fmt.Errorf("oc not found or not owned: %w", dao.ErrNotFound)
+	imageMissing := fmt.Errorf("gallery image not found or not in oc: %w", dao.ErrNotFound)
+	commentNotOwned := fmt.Errorf("comment not found or not owned: %w", dao.ErrNotFound)
+	tooLarge := fmt.Errorf("%w: file size 9MB exceeds maximum 5MB", upload.ErrFileTooLarge)
+	dbDown := errors.New("pq: connection refused")
+	ocMissing := outcome{"missing oc", ocsvc.ErrNotFound, http.StatusNotFound, "oc not found"}
+	notOwner := outcome{"not the owner", ocsvc.ErrNotOwner, http.StatusForbidden, "cannot edit this oc"}
+
+	routes := []struct {
+		name     string
+		method   string
+		path     string
+		json     any
+		form     bool
+		expect   func(os *ocsvc.MockService, id, userID uuid.UUID, err error)
+		outcomes []outcome
+	}{
+		{
+			name:   "update oc",
+			method: "PUT",
+			path:   "/ocs/:id",
+			json:   dto.UpdateOCRequest{Name: "Linda", Series: "umineko"},
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().UpdateOC(mock.Anything, id, userID, dto.UpdateOCRequest{Name: "Linda", Series: "umineko"}).Return(err)
+			},
+			outcomes: []outcome{
+				{"not owned", notOwned, http.StatusForbidden, "cannot update this oc"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to update oc"}`},
+			},
+		},
+		{
+			name:   "delete oc",
+			method: "DELETE",
+			path:   "/ocs/:id",
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().DeleteOC(mock.Anything, id, userID).Return(err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				{"not owned", notOwned, http.StatusForbidden, "cannot delete this oc"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to delete oc"}`},
+			},
+		},
+		{
+			name:   "upload portrait",
+			method: "POST",
+			path:   "/ocs/:id/image",
+			form:   true,
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().UploadOCImage(mock.Anything, id, userID, "image/png", mock.AnythingOfType("int64"), mock.Anything).Return("", err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				notOwner,
+				{"too large", tooLarge, http.StatusBadRequest, "exceeds maximum 5MB"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to upload image"}`},
+			},
+		},
+		{
+			name:   "add gallery image",
+			method: "POST",
+			path:   "/ocs/:id/gallery",
+			form:   true,
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().AddGalleryImage(mock.Anything, id, userID, "", "image/png", mock.AnythingOfType("int64"), mock.Anything).Return(nil, err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				notOwner,
+				{"caption rejected by the filter", ocCtlFilterRejection, http.StatusBadRequest, "content_rejected"},
+				{"too large", tooLarge, http.StatusBadRequest, "exceeds maximum 5MB"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to add gallery image"}`},
+			},
+		},
+		{
+			name:   "update gallery image",
+			method: "PATCH",
+			path:   "/ocs/:id/gallery/7",
+			json:   dto.UpdateOCImageRequest{},
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().UpdateGalleryImage(mock.Anything, id, int64(7), userID, dto.UpdateOCImageRequest{}).Return(err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				notOwner,
+				{"missing image", imageMissing, http.StatusNotFound, "gallery image not found"},
+				{"caption rejected by the filter", ocCtlFilterRejection, http.StatusBadRequest, "content_rejected"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to update gallery image"}`},
+			},
+		},
+		{
+			name:   "delete gallery image",
+			method: "DELETE",
+			path:   "/ocs/:id/gallery/7",
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().DeleteGalleryImage(mock.Anything, id, int64(7), userID).Return(err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				notOwner,
+				{"missing image", imageMissing, http.StatusNotFound, "gallery image not found"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to delete gallery image"}`},
+			},
+		},
+		{
+			name:   "vote",
+			method: "POST",
+			path:   "/ocs/:id/vote",
+			json:   dto.VoteRequest{Value: 1},
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().Vote(mock.Anything, userID, id, 1).Return(err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to vote"}`},
+			},
+		},
+		{
+			name:   "create comment",
+			method: "POST",
+			path:   "/ocs/:id/comments",
+			json:   dto.CreateCommentRequest{Body: "hi"},
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().CreateComment(mock.Anything, id, userID, dto.CreateCommentRequest{Body: "hi"}).Return(uuid.Nil, err)
+			},
+			outcomes: []outcome{
+				ocMissing,
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to create comment"}`},
+			},
+		},
+		{
+			name:   "update comment",
+			method: "PUT",
+			path:   "/oc-comments/:id",
+			json:   dto.UpdateCommentRequest{Body: "hi"},
+			expect: func(os *ocsvc.MockService, id, userID uuid.UUID, err error) {
+				os.EXPECT().UpdateComment(mock.Anything, id, userID, dto.UpdateCommentRequest{Body: "hi"}).Return(err)
+			},
+			outcomes: []outcome{
+				{"missing comment", ocsvc.ErrNotFound, http.StatusNotFound, "comment not found"},
+				{"not owned", commentNotOwned, http.StatusForbidden, "cannot update this comment"},
+				{"server failure", dbDown, http.StatusInternalServerError, `{"error":"failed to update comment"}`},
+			},
+		},
+	}
+
+	for _, route := range routes {
+		for _, tc := range route.outcomes {
+			t.Run(route.name+": "+tc.name, func(t *testing.T) {
+				// given
+				h, os := newOCHarness(t)
+				userID := uuid.New()
+				id := uuid.New()
+				h.ExpectValidSession("valid-cookie", userID)
+				route.expect(os, id, userID, tc.err)
+
+				req := h.NewRequest(route.method, strings.ReplaceAll(route.path, ":id", id.String())).WithCookie("valid-cookie")
+				if route.json != nil {
+					req = req.WithJSONBody(route.json)
+				}
+				if route.form {
+					form, contentType := testutil.MediaForm(t, "image", nil)
+					req = req.WithRawBody(form, contentType)
+				}
+
+				// when
+				status, body := req.Do()
+
+				// then
+				require.Equal(t, tc.wantCode, status)
+				assert.Contains(t, string(body), tc.wantBody)
+				assert.NotContains(t, string(body), "pq:")
+			})
+		}
+	}
 }
 
 func TestCreateOCComment_OK(t *testing.T) {

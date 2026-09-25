@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"testing"
 
@@ -93,6 +94,44 @@ func mysteryLeaderboardWriters(mysteryID, attemptID, userID uuid.UUID) []mystery
 				return repo.DeleteAttemptAsAdmin(context.Background(), attemptID)
 			},
 		},
+		{
+			name: "mark solved",
+			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+				mysteryDAO.EXPECT().GetAttemptOwner(mock.Anything, attemptID, mock.Anything).Return(userID, mysteryID, nil)
+				mysteryDAO.EXPECT().SetAttemptWinner(mock.Anything, attemptID, mock.Anything).Return(err)
+			},
+			call: func(repo MysteryRepository) error {
+				return repo.MarkSolved(context.Background(), spec.MysterySolve{MysteryID: mysteryID, AttemptID: attemptID}, new(sql.Tx))
+			},
+		},
+		{
+			name: "close for good",
+			expect: func(mysteryDAO *dao.MockMysteryDAO, err error) {
+				mysteryDAO.EXPECT().MarkPermanentlySolved(mock.Anything, mysteryID).Return(err)
+			},
+			call: func(repo MysteryRepository) error {
+				return repo.MarkPermanentlySolved(context.Background(), mysteryID)
+			},
+		},
+	}
+}
+
+func TestMysteryRepository_AFailedInvalidationDoesNotFailACommittedWrite(t *testing.T) {
+	mysteryID, attemptID, userID := uuid.New(), uuid.New(), uuid.New()
+
+	for _, tc := range mysteryLeaderboardWriters(mysteryID, attemptID, userID) {
+		t.Run(tc.name, func(t *testing.T) {
+			// given a write that commits while the cache is unreachable
+			repo, mysteryDAO, client := newCachedMysteryRepo(t)
+			tc.expect(mysteryDAO, nil)
+			client.EXPECT().Do(gomock.Any(), gomock.Any()).Return(valkeymock.ErrorResult(errors.New("valkey down"))).Times(1)
+
+			// when
+			err := tc.call(repo)
+
+			// then the caller is not told a committed write failed, which would invite a retry against changed state
+			require.NoError(t, err)
+		})
 	}
 }
 

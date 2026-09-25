@@ -344,7 +344,7 @@ func (r *chatDAO) UpdateRoom(ctx context.Context, s spec.UpdateChatRoom, tx ...*
 	}
 
 	if n == 0 {
-		return fmt.Errorf("room not found or not editable")
+		return fmt.Errorf("room not found or not editable: %w", ErrNotFound)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"umineko_city_of_books/internal/dto"
@@ -12,6 +13,10 @@ import (
 	"github.com/livekit/protocol/auth"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	errBlockLookup = errors.New("block lookup failed")
 )
 
 func TestAssertBlocksAllowParticipation(t *testing.T) {
@@ -42,6 +47,24 @@ func TestAssertBlocksAllowParticipation(t *testing.T) {
 			setup: func(m *testMocks) {
 				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, viewerID).Return(false, nil)
 			},
+		},
+		{
+			name:    "dm refuses when the block lookup fails",
+			room:    &model.ChatRoomSendContext{Type: "dm"},
+			members: []uuid.UUID{senderID, viewerID},
+			setup: func(m *testMocks) {
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, senderID, viewerID).Return(false, errBlockLookup)
+			},
+			wantErr: errBlockLookup,
+		},
+		{
+			name:    "group room refuses when the host block lookup fails",
+			room:    &model.ChatRoomSendContext{Type: "group", CreatedBy: hostID},
+			members: []uuid.UUID{senderID, hostID, viewerID},
+			setup: func(m *testMocks) {
+				m.blockSvc.EXPECT().IsBlocked(mock.Anything, hostID, senderID).Return(false, errBlockLookup)
+			},
+			wantErr: errBlockLookup,
 		},
 		{
 			name: "live stream rejects when the streamer has blocked the sender",

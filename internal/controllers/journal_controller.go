@@ -3,10 +3,10 @@ package controllers
 import (
 	"errors"
 	"strconv"
-	"strings"
 
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/journal"
 	"umineko_city_of_books/internal/journal/params"
@@ -141,7 +141,7 @@ func (s *Service) listUserJournals(ctx fiber.Ctx) error {
 
 	result, err := s.JournalService.ListJournalsByUser(ctx.Context(), userID, viewerID, limit, offset)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list user journals")
+		return utils.InternalError(ctx, "failed to list user journals", err)
 	}
 	return ctx.JSON(result)
 }
@@ -156,7 +156,7 @@ func (s *Service) listUserFollowedJournals(ctx fiber.Ctx) error {
 
 	result, err := s.JournalService.ListFollowedByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list followed journals")
+		return utils.InternalError(ctx, "failed to list followed journals", err)
 	}
 	return ctx.JSON(result)
 }
@@ -183,7 +183,7 @@ func (s *Service) listJournals(ctx fiber.Ctx) error {
 	p := params.NewListParams(sort, work, authorID, search, includeArchived, limit, offset)
 	result, err := s.JournalService.ListJournals(ctx.Context(), p, userID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list journals")
+		return utils.InternalError(ctx, "failed to list journals", err)
 	}
 	return ctx.JSON(result)
 }
@@ -207,7 +207,7 @@ func (s *Service) createJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, "title is required")
 		}
-		return utils.InternalError(ctx, "failed to create journal")
+		return utils.InternalError(ctx, "failed to create journal", err)
 	}
 
 	s.Hub.BumpSidebarActivity("journals")
@@ -226,7 +226,7 @@ func (s *Service) getJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "journal not found")
 		}
-		return utils.InternalError(ctx, "failed to get journal")
+		return utils.InternalError(ctx, "failed to get journal", err)
 	}
 	return ctx.JSON(result)
 }
@@ -250,7 +250,13 @@ func (s *Service) updateJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, "title is required")
 		}
-		return utils.Forbidden(ctx, "cannot update this journal")
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "journal not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this journal")
+		}
+		return utils.InternalError(ctx, "failed to update journal", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -263,7 +269,13 @@ func (s *Service) deleteJournal(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.JournalService.DeleteJournal(ctx.Context(), id, userID); err != nil {
-		return utils.Forbidden(ctx, "cannot delete this journal")
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "journal not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this journal")
+		}
+		return utils.InternalError(ctx, "failed to delete journal", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -289,7 +301,7 @@ func (s *Service) setJournalPaused(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the journal author")
 		}
-		return utils.InternalError(ctx, "failed to update the journal")
+		return utils.InternalError(ctx, "failed to update the journal", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -311,7 +323,7 @@ func (s *Service) followJournal(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to follow")
+		return utils.InternalError(ctx, "failed to follow", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -324,7 +336,7 @@ func (s *Service) unfollowJournal(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.JournalService.UnfollowJournal(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to unfollow")
+		return utils.InternalError(ctx, "failed to unfollow", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -368,7 +380,7 @@ func (s *Service) createJournalComment(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to create comment")
+		return utils.InternalError(ctx, "failed to create comment", err)
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -393,7 +405,13 @@ func (s *Service) updateJournalComment(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrEmptyBody) {
 			return utils.BadRequest(ctx, "body is required")
 		}
-		return utils.Forbidden(ctx, "cannot update this comment")
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this comment")
+		}
+		return utils.InternalError(ctx, "failed to update comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -406,7 +424,13 @@ func (s *Service) deleteJournalComment(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.JournalService.DeleteComment(ctx.Context(), id, userID); err != nil {
-		return utils.Forbidden(ctx, "cannot delete this comment")
+		if errors.Is(err, journal.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this comment")
+		}
+		return utils.InternalError(ctx, "failed to delete comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -425,7 +449,7 @@ func (s *Service) likeJournalComment(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "comment not found")
 		}
-		return utils.InternalError(ctx, "failed to like comment")
+		return utils.InternalError(ctx, "failed to like comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -438,7 +462,7 @@ func (s *Service) unlikeJournalComment(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.JournalService.UnlikeComment(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike comment")
+		return utils.InternalError(ctx, "failed to unlike comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -456,7 +480,7 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
@@ -469,10 +493,10 @@ func (s *Service) uploadJournalCommentMedia(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "comment not found")
 		}
-		if strings.Contains(err.Error(), "too large") {
+		if utils.IsUploadRejection(err) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to upload media")
+		return utils.InternalError(ctx, "failed to upload media", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -495,7 +519,7 @@ func (s *Service) deleteJournalEntryMedia(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "entry not found")
 		}
-		return utils.InternalError(ctx, "failed to delete media")
+		return utils.InternalError(ctx, "failed to delete media", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -513,7 +537,7 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
@@ -526,10 +550,10 @@ func (s *Service) uploadJournalEntryMedia(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "entry not found")
 		}
-		if strings.Contains(err.Error(), "too large") {
+		if utils.IsUploadRejection(err) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to upload media")
+		return utils.InternalError(ctx, "failed to upload media", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -551,7 +575,7 @@ func (s *Service) getJournalEntry(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrEntryNotFound) || errors.Is(err, journal.ErrNotFound) {
 			return utils.NotFound(ctx, "entry not found")
 		}
-		return utils.InternalError(ctx, "failed to get entry")
+		return utils.InternalError(ctx, "failed to get entry", err)
 	}
 	return ctx.JSON(fiber.Map{"entry": entry, "comments": comments})
 }
@@ -582,7 +606,7 @@ func (s *Service) createJournalEntry(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the journal author")
 		}
-		return utils.InternalError(ctx, "failed to create entry")
+		return utils.InternalError(ctx, "failed to create entry", err)
 	}
 
 	s.Hub.BumpSidebarActivity("journals")
@@ -614,7 +638,7 @@ func (s *Service) updateJournalEntry(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the entry author")
 		}
-		return utils.InternalError(ctx, "failed to update entry")
+		return utils.InternalError(ctx, "failed to update entry", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -633,7 +657,7 @@ func (s *Service) deleteJournalEntry(ctx fiber.Ctx) error {
 		if errors.Is(err, journal.ErrNotAuthor) {
 			return utils.Forbidden(ctx, "not the entry author")
 		}
-		return utils.InternalError(ctx, "failed to delete entry")
+		return utils.InternalError(ctx, "failed to delete entry", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

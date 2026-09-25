@@ -107,6 +107,28 @@ func TestChatDAO_GetRoomSendContext_DMRoom(t *testing.T) {
 	assert.Empty(t, got.SystemKind)
 }
 
+func TestChatDAO_GetRoomSendContext_CarriesLastMessageAt(t *testing.T) {
+	// given a pair that has not been spoken in yet
+	repos := daotest.NewRepos(t)
+	ctx := context.Background()
+	a := daotest.CreateUser(t, repos)
+	b := daotest.CreateUser(t, repos)
+	roomID := daotest.CreateDMRoom(t, repos, a.ID, b.ID)
+
+	// when the send context is read before and after the first message
+	fresh, err := repos.Chat.GetRoomSendContext(ctx, roomID)
+	require.NoError(t, err)
+	daotest.SendChatMessage(t, repos, roomID, a.ID, "hi")
+	used, err := repos.Chat.GetRoomSendContext(ctx, roomID)
+	require.NoError(t, err)
+
+	// then the send path can tell a new thread from an ongoing one without another query
+	require.NotNil(t, fresh)
+	require.NotNil(t, used)
+	assert.False(t, fresh.LastMessageAt.Valid)
+	assert.True(t, used.LastMessageAt.Valid)
+}
+
 func TestChatDAO_GetRoomSendContext_NotFound(t *testing.T) {
 	// given
 	repos := daotest.NewRepos(t)

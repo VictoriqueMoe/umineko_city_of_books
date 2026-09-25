@@ -6,6 +6,7 @@ import (
 
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/bounds"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dao/daotest"
 	"umineko_city_of_books/internal/mention"
 	"umineko_city_of_books/internal/model/spec"
@@ -239,7 +240,7 @@ func TestAnnouncementDAO_UpdateComment_OwnedAndNotOwned(t *testing.T) {
 
 	// then
 	require.NoError(t, ownErr)
-	require.Error(t, notOwnedErr)
+	require.ErrorIs(t, notOwnedErr, dao.ErrNotFound, "a comment the caller does not own must read as not found, not as a database failure")
 	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)
@@ -316,7 +317,7 @@ func TestAnnouncementDAO_UpdateCommentBody_OwnedAndNotOwned(t *testing.T) {
 
 	// then
 	require.NoError(t, ownErr)
-	require.Error(t, notOwnedErr)
+	require.ErrorIs(t, notOwnedErr, dao.ErrNotFound)
 	comments, _, err := repos.Announcement.GetComments(context.Background(), spec.CommentQuery[uuid.UUID]{TargetID: annID, ViewerID: author.ID, Limit: 10, Offset: 0})
 	require.NoError(t, err)
 	require.Len(t, comments, 1)

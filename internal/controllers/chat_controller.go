@@ -143,7 +143,11 @@ func (s *Service) sendFirstDM(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	form, _ := ctx.MultipartForm()
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid form data")
+	}
+
 	spoilers, ok := parseSpoilerIndexes(form)
 	if !ok {
 		return utils.BadRequest(ctx, "invalid spoiler_indexes")
@@ -263,7 +267,11 @@ func (s *Service) sendMessage(ctx fiber.Ctx) error {
 		return nil
 	}
 
-	form, _ := ctx.MultipartForm()
+	form, err := ctx.MultipartForm()
+	if err != nil {
+		return utils.BadRequest(ctx, "invalid form data")
+	}
+
 	replyToID, ok := parseReplyToID(form)
 	if !ok {
 		return utils.BadRequest(ctx, "invalid reply_to_id")

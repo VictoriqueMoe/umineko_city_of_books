@@ -7,6 +7,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/dto"
+	"umineko_city_of_books/internal/logger"
 	"umineko_city_of_books/internal/model/spec"
 	"umineko_city_of_books/internal/ws"
 
@@ -14,9 +15,9 @@ import (
 )
 
 func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, paused bool) error {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
@@ -35,7 +36,12 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 	go func() {
 		bgCtx := context.Background()
 		playerIDs, err := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
-		if err != nil || len(playerIDs) == 0 {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("mystery_id", mysteryID.String()).Msg("pause notification skipped, player lookup failed")
+
+			return
+		}
+		if len(playerIDs) == 0 {
 			return
 		}
 		notifType := dto.NotifMysteryPaused
@@ -65,9 +71,9 @@ func (s *service) SetPaused(ctx context.Context, mysteryID uuid.UUID, userID uui
 }
 
 func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uuid.UUID, away bool) error {
-	authorID, err := s.mysteryRepo.GetAuthorID(ctx, mysteryID)
+	authorID, err := s.mysteryAuthor(ctx, mysteryID)
 	if err != nil {
-		return ErrNotFound
+		return err
 	}
 	if authorID != userID && !s.authz.Can(ctx, userID, authz.PermEditAnyTheory) {
 		return ErrNotAuthor
@@ -86,7 +92,12 @@ func (s *service) SetGmAway(ctx context.Context, mysteryID uuid.UUID, userID uui
 	go func() {
 		bgCtx := context.Background()
 		playerIDs, err := s.mysteryRepo.GetPlayerIDs(bgCtx, mysteryID)
-		if err != nil || len(playerIDs) == 0 {
+		if err != nil {
+			logger.Ctx(bgCtx).Warn().Err(err).Str("mystery_id", mysteryID.String()).Msg("gm away notification skipped, player lookup failed")
+
+			return
+		}
+		if len(playerIDs) == 0 {
 			return
 		}
 		notifType := dto.NotifMysteryGmAway

@@ -174,7 +174,8 @@ func (s *watchPartyService) StartWatchParty(ctx context.Context, roomID, actorID
 		return nil, err
 	}
 
-	broadcast := s.buildWatchPartySessionDTOForBroadcast(ctx, created)
+	broadcast := *sessionDTO
+	broadcast.Viewer = nil
 	s.hub.BroadcastToRoom(roomID, ws.Message{
 		Type: wsWatchPartyStarted,
 		Data: dto.WatchPartyStartedEvent{Session: broadcast},
@@ -334,8 +335,10 @@ func (s *watchPartyService) KickWatchPartyParticipant(ctx context.Context, roomI
 		return ErrWatchPartyNotParticipant
 	}
 
-	callerRank := s.watchPartyRankOf(ctx, session, callerID)
-	targetRank := s.watchPartyRankOf(ctx, session, targetID)
+	callerRank, targetRank, err := s.watchPartyRanks(ctx, session, callerID, targetID)
+	if err != nil {
+		return err
+	}
 	if callerRank <= targetRank {
 		return ErrWatchPartyCannotKick
 	}
@@ -422,7 +425,12 @@ func (s *watchPartyService) releaseDisconnectedParticipant(ctx context.Context, 
 			sess := sessions[i]
 
 			participant, err := s.watchPartyRepo.GetParticipant(ctx, spec.WatchPartyParticipantRef{SessionID: sess.ID, UserID: userID})
-			if err != nil || participant == nil || participant.LeftAt.Valid {
+			if err != nil {
+				logger.Ctx(ctx).Warn().Err(err).Str("session_id", sess.ID.String()).Msg("disconnect: watch party participant lookup failed")
+
+				continue
+			}
+			if participant == nil || participant.LeftAt.Valid {
 				continue
 			}
 
@@ -472,8 +480,10 @@ func (s *watchPartyService) GrantWatchPartyControl(ctx context.Context, roomID, 
 	callerIsController := caller != nil && !caller.LeftAt.Valid && caller.HasControl
 
 	if !callerIsController {
-		callerRank := s.watchPartyRankOf(ctx, session, callerID)
-		controllerRank := s.watchPartyRankOf(ctx, session, session.ControllerID)
+		callerRank, controllerRank, err := s.watchPartyRanks(ctx, session, callerID, session.ControllerID)
+		if err != nil {
+			return err
+		}
 		if callerRank <= controllerRank {
 			return ErrWatchPartyOutranked
 		}
@@ -610,7 +620,10 @@ func (s *watchPartyService) endWatchParty(ctx context.Context, roomID, sessionID
 			return err
 		}
 		if caller == nil || caller.LeftAt.Valid || !caller.HasControl {
-			actorRole, _ := s.roleRepo.GetRole(ctx, actorID)
+			actorRole, err := s.roleRepo.GetRole(ctx, actorID)
+			if err != nil {
+				return fmt.Errorf("actor site role: %w", err)
+			}
 			if !actorRole.IsSiteStaff() {
 				return ErrWatchPartyNotController
 			}
@@ -787,8 +800,10 @@ func (s *watchPartyService) ForceMuteSessionVoice(ctx context.Context, roomID, s
 		return ErrWatchPartyNotParticipant
 	}
 
-	callerRank := s.watchPartyRankOf(ctx, session, actorID)
-	targetRank := s.watchPartyRankOf(ctx, session, targetID)
+	callerRank, targetRank, err := s.watchPartyRanks(ctx, session, actorID, targetID)
+	if err != nil {
+		return err
+	}
 	if callerRank <= targetRank {
 		return ErrVoiceMuteForbidden
 	}
@@ -1063,23 +1078,6 @@ func (s *watchPartyService) buildWatchPartySessionDTO(ctx context.Context, sessi
 	return &out, nil
 }
 
-func (s *watchPartyService) buildWatchPartySessionDTOForBroadcast(ctx context.Context, session *model.ChatWatchPartySessionRow) dto.WatchPartySession {
-	participants, _ := s.buildParticipantsDTO(ctx, session.ID)
-	return dto.WatchPartySession{
-		ID:           session.ID,
-		RoomID:       session.RoomID,
-		StartedBy:    session.StartedBy,
-		ControllerID: session.ControllerID,
-		Title:        session.Title,
-		Type:         session.Type,
-		StartURL:     nullToString(session.StartURL),
-		Region:       nullToString(session.Region),
-		Status:       session.Status,
-		StartedAt:    session.StartedAt,
-		Participants: participants,
-	}
-}
-
 func (s *watchPartyService) buildParticipantsDTO(ctx context.Context, sessionID uuid.UUID) ([]dto.WatchPartyParticipant, error) {
 	rows, err := s.watchPartyRepo.GetActiveParticipants(ctx, sessionID)
 	if err != nil {
@@ -1092,8 +1090,15 @@ func (s *watchPartyService) buildParticipantsDTO(ctx context.Context, sessionID 
 	for i := range rows {
 		userIDs = append(userIDs, rows[i].UserID)
 	}
-	roleMap, _ := s.roleRepo.GetRoles(ctx, userIDs)
-	vanityMap, _ := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+	roleMap, err := s.roleRepo.GetRoles(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("participant roles: %w", err)
+	}
+
+	vanityMap, err := s.vanityRoleRepo.GetRolesForUsersBatch(ctx, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("participant vanity roles: %w", err)
+	}
 
 	out := make([]dto.WatchPartyParticipant, 0, len(rows))
 	for i := range rows {
@@ -1122,8 +1127,16 @@ func (s *watchPartyService) buildWatchPartyParticipantDTO(ctx context.Context, s
 	if row == nil {
 		return nil, ErrWatchPartyNotParticipant
 	}
-	userRole, _ := s.roleRepo.GetRole(ctx, userID)
-	vanityRows, _ := s.vanityRoleRepo.GetRolesForUser(ctx, userID)
+	userRole, err := s.roleRepo.GetRole(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("participant role: %w", err)
+	}
+
+	vanityRows, err := s.vanityRoleRepo.GetRolesForUser(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("participant vanity roles: %w", err)
+	}
+
 	return &dto.WatchPartyParticipant{
 		User: dto.UserResponse{
 			ID:          row.UserID,

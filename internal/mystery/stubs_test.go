@@ -1,11 +1,18 @@
 package mystery
 
 import (
+	"errors"
+
 	"umineko_city_of_books/internal/authz"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/model"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/mock"
+)
+
+var (
+	errMissingRow = errors.Join(errors.New("no row"), dao.ErrNotFound)
 )
 
 func stubAuthor(m *testMocks, id, authorID uuid.UUID) {

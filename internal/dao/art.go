@@ -180,7 +180,7 @@ func (r *artDAO) UpdateArt(ctx context.Context, s spec.ArtUpdate, tx ...*sql.Tx)
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("art not found or not owned")
+		return fmt.Errorf("art not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -488,7 +488,7 @@ func (r *artDAO) UpdateGallery(ctx context.Context, s spec.GalleryUpdate, tx ...
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("gallery not found or not owned")
+		return fmt.Errorf("gallery not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil
@@ -533,7 +533,7 @@ func (r *artDAO) DeleteGalleryRow(ctx context.Context, s spec.GalleryRef, tx ...
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("gallery not found or not owned")
+		return fmt.Errorf("gallery not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil

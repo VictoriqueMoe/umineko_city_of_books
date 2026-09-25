@@ -1,5 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { makeUser } from "../../test-utils/fixtures";
 import { renderWithProviders } from "../../test-utils/render";
@@ -104,6 +104,16 @@ const stranger = makeUser({ id: "stranger-1", username: "battler", display_name:
 const moderator = makeUser({ id: "mod-1", username: "ronove", display_name: "Ronove", role: "moderator" });
 
 const DRAFT_KEY = "fanfic-draft";
+const TITLE = "Your fanfic title...";
+const SUMMARY = "Brief summary of your story...";
+const TAGS = "Type a tag and press Enter...";
+const COVER_TOO_LARGE = "The fanfic was saved but its cover image was not: The cover is too large";
+const COMBOBOX = { series: 0, rating: 1, language: 2, genreA: 3, genreB: 4 };
+
+const ROUTES = {
+    new: { route: "/fanfiction/new" },
+    edit: { route: "/fanfiction/fanfic-1/edit", path: "/fanfiction/:id/edit" },
+};
 
 function makeFanfic(overrides: Partial<FanficDetail> = {}): FanficDetail {
     return {
@@ -137,20 +147,6 @@ function makeFanfic(overrides: Partial<FanficDetail> = {}): FanficDetail {
     };
 }
 
-function makeChapter(overrides: Partial<FanficChapter> = {}): FanficChapter {
-    return {
-        id: "chapter-1",
-        chapter_number: 1,
-        title: "",
-        body: "<p>Beatrice laughed.</p>",
-        word_count: 3,
-        has_prev: false,
-        has_next: false,
-        created_at: "2026-01-01T00:00:00Z",
-        ...overrides,
-    };
-}
-
 interface StubOptions {
     fanfic?: FanficDetail | null;
     chapter?: FanficChapter | null;
@@ -162,91 +158,74 @@ interface StubOptions {
     uploadCover?: () => Promise<unknown>;
     uploadCoverFor?: () => Promise<unknown>;
     deleteCover?: () => Promise<unknown>;
-    createChapter?: () => Promise<unknown>;
-    updateChapter?: () => Promise<unknown>;
 }
 
-function stubEditor(options: StubOptions = {}) {
-    useFanfic.mockReturnValue({
-        fanfic: options.fanfic ?? null,
-        loading: options.loading ?? false,
-        refresh: vi.fn(),
-    });
+function openEditor(mode: keyof typeof ROUTES, options: StubOptions = {}, viewer: UserProfile = author) {
+    useFanfic.mockReturnValue({ fanfic: options.fanfic ?? null, loading: options.loading ?? false, refresh: vi.fn() });
     useFanficChapter.mockReturnValue({ chapter: options.chapter ?? null, loading: false, refresh: vi.fn() });
     useFanficSeries.mockReturnValue({ series: options.series ?? ["Umineko", "Higurashi", "Rose Guns Days"] });
     useFanficLanguages.mockReturnValue({ languages: options.languages ?? ["English", "Japanese"] });
 
-    const createAsync = vi.fn(options.create ?? (() => Promise.resolve({ id: "fanfic-new" })));
-    const updateAsync = vi.fn(options.update ?? (() => Promise.resolve({})));
-    const uploadCoverAsync = vi.fn(options.uploadCover ?? (() => Promise.resolve({})));
-    const uploadCoverForAsync = vi.fn(options.uploadCoverFor ?? (() => Promise.resolve({})));
-    const deleteCoverAsync = vi.fn(options.deleteCover ?? (() => Promise.resolve({})));
-    const createChapterAsync = vi.fn(options.createChapter ?? (() => Promise.resolve({})));
-    const updateChapterAsync = vi.fn(options.updateChapter ?? (() => Promise.resolve({})));
-    useCreateFanfic.mockReturnValue({ mutateAsync: createAsync });
-    useUpdateFanfic.mockReturnValue({ mutateAsync: updateAsync });
-    useUploadFanficCover.mockReturnValue({ mutateAsync: uploadCoverAsync });
-    useUploadFanficCoverFor.mockReturnValue({ mutateAsync: uploadCoverForAsync });
-    useDeleteFanficCover.mockReturnValue({ mutateAsync: deleteCoverAsync });
-    useCreateFanficChapter.mockReturnValue({ mutateAsync: createChapterAsync });
-    useUpdateFanficChapter.mockReturnValue({ mutateAsync: updateChapterAsync });
-
-    return {
-        createAsync,
-        updateAsync,
-        uploadCoverAsync,
-        uploadCoverForAsync,
-        deleteCoverAsync,
-        createChapterAsync,
-        updateChapterAsync,
+    const mutations = {
+        createAsync: vi.fn(options.create ?? (() => Promise.resolve({ id: "fanfic-new" }))),
+        updateAsync: vi.fn(options.update ?? (() => Promise.resolve({}))),
+        uploadCoverAsync: vi.fn(options.uploadCover ?? (() => Promise.resolve({}))),
+        uploadCoverForAsync: vi.fn(options.uploadCoverFor ?? (() => Promise.resolve({}))),
+        deleteCoverAsync: vi.fn(options.deleteCover ?? (() => Promise.resolve({}))),
+        createChapterAsync: vi.fn(() => Promise.resolve({})),
+        updateChapterAsync: vi.fn(() => Promise.resolve({})),
     };
+    useCreateFanfic.mockReturnValue({ mutateAsync: mutations.createAsync });
+    useUpdateFanfic.mockReturnValue({ mutateAsync: mutations.updateAsync });
+    useUploadFanficCover.mockReturnValue({ mutateAsync: mutations.uploadCoverAsync });
+    useUploadFanficCoverFor.mockReturnValue({ mutateAsync: mutations.uploadCoverForAsync });
+    useDeleteFanficCover.mockReturnValue({ mutateAsync: mutations.deleteCoverAsync });
+    useCreateFanficChapter.mockReturnValue({ mutateAsync: mutations.createChapterAsync });
+    useUpdateFanficChapter.mockReturnValue({ mutateAsync: mutations.updateChapterAsync });
+
+    const user = userEvent.setup();
+    const { container } = renderWithProviders(<FanficEditorPage />, { user: viewer, ...ROUTES[mode] });
+
+    return { ...mutations, user, container };
 }
 
-function fileInput(container: HTMLElement): HTMLInputElement {
+async function chooseCover(user: UserEvent, container: HTMLElement) {
     const input = container.querySelector<HTMLInputElement>('input[type="file"]');
     if (!input) {
         throw new Error("the form has no cover input");
     }
-    return input;
+
+    await user.upload(input, new File(["butterflies"], "cover.png", { type: "image/png" }));
 }
 
-function coverFile(): File {
-    return new File(["butterflies"], "cover.png", { type: "image/png" });
-}
-
-function renderNew(user: UserProfile = author) {
-    return renderWithProviders(<FanficEditorPage />, { user, route: "/fanfiction/new" });
-}
-
-function renderEdit(user: UserProfile = author) {
-    return renderWithProviders(<FanficEditorPage />, {
-        user,
-        route: "/fanfiction/fanfic-1/edit",
-        path: "/fanfiction/:id/edit",
-    });
+async function publishNew(user: UserEvent) {
+    await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
+    await user.click(screen.getByRole("button", { name: "Publish" }));
 }
 
 describe("FanficEditorPage", () => {
-    it("starts a brand new fanfic on the details step", () => {
+    const freshStartCases: { name: string; stored: object | null }[] = [
+        { name: "starts a brand new fanfic on the details step", stored: null },
+        {
+            name: "ignores a stored draft that never got a title",
+            stored: { title: "", body: "something", step: 1, tags: [] },
+        },
+    ];
+
+    it.each(freshStartCases)("$name", ({ stored }) => {
         // given
-        stubEditor();
+        if (stored) {
+            localStorage.setItem(DRAFT_KEY, JSON.stringify(stored));
+        }
 
         // when
-        renderNew();
+        openEditor("new", { series: ["Umineko", "Rose Guns Days"] });
 
         // then
+        expect(screen.queryByRole("heading", { name: "Unfinished Draft" })).not.toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "New Fanfic" })).toBeInTheDocument();
-        expect(screen.getByPlaceholderText("Your fanfic title...")).toHaveValue("");
-    });
-
-    it("offers the pinned series alongside the ones the archive already holds", () => {
-        // given
-        stubEditor({ series: ["Umineko", "Rose Guns Days"] });
-
-        // when
-        renderNew();
-
-        // then
+        expect(screen.getByPlaceholderText(TITLE)).toHaveValue("");
+        expect(screen.queryByRole("option", { name: "Draft" })).not.toBeInTheDocument();
         const seriesOptions = screen.getAllByRole("option").map(o => o.textContent);
         expect(seriesOptions).toContain("Umineko");
         expect(seriesOptions).toContain("Higurashi");
@@ -254,95 +233,93 @@ describe("FanficEditorPage", () => {
         expect(seriesOptions).toContain("Rose Guns Days");
     });
 
-    it("refuses to move on without a title", async () => {
+    const validationCases: { name: string; title: string; other: number | null; error: string }[] = [
+        { name: "refuses to move on without a title", title: "", other: null, error: "Title is required" },
+        {
+            name: "refuses to move on with an empty custom series",
+            title: "Golden Land",
+            other: COMBOBOX.series,
+            error: "Series is required",
+        },
+        {
+            name: "refuses to move on with an empty custom language",
+            title: "Golden Land",
+            other: COMBOBOX.language,
+            error: "Language is required",
+        },
+    ];
+
+    it.each(validationCases)("$name", async ({ title, other, error }) => {
         // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new");
 
         // when
+        if (title) {
+            await user.type(screen.getByPlaceholderText(TITLE), title);
+        }
+        if (other !== null) {
+            await user.selectOptions(screen.getAllByRole("combobox")[other], "__other__");
+        }
         await user.click(screen.getByRole("button", { name: /^Next:/ }));
 
         // then
-        expect(screen.getByText("Title is required")).toBeInTheDocument();
+        expect(screen.getByText(error)).toBeInTheDocument();
         expect(screen.queryByLabelText("story body")).not.toBeInTheDocument();
     });
 
-    it("refuses to move on with an empty custom series", async () => {
+    const storyStepCases = [
+        {
+            name: "calls the second step writing the story for a one-shot",
+            serial: false,
+            next: "Next: Edit Story",
+            heading: "Write Your Story",
+            placeholder: "Write your story here...",
+        },
+        {
+            name: "calls the second step writing the first chapter for a serial",
+            serial: true,
+            next: "Next: Write Story",
+            heading: "Write First Chapter",
+            placeholder: "Write your first chapter here...",
+        },
+    ];
+
+    it.each(storyStepCases)("$name", async ({ serial, next, heading, placeholder }) => {
         // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new");
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.selectOptions(screen.getAllByRole("combobox")[0], "__other__");
-        await user.click(screen.getByRole("button", { name: /^Next:/ }));
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
+        if (serial) {
+            await user.click(screen.getByRole("switch", { name: "One-shot" }));
+        }
+        await user.click(screen.getByRole("button", { name: next }));
 
         // then
-        expect(screen.getByText("Series is required")).toBeInTheDocument();
+        expect(screen.getByRole("heading", { name: heading })).toBeInTheDocument();
+        expect(screen.getByPlaceholderText(placeholder)).toBeInTheDocument();
     });
 
-    it("refuses to move on with an empty custom language", async () => {
+    const createCases = [
+        { name: "publishes a new fanfic and opens it", button: "Publish", status: "in_progress", genreB: "" },
+        { name: "saves a new fanfic as a draft", button: "Save as Draft", status: "draft", genreB: "Mystery" },
+    ];
+
+    it.each(createCases)("$name", async ({ button, status, genreB }) => {
         // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user, createAsync } = openEditor("new");
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.selectOptions(screen.getAllByRole("combobox")[2], "__other__");
-        await user.click(screen.getByRole("button", { name: /^Next:/ }));
-
-        // then
-        expect(screen.getByText("Language is required")).toBeInTheDocument();
-    });
-
-    it("calls the second step writing the story for a one-shot", async () => {
-        // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
-
-        // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-
-        // then
-        expect(screen.getByRole("heading", { name: "Write Your Story" })).toBeInTheDocument();
-        expect(screen.getByPlaceholderText("Write your story here...")).toBeInTheDocument();
-    });
-
-    it("calls the second step writing the first chapter for a serial", async () => {
-        // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
-
-        // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.click(screen.getByRole("switch", { name: "One-shot" }));
-        await user.click(screen.getByRole("button", { name: "Next: Write Story" }));
-
-        // then
-        expect(screen.getByRole("heading", { name: "Write First Chapter" })).toBeInTheDocument();
-        expect(screen.getByPlaceholderText("Write your first chapter here...")).toBeInTheDocument();
-    });
-
-    it("publishes a new fanfic and opens it", async () => {
-        // given
-        const { createAsync } = stubEditor({ create: () => Promise.resolve({ id: "fanfic-new" }) });
-        const user = userEvent.setup();
-        renderNew();
-
-        // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "  Golden Land  ");
-        await user.type(screen.getByPlaceholderText("Brief summary of your story..."), "A closed room.");
-        await user.selectOptions(screen.getAllByRole("combobox")[1], "M");
-        await user.selectOptions(screen.getAllByRole("combobox")[3], "Mystery");
+        await user.type(screen.getByPlaceholderText(TITLE), "  Golden Land  ");
+        await user.type(screen.getByPlaceholderText(SUMMARY), "A closed room.");
+        await user.selectOptions(screen.getAllByRole("combobox")[COMBOBOX.rating], "M");
+        await user.selectOptions(screen.getAllByRole("combobox")[COMBOBOX.genreA], "Mystery");
+        if (genreB) {
+            await user.selectOptions(screen.getAllByRole("combobox")[COMBOBOX.genreB], genreB);
+        }
         await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
         await user.type(screen.getByLabelText("story body"), "Beatrice laughed.");
-        await user.click(screen.getByRole("button", { name: "Publish" }));
+        await user.click(screen.getByRole("button", { name: button }));
 
         // then
         expect(createAsync).toHaveBeenCalledWith({
@@ -351,7 +328,7 @@ describe("FanficEditorPage", () => {
             series: "Umineko",
             rating: "M",
             language: "English",
-            status: "in_progress",
+            status,
             is_oneshot: true,
             contains_lemons: false,
             genres: ["Mystery"],
@@ -365,52 +342,17 @@ describe("FanficEditorPage", () => {
         });
     });
 
-    it("saves a new fanfic as a draft", async () => {
-        // given
-        const { createAsync } = stubEditor();
-        const user = userEvent.setup();
-        renderNew();
-
-        // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Save as Draft" }));
-
-        // then
-        expect(createAsync).toHaveBeenCalledWith(expect.objectContaining({ status: "draft" }));
-    });
-
-    it("keeps only the genres that were actually chosen and never twice", async () => {
-        // given
-        const { createAsync } = stubEditor();
-        const user = userEvent.setup();
-        renderNew();
-
-        // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.selectOptions(screen.getAllByRole("combobox")[3], "Mystery");
-        await user.selectOptions(screen.getAllByRole("combobox")[4], "Mystery");
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
-
-        // then
-        expect(createAsync).toHaveBeenCalledWith(expect.objectContaining({ genres: ["Mystery"] }));
-    });
-
     it("sends a typed custom series and language instead of the pinned ones", async () => {
         // given
-        const { createAsync } = stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user, createAsync } = openEditor("new");
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.selectOptions(screen.getAllByRole("combobox")[0], "__other__");
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
+        await user.selectOptions(screen.getAllByRole("combobox")[COMBOBOX.series], "__other__");
         await user.type(screen.getByPlaceholderText("Enter series name..."), "  Higanbana  ");
-        await user.selectOptions(screen.getAllByRole("combobox")[2], "__other__");
+        await user.selectOptions(screen.getAllByRole("combobox")[COMBOBOX.language], "__other__");
         await user.type(screen.getByPlaceholderText("Enter language..."), "  Welsh  ");
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
+        await publishNew(user);
 
         // then
         expect(createAsync).toHaveBeenCalledWith(expect.objectContaining({ series: "Higanbana", language: "Welsh" }));
@@ -418,68 +360,40 @@ describe("FanficEditorPage", () => {
 
     it("reports why the fanfic could not be created", async () => {
         // given
-        stubEditor({ create: () => Promise.reject(new Error("The witch forbids it")) });
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new", { create: () => Promise.reject(new Error("The witch forbids it")) });
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
+        await publishNew(user);
 
         // then
         expect(await screen.findByText("The witch forbids it")).toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
     });
 
-    it("adds a tag when the writer presses enter", async () => {
+    it("adds a tag on enter, refuses a repeat whatever the casing, drops one on request and stops at ten", async () => {
         // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new");
+        const field = screen.getByPlaceholderText(TAGS);
 
         // when
-        await user.type(screen.getByPlaceholderText("Type a tag and press Enter..."), "closed room{Enter}");
+        await user.type(field, "closed room{Enter}");
 
         // then
         expect(screen.getByText(/closed room/)).toBeInTheDocument();
-        expect(screen.getByPlaceholderText("Type a tag and press Enter...")).toHaveValue("");
-    });
-
-    it("refuses to add the same tag twice whatever the casing", async () => {
-        // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        expect(field).toHaveValue("");
 
         // when
-        await user.type(screen.getByPlaceholderText("Type a tag and press Enter..."), "closed room{Enter}");
-        await user.type(screen.getByPlaceholderText("Type a tag and press Enter..."), "Closed Room{Enter}");
+        await user.type(field, "Closed Room{Enter}");
 
         // then
         expect(screen.getAllByRole("button", { name: "Remove tag" })).toHaveLength(1);
-    });
-
-    it("drops a tag the writer changed their mind about", async () => {
-        // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
-        await user.type(screen.getByPlaceholderText("Type a tag and press Enter..."), "closed room{Enter}");
 
         // when
         await user.click(screen.getByRole("button", { name: "Remove tag" }));
 
         // then
         expect(screen.queryByRole("button", { name: "Remove tag" })).not.toBeInTheDocument();
-    });
-
-    it("stops the writer at ten tags", async () => {
-        // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
-        const field = screen.getByPlaceholderText("Type a tag and press Enter...");
 
         // when
         for (let i = 0; i < 12; i++) {
@@ -490,32 +404,26 @@ describe("FanficEditorPage", () => {
         expect(screen.getAllByRole("button", { name: "Remove tag" })).toHaveLength(10);
     });
 
-    it("adds and drops a character", async () => {
+    it("adds and drops a character and sends the chosen ones with the new fanfic", async () => {
         // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user, createAsync } = openEditor("new");
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
 
         // when
         await user.click(screen.getByRole("button", { name: "add Kanon" }));
 
         // then
         expect(screen.getByText("1 chosen")).toBeInTheDocument();
-        await user.click(screen.getByRole("button", { name: "Remove character" }));
-        expect(screen.getByText("0 chosen")).toBeInTheDocument();
-    });
-
-    it("sends the chosen characters with the new fanfic", async () => {
-        // given
-        const { createAsync } = stubEditor();
-        const user = userEvent.setup();
-        renderNew();
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
+        await user.click(screen.getByRole("button", { name: "Remove character" }));
+
+        // then
+        expect(screen.getByText("0 chosen")).toBeInTheDocument();
+
+        // when
         await user.click(screen.getByRole("button", { name: "add Kanon" }));
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
+        await publishNew(user);
 
         // then
         expect(createAsync).toHaveBeenCalledWith(
@@ -525,26 +433,13 @@ describe("FanficEditorPage", () => {
         );
     });
 
-    it("offers no draft status while the fanfic has never been saved", () => {
-        // given
-        stubEditor();
-
-        // when
-        renderNew();
-
-        // then
-        expect(screen.queryByRole("option", { name: "Draft" })).not.toBeInTheDocument();
-    });
-
     it("asks before throwing away unsaved work", async () => {
         // given
-        stubEditor();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new");
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
         await user.click(screen.getByRole("button", { name: "Cancel" }));
 
         // then
@@ -554,10 +449,8 @@ describe("FanficEditorPage", () => {
 
     it("leaves without asking when nothing has been written", async () => {
         // given
-        stubEditor();
         const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new");
 
         // when
         await user.click(screen.getByRole("button", { name: "Cancel" }));
@@ -569,12 +462,10 @@ describe("FanficEditorPage", () => {
 
     it("keeps the work in progress in local storage", async () => {
         // given
-        stubEditor();
-        const user = userEvent.setup();
-        renderNew();
+        const { user } = openEditor("new");
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
 
         // then
         await waitFor(() => {
@@ -582,22 +473,25 @@ describe("FanficEditorPage", () => {
         });
     });
 
-    it("offers to pick an unfinished draft back up", () => {
+    const resumeCases = [
+        {
+            name: "restores the unfinished draft into the form",
+            button: "Continue Draft",
+            title: "Golden Land",
+            summary: "A closed room.",
+            tags: 1,
+        },
+        {
+            name: "throws the unfinished draft away when the writer starts fresh",
+            button: "Start Fresh",
+            title: "",
+            summary: "",
+            tags: 0,
+        },
+    ];
+
+    it.each(resumeCases)("$name", async ({ button, title, summary, tags }) => {
         // given
-        stubEditor();
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: "Golden Land", body: "", step: 1, tags: [] }));
-
-        // when
-        renderNew();
-
-        // then
-        expect(screen.getByRole("heading", { name: "Unfinished Draft" })).toBeInTheDocument();
-        expect(screen.getByText("Golden Land")).toBeInTheDocument();
-    });
-
-    it("restores the unfinished draft into the form", async () => {
-        // given
-        stubEditor();
         localStorage.setItem(
             DRAFT_KEY,
             JSON.stringify({
@@ -620,73 +514,44 @@ describe("FanficEditorPage", () => {
                 step: 1,
             }),
         );
-        const user = userEvent.setup();
-        renderNew();
 
         // when
-        await user.click(screen.getByRole("button", { name: "Continue Draft" }));
+        const { user } = openEditor("new");
 
         // then
-        expect(screen.getByPlaceholderText("Your fanfic title...")).toHaveValue("Golden Land");
-        expect(screen.getByPlaceholderText("Brief summary of your story...")).toHaveValue("A closed room.");
-        expect(screen.getAllByRole("button", { name: "Remove tag" })).toHaveLength(1);
+        expect(screen.getByRole("heading", { name: "Unfinished Draft" })).toBeInTheDocument();
+        expect(screen.getByText("Golden Land")).toBeInTheDocument();
+
+        // when
+        await user.click(screen.getByRole("button", { name: button }));
+
+        // then
+        expect(screen.getByPlaceholderText(TITLE)).toHaveValue(title);
+        expect(screen.getByPlaceholderText(SUMMARY)).toHaveValue(summary);
+        expect(screen.queryAllByRole("button", { name: "Remove tag" })).toHaveLength(tags);
     });
 
-    it("throws the unfinished draft away when the writer starts fresh", async () => {
-        // given
-        stubEditor();
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: "Golden Land", body: "", step: 1, tags: [] }));
-        const user = userEvent.setup();
-        renderNew();
+    const unavailableCases: { name: string; stub: StubOptions; shown: string }[] = [
+        { name: "waits while the fanfic being edited is loading", stub: { loading: true }, shown: "Loading..." },
+        { name: "says so when there is no such fanfic to edit", stub: { fanfic: null }, shown: "Fanfic not found." },
+    ];
+
+    it.each(unavailableCases)("$name", ({ stub, shown }) => {
+        // given the stubbed fanfic, from the table row
 
         // when
-        await user.click(screen.getByRole("button", { name: "Start Fresh" }));
+        openEditor("edit", stub);
 
         // then
-        expect(screen.getByPlaceholderText("Your fanfic title...")).toHaveValue("");
-    });
-
-    it("ignores a stored draft that never got a title", () => {
-        // given
-        stubEditor();
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ title: "", body: "something", step: 1, tags: [] }));
-
-        // when
-        renderNew();
-
-        // then
-        expect(screen.queryByRole("heading", { name: "Unfinished Draft" })).not.toBeInTheDocument();
-        expect(screen.getByRole("heading", { name: "New Fanfic" })).toBeInTheDocument();
-    });
-
-    it("waits while the fanfic being edited is loading", () => {
-        // given
-        stubEditor({ loading: true });
-
-        // when
-        renderEdit();
-
-        // then
-        expect(screen.getByText("Loading...")).toBeInTheDocument();
-    });
-
-    it("says so when there is no such fanfic to edit", () => {
-        // given
-        stubEditor({ fanfic: null });
-
-        // when
-        renderEdit();
-
-        // then
-        expect(screen.getByText("Fanfic not found.")).toBeInTheDocument();
+        expect(screen.getByText(shown)).toBeInTheDocument();
     });
 
     it("sends an unrelated reader back to the fanfic instead of the editor", async () => {
         // given
-        stubEditor({ fanfic: makeFanfic() });
+        const fanfic = makeFanfic();
 
         // when
-        renderEdit(stranger);
+        openEditor("edit", { fanfic }, stranger);
 
         // then
         await waitFor(() => {
@@ -694,100 +559,76 @@ describe("FanficEditorPage", () => {
         });
     });
 
-    it("lets a moderator edit somebody else's fanfic", () => {
+    it("lets a moderator edit somebody else's fanfic on the post editing permission", () => {
         // given
-        stubEditor({ fanfic: makeFanfic() });
+        const fanfic = makeFanfic();
 
         // when
-        renderEdit(moderator);
+        openEditor("edit", { fanfic }, moderator);
 
         // then
         expect(navigate).not.toHaveBeenCalled();
         expect(screen.getByRole("heading", { name: "Edit Fanfic" })).toBeInTheDocument();
-    });
-
-    it("asks for the same post editing permission the fanfic itself gates on", () => {
-        // given
-        stubEditor({ fanfic: makeFanfic() });
-
-        // when
-        renderEdit(moderator);
-
-        // then
         expect(can).toHaveBeenCalledWith(moderator, "edit_any_post");
         expect(can).not.toHaveBeenCalledWith(moderator, "edit_any_theory");
     });
 
     it("keeps the editor open when the author empties the title", async () => {
         // given
-        stubEditor({ fanfic: makeFanfic({ title: "Golden Land" }) });
-        const user = userEvent.setup();
-        renderEdit();
+        const { user } = openEditor("edit", { fanfic: makeFanfic({ title: "Golden Land" }) });
 
         // when
-        await user.clear(screen.getByPlaceholderText("Your fanfic title..."));
+        await user.clear(screen.getByPlaceholderText(TITLE));
 
         // then
         expect(screen.queryByText("Fanfic not found.")).not.toBeInTheDocument();
-        expect(screen.getByPlaceholderText("Your fanfic title...")).toHaveValue("");
-        expect(screen.getByPlaceholderText("Brief summary of your story...")).toHaveValue(
-            "A closed room on Rokkenjima.",
-        );
+        expect(screen.getByPlaceholderText(TITLE)).toHaveValue("");
+        expect(screen.getByPlaceholderText(SUMMARY)).toHaveValue("A closed room on Rokkenjima.");
     });
 
     it("seeds the editor with the fanfic as it stands", () => {
         // given
-        stubEditor({ fanfic: makeFanfic({ title: "Golden Land", summary: "A closed room on Rokkenjima." }) });
+        const fanfic = makeFanfic();
 
         // when
-        renderEdit();
+        openEditor("edit", { fanfic });
 
         // then
-        expect(screen.getByPlaceholderText("Your fanfic title...")).toHaveValue("Golden Land");
-        expect(screen.getByPlaceholderText("Brief summary of your story...")).toHaveValue(
-            "A closed room on Rokkenjima.",
-        );
+        expect(screen.getByPlaceholderText(TITLE)).toHaveValue("Golden Land");
+        expect(screen.getByPlaceholderText(SUMMARY)).toHaveValue("A closed room on Rokkenjima.");
         expect(screen.getAllByRole("button", { name: "Remove tag" })).toHaveLength(1);
-    });
-
-    it("moves a series the archive does not pin into the custom field", () => {
-        // given
-        stubEditor({ fanfic: makeFanfic({ series: "Higanbana" }) });
-
-        // when
-        renderEdit();
-
-        // then
-        expect(screen.getByPlaceholderText("Enter series name...")).toHaveValue("Higanbana");
-    });
-
-    it("moves a language the archive does not know into the custom field", () => {
-        // given
-        stubEditor({ fanfic: makeFanfic({ language: "Welsh" }), languages: ["English", "Japanese"] });
-
-        // when
-        renderEdit();
-
-        // then
-        expect(screen.getByPlaceholderText("Enter language...")).toHaveValue("Welsh");
-    });
-
-    it("offers the draft status only once the fanfic exists", () => {
-        // given
-        stubEditor({ fanfic: makeFanfic() });
-
-        // when
-        renderEdit();
-
-        // then
         expect(screen.getByRole("option", { name: "Draft" })).toBeInTheDocument();
+    });
+
+    const customFieldCases: { name: string; fanfic: Partial<FanficDetail>; field: string; value: string }[] = [
+        {
+            name: "moves a series the archive does not pin into the custom field",
+            fanfic: { series: "Higanbana" },
+            field: "Enter series name...",
+            value: "Higanbana",
+        },
+        {
+            name: "moves a language the archive does not know into the custom field",
+            fanfic: { language: "Welsh" },
+            field: "Enter language...",
+            value: "Welsh",
+        },
+    ];
+
+    it.each(customFieldCases)("$name", ({ fanfic, field, value }) => {
+        // given
+        const unlisted = makeFanfic(fanfic);
+
+        // when
+        openEditor("edit", { fanfic: unlisted, languages: ["English", "Japanese"] });
+
+        // then
+        expect(screen.getByPlaceholderText(field)).toHaveValue(value);
     });
 
     it("locks the one-shot toggle on a story that already has several chapters", async () => {
         // given
-        stubEditor({ fanfic: makeFanfic({ chapter_count: 3, is_oneshot: false }) });
-        const user = userEvent.setup();
-        renderEdit();
+        const { user } = openEditor("edit", { fanfic: makeFanfic({ chapter_count: 3, is_oneshot: false }) });
 
         // when
         await user.click(screen.getByRole("switch", { name: "One-shot" }));
@@ -801,9 +642,7 @@ describe("FanficEditorPage", () => {
 
     it("saves a serial's details without touching its chapters", async () => {
         // given
-        const { updateAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: false }) });
-        const user = userEvent.setup();
-        renderEdit();
+        const { user, updateAsync } = openEditor("edit", { fanfic: makeFanfic({ is_oneshot: false }) });
 
         // when
         await user.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -819,15 +658,22 @@ describe("FanficEditorPage", () => {
 
     it("loads the existing prose when moving on to edit a one-shot", async () => {
         // given
-        const { updateAsync, updateChapterAsync } = stubEditor({
+        const { user, updateAsync, updateChapterAsync } = openEditor("edit", {
             fanfic: makeFanfic({
                 is_oneshot: true,
                 chapters: [{ id: "chapter-1", chapter_number: 1, title: "", word_count: 3 }],
             }),
-            chapter: makeChapter({ id: "chapter-1", body: "<p>Beatrice laughed.</p>" }),
+            chapter: {
+                id: "chapter-1",
+                chapter_number: 1,
+                title: "",
+                body: "<p>Beatrice laughed.</p>",
+                word_count: 3,
+                has_prev: false,
+                has_next: false,
+                created_at: "2026-01-01T00:00:00Z",
+            },
         });
-        const user = userEvent.setup();
-        renderEdit();
 
         // when
         await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
@@ -848,9 +694,9 @@ describe("FanficEditorPage", () => {
 
     it("writes a first chapter for a one-shot that has none yet", async () => {
         // given
-        const { createChapterAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: true, chapters: [] }) });
-        const user = userEvent.setup();
-        renderEdit();
+        const { user, createChapterAsync } = openEditor("edit", {
+            fanfic: makeFanfic({ is_oneshot: true, chapters: [] }),
+        });
 
         // when
         await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
@@ -869,12 +715,10 @@ describe("FanficEditorPage", () => {
 
     it("reports why the details of an edit could not be saved", async () => {
         // given
-        stubEditor({
+        const { user } = openEditor("edit", {
             fanfic: makeFanfic({ is_oneshot: true }),
             update: () => Promise.reject(new Error("The witch forbids it")),
         });
-        const user = userEvent.setup();
-        renderEdit();
 
         // when
         await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
@@ -885,9 +729,7 @@ describe("FanficEditorPage", () => {
 
     it("goes back to the fanfic rather than the archive from an edit", async () => {
         // given
-        stubEditor({ fanfic: makeFanfic() });
-        const user = userEvent.setup();
-        renderEdit();
+        const { user } = openEditor("edit", { fanfic: makeFanfic() });
 
         // when
         await user.click(screen.getByText("← Back to Fanfic"));
@@ -898,12 +740,10 @@ describe("FanficEditorPage", () => {
 
     it("uploads a chosen cover against the fanfic being edited", async () => {
         // given
-        const { uploadCoverAsync } = stubEditor({ fanfic: makeFanfic({ is_oneshot: false }) });
-        const user = userEvent.setup();
-        const { container } = renderEdit();
+        const { user, container, uploadCoverAsync } = openEditor("edit", { fanfic: makeFanfic({ is_oneshot: false }) });
 
         // when
-        await user.upload(fileInput(container), coverFile());
+        await chooseCover(user, container);
         await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
         // then
@@ -913,77 +753,66 @@ describe("FanficEditorPage", () => {
         expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-1");
     });
 
-    it("says the cover was not saved rather than opening a fanfic that quietly lost it", async () => {
+    const coverFailureCases: {
+        name: string;
+        fanfic: Partial<FanficDetail>;
+        failure: StubOptions;
+        removesCover: boolean;
+        button: string;
+        message: string;
+    }[] = [
+        {
+            name: "says the cover was not saved rather than opening a fanfic that quietly lost it",
+            fanfic: { is_oneshot: false },
+            failure: { uploadCover: () => Promise.reject(new Error("The cover is too large")) },
+            removesCover: false,
+            button: "Save Changes",
+            message: COVER_TOO_LARGE,
+        },
+        {
+            name: "says the cover was not saved rather than moving on to the story",
+            fanfic: { is_oneshot: true, chapters: [] },
+            failure: { uploadCover: () => Promise.reject(new Error("The cover is too large")) },
+            removesCover: false,
+            button: "Next: Edit Story",
+            message: COVER_TOO_LARGE,
+        },
+        {
+            name: "says the cover was not removed rather than opening a fanfic that still has it",
+            fanfic: { is_oneshot: false, cover_image_url: "/covers/1.png" },
+            failure: { deleteCover: () => Promise.reject(new Error("The witch forbids it")) },
+            removesCover: true,
+            button: "Save Changes",
+            message: "The fanfic was saved but its cover image was not removed: The witch forbids it",
+        },
+    ];
+
+    it.each(coverFailureCases)("$name", async ({ fanfic, failure, removesCover, button, message }) => {
         // given
-        stubEditor({
-            fanfic: makeFanfic({ is_oneshot: false }),
-            uploadCover: () => Promise.reject(new Error("The cover is too large")),
-        });
-        const user = userEvent.setup();
-        const { container } = renderEdit();
+        const { user, container } = openEditor("edit", { fanfic: makeFanfic(fanfic), ...failure });
 
         // when
-        await user.upload(fileInput(container), coverFile());
-        await user.click(screen.getByRole("button", { name: "Save Changes" }));
+        if (removesCover) {
+            await user.click(screen.getByRole("button", { name: "Remove" }));
+        } else {
+            await chooseCover(user, container);
+        }
+        await user.click(screen.getByRole("button", { name: button }));
 
         // then
-        expect(
-            await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large"),
-        ).toBeInTheDocument();
+        expect(await screen.findByText(message)).toBeInTheDocument();
         expect(navigate).not.toHaveBeenCalled();
-    });
-
-    it("says the cover was not saved rather than moving on to the story", async () => {
-        // given
-        stubEditor({
-            fanfic: makeFanfic({ is_oneshot: true, chapters: [] }),
-            uploadCover: () => Promise.reject(new Error("The cover is too large")),
-        });
-        const user = userEvent.setup();
-        const { container } = renderEdit();
-
-        // when
-        await user.upload(fileInput(container), coverFile());
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-
-        // then
-        expect(
-            await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large"),
-        ).toBeInTheDocument();
         expect(screen.queryByLabelText("story body")).not.toBeInTheDocument();
-    });
-
-    it("says the cover was not removed rather than opening a fanfic that still has it", async () => {
-        // given
-        stubEditor({
-            fanfic: makeFanfic({ is_oneshot: false, cover_image_url: "/covers/1.png" }),
-            deleteCover: () => Promise.reject(new Error("The witch forbids it")),
-        });
-        const user = userEvent.setup();
-        renderEdit();
-
-        // when
-        await user.click(screen.getByRole("button", { name: "Remove" }));
-        await user.click(screen.getByRole("button", { name: "Save Changes" }));
-
-        // then
-        expect(
-            await screen.findByText("The fanfic was saved but its cover image was not removed: The witch forbids it"),
-        ).toBeInTheDocument();
-        expect(navigate).not.toHaveBeenCalled();
     });
 
     it("uploads a chosen cover against the fanfic it has just created", async () => {
         // given
-        const { uploadCoverForAsync } = stubEditor();
-        const user = userEvent.setup();
-        const { container } = renderNew();
+        const { user, container, uploadCoverForAsync } = openEditor("new");
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.upload(fileInput(container), coverFile());
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
+        await chooseCover(user, container);
+        await publishNew(user);
 
         // then
         await waitFor(() => {
@@ -992,37 +821,20 @@ describe("FanficEditorPage", () => {
         expect(navigate).toHaveBeenCalledWith("/fanfiction/fanfic-new");
     });
 
-    it("says the cover of a new fanfic was not saved instead of leaving silently", async () => {
+    it("says the cover of a new fanfic was not saved and never writes the fanfic twice", async () => {
         // given
-        stubEditor({ uploadCoverFor: () => Promise.reject(new Error("The cover is too large")) });
-        const user = userEvent.setup();
-        const { container } = renderNew();
-
-        // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.upload(fileInput(container), coverFile());
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
-
-        // then
-        expect(
-            await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large"),
-        ).toBeInTheDocument();
-        expect(navigate).not.toHaveBeenCalled();
-    });
-
-    it("never writes the fanfic twice when only its cover failed", async () => {
-        // given
-        const { createAsync } = stubEditor({
+        const { user, container, createAsync } = openEditor("new", {
             uploadCoverFor: () => Promise.reject(new Error("The cover is too large")),
         });
-        const user = userEvent.setup();
-        const { container } = renderNew();
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "Golden Land");
-        await user.upload(fileInput(container), coverFile());
-        await user.click(screen.getByRole("button", { name: "Next: Edit Story" }));
-        await user.click(screen.getByRole("button", { name: "Publish" }));
-        await screen.findByText("The fanfic was saved but its cover image was not: The cover is too large");
+        await user.type(screen.getByPlaceholderText(TITLE), "Golden Land");
+        await chooseCover(user, container);
+
+        // when
+        await publishNew(user);
+
+        // then
+        expect(await screen.findByText(COVER_TOO_LARGE)).toBeInTheDocument();
+        expect(navigate).not.toHaveBeenCalled();
 
         // when
         await user.click(screen.getByRole("button", { name: "Publish" }));
@@ -1033,12 +845,10 @@ describe("FanficEditorPage", () => {
 
     it("does not save a draft of an edit into local storage", async () => {
         // given
-        stubEditor({ fanfic: makeFanfic() });
-        const user = userEvent.setup();
-        renderEdit();
+        const { user } = openEditor("edit", { fanfic: makeFanfic() });
 
         // when
-        await user.type(screen.getByPlaceholderText("Your fanfic title..."), "!");
+        await user.type(screen.getByPlaceholderText(TITLE), "!");
 
         // then
         expect(localStorage.getItem(DRAFT_KEY)).toBeNull();

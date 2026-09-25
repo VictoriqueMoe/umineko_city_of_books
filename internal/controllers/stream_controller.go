@@ -297,5 +297,5 @@ func mapStreamError(ctx fiber.Ctx, err error) error {
 			return utils.Forbidden(ctx, "you do not own this stream")
 		}
 	}
-	return utils.InternalError(ctx, "stream request failed: "+err.Error(), err)
+	return utils.InternalError(ctx, "stream request failed", err)
 }

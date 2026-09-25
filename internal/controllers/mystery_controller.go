@@ -8,6 +8,7 @@ import (
 	"umineko_city_of_books/internal/block"
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/controllers/utils"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	mysterysvc "umineko_city_of_books/internal/mystery"
 
@@ -115,7 +116,7 @@ func (s *Service) listMysteries(ctx fiber.Ctx) error {
 
 	resp, err := s.MysteryService.ListMysteries(ctx.Context(), sort, solved, userID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list mysteries")
+		return utils.InternalError(ctx, "failed to list mysteries", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -132,7 +133,7 @@ func (s *Service) getMystery(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotFound) {
 			return utils.NotFound(ctx, "mystery not found")
 		}
-		return utils.InternalError(ctx, "failed to get mystery")
+		return utils.InternalError(ctx, "failed to get mystery", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -153,7 +154,7 @@ func (s *Service) createMystery(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to create mystery")
+		return utils.InternalError(ctx, "failed to create mystery", err)
 	}
 
 	s.Hub.BumpSidebarActivity("mysteries")
@@ -179,7 +180,13 @@ func (s *Service) updateMystery(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrContractLocked) {
 			return utils.Conflict(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update mystery")
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "mystery not found")
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
+			return utils.Forbidden(ctx, err.Error())
+		}
+		return utils.InternalError(ctx, "failed to update mystery", err)
 	}
 	return utils.OK(ctx)
 }
@@ -192,7 +199,10 @@ func (s *Service) deleteMystery(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.MysteryService.DeleteMystery(ctx.Context(), id, userID); err != nil {
-		return utils.Forbidden(ctx, "cannot delete this mystery")
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this mystery")
+		}
+		return utils.InternalError(ctx, "failed to delete mystery", err)
 	}
 	return utils.OK(ctx)
 }
@@ -223,7 +233,7 @@ func (s *Service) createAttempt(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrAlreadySolved) || errors.Is(err, mysterysvc.ErrCannotReply) || errors.Is(err, mysterysvc.ErrMysteryPaused) || errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to create attempt")
+		return utils.InternalError(ctx, "failed to create attempt", err)
 	}
 
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
@@ -237,7 +247,13 @@ func (s *Service) deleteAttempt(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.MysteryService.DeleteAttempt(ctx.Context(), id, userID); err != nil {
-		return utils.Forbidden(ctx, "cannot delete this attempt")
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "attempt not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this attempt")
+		}
+		return utils.InternalError(ctx, "failed to delete attempt", err)
 	}
 	return utils.OK(ctx)
 }
@@ -264,7 +280,7 @@ func (s *Service) voteAttempt(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to vote")
+		return utils.InternalError(ctx, "failed to vote", err)
 	}
 	return utils.OK(ctx)
 }
@@ -293,10 +309,10 @@ func (s *Service) markSolved(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		if errors.Is(err, mysterysvc.ErrAlreadySolved) {
+		if errors.Is(err, mysterysvc.ErrAlreadySolved) || errors.Is(err, mysterysvc.ErrAttemptNotOnMystery) || errors.Is(err, mysterysvc.ErrOwnAttempt) || errors.Is(err, mysterysvc.ErrAlreadyWon) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to mark as solved")
+		return utils.InternalError(ctx, "failed to mark as solved", err)
 	}
 	return utils.OK(ctx)
 }
@@ -315,7 +331,7 @@ func (s *Service) markPermanentlySolved(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to close mystery")
+		return utils.InternalError(ctx, "failed to close mystery", err)
 	}
 	return utils.OK(ctx)
 }
@@ -339,10 +355,13 @@ func (s *Service) addClue(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		if errors.Is(err, mysterysvc.ErrNotFound) || errors.Is(err, mysterysvc.ErrNotAuthor) {
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "mystery not found")
+		}
+		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to add clue")
+		return utils.InternalError(ctx, "failed to add clue", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"status": "ok"})
 }
@@ -352,7 +371,7 @@ func (s *Service) mysteryLeaderboard(ctx fiber.Ctx) error {
 
 	resp, err := s.MysteryService.GetLeaderboard(ctx.Context(), page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to load leaderboard")
+		return utils.InternalError(ctx, "failed to load leaderboard", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -366,7 +385,7 @@ func (s *Service) gmLeaderboard(ctx fiber.Ctx) error {
 
 	resp, err := s.MysteryService.GetGMLeaderboard(ctx.Context(), page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to load gm leaderboard")
+		return utils.InternalError(ctx, "failed to load gm leaderboard", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -380,7 +399,7 @@ func (s *Service) listUserMysteries(ctx fiber.Ctx) error {
 
 	resp, err := s.MysteryService.ListByUser(ctx.Context(), userID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list user mysteries")
+		return utils.InternalError(ctx, "failed to list user mysteries", err)
 	}
 	return ctx.JSON(resp)
 }
@@ -435,7 +454,10 @@ func (s *Service) createMysteryComment(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to create comment")
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "mystery not found")
+		}
+		return utils.InternalError(ctx, "failed to create comment", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -459,7 +481,13 @@ func (s *Service) updateMysteryComment(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update comment")
+		if errors.Is(err, mysterysvc.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this comment")
+		}
+		return utils.InternalError(ctx, "failed to update comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -502,19 +530,16 @@ func (s *Service) uploadMysteryAttachment(ctx fiber.Ctx) error {
 
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
 	result, err := s.MysteryService.UploadAttachment(ctx.Context(), mysteryID, userID, file.Filename, file.Size, reader)
 	if err != nil {
-		if errors.Is(err, mysterysvc.ErrNotFound) {
-			return utils.NotFound(ctx, "mystery not found")
+		if errors.Is(err, mysterysvc.ErrDuplicateAttachment) {
+			return utils.BadRequest(ctx, err.Error())
 		}
-		if errors.Is(err, mysterysvc.ErrNotAuthor) {
-			return utils.Forbidden(ctx, err.Error())
-		}
-		return utils.BadRequest(ctx, err.Error())
+		return mysteryUploadError(ctx, err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
 }
@@ -537,7 +562,7 @@ func (s *Service) deleteMysteryAttachment(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to delete attachment")
+		return utils.InternalError(ctx, "failed to delete attachment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -563,21 +588,29 @@ func (s *Service) uploadMysteryMedia(ctx fiber.Ctx) error {
 	}
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
 	result, err := s.MysteryService.UploadMedia(ctx.Context(), mysteryID, userID, file.Header.Get("Content-Type"), file.Filename, file.Size, reader, isSpoilerUpload(ctx))
 	if err != nil {
-		if errors.Is(err, mysterysvc.ErrNotFound) {
-			return utils.NotFound(ctx, "mystery not found")
-		}
-		if errors.Is(err, mysterysvc.ErrNotAuthor) {
-			return utils.Forbidden(ctx, err.Error())
-		}
-		return utils.BadRequest(ctx, err.Error())
+		return mysteryUploadError(ctx, err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(result)
+}
+
+func mysteryUploadError(ctx fiber.Ctx, err error) error {
+	if errors.Is(err, mysterysvc.ErrNotFound) {
+		return utils.NotFound(ctx, "mystery not found")
+	}
+	if errors.Is(err, mysterysvc.ErrNotAuthor) {
+		return utils.Forbidden(ctx, err.Error())
+	}
+	if utils.IsUploadRejection(err) {
+		return utils.BadRequest(ctx, err.Error())
+	}
+
+	return utils.InternalError(ctx, "failed to upload", err)
 }
 
 func (s *Service) deleteMysteryMedia(ctx fiber.Ctx) error {
@@ -598,7 +631,7 @@ func (s *Service) deleteMysteryMedia(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to delete media")
+		return utils.InternalError(ctx, "failed to delete media", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -628,7 +661,7 @@ func (s *Service) toggleMysteryPause(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to toggle pause")
+		return utils.InternalError(ctx, "failed to toggle pause", err)
 	}
 	return utils.OK(ctx)
 }
@@ -658,7 +691,7 @@ func (s *Service) toggleMysteryGmAway(ctx fiber.Ctx) error {
 		if errors.Is(err, mysterysvc.ErrNotAuthor) {
 			return utils.Forbidden(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to toggle away")
+		return utils.InternalError(ctx, "failed to toggle away", err)
 	}
 	return utils.OK(ctx)
 }
@@ -679,10 +712,7 @@ func (s *Service) deleteMysteryClue(ctx fiber.Ctx) error {
 	userID := utils.UserID(ctx)
 
 	if err := s.MysteryService.DeleteClue(ctx.Context(), mysteryID, clueID, userID); err != nil {
-		if errors.Is(err, mysterysvc.ErrNotFound) || errors.Is(err, mysterysvc.ErrNotAuthor) {
-			return utils.Forbidden(ctx, err.Error())
-		}
-		return utils.InternalError(ctx, "failed to delete clue")
+		return mysteryClueError(ctx, err, "failed to delete clue")
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -713,10 +743,21 @@ func (s *Service) updateMysteryClue(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, mysterysvc.ErrNotFound) || errors.Is(err, mysterysvc.ErrNotAuthor) || errors.Is(err, mysterysvc.ErrEmptyBody) {
+		if errors.Is(err, mysterysvc.ErrEmptyBody) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update clue")
+		return mysteryClueError(ctx, err, "failed to update clue")
 	}
 	return utils.OK(ctx)
+}
+
+func mysteryClueError(ctx fiber.Ctx, err error, failure string) error {
+	if errors.Is(err, mysterysvc.ErrNotFound) {
+		return utils.NotFound(ctx, "clue not found")
+	}
+	if errors.Is(err, mysterysvc.ErrNotAuthor) {
+		return utils.Forbidden(ctx, err.Error())
+	}
+
+	return utils.InternalError(ctx, failure, err)
 }

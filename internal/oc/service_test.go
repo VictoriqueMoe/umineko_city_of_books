@@ -10,6 +10,7 @@ import (
 	"umineko_city_of_books/internal/audit"
 	"umineko_city_of_books/internal/authz"
 	"umineko_city_of_books/internal/block"
+	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/contentfilter"
 	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
@@ -26,6 +27,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	errMissingRow = errors.Join(errors.New("no row"), dao.ErrNotFound)
 )
 
 type testMocks struct {
@@ -591,18 +596,247 @@ func TestUpdateComment_EmptyBodyRejected(t *testing.T) {
 	require.ErrorIs(t, err, ErrEmptyBody)
 }
 
-func TestUpdateComment_CommentNotFound(t *testing.T) {
+func TestOCLookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	ctx := context.Background()
+	cases := []struct {
+		name   string
+		lookup func(m *testMocks, id uuid.UUID, err error)
+		call   func(s *service, id, userID uuid.UUID) error
+	}{
+		{name: "delete", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error { return s.DeleteOC(ctx, id, userID) }},
+		{name: "upload the portrait", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.UploadOCImage(ctx, id, userID, "image/png", 3, strings.NewReader("img"))
+			return err
+		}},
+		{name: "add a gallery image", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.AddGalleryImage(ctx, id, userID, "c", "image/png", 3, strings.NewReader("img"))
+			return err
+		}},
+		{name: "update a gallery image", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			return s.UpdateGalleryImage(ctx, id, 1, userID, dto.UpdateOCImageRequest{})
+		}},
+		{name: "delete a gallery image", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error { return s.DeleteGalleryImage(ctx, id, 1, userID) }},
+		{name: "vote", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error { return s.Vote(ctx, userID, id, 1) }},
+		{name: "favourite", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.ToggleFavourite(ctx, userID, id)
+			return err
+		}},
+		{name: "comment", lookup: expectOCAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.CreateComment(ctx, id, userID, dto.CreateCommentRequest{Body: "hi"})
+			return err
+		}},
+		{name: "edit a comment", lookup: expectOCCommentAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			return s.UpdateComment(ctx, id, userID, dto.UpdateCommentRequest{Body: "hi"})
+		}},
+		{name: "like a comment", lookup: expectOCCommentAuthor, call: func(s *service, id, userID uuid.UUID) error { return s.LikeComment(ctx, userID, id) }},
+		{name: "attach media to a comment", lookup: expectOCCommentAuthor, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.UploadCommentMedia(ctx, id, userID, "image/png", "p.png", 3, strings.NewReader("img"), false)
+			return err
+		}},
+	}
+	outcomes := []struct {
+		name      string
+		lookupErr error
+		wantErr   error
+	}{
+		{name: "a missing row is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+	}
+
+	for _, tc := range cases {
+		for _, outcome := range outcomes {
+			t.Run(tc.name+": "+outcome.name, func(t *testing.T) {
+				// given
+				svc, m := newTestService(t)
+				id := uuid.New()
+				tc.lookup(m, id, outcome.lookupErr)
+
+				// when
+				err := tc.call(svc, id, uuid.New())
+
+				// then
+				require.ErrorIs(t, err, outcome.wantErr)
+			})
+		}
+	}
+}
+
+func TestOCImageWrites_ANonOwnerIsRefusedWithTheSentinel(t *testing.T) {
+	ctx := context.Background()
+	cases := []struct {
+		name string
+		call func(s *service, id, userID uuid.UUID) error
+	}{
+		{name: "upload the portrait", call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.UploadOCImage(ctx, id, userID, "image/png", 3, strings.NewReader("img"))
+			return err
+		}},
+		{name: "add a gallery image", call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.AddGalleryImage(ctx, id, userID, "c", "image/png", 3, strings.NewReader("img"))
+			return err
+		}},
+		{name: "update a gallery image", call: func(s *service, id, userID uuid.UUID) error {
+			return s.UpdateGalleryImage(ctx, id, 1, userID, dto.UpdateOCImageRequest{})
+		}},
+		{name: "delete a gallery image", call: func(s *service, id, userID uuid.UUID) error { return s.DeleteGalleryImage(ctx, id, 1, userID) }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			userID := uuid.New()
+			m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.New(), nil)
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyPost).Return(false)
+
+			// when
+			err := tc.call(svc, id, userID)
+
+			// then
+			require.ErrorIs(t, err, ErrNotOwner)
+		})
+	}
+}
+
+func expectOCAuthor(m *testMocks, id uuid.UUID, err error) {
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(uuid.Nil, err)
+}
+
+func expectOCCommentAuthor(m *testMocks, id uuid.UUID, err error) {
+	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.Nil, err)
+}
+
+func TestOCBlockCheckFailuresRefuseTheAction(t *testing.T) {
+	boom := errors.New("boom")
+	ctx := context.Background()
+	cases := []struct {
+		name   string
+		lookup func(m *testMocks, id, authorID uuid.UUID)
+		call   func(s *service, id, userID uuid.UUID) error
+	}{
+		{name: "vote", lookup: expectOCOwnedBy, call: func(s *service, id, userID uuid.UUID) error { return s.Vote(ctx, userID, id, 1) }},
+		{name: "favourite", lookup: expectOCOwnedBy, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.ToggleFavourite(ctx, userID, id)
+			return err
+		}},
+		{name: "comment", lookup: expectOCOwnedBy, call: func(s *service, id, userID uuid.UUID) error {
+			_, err := s.CreateComment(ctx, id, userID, dto.CreateCommentRequest{Body: "hi"})
+			return err
+		}},
+		{name: "like a comment", lookup: expectOCCommentOwnedBy, call: func(s *service, id, userID uuid.UUID) error { return s.LikeComment(ctx, userID, id) }},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			tc.lookup(m, id, authorID)
+			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, boom)
+
+			// when
+			err := tc.call(svc, id, userID)
+
+			// then
+			require.ErrorIs(t, err, boom)
+		})
+	}
+}
+
+func expectOCOwnedBy(m *testMocks, id, authorID uuid.UUID) {
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, id).Return(authorID, nil)
+}
+
+func expectOCCommentOwnedBy(m *testMocks, id, authorID uuid.UUID) {
+	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(authorID, nil)
+}
+
+func TestGetOC_AFailedReadIsSurfacedInsteadOfRenderingAnEmptySection(t *testing.T) {
+	steps := []string{"gallery", "blocked users", "comments", "comment media", "viewer block"}
+
+	for _, failAt := range steps {
+		t.Run("the "+failAt+" read failing", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			viewerID := uuid.New()
+			boom := errors.New("boom")
+			errAt := func(step string) error {
+				if step == failAt {
+					return boom
+				}
+
+				return nil
+			}
+			m.ocRepo.EXPECT().GetByID(mock.Anything, spec.OCByID{ID: id, ViewerID: viewerID}).Return(&model.OCRow{ID: id, UserID: uuid.New()}, nil)
+			m.ocRepo.EXPECT().GetGallery(mock.Anything, id).Return(nil, errAt("gallery")).Maybe()
+			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, errAt("blocked users")).Maybe()
+			m.ocRepo.EXPECT().GetComments(mock.Anything, mock.Anything).Return([]model.CommentRow{{ID: uuid.New()}}, 1, errAt("comments")).Maybe()
+			m.ocRepo.EXPECT().GetCommentMediaBatch(mock.Anything, mock.Anything).Return(nil, errAt("comment media")).Maybe()
+			m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, viewerID, mock.Anything).Return(false, errAt("viewer block")).Maybe()
+
+			// when
+			got, err := svc.GetOC(context.Background(), id, viewerID)
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
+}
+
+func TestListOCs_AFailedReadIsSurfaced(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name       string
+		blockErr   error
+		galleryErr error
+	}{
+		{name: "the viewer's block list", blockErr: boom},
+		{name: "the gallery previews", galleryErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+" failing to load", func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			viewerID := uuid.New()
+			ocID := uuid.New()
+			m.blockSvc.EXPECT().GetBlockedIDs(mock.Anything, viewerID).Return(nil, tc.blockErr)
+			if tc.blockErr == nil {
+				m.ocRepo.EXPECT().List(mock.Anything, mock.Anything).Return([]model.OCRow{{ID: ocID}}, 1, nil)
+				m.ocRepo.EXPECT().GetGalleryBatch(mock.Anything, []uuid.UUID{ocID}).Return(nil, tc.galleryErr)
+			}
+
+			// when
+			got, err := svc.ListOCs(context.Background(), viewerID, "new", false, "", "", uuid.Nil, bounds.NewPage(10, 0))
+
+			// then
+			require.ErrorIs(t, err, boom)
+			assert.Nil(t, got)
+		})
+	}
+}
+
+func TestAddGalleryImage_AFailedGalleryLookupRefusesBeforeAnythingIsSaved(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
-	commentID := uuid.New()
+	ocID := uuid.New()
 	userID := uuid.New()
-	m.ocRepo.EXPECT().GetCommentAuthorID(mock.Anything, commentID).Return(uuid.Nil, errors.New("no row"))
+	boom := errors.New("boom")
+	m.ocRepo.EXPECT().GetAuthorID(mock.Anything, ocID).Return(userID, nil)
+	m.ocRepo.EXPECT().GetGallery(mock.Anything, ocID).Return(nil, boom)
 
 	// when
-	err := svc.UpdateComment(context.Background(), commentID, userID, dto.UpdateCommentRequest{Body: "hi"})
+	_, err := svc.AddGalleryImage(context.Background(), ocID, userID, "c", "image/png", 3, strings.NewReader("img"))
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+	// then no file is left behind for a gallery row that was never written
+	require.ErrorIs(t, err, boom)
+	m.uploadSvc.AssertNotCalled(t, "SaveImage", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestUpdateComment_AdminEditAudited(t *testing.T) {

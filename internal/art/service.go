@@ -2,6 +2,7 @@ package art
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"umineko_city_of_books/internal/bounds"
 	"umineko_city_of_books/internal/config"
 	"umineko_city_of_books/internal/contentfilter"
+	"umineko_city_of_books/internal/dao"
 	"umineko_city_of_books/internal/dto"
 	"umineko_city_of_books/internal/homefeed"
 	"umineko_city_of_books/internal/logger"
@@ -219,27 +221,43 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 	}
 
 	if viewerHash != "" {
-		isNew, _ := s.artRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
+		isNew, err := s.artRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
+		if err != nil {
+			logger.Ctx(ctx).Error().Err(err).Str("art_id", id.String()).Msg("record art view failed")
+		}
 		if isNew {
 			row.ViewCount++
 		}
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
 
-	tags, _ := s.artRepo.GetTags(ctx, id)
-	comments, _, _ := s.artRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+	tags, err := s.artRepo.GetTags(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("art tags: %w", err)
+	}
+
+	comments, _, err := s.artRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("art comments: %w", err)
+	}
 
 	var commentIDs []uuid.UUID
 	for _, c := range comments {
 		commentIDs = append(commentIDs, c.ID)
 	}
-	commentMediaMap, _ := s.artRepo.GetCommentMediaBatch(ctx, commentIDs)
+	commentMediaMap, err := s.artRepo.GetCommentMediaBatch(ctx, commentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("comment media: %w", err)
+	}
 
 	flatComments := make([]dto.ArtCommentResponse, len(comments))
 	for i, c := range comments {
@@ -251,7 +269,11 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 		func(c *dto.ArtCommentResponse, replies []dto.ArtCommentResponse) { c.Replies = replies },
 	)
 
-	likeUsers, _ := s.artRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
+	likeUsers, err := s.artRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
+	if err != nil {
+		return nil, fmt.Errorf("art likes: %w", err)
+	}
+
 	likedBy := make([]dto.UserResponse, len(likeUsers))
 	for i, u := range likeUsers {
 		likedBy[i] = dto.UserResponse{
@@ -268,7 +290,10 @@ func (s *service) GetArt(ctx context.Context, id uuid.UUID, viewerID uuid.UUID, 
 
 	viewerBlocked := false
 	if viewerID != uuid.Nil {
-		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		viewerBlocked, err = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("block check: %w", err)
+		}
 	}
 
 	return &dto.ArtDetailResponse{
@@ -316,8 +341,20 @@ func (s *service) UpdateArt(ctx context.Context, id uuid.UUID, userID uuid.UUID,
 	return nil
 }
 
+func (s *service) artAuthor(ctx context.Context, artID uuid.UUID) (uuid.UUID, error) {
+	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, err
+	}
+
+	return authorID, nil
+}
+
 func (s *service) DeleteArt(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
-	authorID, err := s.artRepo.GetArtAuthorID(ctx, id)
+	authorID, err := s.artAuthor(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -357,7 +394,11 @@ func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string
 		corner = "general"
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
+
 	rows, total, err := s.artRepo.ListAll(ctx, spec.ArtFilter{
 		ViewerID:       viewerID,
 		Corner:         corner,
@@ -373,7 +414,7 @@ func (s *service) ListArt(ctx context.Context, viewerID uuid.UUID, corner string
 		return nil, err
 	}
 
-	return s.buildArtList(ctx, rows, total, page.Limit(), page.Offset()), nil
+	return s.buildArtList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
 func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.ArtListResponse, error) {
@@ -386,16 +427,20 @@ func (s *service) ListByUser(ctx context.Context, userID uuid.UUID, viewerID uui
 	if err != nil {
 		return nil, err
 	}
-	return s.buildArtList(ctx, rows, total, page.Limit(), page.Offset()), nil
+
+	return s.buildArtList(ctx, rows, total, page.Limit(), page.Offset())
 }
 
-func (s *service) buildArtList(ctx context.Context, rows []model.ArtRow, total, limit, offset int) *dto.ArtListResponse {
+func (s *service) buildArtList(ctx context.Context, rows []model.ArtRow, total, limit, offset int) (*dto.ArtListResponse, error) {
 	artIDs := make([]uuid.UUID, len(rows))
 	for i, r := range rows {
 		artIDs[i] = r.ID
 	}
 
-	tagMap, _ := s.artRepo.GetTagsBatch(ctx, artIDs)
+	tagMap, err := s.artRepo.GetTagsBatch(ctx, artIDs)
+	if err != nil {
+		return nil, fmt.Errorf("art tags: %w", err)
+	}
 
 	arts := make([]dto.ArtResponse, len(rows))
 	for i, r := range rows {
@@ -408,15 +453,20 @@ func (s *service) buildArtList(ctx context.Context, rows []model.ArtRow, total, 
 		Total:  total,
 		Limit:  limit,
 		Offset: offset,
-	}
+	}, nil
 }
 
 func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID) error {
-	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	authorID, err := s.artAuthor(ctx, artID)
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -426,7 +476,12 @@ func (s *service) LikeArt(ctx context.Context, userID uuid.UUID, artID uuid.UUID
 
 	go func() {
 		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("art notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
@@ -466,17 +521,22 @@ func (s *service) GetPopularTags(ctx context.Context, corner string) ([]dto.TagC
 
 func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uuid.UUID, req dto.CreateCommentRequest) (uuid.UUID, error) {
 	if strings.TrimSpace(req.Body) == "" {
-		return uuid.Nil, fmt.Errorf("comment body cannot be empty")
+		return uuid.Nil, ErrEmptyBody
 	}
 	if err := s.contentFilter.Check(ctx, req.Body); err != nil {
 		return uuid.Nil, err
 	}
 
-	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
+	authorID, err := s.artAuthor(ctx, artID)
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
@@ -495,7 +555,12 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 
 	go func() {
 		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("art notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		linkURL := fmt.Sprintf("/gallery/art/%s#comment-%s", artID, id)
@@ -548,13 +613,16 @@ func (s *service) CreateComment(ctx context.Context, artID uuid.UUID, userID uui
 func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.UUID, req dto.UpdateCommentRequest) error {
 	body := strings.TrimSpace(req.Body)
 	if body == "" {
-		return fmt.Errorf("comment body cannot be empty")
+		return ErrEmptyBody
 	}
 	if err := s.contentFilter.Check(ctx, body); err != nil {
 		return err
 	}
 
 	authorID, err := s.artRepo.GetCommentAuthorID(ctx, id)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
@@ -626,7 +694,12 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -637,10 +710,17 @@ func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID u
 	go func() {
 		artID, err := s.artRepo.GetCommentEntityID(ctx, commentID)
 		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("comment_id", commentID.String()).Msg("art comment like notification skipped, art lookup failed")
+
 			return
 		}
 		actor, err := s.userRepo.GetByID(ctx, userID)
-		if err != nil || actor == nil {
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Str("user_id", userID.String()).Msg("art notification skipped, actor lookup failed")
+
+			return
+		}
+		if actor == nil {
 			return
 		}
 		_ = s.notifService.Notify(ctx, dto.NotifyParams{
@@ -668,7 +748,7 @@ func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, u
 		return nil, ErrNotFound
 	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the comment author")
+		return nil, authz.ErrNotCommentAuthor
 	}
 
 	return s.uploader.SaveAndRecord(ctx, "art", contentType, filename, fileSize, reader, isSpoiler,
@@ -785,7 +865,10 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	for i, r := range rows {
 		artIDs[i] = r.ID
 	}
-	tagMap, _ := s.artRepo.GetTagsBatch(ctx, artIDs)
+	tagMap, err := s.artRepo.GetTagsBatch(ctx, artIDs)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("art tags: %w", err)
+	}
 
 	arts := make([]dto.ArtResponse, len(rows))
 	for i, r := range rows {
@@ -800,7 +883,7 @@ func (s *service) GetGallery(ctx context.Context, id uuid.UUID, viewerID uuid.UU
 	return &gallery, arts, total, nil
 }
 
-func (s *service) galleriesWithPreviews(ctx context.Context, rows []model.GalleryRow) []dto.GalleryResponse {
+func (s *service) galleriesWithPreviews(ctx context.Context, rows []model.GalleryRow) ([]dto.GalleryResponse, error) {
 	result := make([]dto.GalleryResponse, len(rows))
 	for i, g := range rows {
 		result[i] = g.ToResponse()
@@ -808,7 +891,11 @@ func (s *service) galleriesWithPreviews(ctx context.Context, rows []model.Galler
 			result[i].CoverThumbnailURL = s.generateThumbnailURL(g.CoverImageURL)
 		}
 		if g.CoverArtID == nil && g.ArtCount > 0 {
-			imgs, _ := s.artRepo.GetGalleryPreviewImages(ctx, spec.GalleryPreviewFilter{GalleryID: g.ID, Limit: 3})
+			imgs, err := s.artRepo.GetGalleryPreviewImages(ctx, spec.GalleryPreviewFilter{GalleryID: g.ID, Limit: 3})
+			if err != nil {
+				return nil, fmt.Errorf("gallery preview images: %w", err)
+			}
+
 			previews := make([]dto.PreviewImageDTO, len(imgs))
 			for j, img := range imgs {
 				previews[j] = dto.PreviewImageDTO{
@@ -819,7 +906,8 @@ func (s *service) galleriesWithPreviews(ctx context.Context, rows []model.Galler
 			result[i].PreviewImages = previews
 		}
 	}
-	return result
+
+	return result, nil
 }
 
 func (s *service) ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dto.GalleryResponse, error) {
@@ -827,7 +915,8 @@ func (s *service) ListUserGalleries(ctx context.Context, userID uuid.UUID) ([]dt
 	if err != nil {
 		return nil, err
 	}
-	return s.galleriesWithPreviews(ctx, rows), nil
+
+	return s.galleriesWithPreviews(ctx, rows)
 }
 
 func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.GalleryResponse, error) {
@@ -835,7 +924,8 @@ func (s *service) ListAllGalleries(ctx context.Context, corner string) ([]dto.Ga
 	if err != nil {
 		return nil, err
 	}
-	return s.galleriesWithPreviews(ctx, rows), nil
+
+	return s.galleriesWithPreviews(ctx, rows)
 }
 
 func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uuid.UUID, galleryID *uuid.UUID) error {
@@ -849,6 +939,8 @@ func (s *service) SetArtGallery(ctx context.Context, artID uuid.UUID, userID uui
 func (s *service) notifyArtEdited(ctx context.Context, artID uuid.UUID, editorID uuid.UUID) {
 	authorID, err := s.artRepo.GetArtAuthorID(ctx, artID)
 	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("art_id", artID.String()).Msg("edit notification skipped, author lookup failed")
+
 		return
 	}
 	notification.SendEditNotification(ctx, s.userRepo, s.notifService, notification.EditNotifyParams{

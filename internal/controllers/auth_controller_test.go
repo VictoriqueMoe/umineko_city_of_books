@@ -685,21 +685,16 @@ func TestSiteInfo_OK(t *testing.T) {
 }
 
 func TestSiteInfo_ServiceErrors(t *testing.T) {
-	// given - all downstream errors are swallowed; response still 200 with zero values
+	// given a badge lookup that fails, so the client keeps its last complete site info instead of caching empty badges
 	h, deps := newAuthHarness(t)
 	deps.mysterySvc.EXPECT().GetTopDetectiveIDs(mock.Anything).Return(nil, errors.New("boom"))
-	deps.mysterySvc.EXPECT().GetTopGMIDs(mock.Anything).Return(nil, errors.New("boom"))
-	deps.vanityRoleSvc.EXPECT().List(mock.Anything).Return(nil, errors.New("boom"))
-	deps.vanityRoleSvc.EXPECT().GetAllAssignments(mock.Anything).Return(nil, errors.New("boom"))
 
 	// when
 	status, body := h.NewRequest("GET", "/site-info").Do()
 
 	// then
-	require.Equal(t, http.StatusOK, status)
-	got := testutil.UnmarshalJSON[dto.SiteInfoResponse](t, body)
-	assert.Empty(t, got.TopDetectiveIDs)
-	assert.Empty(t, got.VanityRoles)
+	require.Equal(t, http.StatusInternalServerError, status)
+	assert.Contains(t, string(body), "failed to load site info")
 }
 
 func TestStaff_OK(t *testing.T) {

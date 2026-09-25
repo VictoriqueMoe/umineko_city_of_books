@@ -118,7 +118,7 @@ func (s *Service) listArt(ctx fiber.Ctx) error {
 
 	result, err := s.ArtService.ListArt(ctx.Context(), viewerID, corner, artType, search, tag, sort, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list art")
+		return utils.InternalError(ctx, "failed to list art", err)
 	}
 	return ctx.JSON(result)
 }
@@ -126,7 +126,7 @@ func (s *Service) listArt(ctx fiber.Ctx) error {
 func (s *Service) getArtCornerCounts(ctx fiber.Ctx) error {
 	counts, err := s.ArtService.GetCornerCounts(ctx.Context())
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get art counts")
+		return utils.InternalError(ctx, "failed to get art counts", err)
 	}
 	return ctx.JSON(counts)
 }
@@ -135,7 +135,7 @@ func (s *Service) getPopularTags(ctx fiber.Ctx) error {
 	corner := ctx.Query("corner")
 	tags, err := s.ArtService.GetPopularTags(ctx.Context(), corner)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to get tags")
+		return utils.InternalError(ctx, "failed to get tags", err)
 	}
 	return ctx.JSON(tags)
 }
@@ -152,7 +152,7 @@ func (s *Service) getArt(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "art not found")
 		}
-		return utils.InternalError(ctx, "failed to get art")
+		return utils.InternalError(ctx, "failed to get art", err)
 	}
 	return ctx.JSON(result)
 }
@@ -177,7 +177,7 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 
 	reader, err := file.Open()
 	if err != nil {
-		return utils.InternalError(ctx, "failed to read file")
+		return utils.InternalError(ctx, "failed to read file", err)
 	}
 	defer reader.Close()
 
@@ -186,13 +186,13 @@ func (s *Service) createArt(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		if errors.Is(err, artsvc.ErrEmptyTitle) {
+		if errors.Is(err, artsvc.ErrEmptyTitle) || utils.IsUploadRejection(err) {
 			return utils.BadRequest(ctx, err.Error())
 		}
 		if errors.Is(err, artsvc.ErrRateLimited) {
 			return ctx.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": err.Error()})
 		}
-		return utils.BadRequest(ctx, err.Error())
+		return utils.InternalError(ctx, "failed to create art", err)
 	}
 	corner := req.Corner
 	if corner == "" {
@@ -221,7 +221,10 @@ func (s *Service) updateArt(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to update art")
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this art")
+		}
+		return utils.InternalError(ctx, "failed to update art", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -234,7 +237,13 @@ func (s *Service) deleteArt(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.ArtService.DeleteArt(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete art")
+		if errors.Is(err, artsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "art not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this art")
+		}
+		return utils.InternalError(ctx, "failed to delete art", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -250,7 +259,10 @@ func (s *Service) likeArt(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to like art")
+		if errors.Is(err, artsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "art not found")
+		}
+		return utils.InternalError(ctx, "failed to like art", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -263,7 +275,7 @@ func (s *Service) unlikeArt(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.ArtService.UnlikeArt(ctx.Context(), userID, artID); err != nil {
-		return utils.InternalError(ctx, "failed to unlike art")
+		return utils.InternalError(ctx, "failed to unlike art", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -288,7 +300,13 @@ func (s *Service) createArtComment(ctx fiber.Ctx) error {
 		if errors.Is(err, block.ErrUserBlocked) {
 			return utils.Forbidden(ctx, "user is blocked")
 		}
-		return utils.InternalError(ctx, "failed to create comment")
+		if errors.Is(err, artsvc.ErrEmptyBody) {
+			return utils.BadRequest(ctx, err.Error())
+		}
+		if errors.Is(err, artsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "art not found")
+		}
+		return utils.InternalError(ctx, "failed to create comment", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -309,7 +327,16 @@ func (s *Service) updateArtComment(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		return utils.InternalError(ctx, "failed to update comment")
+		if errors.Is(err, artsvc.ErrEmptyBody) {
+			return utils.BadRequest(ctx, err.Error())
+		}
+		if errors.Is(err, artsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "comment not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this comment")
+		}
+		return utils.InternalError(ctx, "failed to update comment", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -341,7 +368,7 @@ func (s *Service) listUserArt(ctx fiber.Ctx) error {
 
 	result, err := s.ArtService.ListByUser(ctx.Context(), userID, viewerID, page)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list user art")
+		return utils.InternalError(ctx, "failed to list user art", err)
 	}
 	return ctx.JSON(result)
 }
@@ -393,7 +420,7 @@ func (s *Service) createGallery(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrEmptyTitle) {
 			return utils.BadRequest(ctx, err.Error())
 		}
-		return utils.InternalError(ctx, "failed to create gallery")
+		return utils.InternalError(ctx, "failed to create gallery", err)
 	}
 	return ctx.Status(fiber.StatusCreated).JSON(fiber.Map{"id": id})
 }
@@ -402,7 +429,7 @@ func (s *Service) listAllGalleries(ctx fiber.Ctx) error {
 	corner := ctx.Query("corner")
 	galleries, err := s.ArtService.ListAllGalleries(ctx.Context(), corner)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list galleries")
+		return utils.InternalError(ctx, "failed to list galleries", err)
 	}
 	return ctx.JSON(galleries)
 }
@@ -423,7 +450,13 @@ func (s *Service) updateGallery(ctx fiber.Ctx) error {
 		if utils.MapFilterError(ctx, err) {
 			return nil
 		}
-		return utils.InternalError(ctx, "failed to update gallery")
+		if errors.Is(err, artsvc.ErrEmptyTitle) {
+			return utils.BadRequest(ctx, err.Error())
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot update this gallery")
+		}
+		return utils.InternalError(ctx, "failed to update gallery", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -447,7 +480,7 @@ func (s *Service) setGalleryCover(ctx fiber.Ctx) error {
 			return utils.NotFound(ctx, "gallery or art not found")
 		}
 
-		return utils.InternalError(ctx, "failed to set cover")
+		return utils.InternalError(ctx, "failed to set cover", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -460,7 +493,13 @@ func (s *Service) deleteGallery(ctx fiber.Ctx) error {
 
 	userID := utils.UserID(ctx)
 	if err := s.ArtService.DeleteGallery(ctx.Context(), id, userID); err != nil {
-		return utils.InternalError(ctx, "failed to delete gallery")
+		if errors.Is(err, artsvc.ErrNotFound) {
+			return utils.NotFound(ctx, "gallery not found")
+		}
+		if errors.Is(err, dao.ErrNotFound) {
+			return utils.Forbidden(ctx, "cannot delete this gallery")
+		}
+		return utils.InternalError(ctx, "failed to delete gallery", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }
@@ -479,7 +518,7 @@ func (s *Service) getGallery(ctx fiber.Ctx) error {
 		if errors.Is(err, artsvc.ErrNotFound) {
 			return utils.NotFound(ctx, "gallery not found")
 		}
-		return utils.InternalError(ctx, "failed to get gallery")
+		return utils.InternalError(ctx, "failed to get gallery", err)
 	}
 	return ctx.JSON(fiber.Map{
 		"gallery": gallery,
@@ -498,7 +537,7 @@ func (s *Service) listUserGalleries(ctx fiber.Ctx) error {
 
 	galleries, err := s.ArtService.ListUserGalleries(ctx.Context(), userID)
 	if err != nil {
-		return utils.InternalError(ctx, "failed to list galleries")
+		return utils.InternalError(ctx, "failed to list galleries", err)
 	}
 	return ctx.JSON(galleries)
 }
@@ -522,7 +561,7 @@ func (s *Service) setArtGallery(ctx fiber.Ctx) error {
 			return utils.NotFound(ctx, "art or gallery not found")
 		}
 
-		return utils.InternalError(ctx, "failed to set gallery")
+		return utils.InternalError(ctx, "failed to set gallery", err)
 	}
 	return ctx.SendStatus(fiber.StatusNoContent)
 }

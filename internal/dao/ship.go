@@ -148,7 +148,7 @@ func (r *shipDAO) UpdateDetails(ctx context.Context, s spec.ShipDetailsUpdate, t
 	}
 
 	if affected == 0 {
-		return fmt.Errorf("ship not found or not owned")
+		return fmt.Errorf("ship not found or not owned: %w", ErrNotFound)
 	}
 
 	return nil

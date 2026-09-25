@@ -2,6 +2,7 @@ package siteinfo
 
 import (
 	"context"
+	"fmt"
 	"maps"
 
 	"umineko_city_of_books/internal/auth"
@@ -17,7 +18,7 @@ import (
 
 type (
 	Service interface {
-		Get(ctx context.Context) dto.SiteInfoResponse
+		Get(ctx context.Context) (dto.SiteInfoResponse, error)
 	}
 
 	service struct {
@@ -48,16 +49,39 @@ func NewService(
 	}
 }
 
-func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
-	topDetectives, _ := s.mysterySvc.GetTopDetectiveIDs(ctx)
-	topGMs, _ := s.mysterySvc.GetTopGMIDs(ctx)
-	topChess, _ := s.gameRoomSvc.GetTopWinnerIDs(ctx, dto.GameTypeChess)
-	topCheckers, _ := s.gameRoomSvc.GetTopWinnerIDs(ctx, dto.GameTypeCheckers)
-	topOthello, _ := s.gameRoomSvc.GetTopWinnerIDs(ctx, dto.GameTypeOthello)
-	topMinesweeper, _ := s.gameRoomSvc.GetTopWinnerIDs(ctx, dto.GameTypeMinesweeper)
+func (s *service) Get(ctx context.Context) (dto.SiteInfoResponse, error) {
+	topDetectives, err := s.mysterySvc.GetTopDetectiveIDs(ctx)
+	if err != nil {
+		return dto.SiteInfoResponse{}, fmt.Errorf("top detectives: %w", err)
+	}
 
-	vanityRoles, _ := s.vanityRoleSvc.List(ctx)
-	manualAssignments, _ := s.vanityRoleSvc.GetAllAssignments(ctx)
+	topGMs, err := s.mysterySvc.GetTopGMIDs(ctx)
+	if err != nil {
+		return dto.SiteInfoResponse{}, fmt.Errorf("top game masters: %w", err)
+	}
+
+	topWinners := make(map[dto.GameType][]string, 4)
+	for _, gameType := range []dto.GameType{dto.GameTypeChess, dto.GameTypeCheckers, dto.GameTypeOthello, dto.GameTypeMinesweeper} {
+		winners, err := s.gameRoomSvc.GetTopWinnerIDs(ctx, gameType)
+		if err != nil {
+			return dto.SiteInfoResponse{}, fmt.Errorf("top %s winners: %w", gameType, err)
+		}
+		topWinners[gameType] = winners
+	}
+	topChess := topWinners[dto.GameTypeChess]
+	topCheckers := topWinners[dto.GameTypeCheckers]
+	topOthello := topWinners[dto.GameTypeOthello]
+	topMinesweeper := topWinners[dto.GameTypeMinesweeper]
+
+	vanityRoles, err := s.vanityRoleSvc.List(ctx)
+	if err != nil {
+		return dto.SiteInfoResponse{}, fmt.Errorf("vanity roles: %w", err)
+	}
+
+	manualAssignments, err := s.vanityRoleSvc.GetAllAssignments(ctx)
+	if err != nil {
+		return dto.SiteInfoResponse{}, fmt.Errorf("vanity role assignments: %w", err)
+	}
 
 	assignments := make(map[string][]string)
 	maps.Copy(assignments, manualAssignments)
@@ -81,7 +105,10 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 		assignments[uid] = append(assignments[uid], "system_top_minesweeper")
 	}
 	for _, spec := range secrets.WithVanityRole() {
-		holders, _ := s.userSecretSvc.GetUserIDsWithSecret(ctx, string(spec.ID))
+		holders, err := s.userSecretSvc.GetUserIDsWithSecret(ctx, string(spec.ID))
+		if err != nil {
+			return dto.SiteInfoResponse{}, fmt.Errorf("%s holders: %w", spec.ID, err)
+		}
 		for _, uid := range holders {
 			assignments[uid.String()] = append(assignments[uid.String()], spec.VanityRoleID)
 		}
@@ -101,7 +128,10 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 	listedSpecs := secrets.Listed()
 	listedSecrets := make([]dto.SiteInfoSecret, len(listedSpecs))
 	for i, spec := range listedSpecs {
-		solved, _ := s.userSecretSvc.IsSolvedByAnyone(ctx, string(spec.ID))
+		solved, err := s.userSecretSvc.IsSolvedByAnyone(ctx, string(spec.ID))
+		if err != nil {
+			return dto.SiteInfoResponse{}, fmt.Errorf("%s solved: %w", spec.ID, err)
+		}
 		pieces := make([]dto.SiteInfoSecretPiece, len(spec.Pieces))
 		for j, p := range spec.Pieces {
 			pieces[j] = dto.SiteInfoSecretPiece{
@@ -168,5 +198,5 @@ func (s *service) Get(ctx context.Context) dto.SiteInfoResponse {
 			SenderID:  s.settingsSvc.Get(ctx, config.SettingWebPushFirebaseSenderID),
 			AppID:     s.settingsSvc.Get(ctx, config.SettingWebPushFirebaseAppID),
 		},
-	}
+	}, nil
 }

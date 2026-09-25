@@ -2683,12 +2683,12 @@ func (_c *MockPostDAO_GetSharedContentFields_Call) RunAndReturn(run func(ctx con
 }
 
 // GetSharedContentPreviews provides a mock function for the type MockPostDAO
-func (_mock *MockPostDAO) GetSharedContentPreviews(refs []model.SharedContentRef, tx ...*sql.Tx) map[string]*dto.SharedContentPreview {
+func (_mock *MockPostDAO) GetSharedContentPreviews(ctx context.Context, refs []model.SharedContentRef, tx ...*sql.Tx) (map[string]*dto.SharedContentPreview, error) {
 	var tmpRet mock.Arguments
 	if len(tx) > 0 {
-		tmpRet = _mock.Called(refs, tx)
+		tmpRet = _mock.Called(ctx, refs, tx)
 	} else {
-		tmpRet = _mock.Called(refs)
+		tmpRet = _mock.Called(ctx, refs)
 	}
 	ret := tmpRet
 
@@ -2697,14 +2697,23 @@ func (_mock *MockPostDAO) GetSharedContentPreviews(refs []model.SharedContentRef
 	}
 
 	var r0 map[string]*dto.SharedContentPreview
-	if returnFunc, ok := ret.Get(0).(func([]model.SharedContentRef, ...*sql.Tx) map[string]*dto.SharedContentPreview); ok {
-		r0 = returnFunc(refs, tx...)
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []model.SharedContentRef, ...*sql.Tx) (map[string]*dto.SharedContentPreview, error)); ok {
+		return returnFunc(ctx, refs, tx...)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, []model.SharedContentRef, ...*sql.Tx) map[string]*dto.SharedContentPreview); ok {
+		r0 = returnFunc(ctx, refs, tx...)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]*dto.SharedContentPreview)
 		}
 	}
-	return r0
+	if returnFunc, ok := ret.Get(1).(func(context.Context, []model.SharedContentRef, ...*sql.Tx) error); ok {
+		r1 = returnFunc(ctx, refs, tx...)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
 }
 
 // MockPostDAO_GetSharedContentPreviews_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSharedContentPreviews'
@@ -2713,39 +2722,45 @@ type MockPostDAO_GetSharedContentPreviews_Call struct {
 }
 
 // GetSharedContentPreviews is a helper method to define mock.On call
+//   - ctx context.Context
 //   - refs []model.SharedContentRef
 //   - tx ...*sql.Tx
-func (_e *MockPostDAO_Expecter) GetSharedContentPreviews(refs any, tx ...any) *MockPostDAO_GetSharedContentPreviews_Call {
+func (_e *MockPostDAO_Expecter) GetSharedContentPreviews(ctx any, refs any, tx ...any) *MockPostDAO_GetSharedContentPreviews_Call {
 	return &MockPostDAO_GetSharedContentPreviews_Call{Call: _e.mock.On("GetSharedContentPreviews",
-		append([]any{refs}, tx...)...)}
+		append([]any{ctx, refs}, tx...)...)}
 }
 
-func (_c *MockPostDAO_GetSharedContentPreviews_Call) Run(run func(refs []model.SharedContentRef, tx ...*sql.Tx)) *MockPostDAO_GetSharedContentPreviews_Call {
+func (_c *MockPostDAO_GetSharedContentPreviews_Call) Run(run func(ctx context.Context, refs []model.SharedContentRef, tx ...*sql.Tx)) *MockPostDAO_GetSharedContentPreviews_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 []model.SharedContentRef
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].([]model.SharedContentRef)
+			arg0 = args[0].(context.Context)
 		}
-		var arg1 []*sql.Tx
+		var arg1 []model.SharedContentRef
+		if args[1] != nil {
+			arg1 = args[1].([]model.SharedContentRef)
+		}
+		var arg2 []*sql.Tx
 		var variadicArgs []*sql.Tx
-		if len(args) > 1 {
-			variadicArgs = args[1].([]*sql.Tx)
+		if len(args) > 2 {
+			variadicArgs = args[2].([]*sql.Tx)
 		}
-		arg1 = variadicArgs
+		arg2 = variadicArgs
 		run(
 			arg0,
-			arg1...,
+			arg1,
+			arg2...,
 		)
 	})
 	return _c
 }
 
-func (_c *MockPostDAO_GetSharedContentPreviews_Call) Return(stringToSharedContentPreview map[string]*dto.SharedContentPreview) *MockPostDAO_GetSharedContentPreviews_Call {
-	_c.Call.Return(stringToSharedContentPreview)
+func (_c *MockPostDAO_GetSharedContentPreviews_Call) Return(stringToSharedContentPreview map[string]*dto.SharedContentPreview, err error) *MockPostDAO_GetSharedContentPreviews_Call {
+	_c.Call.Return(stringToSharedContentPreview, err)
 	return _c
 }
 
-func (_c *MockPostDAO_GetSharedContentPreviews_Call) RunAndReturn(run func(refs []model.SharedContentRef, tx ...*sql.Tx) map[string]*dto.SharedContentPreview) *MockPostDAO_GetSharedContentPreviews_Call {
+func (_c *MockPostDAO_GetSharedContentPreviews_Call) RunAndReturn(run func(ctx context.Context, refs []model.SharedContentRef, tx ...*sql.Tx) (map[string]*dto.SharedContentPreview, error)) *MockPostDAO_GetSharedContentPreviews_Call {
 	_c.Call.Return(run)
 	return _c
 }

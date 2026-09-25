@@ -71,18 +71,45 @@ func TestCreateComment_EmptyBody(t *testing.T) {
 	require.ErrorIs(t, err, ErrEmptyBody)
 }
 
-func TestCreateComment_IsSolvedError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(false, errors.New("boom"))
+func TestCreateComment_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		solvedErr error
+		authorErr error
+		blockErr  error
+		wantErr   error
+	}{
+		{name: "a missing mystery is not found", solvedErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed solved check is surfaced, not reported as not found", solvedErr: boom, wantErr: boom},
+		{name: "a mystery whose author has gone is not found", authorErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed author lookup is surfaced, not reported as not found", authorErr: boom, wantErr: boom},
+		{name: "a failed block check refuses the comment", blockErr: boom, wantErr: boom},
+	}
 
-	// when
-	_, err := svc.CreateComment(context.Background(), mid, userID, dto.CreateCommentRequest{Body: "hi"})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			mid := uuid.New()
+			userID := uuid.New()
+			authorID := uuid.New()
+			m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, tc.solvedErr)
+			if tc.solvedErr == nil {
+				m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(authorID, tc.authorErr)
+			}
+			if tc.solvedErr == nil && tc.authorErr == nil {
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, tc.blockErr)
+			}
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			_, err := svc.CreateComment(context.Background(), mid, userID, dto.CreateCommentRequest{Body: "hi"})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			m.comments.AssertNotCalled(t, "CreateComment", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestCreateComment_NotSolved(t *testing.T) {
@@ -97,21 +124,6 @@ func TestCreateComment_NotSolved(t *testing.T) {
 
 	// then
 	require.ErrorIs(t, err, ErrNotSolved)
-}
-
-func TestCreateComment_AuthorError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	mid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().IsSolved(mock.Anything, mid).Return(true, nil)
-	m.repo.EXPECT().GetAuthorID(mock.Anything, mid).Return(uuid.Nil, errors.New("boom"))
-
-	// when
-	_, err := svc.CreateComment(context.Background(), mid, userID, dto.CreateCommentRequest{Body: "hi"})
-
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
 }
 
 func TestCreateComment_Blocked(t *testing.T) {
@@ -275,6 +287,35 @@ func TestUpdateComment_Admin(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestUpdateComment_AdminLookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		lookupErr error
+		wantErr   error
+	}{
+		{name: "a missing comment is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed comment lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			id := uuid.New()
+			userID := uuid.New()
+			m.authz.EXPECT().Can(mock.Anything, userID, authz.PermEditAnyComment).Return(true)
+			m.repo.EXPECT().GetCommentAuthorID(mock.Anything, id).Return(uuid.Nil, tc.lookupErr)
+
+			// when
+			err := svc.UpdateComment(context.Background(), id, userID, dto.UpdateCommentRequest{Body: "new"})
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}
+
 func TestUpdateComment_ModeratorEditingOwnComment_WritesNoAuditRow(t *testing.T) {
 	// given
 	svc, m := newTestService(t)
@@ -354,18 +395,39 @@ func TestDeleteComment_RepoError(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestLikeComment_AuthorLookupError(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	userID := uuid.New()
-	cid := uuid.New()
-	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(uuid.Nil, errors.New("boom"))
+func TestLikeComment_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name      string
+		lookupErr error
+		blockErr  error
+		wantErr   error
+	}{
+		{name: "a missing comment is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed comment lookup is surfaced", lookupErr: boom, wantErr: boom},
+		{name: "a failed block check refuses the like", blockErr: boom, wantErr: boom},
+	}
 
-	// when
-	err := svc.LikeComment(context.Background(), userID, cid)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			userID := uuid.New()
+			cid := uuid.New()
+			authorID := uuid.New()
+			m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(authorID, tc.lookupErr)
+			if tc.lookupErr == nil {
+				m.blockSvc.EXPECT().IsBlockedEither(mock.Anything, userID, authorID).Return(false, tc.blockErr)
+			}
 
-	// then
-	require.Error(t, err)
+			// when
+			err := svc.LikeComment(context.Background(), userID, cid)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+			m.repo.AssertNotCalled(t, "LikeComment", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestLikeComment_Blocked(t *testing.T) {
@@ -415,18 +477,37 @@ func TestUnlikeComment_Delegates(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestUploadCommentMedia_CommentNotFound(t *testing.T) {
-	// given
-	svc, m := newTestService(t)
-	cid := uuid.New()
-	userID := uuid.New()
-	m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(uuid.Nil, errors.New("boom"))
+func TestUploadCommentMedia_LookupFailures(t *testing.T) {
+	boom := errors.New("boom")
+	cases := []struct {
+		name        string
+		lookupErr   error
+		existingErr error
+		wantErr     error
+	}{
+		{name: "a missing comment is not found", lookupErr: errMissingRow, wantErr: ErrNotFound},
+		{name: "a failed comment lookup is surfaced, not reported as not found", lookupErr: boom, wantErr: boom},
+		{name: "a failed existing media lookup is surfaced instead of reusing a sort position", existingErr: boom, wantErr: boom},
+	}
 
-	// when
-	_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			svc, m := newTestService(t)
+			cid := uuid.New()
+			userID := uuid.New()
+			m.repo.EXPECT().GetCommentAuthorID(mock.Anything, cid).Return(userID, tc.lookupErr)
+			if tc.lookupErr == nil {
+				m.repo.EXPECT().GetCommentMedia(mock.Anything, cid).Return(nil, tc.existingErr)
+			}
 
-	// then
-	require.ErrorIs(t, err, ErrNotFound)
+			// when
+			_, err := svc.UploadCommentMedia(context.Background(), cid, userID, "image/png", "photo.png", 10, bytes.NewReader(nil), false)
+
+			// then
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
 }
 
 func TestUploadCommentMedia_NotAuthor(t *testing.T) {

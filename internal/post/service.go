@@ -221,28 +221,44 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 	}
 
 	if viewerHash != "" {
-		isNew, _ := s.postRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
+		isNew, err := s.postRepo.RecordView(ctx, spec.ViewRecord{TargetID: id, ViewerHash: viewerHash})
+		if err != nil {
+			logger.Ctx(ctx).Error().Err(err).Str("post_id", id.String()).Msg("record post view failed")
+		}
 		if isNew {
 			row.ViewCount++
 		}
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
 
-	postMedia, _ := s.postRepo.GetMedia(ctx, id)
-	comments, _, _ := s.postRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
+	postMedia, err := s.postRepo.GetMedia(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("post media: %w", err)
+	}
+
+	comments, _, err := s.postRepo.GetComments(ctx, spec.CommentQuery[uuid.UUID]{
 		TargetID:       id,
 		ViewerID:       viewerID,
 		Limit:          500,
 		Offset:         0,
 		ExcludeUserIDs: blockedIDs,
 	})
+	if err != nil {
+		return nil, fmt.Errorf("post comments: %w", err)
+	}
 
 	var commentIDs []uuid.UUID
 	for _, c := range comments {
 		commentIDs = append(commentIDs, c.ID)
 	}
-	commentMediaMap, _ := s.postRepo.GetCommentMediaBatch(ctx, commentIDs)
+	commentMediaMap, err := s.postRepo.GetCommentMediaBatch(ctx, commentIDs)
+	if err != nil {
+		return nil, fmt.Errorf("comment media: %w", err)
+	}
 
 	flatComments := make([]dto.PostCommentResponse, len(comments))
 	for i, c := range comments {
@@ -254,7 +270,11 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 		func(c *dto.PostCommentResponse, replies []dto.PostCommentResponse) { c.Replies = replies },
 	)
 
-	likeUsers, _ := s.postRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
+	likeUsers, err := s.postRepo.GetLikedBy(ctx, spec.LikedByQuery{TargetID: id, ExcludeUserIDs: blockedIDs})
+	if err != nil {
+		return nil, fmt.Errorf("post likes: %w", err)
+	}
+
 	likedBy := make([]dto.UserResponse, len(likeUsers))
 	for i, u := range likeUsers {
 		likedBy[i] = dto.UserResponse{
@@ -268,23 +288,36 @@ func (s *service) GetPost(ctx context.Context, id uuid.UUID, viewerID uuid.UUID,
 
 	viewerBlocked := false
 	if viewerID != uuid.Nil {
-		viewerBlocked, _ = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		viewerBlocked, err = s.blockSvc.IsBlockedEither(ctx, viewerID, row.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("block check: %w", err)
+		}
 	}
 
 	postResp := row.ToResponse(postMedia)
-	pollRow, pollOptions, votedOption, _ := s.postRepo.GetPollByPostID(ctx, spec.PostPollQuery{PostID: id, ViewerID: viewerID})
+	pollRow, pollOptions, votedOption, err := s.postRepo.GetPollByPostID(ctx, spec.PostPollQuery{PostID: id, ViewerID: viewerID})
+	if err != nil {
+		return nil, fmt.Errorf("post poll: %w", err)
+	}
 	if pollRow != nil {
 		postResp.Poll = pollRow.ToResponse(pollOptions, votedOption)
 	}
 
 	if row.SharedContentID != nil && row.SharedContentType != nil {
 		refs := []model.SharedContentRef{{ID: *row.SharedContentID, Type: *row.SharedContentType}}
-		previews := s.postRepo.GetSharedContentPreviews(refs)
+		previews, err := s.postRepo.GetSharedContentPreviews(ctx, refs)
+		if err != nil {
+			return nil, fmt.Errorf("shared content preview: %w", err)
+		}
+
 		key := *row.SharedContentType + ":" + *row.SharedContentID
 		postResp.SharedContent = previews[key]
 	}
 
-	shareCount, _ := s.postRepo.GetShareCount(ctx, model.SharedContentRef{ID: id.String(), Type: "post"})
+	shareCount, err := s.postRepo.GetShareCount(ctx, model.SharedContentRef{ID: id.String(), Type: "post"})
+	if err != nil {
+		return nil, fmt.Errorf("post share count: %w", err)
+	}
 	postResp.ShareCount = shareCount
 
 	return &dto.PostDetailResponse{
@@ -394,11 +427,13 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 		corner = "general"
 	}
 
-	blockedIDs, _ := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	blockedIDs, err := s.blockSvc.GetBlockedIDs(ctx, viewerID)
+	if err != nil {
+		return nil, fmt.Errorf("blocked users: %w", err)
+	}
 
 	var rows []model.PostRow
 	var total int
-	var err error
 
 	if tab == "following" && viewerID != uuid.Nil {
 		rows, total, err = s.postRepo.ListByFollowing(ctx, spec.PostFollowingFeedQuery{
@@ -427,7 +462,7 @@ func (s *service) ListFeed(ctx context.Context, tab string, viewerID uuid.UUID, 
 		return nil, err
 	}
 
-	return s.buildPostList(ctx, rows, total, page, viewerID), nil
+	return s.buildPostList(ctx, rows, total, page, viewerID)
 }
 
 func (s *service) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, viewerID uuid.UUID, page bounds.Page) (*dto.PostListResponse, error) {
@@ -440,10 +475,11 @@ func (s *service) ListUserPosts(ctx context.Context, targetUserID uuid.UUID, vie
 	if err != nil {
 		return nil, err
 	}
-	return s.buildPostList(ctx, rows, total, page, viewerID), nil
+
+	return s.buildPostList(ctx, rows, total, page, viewerID)
 }
 
-func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total int, page bounds.Page, viewerID uuid.UUID) *dto.PostListResponse {
+func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total int, page bounds.Page, viewerID uuid.UUID) (*dto.PostListResponse, error) {
 	postIDs := make([]uuid.UUID, len(rows))
 	postIDStrs := make([]string, len(rows))
 	for i, r := range rows {
@@ -451,8 +487,15 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 		postIDStrs[i] = r.ID.String()
 	}
 
-	mediaMap, _ := s.postRepo.GetMediaBatch(ctx, postIDs)
-	pollMap, pollOptionMap, pollVoteMap, _ := s.postRepo.GetPollsByPostIDs(ctx, spec.PostPollBatchQuery{PostIDs: postIDs, ViewerID: viewerID})
+	mediaMap, err := s.postRepo.GetMediaBatch(ctx, postIDs)
+	if err != nil {
+		return nil, fmt.Errorf("post media: %w", err)
+	}
+
+	pollMap, pollOptionMap, pollVoteMap, err := s.postRepo.GetPollsByPostIDs(ctx, spec.PostPollBatchQuery{PostIDs: postIDs, ViewerID: viewerID})
+	if err != nil {
+		return nil, fmt.Errorf("post polls: %w", err)
+	}
 
 	var sharedRefs []model.SharedContentRef
 	for _, r := range rows {
@@ -463,9 +506,15 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 			})
 		}
 	}
-	sharedPreviews := s.postRepo.GetSharedContentPreviews(sharedRefs)
+	sharedPreviews, err := s.postRepo.GetSharedContentPreviews(ctx, sharedRefs)
+	if err != nil {
+		return nil, fmt.Errorf("shared content previews: %w", err)
+	}
 
-	postShareCounts, _ := s.postRepo.GetShareCountsBatch(ctx, spec.SharedContentBatchRef{ContentIDs: postIDStrs, ContentType: "post"})
+	postShareCounts, err := s.postRepo.GetShareCountsBatch(ctx, spec.SharedContentBatchRef{ContentIDs: postIDStrs, ContentType: "post"})
+	if err != nil {
+		return nil, fmt.Errorf("post share counts: %w", err)
+	}
 
 	posts := make([]dto.PostResponse, len(rows))
 	for i, r := range rows {
@@ -487,7 +536,7 @@ func (s *service) buildPostList(ctx context.Context, rows []model.PostRow, total
 		Total:  total,
 		Limit:  page.Limit(),
 		Offset: page.Offset(),
-	}
+	}, nil
 }
 
 func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
@@ -499,7 +548,7 @@ func (s *service) UploadPostMedia(ctx context.Context, postID uuid.UUID, userID 
 		return nil, err
 	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the post author")
+		return nil, ErrNotAuthor
 	}
 
 	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
@@ -528,7 +577,7 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 		return err
 	}
 	if authorID != userID {
-		return fmt.Errorf("not the post author")
+		return ErrNotAuthor
 	}
 
 	mediaURL, err := s.postRepo.DeleteMedia(ctx, spec.MediaDeletion{ID: mediaID, TargetID: postID})
@@ -542,11 +591,14 @@ func (s *service) DeletePostMedia(ctx context.Context, postID uuid.UUID, mediaID
 
 func (s *service) UploadCommentMedia(ctx context.Context, commentID uuid.UUID, userID uuid.UUID, contentType string, filename string, fileSize int64, reader io.Reader, isSpoiler bool) (*dto.PostMediaResponse, error) {
 	authorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
-	if err != nil {
+	if errors.Is(err, dao.ErrNotFound) {
 		return nil, ErrNotFound
 	}
+	if err != nil {
+		return nil, err
+	}
 	if authorID != userID {
-		return nil, fmt.Errorf("not the comment author")
+		return nil, authz.ErrNotCommentAuthor
 	}
 
 	return s.uploader.SaveAndRecord(ctx, "posts", contentType, filename, fileSize, reader, isSpoiler,
@@ -588,10 +640,18 @@ func (s *service) broadcastLikeUpdate(postID uuid.UUID, delta int) {
 
 func (s *service) LikePost(ctx context.Context, userID uuid.UUID, postID uuid.UUID) error {
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -638,10 +698,18 @@ func (s *service) CreateComment(ctx context.Context, postID uuid.UUID, userID uu
 	}
 
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return uuid.Nil, ErrNotFound
+	}
 	if err != nil {
 		return uuid.Nil, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return uuid.Nil, block.ErrUserBlocked
 	}
 
@@ -725,6 +793,9 @@ func (s *service) UpdateComment(ctx context.Context, id uuid.UUID, userID uuid.U
 	}
 
 	authorID, err := s.postRepo.GetCommentAuthorID(ctx, id)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
@@ -795,10 +866,18 @@ func (s *service) DeleteComment(ctx context.Context, id uuid.UUID, userID uuid.U
 
 func (s *service) LikeComment(ctx context.Context, userID uuid.UUID, commentID uuid.UUID) error {
 	commentAuthorID, err := s.postRepo.GetCommentAuthorID(ctx, commentID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return ErrNotFound
+	}
 	if err != nil {
 		return err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, commentAuthorID)
+	if err != nil {
+		return fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return block.ErrUserBlocked
 	}
 
@@ -905,10 +984,18 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 	}
 
 	authorID, err := s.postRepo.GetPostAuthorID(ctx, postID)
+	if errors.Is(err, dao.ErrNotFound) {
+		return nil, ErrNotFound
+	}
 	if err != nil {
 		return nil, err
 	}
-	if blocked, _ := s.blockSvc.IsBlockedEither(ctx, userID, authorID); blocked {
+
+	blocked, err := s.blockSvc.IsBlockedEither(ctx, userID, authorID)
+	if err != nil {
+		return nil, fmt.Errorf("block check: %w", err)
+	}
+	if blocked {
 		return nil, block.ErrUserBlocked
 	}
 
@@ -929,9 +1016,13 @@ func (s *service) VotePoll(ctx context.Context, postID uuid.UUID, userID uuid.UU
 		return nil, ErrInvalidOption
 	}
 
-	pollID, _ := uuid.Parse(pollRow.ID)
+	pollID, err := uuid.Parse(pollRow.ID)
+	if err != nil {
+		return nil, fmt.Errorf("poll id %q: %w", pollRow.ID, err)
+	}
+
 	if err := s.postRepo.VotePoll(ctx, spec.PostPollVote{PollID: pollID, UserID: userID, OptionID: optionID}); err != nil {
-		if strings.Contains(err.Error(), "already voted") {
+		if errors.Is(err, dao.ErrAlreadyVoted) {
 			return nil, ErrAlreadyVoted
 		}
 		return nil, err
@@ -985,7 +1076,7 @@ func validatePollInput(poll *dto.CreatePollInput) error {
 
 func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID, status string) error {
 	if !s.authz.Can(ctx, userID, authz.PermResolveSuggestion) {
-		return fmt.Errorf("not authorised")
+		return ErrNotAuthorised
 	}
 	if status != "done" && status != "archived" {
 		status = "done"
@@ -998,7 +1089,12 @@ func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userI
 		go func() {
 			bgCtx := context.Background()
 			authorID, err := s.postRepo.GetPostAuthorID(bgCtx, postID)
-			if err != nil || authorID == userID {
+			if err != nil {
+				logger.Ctx(bgCtx).Warn().Err(err).Str("post_id", postID.String()).Msg("suggestion resolved notification skipped, author lookup failed")
+
+				return
+			}
+			if authorID == userID {
 				return
 			}
 			_ = s.notifService.Notify(bgCtx, dto.NotifyParams{
@@ -1019,7 +1115,7 @@ func (s *service) ResolveSuggestion(ctx context.Context, postID uuid.UUID, userI
 
 func (s *service) UnresolveSuggestion(ctx context.Context, postID uuid.UUID, userID uuid.UUID) error {
 	if !s.authz.Can(ctx, userID, authz.PermResolveSuggestion) {
-		return fmt.Errorf("not authorised")
+		return ErrNotAuthorised
 	}
 	return s.postRepo.UnresolveSuggestion(ctx, postID)
 }

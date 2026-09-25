@@ -213,7 +213,11 @@ func (r *userRepository) UpdateMysteryScoreAdjustment(ctx context.Context, s spe
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.MysteryTopDetectives.Key())
+	if err := r.cache.Del(ctx, cache.MysteryTopDetectives.Key()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to invalidate the detective leaderboard after a score adjustment")
+	}
+
+	return nil
 }
 
 func (r *userRepository) UpdateGMScoreAdjustment(ctx context.Context, s spec.UserGMScoreUpdate, tx ...*sql.Tx) error {
@@ -221,7 +225,11 @@ func (r *userRepository) UpdateGMScoreAdjustment(ctx context.Context, s spec.Use
 		return err
 	}
 
-	return r.cache.Del(ctx, cache.MysteryTopGMs.Key())
+	if err := r.cache.Del(ctx, cache.MysteryTopGMs.Key()); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Str("user_id", s.UserID.String()).Msg("failed to invalidate the game master leaderboard after a score adjustment")
+	}
+
+	return nil
 }
 
 func (r *userRepository) DeleteAccount(ctx context.Context, userID uuid.UUID, tx ...*sql.Tx) error {
